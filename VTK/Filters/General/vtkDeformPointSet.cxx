@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDeformPointSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDeformPointSet.h"
 
 #include "vtkCellArray.h"
@@ -26,6 +14,7 @@
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDeformPointSet);
 
 //------------------------------------------------------------------------------
@@ -122,7 +111,7 @@ int vtkDeformPointSet::RequestData(vtkInformation* vtkNotUsed(request),
   output->SetPoints(outPts);
 
   // Start by determining whether weights must be computed or not
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = (numberOfPointSetPoints / 10 + 1);
   int workLoad = 1;
   double x[3], *weights;
@@ -146,7 +135,7 @@ int vtkDeformPointSet::RequestData(vtkInformation* vtkNotUsed(request),
       {
         vtkDebugMacro(<< "Processing #" << ptId);
         this->UpdateProgress(ptId / (workLoad * numberOfPointSetPoints));
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
 
       inPts->GetPoint(ptId, x);
@@ -171,7 +160,7 @@ int vtkDeformPointSet::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkDebugMacro(<< "Processing #" << ptId);
       this->UpdateProgress(ptId / (workLoad * numberOfPointSetPoints));
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     weights = this->Weights->GetPointer(ptId * numberOfControlMeshPoints);
@@ -203,3 +192,4 @@ void vtkDeformPointSet::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Initialize Weights: " << (this->InitializeWeights ? "true" : "false") << "\n";
 }
+VTK_ABI_NAMESPACE_END

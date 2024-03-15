@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockMergeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiBlockMergeFilter.h"
 
 #include "vtkCellData.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMultiBlockMergeFilter);
 //------------------------------------------------------------------------------
 vtkMultiBlockMergeFilter::vtkMultiBlockMergeFilter() = default;
@@ -52,6 +41,10 @@ int vtkMultiBlockMergeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   int first = 1;
   for (int idx = 0; idx < numInputs; ++idx)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkMultiBlockDataSet* input = nullptr;
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(idx);
     if (inInfo)
@@ -64,7 +57,7 @@ int vtkMultiBlockMergeFilter::RequestData(vtkInformation* vtkNotUsed(request),
       {
         // shallow copy first input to output to start off with
         // cerr << "Copy first input" << endl;
-        output->ShallowCopy(vtkMultiBlockDataSet::SafeDownCast(input));
+        output->CompositeShallowCopy(vtkMultiBlockDataSet::SafeDownCast(input));
         first = 0;
       }
       else
@@ -203,3 +196,4 @@ void vtkMultiBlockMergeFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

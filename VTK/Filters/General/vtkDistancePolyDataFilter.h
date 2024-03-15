@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDistancePolyDataFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDistancePolyDataFilter
  *
@@ -27,6 +15,9 @@
  * computed by calling SignedDistanceOff(). The signed distance field
  * may be negated by calling NegateDistanceOn();
  *
+ * Directions can be computed in conjunction with distances by calling
+ * ComputeDirectionsOn().
+ *
  * This code was contributed in the VTK Journal paper:
  * "Boolean Operations on Surfaces in VTK Without External Libraries"
  * by Cory Quammen, Chris Weigle C., Russ Taylor
@@ -40,6 +31,7 @@
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkDistancePolyDataFilter : public vtkPolyDataAlgorithm
 {
 public:
@@ -98,6 +90,16 @@ public:
   vtkBooleanMacro(ComputeCellCenterDistance, vtkTypeBool);
   ///@}
 
+  ///@{
+  /**
+   * Enable/disable computation of unit directions for the distances.
+   * Defaults to off for backwards compatibility.
+   */
+  vtkSetMacro(ComputeDirection, vtkTypeBool);
+  vtkGetMacro(ComputeDirection, vtkTypeBool);
+  vtkBooleanMacro(ComputeDirection, vtkTypeBool);
+  ///@}
+
 protected:
   vtkDistancePolyDataFilter();
   ~vtkDistancePolyDataFilter() override;
@@ -113,6 +115,8 @@ private:
   vtkTypeBool NegateDistance;
   vtkTypeBool ComputeSecondDistance;
   vtkTypeBool ComputeCellCenterDistance;
+  vtkTypeBool ComputeDirection;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

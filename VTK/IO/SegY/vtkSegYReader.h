@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSegYReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkSegYReader_h
 #define vtkSegYReader_h
@@ -21,6 +9,7 @@
 #include <vtkIOSegYModule.h> // For export macro
 
 // Forward declarations
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkSegYReaderInternal;
 
@@ -141,7 +130,6 @@ protected:
   int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
-protected:
   vtkSegYReaderInternal* Reader;
   char* FileName;
   bool Is3D;
@@ -166,4 +154,5 @@ private:
   void operator=(const vtkSegYReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkSegYReader_h

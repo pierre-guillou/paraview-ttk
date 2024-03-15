@@ -1,22 +1,10 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeometrySliceRepresentation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGeometrySliceRepresentation.h"
 
 #include "vtkActor.h"
 #include "vtkAlgorithmOutput.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkDataArray.h"
 #include "vtkDataObject.h"
 #include "vtkDoubleArray.h"
@@ -217,7 +205,7 @@ void vtkGeometrySliceRepresentation::SetupDefaults()
 {
   vtkMath::UninitializeBounds(this->Internals->OriginalDataBounds);
   this->Superclass::SetupDefaults();
-  vtkCompositePolyDataMapper2* mapper = vtkCompositePolyDataMapper2::SafeDownCast(this->Mapper);
+  vtkCompositePolyDataMapper* mapper = vtkCompositePolyDataMapper::SafeDownCast(this->Mapper);
   mapper->SetPointIdArrayName("vtkSliceOriginalPointIds");
   mapper->SetCellIdArrayName("vtkSliceOriginalCellIds");
   mapper->SetCompositeIdArrayName("vtkSliceCompositeIndex");

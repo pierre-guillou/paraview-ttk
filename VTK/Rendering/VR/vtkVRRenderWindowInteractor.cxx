@@ -1,26 +1,15 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVRRenderWindowInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRRenderWindowInteractor.h"
 
 #include "vtkMatrix4x4.h"
 #include "vtkRendererCollection.h"
 #include "vtkVRRenderWindow.h"
 
-void (*vtkVRRenderWindowInteractor::ClassExitMethod)(void*) = (void (*)(void*)) nullptr;
-void* vtkVRRenderWindowInteractor::ClassExitMethodArg = (void*)nullptr;
-void (*vtkVRRenderWindowInteractor::ClassExitMethodArgDelete)(void*) = (void (*)(void*)) nullptr;
+VTK_ABI_NAMESPACE_BEGIN
+void (*vtkVRRenderWindowInteractor::ClassExitMethod)(void*) = nullptr;
+void* vtkVRRenderWindowInteractor::ClassExitMethodArg = nullptr;
+void (*vtkVRRenderWindowInteractor::ClassExitMethodArgDelete)(void*) = nullptr;
 
 //------------------------------------------------------------------------------
 vtkVRRenderWindowInteractor::vtkVRRenderWindowInteractor()
@@ -39,6 +28,7 @@ void vtkVRRenderWindowInteractor::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "ActionSetName: " << this->ActionSetName << endl;
   os << indent << "ActionManifestFileName: " << this->ActionManifestFileName << endl;
+  os << indent << "ActionManifestDirectory: " << this->ActionManifestDirectory << endl;
 }
 
 //------------------------------------------------------------------------------
@@ -326,7 +316,7 @@ void vtkVRRenderWindowInteractor::StartEventLoop()
 }
 
 //------------------------------------------------------------------------------
-void vtkVRRenderWindowInteractor::HandleGripEvents(vtkEventData* ed)
+void vtkVRRenderWindowInteractor::HandleComplexGestureEvents(vtkEventData* ed)
 {
   vtkEventDataDevice3D* edata = ed->GetAsEventDataDevice3D();
   if (!edata)
@@ -349,7 +339,7 @@ void vtkVRRenderWindowInteractor::HandleGripEvents(vtkEventData* ed)
     vtkVRRenderWindow* renWin = vtkVRRenderWindow::SafeDownCast(this->RenderWindow);
     renWin->GetPhysicalToWorldMatrix(this->StartingPhysicalToWorldMatrix);
 
-    // Both controllers have the grip down, start multitouch
+    // Both controllers have a button down, start complex gesture handling
     if (this->DeviceInputDownCount[static_cast<int>(vtkEventDataDevice::LeftController)] &&
       this->DeviceInputDownCount[static_cast<int>(vtkEventDataDevice::RightController)])
     {
@@ -363,24 +353,21 @@ void vtkVRRenderWindowInteractor::HandleGripEvents(vtkEventData* ed)
   {
     this->DeviceInputDownCount[this->PointerIndex] = 0;
 
-    if (edata->GetInput() == vtkEventDataDeviceInput::Grip)
+    if (this->CurrentGesture == vtkCommand::PinchEvent)
     {
-      if (this->CurrentGesture == vtkCommand::PinchEvent)
-      {
-        this->EndPinchEvent();
-      }
-      if (this->CurrentGesture == vtkCommand::PanEvent)
-      {
-        this->EndPanEvent();
-      }
-      if (this->CurrentGesture == vtkCommand::RotateEvent)
-      {
-        this->EndRotateEvent();
-      }
-      this->CurrentGesture = vtkCommand::NoEvent;
-
-      return;
+      this->EndPinchEvent();
     }
+    if (this->CurrentGesture == vtkCommand::PanEvent)
+    {
+      this->EndPanEvent();
+    }
+    if (this->CurrentGesture == vtkCommand::RotateEvent)
+    {
+      this->EndRotateEvent();
+    }
+    this->CurrentGesture = vtkCommand::NoEvent;
+
+    return;
   }
 }
 
@@ -518,3 +505,4 @@ void vtkVRRenderWindowInteractor::RecognizeComplexGesture(vtkEventDataDevice3D*)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -127,6 +127,7 @@ set(python_files
   vtkmodules/test/BlackBox.py
   vtkmodules/test/ErrorObserver.py
   vtkmodules/test/Testing.py
+  vtkmodules/test/rtImageTest.py
   vtkmodules/test/__init__.py
   vtkmodules/tk/__init__.py
   vtkmodules/tk/vtkLoadPythonTkWidgets.py
@@ -139,6 +140,7 @@ set(python_files
   vtkmodules/util/keys.py
   vtkmodules/util/misc.py
   vtkmodules/util/numpy_support.py
+  vtkmodules/util/pickle_support.py
   vtkmodules/util/vtkAlgorithm.py
   vtkmodules/util/vtkConstants.py
   vtkmodules/util/vtkImageExportToArray.py

@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRCamera.h"
 #include "vtkMatrix4x4.h"
 #include "vtkVRInteractorStyle.h"
@@ -18,6 +7,7 @@
 #include "vtkVRRenderWindowInteractor.h"
 #include "vtkVectorOperators.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkVRCamera::vtkVRCamera() = default;
 vtkVRCamera::~vtkVRCamera() = default;
 
@@ -174,3 +164,4 @@ void vtkVRCamera::SetCameraFromDeviceToWorldMatrix(vtkMatrix4x4* mat, double dis
   this->SetFocalPoint(
     ele[3] - distance * ele[2], ele[7] - distance * ele[6], ele[11] - distance * ele[10]);
 }
+VTK_ABI_NAMESPACE_END

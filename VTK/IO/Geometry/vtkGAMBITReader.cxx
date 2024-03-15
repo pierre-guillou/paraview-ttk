@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGAMBITReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Thanks to Jean M. Favre (CSCS, Swiss Center for Scientific Computing) who
 // developed this class.
 // Please address all comments to Jean Favre (jfavre at cscs.ch)
@@ -31,6 +19,7 @@
 #include "vtksys/Encoding.hxx"
 #include "vtksys/FStream.hxx"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGAMBITReader);
 
 //------------------------------------------------------------------------------
@@ -492,3 +481,4 @@ void vtkGAMBITReader::ReadXYZCoords(vtkDoubleArray* coords)
     vtkErrorMacro("Error reading ENDOFSECTION tag at end of coordinates section");
   }
 }
+VTK_ABI_NAMESPACE_END

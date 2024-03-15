@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGenericCutter.h"
 
 #include "vtkCellArray.h"
@@ -40,6 +28,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericCutter);
 vtkCxxSetObjectMacro(vtkGenericCutter, CutFunction, vtkImplicitFunction);
 vtkCxxSetObjectMacro(vtkGenericCutter, Locator, vtkIncrementalPointLocator);
@@ -297,7 +286,7 @@ int vtkGenericCutter::RequestData(vtkInformation* vtkNotUsed(request),
 
   vtkIdType updateCount = numCells / 20 + 1; // update roughly every 5%
   vtkIdType count = 0;
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   input->GetTessellator()->InitErrorMetrics(input);
 
@@ -306,7 +295,7 @@ int vtkGenericCutter::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(count % updateCount))
     {
       this->UpdateProgress(static_cast<double>(count) / numCells);
-      abortExecute = this->GetAbortExecute();
+      abortExecute = this->CheckAbort();
     }
 
     cell = cellIt->GetCell();
@@ -395,3 +384,4 @@ int vtkGenericCutter::FillInputPortInformation(int port, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGenericDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

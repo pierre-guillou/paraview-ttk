@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointCloudFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkPointCloudFilter.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -33,6 +21,7 @@
 
 //------------------------------------------------------------------------------
 // Helper classes to support efficient computing, and threaded execution.
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -310,3 +299,4 @@ void vtkPointCloudFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Generate Vertices: " << (this->GenerateVertices ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMExtractWriterProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMExtractWriterProxy
  * @brief abstract class defining extract writer proxy API
@@ -52,14 +40,14 @@ public:
    */
   virtual bool IsExtracting(vtkSMProxy* proxy) = 0;
 
-  //@{
+  ///@{
   /**
    * This is convenience method that gets called by vtkSMExtractsController to set the
    * extract writer to extract the given proxy.
    */
   virtual void SetInput(vtkSMProxy* proxy) = 0;
   virtual vtkSMProxy* GetInput() = 0;
-  //@}
+  ///@}
 protected:
   vtkSMExtractWriterProxy();
   ~vtkSMExtractWriterProxy() override;

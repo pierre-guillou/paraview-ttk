@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDeserializerProtobuf.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMDeserializerProtobuf
  * @brief   deserializes proxies from their Protobuf states.
@@ -39,13 +27,13 @@ public:
   vtkTypeMacro(vtkSMDeserializerProtobuf, vtkSMDeserializer);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the session.
    */
   vtkGetObjectMacro(StateLocator, vtkSMStateLocator);
   virtual void SetStateLocator(vtkSMStateLocator*);
-  //@}
+  ///@}
 
 protected:
   vtkSMDeserializerProtobuf();

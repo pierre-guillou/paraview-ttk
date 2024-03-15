@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCrashRecoveryBehavior.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqCrashRecoveryBehavior.h"
 
 #include "pqActiveObjects.h"
@@ -64,15 +36,15 @@ pqCrashRecoveryBehavior::pqCrashRecoveryBehavior(QObject* parentObject)
   bool recoveryEnabled = settings->value("GeneralSettings.CrashRecovery", false).toBool();
   if (recoveryEnabled && QFile::exists(CrashRecoveryStateFile))
   {
-    int recover = QMessageBox::question(pqCoreUtilities::mainWidget(), "ParaView",
-      "A crash recovery state file has been found.\n"
-      "Would you like to save it?",
+    int recover = QMessageBox::question(pqCoreUtilities::mainWidget(), tr("ParaView"),
+      tr("A crash recovery state file has been found.\n"
+         "Would you like to save it?"),
       QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (recover == QMessageBox::Yes)
     {
-      QString fileExt = tr("ParaView state file (*.pvsm);;All files (*)");
+      QString fileExt = tr("ParaView state file") + " (*.pvsm);;" + tr("All files") + " (*)";
       QString path = QFileDialog::getSaveFileName(
-        pqCoreUtilities::mainWidget(), "Save crash state file", QDir::currentPath(), fileExt);
+        pqCoreUtilities::mainWidget(), tr("Save crash state file"), QDir::currentPath(), fileExt);
       if (!path.isNull())
       {
         if (!path.endsWith(".pvsm"))
@@ -156,8 +128,8 @@ void pqCrashRecoveryBehavior::onServerDisconnect()
          "The application will now quit since it may be in an unrecoverable state.\n\n"
          "Would you like to save a ParaView state file?"),
       QMessageBox::NoButton, pqCoreUtilities::mainWidget());
-    mbox.addButton(QMessageBox::Yes)->setText("Save state and exit");
-    mbox.addButton(QMessageBox::No)->setText("Exit without saving state");
+    mbox.addButton(QMessageBox::Yes)->setText(tr("Save state and exit"));
+    mbox.addButton(QMessageBox::No)->setText(tr("Exit without saving state"));
     mbox.setDefaultButton(QMessageBox::Yes);
     if (mbox.exec() == QMessageBox::Yes)
     {

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMinMax.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMinMax
  * @brief   Finds the min, max, or sum of all of its input data
@@ -62,15 +51,15 @@ public:
   vtkGetMacro(Operation, int);
   void SetOperation(const char* op);
 
-  //@{
+  ///@{
   /**
    * A diagnostic that should be zero.
    * One indicates that some array didn't match up exactly.
    */
   vtkGetMacro(MismatchOccurred, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Contains a flag for each component of each (Point or Cell) array
    * that indicates if any of the results were never initialized.
@@ -78,7 +67,7 @@ public:
   vtkGetStringMacro(FirstPasses);
   void FlagsForPoints();
   void FlagsForCells();
-  //@}
+  ///@}
 
   // temp for debugging
   const char* Name;

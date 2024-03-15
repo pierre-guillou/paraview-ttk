@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenXRRenderWindowInteractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenXRRenderWindowInteractor
  * @brief   implements OpenXR specific functions
@@ -33,6 +21,7 @@
 
 typedef vtkOpenXRManager::Action_t Action_t;
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGOPENXR_EXPORT vtkOpenXRRenderWindowInteractor : public vtkVRRenderWindowInteractor
 {
 public:
@@ -51,7 +40,7 @@ public:
    * and the hand \p hand or return nullptr if "handpose"
    * does not exist in the map.
    */
-  XrPosef* GetHandPose(const uint32_t hand);
+  XrPosef* GetHandPose(uint32_t hand);
 
   ///@{
   /**
@@ -74,11 +63,17 @@ public:
    * \p action to emit vibration on \p hand to emit on \p amplitude 0.0 to 1.0.
    * \p duration nanoseconds, default 25ms \p frequency (hz)
    */
-  bool ApplyVibration(const std::string& actionName, const int hand, const float amplitude = 0.5f,
-    const float duration = 25000000.0f, const float frequency = XR_FREQUENCY_UNSPECIFIED);
+  bool ApplyVibration(const std::string& actionName, int hand, float amplitude = 0.5f,
+    float duration = 25000000.0f, float frequency = XR_FREQUENCY_UNSPECIFIED);
 
 protected:
+  /**
+   * Create and set the openxr style on this
+   * Set ActionManifestFileName to vtk_openxr_actions.json
+   * Set ActionSetName to vtk-actions
+   */
   vtkOpenXRRenderWindowInteractor();
+
   ~vtkOpenXRRenderWindowInteractor() override;
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
@@ -88,7 +83,7 @@ protected:
   void ProcessXrEvents();
 
   /**
-   * Update tha action states using the OpenXRManager
+   * Update the action states using the OpenXRManager
    * and handle all actions.
    */
   void PollXrActions();
@@ -100,10 +95,10 @@ protected:
   bool LoadDefaultBinding(const std::string& bindingFilename);
   ActionData* GetActionDataFromName(const std::string& actionName);
 
-  void HandleAction(const ActionData& actionData, const int hand, vtkEventDataDevice3D* ed);
-  void HandleBooleanAction(const ActionData& actionData, const int hand, vtkEventDataDevice3D* ed);
-  void HandlePoseAction(const ActionData& actionData, const int hand, vtkEventDataDevice3D* ed);
-  void HandleVector2fAction(const ActionData& actionData, const int hand, vtkEventDataDevice3D* ed);
+  void HandleAction(const ActionData& actionData, int hand, vtkEventDataDevice3D* ed);
+  void HandleBooleanAction(const ActionData& actionData, int hand, vtkEventDataDevice3D* ed);
+  void HandlePoseAction(const ActionData& actionData, int hand, vtkEventDataDevice3D* ed);
+  void HandleVector2fAction(const ActionData& actionData, int hand, vtkEventDataDevice3D* ed);
   void ApplyAction(const ActionData& actionData, vtkEventDataDevice3D* ed);
 
   struct ActionData
@@ -131,5 +126,6 @@ private:
   void operator=(const vtkOpenXRRenderWindowInteractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkOpenXRRenderWindowInteractor.h

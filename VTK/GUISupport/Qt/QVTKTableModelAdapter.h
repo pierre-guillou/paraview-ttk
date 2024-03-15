@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKTableModelAdapter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class QVTKTableModelAdapter
  * @brief An adapter to create a vtkTable from an QAbstractItemModel.
@@ -41,6 +29,7 @@
 #include "vtkNew.h"   // For vtkNew
 #include "vtkTable.h" // For vtkTable
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKGUISUPPORTQT_EXPORT QVTKTableModelAdapter : public QObject
 {
   Q_OBJECT
@@ -73,7 +62,7 @@ Q_SIGNALS:
 
 protected:
   /**
-   * The default method for retrieving data for a tabel entry from the item model.
+   * The default method for retrieving data for a table entry from the item model.
    */
   virtual QVariant modelData(int row, int col);
 
@@ -103,7 +92,7 @@ protected:
   QPointer<QAbstractItemModel> ItemModel;
   vtkNew<vtkTable> Table;
 
-protected Q_SLOTS:
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   virtual void onModified();
   virtual void onModelReset();
   virtual void onDataChanged(
@@ -121,4 +110,5 @@ protected Q_SLOTS:
     const QModelIndex& parent, int start, int end, const QModelIndex& destination, int column);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

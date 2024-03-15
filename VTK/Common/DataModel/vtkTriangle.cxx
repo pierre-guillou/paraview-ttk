@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTriangle.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTriangle.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkDoubleArray.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
 #include "vtkMath.h"
@@ -28,8 +17,10 @@
 
 #include <cassert>
 #include <limits>
+#include <numeric> //std::iota
 #include <utility>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTriangle);
 
 //------------------------------------------------------------------------------
@@ -115,22 +106,32 @@ int vtkTriangle::EvaluatePosition(const double x[3], double closestPoint[3], int
   double pcoords[3], double& dist2, double weights[])
 {
   int i, j;
-  double pt1[3], pt2[3], pt3[3], n[3], fabsn;
+  const double *pt1, *pt2, *pt3, *closest;
+  double n[3], fabsn;
   double rhs[2], c1[2], c2[2];
   double det;
   int idx = 0, indices[2];
   double dist2Point, dist2Line1, dist2Line2;
-  double *closest, closestPoint1[3], closestPoint2[3], cp[3];
+  double closestPoint1[3], closestPoint2[3], cp[3];
 
   subId = 0;
   pcoords[2] = 0.0;
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   // Get normal for triangle, only the normal direction is needed, i.e. the
   // normal need not be normalized (unit length)
   //
-  this->Points->GetPoint(1, pt1);
-  this->Points->GetPoint(2, pt2);
-  this->Points->GetPoint(0, pt3);
+  pt1 = pts + 3;
+  pt2 = pts + 6;
+  pt3 = pts;
 
   vtkTriangle::ComputeNormalDirection(pt1, pt2, pt3, n);
 
@@ -314,11 +315,19 @@ void vtkTriangle::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   double u3;
-  double pt0[3], pt1[3], pt2[3];
+  const double *pt0, *pt1, *pt2;
 
-  this->Points->GetPoint(0, pt0);
-  this->Points->GetPoint(1, pt1);
-  this->Points->GetPoint(2, pt2);
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+  pt0 = pts;
+  pt1 = pts + 3;
+  pt2 = pts + 6;
 
   u3 = 1.0 - pcoords[0] - pcoords[1];
 
@@ -684,17 +693,10 @@ int vtkTriangle::IntersectWithLine(const double p1[3], const double p2[3], doubl
 }
 
 //------------------------------------------------------------------------------
-int vtkTriangle::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkTriangle::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-
-  for (int i = 0; i < 3; i++)
-  {
-    ptIds->InsertId(i, this->PointIds->GetId(i));
-    pts->InsertPoint(i, this->Points->GetPoint(i));
-  }
-
+  ptIds->SetNumberOfIds(3);
+  std::iota(ptIds->begin(), ptIds->end(), 0);
   return 1;
 }
 
@@ -1563,7 +1565,7 @@ int vtkTriangle::TrianglesIntersect(const double p1[3], const double q1[3], cons
 // (Note: in current implementation the tolerance only works in the
 // neighborhood of the three vertices of the triangle.
 int vtkTriangle::PointInTriangle(
-  const double x[3], const double p1[3], const double p2[3], const double p3[3], const double tol2)
+  const double x[3], const double p1[3], const double p2[3], const double p3[3], double tol2)
 {
   double x1[3], x2[3], x3[3], v13[3], v21[3], v32[3];
   double n1[3], n2[3], n3[3];
@@ -1710,3 +1712,4 @@ void vtkTriangle::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Line:\n";
   this->Line->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

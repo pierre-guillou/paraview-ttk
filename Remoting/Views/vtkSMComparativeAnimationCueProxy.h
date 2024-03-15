@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMComparativeAnimationCueProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMComparativeAnimationCueProxy
  * @brief   cue used for parameter animation by
@@ -38,7 +26,7 @@ public:
   vtkTypeMacro(vtkSMComparativeAnimationCueProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Methods simply forwarded to vtkPVComparativeAnimationCue.
    * Any of these methods changing the state of the proxy, also call
@@ -56,7 +44,7 @@ public:
   double* GetValues(int x, int y, int dx, int dy, unsigned int& numValues);
   double GetValue(int x, int y, int dx, int dy);
   void UpdateAnimatedValue(int x, int y, int dx, int dy);
-  //@}
+  ///@}
 
   /**
    * Saves the state of the proxy. This state can be reloaded

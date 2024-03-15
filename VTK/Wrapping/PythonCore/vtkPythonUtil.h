@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonUtil.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPythonUtil
@@ -23,6 +11,7 @@
 #include "PyVTKNamespace.h"
 #include "PyVTKObject.h"
 #include "PyVTKSpecialObject.h"
+#include "vtkABINamespace.h"
 #include "vtkPython.h"
 #include "vtkPythonCompatibility.h"
 
@@ -31,6 +20,12 @@
 #pragma warning(disable : 4125)
 #endif
 
+extern "C" void vtkPythonUtilDelete();
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkStdString;
+class vtkUnicodeString;
+class vtkVariant;
 class vtkPythonClassMap;
 class vtkPythonClassNameMap;
 class vtkPythonCommand;
@@ -42,8 +37,6 @@ class vtkPythonNamespaceMap;
 class vtkPythonEnumMap;
 class vtkPythonModuleList;
 class vtkVariant;
-
-extern "C" void vtkPythonUtilDelete();
 
 class VTKWRAPPINGPYTHONCORE_EXPORT vtkPythonUtil
 {
@@ -71,10 +64,23 @@ public:
    */
   static const char* VTKClassName(const char* pyname);
 
+  ///@{
   /**
-   * Given a qualified python name "module.name", remove "module.".
+   * Given a qualified python name, type object, or object, "module.name",
+   * remove "module." from the type name.
    */
   static const char* StripModule(const char* tpname);
+  static const char* StripModuleFromType(PyTypeObject* pytype);
+  static const char* StripModuleFromObject(PyObject* ob);
+  ///@}
+
+  ///@{
+  /**
+   * Get the type name for a given type or object.
+   */
+  static const char* GetTypeName(PyTypeObject* pytype);
+  static const char* GetTypeNameForObject(PyObject* ob);
+  ///@}
 
   /**
    * Add a PyVTKClass to the type lookup table, this allows us to later
@@ -284,6 +290,8 @@ private:
 // For use by SetXXMethod() , SetXXMethodArgDelete()
 extern VTKWRAPPINGPYTHONCORE_EXPORT void vtkPythonVoidFunc(void*);
 extern VTKWRAPPINGPYTHONCORE_EXPORT void vtkPythonVoidFuncArgDelete(void*);
+
+VTK_ABI_NAMESPACE_END
 
 #endif
 // VTK-HeaderTest-Exclude: vtkPythonUtil.h

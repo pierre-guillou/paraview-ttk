@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCoreTestUtility.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqCoreTestUtility.h"
 
@@ -83,6 +55,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPNMWriter.h"
 #include "vtkPVServerInformation.h"
 #include "vtkProcessModule.h"
+#include "vtkRemoteWriterHelper.h"
 #include "vtkRenderWindow.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMViewLayoutProxy.h"
@@ -101,6 +74,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endif
 
 const char* pqCoreTestUtility::PQ_COMPAREVIEW_PROPERTY_NAME = "PQ_COMPAREVIEW_PROPERTY_NAME";
+
+static constexpr const char* DASHBOARD_MODE_ENV_VAR = "DASHBOARD_TEST_FROM_CTEST";
 
 template <typename WriterT>
 bool saveImage(vtkWindowToImageFilter* Capture, const QFileInfo& File)
@@ -134,7 +109,6 @@ pqCoreTestUtility::pqCoreTestUtility(QObject* p)
 #endif
 
   this->eventTranslator()->addWidgetEventTranslator(new pqQVTKWidgetEventTranslator(this));
-  this->eventTranslator()->addWidgetEventTranslator(new pqFileDialogEventTranslator(this));
   this->eventTranslator()->addWidgetEventTranslator(new pqFlatTreeViewEventTranslator(this));
   this->eventTranslator()->addWidgetEventTranslator(new pqColorButtonEventTranslator(this));
   this->eventTranslator()->addWidgetEventTranslator(new pqColorDialogEventTranslator(this));
@@ -143,12 +117,39 @@ pqCoreTestUtility::pqCoreTestUtility(QObject* p)
   this->eventPlayer()->addWidgetEventPlayer(new pqFileUtilitiesEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqLineEditEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqQVTKWidgetEventPlayer(this));
-  this->eventPlayer()->addWidgetEventPlayer(new pqFileDialogEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqFlatTreeViewEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqColorButtonEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqColorDialogEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqCollaborationEventPlayer(this));
   this->eventPlayer()->addWidgetEventPlayer(new pqConsoleWidgetEventPlayer(this));
+}
+
+//-----------------------------------------------------------------------------
+void pqCoreTestUtility::updatePlayers()
+{
+  if (vtksys::SystemTools::HasEnv(DASHBOARD_MODE_ENV_VAR))
+  {
+    // Safe to add multiple times
+    this->eventPlayer()->addWidgetEventPlayer(new pqFileDialogEventPlayer(this));
+  }
+  else
+  {
+    this->eventPlayer()->removeWidgetEventPlayer("pqFileDialogEventPlayer");
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqCoreTestUtility::updateTranslators()
+{
+  if (vtksys::SystemTools::HasEnv(DASHBOARD_MODE_ENV_VAR))
+  {
+    // Safe to add multiple times
+    this->eventTranslator()->addWidgetEventTranslator(new pqFileDialogEventTranslator(this));
+  }
+  else
+  {
+    this->eventTranslator()->removeWidgetEventTranslator("pqFileDialogEventTranslator");
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -404,10 +405,14 @@ bool pqCoreTestUtility::CompareView(pqView* curView, const QString& referenceIma
 bool pqCoreTestUtility::CompareImage(const QString& testPNGImage, const QString& referenceImage,
   double threshold, ostream& output, const QString& tempDirectory)
 {
+  // We need to make sure that all the screenshot saved are entirely written to disk.
+  // This is done by looking at the collected futures in vtkRemoteWriterHelper.
+  vtkRemoteWriterHelper::Wait(testPNGImage.toStdString());
+
   vtkNew<vtkPNGReader> reader;
   if (!reader->CanReadFile(testPNGImage.toUtf8().data()))
   {
-    output << "Cannot read file : " << testPNGImage.toUtf8().data() << endl;
+    output << qPrintable(tr("Cannot read file : %1").arg(testPNGImage)) << endl;
     return false;
   }
   reader->SetFileName(testPNGImage.toUtf8().data());
@@ -471,4 +476,19 @@ bool pqCoreTestUtility::CompareTile(pqView* view, int rank, int tdx, int tdy,
     QString("%1/tile-%2.png").arg(tempDirectory).arg(QFileInfo(baseline).baseName());
   layout->SaveAsPNG(rank, imagepath.toUtf8().data());
   return pqCoreTestUtility::CompareImage(imagepath, baseline, threshold, output, tempDirectory);
+}
+
+// ----------------------------------------------------------------------------
+void pqCoreTestUtility::setDashboardMode(bool value)
+{
+  if (value)
+  {
+    qputenv(DASHBOARD_MODE_ENV_VAR, "1");
+  }
+  else
+  {
+    qunsetenv(DASHBOARD_MODE_ENV_VAR);
+  }
+  this->updatePlayers();
+  this->updateTranslators();
 }

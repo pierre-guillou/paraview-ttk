@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractBlockUsingDataAssembly.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractBlockUsingDataAssembly.h"
 
 #include "vtkAMRUtilities.h"
@@ -33,6 +21,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class vtkScopedFieldDataCopier
@@ -78,6 +67,10 @@ bool vtkExtractBlockUsingDataAssembly::vtkInternals::Execute(vtkPartitionedDataS
   std::set<unsigned int> datasets_to_copy;
   for (auto nodeid : selected_nodes)
   {
+    if (self->CheckAbort())
+    {
+      break;
+    }
     const auto datasets = assembly->GetDataSetIndices(nodeid,
       /*traverse_subtree=*/self->GetSelectSubtrees());
     datasets_to_copy.insert(datasets.begin(), datasets.end());
@@ -87,6 +80,10 @@ bool vtkExtractBlockUsingDataAssembly::vtkInternals::Execute(vtkPartitionedDataS
   std::map<unsigned int, unsigned int> output_indices;
   for (const auto& in_idx : datasets_to_copy)
   {
+    if (self->CheckAbort())
+    {
+      break;
+    }
     const auto out_idx = output->GetNumberOfPartitionedDataSets();
     output->SetPartitionedDataSet(out_idx, input->GetPartitionedDataSet(in_idx));
     if (input->HasMetaData(in_idx))
@@ -111,6 +108,10 @@ bool vtkExtractBlockUsingDataAssembly::vtkInternals::Execute(vtkPartitionedDataS
   // now map each of the other input assemblies.
   for (auto& iAssembly : assemblies_to_map)
   {
+    if (self->CheckAbort())
+    {
+      break;
+    }
     vtkNew<vtkDataAssembly> oAssembly;
     oAssembly->DeepCopy(iAssembly);
     oAssembly->RemapDataSetIndices(output_indices, /*remove_unmapped=*/true);
@@ -329,7 +330,7 @@ int vtkExtractBlockUsingDataAssembly::RequestData(
       if (auto result = vtkDataAssemblyUtilities::GenerateCompositeDataSetFromHierarchy(
             xformedOutput, xformedOutput->GetDataAssembly()))
       {
-        outputCD->ShallowCopy(result);
+        outputCD->CompositeShallowCopy(result);
         return 1;
       }
 
@@ -375,3 +376,4 @@ void vtkExtractBlockUsingDataAssembly::PrintSelf(ostream& os, vtkIndent indent)
     os << indent.GetNextIndent() << selector << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

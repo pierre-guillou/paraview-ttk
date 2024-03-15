@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPDataSetWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPDataSetWriter
  * @brief   Manages writing pieces of a data set.
@@ -29,6 +17,7 @@
 #include <map>    // for keeping track of extents
 #include <vector> // for keeping track of extents
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkRectilinearGrid;
 class vtkStructuredGrid;
@@ -141,4 +130,5 @@ private:
   void operator=(const vtkPDataSetWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

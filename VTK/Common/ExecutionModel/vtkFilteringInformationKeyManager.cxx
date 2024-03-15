@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFilteringInformationKeyManager.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFilteringInformationKeyManager.h"
 
 #include "vtkInformationKey.h"
@@ -20,6 +8,7 @@
 
 // Subclass vector so we can directly call constructor.  This works
 // around problems on Borland C++.
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkFilteringInformationKeyManagerKeysType : public std::vector<vtkInformationKey*>
 {
   typedef std::vector<vtkInformationKey*> Superclass;
@@ -92,3 +81,4 @@ void vtkFilteringInformationKeyManager::ClassFinalize()
     vtkFilteringInformationKeyManagerKeys = nullptr;
   }
 }
+VTK_ABI_NAMESPACE_END

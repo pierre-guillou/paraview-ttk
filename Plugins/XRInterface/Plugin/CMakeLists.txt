@@ -1,21 +1,50 @@
-find_package(Qt5 REQUIRED COMPONENTS Widgets Network)
+find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" REQUIRED COMPONENTS Widgets Network)
 
 set(required_modules "")
 set(openxr_support FALSE)
+set(openvr_support FALSE)
 
-if (TARGET VTK::RenderingOpenXR)
-  list(APPEND required_modules
-    VTK::RenderingOpenXR
-  )
-  find_package(OpenXR REQUIRED)
-  set(openxr_support TRUE)
-endif()
+option(PARAVIEW_XRInterface_OpenXR_Support "Turn on support for OpenXR in XRInterface plugin" OFF)
+if (PARAVIEW_XRInterface_OpenXR_Support)
+  if (TARGET VTK::RenderingOpenXR)
+    list(APPEND required_modules
+      VTK::RenderingOpenXR
+    )
+    set(openxr_support TRUE)
+  else ()
+    message(FATAL_ERROR "PARAVIEW_XRInterface_OpenXR_Support is ON but VTK::RenderingOpenXR is not, please enable VTK::RenderingOpenXR for OpenXR support")
+  endif ()
+endif ()
 
-if (TARGET VTK::RenderingOpenVR)
-  list(APPEND required_modules
-    VTK::RenderingOpenVR
-  )
-endif()
+option(PARAVIEW_XRInterface_OpenVR_Support "Turn on support for OpenVR in XRInterface plugin" ON)
+if (PARAVIEW_XRInterface_OpenVR_Support)
+  if (TARGET VTK::RenderingOpenVR)
+    list(APPEND required_modules
+      VTK::RenderingOpenVR
+    )
+    set(openvr_support TRUE)
+  else ()
+    message(FATAL_ERROR "PARAVIEW_XRInterface_OpenVR_Support is ON but VTK::RenderingOpenVR is not, please enable VTK::RenderingOpenVR for OpenVR support")
+  endif ()
+endif ()
+
+if (NOT (PARAVIEW_XRInterface_OpenXR_Support OR PARAVIEW_XRInterface_OpenVR_Support))
+  message(STATUS "XRInterface plugin is enabled but neither OpenVR or OpenXR support are enabled, the plugin may not be usable")
+endif ()
+
+option(PARAVIEW_XRInterface_OpenXRRemoting_Support  "Turn on support for OpenXR in XRInterface plugin for the Hololens2" OFF)
+if (PARAVIEW_XRInterface_OpenXRRemoting_Support)
+  if (TARGET VTK::RenderingOpenXRRemoting)
+    list(APPEND required_modules
+      VTK::RenderingOpenXRRemoting
+    )
+    set(openxrremoting_support TRUE)
+  else ()
+    message(FATAL_ERROR
+      "PARAVIEW_XRInterface_OpenXRRemoting_Support is ON but VTK::RenderingOpenXRRemoting is not,
+      please enable VTK::RenderingOpenXRRemoting for Hololens2 support")
+  endif ()
+endif ()
 
 set(interfaces)
 set(sources
@@ -23,6 +52,8 @@ set(sources
   pqXRInterfaceControls.h
   pqXRInterfaceDockPanel.cxx
   pqXRInterfaceDockPanel.h
+  pqXRCustomViewpointsController.h
+  pqXRCustomViewpointsController.cxx
   vtkXRInterfacePolyfill.cxx
   vtkXRInterfacePolyfill.h
   vtkPVXRInterfaceCollaborationClient.cxx
@@ -54,10 +85,16 @@ list(APPEND interfaces
 list(APPEND sources
   ${dock_sources} ${location_sources})
 
+set(openxrremoting_eula_file "")
+if (openxrremoting_support)
+  set (openxrremoting_eula_file "OpenXRRemoting/EULA.txt")
+endif()
+
 paraview_add_plugin(XRInterface
   REQUIRED_ON_CLIENT
   REQUIRED_ON_SERVER
   VERSION "1.2"
+  EULA ${openxrremoting_eula_file}
   UI_FILES pqXRInterfaceDockPanel.ui pqXRInterfaceControls.ui
   UI_INTERFACES ${interfaces}
   SOURCES ${sources}
@@ -91,7 +128,15 @@ set_property(
   pqXRInterfaceDockPanel.cxx
   vtkPVXRInterfaceHelper.cxx
   APPEND PROPERTY
-    COMPILE_DEFINITIONS "PARAVIEW_HAS_OPENXR_SUPPORT=$<BOOL:${openxr_support}>")
+    COMPILE_DEFINITIONS "XRINTERFACE_HAS_OPENXR_SUPPORT=$<BOOL:${openxr_support}>"
+    COMPILE_DEFINITIONS "XRINTERFACE_HAS_OPENXRREMOTING_SUPPORT=$<BOOL:${openxrremoting_support}>")
+
+set_property(
+  SOURCE
+  pqXRInterfaceDockPanel.cxx
+  vtkPVXRInterfaceHelper.cxx
+  APPEND PROPERTY
+    COMPILE_DEFINITIONS "XRINTERFACE_HAS_OPENVR_SUPPORT=$<BOOL:${openvr_support}>")
 
 if (openxr_support)
   list(APPEND xr_input_files
@@ -100,12 +145,14 @@ if (openxr_support)
     pv_openxr_binding_knuckles.json
     pv_openxr_binding_vive_controller.json
     pv_openxr_binding_oculus_touch_controller.json
+    pv_openxr_binding_microsoft_hand_interaction.json
   )
 endif()
 
 set_property(
   SOURCE
   vtkPVXRInterfaceCollaborationClient.cxx
+  pqXRInterfaceControls.cxx
   APPEND PROPERTY
     COMPILE_DEFINITIONS "XRINTERFACE_HAS_COLLABORATION=$<BOOL:${VTK_ENABLE_VR_COLLABORATION}>")
 
@@ -162,3 +209,7 @@ set_property(SOURCE vtkPVXRInterfaceExporter.cxx APPEND PROPERTY
 
 set_property(SOURCE vtkPVXRInterfaceWidgets.cxx APPEND PROPERTY
   COMPILE_DEFINITIONS "PARAVIEW_USE_QTWEBENGINE=$<BOOL:${PARAVIEW_USE_QTWEBENGINE}>")
+
+if (BUILD_TESTING)
+  add_subdirectory(Testing)
+endif()

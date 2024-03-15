@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraticPolygon.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQuadraticPolygon.h"
 
 #include "vtkCellData.h"
@@ -23,6 +11,7 @@
 #include "vtkPolygon.h"
 #include "vtkQuadraticEdge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadraticPolygon);
 
 //------------------------------------------------------------------------------
@@ -133,16 +122,18 @@ int vtkQuadraticPolygon::IntersectWithLine(
 int vtkQuadraticPolygon::Triangulate(vtkIdList* outTris)
 {
   this->InitializePolygon();
-  int result = this->Polygon->Triangulate(outTris);
-  vtkQuadraticPolygon::ConvertFromPolygon(outTris);
+  int result = this->Polygon->TriangulateLocalIds(0, outTris);
+  vtkQuadraticPolygon::ConvertFromPolygon(this->GetNumberOfPoints(), outTris);
   return result;
 }
 
 //------------------------------------------------------------------------------
-int vtkQuadraticPolygon::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
+int vtkQuadraticPolygon::TriangulateLocalIds(int index, vtkIdList* ptIds)
 {
   this->InitializePolygon();
-  return this->Polygon->Triangulate(index, ptIds, pts);
+  int result = this->Polygon->TriangulateLocalIds(index, ptIds);
+  vtkQuadraticPolygon::ConvertFromPolygon(this->GetNumberOfPoints(), ptIds);
+  return result;
 }
 
 //------------------------------------------------------------------------------
@@ -150,7 +141,7 @@ int vtkQuadraticPolygon::NonDegenerateTriangulate(vtkIdList* outTris)
 {
   this->InitializePolygon();
   int result = this->Polygon->NonDegenerateTriangulate(outTris);
-  vtkQuadraticPolygon::ConvertFromPolygon(outTris);
+  vtkQuadraticPolygon::ConvertFromPolygon(this->GetNumberOfPoints(), outTris);
   return result;
 }
 
@@ -414,12 +405,12 @@ void vtkQuadraticPolygon::PermuteFromPolygon(vtkIdType nb, double* values)
 }
 
 //------------------------------------------------------------------------------
-void vtkQuadraticPolygon::ConvertFromPolygon(vtkIdList* ids)
+void vtkQuadraticPolygon::ConvertFromPolygon(vtkIdType nb, vtkIdList* ids)
 {
   vtkIdType nbIds = ids->GetNumberOfIds();
 
   vtkIdList* permutation = vtkIdList::New();
-  vtkQuadraticPolygon::GetPermutationFromPolygon(nbIds, permutation);
+  vtkQuadraticPolygon::GetPermutationFromPolygon(nb, permutation);
 
   vtkIdList* saveList = vtkIdList::New();
   saveList->SetNumberOfIds(nbIds);
@@ -443,3 +434,4 @@ void vtkQuadraticPolygon::Derivatives(int vtkNotUsed(subId), const double vtkNot
   const double* vtkNotUsed(values), int vtkNotUsed(dim), double* vtkNotUsed(derivs))
 {
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVAMRFragmentIntegration.h
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  Copyright 2013 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright 2013 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkPVAMRFragmentIntegration
  * @brief   Generates fragment analysis from an
@@ -42,37 +31,37 @@ public:
   vtkPVAMRFragmentIntegration();
   ~vtkPVAMRFragmentIntegration() override;
 
-  //@{
+  ///@{
   /**
    * Add to list of volume arrays which are used for generating contours.
    */
   void AddInputVolumeArrayToProcess(const char* name);
   void ClearInputVolumeArrayToProcess();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Add to list of mass arrays
    */
   void AddInputMassArrayToProcess(const char* name);
   void ClearInputMassArrayToProcess();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Add to list of volume weighted arrays
    */
   void AddInputVolumeWeightedArrayToProcess(const char* name);
   void ClearInputVolumeWeightedArrayToProcess();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Add to list of mass weighted arrays
    */
   void AddInputMassWeightedArrayToProcess(const char* name);
   void ClearInputMassWeightedArrayToProcess();
-  //@}
+  ///@}
 
   void SetContourConnection(vtkAlgorithmOutput*);
 

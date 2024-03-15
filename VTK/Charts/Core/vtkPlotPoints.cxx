@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotPoints.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotPoints.h"
 
@@ -19,7 +7,9 @@
 #include "vtkBrush.h"
 #include "vtkCharArray.h"
 #include "vtkContext2D.h"
+#include "vtkContextDevice2D.h"
 #include "vtkContextMapper2D.h"
+#include "vtkContextScene.h"
 #include "vtkFloatArray.h"
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
@@ -38,6 +28,7 @@
 #include <vector>
 
 // PIMPL for STL vector...
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkIndexedVector2f
 {
   size_t index;
@@ -170,8 +161,10 @@ bool vtkPlotPoints::Paint(vtkContext2D* painter)
     else
     {
       // draw all of the points
-      painter->DrawMarkers(this->MarkerStyle, false, points, this->Points->GetNumberOfPoints(),
-        colors, nColorComponents);
+      const std::uintptr_t cacheIdentifier = reinterpret_cast<std::uintptr_t>(this);
+      vtkUnsignedCharArray* colorsArray = this->ScalarVisibility ? this->Colors : nullptr;
+      painter->DrawMarkers(
+        this->MarkerStyle, false, this->Points->GetData(), colorsArray, cacheIdentifier);
     }
   }
 
@@ -179,35 +172,24 @@ bool vtkPlotPoints::Paint(vtkContext2D* painter)
   if (this->Selection && this->Selection->GetNumberOfTuples())
   {
     if (this->Selection->GetMTime() > this->SelectedPoints->GetMTime() ||
-      this->GetMTime() > this->SelectedPoints->GetMTime())
+      (this->SelectedPoints->GetNumberOfTuples() == 0))
     {
-      float* f = vtkArrayDownCast<vtkFloatArray>(this->Points->GetData())->GetPointer(0);
-      int nSelected(static_cast<int>(this->Selection->GetNumberOfTuples()));
-      this->SelectedPoints->SetNumberOfComponents(2);
-      this->SelectedPoints->SetNumberOfTuples(nSelected);
-      float* selectedPtr = static_cast<float*>(this->SelectedPoints->GetVoidPointer(0));
-      for (int i = 0; i < nSelected; ++i)
-      {
-        *(selectedPtr++) = f[2 * this->Selection->GetValue(i)];
-        *(selectedPtr++) = f[2 * this->Selection->GetValue(i) + 1];
-      }
+      vtkPlot::FilterSelectedPoints(this->Points->GetData(), this->SelectedPoints, this->Selection);
     }
     vtkDebugMacro(<< "Selection set " << this->Selection->GetNumberOfTuples());
     painter->GetPen()->SetColor(this->SelectionPen->GetColor());
     painter->GetPen()->SetOpacity(this->SelectionPen->GetOpacity());
     painter->GetPen()->SetWidth(width + 2.7);
 
+    const std::uintptr_t cacheIdentifier =
+      reinterpret_cast<std::uintptr_t>(this->SelectedPoints.Get());
     if (this->MarkerStyle == VTK_MARKER_NONE)
     {
-      painter->DrawMarkers(VTK_MARKER_PLUS, false,
-        static_cast<float*>(this->SelectedPoints->GetVoidPointer(0)),
-        this->SelectedPoints->GetNumberOfTuples());
+      painter->DrawMarkers(VTK_MARKER_PLUS, false, this->SelectedPoints, nullptr, cacheIdentifier);
     }
     else
     {
-      painter->DrawMarkers(this->MarkerStyle, true,
-        static_cast<float*>(this->SelectedPoints->GetVoidPointer(0)),
-        this->SelectedPoints->GetNumberOfTuples());
+      painter->DrawMarkers(this->MarkerStyle, true, this->SelectedPoints, nullptr, cacheIdentifier);
     }
   }
 
@@ -694,6 +676,22 @@ bool vtkPlotPoints::UpdateCache()
 }
 
 //------------------------------------------------------------------------------
+void vtkPlotPoints::ReleaseGraphicsCache()
+{
+  // Superclass clears cache related to cacheIdentifier=static_cast<uintptr_t>(this)
+  // but not SelectedPoints.
+  this->Superclass::ReleaseGraphicsCache();
+  // Removes cache related to SelectedPoints.
+  if (auto lastPainter = this->Scene->GetLastPainter())
+  {
+    if (auto device2d = lastPainter->GetDevice())
+    {
+      device2d->ReleaseCache(reinterpret_cast<std::uintptr_t>(this->SelectedPoints.Get()));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkPlotPoints::CalculateUnscaledInputBounds()
 {
   vtkTable* table = this->Data->GetInput();
@@ -966,3 +964,4 @@ void vtkPlotPoints::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

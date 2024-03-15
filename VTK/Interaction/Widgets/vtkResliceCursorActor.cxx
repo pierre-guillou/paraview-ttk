@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkResliceCursorActor.h"
 
@@ -27,6 +15,7 @@
 #include "vtkResliceCursorPolyDataAlgorithm.h"
 #include "vtkViewport.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkResliceCursorActor);
 
 //------------------------------------------------------------------------------
@@ -142,7 +131,7 @@ double* vtkResliceCursorActor::GetBounds()
   // vtkProp3D::GetLength() does not check if the Bounds are initialized or
   // not and makes a call to sqrt(). This call to sqrt with invalid values
   // would raise a floating-point overflow exception (notably on BCC).
-  // As vtkMath::UninitializeBounds initialized finite unvalid bounds, it
+  // As vtkMath::UninitializeBounds initialized finite invalid bounds, it
   // passes silently and GetLength() returns 0.
   vtkMath::UninitializeBounds(this->Bounds);
 
@@ -344,3 +333,4 @@ void vtkResliceCursorActor::PrintSelf(ostream& os, vtkIndent indent)
   // this->ThickSlabProperty[3];
   // this->CursorAlgorithm;
 }
+VTK_ABI_NAMESPACE_END

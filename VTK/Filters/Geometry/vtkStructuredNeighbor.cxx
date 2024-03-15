@@ -1,20 +1,9 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkStructuredNeighbor.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStructuredNeighbor.h"
 #include "vtkStructuredExtent.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStructuredNeighbor::vtkStructuredNeighbor()
 {
   this->NeighborID = 0;
@@ -30,7 +19,7 @@ vtkStructuredNeighbor::vtkStructuredNeighbor()
 }
 
 //------------------------------------------------------------------------------
-vtkStructuredNeighbor::vtkStructuredNeighbor(const int neiId, int overlap[6])
+vtkStructuredNeighbor::vtkStructuredNeighbor(int neiId, int overlap[6])
 {
   this->NeighborID = neiId;
   for (int i = 0; i < 6; ++i)
@@ -40,7 +29,7 @@ vtkStructuredNeighbor::vtkStructuredNeighbor(const int neiId, int overlap[6])
 }
 
 //------------------------------------------------------------------------------
-vtkStructuredNeighbor::vtkStructuredNeighbor(const int neiId, int overlap[6], int orient[3])
+vtkStructuredNeighbor::vtkStructuredNeighbor(int neiId, int overlap[6], int orient[3])
 {
   this->NeighborID = neiId;
   for (int i = 0; i < 3; ++i)
@@ -59,7 +48,7 @@ vtkStructuredNeighbor::~vtkStructuredNeighbor() = default;
 
 //------------------------------------------------------------------------------
 void vtkStructuredNeighbor::ComputeSendAndReceiveExtent(int gridRealExtent[6],
-  int* vtkNotUsed(gridGhostedExtent[6]), int neiRealExtent[6], int WholeExtent[6], const int N)
+  int* vtkNotUsed(gridGhostedExtent[6]), int neiRealExtent[6], int WholeExtent[6], int N)
 {
 
   for (int i = 0; i < 3; ++i)
@@ -96,3 +85,4 @@ void vtkStructuredNeighbor::ComputeSendAndReceiveExtent(int gridRealExtent[6],
   vtkStructuredExtent::Clamp(this->RcvExtent, WholeExtent);
   vtkStructuredExtent::Clamp(this->SendExtent, WholeExtent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseType.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkParseType_h
 #define vtkParseType_h
@@ -168,8 +156,6 @@
 #define VTK_PARSE_OBJECT 0x09
 #define VTK_PARSE_LONG_LONG 0x0B
 #define VTK_PARSE_UNSIGNED_LONG_LONG 0x1B
-#define VTK_PARSE___INT64 0x0C
-#define VTK_PARSE_UNSIGNED___INT64 0x1C
 #define VTK_PARSE_SIGNED_CHAR 0x0D
 #define VTK_PARSE_BOOL 0x0E
 #define VTK_PARSE_SSIZE_T 0x0F
@@ -203,8 +189,6 @@
 #define VTK_PARSE_OBJECT_PTR 0x209
 #define VTK_PARSE_LONG_LONG_PTR 0x20B
 #define VTK_PARSE_UNSIGNED_LONG_LONG_PTR 0x21B
-#define VTK_PARSE___INT64_PTR 0x20C
-#define VTK_PARSE_UNSIGNED___INT64_PTR 0x21C
 #define VTK_PARSE_SIGNED_CHAR_PTR 0x20D
 #define VTK_PARSE_BOOL_PTR 0x20E
 #define VTK_PARSE_SSIZE_T_PTR 0x20F
@@ -238,8 +222,6 @@
 #define VTK_PARSE_OBJECT_REF 0x109
 #define VTK_PARSE_LONG_LONG_REF 0x10B
 #define VTK_PARSE_UNSIGNED_LONG_LONG_REF 0x11B
-#define VTK_PARSE___INT64_REF 0x10C
-#define VTK_PARSE_UNSIGNED___INT64_REF 0x11C
 #define VTK_PARSE_SIGNED_CHAR_REF 0x10D
 #define VTK_PARSE_BOOL_REF 0x10E
 #define VTK_PARSE_SSIZE_T_REF 0x10F

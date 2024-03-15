@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderQuadrilateral.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkHigherOrderQuadrilateral
 // .SECTION Description
 // .SECTION See Also
@@ -27,6 +15,7 @@
 #include "vtkNonLinearCell.h"
 #include "vtkSmartPointer.h" // For member variable.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellData;
 class vtkDoubleArray;
 class vtkIdList;
@@ -68,7 +57,7 @@ public:
     vtkIdType cellId, vtkCellData* outCd, int insideOut) override;
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptId) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   void SetParametricCoords();
@@ -77,12 +66,18 @@ public:
 
   double GetParametricDistance(const double pcoords[3]) override;
 
-  virtual void SetOrderFromCellData(
-    vtkCellData* cell_data, const vtkIdType numPts, const vtkIdType cell_id);
-  virtual void SetUniformOrderFromNumPoints(const vtkIdType numPts);
-  virtual void SetOrder(const int s, const int t);
+  virtual void SetOrderFromCellData(vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id);
+  static void SetOrderFromCellData(
+    vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id, int* order);
+  virtual void SetUniformOrderFromNumPoints(vtkIdType numPts);
+  virtual void SetOrder(int s, int t);
   virtual const int* GetOrder();
   virtual int GetOrder(int i) { return this->GetOrder()[i]; }
+  /// Return true if the number of points supports a cell of uniform
+  /// degree along each axis.
+  ///
+  /// For quadrilaterals, \a pointsPerCell must be a perfect square >= 4.
+  static bool PointCountSupportsUniformOrder(vtkIdType pointsPerCell);
 
   void InterpolateFunctions(const double pcoords[3], double* weights) override = 0;
   void InterpolateDerivs(const double pcoords[3], double* derivs) override = 0;
@@ -114,8 +109,6 @@ protected:
   vtkSmartPointer<vtkCellData> ApproxCD;
   vtkNew<vtkDoubleArray> CellScalars;
   vtkNew<vtkDoubleArray> Scalars;
-  vtkNew<vtkPoints> TmpPts;
-  vtkNew<vtkIdList> TmpIds;
 
 private:
   vtkHigherOrderQuadrilateral(const vtkHigherOrderQuadrilateral&) = delete;
@@ -129,4 +122,5 @@ inline int vtkHigherOrderQuadrilateral::GetParametricCenter(double center[3])
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHigherOrderQuadrilateral_h

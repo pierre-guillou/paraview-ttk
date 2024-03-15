@@ -9,12 +9,19 @@
 ##============================================================================
 
 set(unit_tests
+  UnitTestContinuousScatterPlot.cxx
   UnitTestEntropyFilter.cxx
   UnitTestHistogramFilter.cxx
   UnitTestNDEntropyFilter.cxx
   UnitTestNDHistogramFilter.cxx
   UnitTestPartitionedDataSetHistogramFilter.cxx
-  UnitTestParticleDensity.cxx)
+  UnitTestStatisticsFilter.cxx
+  UnitTestStatisticsFilterMPI.cxx
+  )
+
+set(unit_tests_device
+  UnitTestParticleDensity.cxx # uses DescriptiveStatistcs worklet
+  )
 
 set(libraries
   vtkm_filter_density_estimate
@@ -22,7 +29,18 @@ set(libraries
 
 vtkm_unit_tests(
   SOURCES ${unit_tests}
+  DEVICE_SOURCES ${unit_tests_device}
   LIBRARIES ${libraries}
-  ALL_BACKENDS # UnitTestParticleDensity.cxx uses DescriptiveStatistcs worklet
   USE_VTKM_JOB_POOL
 )
+
+if (VTKm_ENABLE_MPI)
+  set(mpi_unit_tests
+    UnitTestStatisticsFilterMPI.cxx
+  )
+  vtkm_unit_tests(
+    MPI
+    DEVICE_SOURCES ${mpi_unit_tests}
+    USE_VTKM_JOB_POOL
+  )
+endif()

@@ -19,37 +19,33 @@
 
 namespace
 {
-class RemoveAllGhosts
+
+template <typename T>
+VTKM_EXEC inline bool ShouldRemove(T value, vtkm::UInt8 removeTypes)
+{
+  return ((value & removeTypes) != 0);
+}
+
+class RemoveGhostPredicate
 {
 public:
-  VTKM_CONT
-  RemoveAllGhosts() = default;
-
-  VTKM_EXEC bool operator()(const vtkm::UInt8& value) const { return (value == 0); }
-};
-
-class RemoveGhostByType
-{
-public:
-  VTKM_CONT
-  RemoveGhostByType()
-    : RemoveType(0)
+  VTKM_CONT RemoveGhostPredicate()
+    : RemoveTypes(0xFF)
   {
   }
 
-  VTKM_CONT
-  explicit RemoveGhostByType(const vtkm::UInt8& val)
-    : RemoveType(static_cast<vtkm::UInt8>(~val))
+  VTKM_CONT explicit RemoveGhostPredicate(vtkm::UInt8 val)
+    : RemoveTypes(val)
   {
   }
 
   VTKM_EXEC bool operator()(const vtkm::UInt8& value) const
   {
-    return value == 0 || (value & RemoveType);
+    return !ShouldRemove(value, this->RemoveTypes);
   }
 
 private:
-  vtkm::UInt8 RemoveType;
+  vtkm::UInt8 RemoveTypes;
 };
 
 template <int DIMS>
@@ -87,10 +83,9 @@ class RealMinMax : public vtkm::worklet::WorkletMapField
 {
 public:
   VTKM_CONT
-  RealMinMax(vtkm::Id3 cellDims, bool removeAllGhost, vtkm::UInt8 removeType)
+  RealMinMax(vtkm::Id3 cellDims, vtkm::UInt8 removeTypes)
     : CellDims(cellDims)
-    , RemoveAllGhost(removeAllGhost)
-    , RemoveType(removeType)
+    , RemoveTypes(removeTypes)
   {
   }
 
@@ -121,8 +116,10 @@ public:
   VTKM_EXEC void operator()(const T& value, const vtkm::Id& index, AtomicType& atom) const
   {
     // we are finding the logical min max of valid cells
-    if ((RemoveAllGhost && value != 0) || (!RemoveAllGhost && (value != 0 && value | RemoveType)))
+    if (ShouldRemove(value, this->RemoveTypes))
+    {
       return;
+    }
 
     vtkm::Id3 logical = getLogical<DIMS>(index, CellDims);
 
@@ -137,8 +134,7 @@ public:
 
 private:
   vtkm::Id3 CellDims;
-  bool RemoveAllGhost;
-  vtkm::UInt8 RemoveType;
+  vtkm::UInt8 RemoveTypes;
 };
 
 template <int DIMS>
@@ -166,13 +162,9 @@ class Validate : public vtkm::worklet::WorkletMapField
 {
 public:
   VTKM_CONT
-  Validate(const vtkm::Id3& cellDims,
-           bool removeAllGhost,
-           vtkm::UInt8 removeType,
-           const vtkm::RangeId3& range)
+  Validate(const vtkm::Id3& cellDims, vtkm::UInt8 removeTypes, const vtkm::RangeId3& range)
     : CellDims(cellDims)
-    , RemoveAll(removeAllGhost)
-    , RemoveVal(removeType)
+    , RemoveVals(removeTypes)
     , Range(range)
   {
   }
@@ -181,33 +173,31 @@ public:
   typedef void ExecutionSignature(_1, InputIndex, _2);
 
   template <typename T>
-  VTKM_EXEC void operator()(const T& value, const vtkm::Id& index, vtkm::UInt8& valid) const
+  VTKM_EXEC void operator()(const T& value, const vtkm::Id& index, vtkm::UInt8& invalid) const
   {
-    valid = 0;
-    if (RemoveAll && value == 0)
-      return;
-    else if (!RemoveAll && (value == 0 || (value & RemoveVal)))
-      return;
-
-    if (checkRange<DIMS>(Range, getLogical<DIMS>(index, CellDims)))
-      valid = static_cast<vtkm::UInt8>(1);
+    if (ShouldRemove(value, this->RemoveVals) &&
+        checkRange<DIMS>(Range, getLogical<DIMS>(index, CellDims)))
+    {
+      invalid = static_cast<vtkm::UInt8>(1);
+    }
+    else
+    {
+      invalid = 0;
+    }
   }
 
 private:
   vtkm::Id3 CellDims;
-  bool RemoveAll;
-  vtkm::UInt8 RemoveVal;
+  vtkm::UInt8 RemoveVals;
   vtkm::RangeId3 Range;
 };
 
 template <int DIMS, typename T, typename StorageType>
 bool CanStrip(const vtkm::cont::ArrayHandle<T, StorageType>& ghostField,
               const vtkm::cont::Invoker& invoke,
-              bool removeAllGhost,
-              vtkm::UInt8 removeType,
+              vtkm::UInt8 removeTypes,
               vtkm::RangeId3& range,
-              const vtkm::Id3& cellDims,
-              vtkm::Id size)
+              const vtkm::Id3& cellDims)
 {
   vtkm::cont::ArrayHandle<vtkm::Id> minmax;
   minmax.Allocate(6);
@@ -218,18 +208,17 @@ bool CanStrip(const vtkm::cont::ArrayHandle<T, StorageType>& ghostField,
   minmax.WritePortal().Set(4, std::numeric_limits<vtkm::Id>::min());
   minmax.WritePortal().Set(5, std::numeric_limits<vtkm::Id>::min());
 
-  invoke(RealMinMax<3>(cellDims, removeAllGhost, removeType), ghostField, minmax);
+  invoke(RealMinMax<3>(cellDims, removeTypes), ghostField, minmax);
 
   auto portal = minmax.ReadPortal();
   range = vtkm::RangeId3(
     portal.Get(0), portal.Get(3), portal.Get(1), portal.Get(4), portal.Get(2), portal.Get(5));
 
-  vtkm::cont::ArrayHandle<vtkm::UInt8> validFlags;
-  validFlags.Allocate(size);
+  vtkm::cont::ArrayHandle<vtkm::UInt8> invalidFlags;
 
-  invoke(Validate<DIMS>(cellDims, removeAllGhost, removeType, range), ghostField, validFlags);
+  invoke(Validate<DIMS>(cellDims, removeTypes, range), ghostField, invalidFlags);
 
-  vtkm::UInt8 res = vtkm::cont::Algorithm::Reduce(validFlags, vtkm::UInt8(0), vtkm::Maximum());
+  vtkm::UInt8 res = vtkm::cont::Algorithm::Reduce(invalidFlags, vtkm::UInt8(0), vtkm::Maximum());
   return res == 0;
 }
 
@@ -237,8 +226,7 @@ template <typename T, typename StorageType>
 bool CanDoStructuredStrip(const vtkm::cont::UnknownCellSet& cells,
                           const vtkm::cont::ArrayHandle<T, StorageType>& ghostField,
                           const vtkm::cont::Invoker& invoke,
-                          bool removeAllGhost,
-                          vtkm::UInt8 removeType,
+                          vtkm::UInt8 removeTypes,
                           vtkm::RangeId3& range)
 {
   bool canDo = false;
@@ -249,9 +237,8 @@ bool CanDoStructuredStrip(const vtkm::cont::UnknownCellSet& cells,
     auto cells1D = cells.AsCellSet<vtkm::cont::CellSetStructured<1>>();
     vtkm::Id d = cells1D.GetCellDimensions();
     cellDims[0] = d;
-    vtkm::Id sz = d;
-
-    canDo = CanStrip<1>(ghostField, invoke, removeAllGhost, removeType, range, cellDims, sz);
+    VTKM_ASSERT(ghostField.GetNumberOfValues() == cellDims[0]);
+    canDo = CanStrip<1>(ghostField, invoke, removeTypes, range, cellDims);
   }
   else if (cells.CanConvert<vtkm::cont::CellSetStructured<2>>())
   {
@@ -259,15 +246,15 @@ bool CanDoStructuredStrip(const vtkm::cont::UnknownCellSet& cells,
     vtkm::Id2 d = cells2D.GetCellDimensions();
     cellDims[0] = d[0];
     cellDims[1] = d[1];
-    vtkm::Id sz = cellDims[0] * cellDims[1];
-    canDo = CanStrip<2>(ghostField, invoke, removeAllGhost, removeType, range, cellDims, sz);
+    VTKM_ASSERT(ghostField.GetNumberOfValues() == (cellDims[0] * cellDims[1]));
+    canDo = CanStrip<2>(ghostField, invoke, removeTypes, range, cellDims);
   }
   else if (cells.CanConvert<vtkm::cont::CellSetStructured<3>>())
   {
     auto cells3D = cells.AsCellSet<vtkm::cont::CellSetStructured<3>>();
     cellDims = cells3D.GetCellDimensions();
-    vtkm::Id sz = cellDims[0] * cellDims[1] * cellDims[2];
-    canDo = CanStrip<3>(ghostField, invoke, removeAllGhost, removeType, range, cellDims, sz);
+    VTKM_ASSERT(ghostField.GetNumberOfValues() == (cellDims[0] * cellDims[1] * cellDims[2]));
+    canDo = CanStrip<3>(ghostField, invoke, removeTypes, range, cellDims);
   }
 
   return canDo;
@@ -277,17 +264,17 @@ bool DoMapField(vtkm::cont::DataSet& result,
                 const vtkm::cont::Field& field,
                 const vtkm::worklet::Threshold& worklet)
 {
-  if (field.IsFieldPoint())
+  if (field.IsPointField())
   {
     //we copy the input handle to the result dataset, reusing the metadata
     result.AddField(field);
     return true;
   }
-  else if (field.IsFieldCell())
+  else if (field.IsCellField())
   {
     return vtkm::filter::MapFieldPermutation(field, worklet.GetValidCellIds(), result);
   }
-  else if (field.IsFieldGlobal())
+  else if (field.IsWholeDataSetField())
   {
     result.AddField(field);
     return true;
@@ -308,15 +295,18 @@ namespace entity_extraction
 //-----------------------------------------------------------------------------
 VTKM_CONT GhostCellRemove::GhostCellRemove()
 {
-  this->SetActiveField("vtkmGhostCells");
-  this->SetFieldsToPass("vtkmGhostCells", vtkm::filter::FieldSelection::Mode::Exclude);
+  this->SetActiveField(vtkm::cont::GetGlobalGhostCellFieldName());
+  this->SetFieldsToPass(vtkm::cont::GetGlobalGhostCellFieldName(),
+                        vtkm::filter::FieldSelection::Mode::Exclude);
 }
 
 //-----------------------------------------------------------------------------
 VTKM_CONT vtkm::cont::DataSet GhostCellRemove::DoExecute(const vtkm::cont::DataSet& input)
 {
   const vtkm::cont::UnknownCellSet& cells = input.GetCellSet();
-  const auto& field = this->GetFieldFromDataSet(input);
+  const vtkm::cont::Field& field =
+    (this->GetUseGhostCellsAsField() ? input.GetGhostCellField()
+                                     : this->GetFieldFromDataSet(input));
 
   vtkm::cont::ArrayHandle<vtkm::UInt8> fieldArray;
   vtkm::cont::ArrayCopyShallowIfPossible(field.GetData(), fieldArray);
@@ -327,8 +317,7 @@ VTKM_CONT vtkm::cont::DataSet GhostCellRemove::DoExecute(const vtkm::cont::DataS
       cells.CanConvert<vtkm::cont::CellSetStructured<3>>())
   {
     vtkm::RangeId3 range;
-    if (CanDoStructuredStrip(
-          cells, fieldArray, this->Invoke, this->GetRemoveAllGhost(), this->GetRemoveType(), range))
+    if (CanDoStructuredStrip(cells, fieldArray, this->Invoke, this->GetTypesToRemove(), range))
     {
       vtkm::filter::entity_extraction::ExtractStructured extract;
       extract.SetInvoker(this->Invoke);
@@ -349,27 +338,11 @@ VTKM_CONT vtkm::cont::DataSet GhostCellRemove::DoExecute(const vtkm::cont::DataS
   vtkm::cont::UnknownCellSet cellOut;
   vtkm::worklet::Threshold worklet;
 
-  if (this->GetRemoveAllGhost())
-  {
-    cellOut = worklet.Run(cells.ResetCellSetList<VTKM_DEFAULT_CELL_SET_LIST>(),
-                          fieldArray,
-                          field.GetAssociation(),
-                          RemoveAllGhosts());
-  }
-  else if (this->GetRemoveByType())
-  {
-    cellOut = worklet.Run(cells.ResetCellSetList<VTKM_DEFAULT_CELL_SET_LIST>(),
-                          fieldArray,
-                          field.GetAssociation(),
-                          RemoveGhostByType(this->GetRemoveType()));
-  }
-  else
-  {
-    throw vtkm::cont::ErrorFilterExecution("Unsupported ghost cell removal type");
-  }
+  cellOut = worklet.Run(
+    cells, fieldArray, field.GetAssociation(), RemoveGhostPredicate(this->GetTypesToRemove()));
 
   auto mapper = [&](auto& result, const auto& f) { DoMapField(result, f, worklet); };
-  return this->CreateResult(input, cellOut, input.GetCoordinateSystems(), mapper);
+  return this->CreateResult(input, cellOut, mapper);
 }
 
 }

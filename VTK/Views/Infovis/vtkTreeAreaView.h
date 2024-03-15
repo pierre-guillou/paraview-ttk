@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTreeAreaView.h
-
-  -------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkTreeAreaView
  * @brief   Accepts a graph and a hierarchy - currently
@@ -43,6 +25,7 @@
 #include "vtkRenderView.h"
 #include "vtkViewsInfovisModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAreaLayoutStrategy;
 class vtkGraph;
 class vtkLabeledDataMapper;
@@ -187,7 +170,7 @@ public:
   /**
    * The size of the font used for area labeling
    */
-  virtual void SetAreaLabelFontSize(const int size);
+  virtual void SetAreaLabelFontSize(int size);
   virtual int GetAreaLabelFontSize();
   ///@}
 
@@ -195,7 +178,7 @@ public:
   /**
    * The size of the font used for edge labeling
    */
-  virtual void SetEdgeLabelFontSize(const int size);
+  virtual void SetEdgeLabelFontSize(int size);
   virtual int GetEdgeLabelFontSize();
   ///@}
 
@@ -261,4 +244,5 @@ private:
   void operator=(const vtkTreeAreaView&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkKdTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKdTree.h"
 
 #include "vtkBSPCuts.h"
@@ -50,6 +33,7 @@
 #include <queue>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class TimeLog // Similar to vtkTimerLogScope, but can be disabled at runtime.
@@ -440,7 +424,7 @@ void vtkKdTree::AddDataSet(vtkDataSet* set)
     return;
   }
 
-  if (this->DataSets->IsItemPresent(set))
+  if (this->DataSets->IndexOfFirstOccurence(set) >= 0)
   {
     return;
   }
@@ -475,9 +459,7 @@ int vtkKdTree::GetNumberOfDataSets()
 //------------------------------------------------------------------------------
 int vtkKdTree::GetDataSetIndex(vtkDataSet* set)
 {
-  // This is weird, but IsItemPresent returns the index + 1 (so that 0
-  // corresponds to item not present).
-  return this->DataSets->IsItemPresent(set) - 1;
+  return this->DataSets->IndexOfFirstOccurence(set);
 }
 
 //------------------------------------------------------------------------------
@@ -765,7 +747,7 @@ void vtkKdTree::ComputeCellCenter(vtkCell* cell, double* center, double* weights
 void vtkKdTree::BuildLocator()
 {
   // don't rebuild if build time is newer than modified and dataset modified time
-  if (this->Top && this->BuildTime > this->MTime && this->BuildTime > this->DataSet->GetMTime())
+  if (this->Top && this->BuildTime > this->MTime && this->NewGeometry() == 0)
   {
     return;
   }
@@ -795,7 +777,7 @@ void vtkKdTree::BuildLocatorInternal()
   int nCells = 0;
   int i;
 
-  if (this->NewGeometry())
+  if (this->NewGeometry() == 0)
   {
     return;
   }
@@ -3156,7 +3138,7 @@ void vtkKdTree::FreeSearchStructure()
 }
 
 //------------------------------------------------------------------------------
-// build PolyData representation of all spacial regions------------
+// build PolyData representation of all spatial regions------------
 //
 void vtkKdTree::GenerateRepresentation(int level, vtkPolyData* pd)
 {
@@ -3445,7 +3427,7 @@ void vtkKdTree::_generateRepresentationDataBounds(
 }
 
 //------------------------------------------------------------------------------
-// PolyData rep. of all spacial regions, shrunk to data bounds-------
+// PolyData rep. of all spatial regions, shrunk to data bounds-------
 //
 void vtkKdTree::AddPolys(vtkKdNode* kd, vtkPoints* pts, vtkCellArray* polys)
 {
@@ -3545,7 +3527,7 @@ void vtkKdTree::AddPolys(vtkKdNode* kd, vtkPoints* pts, vtkCellArray* polys)
 }
 
 //------------------------------------------------------------------------------
-// PolyData representation of a list of spacial regions------------
+// PolyData representation of a list of spatial regions------------
 //
 void vtkKdTree::GenerateRepresentation(int* regions, int len, vtkPolyData* pd)
 {
@@ -4820,3 +4802,4 @@ void vtkKdTree::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "Progress: " << this->Progress << endl;
 }
+VTK_ABI_NAMESPACE_END

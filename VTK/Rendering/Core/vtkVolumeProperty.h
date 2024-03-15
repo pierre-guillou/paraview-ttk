@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeProperty.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkVolumeProperty
@@ -65,6 +53,7 @@
 #include <set>           // For labelmap labels set
 #include <unordered_map> // For labelmap transfer function maps
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkColorTransferFunction;
 class vtkContourValues;
 class vtkImageData;
@@ -219,10 +208,10 @@ public:
    * for a salar value of X and a gradient magnitude of Y.
    */
   void SetTransferFunction2D(int index, vtkImageData* function);
-  void SetTransferFunction2D(vtkImageData* function) { this->SetTransferFunction2D(0, function); };
+  void SetTransferFunction2D(vtkImageData* function) { this->SetTransferFunction2D(0, function); }
 
   vtkImageData* GetTransferFunction2D(int index);
-  vtkImageData* GetTransferFunction2D() { return this->GetTransferFunction2D(0); };
+  vtkImageData* GetTransferFunction2D() { return this->GetTransferFunction2D(0); }
 
   /**
    * Color-opacity transfer function mode. TF_1D is its default value.
@@ -609,4 +598,5 @@ inline const char* vtkVolumeProperty::GetInterpolationTypeAsString()
   return "Unknown";
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkExodusIIReaderPrivate_h
 #define vtkExodusIIReaderPrivate_h
 
@@ -15,6 +17,7 @@
 
 #include "vtkIOExodusModule.h" // For export macro
 #include "vtk_exodusII.h"      // for exodus APIs
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkExodusIIReaderParser;
 class vtkIdTypeArray;
@@ -862,4 +865,5 @@ private:
   void operator=(const vtkExodusIIReaderPrivate&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkExodusIIReaderPrivate_h

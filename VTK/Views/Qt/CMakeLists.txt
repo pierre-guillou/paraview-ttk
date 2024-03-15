@@ -8,7 +8,7 @@ set(classes
   vtkQtView)
 
 include(vtkQt)
-vtk_module_find_package(
+vtk_module_find_package(PRIVATE_IF_SHARED
   PACKAGE     "Qt${vtk_qt_major_version}"
   COMPONENTS  Widgets
   FORWARD_VERSION_REQ MINOR
@@ -20,3 +20,4 @@ vtk_module_add_module(VTK::ViewsQt
 
 vtk_module_definitions(VTK::ViewsQt PRIVATE QT_NO_KEYWORDS)
 vtk_module_link(VTK::ViewsQt PRIVATE "Qt${vtk_qt_major_version}::Widgets")
+vtk_add_test_mangling(VTK::ViewsQt)

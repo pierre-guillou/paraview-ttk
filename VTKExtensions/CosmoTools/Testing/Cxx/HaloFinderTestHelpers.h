@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    HaloFinderTestHelpers.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkMaskPoints.h"
 #include "vtkNew.h"
 #include "vtkPANLHaloFinder.h"
@@ -43,7 +32,7 @@ struct HaloFinderTestVTKObjects
     haloFinder = vtkSmartPointer<vtkPANLHaloFinder>::New();
     onlyPointsInHalos = vtkSmartPointer<vtkThreshold>::New();
     maskPoints = vtkSmartPointer<vtkMaskPoints>::New();
-    mapper = vtkSmartPointer<vtkCompositePolyDataMapper2>::New();
+    mapper = vtkSmartPointer<vtkCompositePolyDataMapper>::New();
   }
   vtkSmartPointer<vtkRenderWindow> renWin;
   vtkSmartPointer<vtkRenderWindowInteractor> iren;
@@ -51,7 +40,7 @@ struct HaloFinderTestVTKObjects
   vtkSmartPointer<vtkPANLHaloFinder> haloFinder;
   vtkSmartPointer<vtkThreshold> onlyPointsInHalos;
   vtkSmartPointer<vtkMaskPoints> maskPoints;
-  vtkSmartPointer<vtkCompositePolyDataMapper2> mapper;
+  vtkSmartPointer<vtkCompositePolyDataMapper> mapper;
 };
 
 inline std::set<std::string> getFirstOutputArrays()

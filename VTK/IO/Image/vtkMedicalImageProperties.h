@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMedicalImageProperties.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMedicalImageProperties
  * @brief   some medical image properties.
@@ -30,6 +18,7 @@
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMedicalImagePropertiesInternals;
 
 class VTKIOIMAGE_EXPORT vtkMedicalImageProperties : public vtkObject
@@ -439,7 +428,7 @@ public:
   virtual void RemoveWindowLevelPreset(double w, double l);
   virtual void RemoveAllWindowLevelPresets();
   virtual int GetNumberOfWindowLevelPresets();
-  virtual int HasWindowLevelPreset(double w, double l);
+  virtual vtkTypeBool HasWindowLevelPreset(double w, double l);
   virtual int GetWindowLevelPresetIndex(double w, double l);
   virtual int GetNthWindowLevelPreset(int idx, double* w, double* l);
   virtual double* GetNthWindowLevelPreset(int idx) VTK_SIZEHINT(2);
@@ -527,4 +516,5 @@ private:
   void operator=(const vtkMedicalImageProperties&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

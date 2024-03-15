@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGridNonOrientedMooreSuperCursor.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridNonOrientedMooreSuperCursor.h"
 
 #include "vtkBitArray.h"
@@ -25,10 +13,10 @@ PURPOSE.  See the above copyright Nonice for more information.
 
 #include <cassert>
 
-vtkStandardNewMacro(vtkHyperTreeGridNonOrientedMooreSuperCursor);
+#include "vtkHyperTreeGridNonOrientedMooreSuperCursorData.inl"
 
-// NOLINTNEXTLINE(bugprone-suspicious-include)
-#include "vtkHyperTreeGridNonOrientedMooreSuperCursorData.cxx"
+VTK_ABI_NAMESPACE_BEGIN
+vtkStandardNewMacro(vtkHyperTreeGridNonOrientedMooreSuperCursor);
 
 //------------------------------------------------------------------------------
 void vtkHyperTreeGridNonOrientedMooreSuperCursor::Initialize(
@@ -374,3 +362,4 @@ vtkHyperTreeGridNonOrientedMooreSuperCursor::~vtkHyperTreeGridNonOrientedMooreSu
   default;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

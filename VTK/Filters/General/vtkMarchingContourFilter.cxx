@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMarchingContourFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMarchingContourFilter.h"
 
 #include "vtkCell.h"
@@ -34,6 +22,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMarchingContourFilter);
 
 // Construct object with initial range (0,1) and single contour value
@@ -172,6 +161,7 @@ void vtkMarchingContourFilter::StructuredPointsContour(
       msquares->SetValue(i, values[i]);
     }
 
+    msquares->SetContainerAlgorithm(this);
     msquares->Update();
     output = msquares->GetOutput();
     output->Register(this);
@@ -195,6 +185,7 @@ void vtkMarchingContourFilter::StructuredPointsContour(
       mcubes->SetValue(i, values[i]);
     }
 
+    mcubes->SetContainerAlgorithm(this);
     mcubes->Update();
     output = mcubes->GetOutput();
     output->Register(this);
@@ -223,6 +214,7 @@ void vtkMarchingContourFilter::DataSetContour(vtkDataSet* input, vtkPolyData* ou
     contour->SetValue(i, values[i]);
   }
 
+  contour->SetContainerAlgorithm(this);
   contour->Update();
   output->ShallowCopy(contour->GetOutput());
   this->SetOutput(output);
@@ -237,6 +229,7 @@ void vtkMarchingContourFilter::ImageContour(int dim, vtkDataSet* input, vtkPolyD
 
   vtkNew<vtkTrivialProducer> producer;
   producer->SetOutput(input);
+  producer->SetContainerAlgorithm(this);
   // Explicitly update the update extent in the trivial producer to prevent
   // an error when downstream algorithms request a different extent.
   producer->UpdateWholeExtent();
@@ -256,6 +249,7 @@ void vtkMarchingContourFilter::ImageContour(int dim, vtkDataSet* input, vtkPolyD
     }
 
     contourOutput = msquares->GetOutput();
+    msquares->SetContainerAlgorithm(this);
     msquares->Update();
     output->ShallowCopy(contourOutput);
     msquares->Delete();
@@ -280,6 +274,7 @@ void vtkMarchingContourFilter::ImageContour(int dim, vtkDataSet* input, vtkPolyD
     }
 
     contourOutput = mcubes->GetOutput();
+    mcubes->SetContainerAlgorithm(this);
     mcubes->Update();
     output->ShallowCopy(contourOutput);
     mcubes->Delete();
@@ -341,3 +336,4 @@ void vtkMarchingContourFilter::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Locator: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

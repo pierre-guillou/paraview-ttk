@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVTransform
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVTransform
  * @brief   baseclass for all ParaView vtkTransform class.
@@ -35,32 +23,32 @@ public:
   vtkTypeMacro(vtkPVTransform, vtkTransform);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set Position of the transform.
    */
   void SetAbsolutePosition(double xyz[3]);
   void SetAbsolutePosition(double x, double y, double z);
   vtkGetVector3Macro(AbsolutePosition, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set Rotation for the transform.
    */
   void SetAbsoluteRotation(double xyz[3]);
   void SetAbsoluteRotation(double x, double y, double z);
   vtkGetVector3Macro(AbsoluteRotation, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set Scale for the transform.
    */
   void SetAbsoluteScale(double xyz[3]);
   void SetAbsoluteScale(double x, double y, double z);
   vtkGetVector3Macro(AbsoluteScale, double);
-  //@}
+  ///@}
 
 protected:
   vtkPVTransform() = default;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageHistogram.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageHistogram
  * @brief   Compute the histogram for an image.
@@ -34,6 +22,7 @@
 #include "vtkImagingStatisticsModule.h" // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageStencilData;
 class vtkIdTypeArray;
 class vtkImageHistogramThreadData;
@@ -238,4 +227,5 @@ private:
   friend class vtkImageHistogramFunctor;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

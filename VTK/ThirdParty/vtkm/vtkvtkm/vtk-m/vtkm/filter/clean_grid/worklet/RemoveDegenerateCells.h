@@ -44,18 +44,20 @@ struct RemoveDegenerateCells
     {
       const vtkm::IdComponent numPoints = pointIds.GetNumberOfComponents();
       vtkm::IdComponent numUnduplicatedPoints = 0;
-      for (vtkm::IdComponent localPointId = 0; localPointId < numPoints; ++localPointId)
+      // Skip first point if it is the same as the last.
+      for (vtkm::IdComponent localPointId = ((pointIds[0] != pointIds[numPoints - 1]) ? 0 : 1);
+           localPointId < numPoints;
+           ++localPointId)
       {
         ++numUnduplicatedPoints;
         if (numUnduplicatedPoints >= dimensionality + 1)
         {
           return true;
         }
-        while (((localPointId < numPoints - 1) &&
-                (pointIds[localPointId] == pointIds[localPointId + 1])) ||
-               ((localPointId == numPoints - 1) && (pointIds[localPointId] == pointIds[0])))
+        // Skip over any repeated points. Assume any repeated points are adjacent.
+        while ((localPointId < numPoints - 1) &&
+               (pointIds[localPointId] == pointIds[localPointId + 1]))
         {
-          // Skip over any repeated points. Assume any repeated points are adjacent.
           ++localPointId;
         }
       }
@@ -65,7 +67,7 @@ struct RemoveDegenerateCells
     template <typename CellShapeTag, typename PointVecType>
     VTKM_EXEC bool CheckForDimensionality(vtkm::CellTopologicalDimensionsTag<0>,
                                           CellShapeTag,
-                                          PointVecType&&)
+                                          PointVecType&&) const
     {
       return true;
     }
@@ -73,9 +75,10 @@ struct RemoveDegenerateCells
     template <typename CellShapeTag, typename PointVecType>
     VTKM_EXEC bool CheckForDimensionality(vtkm::CellTopologicalDimensionsTag<3>,
                                           CellShapeTag shape,
-                                          PointVecType&& pointIds)
+                                          PointVecType&& pointIds) const
     {
-      const vtkm::IdComponent numFaces = vtkm::exec::CellFaceNumberOfFaces(shape, *this);
+      vtkm::IdComponent numFaces;
+      vtkm::exec::CellFaceNumberOfFaces(shape, numFaces);
       vtkm::Id numValidFaces = 0;
       for (vtkm::IdComponent faceId = 0; faceId < numFaces; ++faceId)
       {
@@ -133,38 +136,13 @@ struct RemoveDegenerateCells
     return output;
   }
 
-  struct CallWorklet
-  {
-    template <typename CellSetType>
-    void operator()(const CellSetType& cellSet,
-                    RemoveDegenerateCells& self,
-                    vtkm::cont::CellSetExplicit<>& output) const
-    {
-      output = self.Run(cellSet);
-    }
-  };
-
   template <typename CellSetList>
   vtkm::cont::CellSetExplicit<> Run(const vtkm::cont::UncertainCellSet<CellSetList>& cellSet)
   {
     vtkm::cont::CellSetExplicit<> output;
-    cellSet.CastAndCall(CallWorklet(), *this, output);
+    cellSet.CastAndCall([&](const auto& concrete) { output = this->Run(concrete); });
 
     return output;
-  }
-
-  template <typename ValueType, typename StorageTag>
-  vtkm::cont::ArrayHandle<ValueType> ProcessCellField(
-    const vtkm::cont::ArrayHandle<ValueType, StorageTag> in) const
-  {
-    // Use a temporary permutation array to simplify the mapping:
-    auto tmp = vtkm::cont::make_ArrayHandlePermutation(this->ValidCellIds, in);
-
-    // Copy into an array with default storage:
-    vtkm::cont::ArrayHandle<ValueType> result;
-    vtkm::cont::ArrayCopy(tmp, result);
-
-    return result;
   }
 
   vtkm::cont::ArrayHandle<vtkm::Id> GetValidCellIds() const { return this->ValidCellIds; }

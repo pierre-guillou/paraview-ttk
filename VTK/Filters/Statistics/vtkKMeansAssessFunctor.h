@@ -1,6 +1,9 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkKMeansAssessFunctor_h
 #define vtkKMeansAssessFunctor_h
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkKMeansAssessFunctor : public vtkStatisticsAlgorithm::AssessFunctor
 {
   vtkDoubleArray* Distances;
@@ -16,5 +19,6 @@ public:
   int GetNumberOfRuns() { return NumRuns; }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkKMeansAssessFunctor_h
 // VTK-HeaderTest-Exclude: vtkKMeansAssessFunctor.h

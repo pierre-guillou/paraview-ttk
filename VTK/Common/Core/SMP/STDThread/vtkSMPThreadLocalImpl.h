@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPThreadLocalImpl.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkSMPThreadLocalImpl - A thread local storage implementation using
 // platform specific facilities.
 
@@ -31,6 +19,7 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename T>
 class vtkSMPThreadLocalImpl<BackendType::STDThread, T> : public vtkSMPThreadLocalImplAbstract<T>
@@ -87,7 +76,7 @@ public:
     T* GetContentPtr() override { return reinterpret_cast<T*>(this->Impl.GetStorage()); }
 
   protected:
-    virtual ItImpl* CloneImpl() const override { return new ItImpl(*this); };
+    ItImpl* CloneImpl() const override { return new ItImpl(*this); }
 
   private:
     vtk::detail::smp::STDThread::ThreadSpecificStorageIterator Impl;
@@ -126,8 +115,10 @@ private:
   void operator=(const vtkSMPThreadLocalImpl&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 
 #endif
+/* VTK-HeaderTest-Exclude: vtkSMPThreadLocalImpl.h */

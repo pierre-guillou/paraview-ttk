@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataEdgeConnectivityFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPolyDataEdgeConnectivityFilter.h"
 
 #include "vtkCell.h"
@@ -36,6 +24,7 @@
 #include <algorithm> // for fill_n
 #include <numeric>   //for iota
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyDataEdgeConnectivityFilter);
 
 namespace
@@ -47,7 +36,7 @@ enum RegionType
   LargeRegion = 1
 };
 
-}; // anonymous namespace
+} // anonymous namespace
 
 //------------------------------------------------------------------------------
 // Construct with default extraction mode to extract largest regions.
@@ -280,7 +269,10 @@ int vtkPolyDataEdgeConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(re
   this->RegionIds.resize(numCells);
   std::fill_n(this->RegionIds.begin(), numCells, (-1));
 
-  this->PointMap.reserve(numPts);
+  if (this->PointMap.size() < static_cast<size_t>(numPts))
+  {
+    this->PointMap.resize(numPts);
+  }
   std::fill_n(this->PointMap.begin(), numPts, (-1));
 
   this->RegionSizes->Reset();
@@ -327,6 +319,10 @@ int vtkPolyDataEdgeConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(re
       if (cellId && !(cellId % 5000))
       {
         this->UpdateProgress(0.1 + 0.8 * cellId / numCells);
+        if (this->CheckAbort())
+        {
+          break;
+        }
       }
 
       if (this->RegionIds[cellId] < 0)
@@ -350,11 +346,16 @@ int vtkPolyDataEdgeConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(re
   else // regions have been seeded, everything considered in same region
   {
     this->NumCellsInRegion = 0;
+    vtkIdType checkAbortInterval = std::min(this->Seeds.size() / 10 + 1, (std::size_t)1000);
 
     if (this->ExtractionMode == VTK_EXTRACT_POINT_SEEDED_REGIONS)
     {
       for (i = 0; i < (vtkIdType)this->Seeds.size(); i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         pt = this->Seeds[i];
         if (pt >= 0)
         {
@@ -370,6 +371,10 @@ int vtkPolyDataEdgeConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(re
     {
       for (i = 0; i < (vtkIdType)this->Seeds.size(); i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         cellId = this->Seeds[i];
         if (cellId >= 0)
         {
@@ -381,8 +386,13 @@ int vtkPolyDataEdgeConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(re
     { // loop over points, find closest one
       double minDist2, dist2, x[3];
       int minId = 0;
+      checkAbortInterval = std::min(numPts / 10 + 1, (vtkIdType)1000);
       for (minDist2 = VTK_DOUBLE_MAX, i = 0; i < numPts; i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         inPts->GetPoint(i, x);
         dist2 = vtkMath::Distance2BetweenPoints(x, this->ClosestPoint);
         if (dist2 < minDist2)
@@ -1097,3 +1107,4 @@ void vtkPolyDataEdgeConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

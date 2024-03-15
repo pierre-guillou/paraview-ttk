@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVRFollower.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRFollower
  * @brief   VR Follower
@@ -25,6 +13,7 @@
 #include "vtkFollower.h"
 #include "vtkRenderingVRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGVR_EXPORT vtkVRFollower : public vtkFollower
 {
 public:
@@ -49,6 +38,14 @@ protected:
 private:
   vtkVRFollower(const vtkVRFollower&) = delete;
   void operator=(const vtkVRFollower&) = delete;
+
+  /**
+   * DO NOT USE
+   * This method is declared in order to hide a `-Woverloaded-virtual`
+   * since we can't use the `using` keyword with private methods
+   */
+  void Render(vtkRenderer*, vtkMapper*) override {}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,37 +1,10 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonEditorActions.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqPythonEditorActions.h"
 
+#include "pqApplicationCore.h"
 #include "pqFileDialog.h"
 #include "pqPythonFileIO.h"
 #include "pqPythonManager.h"
@@ -40,6 +13,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPythonTextArea.h"
 #include "pqQtDeprecated.h"
 
+#include <QCoreApplication>
 #include <QFileDialog>
 #include <QKeySequence>
 #include <QString>
@@ -60,74 +34,100 @@ pqPythonEditorActions::pqPythonEditorActions()
 {
   using Action = GeneralActionType;
 
-  this->GeneralActions[Action::NewFile].setText(QObject::tr("&New"));
+  this->GeneralActions[Action::NewFile].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "&New"));
   this->GeneralActions[Action::NewFile].setShortcut(QKeySequence::New);
-  this->GeneralActions[Action::NewFile].setStatusTip(QObject::tr("Create a new file"));
+  this->GeneralActions[Action::NewFile].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Create a new file"));
 
-  this->GeneralActions[Action::OpenFile].setText(QObject::tr("&Open..."));
+  this->GeneralActions[Action::OpenFile].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "&Open..."));
   this->GeneralActions[Action::OpenFile].setShortcut(QKeySequence::Open);
-  this->GeneralActions[Action::OpenFile].setStatusTip(QObject::tr("Open an existing file"));
+  this->GeneralActions[Action::OpenFile].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Open an existing file"));
 
-  this->GeneralActions[Action::SaveFile].setText(QObject::tr("&Save"));
+  this->GeneralActions[Action::SaveFile].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "&Save"));
   this->GeneralActions[Action::SaveFile].setShortcut(QKeySequence::Save);
-  this->GeneralActions[Action::SaveFile].setStatusTip(QObject::tr("Save the document to disk"));
+  this->GeneralActions[Action::SaveFile].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Save the document to disk"));
 
-  this->GeneralActions[Action::SaveFileAs].setText(QObject::tr("Save &As..."));
+  this->GeneralActions[Action::SaveFileAs].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Save &As..."));
   this->GeneralActions[Action::SaveFileAs].setStatusTip(
-    QObject::tr("Save the document under a new name"));
+    QCoreApplication::translate("pqPythonEditorActions", "Save the document under a new name"));
 
-  this->GeneralActions[Action::SaveFileAsMacro].setText(QObject::tr("Save As &Macro..."));
+  this->GeneralActions[Action::SaveFileAsMacro].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Save As &Macro..."));
   this->GeneralActions[Action::SaveFileAsMacro].setStatusTip(
-    QObject::tr("Save the document as a Macro"));
+    QCoreApplication::translate("pqPythonEditorActions", "Save the document as a Macro"));
 
-  this->GeneralActions[Action::SaveFileAsScript].setText(QObject::tr("Save As &Script..."));
+  this->GeneralActions[Action::SaveFileAsScript].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Save As &Script..."));
   this->GeneralActions[Action::SaveFileAsScript].setStatusTip(
-    QObject::tr("Save the document as a Script"));
+    QCoreApplication::translate("pqPythonEditorActions", "Save the document as a Script"));
 
-  this->GeneralActions[Action::DeleteAll].setText("Delete All");
-  this->GeneralActions[Action::DeleteAll].setStatusTip(QObject::tr("Delete all scripts from disk"));
+  this->GeneralActions[Action::DeleteAll].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Delete All"));
+  this->GeneralActions[Action::DeleteAll].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Delete all scripts from disk"));
 
-  this->GeneralActions[Action::Run].setText(QObject::tr("Run..."));
-  this->GeneralActions[Action::Run].setStatusTip(QObject::tr("Run the currently edited script"));
+  this->GeneralActions[Action::Run].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Run..."));
+  this->GeneralActions[Action::Run].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Run the currently edited script"));
 
-  this->GeneralActions[Action::Cut].setText(QObject::tr("Cut"));
+  this->GeneralActions[Action::Cut].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Cut"));
   this->GeneralActions[Action::Cut].setShortcut(QKeySequence::Cut);
   this->GeneralActions[Action::Cut].setStatusTip(
-    QObject::tr("Cut the current selection's contents to the "
-                "clipboard"));
+    QCoreApplication::translate("pqPythonEditorActions",
+      "Cut the current selection's contents to the "
+      "clipboard"));
 
-  this->GeneralActions[Action::Undo].setText(QObject::tr("Undo"));
+  this->GeneralActions[Action::Undo].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Undo"));
   this->GeneralActions[Action::Undo].setShortcut(QKeySequence::Undo);
-  this->GeneralActions[Action::Undo].setStatusTip(QObject::tr("Undo the last edit of the file"));
+  this->GeneralActions[Action::Undo].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Undo the last edit of the file"));
 
-  this->GeneralActions[Action::Redo].setText(QObject::tr("Redo"));
+  this->GeneralActions[Action::Redo].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Redo"));
   this->GeneralActions[Action::Redo].setShortcut(QKeySequence::Redo);
-  this->GeneralActions[Action::Redo].setStatusTip(QObject::tr("Redo the last undo of the file"));
+  this->GeneralActions[Action::Redo].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Redo the last undo of the file"));
 
-  this->GeneralActions[Action::Copy].setText(QObject::tr("Copy"));
+  this->GeneralActions[Action::Copy].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Copy"));
   this->GeneralActions[Action::Copy].setShortcut(QKeySequence::Copy);
   this->GeneralActions[Action::Copy].setStatusTip(
-    QObject::tr("Copy the current selection's contents to the "
-                "clipboard"));
+    QCoreApplication::translate("pqPythonEditorActions",
+      "Copy the current selection's contents to the "
+      "clipboard"));
 
-  this->GeneralActions[Action::Paste].setText(QObject::tr("Paste"));
+  this->GeneralActions[Action::Paste].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Paste"));
   this->GeneralActions[Action::Paste].setShortcut(QKeySequence::Paste);
   this->GeneralActions[Action::Paste].setStatusTip(
-    QObject::tr("Paste the clipboard's contents into the current "
-                "selection"));
+    QCoreApplication::translate("pqPythonEditorActions",
+      "Paste the clipboard's contents into the current "
+      "selection"));
 
-  this->GeneralActions[Action::Exit].setText(QObject::tr("C&lose"));
+  this->GeneralActions[Action::Exit].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "C&lose"));
   this->GeneralActions[Action::Exit].setShortcut(QKeySequence::Quit);
-  this->GeneralActions[Action::Exit].setStatusTip(QObject::tr("Close the script editor"));
+  this->GeneralActions[Action::Exit].setStatusTip(
+    QCoreApplication::translate("pqPythonEditorActions", "Close the script editor"));
 
-  this->GeneralActions[Action::CloseCurrentTab].setText(QObject::tr("Close Current Tab"));
+  this->GeneralActions[Action::CloseCurrentTab].setText(
+    QCoreApplication::translate("pqPythonEditorActions", "Close Current Tab"));
   this->GeneralActions[Action::CloseCurrentTab].setShortcut(QKeySequence::Close);
   this->GeneralActions[Action::CloseCurrentTab].setStatusTip(
-    QObject::tr("Close the current opened tab"));
+    QCoreApplication::translate("pqPythonEditorActions", "Close the current opened tab"));
 }
 
 //-----------------------------------------------------------------------------
-void pqPythonEditorActions::updateScriptsList(pqPythonManager* const python_mgr)
+void pqPythonEditorActions::updateScriptsList(pqPythonManager* python_mgr)
 {
   auto scripts = details::ListFiles(pqPythonScriptEditor::getScriptsDir());
 
@@ -351,13 +351,17 @@ void pqPythonEditorActions::connect<pqPythonTabWidget>(
   QObject::connect(
     &actions[Action::NewFile], &QAction::triggered, tWidget, &pqPythonTabWidget::createNewEmptyTab);
   QObject::connect(&actions[Action::OpenFile], &QAction::triggered, [tWidget]() {
-    pqFileDialog dialog(nullptr, pqPythonScriptEditor::getUniqueInstance(),
-      QObject::tr("Open File"), QString(), QObject::tr("Python Script (*.py)"));
+    pqServer* server = pqApplicationCore::instance()->getActiveServer();
+    pqFileDialog dialog(server, pqPythonScriptEditor::getUniqueInstance(),
+      QCoreApplication::translate("pqPythonEditorActions", "Open File"), QString(),
+      QCoreApplication::translate("pqPythonEditorActions", "Python Files") + QString(" (*.py);;"),
+      false, false);
     dialog.setObjectName("FileOpenDialog");
     if (QFileDialog::Accepted == dialog.exec())
     {
-      QList<QStringList> files = dialog.getAllSelectedFiles();
-      tWidget->addNewTextArea(files.begin()->first());
+      const QString filename = dialog.getAllSelectedFiles().begin()->first();
+      const vtkTypeUInt32 location = dialog.getSelectedLocation();
+      tWidget->addNewTextArea(filename, location);
     }
 
     pqPythonScriptEditor::bringFront();
@@ -365,8 +369,10 @@ void pqPythonEditorActions::connect<pqPythonTabWidget>(
   QObject::connect(&actions[Action::CloseCurrentTab], &QAction::triggered, tWidget,
     &pqPythonTabWidget::closeCurrentTab);
   QObject::connect(&actions[Action::DeleteAll], &QAction::triggered, tWidget, [tWidget]() {
-    QMessageBox::StandardButton ret =
-      QMessageBox::question(tWidget, "Delete All", "All scripts will be deleted. Are you sure?");
+    QMessageBox::StandardButton ret = QMessageBox::question(tWidget,
+      QCoreApplication::translate("pqPythonEditorActions", "Delete All"),
+      QCoreApplication::translate(
+        "pqPythonEditorActions", "All scripts will be deleted. Are you sure?"));
     if (ret == QMessageBox::StandardButton::Yes)
     {
       pqCoreUtilities::removeRecursively(pqPythonScriptEditor::getScriptsDir());

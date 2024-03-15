@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkObjectBase.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkObjectBase.h"
 #include "vtkDebug.h"
@@ -24,16 +12,25 @@
 
 #ifdef VTK_USE_MEMKIND
 #include <memkind.h>
+VTK_ABI_NAMESPACE_BEGIN
 struct memkind* MemkindHandle = nullptr;
+VTK_ABI_NAMESPACE_END
 #endif
 
 #define vtkBaseDebugMacro(x)
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObjectBaseToGarbageCollectorFriendship
 {
 public:
-  static int GiveReference(vtkObjectBase* obj) { return vtkGarbageCollector::GiveReference(obj); }
-  static int TakeReference(vtkObjectBase* obj) { return vtkGarbageCollector::TakeReference(obj); }
+  static vtkTypeBool GiveReference(vtkObjectBase* obj)
+  {
+    return vtkGarbageCollector::GiveReference(obj);
+  }
+  static vtkTypeBool TakeReference(vtkObjectBase* obj)
+  {
+    return vtkGarbageCollector::TakeReference(obj);
+  }
 };
 
 class vtkObjectBaseToWeakPointerBaseFriendship
@@ -365,6 +362,7 @@ void vtkObjectBase::ReportReferences(vtkGarbageCollector*)
 {
   // vtkObjectBase has no references to report.
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -378,6 +376,7 @@ VTK_THREAD_LOCAL vtkFreeingFunction CurrentFreeFunction = free;
 VTK_THREAD_LOCAL vtkFreeingFunction AlternateFreeFunction = vtkCustomFree;
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkObjectBase::SetMemkindDirectory(const char* directoryname)
 {
@@ -522,3 +521,4 @@ void vtkObjectBase::vtkMemkindRAII::Restore()
   vtkObjectBase::SetUsingMemkind(this->OriginalValue);
 #endif
 }
+VTK_ABI_NAMESPACE_END

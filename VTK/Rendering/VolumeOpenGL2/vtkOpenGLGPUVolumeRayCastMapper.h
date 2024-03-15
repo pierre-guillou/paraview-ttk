@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLGPUVolumeRayCastMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkOpenGLGPUVolumeRayCastMapper
  * @brief OpenGL implementation of volume rendering through ray-casting.
@@ -52,6 +40,10 @@
  *   - With the limitation that all of the inputs are assumed to share the same
  *     name/id.
  *
+ * - Inputs
+ *   - 1-component inputs with vtkVolumeProperty::IndependentComponentsOn()
+ *   - 4-component inputs with vtkVolumeProperty::IndependentComponentsOff()
+ *
  * @sa vtkGPUVolumeRayCastMapper vtkVolumeInputHelper vtkVolumeTexture
  * vtkMultiVolume
  *
@@ -67,6 +59,7 @@
 #include "vtkShader.h"                       // For methods
 #include "vtkSmartPointer.h"                 // For smartptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGenericOpenGLResourceFreeCallback;
 class vtkImplicitFunction;
 class vtkOpenGLCamera;
@@ -137,7 +130,7 @@ public:
 
   /**
    * Set a fixed number of partitions in which to split the volume
-   * during rendring. This will force by-block rendering without
+   * during rendering. This will force by-block rendering without
    * trying to compute an optimum number of partitions.
    */
   void SetPartitions(unsigned short x, unsigned short y, unsigned short z);
@@ -304,4 +297,5 @@ private:
   void operator=(const vtkOpenGLGPUVolumeRayCastMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkOpenGLGPUVolumeRayCastMapper_h

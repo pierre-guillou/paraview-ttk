@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParticleTracerBase.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkParticleTracerBase
  * @brief   A particle tracer for vector fields
@@ -37,6 +25,7 @@
 #include <mutex>  // STL Header
 #include <vector> // STL Header
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractParticleWriter;
 class vtkCellArray;
 class vtkCompositeDataSet;
@@ -54,9 +43,11 @@ class vtkPoints;
 class vtkPolyData;
 class vtkSignedCharArray;
 class vtkTemporalInterpolatedVelocityField;
+VTK_ABI_NAMESPACE_END
 
 namespace vtkParticleTracerBaseNamespace
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct Position_t
 {
   double x[4];
@@ -99,8 +90,10 @@ typedef ParticleVector::iterator ParticleIterator;
 typedef std::list<ParticleInformation> ParticleDataList;
 typedef ParticleDataList::iterator ParticleListIterator;
 struct ParticleTracerFunctor;
-};
+VTK_ABI_NAMESPACE_END
+}
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSFLOWPATHS_EXPORT vtkParticleTracerBase : public vtkPolyDataAlgorithm
 {
 public:
@@ -165,8 +158,8 @@ public:
    * redundant as the particles will be reinjected whenever the source changes
    * anyway
    */
-  vtkGetMacro(ForceReinjectionEveryNSteps, vtkTypeBool);
-  void SetForceReinjectionEveryNSteps(vtkTypeBool);
+  vtkGetMacro(ForceReinjectionEveryNSteps, int);
+  void SetForceReinjectionEveryNSteps(int);
   ///@}
 
   ///@{
@@ -563,6 +556,12 @@ protected:
    */
   virtual void AddRestartSeeds(vtkInformationVector** /*inputVector*/) {}
 
+  /**
+   * Recover the ghost array in provided point data
+   * and rename it by adding "Original_" in front of it, if available.
+   */
+  virtual void RenameGhostArray(vtkPointData* pd);
+
 private:
   /**
    * When particles leave the domain, they must be collected
@@ -606,7 +605,7 @@ private:
   bool FirstIteration;
 
   // Innjection parameters
-  vtkTypeBool ForceReinjectionEveryNSteps;
+  int ForceReinjectionEveryNSteps;
   vtkTimeStamp ParticleInjectionTime;
   bool HasCache;
 
@@ -667,4 +666,5 @@ private:
   static const double Epsilon;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -13,8 +13,6 @@ set(headers
   BoundaryTypes.h
   AveragePointNeighborhood.h
   CellDeepCopy.h
-  ContourTreeUniform.h
-  ContourTreeUniformAugmented.h
   CosmoTools.h
   DispatcherMapField.h
   DispatcherMapTopology.h
@@ -22,18 +20,13 @@ set(headers
   DispatcherPointNeighborhood.h
   DispatcherReduceByKey.h
   FieldStatistics.h
-  KdTree3D.h            # Deprecated
   KernelSplatter.h
   Keys.h
-  LagrangianStructures.h
   MaskIndices.h
   MaskNone.h
   MaskSelect.h
-  MIR.h
   NDimsHistMarginalization.h
   Normalize.h
-  ParticleAdvection.h
-  Probe.h
   ScalarsToColors.h
   ScatterCounting.h
   ScatterIdentity.h
@@ -42,7 +35,6 @@ set(headers
   StableSortIndices.h
   DescriptiveStatistics.h
   StreamLineUniformGrid.h
-  StreamSurface.h
   TriangleWinding.h
   WaveletCompressor.h
   WorkletMapField.h
@@ -78,16 +70,10 @@ set(sources_device
 #-----------------------------------------------------------------------------
 add_subdirectory(internal)
 add_subdirectory(colorconversion)
-add_subdirectory(contourtree)
-add_subdirectory(contourtree_augmented)
-add_subdirectory(contourtree_distributed)
 add_subdirectory(cosmotools)
-add_subdirectory(lcs)
-add_subdirectory(mir)
 add_subdirectory(splatkernels)
 add_subdirectory(spatialstructure)
 add_subdirectory(wavelets)
-add_subdirectory(particleadvection)
 
 vtkm_library(
   NAME vtkm_worklet
@@ -97,11 +83,5 @@ vtkm_library(
   DEVICE_SOURCES ${sources_device}
   USE_VTKM_JOB_POOL
   )
-target_link_libraries(vtkm_worklet PUBLIC vtkm_cont)
 
 set_source_files_properties(${sources_device} PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-
-#-----------------------------------------------------------------------------
-if (VTKm_ENABLE_TESTING)
-  add_subdirectory(testing)
-endif ()

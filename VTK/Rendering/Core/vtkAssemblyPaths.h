@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAssemblyPaths.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAssemblyPaths
  * @brief   a list of lists of props representing an assembly hierarchy
@@ -32,6 +20,7 @@
 
 #include "vtkAssemblyPath.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkProp;
 
 class VTKRENDERINGCORE_EXPORT vtkAssemblyPaths : public vtkCollection
@@ -52,8 +41,9 @@ public:
   void RemoveItem(vtkAssemblyPath* p);
 
   /**
-   * Determine whether a particular path is present. Returns its position
-   * in the list.
+   * Determine whether a particular path is present. If the return value is
+   * 0, the object was not found. If the object was found, the location is
+   * the return value-1.
    */
   int IsItemPresent(vtkAssemblyPath* p);
 
@@ -88,7 +78,6 @@ private:
   void RemoveItem(int i) { this->vtkCollection::RemoveItem(i); }
   int IsItemPresent(vtkObject* o) { return this->vtkCollection::IsItemPresent(o); }
 
-private:
   vtkAssemblyPaths(const vtkAssemblyPaths&) = delete;
   void operator=(const vtkAssemblyPaths&) = delete;
 };
@@ -113,4 +102,5 @@ inline vtkAssemblyPath* vtkAssemblyPaths::GetNextItem()
   return static_cast<vtkAssemblyPath*>(this->GetNextItemAsObject());
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

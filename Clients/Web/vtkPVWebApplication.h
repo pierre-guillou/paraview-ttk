@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVWebApplication
  * @brief   defines ParaViewWeb application interface.
@@ -38,7 +26,7 @@ public:
   vtkTypeMacro(vtkPVWebApplication, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the encoding to be used for rendered images.
    */
@@ -49,9 +37,9 @@ public:
   };
   vtkSetClampMacro(ImageEncoding, int, ENCODING_NONE, ENCODING_BASE64);
   vtkGetMacro(ImageEncoding, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the compression to be used for rendered images.
    */
@@ -63,9 +51,9 @@ public:
   };
   vtkSetClampMacro(ImageCompression, int, COMPRESSION_NONE, COMPRESSION_JPEG);
   vtkGetMacro(ImageCompression, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Render a view and obtain the rendered image.
    */
@@ -74,7 +62,7 @@ public:
   const char* StillRenderToString(vtkSMViewProxy* view, unsigned long time = 0, int quality = 100);
   vtkUnsignedCharArray* StillRenderToBuffer(
     vtkSMViewProxy* view, unsigned long time = 0, int quality = 100);
-  //@}
+  ///@}
 
   /**
    * StillRenderToString() need not necessary returns the most recently rendered
@@ -94,12 +82,12 @@ public:
    */
   void InvalidateCache(vtkSMViewProxy* view);
 
-  //@{
+  ///@{
   /**
    * Return the MTime of the last array exported by StillRenderToString, StillRenderToBuffer.
    */
   vtkGetMacro(LastStillRenderToMTime, vtkMTimeType);
-  //@}
+  ///@}
 
   /**
    * Return the Meta data description of the input scene in JSON format.
@@ -114,12 +102,12 @@ public:
    */
   const char* GetWebGLBinaryData(vtkSMViewProxy* view, const char* id, int partIndex);
 
-  //@{
+  ///@{
   /**
    * Return the size of the last image exported.
    */
   vtkGetVector2Macro(LastStillRenderImageSize, int);
-  //@}
+  ///@}
 
 protected:
   vtkPVWebApplication();

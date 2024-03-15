@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkClientServerStream.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkClientServerStream
  * @brief   Store messages for the interpreter.
@@ -35,22 +23,22 @@ class vtkClientServerStreamInternals;
 class VTKREMOTINGCLIENTSERVERSTREAM_EXPORT vtkClientServerStream
 {
 public:
-  //@{
+  ///@{
   /**
    * Constructor/Destructor manage references of vtk objects stored in
    * the stream along with the rest of the stream data.
    */
   vtkClientServerStream(vtkObjectBase* owner = nullptr);
   ~vtkClientServerStream();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Copy constructor and assignment operator copy all stream data.
    */
   vtkClientServerStream(const vtkClientServerStream&, vtkObjectBase* owner = nullptr);
   vtkClientServerStream& operator=(const vtkClientServerStream&);
-  //@}
+  ///@}
 
   /**
    * Enumeration of message types that may be stored in a stream.
@@ -147,7 +135,7 @@ public:
    */
   vtkClientServerStream::Types GetArgumentType(int message, int argument) const;
 
-  //@{
+  ///@{
   /**
    * Get the value of the given argument in the given message.
    * Returns whether the argument could be converted to the requested
@@ -167,10 +155,6 @@ public:
   int GetArgument(int message, int argument, double* value) const;
   int GetArgument(int message, int argument, long long* value) const;
   int GetArgument(int message, int argument, unsigned long long* value) const;
-#if defined(VTK_TYPE_USE___INT64)
-  int GetArgument(int message, int argument, __int64* value) const;
-  int GetArgument(int message, int argument, unsigned __int64* value) const;
-#endif
   int GetArgument(int message, int argument, signed char* value, vtkTypeUInt32 length) const;
   int GetArgument(int message, int argument, char* value, vtkTypeUInt32 length) const;
   int GetArgument(int message, int argument, short* value, vtkTypeUInt32 length) const;
@@ -184,10 +168,6 @@ public:
   int GetArgument(int message, int argument, double* value, vtkTypeUInt32 length) const;
   int GetArgument(int message, int argument, long long* value, vtkTypeUInt32 length) const;
   int GetArgument(int message, int argument, unsigned long long* value, vtkTypeUInt32 length) const;
-#if defined(VTK_TYPE_USE___INT64)
-  int GetArgument(int message, int argument, __int64* value, vtkTypeUInt32 length) const;
-  int GetArgument(int message, int argument, unsigned __int64* value, vtkTypeUInt32 length) const;
-#endif
   int GetArgument(int message, int argument, const char** value) const;
   int GetArgument(int message, int argument, char** value) const;
   int GetArgument(int message, int argument, vtkStdString* value) const;
@@ -195,7 +175,7 @@ public:
   int GetArgument(int message, int argument, vtkClientServerStream* value) const;
   int GetArgument(int message, int argument, vtkClientServerID* value) const;
   int GetArgument(int message, int argument, vtkObjectBase** value) const;
-  //@}
+  ///@}
 
   /**
    * Get the value of the given argument in the given message.
@@ -221,7 +201,7 @@ public:
    */
   int GetArgumentObject(int message, int argument, vtkObjectBase** value, const char* type) const;
 
-  //@{
+  ///@{
   /**
    * Proxy-object returned by the two-argument form of GetArgument.
    * This is suitable to be stored in another stream.
@@ -231,7 +211,7 @@ public:
     const unsigned char* Data;
     size_t Size;
   };
-  //@}
+  ///@}
 
   /**
    * Get the given argument of the given message in a form that can be
@@ -251,7 +231,7 @@ public:
   //--------------------------------------------------------------------------
   // Stream writing methods:
 
-  //@{
+  ///@{
   /**
    * Proxy-object returned by InsertArray and used to insert
    * array data into the stream.
@@ -263,9 +243,9 @@ public:
     vtkTypeUInt32 Size;
     const void* Data;
   };
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Stream operators for special types.
    */
@@ -278,9 +258,9 @@ public:
   vtkClientServerStream& operator<<(vtkObjectBase*);
   vtkClientServerStream& operator<<(const vtkStdString&);
   vtkClientServerStream& operator<<(const vtkVariant&);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Stream operators for native types.
    */
@@ -296,16 +276,12 @@ public:
   vtkClientServerStream& operator<<(unsigned long value);
   vtkClientServerStream& operator<<(long long value);
   vtkClientServerStream& operator<<(unsigned long long value);
-#if defined(VTK_TYPE_USE___INT64)
-  vtkClientServerStream& operator<<(__int64 value);
-  vtkClientServerStream& operator<<(unsigned __int64 value);
-#endif
   vtkClientServerStream& operator<<(float value);
   vtkClientServerStream& operator<<(double value);
   vtkClientServerStream& operator<<(const char* value);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Allow arrays to be passed into the stream.
    */
@@ -320,13 +296,9 @@ public:
   static vtkClientServerStream::Array InsertArray(const unsigned long*, int);
   static vtkClientServerStream::Array InsertArray(const long long*, int);
   static vtkClientServerStream::Array InsertArray(const unsigned long long*, int);
-#if defined(VTK_TYPE_USE___INT64)
-  static vtkClientServerStream::Array InsertArray(const __int64*, int);
-  static vtkClientServerStream::Array InsertArray(const unsigned __int64*, int);
-#endif
   static vtkClientServerStream::Array InsertArray(const float*, int);
   static vtkClientServerStream::Array InsertArray(const double*, int);
-  //@}
+  ///@}
 
   /**
    * Construct the entire stream from the given data.  This destroys
@@ -338,7 +310,7 @@ public:
   //--------------------------------------------------------------------------
   // Utility methods:
 
-  //@{
+  ///@{
   /**
    * Get a string describing the given type.  Returns "unknown" if the
    * type value is invalid.  If the type has multiple possible names,
@@ -348,7 +320,7 @@ public:
    */
   static const char* GetStringFromType(vtkClientServerStream::Types type);
   static const char* GetStringFromType(vtkClientServerStream::Types type, int index);
-  //@}
+  ///@}
 
   /**
    * Get the type named by the given string.  Returns
@@ -369,7 +341,7 @@ public:
    */
   static vtkClientServerStream::Commands GetCommandFromString(const char* name);
 
-  //@{
+  ///@{
   /**
    * Print the contents of the stream in a human-readable form.
    */
@@ -380,15 +352,15 @@ public:
   void PrintArgument(ostream&, int message, int argument) const;
   void PrintArgument(ostream&, int message, int argument, vtkIndent) const;
   void PrintArgumentValue(ostream&, int message, int argument) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Convert the stream to a string-based encoding.
    */
   const char* StreamToString() const;
   void StreamToString(ostream& os) const;
-  //@}
+  ///@}
 
   /**
    * Set the stream by parsing the given string.  The syntax of the
@@ -494,7 +466,7 @@ public:
   // Constructor checks the argument type and length, allocates
   // memory, and extracts the data from the message.
   vtkClientServerStreamDataArg(const vtkClientServerStream& msg, int message, int argument)
-    : Data(0)
+    : Data(nullptr)
   {
     // Check the argument length.
     vtkTypeUInt32 length = 0;
@@ -514,7 +486,7 @@ public:
     if (this->Data && !msg.GetArgument(message, argument, this->Data, length))
     {
       delete[] this->Data;
-      this->Data = 0;
+      this->Data = nullptr;
     }
   }
 

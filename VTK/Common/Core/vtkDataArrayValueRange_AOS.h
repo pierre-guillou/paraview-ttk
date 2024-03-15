@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataArrayValueRange_AOS.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * Specialization of value ranges and iterators for vtkAOSDataArrayTemplate.
  */
@@ -36,9 +24,9 @@ VTK_ITER_OPTIMIZE_START
 
 namespace vtk
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // ValueRange
@@ -155,6 +143,7 @@ template <typename ArrayType, ComponentIdType TupleSize,
   typename = typename std::enable_if<IsAOSDataArray<ArrayType>::value>::type>
 ValueRange<AOSArrayType, TupleSize> DeclareValueRangeSpecialization(ArrayType*);
 
+VTK_ABI_NAMESPACE_END
 }
 } // end namespace vtk::detail
 

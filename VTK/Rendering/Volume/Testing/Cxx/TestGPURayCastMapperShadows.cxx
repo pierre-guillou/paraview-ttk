@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGPURayCastMapperShadows.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkActor.h>
 #include <vtkCamera.h>
@@ -69,7 +57,7 @@ public:
       CoordsMin[i] = min[i];
       CoordsMax[i] = max[i];
     }
-  };
+  }
   ImageDataAABox(double min_x, double min_y, double min_z, double max_x, double max_y, double max_z,
     double value = 0.0)
   {
@@ -82,8 +70,10 @@ public:
     BoxValue = value;
   }
   ~ImageDataAABox() = default;
+  ImageDataAABox(ImageDataAABox const&) = default;
+  ImageDataAABox& operator=(ImageDataAABox const&) = default;
 
-  void SetValue(double value) { BoxValue = value; };
+  void SetValue(double value) { BoxValue = value; }
 
   void AddBoxToArray(vtkFloatArray* data, vtkImageData* grid)
   {
@@ -126,7 +116,7 @@ public:
         }
       }
     }
-  };
+  }
 };
 
 typedef std::vector<ImageDataAABox> BoxList;
@@ -143,9 +133,9 @@ int TestGPURayCastMapperShadows(int argc, char* argv[])
 
   BoxList Boxes;
   // wall
-  Boxes.push_back(ImageDataAABox(0.05, 0.05, 0.05, 0.1, 0.95, 0.95, 1.0));
+  Boxes.emplace_back(0.05, 0.05, 0.05, 0.1, 0.95, 0.95, 1.0);
   // box
-  Boxes.push_back(ImageDataAABox(0.6, 0.35, 0.35, 0.9, 0.65, 0.65, 2.0));
+  Boxes.emplace_back(0.6, 0.35, 0.35, 0.9, 0.65, 0.65, 2.0);
 
   // Camera Parameters
   double camera_position[3] = { 1.85, -1.27, 0.97 };

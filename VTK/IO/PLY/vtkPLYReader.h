@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLYReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPLYReader
  * @brief   read Stanford University PLY polygonal file format
@@ -42,8 +30,10 @@
 #define vtkPLYReader_h
 
 #include "vtkAbstractPolyDataReader.h"
-#include "vtkIOPLYModule.h" // For export macro
+#include "vtkIOPLYModule.h"    // For export macro
+#include "vtkResourceStream.h" // For vtkResourceStream
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStringArray;
 
 class VTKIOPLY_EXPORT vtkPLYReader : public vtkAbstractPolyDataReader
@@ -86,6 +76,24 @@ public:
   void SetInputString(const std::string& s) { this->InputString = s; }
   ///@}
 
+  ///@{
+  /**
+   * Specify stream to read from
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
+  ///@}
+
+  ///@{
+  /**
+   * Enable reading from an InputStream
+   * `ReadFromInputStream` has an higher priority than `ReadFromInputString`.
+   */
+  vtkSetMacro(ReadFromInputStream, bool);
+  vtkGetMacro(ReadFromInputStream, bool);
+  vtkBooleanMacro(ReadFromInputStream, bool);
+  ///@}
+
   /**
    * If true (default) and the "face" element has the property "texcoord" duplicate
    * face points if they have 2 or more different texture coordinates.
@@ -106,6 +114,9 @@ protected:
   // The input string.
   std::string InputString;
 
+  bool ReadFromInputStream = false;
+  vtkSmartPointer<vtkResourceStream> Stream;
+
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 private:
@@ -116,4 +127,5 @@ private:
   bool DuplicatePointsForFaceTexture;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

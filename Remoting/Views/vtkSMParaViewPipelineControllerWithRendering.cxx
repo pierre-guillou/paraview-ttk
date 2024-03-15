@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMParaViewPipelineControllerWithRendering.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 
 #include "vtkCollection.h"
@@ -22,13 +10,14 @@
 #include "vtkPVDataInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMDomain.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMProxyProperty.h"
 #include "vtkSMProxySelectionModel.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMTrace.h"
@@ -150,8 +139,8 @@ void vtkInheritRepresentationProperties(vtkSMRepresentationProxy* repr, vtkSMSou
 
   // Irrespective of other properties, scalar coloring is inherited if
   // possible.
-  if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(inputRepr) &&
-    !vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr))
+  if (vtkSMColorMapEditorHelper::GetUsingScalarColoring(inputRepr) &&
+    !vtkSMColorMapEditorHelper::GetUsingScalarColoring(repr))
   {
     vtkSMPropertyHelper colorArrayHelper(inputRepr, "ColorArrayName");
     const char* arrayName = colorArrayHelper.GetInputArrayNameToProcess();
@@ -160,7 +149,7 @@ void vtkInheritRepresentationProperties(vtkSMRepresentationProxy* repr, vtkSMSou
     if (producer->GetDataInformation(producerPort)
           ->GetArrayInformation(arrayName, arrayAssociation))
     {
-      vtkSMPVRepresentationProxy::SetScalarColoring(repr,
+      vtkSMColorMapEditorHelper::SetScalarColoring(repr,
         colorArrayHelper.GetInputArrayNameToProcess(), colorArrayHelper.GetInputArrayAssociation());
     }
   }
@@ -359,35 +348,7 @@ bool vtkSMParaViewPipelineControllerWithRendering::RegisterRepresentationProxy(v
     return false;
   }
 
-  if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(proxy))
-  {
-    // If representation has been initialized to use scalar coloring and no
-    // transfer functions are setup, we setup the transfer functions.
-    vtkSMPropertyHelper helper(proxy, "ColorArrayName");
-    const char* arrayName = helper.GetInputArrayNameToProcess();
-    if (arrayName != nullptr && arrayName[0] != '\0')
-    {
-      vtkNew<vtkSMTransferFunctionManager> mgr;
-      if (vtkSMProperty* sofProperty = proxy->GetProperty("ScalarOpacityFunction"))
-      {
-        vtkSMProxy* sofProxy =
-          mgr->GetOpacityTransferFunction(arrayName, proxy->GetSessionProxyManager());
-        vtkSMPropertyHelper(sofProperty).Set(sofProxy);
-      }
-      if (vtkSMProperty* lutProperty = proxy->GetProperty("LookupTable"))
-      {
-        vtkSMTransferFunctionProxy* lutProxy = vtkSMTransferFunctionProxy::SafeDownCast(
-          mgr->GetColorTransferFunction(arrayName, proxy->GetSessionProxyManager()));
-        int rescaleMode =
-          vtkSMPropertyHelper(lutProxy, "AutomaticRescaleRangeMode", true).GetAsInt();
-        vtkSMPropertyHelper(lutProperty).Set(lutProxy);
-        bool extend = rescaleMode == vtkSMTransferFunctionManager::GROW_ON_APPLY;
-        bool force = false;
-        vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(proxy, extend, force);
-        proxy->UpdateVTKObjects();
-      }
-    }
-  }
+  vtkSMColorMapEditorHelper::SetupLookupTable(proxy);
   return true;
 }
 
@@ -574,7 +535,7 @@ void vtkSMParaViewPipelineControllerWithRendering::Hide(vtkSMProxy* repr, vtkSMV
 
     if (vtkSMParaViewPipelineControllerWithRendering::HideScalarBarOnHide)
     {
-      vtkSMPVRepresentationProxy::HideScalarBarIfNotNeeded(repr, view);
+      vtkSMColorMapEditorHelper::HideScalarBarIfNotNeeded(repr, view);
     }
   }
 }
@@ -835,7 +796,6 @@ void vtkSMParaViewPipelineControllerWithRendering::DoMaterialSetup(vtkSMProxy* p
 {
   vtkSMMaterialLibraryProxy* mlp = vtkSMMaterialLibraryProxy::SafeDownCast(prox);
   mlp->LoadDefaultMaterials();
-  mlp->Synchronize();
 }
 
 //----------------------------------------------------------------------------

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen, Kristian Sons
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kristian Sons
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkX3DExporter.h"
 
 #include "vtkActor2D.h"
@@ -53,6 +42,7 @@
 using namespace vtkX3D;
 
 // forward declarations
+VTK_ABI_NAMESPACE_BEGIN
 static bool vtkX3DExporterWriterUsingCellColors(vtkMapper* mapper);
 static bool vtkX3DExporterWriterRenderFaceSet(int cellType, int representation, vtkPoints* points,
   vtkIdType cellOffset, vtkCellArray* cells, vtkUnsignedCharArray* colors, bool cell_colors,
@@ -849,7 +839,7 @@ void vtkX3DExporter::WriteATexture(vtkActor* anActor, vtkX3DExporterWriter* writ
 }
 
 //------------------------------------------------------------------------------
-int vtkX3DExporter::HasHeadLight(vtkRenderer* ren)
+vtkTypeBool vtkX3DExporter::HasHeadLight(vtkRenderer* ren)
 {
   // make sure we have a default light
   // if we don't then use a headlight
@@ -1220,3 +1210,4 @@ char* vtkX3DExporter::RegisterAndGetOutputString()
 
   return tmp;
 }
+VTK_ABI_NAMESPACE_END

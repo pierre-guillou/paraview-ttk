@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>PropertyCollectionWidget</class>
  <widget class="QWidget" name="PropertyCollectionWidget">
@@ -42,7 +44,12 @@
           <string/>
          </property>
          <property name="text">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Group Label&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          <string>Group Label</string>
+         </property>
+         <property name="font">
+          <font>
+           <weight>63</weight>
+          </font>
          </property>
         </widget>
        </item>

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkSMPThreadLocal.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPThreadLocal
  * @brief   Thread local storage for VTK objects.
@@ -83,6 +71,7 @@
 
 #include "SMP/Common/vtkSMPThreadLocalAPI.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkSMPThreadLocal
 {
@@ -132,7 +121,7 @@ public:
    * Returns a new iterator pointing to the beginning of
    * the local storage container. Thread safe.
    */
-  iterator begin() { return this->ThreadLocalAPI.begin(); };
+  iterator begin() { return this->ThreadLocalAPI.begin(); }
 
   /**
    * Returns a new iterator pointing to past the end of
@@ -148,5 +137,6 @@ private:
   void operator=(const vtkSMPThreadLocal&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkSMPThreadLocal.h

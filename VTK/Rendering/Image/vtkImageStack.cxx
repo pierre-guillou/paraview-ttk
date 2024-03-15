@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageStack.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkImageStack.h"
 #include "vtkAssemblyPath.h"
@@ -22,6 +10,7 @@
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageStack);
 
 //------------------------------------------------------------------------------
@@ -77,7 +66,7 @@ vtkImageSlice* vtkImageStack::GetActiveImage()
 //------------------------------------------------------------------------------
 void vtkImageStack::AddImage(vtkImageSlice* prop)
 {
-  if (!this->Images->IsItemPresent(prop) && !vtkImageStack::SafeDownCast(prop))
+  if (this->Images->IndexOfFirstOccurence(prop) < 0 && !vtkImageStack::SafeDownCast(prop))
   {
     this->Images->AddItem(prop);
     prop->AddConsumer(this);
@@ -88,7 +77,7 @@ void vtkImageStack::AddImage(vtkImageSlice* prop)
 //------------------------------------------------------------------------------
 void vtkImageStack::RemoveImage(vtkImageSlice* prop)
 {
-  if (this->Images->IsItemPresent(prop))
+  if (this->Images->IndexOfFirstOccurence(prop) >= 0)
   {
     prop->RemoveConsumer(this);
     this->Images->RemoveItem(prop);
@@ -97,9 +86,18 @@ void vtkImageStack::RemoveImage(vtkImageSlice* prop)
 }
 
 //------------------------------------------------------------------------------
-int vtkImageStack::HasImage(vtkImageSlice* prop)
+vtkTypeBool vtkImageStack::HasImage(vtkImageSlice* prop)
 {
-  return this->Images->IsItemPresent(prop);
+  int index = this->Images->IndexOfFirstOccurence(prop);
+
+#if defined(VTK_LEGACY_REMOVE)
+  return (index >= 0);
+#else
+  // The implementation used to call IsItemPresent(), which, despite its name,
+  // returned an index, not a boolean.  Preserve the old behaviour.  0 means
+  // the item is not found, otherwise return the index + 1.
+  return index + 1;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -609,3 +607,4 @@ void vtkImageStack::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ActiveLayer: " << this->ActiveLayer << "\n";
   os << indent << "ActiveImage: " << this->GetActiveImage() << "\n";
 }
+VTK_ABI_NAMESPACE_END

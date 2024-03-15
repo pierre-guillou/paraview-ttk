@@ -1,39 +1,12 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqTabbedMultiViewWidget.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqTabbedMultiViewWidget_h
 #define pqTabbedMultiViewWidget_h
 
 #include "pqComponentsModule.h"
-#include "vtkType.h"  // needed for vtkIdType
+#include "vtkType.h" // needed for vtkIdType
+#include <QCoreApplication>
 #include <QStyle>     // needed for QStyle:StandardPixmap
 #include <QTabBar>    // needed for QTabBar::ButtonPosition
 #include <QTabWidget> // needed for QTabWidget.
@@ -96,7 +69,7 @@ public:
    */
   pqMultiViewWidget* findTab(vtkSMViewLayoutProxy*) const;
 
-  //@{
+  ///@{
   /**
    * APIs for filtering of tab widgets. This matches the API exposed by
    * pqPipelineBrowserWidget.
@@ -104,7 +77,7 @@ public:
   void enableAnnotationFilter(const QString& annotationKey);
   void disableAnnotationFilter();
   void setAnnotationFilterMatching(bool matching);
-  //@}
+  ///@}
 
   /**
    * While generally not necessary to call this, if the annotations for the
@@ -136,7 +109,7 @@ public Q_SLOTS:
    */
   void setCurrentTab(int index);
 
-  //@{
+  ///@{
   /**
    * When set to false, all decorations including title frames, separators,
    * tab-bars are hidden.
@@ -144,7 +117,7 @@ public Q_SLOTS:
   void setDecorationsVisibility(bool);
   void showDecorations() { this->setDecorationsVisibility(true); }
   void hideDecorations() { this->setDecorationsVisibility(false); }
-  //@}
+  ///@}
 
   /**
    * toggles fullscreen state.
@@ -224,6 +197,8 @@ protected: // NOLINT(readability-redundant-access-specifiers)
   {
     typedef QTabWidget Superclass;
 
+    Q_DECLARE_TR_FUNCTIONS(pqTabWidget);
+
   public:
     pqTabWidget(QWidget* parentWdg = nullptr);
     ~pqTabWidget() override;
@@ -251,7 +226,7 @@ protected: // NOLINT(readability-redundant-access-specifiers)
      * Returns the label/tooltip to use for the popout button given the
      * popped_out state.
      */
-    static const char* popoutLabelText(bool popped_out);
+    static QString popoutLabelText(bool popped_out);
 
     /**
      * Returns the icon to use for the popout button given the popped_out state.
@@ -270,7 +245,7 @@ protected: // NOLINT(readability-redundant-access-specifiers)
      */
     QSize preview(const QSize&);
 
-    //@{
+    ///@{
     /**
      * Get/Set tab bar visibility. Use this instead of directly calling
      * `this->tabBar()->setVisible()` as that avoid interactions with preview
@@ -278,7 +253,10 @@ protected: // NOLINT(readability-redundant-access-specifiers)
      */
     void setTabBarVisibility(bool);
     bool tabBarVisibility() const { return this->TabBarVisibility; }
-    //@}
+    ///@}
+  protected:
+    void createViewSelectorTabIfNeeded(int tabIndex);
+
   private:
     Q_DISABLE_COPY(pqTabWidget)
     bool ReadOnly;

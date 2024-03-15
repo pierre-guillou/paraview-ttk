@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderWindowInteractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRenderWindowInteractor
  * @brief   platform-independent render window
@@ -50,6 +38,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For InteractorStyle
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTimerIdMap;
 
 // Timer flags for win32/X compatibility
@@ -112,9 +101,10 @@ public:
   virtual void Start();
 
   /**
-   * Run the event loop and return. This is provided so that you can
-   * implement your own event loop but yet use the vtk event handling as
-   * well.
+   * Process all user-interaction, timer events and return.
+   * If there are no events, this method returns immediately.
+   * This method is implemented only on desktop (macOS, linux, windows) and WebAssembly (SDL2).
+   * It is not implemented on iOS and Android platforms.
    */
   virtual void ProcessEvents() {}
 
@@ -290,7 +280,7 @@ public:
    * specified and should be overridden by platform dependent subclasses
    * to provide a termination procedure if one is required.
    */
-  virtual void TerminateApp(void) { this->Done = true; }
+  virtual void TerminateApp() { this->Done = true; }
 
   ///@{
   /**
@@ -803,6 +793,26 @@ public:
   void ClearPointerIndex(int i);
   ///@}
 
+  /**
+   * This flag is useful when you are integrating VTK in a larger system.
+   * In such cases, an application can lock up if the `Start()` method
+   * in vtkRenderWindowInteractor processes events indefinitely without
+   * giving the system a chance to execute anything.
+   * The default value for this flag is true. It currently only affects
+   * VTK webassembly applications.
+   *
+   * As an example with webassembly in the browser through emscripten SDK:
+   * 1. If your app has an `int main` entry point, leave this value enabled.
+   *    Emscripten will simulate an infinite event loop and avoid running code
+   *    after `interactor->Start()` which is usually the end of `main`.
+   *    Otherwise, all VTK objects will go out of scope immediately without
+   *    giving a chance for user interaction with the render window.
+   * 2. If your app does not have an `int main` entry point, disable this
+   *    behavior.
+   *    Otherwise, the webassembly application will not start up successfully.
+   */
+  static bool InteractorManagesTheEventLoop;
+
 protected:
   vtkRenderWindowInteractor();
   ~vtkRenderWindowInteractor() override;
@@ -926,4 +936,5 @@ private:
   void operator=(const vtkRenderWindowInteractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpanSpace.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpanSpace
  * @brief   organize data according to scalar span space
@@ -42,6 +30,7 @@
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkScalarTree.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSpanSpace;
 struct vtkInternalSpanSpace;
 
@@ -209,9 +198,9 @@ private:
   vtkIdType CurrentIdx;      // position into the current span row
   vtkIdType CurrentNumCells; // number of cells on the current span row
 
-private:
   vtkSpanSpace(const vtkSpanSpace&) = delete;
   void operator=(const vtkSpanSpace&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

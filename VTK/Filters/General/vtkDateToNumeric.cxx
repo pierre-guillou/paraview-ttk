@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDateToNumeric.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDateToNumeric.h"
 
 #include "vtkCommand.h"
@@ -35,6 +23,7 @@
 #include "time.h"
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDateToNumeric);
 //------------------------------------------------------------------------------
 vtkDateToNumeric::vtkDateToNumeric()
@@ -78,6 +67,10 @@ int vtkDateToNumeric::RequestData(
   // now filter arrays for each of the associations.
   for (int association = 0; association < vtkDataObject::NUMBER_OF_ASSOCIATIONS; ++association)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (association == vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS)
     {
       continue;
@@ -180,3 +173,4 @@ void vtkDateToNumeric::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "DateFormat: " << (this->DateFormat ? this->DateFormat : "(none)");
 }
+VTK_ABI_NAMESPACE_END

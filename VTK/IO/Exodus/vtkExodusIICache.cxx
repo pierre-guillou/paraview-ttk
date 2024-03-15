@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExodusIICache.h"
 
 #include "vtkDataArray.h"
@@ -16,6 +18,7 @@
   " [" << (cval) << ", " << ((cval) ? (cval)->GetActualMemorySize() / 1024. : 0.) << "]"
 
 #if 0
+VTK_ABI_NAMESPACE_BEGIN
 static void printCache( vtkExodusIICacheSet& cache, vtkExodusIICacheLRU& lru )
 {
   cout << "Cache\n";
@@ -31,9 +34,11 @@ static void printCache( vtkExodusIICacheSet& cache, vtkExodusIICacheLRU& lru )
     cout << VTK_EXO_PRT_KEY( (*lit)->first ) << "\n";
   }
 }
+VTK_ABI_NAMESPACE_END
 #endif // 0
 
 // ============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 vtkExodusIICacheEntry::vtkExodusIICacheEntry()
 {
   this->Value = nullptr;
@@ -289,3 +294,4 @@ void vtkExodusIICache::RecomputeSize()
     }
   }
 }
+VTK_ABI_NAMESPACE_END

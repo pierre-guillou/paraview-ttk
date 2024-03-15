@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorStyle3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInteractorStyle3D.h"
 
 #include "vtkAssemblyPath.h"
@@ -32,6 +20,7 @@
 #include "vtkTimerLog.h"
 #include "vtkTransform.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInteractorStyle3D);
 
 //------------------------------------------------------------------------------
@@ -246,12 +235,6 @@ void vtkInteractorStyle3D::Dolly3D(vtkEventData* ed)
   {
     edd->GetTrackPadPosition(this->LastTrackPadPosition);
   }
-
-  if (fabs(this->LastTrackPadPosition[0]) > fabs(this->LastTrackPadPosition[1]))
-  {
-    // do not dolly if pressed direction is not up or down but left or right
-    return;
-  }
   double speedScaleFactor = this->LastTrackPadPosition[1]; // -1 to +1 (the Y axis of the trackpad)
   double physicalScale = rwi->GetPhysicalScale();
 
@@ -303,3 +286,4 @@ void vtkInteractorStyle3D::SetScale(vtkCamera* camera, double newScale)
     this->CurrentRenderer->ResetCameraClippingRange();
   }
 }
+VTK_ABI_NAMESPACE_END

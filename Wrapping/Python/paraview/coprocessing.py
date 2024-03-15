@@ -5,12 +5,8 @@ pipeline. Additionally, this module has several other utility functions that are
 appropriate for co-processing.
 """
 
-# for Python2 print statmements to output like Python3 print statements
-from __future__ import print_function
 from paraview import simple, servermanager
 from paraview.detail import exportnow
-
-import math
 
 # If the user created a filename in a location that doesn't exist by default we'll
 # make the directory for them. This can be changed though by setting createDirectoriesIfNeeded
@@ -611,19 +607,29 @@ class CoProcessor(object):
         return view
 
     def CreateWriter(self, proxy_ctor, filename, freq):
-        """**DEPRECATED!!! Use RegisterWriter instead**
+        """
+        PARAVIEW_DEPRECATED_IN_5_12_0 Use RegisterWriter instead
+
         Creates a writer proxy. This method is generally used in
         reatePipeline() to create writers. All writes created as such will
         write the output files appropriately in WriteData() is called.
         """
+        import warnings
+        warnings.warn("'CoProcessor.CreateWriter' is deprecated, use CoProcessor.RegisterWriter instead", DeprecationWarning)
+
         writer = proxy_ctor()
         return self.RegisterWriter(writer, filename, freq)
 
     def CreateView(self, proxy_ctor, filename, freq, fittoscreen, magnification, width, height):
-        """**DEPRECATED!!! Use RegisterView instead**
+        """
+        PARAVIEW_DEPRECATED_IN_5_12_0 Use RegisterView instead
+
         Create a CoProcessing view for image capture with extra meta-data
         such as magnification, size and frequency.
         """
+        import warnings
+        warnings.warn("'CoProcessor.CreateView' is deprecated, use 'CoProcessor.RegisterView' instead", DeprecationWarning)
+
         view = proxy_ctor()
         return self.RegisterView(view, filename, freq, fittoscreen, magnification, width, height, None)
 

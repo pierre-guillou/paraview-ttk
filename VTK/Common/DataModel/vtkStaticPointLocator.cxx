@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticPointLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStaticPointLocator.h"
 
 #include "vtkBoundingBox.h"
@@ -32,11 +20,12 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStaticPointLocator);
 
 // There are stack-allocated bucket neighbor lists. This is the initial
 // value. Too small and heap allocation kicks in.
-#define VTK_INITIAL_BUCKET_SIZE 10000
+constexpr size_t VTK_INITIAL_BUCKET_SIZE = 10000;
 
 //------------------------------------------------------------------------------
 // The following code supports threaded point locator construction. The locator
@@ -2393,3 +2382,4 @@ void vtkStaticPointLocator::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Traversal Order: " << (this->TraversalOrder ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRIBLight.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRIBLight
  * @brief   RIP Light
@@ -30,6 +18,7 @@
 #include "vtkIOExportModule.h" // For export macro
 #include "vtkLight.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRIBRenderer;
 
 class VTKIOEXPORT_EXPORT vtkRIBLight : public vtkLight
@@ -57,4 +46,5 @@ private:
   void operator=(const vtkRIBLight&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,27 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMath.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-  Contact: pppebay@sandia.gov,dcthomp@sandia.gov
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkMath
  * @brief   performs common math operations
@@ -72,19 +51,24 @@
 #endif // DBL_EPSILON
 #endif // VTK_DBL_EPSILON
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkPoints;
 class vtkMathInternal;
 class vtkMinimalStandardRandomSequence;
 class vtkBoxMuellerRandomSequence;
+VTK_ABI_NAMESPACE_END
 
 namespace vtk_detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 // forward declaration
 template <typename OutT>
 void RoundDoubleToIntegralIfNecessary(double val, OutT* ret);
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk_detail
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkMath : public vtkObject
 {
 public:
@@ -663,27 +647,27 @@ public:
    * Compute the amplitude of a Gaussian function with mean=0 and specified variance.
    * That is, 1./(std::sqrt(2 Pi * variance)) * exp(-distanceFromMean^2/(2.*variance)).
    */
-  static double GaussianAmplitude(const double variance, const double distanceFromMean);
+  static double GaussianAmplitude(double variance, double distanceFromMean);
 
   /**
    * Compute the amplitude of a Gaussian function with specified mean and variance.
    * That is, 1./(std::sqrt(2 Pi * variance)) * exp(-(position - mean)^2/(2.*variance)).
    */
-  static double GaussianAmplitude(const double mean, const double variance, const double position);
+  static double GaussianAmplitude(double mean, double variance, double position);
 
   /**
    * Compute the amplitude of an unnormalized Gaussian function with mean=0 and specified variance.
    * That is, exp(-distanceFromMean^2/(2.*variance)). When distanceFromMean = 0, this function
    * returns 1.
    */
-  static double GaussianWeight(const double variance, const double distanceFromMean);
+  static double GaussianWeight(double variance, double distanceFromMean);
 
   /**
    * Compute the amplitude of an unnormalized Gaussian function with specified mean and variance.
    * That is, exp(-(position - mean)^2/(2.*variance)). When the distance from 'position' to 'mean'
    * is 0, this function returns 1.
    */
-  static double GaussianWeight(const double mean, const double variance, const double position);
+  static double GaussianWeight(double mean, double variance, double position);
 
   /**
    * Dot product of two 2-vectors. (float version).
@@ -1557,6 +1541,16 @@ public:
    */
   static int QuadraticRoot(double a, double b, double c, double min, double max, double* u);
 
+  /**
+   * Compute the greatest common divisor (GCD) of two positive integers m and n. If the
+   * computed GCD==1, then the two integers are coprime to one another. This is a simple,
+   * recursive implementation.
+   */
+  static vtkIdType ComputeGCD(vtkIdType m, vtkIdType n) { return (n ? ComputeGCD(n, m % n) : m); }
+
+  /**
+   * Support the convolution operations.
+   */
   enum class ConvolutionMode
   {
     FULL,
@@ -1626,6 +1620,19 @@ public:
         *out += *(beginSample + (i - j)) * *(beginKernel + j);
       }
     }
+  }
+
+  /**
+   * Get the coordinates of a point along a line defined by p1 and p2, at a
+   * specified offset relative to p2.
+   */
+  static void GetPointAlongLine(double result[3], double p1[3], double p2[3], const double offset)
+  {
+    double directionVector[3] = { p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2] };
+    vtkMath::Normalize(directionVector);
+    result[0] = p2[0] + (offset * directionVector[0]);
+    result[1] = p2[1] + (offset * directionVector[1]);
+    result[2] = p2[2] + (offset * directionVector[2]);
   }
 
 protected:
@@ -1954,6 +1961,7 @@ inline void vtkMath::TensorFromSymmetricTensor(T tensor[9])
   tensor[2] = tensor[6]; // XZ
   tensor[1] = tensor[3]; // XY
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -1997,6 +2005,7 @@ inline void vtkQuaternionToMatrix3x3(const QuaternionT& quat, MatrixT& A)
 }
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 inline void vtkMath::QuaternionToMatrix3x3(const float quat[4], float A[3][3])
 {
@@ -2015,6 +2024,7 @@ inline void vtkMath::QuaternionToMatrix3x3(const QuaternionT& q, MatrixT&& A)
 {
   vtkQuaternionToMatrix3x3(q, A);
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -2071,6 +2081,7 @@ inline void vtkMatrix3x3ToQuaternion(const MatrixT& A, QuaternionT& quat)
 }
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 inline void vtkMath::Matrix3x3ToQuaternion(const float A[3][3], float quat[4])
 {
@@ -2089,9 +2100,11 @@ inline void vtkMath::Matrix3x3ToQuaternion(const MatrixT& A, QuaternionT&& q)
 {
   vtkMatrix3x3ToQuaternion(A, q);
 }
+VTK_ABI_NAMESPACE_END
 
 namespace vtk_detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 // Can't specialize templates inside a template class, so we move the impl here.
 template <typename OutT>
 void RoundDoubleToIntegralIfNecessary(double val, OutT* ret)
@@ -2123,8 +2136,10 @@ inline void RoundDoubleToIntegralIfNecessary(double val, float* retVal)
 
   *retVal = static_cast<float>(val);
 }
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk_detail
 
+VTK_ABI_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 #if defined(VTK_HAS_ISINF) || defined(VTK_HAS_STD_ISINF)
 #define VTK_MATH_ISINF_IS_INLINE
@@ -2166,4 +2181,5 @@ inline bool vtkMath::IsFinite(double x)
 }
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

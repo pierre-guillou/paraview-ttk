@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "../Types.h"
@@ -9,6 +11,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class World : public Object
     {
         friend class Renderer;
@@ -116,4 +119,5 @@ namespace RTW
         VisRTX::Model* model = nullptr;
         std::set<Geometry*> geometries;
     };
+VTK_ABI_NAMESPACE_END
 }

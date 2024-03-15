@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMStateLocator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMStateLocator
  * @brief   Class used to retrieve a given message state based
@@ -39,14 +27,14 @@ public:
   vtkTypeMacro(vtkSMStateLocator, vtkSMObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get a parent locator to search which is used as a backup location
    * to search from if a given state was not found locally.
    */
   vtkSetObjectMacro(ParentLocator, vtkSMStateLocator);
   vtkGetObjectMacro(ParentLocator, vtkSMStateLocator);
-  //@}
+  ///@}
 
   /**
    * By initializing the garabage collector the stored state get removed once

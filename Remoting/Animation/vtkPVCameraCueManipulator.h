@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCameraCueManipulator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMCameraManipulatorProxy
  * @brief   Manipulator for Camera animation.
@@ -48,7 +36,7 @@ public:
     FOLLOW_DATA
   };
 
-  //@{
+  ///@{
   /**
    * This manipulator has three modes:
    * \li CAMERA - the traditional mode using vtkCameraInterpolator where camera
@@ -63,16 +51,16 @@ public:
    */
   vtkSetClampMacro(Mode, int, CAMERA, FOLLOW_DATA);
   vtkGetMacro(Mode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the interpolation mode for the CAMERA mode.
    */
   vtkSetClampMacro(InterpolationMode, int, vtkCameraInterpolator::INTERPOLATION_TYPE_LINEAR,
     vtkCameraInterpolator::INTERPOLATION_TYPE_SPLINE);
   vtkGetMacro(InterpolationMode, int);
-  //@}
+  ///@}
 
   /**
    * Set the data source proxy. This is used when in the FOLLOW_DATA mode. The

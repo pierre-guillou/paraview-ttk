@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTilesHelper
  * @brief   this is a helper class that handles viewport
@@ -35,31 +23,31 @@ public:
   vtkTypeMacro(vtkTilesHelper, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the tile dimensions. Default is (1, 1).
    */
   vtkSetVector2Macro(TileDimensions, int);
   vtkGetVector2Macro(TileDimensions, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the tile mullions in pixels. Use negative numbers to indicate overlap
    * between tiles.
    */
   vtkSetVector2Macro(TileMullions, int);
   vtkGetVector2Macro(TileMullions, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the tile size i.e. the size of the render window for a single tile. An assumption,
    * in ParaView is that all tiles will be of the same size.
    */
   vtkSetVector2Macro(TileWindowSize, int);
   vtkGetVector2Macro(TileWindowSize, int);
-  //@}
+  ///@}
 
   /**
    * For the specified `rank`, returns the tile size and origin of the tile

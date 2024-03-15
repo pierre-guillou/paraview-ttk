@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscreteMarchingCubes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDiscreteMarchingCubes.h"
 
@@ -39,6 +27,7 @@
 #include "vtkUnsignedLongArray.h"
 #include "vtkUnsignedShortArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDiscreteMarchingCubes);
 
 void vtkDiscreteMarchingCubes::PrintSelf(ostream& os, vtkIndent indent)
@@ -79,7 +68,7 @@ void vtkDiscreteMarchingCubesComputeGradient(vtkDiscreteMarchingCubes* self, T* 
   vtkIdType jOffset, kOffset, idx;
   vtkIdType ptIds[3];
   int extent[6];
-  int ComputeScalars = newCellScalars != nullptr;
+  vtkTypeBool ComputeScalars = newCellScalars != nullptr;
   int ComputeAdjacentScalars = newPointScalars != nullptr;
   double t, x[3], min, max;
   static int edges[12][2] = { { 0, 1 }, { 1, 2 }, { 3, 2 }, { 0, 3 }, { 4, 5 }, { 5, 6 }, { 7, 6 },
@@ -117,7 +106,7 @@ void vtkDiscreteMarchingCubesComputeGradient(vtkDiscreteMarchingCubes* self, T* 
   for (k = 0; k < (dims[2] - 1); k++)
   {
     self->UpdateProgress(static_cast<double>(k) / (dims[2] - 1));
-    if (self->GetAbortExecute())
+    if (self->CheckAbort())
     {
       break;
     }
@@ -342,6 +331,7 @@ int vtkDiscreteMarchingCubes::RequestData(vtkInformation* vtkNotUsed(request),
   if (this->ComputeScalars)
   {
     newCellScalars = vtkFloatArray::New();
+    newCellScalars->SetName("Scalars");
     newCellScalars->Allocate(estimatedSize, 3);
   }
   else
@@ -352,6 +342,7 @@ int vtkDiscreteMarchingCubes::RequestData(vtkInformation* vtkNotUsed(request),
   if (this->ComputeAdjacentScalars)
   {
     newPointScalars = vtkFloatArray::New();
+    newPointScalars->SetName("AdjacentScalars");
     newPointScalars->Allocate(estimatedSize, estimatedSize / 2);
   }
   else
@@ -418,3 +409,4 @@ int vtkDiscreteMarchingCubes::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

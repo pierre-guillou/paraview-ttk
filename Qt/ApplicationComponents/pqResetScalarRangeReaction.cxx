@@ -1,34 +1,10 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
-   Program: ParaView
-   Module:    pqResetScalarRangeReaction.cxx
+// Hide PARAVIEW_DEPRECATED_IN_5_12_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
 
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
 #include "pqResetScalarRangeReaction.h"
 #include "ui_pqResetScalarRangeToDataOverTime.h"
 
@@ -41,7 +17,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTimeKeeper.h"
 #include "pqUndoStack.h"
 #include "vtkPVDataInformation.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMTimeKeeperProxy.h"
@@ -56,7 +32,7 @@ namespace
 vtkSMProxy* lutProxy(pqPipelineRepresentation* repr)
 {
   vtkSMProxy* reprProxy = repr ? repr->getProxy() : nullptr;
-  if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy))
+  if (vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
   {
     return vtkSMPropertyHelper(reprProxy, "LookupTable", true).GetAsProxy();
   }
@@ -158,7 +134,8 @@ bool pqResetScalarRangeReaction::resetScalarRangeToData(pqPipelineRepresentation
     }
   }
 
-  BEGIN_UNDO_SET("Reset transfer function ranges using data range");
+  BEGIN_UNDO_SET(QCoreApplication::translate(
+    "pqResetScalarRangeReaction", "Reset transfer function ranges using data range"));
   repr->resetLookupTableScalarRange();
   repr->renderViewEventually();
   if (vtkSMProxy* lut = lutProxy(repr))
@@ -232,7 +209,8 @@ bool pqResetScalarRangeReaction::resetScalarRangeToCustom(vtkSMProxy* lut, bool 
     }
     if (dialog.exec() == QDialog::Accepted)
     {
-      BEGIN_UNDO_SET("Reset transfer function ranges");
+      BEGIN_UNDO_SET(QCoreApplication::translate(
+        "pqResetScalarRangeReaction", "Reset transfer function ranges"));
       range[0] = dialog.minimum();
       range[1] = dialog.maximum();
       tfProxy->RescaleTransferFunction(range[0], range[1]);
@@ -300,8 +278,9 @@ bool pqResetScalarRangeReaction::resetScalarRangeToDataOverTime(pqPipelineRepres
   int retcode = dialog.exec();
   if (retcode != QDialog::Rejected)
   {
-    BEGIN_UNDO_SET("Reset transfer function ranges using temporal data range");
-    vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRangeOverTime(repr->getProxy());
+    BEGIN_UNDO_SET(QCoreApplication::translate(
+      "pqResetScalarRangeReaction", "Reset transfer function ranges using temporal data range"));
+    vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRangeOverTime(repr->getProxy());
 
     // disable auto-rescale of transfer function since the user has set one
     // explicitly (BUG #14371).
@@ -342,8 +321,9 @@ bool pqResetScalarRangeReaction::resetScalarRangeToVisible(pqPipelineRepresentat
     return false;
   }
 
-  BEGIN_UNDO_SET("Reset transfer function ranges to visible data range");
-  vtkSMPVRepresentationProxy::RescaleTransferFunctionToVisibleRange(
+  BEGIN_UNDO_SET(QCoreApplication::translate(
+    "pqResetScalarRangeReaction", "Reset transfer function ranges to visible data range"));
+  vtkSMColorMapEditorHelper::RescaleTransferFunctionToVisibleRange(
     repr->getProxy(), view->getProxy());
   repr->renderViewEventually();
   END_UNDO_SET();

@@ -11,6 +11,7 @@ set(classes
   vtkArrayRename
   vtkAssignAttribute
   vtkAttributeDataToFieldDataFilter
+  vtkAttributeDataToTableFilter
   vtkBinCellDataFilter
   vtkBinnedDecimation
   vtkCellCenters
@@ -43,10 +44,12 @@ set(classes
   vtkExecutionTimer
   vtkExplicitStructuredGridCrop
   vtkExplicitStructuredGridToUnstructuredGrid
+  vtkExtractCells
   vtkExtractCellsAlongPolyLine
   vtkExtractEdges
   vtkFeatureEdges
   vtkFieldDataToAttributeDataFilter
+  vtkFieldDataToDataSetAttribute
   vtkFlyingEdges2D
   vtkFlyingEdges3D
   vtkFlyingEdgesPlaneCutter
@@ -72,6 +75,7 @@ set(classes
   vtkMergeFilter
   vtkMoleculeAppend
   vtkMultiObjectMassProperties
+  vtkPackLabels
   vtkPassThrough
   vtkPlaneCutter
   vtkPointDataToCellData
@@ -81,6 +85,7 @@ set(classes
   vtkPolyDataPlaneClipper
   vtkPolyDataPlaneCutter
   vtkPolyDataTangents
+  vtkPolyDataToUnstructuredGrid
   vtkProbeFilter
   vtkQuadricClustering
   vtkQuadricDecimation
@@ -103,6 +108,7 @@ set(classes
   vtkStructuredGridAppend
   vtkStructuredGridOutlineFilter
   vtkSurfaceNets2D
+  vtkSurfaceNets3D
   vtkSynchronizedTemplates2D
   vtkSynchronizedTemplates3D
   vtkSynchronizedTemplatesCutter3D
@@ -121,8 +127,10 @@ set(classes
   vtkVoronoi2D
   vtkWindowedSincPolyDataFilter)
 
-set(headers
-    vtk3DLinearGridInternal.h)
+set(private_headers
+  vtk3DLinearGridInternal.h)
 
 vtk_module_add_module(VTK::FiltersCore
-  CLASSES ${classes})
+  CLASSES ${classes}
+  PRIVATE_HEADERS ${private_headers})
+vtk_add_test_mangling(VTK::FiltersCore)

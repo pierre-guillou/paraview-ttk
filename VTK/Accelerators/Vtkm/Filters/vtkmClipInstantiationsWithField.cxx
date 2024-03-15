@@ -1,29 +1,22 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
-  Program:   Visualization Toolkit
-  Module:    vtkmClipInstantiationsWithField.cxx
+#include "vtkDataArray.h"
 
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+#include "vtkmClip.h"
 #include "vtkmClipInternals.h"
 #include "vtkmlib/DataSetConverters.h"
 
+#include <vtkm/filter/clean_grid/CleanGrid.h>
 #include <vtkm/filter/contour/ClipWithField.h>
 
 //------------------------------------------------------------------------------
-vtkm::cont::DataSet vtkmClip::internals::ExecuteClipWithField(
-  vtkm::cont::DataSet& in, vtkDataArray* scalars, int assoc)
+VTK_ABI_NAMESPACE_BEGIN
+vtkm::cont::DataSet vtkmClip::internals::ExecuteClipWithField(vtkm::cont::DataSet& in,
+  vtkDataArray* scalars, int assoc, double value, bool insideOut, bool computeScalars)
 {
   vtkm::filter::contour::ClipWithField fieldFilter;
-  if (!this->ComputeScalars)
+  if (!computeScalars)
   {
     // explicitly convert just the field we need
     auto inField = tovtkm::Convert(scalars, assoc);
@@ -34,6 +27,10 @@ vtkm::cont::DataSet vtkmClip::internals::ExecuteClipWithField(
   }
 
   fieldFilter.SetActiveField(scalars->GetName(), vtkm::cont::Field::Association::Points);
-  fieldFilter.SetClipValue(this->ClipValue);
-  return fieldFilter.Execute(in);
+  fieldFilter.SetClipValue(value);
+  fieldFilter.SetInvertClip(insideOut);
+  auto result = fieldFilter.Execute(in);
+
+  return result;
 }
+VTK_ABI_NAMESPACE_END

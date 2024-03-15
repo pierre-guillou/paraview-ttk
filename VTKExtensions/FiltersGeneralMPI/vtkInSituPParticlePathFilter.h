@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkInSituPParticlePathFilter
  * @brief   An In Situ Particle tracer for unsteady vector fields
@@ -47,15 +35,15 @@ public:
    */
   void SetClearCache(bool);
 
-  //@{
+  ///@{
   /**
    * Provide support pre-pending previously computed particle paths.
    */
   void AddRestartConnection(vtkAlgorithmOutput* input);
   void RemoveAllRestarts();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get if the simulation has been restarted. If it is a restarted
    * simulation we may not necessarily want to inject/reinject particles
@@ -63,9 +51,9 @@ public:
    */
   vtkSetMacro(RestartedSimulation, bool);
   vtkGetMacro(RestartedSimulation, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify the first time step that particle paths are computed.
    * This is useful for restarted simulations or when the simulation's
@@ -73,7 +61,7 @@ public:
    */
   vtkSetMacro(FirstTimeStep, int);
   vtkGetMacro(FirstTimeStep, int);
-  //@}
+  ///@}
 
 protected:
   vtkInSituPParticlePathFilter();
@@ -136,7 +124,7 @@ private:
    */
   bool RestartedSimulation;
 
-  //@{
+  ///@{
   /**
    * Specify the first simulation time step that particles are computed.
    * This is useful for restarted simulations as well as simulations or

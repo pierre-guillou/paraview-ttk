@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLCompositeDataReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLCompositeDataReader.h"
 
 #include "vtkCompositeDataPipeline.h"
@@ -46,6 +35,7 @@
 #include <set>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkXMLCompositeDataReaderEntry
 {
   const char* extension;
@@ -567,3 +557,4 @@ const vtkXMLCompositeDataReaderEntry vtkXMLCompositeDataReaderInternals::ReaderL
   { "vts", "vtkXMLStructuredGridReader" }, { "vtt", "vtkXMLTableReader" },
   { "htg", "vtkXMLHyperTreeGridReader" }, { nullptr, nullptr }
 };
+VTK_ABI_NAMESPACE_END

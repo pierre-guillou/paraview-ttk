@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTimeSourceExample.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTimeSourceExample.h"
 
@@ -31,6 +19,7 @@
 #include "vtkUnstructuredGrid.h"
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTimeSourceExample);
 
 //------------------------------------------------------------------------------
@@ -252,6 +241,10 @@ int vtkTimeSourceExample::RequestData(vtkInformation* vtkNotUsed(reqInfo),
   {
     for (int j = 0; j < numCells + 1; j++)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       for (int k = 0; k < 2; k++)
       {
         pd->InsertNextValue(value);
@@ -301,6 +294,10 @@ int vtkTimeSourceExample::RequestData(vtkInformation* vtkNotUsed(reqInfo),
   {
     for (int j = 0; j < numCells; j++)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       for (int k = 0; k < 1; k++)
       {
         cd->InsertNextValue(value);
@@ -340,3 +337,4 @@ void vtkTimeSourceExample::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "YAmplitude: " << this->YAmplitude << endl;
   os << indent << "Growing: " << this->Growing << endl;
 }
+VTK_ABI_NAMESPACE_END

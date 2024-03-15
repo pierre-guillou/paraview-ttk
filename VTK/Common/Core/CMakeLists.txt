@@ -3,6 +3,33 @@ cmake_dependent_option(VTK_USE_64BIT_TIMESTAMPS "Build VTK with 64 bit timestamp
   "NOT CMAKE_SIZEOF_VOID_P GREATER 4" ON)
 mark_as_advanced(VTK_USE_64BIT_TIMESTAMPS)
 
+# Option to mangle VTK symbols
+set(VTK_ABI_NAMESPACE_NAME
+  "<DEFAULT>"
+  CACHE STRING "Inline namespace name for mangling VTK symbols.")
+mark_as_advanced(VTK_ABI_NAMESPACE_NAME)
+
+if (VTK_ABI_NAMESPACE_NAME STREQUAL "<DEFAULT>")
+  # The default is to not have an ABI namespace.
+  # This is consistent with the existing practice.
+  set(VTK_ABI_NAMESPACE_NAME "")
+endif ()
+set_property(GLOBAL PROPERTY _vtk_abi_namespace_name "${VTK_ABI_NAMESPACE_NAME}")
+if (VTK_ABI_NAMESPACE_NAME STREQUAL "")
+  set(VTK_HAS_ABI_NAMESPACE OFF)
+  set(VTK_ABI_NAMESPACE_BEGIN "")
+  set(VTK_ABI_NAMESPACE_END "")
+else ()
+  message(STATUS "VTK ABI namespace: ${VTK_ABI_NAMESPACE_NAME}")
+  set(VTK_HAS_ABI_NAMESPACE ON)
+  set(VTK_ABI_NAMESPACE_BEGIN "inline namespace ${VTK_ABI_NAMESPACE_NAME} {")
+  set(VTK_ABI_NAMESPACE_END "}")
+endif ()
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkABINamespace.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkABINamespace.h"
+  @ONLY)
+
 if (CMAKE_SIZEOF_VOID_P GREATER 4)
  set(vtk_use_64bit_ids_default ON)
 else ()
@@ -14,6 +41,9 @@ mark_as_advanced(VTK_USE_64BIT_IDS)
 
 option(VTK_USE_FUTURE_CONST "Adds more const to APIs. Opt-in because it may break compatibility" OFF)
 mark_as_advanced(VTK_USE_FUTURE_CONST)
+
+option(VTK_USE_FUTURE_BOOL "Changes some ints to bools. Opt-in because it may break compatibility" OFF)
+mark_as_advanced(VTK_USE_FUTURE_BOOL)
 
 option(VTK_DEBUG_LEAKS "Build leak checking support into VTK." OFF)
 mark_as_advanced(VTK_DEBUG_LEAKS)
@@ -83,14 +113,30 @@ configure_file(vtkTypeListMacros.h.in vtkTypeListMacros.h)
 option(VTK_DISPATCH_AOS_ARRAYS "Include array-of-structs vtkDataArray subclasses in dispatcher." ON)
 option(VTK_DISPATCH_SOA_ARRAYS "Include struct-of-arrays vtkDataArray subclasses in dispatcher." OFF)
 option(VTK_DISPATCH_TYPED_ARRAYS "Include vtkTypedDataArray subclasses (e.g. old mapped arrays) in dispatcher." OFF)
+
+option(VTK_DISPATCH_AFFINE_ARRAYS "Include implicit vtkDataArray subclasses based on an affine function backend in dispatcher" OFF)
+option(VTK_DISPATCH_CONSTANT_ARRAYS "Include implicit vtkDataArray subclasses based on a constant backend in dispatcher" OFF)
+option(VTK_DISPATCH_STD_FUNCTION_ARRAYS "Include implicit vtkDataArray subclasses based on std::function in dispatcher" OFF)
+
 option(VTK_WARN_ON_DISPATCH_FAILURE "If enabled, vtkArrayDispatch will print a warning when a dispatch fails." OFF)
+
 mark_as_advanced(
   VTK_DISPATCH_AOS_ARRAYS
   VTK_DISPATCH_SOA_ARRAYS
   VTK_DISPATCH_TYPED_ARRAYS
+
+  VTK_DISPATCH_AFFINE_ARRAYS
+  VTK_DISPATCH_CONSTANT_ARRAYS
+  VTK_DISPATCH_STD_FUNCTION_ARRAYS
+
   VTK_WARN_ON_DISPATCH_FAILURE)
 
 option(VTK_BUILD_SCALED_SOA_ARRAYS "Include struct-of-arrays with scaled vtkDataArray implementation." OFF)
+
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h"
+  @ONLY)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkCreateArrayDispatchArrayList.cmake")
 vtkArrayDispatch_default_array_setup()
@@ -112,10 +158,22 @@ foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtkArrayDispatch_all_types)
   # create a file suffix from the type
   string(REPLACE " " "_" _suffix "${INSTANTIATION_VALUE_TYPE}")
 
-  set(_list "vtkSOADataArrayTemplateInstantiate")
+  set(_list
+    vtkAffineArrayInstantiate
+    vtkAffineImplicitBackendInstantiate
+    vtkCompositeArrayInstantiate
+    vtkCompositeImplicitBackendInstantiate
+    vtkConstantArrayInstantiate
+    vtkConstantImplicitBackendInstantiate
+    vtkIndexedArrayInstantiate
+    vtkIndexedImplicitBackendInstantiate
+    vtkSOADataArrayTemplateInstantiate
+    vtkStdFunctionArrayInstantiate
+    vtkTypedDataArrayInstantiate)
   if (VTK_BUILD_SCALED_SOA_ARRAYS)
     list(APPEND _list "vtkScaledSOADataArrayTemplateInstantiate")
   endif ()
+
   # see comments in vtkGenericDataArray.h for explanation
   if (INSTANTIATION_VALUE_TYPE MATCHES "(^| )long( |$)")
     list(APPEND _list "vtkGenericDataArrayValueRangeInstantiate")
@@ -232,6 +290,7 @@ set(classes
   vtkStdString
   vtkStringArray
   vtkStringOutputWindow
+  vtkStringToken
   vtkTimePointUtility
   vtkTimeStamp
   vtkUnsignedCharArray
@@ -266,11 +325,15 @@ set(template_classes
   vtkTypedDataArray)
 
 set(nowrap_template_classes
+  vtkCompositeImplicitBackend
+  vtkImplicitArray
+  vtkIndexedImplicitBackend
   vtkTypeList)
 
 set(sources
   vtkArrayIteratorTemplateInstantiate.cxx
   vtkGenericDataArray.cxx
+  vtkValueFromString.cxx
   ${instantiation_sources}
   ${vtk_smp_sources})
 
@@ -312,6 +375,7 @@ set(headers
   vtkType.h
   vtkTypeTraits.h
   vtkTypedDataArrayIterator.h
+  vtkValueFromString.h
   vtkVariantCast.h
   vtkVariantCreate.h
   vtkVariantExtract.h
@@ -321,6 +385,7 @@ set(headers
   vtkWindows.h
   vtkWrappingHints.h
   ${vtk_smp_headers}
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkABINamespace.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayDispatchArrayList.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkMathConfigure.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkTypeListMacros.h"
@@ -334,6 +399,7 @@ set(templates
   ${vtk_smp_templates})
 
 set(private_templates
+  vtkAffineImplicitBackend.txx
   vtkDataArrayPrivate.txx)
 
 set(vtk_include_dirs)
@@ -377,16 +443,6 @@ elseif (CMAKE_USE_WIN32_THREADS_INIT)
   set(VTK_USE_WIN32_THREADS 1)
 endif ()
 
-# We can't check for the target since we're before VTK::CommonDataModel in the
-# dependency graph.
-if (VTK_MODULE_ENABLE_VTK_CommonDataModel)
-  list(APPEND vtk_include_dirs
-    "${CMAKE_CURRENT_BINARY_DIR}/../DataModel")
-  set_property(SOURCE vtkInformationDataObjectKey.cxx
-    PROPERTY
-      COMPILE_DEFINITIONS vtkCommonDataModel_ENABLED)
-endif ()
-
 if(WIN32)
   list(APPEND classes
     vtkWin32OutputWindow
@@ -422,14 +478,26 @@ foreach (smp_backend IN LISTS smp_backends)
 endforeach ()
 
 set(nowrap_headers
+  vtkAffineArray.h
+  vtkAffineImplicitBackend.h
   vtkCollectionRange.h
+  vtkCompositeArray.h
+  vtkConstantArray.h
+  vtkConstantImplicitBackend.h
   vtkDataArrayAccessor.h
   vtkDataArrayTupleRange_AOS.h
   vtkDataArrayTupleRange_Generic.h
   vtkDataArrayValueRange_AOS.h
   vtkDataArrayValueRange_Generic.h
+  vtkImplicitArrayTraits.h
+  vtkIndexedArray.h
+  vtkInherits.h
   vtkMathPrivate.hxx
-  ${vtk_smp_nowrap_headers})
+  vtkStdFunctionArray.h
+  vtkTypeName.h
+  ${vtk_smp_nowrap_headers}
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h"
+)
 set(generated_headers
   vtkBuild.h
   vtkDebug.h
@@ -511,16 +579,39 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkFloatingPointExceptionsConfigure.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkFloatingPointExceptionsConfigure.h")
 
+include(CheckCXXSymbolExists)
+
+# Determine whether the cxxabi header exists and if it contains a demangle function.
+# XXX(c++17): prefer `__has_include`
+check_include_file_cxx("cxxabi.h" HAVE_CXXABI_H)
+if (HAVE_CXXABI_H)
+  check_cxx_symbol_exists(abi::__cxa_demangle "cxxabi.h" VTK_HAS_CXXABI_DEMANGLE)
+endif()
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/vtkCxxABIConfigure.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/vtkCxxABIConfigure.h")
+list(APPEND headers "${CMAKE_CURRENT_BINARY_DIR}/vtkCxxABIConfigure.h")
+
 set_property(SOURCE vtkObjectBase.cxx
   PROPERTY
      COMPILE_DEFINITIONS ${vtk_object_base_defines})
+set_property(SOURCE vtkLogger.cxx
+  PROPERTY
+    COMPILE_DEFINITIONS "LOGURU_SCOPE_TIME_PRECISION=${VTK_LOGGING_TIME_PRECISION}")
 
-if(MSVC)
-  set_source_files_properties(
-    vtkDataArray.cxx
-    PROPERTIES
-      COMPILE_FLAGS /bigobj)
-endif()
+if (MSVC)
+  set_property(SOURCE vtkDataArray.cxx APPEND
+    PROPERTY
+      COMPILE_OPTIONS /bigobj)
+elseif (MINGW)
+  check_cxx_compiler_flag("-Wa,-mbig-obj" VTK_HAS_MBIG_OBJ)
+  mark_as_advanced(VTK_HAS_MBIG_OBJ)
+  if (VTK_HAS_MBIG_OBJ)
+    set_property(SOURCE vtkDataArray.cxx APPEND
+      PROPERTY
+        COMPILE_OPTIONS "-Wa,-mbig-obj")
+  endif ()
+endif ()
 
 vtk_module_add_module(VTK::CommonCore
   HEADER_DIRECTORIES
@@ -533,6 +624,8 @@ vtk_module_add_module(VTK::CommonCore
   NOWRAP_HEADERS    ${nowrap_headers}
   PRIVATE_HEADERS   ${private_headers}
   PRIVATE_TEMPLATES ${private_templates})
+vtk_add_test_mangling(VTK::CommonCore
+  EXEMPTIONS GetVTKVersion)
 if (vtk_include_dirs)
   vtk_module_include(VTK::CommonCore
     PRIVATE

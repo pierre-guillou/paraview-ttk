@@ -1,18 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    H5RageAdaptor.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "H5RageAdaptor.h"
 
 #include "vtkDataArraySelection.h"
@@ -36,11 +24,16 @@
 #include <vtk_hdf5.h>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
+VTK_ABI_NAMESPACE_BEGIN
 const static char* Slash = "\\";
+VTK_ABI_NAMESPACE_END
 #else
+VTK_ABI_NAMESPACE_BEGIN
 const static char* Slash = "/";
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // mpi tag
@@ -871,3 +864,4 @@ void H5RageAdaptor::ConvertHDFData(int ndims, int* dimensions, T* hdfData)
   }
   delete[] convertedData;
 }
+VTK_ABI_NAMESPACE_END

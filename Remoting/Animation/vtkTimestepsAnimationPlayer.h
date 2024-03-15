@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkTimestepsAnimationPlayer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTimestepsAnimationPlayer
  * @brief   vtkAnimationPlayer subclass
@@ -36,13 +24,13 @@ public:
   vtkTypeMacro(vtkTimestepsAnimationPlayer, vtkAnimationPlayer);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add/Remove timesteps.
    */
   void AddTimeStep(double time);
   void RemoveTimeStep(double time);
-  //@}
+  ///@}
 
   /**
    * Remove all timesteps.
@@ -54,13 +42,13 @@ public:
    */
   unsigned int GetNumberOfTimeSteps();
 
-  //@{
+  ///@{
   /**
    * Get/Set the number of frames per timstep.
    */
   vtkSetClampMacro(FramesPerTimestep, unsigned long, 1, VTK_UNSIGNED_LONG_MAX);
   vtkGetMacro(FramesPerTimestep, unsigned long);
-  //@}
+  ///@}
 
   /**
    * Returns the timestep value after the given timestep.
@@ -68,7 +56,7 @@ public:
    */
   double GetNextTimeStep(double time);
 
-  //@{
+  ///@{
   /**
    * Returns the timestep value before the given timestep.
    * If no value exists, returns the argument \c time itself.
@@ -78,20 +66,20 @@ public:
 protected:
   vtkTimestepsAnimationPlayer();
   ~vtkTimestepsAnimationPlayer() override;
-  //@}
+  ///@}
 
-  void StartLoop(double, double, double, double*) override;
+  ///@{
+  /**
+   * Manage loop inside playbackwindow.
+   */
+  // Initialize inner variables. Call it before any GetNextTime/GetPreviousTime call.
+  void StartLoop(double, double, double, double* playbackWindow) override;
   void EndLoop() override{};
-
-  /**
-   * Return the next time given the current time.
-   */
+  // Get next time in loop. Take Count and Stride into account.
   double GetNextTime(double currentime) override;
-
-  /**
-   * Return the previous time given the current time.
-   */
+  // Get previous time in loop. Take Count and Stride into account.
   double GetPreviousTime(double currenttime) override;
+  ///@}
 
   double GoToNext(double, double, double currenttime) override
   {
@@ -111,6 +99,9 @@ private:
   vtkTimestepsAnimationPlayer(const vtkTimestepsAnimationPlayer&) = delete;
   void operator=(const vtkTimestepsAnimationPlayer&) = delete;
 
+  /**
+   * Return next time from TimeSteps, using Stride.
+   */
   double GetNextInternal(double time, double defaultVal);
 
   vtkTimestepsAnimationPlayerSetOfDouble* TimeSteps;

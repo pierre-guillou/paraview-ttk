@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeneralizedKernel.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGeneralizedKernel.h"
 #include "vtkAbstractPointLocator.h"
 #include "vtkDataSet.h"
@@ -22,6 +10,7 @@
 #include "vtkPointData.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkGeneralizedKernel::vtkGeneralizedKernel()
 {
   this->KernelFootprint = vtkGeneralizedKernel::RADIUS;
@@ -58,3 +47,4 @@ void vtkGeneralizedKernel::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Number of Points: " << this->GetNumberOfPoints() << "\n";
   os << indent << "Normalize Weights: " << (this->GetNormalizeWeights() ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

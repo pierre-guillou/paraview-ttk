@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSimple3DCirclesStrategy.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSimple3DCirclesStrategy
  * @brief   places vertices on circles in 3D
@@ -25,7 +13,7 @@
  *
  * In first step initial points are searched. A point is initial, if its in degree equal zero and
  * out degree is greater than zero (or marked by MarkedStartVertices and out degree is greater than
- * zero). Independent vertices (in and out degree equal zero) are collected separatelly. In second
+ * zero). Independent vertices (in and out degree equal zero) are collected separately. In second
  * step the hierarchical level is generated for every vertex. In third step the hierarchical order
  * is generated. If a vertex has no hierarchical level and it is not independent, the graph has loop
  * so the algorithm exit with error message. Finally the vertices positions are calculated by the
@@ -46,6 +34,7 @@
 #include "vtkInfovisLayoutModule.h" // For export macro
 #include "vtkVariant.h"             // For variant API
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDirectedGraph;
 class vtkIdTypeArray;
@@ -209,7 +198,7 @@ protected:
 private:
   /**
    * Search and fill in target all zero input degree vertices where the output degree is more than
-   * zero. The finded vertices hierarchical layer ID will be zero.
+   * zero. The found vertices hierarchical layer ID will be zero.
    */
   virtual int UniversalStartPoints(vtkDirectedGraph* input,
     vtkSimple3DCirclesStrategyInternal* target, vtkSimple3DCirclesStrategyInternal* StandAlones,
@@ -232,4 +221,5 @@ private:
   void operator=(const vtkSimple3DCirclesStrategy&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

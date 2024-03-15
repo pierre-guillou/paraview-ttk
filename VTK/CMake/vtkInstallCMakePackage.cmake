@@ -14,15 +14,27 @@ if (TARGET VTK::catalyst-vtk)
     PROPERTY vtk_catalyst_directory)
 endif ()
 
+string(REPLACE "VTK::" "" vtk_all_components "${vtk_modules}")
+# Components that are not modules.
+set(_vtk_non_module_components
+  WrapHierarchy
 
-set(vtk_all_components)
-foreach (vtk_module IN LISTS vtk_modules)
-  string(REPLACE "VTK::" "" vtk_component "${vtk_module}")
-  list(APPEND vtk_all_components
-    "${vtk_component}")
+  vtkpython
+  pvtkpython
+  WrapPython
+  WrapPythonInit
+
+  vtkjava
+  ParseJava
+  WrapJava)
+foreach (_vtk_non_module_component IN LISTS _vtk_non_module_components)
+  if (TARGET "VTK::${_vtk_non_module_component}")
+    list(APPEND vtk_all_components
+      "${_vtk_non_module_component}")
+  endif ()
 endforeach ()
 
-if (TARGET "VTK::vtkm")
+if (TARGET "VTK::vtkvtkm")
   set(vtk_has_vtkm ON)
 else ()
   set(vtk_has_vtkm OFF)
@@ -35,7 +47,7 @@ _vtk_module_write_import_prefix("${vtk_cmake_build_dir}/vtk-prefix.cmake" "${vtk
 
 set(vtk_python_version "")
 if (VTK_WRAP_PYTHON)
-  set(vtk_python_version "${VTK_PYTHON_VERSION}")
+  set(vtk_python_version "3")
 endif ()
 
 set(vtk_has_qml 0)
@@ -80,6 +92,7 @@ configure_file(
 
 set(vtk_cmake_module_files
   Finddouble-conversion.cmake
+  FindDirectX.cmake
   FindEigen3.cmake
   FindEXPAT.cmake
   FindExprTk.cmake
@@ -104,13 +117,14 @@ set(vtk_cmake_module_files
   FindOpenSlide.cmake
   FindOpenVR.cmake
   FindOpenXR.cmake
+  FindOpenXRRemoting.cmake
   FindOSMesa.cmake
   FindPEGTL.cmake
-  FindSDL2.cmake
   FindTBB.cmake
   FindTHEORA.cmake
   Findutf8cpp.cmake
   FindCGNS.cmake
+  FindzSpace.cmake
 
   vtkCMakeBackports.cmake
   vtkDetectLibraryType.cmake
@@ -137,7 +151,6 @@ set(vtk_cmake_patch_files
   patches/3.19/FindJPEG.cmake
   patches/3.19/FindLibArchive.cmake
   patches/3.19/FindSQLite3.cmake
-  patches/3.19/FindX11.cmake
   patches/3.20/FindGDAL.cmake
   patches/3.22/FindMPI/fortranparam_mpi.f90.in
   patches/3.22/FindMPI/libver_mpi.c
@@ -147,10 +160,10 @@ set(vtk_cmake_patch_files
   patches/3.22/FindMPI/test_mpi.f90.in
   patches/3.22/FindMPI.cmake
   patches/3.23/FindPython/Support.cmake
-  patches/3.23/FindPython2.cmake
   patches/3.23/FindPython3.cmake
   patches/99/FindHDF5.cmake
-  patches/99/FindOpenGL.cmake)
+  patches/99/FindOpenGL.cmake
+  patches/99/FindX11.cmake)
 
 set(vtk_cmake_files_to_install)
 foreach (vtk_cmake_module_file IN LISTS vtk_cmake_module_files vtk_cmake_patch_files)

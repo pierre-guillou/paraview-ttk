@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "QVTKTableModelAdapterTestClass.h"
 
 #include <iostream>
@@ -300,7 +302,7 @@ bool QVTKTableModelAdapterTestClass::insertColumns(int column, int count, const 
 
 bool QVTKTableModelAdapterTestClass::removeColumns(int column, int count, const QModelIndex& parent)
 {
-  beginRemoveColumns(parent, column, column + count - 1);
+  beginRemoveColumns(parent, column, column + std::max(count - 1, 0));
   for (int i = 0; i < count; i++)
   {
     this->ColumnData.removeAt(column);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeVectorComponents.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMergeVectorComponents.h"
 
 #include "vtkArrayDispatch.h"
@@ -26,6 +14,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkSMPTools.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMergeVectorComponents);
 
 //------------------------------------------------------------------------------
@@ -64,14 +53,16 @@ class MergeVectorComponentsFunctor
   ArrayTypeY* ArrayY;
   ArrayTypeZ* ArrayZ;
   vtkDoubleArray* Vector;
+  vtkMergeVectorComponents* Filter;
 
 public:
-  MergeVectorComponentsFunctor(
-    ArrayTypeX* arrayX, ArrayTypeY* arrayY, ArrayTypeZ* arrayZ, vtkDataArray* vector)
+  MergeVectorComponentsFunctor(ArrayTypeX* arrayX, ArrayTypeY* arrayY, ArrayTypeZ* arrayZ,
+    vtkDataArray* vector, vtkMergeVectorComponents* filter)
     : ArrayX(arrayX)
     , ArrayY(arrayY)
     , ArrayZ(arrayZ)
     , Vector(vtkDoubleArray::FastDownCast(vector))
+    , Filter(filter)
   {
   }
 
@@ -82,9 +73,18 @@ public:
     auto inY = vtk::DataArrayValueRange<1>(this->ArrayY, begin, end).begin();
     auto inZ = vtk::DataArrayValueRange<1>(this->ArrayZ, begin, end).begin();
     auto outVector = vtk::DataArrayTupleRange<3>(this->Vector, begin, end);
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (auto tuple : outVector)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       tuple[0] = *inX++;
       tuple[1] = *inY++;
       tuple[2] = *inZ++;
@@ -95,10 +95,11 @@ public:
 struct MergeVectorComponentsWorker
 {
   template <typename ArrayTypeX, typename ArrayTypeY, typename ArrayTypeZ>
-  void operator()(ArrayTypeX* arrayX, ArrayTypeY* arrayY, ArrayTypeZ* arrayZ, vtkDataArray* vector)
+  void operator()(ArrayTypeX* arrayX, ArrayTypeY* arrayY, ArrayTypeZ* arrayZ, vtkDataArray* vector,
+    vtkMergeVectorComponents* filter)
   {
     MergeVectorComponentsFunctor<ArrayTypeX, ArrayTypeY, ArrayTypeZ> functor(
-      arrayX, arrayY, arrayZ, vector);
+      arrayX, arrayY, arrayZ, vector, filter);
     vtkSMPTools::For(0, vector->GetNumberOfTuples(), functor);
   }
 };
@@ -164,9 +165,9 @@ int vtkMergeVectorComponents::RequestData(vtkInformation* vtkNotUsed(request),
   vectorFD->SetName(outVectorName.c_str());
 
   using Dispatcher = vtkArrayDispatch::Dispatch3SameValueType;
-  if (!Dispatcher::Execute(xFD, yFD, zFD, MergeVectorComponentsWorker{}, vectorFD))
+  if (!Dispatcher::Execute(xFD, yFD, zFD, MergeVectorComponentsWorker{}, vectorFD, this))
   {
-    MergeVectorComponentsWorker{}(xFD, yFD, zFD, vectorFD);
+    MergeVectorComponentsWorker{}(xFD, yFD, zFD, vectorFD, this);
   }
 
   // add array and copy field data of same type
@@ -209,3 +210,4 @@ void vtkMergeVectorComponents::PrintSelf(ostream& os, vtkIndent indent)
      << endl;
   os << indent << "AttributeType: " << this->AttributeType << endl;
 }
+VTK_ABI_NAMESPACE_END

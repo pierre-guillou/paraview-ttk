@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMRepresentationProxy.h"
 
 #include "vtkClientServerStream.h"
@@ -433,4 +421,42 @@ bool vtkSMRepresentationProxy::SetRepresentationType(const char* type)
   }
 
   return false;
+}
+
+//---------------------------------------------------------------------------
+const char* vtkSMRepresentationProxy::GetRepresentationType()
+{
+  if (vtkSMProperty* property = this->GetProperty("Representation"))
+  {
+    return vtkSMPropertyHelper(property).GetAsString(0);
+  }
+  else
+  {
+    return nullptr;
+  }
+}
+
+bool vtkSMRepresentationProxy::IsVolumeRendering()
+{
+  const char* reprType = this->GetRepresentationType();
+  if (reprType != nullptr && std::string(reprType) == "Volume")
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+bool vtkSMRepresentationProxy::GetUsing2DTransferFunction()
+{
+  if (vtkSMProperty* smproperty = this->GetProperty("UseTransfer2D"))
+  {
+    return vtkSMPropertyHelper(smproperty).GetAsInt();
+  }
+  else
+  {
+    return false;
+  }
 }

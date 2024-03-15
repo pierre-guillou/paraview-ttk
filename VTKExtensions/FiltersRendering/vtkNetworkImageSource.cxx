@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkNetworkImageSource.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkNetworkImageSource.h"
 
 #include "vtkImageData.h"
@@ -65,8 +53,13 @@ void vtkNetworkImageSource::UpdateImage()
     return;
   }
 
-  vtkPVSession* session =
-    vtkPVSession::SafeDownCast(vtkProcessModule::GetProcessModule()->GetActiveSession());
+  auto processModule = vtkProcessModule::GetProcessModule();
+  if (!processModule)
+  {
+    vtkErrorMacro("The process module should be initialized.");
+    return;
+  }
+  vtkPVSession* session = vtkPVSession::SafeDownCast(processModule->GetActiveSession());
   if (!session)
   {
     vtkErrorMacro("Active session must be a vtkPVSession.");

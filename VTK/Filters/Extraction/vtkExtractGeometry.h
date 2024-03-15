@@ -1,22 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractGeometry.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractGeometry
- * @brief   extract cells that lie either entirely inside or outside of a specified implicit
- * function
- *
+ * @brief   extract cells that lie either entirely inside or outside of a specified
+ *          implicit function
  *
  * vtkExtractGeometry extracts from its input dataset all cells that are either
  * completely inside or outside of a specified implicit function. Any type of
@@ -32,6 +19,11 @@
  * A more efficient version of this filter is available for vtkPolyData input.
  * See vtkExtractPolyDataGeometry.
  *
+ * @warning
+ * This class has been threaded with vtkSMPTools. Using TBB or other
+ * non-sequential type (set in the CMake variable
+ * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
+ *
  * @sa
  * vtkExtractPolyDataGeometry vtkGeometryFilter vtkExtractVOI
  */
@@ -42,6 +34,7 @@
 #include "vtkFiltersExtractionModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImplicitFunction;
 
 class VTKFILTERSEXTRACTION_EXPORT vtkExtractGeometry : public vtkUnstructuredGridAlgorithm
@@ -111,4 +104,5 @@ private:
   void operator=(const vtkExtractGeometry&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

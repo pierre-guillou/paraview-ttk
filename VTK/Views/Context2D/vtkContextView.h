@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextView.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkContextView
  * @brief   provides a view of the vtkContextScene.
@@ -32,6 +20,7 @@
 #include "vtkSmartPointer.h"         // Needed for SP ivars
 #include "vtkViewsContext2DModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkContextScene;
 
@@ -75,4 +64,5 @@ private:
   void operator=(const vtkContextView&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

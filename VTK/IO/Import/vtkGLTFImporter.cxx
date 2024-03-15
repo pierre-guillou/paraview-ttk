@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFImporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGLTFImporter.h"
 
@@ -45,6 +33,7 @@
 #include <array>
 #include <stack>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGLTFImporter);
 
 namespace
@@ -325,7 +314,7 @@ void ApplyGLTFMaterialToVTKActor(std::shared_ptr<vtkGLTFDocumentLoader::Model> m
     b = pow(b, 1.f / 2.2f);
     actor->GetProperty()->SetColor(r, g, b);
   }
-};
+}
 
 //------------------------------------------------------------------------------
 void ApplyTransformToCamera(vtkSmartPointer<vtkCamera> cam, vtkSmartPointer<vtkMatrix4x4> transform)
@@ -419,6 +408,11 @@ int vtkGLTFImporter::ImportBegin()
 void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
 {
   auto model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return;
+  }
 
   int scene = model->DefaultScene;
 
@@ -499,7 +493,7 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
         }
         renderer->AddActor(actor);
 
-        this->Actors[nodeId].push_back(actor);
+        this->Actors[nodeId].emplace_back(actor);
 
         this->InvokeEvent(vtkCommand::UpdateDataEvent);
       }
@@ -519,6 +513,11 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
 void vtkGLTFImporter::ImportCameras(vtkRenderer* renderer)
 {
   auto model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return;
+  }
 
   int scene = model->DefaultScene;
 
@@ -577,18 +576,25 @@ void vtkGLTFImporter::ImportCameras(vtkRenderer* renderer)
 vtkIdType vtkGLTFImporter::GetNumberOfCameras()
 {
   auto model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return 0;
+  }
+
   return model->Cameras.size();
 }
 
 //------------------------------------------------------------------------------
 std::string vtkGLTFImporter::GetCameraName(vtkIdType camIndex)
 {
-  auto model = this->Loader->GetInternalModel();
   if (camIndex < 0 || camIndex >= this->GetNumberOfCameras())
   {
     vtkErrorMacro("Camera index invalid");
     return "";
   }
+  auto model = this->Loader->GetInternalModel();
+  assert(model);
   return model->Cameras[camIndex].Name;
 }
 
@@ -614,6 +620,12 @@ void vtkGLTFImporter::ImportLights(vtkRenderer* renderer)
   std::stack<int> nodeIdStack;
 
   const auto& model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return;
+  }
+
   const auto& lights = model->ExtensionMetaData.KHRLightsPunctualMetaData.Lights;
 
   // Add root nodes to the stack
@@ -673,13 +685,13 @@ void vtkGLTFImporter::ImportLights(vtkRenderer* renderer)
 }
 
 //----------------------------------------------------------------------------
-void vtkGLTFImporter::UpdateTimeStep(double timestep)
+void vtkGLTFImporter::UpdateTimeStep(double timeValue)
 {
   for (int animationId = 0; animationId < this->GetNumberOfAnimations(); animationId++)
   {
     if (this->EnabledAnimations[animationId])
     {
-      this->Loader->ApplyAnimation(static_cast<float>(timestep), animationId);
+      this->Loader->ApplyAnimation(static_cast<float>(timeValue), animationId);
     }
   }
   this->Loader->BuildGlobalTransforms();
@@ -693,6 +705,12 @@ void vtkGLTFImporter::UpdateTimeStep(double timestep)
 void vtkGLTFImporter::ApplySkinningMorphing()
 {
   const auto& model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return;
+  }
+
   int scene = model->DefaultScene;
 
   // List of nodes to import
@@ -772,7 +790,14 @@ void vtkGLTFImporter::ApplySkinningMorphing()
 //----------------------------------------------------------------------------
 vtkIdType vtkGLTFImporter::GetNumberOfAnimations()
 {
-  return static_cast<vtkIdType>(this->Loader->GetInternalModel()->Animations.size());
+  const auto& model = this->Loader->GetInternalModel();
+  if (!model)
+  {
+    vtkErrorMacro("The GLTF model is nullptr, aborting.");
+    return 0;
+  }
+
+  return static_cast<vtkIdType>(model->Animations.size());
 }
 
 //----------------------------------------------------------------------------
@@ -780,7 +805,9 @@ std::string vtkGLTFImporter::GetAnimationName(vtkIdType animationIndex)
 {
   if (animationIndex >= 0 && animationIndex < this->GetNumberOfAnimations())
   {
-    return this->Loader->GetInternalModel()->Animations[animationIndex].Name;
+    const auto& model = this->Loader->GetInternalModel();
+    assert(model);
+    return model->Animations[animationIndex].Name;
   }
   return "";
 }
@@ -813,21 +840,27 @@ bool vtkGLTFImporter::IsAnimationEnabled(vtkIdType animationIndex)
 bool vtkGLTFImporter::GetTemporalInformation(vtkIdType animationIndex, double frameRate,
   int& nbTimeSteps, double timeRange[2], vtkDoubleArray* timeSteps)
 {
-  nbTimeSteps = 0;
   if (animationIndex < this->GetNumberOfAnimations())
   {
+    const auto& model = this->Loader->GetInternalModel();
+    assert(model);
+
     timeRange[0] = 0;
-    timeRange[1] = this->Loader->GetInternalModel()->Animations[animationIndex].Duration;
+    timeRange[1] = model->Animations[animationIndex].Duration;
 
-    timeSteps->SetNumberOfComponents(1);
-    timeSteps->SetNumberOfTuples(0);
-
-    std::vector<double> ts;
-    double period = (1.0 / frameRate);
-    for (double i = timeRange[0]; i < timeRange[1]; i += period)
+    if (frameRate > 0)
     {
-      timeSteps->InsertNextTuple(&i);
-      nbTimeSteps++;
+      nbTimeSteps = 0;
+      timeSteps->SetNumberOfComponents(1);
+      timeSteps->SetNumberOfTuples(0);
+
+      std::vector<double> ts;
+      double period = (1.0 / frameRate);
+      for (double i = timeRange[0]; i < timeRange[1]; i += period)
+      {
+        timeSteps->InsertNextTuple(&i);
+        nbTimeSteps++;
+      }
     }
     return true;
   }
@@ -852,3 +885,4 @@ vtkSmartPointer<vtkCamera> vtkGLTFImporter::GetCamera(unsigned int id)
   }
   return it->second;
 }
+VTK_ABI_NAMESPACE_END

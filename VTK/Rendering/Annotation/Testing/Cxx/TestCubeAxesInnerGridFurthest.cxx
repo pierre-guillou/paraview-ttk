@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCubeAxesOrientedBoundingBox.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCamera.h"
 #include "vtkCubeAxesActor.h"
@@ -67,7 +55,7 @@ int TestCubeAxesInnerGridFurthest(int argc, char* argv[])
   vtkMath::Normalize(baseZ);
 
   vtkNew<vtkCubeAxesActor> axes;
-  axes->SetUseOrientedBounds(1);
+  axes->SetUseOrientedBounds(true);
   axes->SetOrientedBounds(-1, 1, -.5, 0.5, 0, 4);
   axes->SetAxisBaseForX(baseX);
   axes->SetAxisBaseForY(baseY);
@@ -78,9 +66,9 @@ int TestCubeAxesInnerGridFurthest(int argc, char* argv[])
   axes->SetZLabelFormat("%6.1f");
   axes->SetScreenSize(15.);
   axes->SetFlyModeToClosestTriad();
-  axes->SetDrawXGridlines(1);
-  axes->SetDrawYGridlines(1);
-  axes->SetDrawZGridlines(1);
+  axes->SetDrawXGridlines(true);
+  axes->SetDrawYGridlines(true);
+  axes->SetDrawZGridlines(true);
   axes->SetGridLineLocation(vtkCubeAxesActor::VTK_GRID_LINES_FURTHEST);
   axes->SetCornerOffset(.0);
 

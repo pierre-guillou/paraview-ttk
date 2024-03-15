@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNamedColors.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkNamedColors.h"
 
@@ -26,6 +14,7 @@
 #include <sstream>  // STL Header for parsing character arrays
 #include <vector>   // STL Header for returning/storing color values
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkNamedColorsDataStore
 {
 public:
@@ -1301,3 +1290,4 @@ vtkStdString vtkNamedColors::RGBAToHTMLColor(const vtkColor4ub& rgba)
      << (int)(rgba.GetBlue()) << "," << (rgba.GetAlpha() / 255.0) << ")";
   return ss.str();
 }
+VTK_ABI_NAMESPACE_END

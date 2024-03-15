@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRFlashReaderInternal.hpp
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRFlashReaderInternal
  * @brief   Consists of the low-level Flash Reader used by the vtkAMRFlashReader.
@@ -50,6 +38,7 @@
 #define FLASH_READER_FLASH3_FFV8 8
 #define FLASH_READER_FLASH3_FFV9 9
 
+VTK_ABI_NAMESPACE_BEGIN
 typedef struct tagFlashReaderIntegerScalar
 {
   char Name[20]; // name  of the integer scalar
@@ -198,5 +187,6 @@ public:
 // ----------------------------------------------------------------------------
 //                     Class  vtkFlashReaderInternal ( end )
 // ----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMRFlashReaderInternal_h */
 // VTK-HeaderTest-Exclude: vtkAMRFlashReaderInternal.h

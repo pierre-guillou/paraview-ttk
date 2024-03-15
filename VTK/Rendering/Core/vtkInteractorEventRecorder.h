@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorEventRecorder.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkInteractorEventRecorder
  * @brief   record and play VTK events passing through a vtkRenderWindowInteractor
@@ -45,6 +33,7 @@
 #include "vtkInteractorObserver.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStringArray;
 
 // The superclass that all commands should be subclasses of
@@ -154,7 +143,7 @@ protected:
 
   VTK_DEPRECATED_IN_9_2_0(
     "This method was not used at all and has been replaced by ReadEvent(const std::string&)")
-  virtual void ReadEvent(){};
+  virtual void ReadEvent() {}
 
   /**
    * A method that parse a event line and invoke the corresponding event
@@ -186,4 +175,5 @@ private:
   void operator=(const vtkInteractorEventRecorder&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkInteractorEventRecorder_h */

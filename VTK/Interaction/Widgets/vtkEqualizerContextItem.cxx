@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEqualizerContextItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEqualizerContextItem.h"
 
 #include "vtkBrush.h"
@@ -34,6 +22,7 @@
 
 namespace equalizer
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct EqualizerPoint
 {
   static const int radius{ 4 };
@@ -98,8 +87,10 @@ bool isNearLine(
   bool res = { onLine && t < 1.0 && t > 0.0 };
   return res;
 }
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // using namespace equalizer;
 
 class vtkEqualizerContextItem::vtkInternal
@@ -465,3 +456,4 @@ void vtkEqualizerContextItem::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Pen = " << this->Pen << endl;
   os << indent << "Brush = " << this->Brush << endl;
 }
+VTK_ABI_NAMESPACE_END

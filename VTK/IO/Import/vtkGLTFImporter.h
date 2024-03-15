@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFImporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGLTFImporter
@@ -65,6 +53,7 @@
 #include <map>    // For map
 #include <vector> // For vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCamera;
 class vtkGLTFDocumentLoader;
@@ -96,12 +85,12 @@ public:
   /**
    * Get a printable string describing all outputs
    */
-  std::string GetOutputsDescription() override { return this->OutputsDescription; };
+  std::string GetOutputsDescription() override { return this->OutputsDescription; }
 
   /**
    * update timestep
    */
-  void UpdateTimeStep(double timestep) override;
+  void UpdateTimeStep(double timeValue) override;
 
   /**
    * Get the number of available animations.
@@ -139,9 +128,12 @@ public:
   void SetCamera(vtkIdType camIndex) override;
 
   /**
-   * Get temporal information for the currently enabled animations.
-   * frameRate is used to define the number of frames for one second of simulation.
-   * the three return arguments are defined in this implementation.
+   * Get temporal information for the provided animationIndex and frameRate.
+   * frameRate is used to define the number of frames for one second of simulation,
+   * set to zero if timeSteps are not needed.
+   * If animation is present in the dataset, timeRange will be set by this method, return true.
+   * If animation is present and frameRate > 0, nbTimeSteps and timeSteps will also be set, return
+   * true. If animation is not present, return false.
    */
   bool GetTemporalInformation(vtkIdType animationIndex, double frameRate, int& nbTimeSteps,
     double timeRange[2], vtkDoubleArray* timeSteps) override;
@@ -172,4 +164,5 @@ private:
   void operator=(const vtkGLTFImporter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

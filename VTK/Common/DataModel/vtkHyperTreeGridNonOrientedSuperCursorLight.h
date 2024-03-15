@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridNonOrientedSuperCursorLight.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridNonOrientedSuperCursorLight
  * @brief   Objects for traversal a HyperTreeGrid.
@@ -47,6 +35,7 @@
 #include <cassert> // Used internally
 #include <vector>  // std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTree;
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridNonOrientedGeometryCursor;
@@ -110,7 +99,7 @@ public:
 
   /**
    * JB Return the global index (relative to the grid) of the
-   * neighboor icursor current vertex in the tree.
+   * neighbor icursor current vertex in the tree.
    */
   vtkIdType GetGlobalNodeIndex(unsigned int icursor);
 
@@ -347,4 +336,5 @@ private:
   void operator=(const vtkHyperTreeGridNonOrientedSuperCursorLight&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

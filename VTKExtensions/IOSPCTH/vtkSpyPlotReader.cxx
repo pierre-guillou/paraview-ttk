@@ -1,17 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkSpyPlotReader.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpyPlotReader.h"
 
 #include "vtkAMRBox.h"
@@ -768,6 +757,7 @@ int vtkSpyPlotReader::RequestData(vtkInformation* request,
     {
       if (!(current_block_number % progressInterval))
       {
+        // run from 0.6 to 1.0
         this->UpdateProgress(0.6 + 0.4 * static_cast<double>(current_block_number) / nBlocks);
       }
       block = blockIterator->GetBlock();
@@ -1734,7 +1724,8 @@ void vtkSpyPlotReader::GetLocalBounds(
     // See if we need to update progress
     if (i && !(i % progressInterval))
     {
-      this->UpdateProgress(static_cast<double>(1.2 + i) * progressFactor);
+      // needs to run from 0.2 to 0.6
+      this->UpdateProgress(0.2 + static_cast<double>(i) * progressFactor);
     }
     // Make sure that the block is up to date
     biter->GetUniReader()->MakeCurrent();

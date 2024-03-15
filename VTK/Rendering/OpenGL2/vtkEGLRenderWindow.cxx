@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEGLRenderWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkEGLRenderWindow.h"
 
@@ -35,6 +23,7 @@
 #include <vtkAndroidRenderWindowInteractor.h>
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 typedef void* EGLDeviceEXT;
@@ -547,7 +536,7 @@ void vtkEGLRenderWindow::DestroyWindow()
 }
 
 // Initialize the window for rendering.
-void vtkEGLRenderWindow::WindowInitialize(void)
+void vtkEGLRenderWindow::WindowInitialize()
 {
   vtkInternals* impl = this->Internals;
   if (this->OwnWindow)
@@ -588,7 +577,7 @@ void vtkEGLRenderWindow::WindowInitialize(void)
 }
 
 // Initialize the rendering window.
-void vtkEGLRenderWindow::Initialize(void)
+void vtkEGLRenderWindow::Initialize()
 {
   vtkInternals* impl = this->Internals;
   if (impl->Context == EGL_NO_CONTEXT)
@@ -598,7 +587,7 @@ void vtkEGLRenderWindow::Initialize(void)
   this->Initialized = true;
 }
 
-void vtkEGLRenderWindow::Finalize(void)
+void vtkEGLRenderWindow::Finalize()
 {
   // clean and destroy window
   this->DestroyWindow();
@@ -695,7 +684,7 @@ int* vtkEGLRenderWindow::GetScreenSize()
 }
 
 // Get the position in screen coordinates (pixels) of the window.
-int* vtkEGLRenderWindow::GetPosition(void)
+int* vtkEGLRenderWindow::GetPosition()
 {
   return this->Position;
 }
@@ -785,3 +774,4 @@ void vtkEGLRenderWindow::SetWindowId(void* window)
   vtkInternals* impl = this->Internals;
   impl->Window = reinterpret_cast<EGLNativeWindowType>(window);
 }
+VTK_ABI_NAMESPACE_END

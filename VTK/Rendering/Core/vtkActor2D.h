@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkActor2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkActor2D
  * @brief   a actor that draws 2D data
@@ -33,6 +21,7 @@
 #include "vtkProp.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMapper2D;
 class vtkProperty2D;
 
@@ -155,14 +144,14 @@ public:
    * to position the actor. This is used internally by the mappers and should
    * be overridden in specialized subclasses and otherwise ignored.
    */
-  virtual vtkCoordinate* GetActualPositionCoordinate(void) { return this->PositionCoordinate; }
+  virtual vtkCoordinate* GetActualPositionCoordinate() { return this->PositionCoordinate; }
 
   /**
    * Return the actual vtkCoordinate reference that the mapper should use
    * to position the actor. This is used internally by the mappers and should
    * be overridden in specialized subclasses and otherwise ignored.
    */
-  virtual vtkCoordinate* GetActualPosition2Coordinate(void) { return this->Position2Coordinate; }
+  virtual vtkCoordinate* GetActualPosition2Coordinate() { return this->Position2Coordinate; }
 
 protected:
   vtkActor2D();
@@ -179,4 +168,5 @@ private:
   void operator=(const vtkActor2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

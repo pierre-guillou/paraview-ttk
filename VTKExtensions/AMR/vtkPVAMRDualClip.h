@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVAMRDualClip.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVAMRDualClip
  * @brief   Generates contour given one or more cell array
@@ -42,21 +30,21 @@ public:
   vtkPVAMRDualClip();
   ~vtkPVAMRDualClip() override;
 
-  //@{
+  ///@{
   /**
    * Add to list of cell arrays which are used for generating contours.
    */
   void AddInputCellArrayToProcess(const char* name);
   void ClearInputCellArrayToProcess();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get / Set volume fraction value.
    */
   vtkGetMacro(VolumeFractionSurfaceValue, double);
   vtkSetMacro(VolumeFractionSurfaceValue, double);
-  //@}
+  ///@}
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 

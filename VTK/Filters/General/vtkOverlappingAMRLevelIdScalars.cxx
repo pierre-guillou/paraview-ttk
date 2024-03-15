@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverlappingAMRLevelIdScalars.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOverlappingAMRLevelIdScalars.h"
 
 #include "vtkCellData.h"
@@ -25,6 +13,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOverlappingAMRLevelIdScalars);
 //------------------------------------------------------------------------------
 vtkOverlappingAMRLevelIdScalars::vtkOverlappingAMRLevelIdScalars() = default;
@@ -43,6 +32,10 @@ void vtkOverlappingAMRLevelIdScalars::AddColorLevels(
   output->CopyStructure(input);
   for (unsigned int levelIdx = 0; levelIdx < numLevels; levelIdx++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     unsigned int numDS = input->GetNumberOfDataSets(levelIdx);
     for (unsigned int cc = 0; cc < numDS; cc++)
     {
@@ -106,3 +99,4 @@ void vtkOverlappingAMRLevelIdScalars::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

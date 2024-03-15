@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPlaneCutter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVPlaneCutter.h"
 
 #include "vtkAMRCutPlane.h"
@@ -147,7 +135,8 @@ int vtkPVPlaneCutter::RequestData(
       this->AMRPlaneCutter->SetUseNativeCutter(this->GetUseNativeCutter());
       this->AMRPlaneCutter->SetInputData(inOverlappingAMR);
       this->AMRPlaneCutter->Update();
-      vtkMultiBlockDataSet::SafeDownCast(output)->ShallowCopy(this->AMRPlaneCutter->GetOutput());
+      vtkMultiBlockDataSet::SafeDownCast(output)->CompositeShallowCopy(
+        this->AMRPlaneCutter->GetOutput());
       return 1;
     }
   }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetAlgorithm
  * @brief   Superclass for algorithms that produce output of the same type as input
@@ -37,6 +25,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkCommonExecutionModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkImageData;
 class vtkPolyData;
@@ -165,6 +154,11 @@ protected:
     return 1;
   }
 
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
+
   /**
    * This is called within ProcessRequest when a request asks the algorithm
    * to do its work. This is the method you should override to do whatever the
@@ -187,4 +181,5 @@ private:
   void operator=(const vtkDataSetAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

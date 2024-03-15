@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractWidget.cxx,v
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAbstractWidget.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCommand.h"
@@ -24,6 +12,7 @@
 #include "vtkWidgetRepresentation.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractWidget::vtkAbstractWidget()
 {
   // Setup event processing
@@ -276,7 +265,7 @@ void vtkAbstractWidget::SetPriority(float f)
 
     // We are going to re-add all the events to the interactor. The
     // interactor observer maintains a sorted list of command-observers, sorted
-    // by prioirty. The sorting happens only during insertion of a command-
+    // by priority. The sorting happens only during insertion of a command-
     // observer into the list. Yeah.. Look at the documentation of SetPriority
     // in vtkInteractorObserver. That documentation recommends setting the
     // interactor to nullptr and back again. We won't do that because it will
@@ -344,3 +333,4 @@ void vtkAbstractWidget::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Parent: " << this->Parent << "\n";
 }
+VTK_ABI_NAMESPACE_END

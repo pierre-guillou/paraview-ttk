@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOBJExporter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOBJExporter.h"
 
 #include "vtkActorCollection.h"
@@ -41,6 +29,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOBJExporter);
 
 vtkOBJExporter::vtkOBJExporter()
@@ -193,23 +182,23 @@ void vtkOBJExporter::WriteAnActor(
   {
     return;
   }
-  vtkNumberToString convert;
   double temp;
+  vtkNumberToString converter;
   fpMtl << "newmtl mtl" << idStart << "\n";
   tempd = prop->GetAmbientColor();
   temp = prop->GetAmbient();
-  fpMtl << "Ka " << convert(temp * tempd[0]) << " " << convert(temp * tempd[1]) << " "
-        << convert(temp * tempd[2]) << "\n";
+  fpMtl << "Ka " << converter.Convert(temp * tempd[0]) << " " << converter.Convert(temp * tempd[1])
+        << " " << converter.Convert(temp * tempd[2]) << "\n";
   tempd = prop->GetDiffuseColor();
   temp = prop->GetDiffuse();
-  fpMtl << "Kd " << convert(temp * tempd[0]) << " " << convert(temp * tempd[1]) << " "
-        << convert(temp * tempd[2]) << "\n";
+  fpMtl << "Kd " << converter.Convert(temp * tempd[0]) << " " << converter.Convert(temp * tempd[1])
+        << " " << converter.Convert(temp * tempd[2]) << "\n";
   tempd = prop->GetSpecularColor();
   temp = prop->GetSpecular();
-  fpMtl << "Ks " << convert(temp * tempd[0]) << " " << convert(temp * tempd[1]) << " "
-        << convert(temp * tempd[2]) << "\n";
-  fpMtl << "Ns " << convert(prop->GetSpecularPower()) << "\n";
-  fpMtl << "Tr " << convert(prop->GetOpacity()) << "\n";
+  fpMtl << "Ks " << converter.Convert(temp * tempd[0]) << " " << converter.Convert(temp * tempd[1])
+        << " " << converter.Convert(temp * tempd[2]) << "\n";
+  fpMtl << "Ns " << converter.Convert(prop->GetSpecularPower()) << "\n";
+  fpMtl << "Tr " << converter.Convert(prop->GetOpacity()) << "\n";
   fpMtl << "illum 3\n";
 
   // Actor has the texture
@@ -266,7 +255,8 @@ void vtkOBJExporter::WriteAnActor(
   for (i = 0; i < points->GetNumberOfPoints(); i++)
   {
     p = points->GetPoint(i);
-    fpObj << "v " << convert(p[0]) << " " << convert(p[1]) << " " << convert(p[2]) << "\n";
+    fpObj << "v " << converter.Convert(p[0]) << " " << converter.Convert(p[1]) << " "
+          << converter.Convert(p[2]) << "\n";
   }
   idNext = idStart + static_cast<int>(points->GetNumberOfPoints());
   points->Delete();
@@ -281,7 +271,8 @@ void vtkOBJExporter::WriteAnActor(
     for (i = 0; i < normals->GetNumberOfTuples(); i++)
     {
       p = normals->GetTuple(i);
-      fpObj << "vn " << convert(p[0]) << " " << convert(p[1]) << " " << convert(p[2]) << "\n";
+      fpObj << "vn " << converter.Convert(p[0]) << " " << converter.Convert(p[1]) << " "
+            << converter.Convert(p[2]) << "\n";
     }
   }
 
@@ -291,7 +282,8 @@ void vtkOBJExporter::WriteAnActor(
     for (i = 0; i < tcoords->GetNumberOfTuples(); i++)
     {
       p = tcoords->GetTuple(i);
-      fpObj << "vt " << convert(p[0]) << " " << convert(p[1]) << " " << 0.0 << "\n";
+      fpObj << "vt " << converter.Convert(p[0]) << " " << converter.Convert(p[1]) << " " << 0.0
+            << "\n";
     }
   }
 
@@ -466,3 +458,4 @@ void vtkOBJExporter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MTLFileComment: " << (this->MTLFileComment ? this->MTLFileComment : "(null)")
      << "\n";
 }
+VTK_ABI_NAMESPACE_END

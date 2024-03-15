@@ -1,13 +1,6 @@
-/*=========================================================================
-
-  Copyright 2004 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2004 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 /*========================================================================
  For general information about using VTK and Qt, see:
@@ -33,6 +26,7 @@
 #include "vtkCommand.h" // for event defines
 #include <QObject>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObject;
 class vtkCallbackCommand;
 class vtkEventQtSlotConnect;
@@ -76,7 +70,7 @@ Q_SIGNALS:
 protected Q_SLOTS:
   void deleteConnection();
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   // the connection information
   vtkObject* VTKObject;
   vtkCallbackCommand* Callback;
@@ -91,5 +85,6 @@ private:
   void operator=(const vtkQtConnection&);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkQtConnection.h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageSliceCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageSliceCollection
  * @brief   a sorted list of image slice objects
@@ -30,6 +18,7 @@
 #include "vtkPropCollection.h"
 #include "vtkRenderingImageModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGIMAGE_EXPORT vtkImageSliceCollection : public vtkPropCollection
 {
 public:
@@ -81,7 +70,6 @@ private:
   void AddItem(vtkObject* o) { this->vtkCollection::AddItem(o); }
   void AddItem(vtkProp* o) { this->vtkPropCollection::AddItem(o); }
 
-private:
   vtkImageSliceCollection(const vtkImageSliceCollection&) = delete;
   void operator=(const vtkImageSliceCollection&) = delete;
 };
@@ -96,4 +84,5 @@ inline vtkImageSlice* vtkImageSliceCollection::GetNextImage(vtkCollectionSimpleI
   return static_cast<vtkImageSlice*>(this->GetNextItemAsObject(cookie));
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

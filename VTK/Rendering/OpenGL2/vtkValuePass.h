@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkValuePass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkValuePass
  *
@@ -46,6 +34,7 @@
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           //for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkActor;
 class vtkDataArray;
@@ -93,7 +82,7 @@ public:
    * a format for the internal glReadPixels call can be specified. 'data' is expected
    * to be allocated and cleaned-up by the caller.
    */
-  void GetFloatImageData(int const format, int const width, int const height, void* data);
+  void GetFloatImageData(int format, int width, int height, void* data);
 
   /**
    * Interface to get the rendered image in FLOATING_POINT mode.  Image extents of
@@ -107,7 +96,7 @@ protected:
   vtkValuePass();
   ~vtkValuePass() override;
 
-  ////@{
+  ///@{
   /**
    * \brief vtkOpenGLRenderPass API.
    */
@@ -133,7 +122,7 @@ protected:
    * is single-stage.
    */
   vtkMTimeType GetShaderStageMTime() override;
-  ////@}
+  ///@}
 
   /**
    * Manages graphics resources depending on the rendering mode.  Binds internal
@@ -219,4 +208,5 @@ private:
   void operator=(const vtkValuePass&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -5,10 +5,18 @@ set(interfaces)
 set(sources)
 
 list(APPEND sources
+  pqNodeEditorAnnotationItem.h
+  pqNodeEditorAnnotationItem.cxx
   pqNodeEditorUtils.h
   pqNodeEditorUtils.cxx
   pqNodeEditorNode.h
   pqNodeEditorNode.cxx
+  pqNodeEditorNSource.h
+  pqNodeEditorNSource.cxx
+  pqNodeEditorNRepresentation.h
+  pqNodeEditorNRepresentation.cxx
+  pqNodeEditorNView.h
+  pqNodeEditorNView.cxx
   pqNodeEditorPort.h
   pqNodeEditorPort.cxx
   pqNodeEditorEdge.h

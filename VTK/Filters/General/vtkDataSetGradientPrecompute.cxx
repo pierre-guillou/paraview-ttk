@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetGradientPrecompute.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .SECTION Thanks
 // This file is part of the generalized Youngs material interface reconstruction algorithm
 // contributed by CEA/DIF - Commissariat a l'Energie Atomique, Centre DAM Ile-De-France <br> BP12,
@@ -36,6 +24,7 @@
 #define VTK_DATASET_GRADIENT_TRIANGLE_OPTIMIZATION
 //#define DEBUG
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataSetGradientPrecompute);
 
 vtkDataSetGradientPrecompute::vtkDataSetGradientPrecompute() = default;
@@ -107,7 +96,7 @@ static inline void LINE_CQS_VECTOR(double v0[3], double p[3], double cqs[3])
   vtkMath::Normalize(cqs);
 }
 
-int vtkDataSetGradientPrecompute::GradientPrecompute(vtkDataSet* ds)
+int vtkDataSetGradientPrecompute::GradientPrecompute(vtkDataSet* ds, vtkDataSetAlgorithm* self)
 {
   vtkIdType nCells = ds->GetNumberOfCells();
   vtkIdType nCellNodes = 0;
@@ -135,6 +124,10 @@ int vtkDataSetGradientPrecompute::GradientPrecompute(vtkDataSet* ds)
   vtkIdType curPoint = 0;
   for (vtkIdType c = 0; c < nCells; c++)
   {
+    if (self && self->CheckAbort())
+    {
+      break;
+    }
     vtkCell* cell = ds->GetCell(c);
     int np = cell->GetNumberOfPoints();
 
@@ -361,5 +354,6 @@ int vtkDataSetGradientPrecompute::RequestData(vtkInformation* vtkNotUsed(request
   }
 
   _output->ShallowCopy(_input);
-  return vtkDataSetGradientPrecompute::GradientPrecompute(_output);
+  return vtkDataSetGradientPrecompute::GradientPrecompute(_output, this);
 }
+VTK_ABI_NAMESPACE_END

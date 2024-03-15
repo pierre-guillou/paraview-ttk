@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRBaseReader.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRBaseReader
  * @brief   An abstract class that encapsulates common functionality for all AMR readers.
@@ -27,6 +15,7 @@
 #include <vector>  // STL vector header
 
 // Forward Declarations
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOverlappingAMR;
 class vtkMultiProcessController;
 class vtkDataArraySelection;
@@ -55,7 +44,7 @@ public:
   vtkSetMacro(EnableCaching, vtkTypeBool);
   vtkGetMacro(EnableCaching, vtkTypeBool);
   vtkBooleanMacro(EnableCaching, vtkTypeBool);
-  bool IsCachingEnabled() const { return ((this->EnableCaching) ? true : false); };
+  bool IsCachingEnabled() const { return ((this->EnableCaching) ? true : false); }
   ///@}
 
   ///@{
@@ -143,14 +132,14 @@ protected:
    * Determines if the block is owned by this process based on the
    * the block index and total number of processes.
    */
-  bool IsBlockMine(const int blockIdx);
+  bool IsBlockMine(int blockIdx);
 
   /**
    * Loads the AMR block corresponding to the given index. The block
    * is either loaded from the file, or, from the cache if caching is
    * enabled.
    */
-  vtkUniformGrid* GetAMRBlock(const int blockIdx);
+  vtkUniformGrid* GetAMRBlock(int blockIdx);
 
   /**
    * This method assigns blocks to processes using block-cyclic distribution.
@@ -170,19 +159,19 @@ protected:
    * Loads the AMR data corresponding to the given field name.
    * NOTE: Currently, only cell-data are supported.
    */
-  void GetAMRData(const int blockIdx, vtkUniformGrid* block, const char* fieldName);
+  void GetAMRData(int blockIdx, vtkUniformGrid* block, const char* fieldName);
 
   /**
    * Loads the AMR point data corresponding to the given field name.
    */
-  void GetAMRPointData(const int blockIdx, vtkUniformGrid* block, const char* fieldName);
+  void GetAMRPointData(int blockIdx, vtkUniformGrid* block, const char* fieldName);
 
   /**
    * A wrapper that loops over point arrays and load the point
    * arrays that are enabled, i.e., selected for the given block.
    * NOTE: This method is currently not implemented.
    */
-  void LoadPointData(const int blockIdx, vtkUniformGrid* block);
+  void LoadPointData(int blockIdx, vtkUniformGrid* block);
 
   /**
    * A wrapper that loops over all cell arrays and loads the cell
@@ -190,7 +179,7 @@ protected:
    * The data are either loaded from the file, or, from the cache if
    * caching is enabled.
    */
-  void LoadCellData(const int blockIdx, vtkUniformGrid* block);
+  void LoadCellData(int blockIdx, vtkUniformGrid* block);
 
   /**
    * Returns the block process ID for the block corresponding to the
@@ -200,7 +189,7 @@ protected:
    * a process according to blockIdx%N, where N is the total number of
    * processes.
    */
-  int GetBlockProcessId(const int blockIdx);
+  int GetBlockProcessId(int blockIdx);
 
   /**
    * Initializes the request of blocks to be loaded. This method checks
@@ -219,7 +208,7 @@ protected:
   /**
    * Returns the block level for the given block
    */
-  virtual int GetBlockLevel(const int blockIdx) = 0;
+  virtual int GetBlockLevel(int blockIdx) = 0;
 
   /**
    * Loads all the AMR metadata & constructs the LevelIdxPair12InternalIdx
@@ -231,18 +220,17 @@ protected:
   /**
    * Loads the block according to the index w.r.t. the generated BlockMap.
    */
-  virtual vtkUniformGrid* GetAMRGrid(const int blockIdx) = 0;
+  virtual vtkUniformGrid* GetAMRGrid(int blockIdx) = 0;
 
   /**
    * Loads the block data
    */
-  virtual void GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field) = 0;
+  virtual void GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field) = 0;
 
   /**
    * Loads the block Point data
    */
-  virtual void GetAMRGridPointData(
-    const int blockIdx, vtkUniformGrid* block, const char* field) = 0;
+  virtual void GetAMRGridPointData(int blockIdx, vtkUniformGrid* block, const char* field) = 0;
 
   ///@{
   /**
@@ -298,4 +286,5 @@ private:
   void operator=(const vtkAMRBaseReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMRBaseReader_h */

@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPixelExtent.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPixelExtent.h"
 
 using std::deque;
 using std::ostream;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkPixelExtent vtkPixelExtent::Grow(
   const vtkPixelExtent& inputExt, const vtkPixelExtent& problemDomain, int n)
 {
@@ -315,3 +304,4 @@ ostream& operator<<(ostream& os, const vtkPixelExtent& ext)
   }
   return os;
 }
+VTK_ABI_NAMESPACE_END

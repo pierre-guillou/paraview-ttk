@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRenderWindow
  * @brief   create a window for renderers to draw into
@@ -47,6 +35,7 @@
 #include "vtkSmartPointer.h"        // For vtkSmartPointer
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkProp;
 class vtkCollection;
@@ -110,7 +99,7 @@ public:
   /**
    * Query if a renderer is in the list of renderers.
    */
-  int HasRenderer(vtkRenderer*);
+  vtkTypeBool HasRenderer(vtkRenderer*);
 
   /**
    * What rendering library has the user requested
@@ -162,7 +151,7 @@ public:
   /**
    * Update the system, if needed, at end of render process
    */
-  virtual void End(){};
+  virtual void End() {}
 
   /**
    * Finalize the rendering process.
@@ -790,4 +779,5 @@ private:
   vtkNew<vtkStereoCompositor> StereoCompositor;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

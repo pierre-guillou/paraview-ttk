@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInitialValueProblemSolver.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInitialValueProblemSolver.h"
 
 #include "vtkFunctionSet.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInitialValueProblemSolver::vtkInitialValueProblemSolver()
 {
   this->FunctionSet = nullptr;
@@ -86,3 +75,4 @@ void vtkInitialValueProblemSolver::Initialize()
   this->Derivs = new double[this->FunctionSet->GetNumberOfFunctions()];
   this->Initialized = 1;
 }
+VTK_ABI_NAMESPACE_END

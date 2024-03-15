@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkVRMLSource.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRMLSource
  * @brief   Converts importer to a source.
@@ -36,24 +24,24 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkVRMLSource* New();
 
-  //@{
+  ///@{
   /**
    * VRML file name.  Set
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Decided whether to generate color arrays or not.
    */
   vtkSetMacro(Color, int);
   vtkGetMacro(Color, int);
   vtkBooleanMacro(Color, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This method allows all parts to be put into a single output.
    * By default this flag is on.
@@ -61,7 +49,7 @@ public:
   vtkSetMacro(Append, int);
   vtkGetMacro(Append, int);
   vtkBooleanMacro(Append, int);
-  //@}
+  ///@}
 
   static int CanReadFile(const char* filename);
 

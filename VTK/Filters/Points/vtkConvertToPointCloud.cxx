@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvertToPointCloud.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkConvertToPointCloud.h"
 
 #include "vtkInformation.h"
@@ -19,6 +7,7 @@
 
 #include <numeric>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkConvertToPointCloud);
 
 //------------------------------------------------------------------------------
@@ -101,3 +90,4 @@ void vtkConvertToPointCloud::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Cell Generation Mode: " << this->CellGenerationMode << endl;
 }
+VTK_ABI_NAMESPACE_END

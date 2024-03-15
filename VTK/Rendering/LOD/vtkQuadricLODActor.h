@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadricLODActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQuadricLODActor
  * @brief   a specific level-of-detail strategy using the
@@ -53,6 +41,7 @@
 #include "vtkActor.h"
 #include "vtkRenderingLODModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQuadricClustering;
 class vtkPolyDataMapper;
 class vtkCamera;
@@ -239,4 +228,5 @@ private:
   void operator=(const vtkQuadricLODActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

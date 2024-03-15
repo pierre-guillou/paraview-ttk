@@ -1,3 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0" >
  <class>pqLinksEditor</class>
  <widget class="QDialog" name="pqLinksEditor" >
@@ -148,10 +151,27 @@
      </item>
     </layout>
    </item>
-   <item row="2" column="0" >
+   <item row="2" column="0">
+    <widget class="QLabel" name="status">
+     <property name="text">
+      <string>Status</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="0" >
     <widget class="QCheckBox" name="interactiveViewLinkCheckBox" >
      <property name="text" >
       <string>Interactive View Link</string>
+     </property>
+     <property name="visible" >
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1" >
+    <widget class="QCheckBox" name="cameraWidgetViewLinkCheckBox" >
+     <property name="text" >
+      <string>Camera Widget View Link</string>
      </property>
      <property name="visible" >
       <bool>false</bool>
@@ -174,7 +194,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="1" >
+   <item row="4" column="1" >
     <widget class="QDialogButtonBox" name="buttonBox" >
      <property name="orientation" >
       <enum>Qt::Horizontal</enum>

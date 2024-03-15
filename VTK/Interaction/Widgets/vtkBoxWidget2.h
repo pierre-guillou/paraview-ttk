@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoxWidget2.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBoxWidget2
  * @brief   3D widget for manipulating a box
@@ -96,7 +84,9 @@
 #include "vtkAbstractWidget.h"
 #include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
+#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBoxRepresentation;
 class vtkHandleWidget;
 
@@ -202,4 +192,5 @@ private:
   void operator=(const vtkBoxWidget2&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

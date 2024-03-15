@@ -1,22 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConstrainedSmoothingFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConstrainedSmoothingFilter.h"
 
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
-#include "vtkCellArrayIterator.h"
 #include "vtkCellData.h"
 #include "vtkCellLocator.h"
 #include "vtkDoubleArray.h"
@@ -29,10 +16,13 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPointSet.h"
+#include "vtkSMPThreadLocalObject.h"
 #include "vtkStaticCellLinksTemplate.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkConstrainedSmoothingFilter);
+VTK_ABI_NAMESPACE_END
 
 // The following code defines core methods for the
 // vtkConstrainedSmoothingFilter class.
@@ -51,7 +41,7 @@ struct BuildStencil
   vtkIdType* Offsets;
   vtkIdType* Conn;
   // Avoid constructing/deleting the iterator
-  vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> Iter;
+  vtkSMPThreadLocalObject<vtkIdList> TLIdList;
 
   BuildStencil(vtkCellArray* lines, vtkStaticCellLinksTemplate<vtkIdType>* links,
     vtkIdType* offsets, vtkIdType* conn)
@@ -62,11 +52,9 @@ struct BuildStencil
   {
   }
 
-  void Initialize() { this->Iter.Local().TakeReference(this->Lines->NewIterator()); }
-
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
-    vtkCellArrayIterator* iter = this->Iter.Local();
+    auto& idList = this->TLIdList.Local();
     vtkStaticCellLinksTemplate<vtkIdType>* links = this->Links;
     vtkIdType npts;
     const vtkIdType* pts;
@@ -79,7 +67,7 @@ struct BuildStencil
       vtkIdType* edges = links->GetCells(ptId);
       for (auto i = 0; i < numEdges; ++i)
       {
-        iter->GetCellAtId(edges[i], npts, pts);
+        this->Lines->GetCellAtId(edges[i], npts, pts, idList);
         *c++ = (pts[0] != ptId ? pts[0] : pts[1]);
       }
       *o++ = links->GetOffset(ptId);
@@ -155,24 +143,39 @@ struct SmoothPoints
   vtkCellArray* Stencils;
   double Relax;
   double CDist;
-  double CDist2;
+  const double* CBox;
+  double CDist2; // Temporary variable for smoothing distance
   const double* CArray;
   double MaxDistance; // used to determine convergence
   // Avoid constructing/deleting the iterator
-  vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> Iter;
+  vtkSMPThreadLocalObject<vtkIdList> TLIdList;
   // Maximum smoothing distance in this thread
   vtkSMPThreadLocal<double> MaxDistance2;
 
-  SmoothPoints(vtkCellArray* stencils, double relax, double cDist, double* cArray)
+  SmoothPoints(vtkCellArray* stencils, double relax, double cDist, double* cBox, double* cArray)
     : InPts(nullptr)
     , OutPts(nullptr)
     , TmpPts(nullptr)
     , Stencils(stencils)
     , Relax(relax)
     , CDist(cDist)
+    , CBox(cBox)
     , CArray(cArray)
   {
     this->CDist2 = this->CDist * this->CDist;
+
+    if (cBox)
+    {
+      // Make sure constraint box is valid
+      if (cBox[0] <= 0 || cBox[1] <= 0 || cBox[2] <= 0)
+      {
+        this->CDist2 = 0;
+      }
+      else
+      {
+        this->CDist2 = vtkMath::Norm(cBox) / 2.0; // anying >0 will do
+      }
+    }
   }
 
   // Should be set before each iteration
@@ -190,15 +193,11 @@ struct SmoothPoints
     return (this->CArray ? (this->CArray[ptId] * this->CArray[ptId]) : this->CDist2);
   }
 
-  void Initialize()
-  {
-    this->Iter.Local().TakeReference(this->Stencils->NewIterator());
-    this->MaxDistance2.Local() = 0.0;
-  }
+  void Initialize() { this->MaxDistance2.Local() = 0.0; }
 
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
-    vtkCellArrayIterator* iter = this->Iter.Local();
+    auto& idList = this->TLIdList.Local();
     double& maxDistance2 = this->MaxDistance2.Local();
 
     const auto inPts = vtk::DataArrayTupleRange<3>(this->InPts);
@@ -208,12 +207,13 @@ struct SmoothPoints
     vtkIdType npts;
     const vtkIdType* pts;
     double relax = this->Relax;
+    const double* cBox = this->CBox;
 
     for (; ptId < endPtId; ++ptId)
     {
       // Get the original point position and the stencil
       const auto xIn = inPts[ptId];
-      iter->GetCellAtId(ptId, npts, pts);
+      this->Stencils->GetCellAtId(ptId, npts, pts, idList);
 
       // For each point in the stencil, compute an average position.
       // Make sure the stencil is valid (i.e., contains points).
@@ -227,7 +227,7 @@ struct SmoothPoints
         continue; // skip the rest
       }
 
-      // Valid stencil
+      // We have a valid stencil, average stencil contributions.
       double xAve[3] = { 0, 0, 0 };
       for (auto i = 0; i < npts; ++i)
       {
@@ -246,13 +246,32 @@ struct SmoothPoints
       x[1] = xTmp[1] + relax * (xAve[1] - xTmp[1]);
       x[2] = xTmp[2] + relax * (xAve[2] - xTmp[2]);
 
-      double d2 = vtkMath::Distance2BetweenPoints(x, xIn);
-      if (d2 > constraint2)
-      { // clamp smoothing position
-        double t = sqrt(constraint2 / d2);
-        x[0] = xIn[0] + t * (x[0] - xIn[0]);
-        x[1] = xIn[1] + t * (x[1] - xIn[1]);
-        x[2] = xIn[2] + t * (x[2] - xIn[2]);
+      // Constrain the point movement.
+      if (cBox) // Constrain with constraint box
+      {
+        double xC[3];
+        xC[0] = xIn[0];
+        xC[1] = xIn[1];
+        xC[2] = xIn[2];
+        double t, xInt[3];
+        int plane;
+        if (!vtkBoundingBox::ContainsLine(xC, cBox, x, t, xInt, plane))
+        {
+          x[0] = xInt[0];
+          x[1] = xInt[1];
+          x[2] = xInt[2];
+        }
+      }
+      else // Constrain with constraint distance/sphere or constraint array
+      {
+        double d2 = vtkMath::Distance2BetweenPoints(x, xIn);
+        if (d2 > constraint2)
+        { // clamp smoothing position
+          double t = sqrt(constraint2 / d2);
+          x[0] = xIn[0] + t * (x[0] - xIn[0]);
+          x[1] = xIn[1] + t * (x[1] - xIn[1]);
+          x[2] = xIn[2] + t * (x[2] - xIn[2]);
+        }
       }
 
       // Track convergence
@@ -270,11 +289,9 @@ struct SmoothPoints
   {
     // Roll up the maximum distance a point has moved.
     double maxDistance2 = 0.0;
-    vtkSMPThreadLocal<double>::iterator itr;
-    vtkSMPThreadLocal<double>::iterator itrEnd = this->MaxDistance2.end();
-    for (itr = this->MaxDistance2.begin(); itr != itrEnd; ++itr)
+    for (const auto& localMaxDistance : this->MaxDistance2)
     {
-      maxDistance2 = (*itr > maxDistance2 ? *itr : maxDistance2);
+      maxDistance2 = (localMaxDistance > maxDistance2 ? localMaxDistance : maxDistance2);
     } // over all threads
     this->MaxDistance = sqrt(maxDistance2);
   }
@@ -290,7 +307,7 @@ struct SmoothWorker
 {
   template <typename PT>
   void operator()(PT* inPtsArray, vtkPoints* outPts, vtkPoints* tmpPts, vtkCellArray* stencils,
-    double converge, int numIter, double relax, double cDist, double* cArray)
+    double converge, int numIter, double relax, double cDist, double* cBox, double* cArray)
   {
     // Set up the smoother
     vtkIdType numPts = inPtsArray->GetNumberOfTuples();
@@ -299,7 +316,7 @@ struct SmoothWorker
     PT* swapPtsArray;
 
     // Setup the functor that does the smoothing
-    SmoothPoints<PT> smooth(stencils, relax, cDist, cArray);
+    SmoothPoints<PT> smooth(stencils, relax, cDist, cBox, cArray);
 
     // The first iteration uses the input points as the temporary points
     // to avoid making an initial copy.
@@ -324,8 +341,10 @@ struct SmoothWorker
 
     } // while still iterating
 
-    // Now replace the output's points array with the final iteration.
-    outPts->SetData(outPtsArray);
+    // Now replace the output's points array with the final
+    // iteration. Because a swap of arrays has already occurred, we use the
+    // most recent array.
+    outPts->SetData(tmpPtsArray);
 
   } // operator()
 
@@ -394,6 +413,7 @@ struct AttrWorker
 
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //=================Begin VTK class proper=======================================
 //------------------------------------------------------------------------------
 vtkConstrainedSmoothingFilter::vtkConstrainedSmoothingFilter()
@@ -404,6 +424,9 @@ vtkConstrainedSmoothingFilter::vtkConstrainedSmoothingFilter()
 
   this->ConstraintStrategy = DEFAULT;
   this->ConstraintDistance = 0.001;
+  this->ConstraintBox[0] = 1;
+  this->ConstraintBox[1] = 1;
+  this->ConstraintBox[2] = 1;
 
   this->GenerateErrorScalars = false;
   this->GenerateErrorVectors = false;
@@ -492,6 +515,7 @@ int vtkConstrainedSmoothingFilter::RequestData(vtkInformation* vtkNotUsed(reques
 
   // Extract a constraint array, if any, from the input point data.
   double cDist = this->ConstraintDistance;
+  double* cBox = (this->ConstraintStrategy == CONSTRAINT_BOX ? this->ConstraintBox : nullptr);
   vtkDoubleArray* constraints =
     vtkDoubleArray::SafeDownCast(inPD->GetArray("SmoothingConstraints"));
   double* cArray = (constraints ? constraints->GetPointer(0) : nullptr);
@@ -499,9 +523,10 @@ int vtkConstrainedSmoothingFilter::RequestData(vtkInformation* vtkNotUsed(reques
   {
     // preference is constraint array
   }
-  else if (this->ConstraintStrategy == CONSTRAINT_DISTANCE)
+  else if (this->ConstraintStrategy == CONSTRAINT_DISTANCE ||
+    this->ConstraintStrategy == CONSTRAINT_BOX)
   {
-    cArray = nullptr; // force using constraint distance
+    cArray = nullptr; // force using constraint distance or constraint box
   }
   else if (this->ConstraintStrategy == CONSTRAINT_ARRAY && !cArray)
   {
@@ -528,10 +553,10 @@ int vtkConstrainedSmoothingFilter::RequestData(vtkInformation* vtkNotUsed(reques
   using SmoothingDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
   SmoothWorker smoothWorker;
   if (!SmoothingDispatch::Execute(inPts->GetData(), smoothWorker, newPts, tmpPts, stencils,
-        converge, numIter, relax, cDist, cArray))
+        converge, numIter, relax, cDist, cBox, cArray))
   { // Fallback to slowpath for other point types
     smoothWorker(
-      inPts->GetData(), newPts, tmpPts, stencils, converge, numIter, relax, cDist, cArray);
+      inPts->GetData(), newPts, tmpPts, stencils, converge, numIter, relax, cDist, cBox, cArray);
   }
 
   // If error scalars or vectors are requested, compute these.
@@ -561,9 +586,12 @@ void vtkConstrainedSmoothingFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Constraint Strategy: " << this->ConstraintStrategy << "\n";
   os << indent << "Constraint Distance: " << this->ConstraintDistance << "\n";
+  os << indent << "Constraint Box: (" << this->ConstraintBox[0] << ", " << this->ConstraintBox[1]
+     << ", " << this->ConstraintBox[2] << ")\n";
   os << indent << "Smoothing Stencils: " << this->SmoothingStencils.Get() << "\n";
 
   os << indent << "Generate Error Scalars: " << (this->GenerateErrorScalars ? "On\n" : "Off\n");
   os << indent << "Generate Error Vectors: " << (this->GenerateErrorVectors ? "On\n" : "Off\n");
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

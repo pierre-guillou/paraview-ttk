@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRibbonFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRibbonFilter.h"
 
 #include "vtkCellArray.h"
@@ -26,6 +14,7 @@
 #include "vtkPolyData.h"
 #include "vtkPolyLine.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRibbonFilter);
 
 // Construct ribbon so that width is 0.1, the width does
@@ -89,7 +78,7 @@ int vtkRibbonFilter::RequestData(vtkInformation* vtkNotUsed(request),
   const vtkIdType* pts = nullptr;
   vtkIdType offset = 0;
   vtkFloatArray* newTCoords = nullptr;
-  int abort = 0;
+  bool abort = false;
   vtkIdType inCellId;
 
   // Check input and initialize
@@ -178,7 +167,7 @@ int vtkRibbonFilter::RequestData(vtkInformation* vtkNotUsed(request),
        inCellId++)
   {
     this->UpdateProgress((double)inCellId / numLines);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
 
     if (npts < 2)
     {
@@ -522,3 +511,4 @@ void vtkRibbonFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Generate TCoords: " << this->GetGenerateTCoordsAsString() << endl;
   os << indent << "Texture Length: " << this->TextureLength << endl;
 }
+VTK_ABI_NAMESPACE_END

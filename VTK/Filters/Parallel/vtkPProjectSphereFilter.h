@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPProjectSphereFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPProjectSphereFilter
  * @brief   A filter to 'unroll' a sphere.  The
@@ -26,6 +14,7 @@
 #include "vtkFiltersParallelModule.h" // For export macro
 #include "vtkProjectSphereFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSPARALLEL_EXPORT vtkPProjectSphereFilter : public vtkProjectSphereFilter
 {
 public:
@@ -56,4 +45,5 @@ private:
   void operator=(const vtkPProjectSphereFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPProjectSphereFilter_h

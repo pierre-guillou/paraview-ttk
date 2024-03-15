@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericEnSightReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGenericEnSightReader.h"
 
 #include "vtkCallbackCommand.h"
@@ -31,11 +19,13 @@
 #include "vtksys/FStream.hxx"
 #include <vtksys/SystemTools.hxx>
 
+#include <algorithm> /* std::remove */
 #include <cassert>
 #include <cctype> /* isspace */
 #include <map>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericEnSightReader);
 
 vtkCxxSetObjectMacro(vtkGenericEnSightReader, TimeSets, vtkDataArrayCollection);
@@ -287,7 +277,8 @@ int vtkGenericEnSightReader::RequestData(vtkInformation* vtkNotUsed(request),
     vtkNew<vtkDataSetTriangleFilter> tetrahedralizeFilter;
     tetrahedralizeFilter->SetInputData(output);
     tetrahedralizeFilter->Update();
-    output->ShallowCopy(tetrahedralizeFilter->GetOutputDataObject(0));
+    output->CompositeShallowCopy(
+      vtkMultiBlockDataSet::SafeDownCast(tetrahedralizeFilter->GetOutputDataObject(0)));
   }
 
   return 1;
@@ -303,6 +294,26 @@ void vtkGenericEnSightReader::SetTimeValue(float value)
     this->Modified();
   }
   this->TimeValueInitialized = 1;
+}
+
+//------------------------------------------------------------------------------
+void vtkGenericEnSightReader::SanitizeFileName(std::string& filename)
+{
+  char quotes = '\"';
+  size_t found = filename.find(quotes);
+  if (found != std::string::npos)
+  {
+    filename.erase(std::remove(filename.begin(), filename.end(), quotes), filename.end());
+  }
+
+  // the strings we're using this on probably only have trailing spaces, but we'll
+  // include others just in case
+  std::string whitespaces(" \t\n\r");
+  found = filename.find_last_not_of(whitespaces);
+  if (found != std::string::npos)
+  {
+    filename.erase(found + 1);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -380,18 +391,18 @@ int vtkGenericEnSightReader::DetermineEnSightVersion(int quiet)
             this->ReadNextDataLine(line);
             if (strncmp(line, "model:", 6) == 0)
             {
-              if (sscanf(line, " %*s %d %d%*[ \t]%s", &xtimeSet, &fileSet, subLine) == 3)
+              if (sscanf(line, " %*s %d %d%*[ \t]%[^\t\r\n]", &xtimeSet, &fileSet, subLine) == 3)
               {
                 timeSet = xtimeSet;
                 fileSet = xfileSet;
                 this->SetGeometryFileName(subLine);
               }
-              else if (sscanf(line, " %*s %d%*[ \t]%s", &xtimeSet, subLine) == 2)
+              else if (sscanf(line, " %*s %d%*[ \t]%[^\t\r\n]", &xtimeSet, subLine) == 2)
               {
                 timeSet = xtimeSet;
                 this->SetGeometryFileName(subLine);
               }
-              else if (sscanf(line, " %*s %s", subLine) == 1)
+              else if (sscanf(line, " %*s %[^\t\r\n]", subLine) == 1)
               {
                 this->SetGeometryFileName(subLine);
               }
@@ -425,6 +436,10 @@ int vtkGenericEnSightReader::DetermineEnSightVersion(int quiet)
                 return -1;
               }
             }
+            // The EnSight Gold Case file can reference the geometry file using quotes,
+            // in case
+            std::string filenameString(fileName);
+            this->SanitizeFileName(filenameString);
             sfilename = "";
             if (this->FilePath)
             {
@@ -433,14 +448,13 @@ int vtkGenericEnSightReader::DetermineEnSightVersion(int quiet)
               {
                 sfilename += "/";
               }
-              sfilename += fileName;
+              sfilename += filenameString;
               vtkDebugMacro("full path to geometry file: " << sfilename);
             }
             else
             {
-              sfilename = fileName;
+              sfilename = filenameString;
             }
-
             // got full path to geometry file
 
             this->IFile = vtksys::SystemTools::Fopen(sfilename, "rb");
@@ -1618,3 +1632,4 @@ int vtkGenericEnSightReader::FillOutputPortInformation(int vtkNotUsed(port), vtk
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkMultiBlockDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

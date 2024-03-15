@@ -1,21 +1,7 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCGNSWriter.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
-Copyright (c) Maritime Research Institute Netherlands (MARIN)
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Maritime Research Institute Netherlands (MARIN)
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCGNSWriter.h"
 
@@ -27,6 +13,8 @@ See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
 #include "vtkDataObject.h"
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkDoubleArray.h"
+#include "vtkImageData.h"
+#include "vtkImageToStructuredGrid.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMultiBlockDataSet.h"
@@ -35,6 +23,8 @@ See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
+#include "vtkRectilinearGrid.h"
+#include "vtkRectilinearGridToPointSet.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUnstructuredGrid.h"
@@ -1297,7 +1287,12 @@ void vtkCGNSWriter::WriteData()
   }
 
   write_info info;
-  std::ostringstream fileNameWithTimeStep;
+  std::stringstream fileNameWithTimeStep;
+
+  // formattedFileName string must be on outer context
+  // such that the c_str() pointer is kept alive
+  // while writing with it stored in info.FileName
+  std::string formattedFileName;
   if (this->TimeValues && this->CurrentTimeIndex < this->TimeValues->GetNumberOfValues())
   {
     if (this->WriteAllTimeSteps && this->TimeValues->GetNumberOfValues() > 1)
@@ -1315,7 +1310,8 @@ void vtkCGNSWriter::WriteData()
           fileNameWithTimeStep << fileNamePath << "/";
         }
         fileNameWithTimeStep << filenameNoExt << suffix << extension;
-        info.FileName = fileNameWithTimeStep.str().c_str();
+        formattedFileName = fileNameWithTimeStep.str();
+        info.FileName = formattedFileName.c_str();
         info.TimeStep = this->TimeValues->GetValue(this->CurrentTimeIndex);
       }
       else
@@ -1365,18 +1361,38 @@ void vtkCGNSWriter::WriteData()
       this->WasWritingSuccessful =
         vtkCGNSWriter::vtkPrivate::WritePointSet(unstructuredGrid, info, error);
     }
+    else if (this->OriginalInput->IsA("vtkRectilinearGrid"))
+    {
+      vtkRectilinearGrid* rectilinearGrid = vtkRectilinearGrid::SafeDownCast(this->OriginalInput);
+      vtkNew<vtkRectilinearGridToPointSet> conv;
+      conv->SetInputData(rectilinearGrid);
+      conv->Update();
+      vtkStructuredGrid* sg = conv->GetOutput();
+      this->WasWritingSuccessful = vtkCGNSWriter::vtkPrivate::WriteStructuredGrid(sg, info, error);
+    }
+    else if (this->OriginalInput->IsA("vtkImageData"))
+    {
+      vtkImageData* cartesianGrid = vtkImageData::SafeDownCast(this->OriginalInput);
+      vtkNew<vtkImageToStructuredGrid> conv;
+      conv->SetInputData(cartesianGrid);
+      conv->Update();
+      vtkStructuredGrid* sg = conv->GetOutput();
+      this->WasWritingSuccessful = vtkCGNSWriter::vtkPrivate::WriteStructuredGrid(sg, info, error);
+    }
     else
     {
       error = std::string("Unsupported class type '") + this->OriginalInput->GetClassName() +
-        "' on input.\nSupported types are vtkStructuredGrid, vtkPointSet, their subclasses and "
-        "composite datasets of said classes.";
+        "' on input.\nSupported types are vtkImageData, vtkRectilinearGrid, "
+        "vtkStructuredGrid, vtkPointSet, their subclasses and composite "
+        "datasets of said classes.";
     }
   }
   else
   {
     vtkErrorMacro(<< "Unsupported class type '" << this->OriginalInput->GetClassName()
-                  << "' on input.\nSupported types are vtkStructuredGrid, vtkPointSet, their "
-                     "subclasses and composite datasets of said classes.");
+                  << "' on input.\nSupported types are vtkImageData, vtkRectilinearGrid, "
+                     "vtkStructuredGrid, vtkPointSet, their subclasses and composite "
+                     "datasets of said classes.");
   }
 
   // the writer can be used for multiple timesteps

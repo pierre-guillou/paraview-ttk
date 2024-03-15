@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCartisoReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkCartisoReader_h
 #define vtkCartisoReader_h
 
@@ -28,31 +17,31 @@ public:
 
   static vtkCartisoReader* New();
 
-  //@{
+  ///@{
   /**
    * By default this filter uses the global controller,
    * but this method can be used to set another instead.
    */
   virtual void SetController(vtkMultiProcessController*);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the path of the input stream.
    */
   vtkSetStringMacro(StreamName);
   vtkGetStringMacro(StreamName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the time in seconds to wait for input stream to become available.
    * Values < 0 will result in wait forever. Default is 300 seconds.
    */
   vtkSetMacro(TimeOut, double);
   vtkGetMacro(TimeOut, double);
-  //@}
+  ///@}
 
   /**
    * Get the current step in the stream

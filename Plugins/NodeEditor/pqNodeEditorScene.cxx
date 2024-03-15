@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Plugin:    NodeEditor
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  ParaViewPluginsNodeEditor - BSD 3-Clause License - Copyright (C) 2021 Jonas Lukasczyk
-
-  See the Copyright.txt file provided
-  with ParaViewPluginsNodeEditor for license information.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (C) 2021 Jonas Lukasczyk
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqNodeEditorScene.h"
 
@@ -52,6 +35,7 @@ pqNodeEditorScene::pqNodeEditorScene(QObject* parent)
 {
 }
 
+// ----------------------------------------------------------------------------
 QPointF pqNodeEditorScene::snapToGrid(const qreal& x, const qreal& y, const qreal& resolution)
 {
   const auto gridSize = pqNodeEditorUtils::CONSTS::GRID_SIZE * resolution;
@@ -76,7 +60,7 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
       pqProxy* proxy = it.second->getProxy();
       const vtkIdType proxyId = pqNodeEditorUtils::getID(proxy);
       // ignore view and hidden nodes in pipeline layout
-      if (!it.second->isVisible() || dynamic_cast<pqView*>(proxy) != nullptr)
+      if (!it.second->isVisible() || it.second->getNodeType() == pqNodeEditorNode::NodeType::VIEW)
       {
         continue;
       }
@@ -94,20 +78,14 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
       // See https://www.graphviz.org/pdf/libguide.pdf for more detail
       std::string sInputPorts = "";
       std::string sOutputPorts = "";
-      if (const auto proxyAsSource = dynamic_cast<pqPipelineSource*>(proxy))
+      for (size_t i = 0; i < it.second->getOutputPorts().size(); i++)
       {
-        for (int i = 0; i < proxyAsSource->getNumberOfOutputPorts(); i++)
-        {
-          sOutputPorts += "<o" + std::to_string(i) + ">|";
-        }
+        sOutputPorts += "<o" + std::to_string(i) + ">|";
       }
 
-      if (const auto proxyAsFilter = dynamic_cast<pqPipelineFilter*>(proxy))
+      for (size_t i = 0; i < it.second->getInputPorts().size(); i++)
       {
-        for (int i = 0; i < proxyAsFilter->getNumberOfInputPorts(); i++)
-        {
-          sInputPorts += "<i" + std::to_string(i) + ">|";
-        }
+        sInputPorts += "<i" + std::to_string(i) + ">|";
       }
 
       nodeString << proxyId << "["
@@ -130,9 +108,10 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
     }
 
     // describe the overall look of the graph. For example : rankdir=LR -> Left To Right layout
+    // this version is bottom up (default) and try to reduce the overlap
     // See https://www.graphviz.org/pdf/libguide.pdf for more detail
-    dotString += "digraph g {\nrankdir=LR;splines = line;graph[pad=\"0\", ranksep=\"0.6\", "
-                 "nodesep=\"0.6\"];\n" +
+    dotString += "digraph g {\noverlap = true;splines = true;graph[pad=\"0.5\", ranksep=\"0.5\", "
+                 "nodesep=\"0.5\"];\n" +
       nodeString.str() + edgeString.str() + "\n}";
   }
 
@@ -153,14 +132,14 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
     {
       i += 2;
 
-      pqProxy* proxy = it.second->getProxy();
-      if (dynamic_cast<pqView*>(proxy) != nullptr)
+      if (it.second->getNodeType() == pqNodeEditorNode::NodeType::VIEW)
       {
         continue;
       }
 
-      Agnode_t* n =
-        agnode(G, const_cast<char*>(std::to_string(pqNodeEditorUtils::getID(proxy)).data()), 0);
+      Agnode_t* n = agnode(G,
+        const_cast<char*>(std::to_string(pqNodeEditorUtils::getID(it.second->getProxy())).data()),
+        0);
       if (n != nullptr)
       {
         const auto& coord = ND_coord(n);
@@ -193,7 +172,7 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
     {
       i += 2;
 
-      if (dynamic_cast<pqView*>(it.second->getProxy()) != nullptr)
+      if (it.second->getNodeType() == pqNodeEditorNode::NodeType::VIEW)
       {
         continue;
       }
@@ -206,14 +185,13 @@ int pqNodeEditorScene::computeLayout(const std::unordered_map<vtkIdType, pqNodeE
   std::vector<std::pair<pqNodeEditorNode*, qreal>> viewXMap;
   for (const auto& it : nodes)
   {
-    auto* proxyAsView = dynamic_cast<pqView*>(it.second->getProxy());
-    if (!proxyAsView)
+    if (it.second->getNodeType() != pqNodeEditorNode::NodeType::VIEW)
     {
       continue;
     }
 
     qreal avgX = 0;
-    auto edgesIt = edges.find(pqNodeEditorUtils::getID(proxyAsView));
+    auto edgesIt = edges.find(pqNodeEditorUtils::getID(it.second->getProxy()));
     if (edgesIt != edges.end())
     {
       int nEdges = edgesIt->second.size();

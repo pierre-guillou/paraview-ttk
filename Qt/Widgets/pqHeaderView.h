@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqHeaderView.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqHeaderView_h
 #define pqHeaderView_h
 
@@ -68,7 +40,7 @@ public:
   pqHeaderView(Qt::Orientation orientation, QWidget* parent = nullptr);
   ~pqHeaderView() override;
 
-  //@{
+  ///@{
   /**
    * For checkable section, this property controls if clicks on the entire
    * section should be treated as a request to toggle the check state or only
@@ -78,9 +50,9 @@ public:
    */
   void setToggleCheckStateOnSectionClick(bool val) { this->ToggleCheckStateOnSectionClick = val; }
   bool toggleCheckStateOnSectionClick() const { return this->ToggleCheckStateOnSectionClick; }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This property holds if a custom indicator is shown for sections. The custom
    * indicator can be used to popup a custom menu or filtering options, for
@@ -91,9 +63,9 @@ public:
    */
   bool isCustomIndicatorShown() const { return this->CustomIndicatorShown; }
   void setCustomIndicatorShown(bool val);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When `showCustomIndicator` property is true, these are the icons
    * rendered. Icons are rendered in order from right to left i.e. first added
@@ -104,7 +76,7 @@ public:
   void addCustomIndicatorIcon(const QIcon& icon, const QString& role);
   void removeCustomIndicatorIcon(const QString& role);
   QIcon customIndicatorIcon(const QString& role) const;
-  //@}
+  ///@}
 
   /**
    * For testing purposes only. Returns the position of the painted checkbox in

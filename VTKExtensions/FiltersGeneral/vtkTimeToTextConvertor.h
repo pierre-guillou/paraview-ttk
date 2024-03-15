@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkTimeToTextConvertor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTimeToTextConvertor
  *
@@ -35,7 +23,7 @@ public:
   vtkTypeMacro(vtkTimeToTextConvertor, vtkTableAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the format in which the to display the
    * input update time. Use fmt formatting.
@@ -43,23 +31,23 @@ public:
    */
   vtkSetStringMacro(Format);
   vtkGetStringMacro(Format);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Apply a translation to the time
    */
   vtkSetMacro(Shift, double);
   vtkGetMacro(Shift, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Apply a scale to the time.
    */
   vtkSetMacro(Scale, double);
   vtkGetMacro(Scale, double);
-  //@}
+  ///@}
 
 protected:
   vtkTimeToTextConvertor();

@@ -1,36 +1,9 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqStandardPropertyWidgetInterface.cxx
-
-   Copyright (c) 2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqStandardPropertyWidgetInterface.h"
 
+#include "pqAnglePropertyWidget.h"
 #include "pqAnimationShortcutDecorator.h"
 #include "pqArrayStatusPropertyWidget.h"
 #include "pqBackgroundEditorWidget.h"
@@ -66,6 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqInputDataTypeDecorator.h"
 #include "pqInputSelectorWidget.h"
 #include "pqIntMaskPropertyWidget.h"
+#include "pqLanguageChooserWidget.h"
 #include "pqLightPropertyWidget.h"
 #include "pqLinePropertyWidget.h"
 #include "pqListPropertyWidget.h"
@@ -77,6 +51,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPauseLiveSourcePropertyWidget.h"
 #include "pqPropertyCollectionWidget.h"
 #include "pqProxyEditorPropertyWidget.h"
+#include "pqReaderSelectionPropertyWidget.h"
+#include "pqSelectionListPropertyWidget.h"
 #include "pqSelectionQueryPropertyWidget.h"
 #include "pqSeriesEditorPropertyWidget.h"
 #include "pqSessionTypeDecorator.h"
@@ -89,6 +65,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTransferFunctionWidgetPropertyWidget.h"
 #include "pqViewResolutionPropertyWidget.h"
 #include "pqViewTypePropertyWidget.h"
+#include "pqXYChartViewBoundsPropertyWidget.h"
 #include "pqYoungsMaterialPropertyWidget.h"
 #include "vtkSMCompositeTreeDomain.h"
 #include "vtkSMProperty.h"
@@ -189,6 +166,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForProperty(
   {
     return new pqViewTypePropertyWidget(smProxy, smProperty, parentWidget);
   }
+  else if (name == "language_selector")
+  {
+    return new pqLanguageChooserWidget(smProxy, smProperty, parentWidget);
+  }
   else if (name == "glyph_scale_factor")
   {
     return new pqGlyphScaleFactorPropertyWidget(smProxy, smProperty, parentWidget);
@@ -224,6 +205,14 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForProperty(
   else if (name == "file_list")
   {
     return new pqFileListPropertyWidget(smProxy, smProperty, parentWidget);
+  }
+  else if (name == "reader_selector")
+  {
+    return new pqReaderSelectionPropertyWidget(smProxy, smProperty, parentWidget);
+  }
+  else if (name == "xy_chart_bounds")
+  {
+    return new pqXYChartViewBoundsPropertyWidget(smProxy, smProperty, parentWidget);
   }
 
   // *** NOTE: When adding new types, please update the header documentation ***
@@ -280,6 +269,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   else if (panelWidget == "TextLocationEditor")
   {
     return new pqTextLocationWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "InteractiveAngle")
+  {
+    return new pqAnglePropertyWidget(proxy, group, parentWidget);
   }
   else if (panelWidget == "InteractivePlane")
   {
@@ -352,6 +345,10 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   else if (panelWidget == "MetaDataPropertyWidget")
   {
     return new pqMetaDataPropertyWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "SelectionList")
+  {
+    return new pqSelectionListPropertyWidget(proxy, group, parentWidget);
   }
 
   // *** NOTE: When adding new types, please update the header documentation ***

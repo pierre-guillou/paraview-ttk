@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDelimitedTextReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkDelimitedTextReader.h"
 #include "vtkCommand.h"
@@ -54,6 +38,7 @@
 /// Output iterator object that parses a stream of Unicode characters into records and
 /// fields, inserting them into a vtkTable.
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -69,7 +54,7 @@ public:
   DelimitedTextIterator(const vtkIdType max_records, const std::string& record_delimiters,
     const std::string& field_delimiters, const std::string& string_delimiters,
     const std::string& whitespace, const std::string& escape, bool have_headers,
-    bool merg_cons_delimiters, bool use_string_delimeter, vtkTable* const output_table)
+    bool merg_cons_delimiters, bool use_string_delimiter, vtkTable* const output_table)
     : MaxRecords(max_records)
     , MaxRecordIndex(have_headers ? max_records + 1 : max_records)
     , RecordDelimiters(record_delimiters.begin(), record_delimiters.end())
@@ -85,7 +70,7 @@ public:
     , RecordAdjacent(true)
     , MergeConsDelims(merg_cons_delimiters)
     , ProcessEscapeSequence(false)
-    , UseStringDelimiter(use_string_delimeter)
+    , UseStringDelimiter(use_string_delimiter)
     , WithinString(0)
   {
   }
@@ -491,7 +476,7 @@ int vtkDelimitedTextReader::RequestData(
   return this->ReadData(output_table);
 }
 
-int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
+int vtkDelimitedTextReader::ReadData(vtkTable* output_table)
 {
   this->LastError = "";
 
@@ -658,3 +643,4 @@ int vtkDelimitedTextReader::ReadData(vtkTable* const output_table)
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

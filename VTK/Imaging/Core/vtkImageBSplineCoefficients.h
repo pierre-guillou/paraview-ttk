@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageBSplineCoefficients.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageBSplineCoefficients
  * @brief   convert image to b-spline knots
@@ -49,6 +37,7 @@
 #include "vtkImagingCoreModule.h"        // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIMAGINGCORE_EXPORT vtkImageBSplineCoefficients : public vtkThreadedImageAlgorithm
 {
 public:
@@ -69,7 +58,7 @@ public:
   ///@{
   /**
    * Set the border mode.  The filter that is used to create the
-   * coefficients must repeat the image somehow to make a theoritically
+   * coefficients must repeat the image somehow to make a theoretically
    * infinite input.  The default is to clamp values that are off the
    * edge of the image, to the value at the closest point on the edge.
    * The other ways of virtually extending the image are to produce
@@ -156,4 +145,5 @@ private:
   void operator=(const vtkImageBSplineCoefficients&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

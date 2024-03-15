@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTestingInteractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyrgight notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTestingInteractor
  * @brief   A RenderWindowInteractor for testing
@@ -29,9 +17,13 @@
 
 #include "vtkObjectFactoryCollection.h" // Generated object overrides
 #include "vtkRenderWindowInteractor.h"
+#include "vtkSmartPointer.h"           // For vtkSmartPointer
 #include "vtkTestingRenderingModule.h" // For export macro
 
 #include <string> // STL Header; Required for string
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkMultiProcessController;
 
 class VTKTESTINGRENDERING_EXPORT vtkTestingInteractor : public vtkRenderWindowInteractor
 {
@@ -57,12 +49,26 @@ public:
   static std::string TempDirectory; // Location of Testing/Temporary
   static std::string DataDirectory; // Location of VTKData
 
+  ///@{
+  /**
+   * Get/Set the controller in an MPI environment.
+   */
+  vtkMultiProcessController* GetController() const;
+  void SetController(vtkMultiProcessController* controller);
+  ///@}
+
 protected:
-  vtkTestingInteractor() = default;
+  /**
+   * The constructor sets up the `Controller` if MPI has been initialized.
+   */
+  vtkTestingInteractor();
+
+  vtkSmartPointer<vtkMultiProcessController> Controller;
 
 private:
   vtkTestingInteractor(const vtkTestingInteractor&) = delete;
   void operator=(const vtkTestingInteractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

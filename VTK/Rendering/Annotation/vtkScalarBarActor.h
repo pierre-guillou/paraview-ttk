@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkScalarBarActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkScalarBarActor
  * @brief   Create a scalar bar with labels
@@ -60,6 +48,7 @@
 #include "vtkDoubleArray.h"               // for ivars
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkColor3ub;
 class vtkPolyData;
 class vtkPolyDataMapper2D;
@@ -184,6 +173,14 @@ public:
   vtkGetMacro(Orientation, int);
   void SetOrientationToHorizontal() { this->SetOrientation(VTK_ORIENT_HORIZONTAL); }
   void SetOrientationToVertical() { this->SetOrientation(VTK_ORIENT_VERTICAL); }
+  ///@}
+
+  ///@{
+  /**
+   * Force the scalar bar title to be vertical.
+   */
+  vtkGetMacro(ForceVerticalTitle, bool);
+  vtkSetMacro(ForceVerticalTitle, bool);
   ///@}
 
   ///@{
@@ -772,6 +769,7 @@ protected:
   double BarRatio;
   double TitleRatio;
   bool UnconstrainedFontSize; // off by default
+  bool ForceVerticalTitle;    // off by default
 
   bool DrawBelowRangeSwatch;
   bool DrawAboveRangeSwatch;
@@ -813,4 +811,5 @@ private:
   void operator=(const vtkScalarBarActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

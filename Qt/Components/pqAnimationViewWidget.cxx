@@ -1,34 +1,9 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
-   Program: ParaView
-   Module:    pqAnimationViewWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// Hide PARAVIEW_DEPRECATED_IN_5_12_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
 
 #include "pqAnimationViewWidget.h"
 #include "ui_pqPythonAnimationCue.h"
@@ -199,7 +174,7 @@ public:
         return "";
       }
 
-      QString p = pty->GetXMLLabel();
+      QString p = QCoreApplication::translate("ServerManagerXML", pty->GetXMLLabel());
       if (pqSMAdaptor::getPropertyType(pty) == pqSMAdaptor::MULTIPLE_ELEMENTS)
       {
         p = QString("%1 (%2)").arg(p).arg(cue->getAnimatedPropertyIndex());
@@ -217,12 +192,15 @@ public:
         vtkSMProperty* prop = pqproxy->getProxy()->GetProperty(helper_key.toUtf8().data());
         if (prop)
         {
-          return QString("%1 - %2 - %3").arg(pqproxy->getSMName()).arg(prop->GetXMLLabel()).arg(p);
+          return QString("%1 - %2 - %3")
+            .arg(pqproxy->getSMName())
+            .arg(QCoreApplication::translate("ServerManagerXML", prop->GetXMLLabel()))
+            .arg(p);
         }
         return QString("%1 - %2").arg(pqproxy->getSMName()).arg(p);
       }
     }
-    return QString("<unrecognized>");
+    return QString("<%1>").arg(QCoreApplication::tr("unrecognized"));
   }
   // returns if this is a cue for animating a camera
   bool cameraCue(pqAnimationCue* cue)
@@ -280,23 +258,25 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
 {
   this->Internal = new pqAnimationViewWidget::pqInternal();
   QVBoxLayout* vboxlayout = new QVBoxLayout(this);
-  vboxlayout->setMargin(2);
+  vboxlayout->setContentsMargins(2, 2, 2, 2);
   vboxlayout->setSpacing(2);
 
   QHBoxLayout* hboxlayout = new QHBoxLayout;
   vboxlayout->addLayout(hboxlayout);
-  hboxlayout->setMargin(0);
+  hboxlayout->setContentsMargins(0, 0, 0, 0);
   hboxlayout->setSpacing(2);
 
-  hboxlayout->addWidget(new QLabel("Mode:", this));
+  hboxlayout->addWidget(
+    new QLabel(QCoreApplication::translate("pqAnimationViewWidget", "Mode:"), this));
   this->Internal->PlayMode = new QComboBox(this) << pqSetName("PlayMode");
-  this->Internal->PlayMode->addItem("Snap to Timesteps");
+  this->Internal->PlayMode->addItem(
+    QCoreApplication::translate("pqAnimationViewWidget", "Snap to Timesteps"));
   hboxlayout->addWidget(this->Internal->PlayMode);
   this->Internal->AnimationTimeWidget = new pqAnimationTimeWidget(this);
-  this->Internal->AnimationTimeWidget->setPlayModeReadOnly(true);
   hboxlayout->addWidget(this->Internal->AnimationTimeWidget);
 
-  this->Internal->StartTimeLabel = new QLabel("Start Time:", this);
+  this->Internal->StartTimeLabel =
+    new QLabel(QCoreApplication::translate("pqAnimationViewWidget", "Start Time:"), this);
   hboxlayout->addWidget(this->Internal->StartTimeLabel);
   this->Internal->StartTime = new QLineEdit(this) << pqSetName("StartTime");
   this->Internal->StartTime->setMinimumWidth(30);
@@ -304,15 +284,20 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   hboxlayout->addWidget(this->Internal->StartTime);
   this->Internal->LockStartTime = new QToolButton(this) << pqSetName("LockStartTime");
   this->Internal->LockStartTime->setIcon(QIcon(":pqWidgets/Icons/pqLock24.png"));
-  this->Internal->LockStartTime->setToolTip(
-    "<html>Lock the start time to keep ParaView from changing it "
-    "as available data times change</html>");
-  this->Internal->LockStartTime->setStatusTip(
-    "<html>Lock the start time to keep ParaView from changing it "
-    "as available data times change</html>");
+  this->Internal->LockStartTime->setToolTip("<html>" +
+    QCoreApplication::translate("pqAnimationViewWidget",
+      "Lock the start time to keep ParaView from changing it "
+      "as available data times change") +
+    "</html>");
+  this->Internal->LockStartTime->setStatusTip("<html>" +
+    QCoreApplication::translate("pqAnimationViewWidget",
+      "Lock the start time to keep ParaView from changing it "
+      "as available data times change") +
+    "</html>");
   this->Internal->LockStartTime->setCheckable(true);
   hboxlayout->addWidget(this->Internal->LockStartTime);
-  this->Internal->EndTimeLabel = new QLabel("End Time:", this);
+  this->Internal->EndTimeLabel =
+    new QLabel(QCoreApplication::translate("pqAnimationViewWidget", "End Time:"), this);
   hboxlayout->addWidget(this->Internal->EndTimeLabel);
   this->Internal->EndTime = new QLineEdit(this) << pqSetName("EndTime");
   this->Internal->EndTime->setMinimumWidth(30);
@@ -320,12 +305,16 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   hboxlayout->addWidget(this->Internal->EndTime);
   this->Internal->LockEndTime = new QToolButton(this) << pqSetName("LockEndTime");
   this->Internal->LockEndTime->setIcon(QIcon(":pqWidgets/Icons/pqLock24.png"));
-  this->Internal->LockEndTime->setToolTip(
-    "<html>Lock the end time to keep ParaView from changing it"
-    " as available data times change</html>");
-  this->Internal->LockEndTime->setStatusTip(
-    "<html>Lock the end time to keep ParaView from changing it"
-    " as available data times change</html>");
+  this->Internal->LockEndTime->setToolTip("<html>" +
+    QCoreApplication::translate("pqAnimationViewWidget",
+      "Lock the end time to keep ParaView from changing it "
+      "as available data times change") +
+    "</html>");
+  this->Internal->LockEndTime->setStatusTip("<html>" +
+    QCoreApplication::translate("pqAnimationViewWidget",
+      "Lock the end time to keep ParaView from changing it "
+      "as available data times change") +
+    "</html>");
   this->Internal->LockEndTime->setCheckable(true);
   hboxlayout->addWidget(this->Internal->LockEndTime);
   this->Internal->DurationLabel = new QLabel(this);
@@ -336,7 +325,8 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
     new QIntValidator(1, static_cast<int>(~0u >> 1), this->Internal->Duration));
   hboxlayout->addWidget(this->Internal->Duration);
   hboxlayout->addSpacing(5);
-  this->Internal->StrideLabel = new QLabel("Stride", this);
+  this->Internal->StrideLabel =
+    new QLabel(QCoreApplication::translate("pqAnimationViewWidget", "Stride"), this);
   hboxlayout->addWidget(this->Internal->StrideLabel);
   this->Internal->Stride = new QLineEdit("1", this) << pqSetName("Stride");
   this->Internal->Stride->setMinimumWidth(30);
@@ -349,7 +339,7 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   this->Internal->AnimationWidget->animationModel()->setTimePrecision(
     vtkPVGeneralSettings::GetInstance()->GetAnimationTimePrecision());
   this->Internal->AnimationWidget->animationModel()->setTimeNotation(
-    vtkPVGeneralSettings::GetInstance()->GetAnimationTimeNotation());
+    QChar(vtkPVGeneralSettings::GetInstance()->GetAnimationTimeNotation()));
 
   pqCoreUtilities::connect(vtkPVGeneralSettings::GetInstance(), vtkCommand::ModifiedEvent, this,
     SLOT(generalSettingsChanged()));
@@ -365,7 +355,7 @@ pqAnimationViewWidget::pqAnimationViewWidget(QWidget* _parent)
   this->Internal->CreateSource->setSizeAdjustPolicy(QComboBox::AdjustToContents);
   this->Internal->CreateProperty->setSizeAdjustPolicy(QComboBox::AdjustToContents);
   QHBoxLayout* l = new QHBoxLayout(w);
-  l->setMargin(0);
+  l->setContentsMargins(0, 0, 0, 0);
   l->addSpacing(6);
   l->addWidget(this->Internal->CreateSource);
   l->addWidget(this->Internal->CreateProperty);
@@ -736,14 +726,18 @@ void pqAnimationViewWidget::trackSelected(pqAnimationTrack* track)
         SLOT(selectedDataProxyChanged(vtkSMProxy*)));
       connect(
         this->Internal->Editor, SIGNAL(accepted()), this, SLOT(changeDataProxyDialogAccepted()));
-      layout_->addRow("Data Source to Follow:", comboBox);
+      layout_->addRow(
+        QCoreApplication::translate("pqAnimationViewWidget", "Data Source to Follow:"), comboBox);
       l->addLayout(layout_);
-      this->Internal->Editor->setWindowTitle(tr("Select Data Source"));
+      this->Internal->Editor->setWindowTitle(
+        QCoreApplication::translate("pqAnimationViewWidget", "Select Data Source"));
     }
     else
     {
       pqKeyFrameEditor* editor = new pqKeyFrameEditor(this->Internal->Scene, cue,
-        QString("Editing ") + this->Internal->cueName(cue), this->Internal->Editor);
+        QCoreApplication::translate("pqAnimationViewWidget", "Editing ") +
+          this->Internal->cueName(cue),
+        this->Internal->Editor);
 
       l->addWidget(editor);
 
@@ -755,7 +749,8 @@ void pqAnimationViewWidget::trackSelected(pqAnimationTrack* track)
       QObject::connect(apply, &QPushButton::clicked, [=]() { apply->setEnabled(false); });
       QObject::connect(editor, &pqKeyFrameEditor::modified, [=]() { apply->setEnabled(true); });
 
-      this->Internal->Editor->setWindowTitle(tr("Animation Keyframes"));
+      this->Internal->Editor->setWindowTitle(
+        QCoreApplication::translate("pqAnimationViewWidget", "Animation Keyframes"));
       this->Internal->Editor->resize(600, 400);
     }
 
@@ -782,41 +777,7 @@ void pqAnimationViewWidget::updatePlayMode()
 
   this->Internal->AnimationTimeWidget->setPlayMode(mode);
 
-  if (mode == "Real Time")
-  {
-    QString promptMessage(
-      "'Real time' mode is deprecated and maybe removed in a near future.\n Prefer 'Snap to "
-      "Timestep' or 'Sequence' if you need to interpolate between existing timesteps.");
-    pqCoreUtilities::promptUser("pqAnimationViewWidget::updatePlayMode", QMessageBox::Warning,
-      "Real Time mode is deprecated.", promptMessage, QMessageBox::Ok | QMessageBox::Save);
-
-    animModel->setMode(pqAnimationModel::Real);
-
-    this->Internal->Stride->setVisible(false);
-    this->Internal->StrideLabel->setVisible(false);
-    this->Internal->Duration->setVisible(true);
-    this->Internal->DurationLabel->setVisible(true);
-    this->Internal->StartTime->setVisible(true);
-    this->Internal->StartTimeLabel->setVisible(true);
-    this->Internal->EndTime->setVisible(true);
-    this->Internal->EndTimeLabel->setVisible(true);
-    this->Internal->LockStartTime->setVisible(true);
-    this->Internal->LockEndTime->setVisible(true);
-
-    this->Internal->StartTime->setEnabled(true);
-    this->Internal->EndTime->setEnabled(true);
-    this->Internal->AnimationTimeWidget->setEnabled(true);
-    this->Internal->Duration->setEnabled(true);
-    this->Internal->DurationLabel->setEnabled(true);
-    this->Internal->StrideLabel->setEnabled(false);
-    this->Internal->Stride->setEnabled(false);
-
-    this->Internal->DurationLabel->setText("Duration (s):");
-    this->Internal->DurationLink.addTraceablePropertyLink(this->Internal->Duration, "text",
-      SIGNAL(editingFinished()), this->Internal->Scene->getProxy(),
-      this->Internal->Scene->getProxy()->GetProperty("Duration"));
-  }
-  else if (mode == "Sequence")
+  if (mode == "Sequence")
   {
     animModel->setMode(pqAnimationModel::Sequence);
 
@@ -838,7 +799,8 @@ void pqAnimationViewWidget::updatePlayMode()
     this->Internal->StrideLabel->setEnabled(true);
     this->Internal->Stride->setEnabled(true);
 
-    this->Internal->DurationLabel->setText("No. Frames:");
+    this->Internal->DurationLabel->setText(
+      QCoreApplication::translate("pqAnimationViewWidget", "No. Frames"));
     this->Internal->DurationLink.addTraceablePropertyLink(this->Internal->Duration, "text",
       SIGNAL(editingFinished()), this->Internal->Scene->getProxy(),
       this->Internal->Scene->getProxy()->GetProperty("NumberOfFrames"));
@@ -925,7 +887,7 @@ void pqAnimationViewWidget::toggleTrackEnabled(pqAnimationTrack* track)
   {
     return;
   }
-  BEGIN_UNDO_SET("Toggle Animation Track");
+  BEGIN_UNDO_SET(QCoreApplication::translate("pqAnimationViewWidget", "Toggle Animation Track"));
   SM_SCOPED_TRACE(PropertiesModified).arg(cue->getProxy());
   cue->setEnabled(!track->isEnabled());
   END_UNDO_SET();
@@ -939,7 +901,7 @@ void pqAnimationViewWidget::deleteTrack(pqAnimationTrack* track)
   {
     return;
   }
-  BEGIN_UNDO_SET("Remove Animation Track");
+  BEGIN_UNDO_SET(QCoreApplication::translate("pqAnimationViewWidget", "Remove Animation Track"));
   SM_SCOPED_TRACE(Delete).arg(cue->getProxy());
   this->Internal->Scene->removeCue(cue);
   END_UNDO_SET();
@@ -1034,7 +996,7 @@ void pqAnimationViewWidget::createTrack()
     }
   }
 
-  BEGIN_UNDO_SET("Add Animation Track");
+  BEGIN_UNDO_SET(QCoreApplication::translate("pqAnimationViewWidget", "Add Animation Track"));
 
   // This will create the cue and initialize it with default keyframes.
   pqAnimationCue* cue = this->Internal->Scene->createCue(
@@ -1081,7 +1043,7 @@ void pqAnimationViewWidget::createTrack()
 void pqAnimationViewWidget::createPythonTrack()
 {
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-  BEGIN_UNDO_SET("Add Animation Track");
+  BEGIN_UNDO_SET(QCoreApplication::translate("pqAnimationViewWidget", "Add Animation Track"));
 
   pqAnimationCue* cue = this->Internal->Scene->createCue("PythonAnimationCue");
   assert(cue != nullptr);
@@ -1105,8 +1067,10 @@ void pqAnimationViewWidget::onTimeLabelChanged()
   }
 
   // Update labels
-  this->Internal->StartTimeLabel->setText(QString("Start %1:").arg(timeName));
-  this->Internal->EndTimeLabel->setText(QString("End %1:").arg(timeName));
+  this->Internal->StartTimeLabel->setText(
+    QCoreApplication::translate("pqAnimationViewWidget", "Start %1:").arg(timeName));
+  this->Internal->EndTimeLabel->setText(
+    QCoreApplication::translate("pqAnimationViewWidget", "End %1:").arg(timeName));
 }
 
 //-----------------------------------------------------------------------------
@@ -1140,7 +1104,7 @@ void pqAnimationViewWidget::generalSettingsChanged()
   this->Internal->AnimationWidget->animationModel()->setTimePrecision(
     vtkPVGeneralSettings::GetInstance()->GetAnimationTimePrecision());
   this->Internal->AnimationWidget->animationModel()->setTimeNotation(
-    vtkPVGeneralSettings::GetInstance()->GetAnimationTimeNotation());
+    QChar(vtkPVGeneralSettings::GetInstance()->GetAnimationTimeNotation()));
 }
 
 //-----------------------------------------------------------------------------

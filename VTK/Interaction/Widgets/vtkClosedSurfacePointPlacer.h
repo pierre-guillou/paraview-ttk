@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClosedSurfacePointPlacer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkClosedSurfacePointPlacer
  * @brief   PointPlacer to constrain validity within a set of convex planes
@@ -31,6 +19,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkPointPlacer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPlane;
 class vtkPlaneCollection;
 class vtkPlanes;
@@ -97,7 +86,7 @@ public:
    * NOTE: Note that a set of bounding planes must be supplied. The Oblique
    * plane, if supplied is ignored.
    */
-  int ComputeWorldPosition(vtkRenderer* ren, double displayPos[2], double refWorldPos[2],
+  int ComputeWorldPosition(vtkRenderer* ren, double displayPos[2], double refWorldPos[3],
     double worldPos[3], double worldOrient[9]) override;
 
   /**
@@ -141,4 +130,5 @@ private:
   void operator=(const vtkClosedSurfacePointPlacer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

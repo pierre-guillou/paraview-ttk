@@ -1,50 +1,27 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqLogViewerWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqLogViewerWidget.h"
 #include "ui_pqLogViewerWidget.h"
 
 #include "vtkPVLogger.h"
+#include "vtkSMSessionProxyManager.h"
 
 #include <QByteArray>
+#include <QDebug>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 #include <QStandardItemModel>
 #include <QString>
+#include <QStringList>
 #include <QTextStream>
 
+#include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqFileDialog.h"
+#include "pqServer.h"
 
 #include <cassert>
 #include <cmath>
@@ -71,7 +48,7 @@ public:
     this->Ui.details->setText(tr(""));
   }
 
-  void addLines(const QVector<QStringRef>& lines)
+  void addLines(const QStringList& lines)
   {
     QRegularExpression scopeBegin(R"==(^\s*{ (?<label>.*))==");
     QRegularExpression scopeEnd(R"==(^\s*} (?<time>[^:]+):.*)==");
@@ -104,7 +81,7 @@ public:
           auto litem = this->ActiveScopeItem.last();
           auto txt = litem->data(Qt::DisplayRole).toString();
           litem->setData(txt + " - " + ematch.captured("time"), Qt::DisplayRole);
-          litem->setData(line.toString(), RAW_DATA_SUFFIX_ROLE);
+          litem->setData(line, RAW_DATA_SUFFIX_ROLE);
           this->ActiveScopeItem.pop_back();
           this->LastItem = nullptr;
           continue;
@@ -117,7 +94,7 @@ public:
         auto item4 = new QStandardItem(parts[4]);
         const int height = this->Ui.treeView->fontMetrics().boundingRect("(").height();
         item4->setData(QSize(0, height * 1.50), Qt::SizeHintRole);
-        item4->setData(line.toString(), RAW_DATA_ROLE);
+        item4->setData(line, RAW_DATA_ROLE);
         // item4->setData(QVariant(Qt::AlignLeft|Qt::AlignTop),
         // Qt::TextAlignmentRole);
 
@@ -271,7 +248,7 @@ void pqLogViewerWidget::setLog(const QString& text)
 void pqLogViewerWidget::appendLog(const QString& text)
 {
   auto& internals = (*this->Internals);
-  auto lines = text.splitRef('\n'); // TODO: handle '\r'?
+  auto lines = text.split('\n'); // TODO: handle '\r'?
   internals.addLines(lines);
 }
 
@@ -318,7 +295,7 @@ void pqLogViewerWidget::scrollToTime(double time)
 }
 
 //-----------------------------------------------------------------------------
-QVector<QString> pqLogViewerWidget::extractLogParts(const QStringRef& txt, bool& is_raw)
+QVector<QString> pqLogViewerWidget::extractLogParts(const QString& txt, bool& is_raw)
 {
   QVector<QString> parts{ 5 };
   QRegularExpression re(
@@ -336,7 +313,7 @@ QVector<QString> pqLogViewerWidget::extractLogParts(const QStringRef& txt, bool&
   else
   {
     is_raw = true;
-    parts[4] = txt.toString();
+    parts[4] = txt;
   }
   return parts;
 }
@@ -352,8 +329,9 @@ void pqLogViewerWidget::toggleAdvanced()
 void pqLogViewerWidget::exportLog()
 {
   QString text = this->Internals->Ui.details->toPlainText();
-  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(), "Save log", QString(),
-    "Text Files (*.txt);;All Files (*)");
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog fileDialog(server, pqCoreUtilities::mainWidget(), tr("Save log"), QString(),
+    tr("Text Files") + " (*.txt);;" + tr("All Files") + " (*)", false, false);
   fileDialog.setFileMode(pqFileDialog::AnyFile);
   if (fileDialog.exec() != pqFileDialog::Accepted)
   {
@@ -361,14 +339,13 @@ void pqLogViewerWidget::exportLog()
     return;
   }
 
-  QString filename = fileDialog.getSelectedFiles().first();
+  QString filename = fileDialog.getSelectedFiles()[0];
   QByteArray filename_ba = filename.toUtf8();
-  std::ofstream fileStream;
-  fileStream.open(filename_ba.data());
-  if (fileStream.is_open())
+  vtkTypeUInt32 location = fileDialog.getSelectedLocation();
+  auto pxm = server->proxyManager();
+  if (!pxm->SaveString(text.toStdString().c_str(), filename_ba.data(), location))
   {
-    fileStream << text.toStdString();
-    fileStream.close();
+    qCritical() << tr("Failed to save log to ") << filename;
   }
 }
 

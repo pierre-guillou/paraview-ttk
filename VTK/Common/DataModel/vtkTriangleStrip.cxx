@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTriangleStrip.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTriangleStrip.h"
 
 #include "vtkCellArray.h"
@@ -22,6 +10,7 @@
 #include "vtkPoints.h"
 #include "vtkTriangle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTriangleStrip);
 
 //------------------------------------------------------------------------------
@@ -94,21 +83,28 @@ int vtkTriangleStrip::EvaluatePosition(const double x[3], double closestPoint[3]
 void vtkTriangleStrip::EvaluateLocation(
   int& subId, const double pcoords[3], double x[3], double* weights)
 {
-  int i;
   static const int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-  int order = subId % 2;
+  const int order = subId % 2;
 
-  double pt1[3], pt2[3], pt3[3];
-  this->Points->GetPoint(subId + idx[order][0], pt1);
-  this->Points->GetPoint(subId + idx[order][1], pt2);
-  this->Points->GetPoint(subId + idx[order][2], pt3);
-  double u3 = 1.0 - pcoords[0] - pcoords[1];
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  const double* pt1 = pts + 3 * (subId + idx[order][0]);
+  const double* pt2 = pts + 3 * (subId + idx[order][1]);
+  const double* pt3 = pts + 3 * (subId + idx[order][2]);
+  const double u3 = 1.0 - pcoords[0] - pcoords[1];
 
   weights[0] = u3;
   weights[1] = pcoords[0];
   weights[2] = pcoords[1];
 
-  for (i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++)
   {
     x[i] = pt1[i] * weights[0] + pt2[i] * weights[1] + pt3[i] * weights[2];
   }
@@ -216,26 +212,20 @@ int vtkTriangleStrip::IntersectWithLine(const double p1[3], const double p2[3], 
 }
 
 //------------------------------------------------------------------------------
-int vtkTriangleStrip::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkTriangleStrip::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
   int numTris = this->Points->GetNumberOfPoints() - 2;
+  ptIds->SetNumberOfIds(3 * numTris);
   int i, order;
-  static const int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
-
-  pts->Reset();
-  ptIds->Reset();
-
+  constexpr int idx[2][3] = { { 0, 1, 2 }, { 1, 0, 2 } };
   for (int subId = 0; subId < numTris; subId++)
   {
     order = subId % 2;
-
     for (i = 0; i < 3; i++)
     {
-      ptIds->InsertNextId(this->PointIds->GetId(subId + idx[order][i]));
-      pts->InsertNextPoint(this->Points->GetPoint(subId + idx[order][i]));
+      ptIds->SetId(subId * 3 + i, subId + idx[order][i]);
     }
   }
-
   return 1;
 }
 
@@ -344,3 +334,4 @@ void vtkTriangleStrip::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Triangle:\n";
   this->Triangle->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

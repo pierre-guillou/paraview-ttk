@@ -1,12 +1,5 @@
-/*=========================================================================
-  Program:   Visualization Toolkit
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <emscripten/emscripten.h>
 #include <iostream>
@@ -17,17 +10,17 @@
 #include "vtkNew.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
+#include "vtkRenderWindow.h"
+#include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkSDL2OpenGLRenderWindow.h"
-#include "vtkSDL2RenderWindowInteractor.h"
 
 //------------------------------------------------------------------------------
 // Global objects
 //------------------------------------------------------------------------------
 
 vtkRenderer* renderer = nullptr;
-vtkSDL2OpenGLRenderWindow* renderWindow = nullptr;
-vtkSDL2RenderWindowInteractor* renderWindowInteractor = nullptr;
+vtkRenderWindow* renderWindow = nullptr;
+vtkRenderWindowInteractor* renderWindowInteractor = nullptr;
 vtkInteractorStyleTrackballCamera* style = nullptr;
 
 vtkConeSource* coneSource = nullptr;
@@ -40,8 +33,8 @@ void createPipeline()
 {
   // Create a renderer, render window, and interactor
   renderer = vtkRenderer::New();
-  renderWindow = vtkSDL2OpenGLRenderWindow::New();
-  renderWindowInteractor = vtkSDL2RenderWindowInteractor::New();
+  renderWindow = vtkRenderWindow::New();
+  renderWindowInteractor = vtkRenderWindowInteractor::New();
   style = vtkInteractorStyleTrackballCamera::New();
 
   renderWindow->SetMultiSamples(0);

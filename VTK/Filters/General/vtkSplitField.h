@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSplitField.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSplitField
  * @brief   Split a field into single component fields
@@ -51,6 +39,7 @@
 
 #include "vtkDataSetAttributes.h" // Needed for NUM_ATTRIBUTES
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFieldData;
 
 class VTKFILTERSGENERAL_EXPORT vtkSplitField : public vtkDataSetAlgorithm
@@ -159,4 +148,5 @@ private:
   void operator=(const vtkSplitField&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

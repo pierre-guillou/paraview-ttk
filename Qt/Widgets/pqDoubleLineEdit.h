@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqDoubleLineEdit.h
-
-   Copyright (c) 2005-2018 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqDoubleLineEdit_h
 #define pqDoubleLineEdit_h
 
@@ -39,6 +11,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // ParaView Includes.
 #include "pqLineEdit.h"
 #include "pqWidgetsModule.h"
+
+#include "vtkParaViewDeprecation.h"
 
 /**
  * @class pqDoubleLineEdit
@@ -52,6 +26,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * pqDoubleLineEdit instance. Additionally, pqDoubleLineEdit can be configure to
  * simply respect a global precision and notation specification by using the
  * property `useGlobalPrecisionAndNotation` (which is default).
+ *
+ * When using FullNotation, the displayed text logic is deactivated and the
+ * user will be able to see the value that they will edit directly.
  *
  * Since pqDoubleLineEdit is intended for numeric values, in its constructor, a
  * `QDoubleValidator` is created for convenience.
@@ -78,7 +55,8 @@ public:
   {
     MixedNotation = 0,
     ScientificNotation,
-    FixedNotation
+    FixedNotation,
+    FullNotation
   };
 
   /**
@@ -100,7 +78,7 @@ public:
    */
   bool useGlobalPrecisionAndNotation() const;
 
-  //@{
+  ///@{
   /**
    * Get/set the global precision and notation. All pqDoubleLineEdit instances
    * that have `useGlobalPrecisionAndNotation` property set to true will
@@ -109,7 +87,7 @@ public:
   static void setGlobalPrecisionAndNotation(int precision, RealNumberNotation notation);
   static int globalPrecision();
   static RealNumberNotation globalNotation();
-  //@}
+  ///@}
 
   /**
    * Returns the text being shown when the widget is not active or under mouse
@@ -117,24 +95,35 @@ public:
    */
   QString simplifiedText() const;
 
-  //@{
   /**
    * Return a double formatted according to a QTextStream::RealNumberNotation and number
    * of digits of precision.
+   *
+   * @deprecated deprecated in favor of
+   * pqDoubleLineEdit::formatDouble(double,pqDoubleLineEdit::RealNumberNotation,int)
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "Use `pqDoubleLineEdit::formatDouble(double,pqDoubleLineEdit::RealNumberNotation,int)` instead")
   static QString formatDouble(
     double value, QTextStream::RealNumberNotation notation, int precision);
-  static QString formatDouble(
-    double value, pqDoubleLineEdit::RealNumberNotation notation, int precision);
-  //@}
 
-  //@{
+  /**
+   * Return a double formatted according to a pqDoubleLineEdit::RealNumberNotation
+   * notation and a number of digits of precision.
+   * Supports QLocale::FloatingPointShortest as precision.
+   * When using pqDoubleLineEdit::RealNumberNotation::FullNotation, precision is not used and
+   * fullLowExponent and fullHighExponent will be used to determine when to switch between
+   * scientific notation and fixed notation.
+   */
+  static QString formatDouble(double value, pqDoubleLineEdit::RealNumberNotation notation,
+    int precision, int fullLowExponent = -6, int fullHighExponent = 20);
+
   /**
    * Return a double formatted according to the values set for global precision
    * and notation.
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0("Use `pqCoreUtilities::formatNumber()` instead")
   static QString formatDoubleUsingGlobalPrecisionAndNotation(double value);
-  //@}
 
 public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
@@ -158,6 +147,8 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Set whether to always render at full precision
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "Use `pqDoubleLineEdit::setNotation(pqDoubleLineEdit::FullNotation)` instead")
   void setAlwaysUseFullPrecision(bool value);
 
 protected:

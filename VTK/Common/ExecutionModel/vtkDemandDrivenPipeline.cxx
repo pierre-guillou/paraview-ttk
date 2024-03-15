@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDemandDrivenPipeline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDemandDrivenPipeline.h"
 
 #include "vtkAlgorithm.h"
@@ -37,6 +25,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDemandDrivenPipeline);
 
 vtkInformationKeyMacro(vtkDemandDrivenPipeline, DATA_NOT_GENERATED, Integer);
@@ -1047,7 +1036,7 @@ int vtkDemandDrivenPipeline ::NeedToExecuteData(
 }
 
 //------------------------------------------------------------------------------
-int vtkDemandDrivenPipeline::SetReleaseDataFlag(int port, int n)
+int vtkDemandDrivenPipeline::SetReleaseDataFlag(int port, vtkTypeBool n)
 {
   if (!this->OutputPortIndexInRange(port, "set release data flag on"))
   {
@@ -1063,7 +1052,7 @@ int vtkDemandDrivenPipeline::SetReleaseDataFlag(int port, int n)
 }
 
 //------------------------------------------------------------------------------
-int vtkDemandDrivenPipeline::GetReleaseDataFlag(int port)
+vtkTypeBool vtkDemandDrivenPipeline::GetReleaseDataFlag(int port)
 {
   if (!this->OutputPortIndexInRange(port, "get release data flag from"))
   {
@@ -1076,3 +1065,4 @@ int vtkDemandDrivenPipeline::GetReleaseDataFlag(int port)
   }
   return info->Get(RELEASE_DATA());
 }
+VTK_ABI_NAMESPACE_END

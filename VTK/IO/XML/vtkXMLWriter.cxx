@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLWriter.h"
 
 #include "vtkAOSDataArrayTemplate.h"
@@ -64,6 +52,7 @@
 #include <memory>
 
 #include <cassert>
+#include <cmath>
 #include <sstream>
 #include <string>
 
@@ -75,6 +64,8 @@
 
 #include <cctype> // for isalnum
 #include <locale> // C++ locale
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //*****************************************************************************
 // Friend class to enable access for template functions to the protected
@@ -280,8 +271,6 @@ struct WriteBinaryDataBlockWorker
 
 }; // End WriteBinaryDataBlockWorker
 
-namespace
-{
 //------------------------------------------------------------------------------
 // Specialize for vtkDataArrays, which implicitly cast everything to double:
 template <class ValueType>
@@ -345,8 +334,6 @@ void WriteDataArrayFallback(ValueType*, vtkDataArray* array, WriteBinaryDataBloc
   }
 
   vtkXMLWriterHelper::SetProgressPartial(worker.Writer, 1);
-}
-
 }
 
 //------------------------------------------------------------------------------
@@ -1152,8 +1139,8 @@ int vtkXMLWriter::WriteBinaryDataInternal(vtkAbstractArray* a)
   else if (vtkDataArray* da = vtkArrayDownCast<vtkDataArray>(a))
   {
     // Create a dispatcher that also handles vtkBitArray:
-    using vtkArrayDispatch::Arrays;
-    using XMLArrays = vtkTypeList::Append<Arrays, vtkBitArray>::Result;
+    using vtkArrayDispatch::AllArrays;
+    using XMLArrays = vtkTypeList::Append<AllArrays, vtkBitArray>::Result;
     using Dispatcher = vtkArrayDispatch::DispatchByArray<XMLArrays>;
 
     WriteBinaryDataBlockWorker worker(this, wordType, memWordSize, outWordSize, numValues);
@@ -1591,14 +1578,14 @@ const char* vtkXMLWriter::GetWordTypeName(int dataType)
 template <class T>
 int vtkXMLWriterWriteVectorAttribute(ostream& os, const char* name, int length, T* data)
 {
-  vtkNumberToString convert;
+  vtkNumberToString converter;
   os << " " << name << "=\"";
   if (length)
   {
-    os << convert(data[0]);
+    os << converter.Convert(data[0]);
     for (int i = 1; i < length; ++i)
     {
-      os << " " << convert(data[i]);
+      os << " " << converter.Convert(data[i]);
     }
   }
   os << "\"";
@@ -1894,8 +1881,8 @@ bool vtkXMLWriter::WriteInformation(vtkInformation* info, vtkIndent indent)
 template <class T>
 inline ostream& vtkXMLWriteAsciiValue(ostream& os, const T& value)
 {
-  vtkNumberToString convert;
-  os << convert(value);
+  vtkNumberToString converter;
+  os << converter.Convert(value);
   return os;
 }
 
@@ -2950,6 +2937,24 @@ void vtkXMLWriter::WritePArray(vtkAbstractArray* a, vtkIndent indent, const char
   {
     this->WriteScalarAttribute("NumberOfComponents", a->GetNumberOfComponents());
   }
+
+  // always write out component names, even if only 1 component
+  std::ostringstream buff;
+  const char* compName = nullptr;
+  for (int i = 0; i < a->GetNumberOfComponents(); ++i)
+  {
+    // get the component names
+    buff << "ComponentName" << i;
+    compName = a->GetComponentName(i);
+    if (compName)
+    {
+      this->WriteStringAttribute(buff.str().c_str(), compName);
+      compName = nullptr;
+    }
+    buff.str("");
+    buff.clear();
+  }
+
   os << "/>\n";
 
   os.flush();
@@ -3052,7 +3057,7 @@ void vtkXMLWriter::UpdateProgressDiscrete(float progress)
   if (!this->AbortExecute)
   {
     // Round progress to nearest 100th.
-    float rounded = static_cast<float>(static_cast<int>((progress * 100) + 0.5f)) / 100.f;
+    float rounded = std::round(progress * 100) / 100.f;
     if (this->GetProgress() != rounded)
     {
       this->UpdateProgress(rounded);
@@ -3145,3 +3150,5 @@ void vtkXMLWriter::WriteNextTime(double time)
     os.seekp(returnPos);
   }
 }
+
+VTK_ABI_NAMESPACE_END

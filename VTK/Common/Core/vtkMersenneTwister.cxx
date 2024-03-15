@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMersenneTwister.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /* Many thanks to M. Matsumoto, T. Nishimura and M. Saito for the       */
 /* implementation of their algorithm, the Mersenne Twister, taken from  */
@@ -124,6 +113,7 @@ const int* MersenneExponentsEnd = MersenneExponents + NMersenneExponents;
 #include "vtkMersenneTwister.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMersenneTwisterInternals : public MersenneTwister
 {
 public:
@@ -227,3 +217,4 @@ void vtkMersenneTwister::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

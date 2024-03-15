@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPoissonDiskSampler.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkPoissonDiskSampler.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -34,6 +22,7 @@
 #include <unordered_set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPoissonDiskSampler);
 vtkCxxSetObjectMacro(vtkPoissonDiskSampler, Locator, vtkAbstractPointLocator);
 
@@ -189,3 +178,4 @@ void vtkPoissonDiskSampler::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

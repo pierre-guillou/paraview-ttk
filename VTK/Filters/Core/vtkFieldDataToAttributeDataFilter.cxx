@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFieldDataToAttributeDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFieldDataToAttributeDataFilter.h"
 
 #include "vtkCellData.h"
@@ -23,6 +11,7 @@
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFieldDataToAttributeDataFilter);
 
 // Instantiate object with no input and no defined output.
@@ -170,15 +159,36 @@ int vtkFieldDataToAttributeDataFilter::RequestData(vtkInformation* vtkNotUsed(re
 
   this->ConstructScalars(num, fd, attr, this->ScalarComponentRange, this->ScalarArrays,
     this->ScalarArrayComponents, this->ScalarNormalize, this->NumberOfScalarComponents);
-  this->ConstructVectors(num, fd, attr, this->VectorComponentRange, this->VectorArrays,
-    this->VectorArrayComponents, this->VectorNormalize);
-  this->ConstructTensors(num, fd, attr, this->TensorComponentRange, this->TensorArrays,
-    this->TensorArrayComponents, this->TensorNormalize);
-  this->ConstructTCoords(num, fd, attr, this->TCoordComponentRange, this->TCoordArrays,
-    this->TCoordArrayComponents, this->TCoordNormalize, this->NumberOfTCoordComponents);
-  this->ConstructNormals(num, fd, attr, this->NormalComponentRange, this->NormalArrays,
-    this->NormalArrayComponents, this->NormalNormalize);
-  this->ConstructFieldData(num, attr);
+
+  // Skip step if CheckAbort returns true
+  if (!this->CheckAbort())
+  {
+    this->ConstructVectors(num, fd, attr, this->VectorComponentRange, this->VectorArrays,
+      this->VectorArrayComponents, this->VectorNormalize);
+  }
+
+  if (!this->CheckAbort())
+  {
+    this->ConstructTensors(num, fd, attr, this->TensorComponentRange, this->TensorArrays,
+      this->TensorArrayComponents, this->TensorNormalize);
+  }
+
+  if (!this->CheckAbort())
+  {
+    this->ConstructTCoords(num, fd, attr, this->TCoordComponentRange, this->TCoordArrays,
+      this->TCoordArrayComponents, this->TCoordNormalize, this->NumberOfTCoordComponents);
+  }
+
+  if (!this->CheckAbort())
+  {
+    this->ConstructNormals(num, fd, attr, this->NormalComponentRange, this->NormalArrays,
+      this->NormalArrayComponents, this->NormalNormalize);
+  }
+
+  if (!this->CheckAbort())
+  {
+    this->ConstructFieldData(num, attr);
+  }
 
   return 1;
 }
@@ -1147,3 +1157,4 @@ int vtkFieldDataToAttributeDataFilter::RequestUpdateExtent(vtkInformation* vtkNo
     outInfo->Get(vtkStreamingDemandDrivenPipeline::EXACT_EXTENT()));
   return 1;
 }
+VTK_ABI_NAMESPACE_END

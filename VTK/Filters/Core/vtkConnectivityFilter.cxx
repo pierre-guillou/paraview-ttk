@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConnectivityFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConnectivityFilter.h"
 
 #include "vtkCell.h"
@@ -32,6 +20,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkConnectivityFilter);
 
 // Construct with default extraction mode to extract largest regions.
@@ -245,6 +234,10 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
     {
       if (cellId && !(cellId % 5000))
       {
+        if (this->CheckAbort())
+        {
+          break;
+        }
         this->UpdateProgress(0.1 + 0.8 * cellId / numCells);
       }
 
@@ -269,11 +262,17 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
   else // regions have been seeded, everything considered in same region
   {
     this->NumCellsInRegion = 0;
+    int checkAbortInterval = 0;
 
     if (this->ExtractionMode == VTK_EXTRACT_POINT_SEEDED_REGIONS)
     {
+      checkAbortInterval = std::min(this->Seeds->GetNumberOfIds() / 10 + 1, (vtkIdType)1000);
       for (i = 0; i < this->Seeds->GetNumberOfIds(); i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         pt = this->Seeds->GetId(i);
         if (pt >= 0)
         {
@@ -287,8 +286,13 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
     }
     else if (this->ExtractionMode == VTK_EXTRACT_CELL_SEEDED_REGIONS)
     {
+      checkAbortInterval = std::min(this->Seeds->GetNumberOfIds() / 10 + 1, (vtkIdType)1000);
       for (i = 0; i < this->Seeds->GetNumberOfIds(); i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         cellId = this->Seeds->GetId(i);
         if (cellId >= 0)
         {
@@ -300,8 +304,13 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
     { // loop over points, find closest one
       double minDist2, dist2, x[3];
       vtkIdType minId = 0;
+      checkAbortInterval = std::min(numPts / 10 + 1, (vtkIdType)1000);
       for (minDist2 = VTK_DOUBLE_MAX, i = 0; i < numPts; i++)
       {
+        if (i % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         input->GetPoint(i, x);
         dist2 = vtkMath::Distance2BetweenPoints(x, this->ClosestPoint);
         if (dist2 < minDist2)
@@ -311,8 +320,13 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
         }
       }
       input->GetPointCells(minId, this->CellIds);
+      checkAbortInterval = std::min(this->CellIds->GetNumberOfIds() / 10 + 1, (vtkIdType)1000);
       for (j = 0; j < this->CellIds->GetNumberOfIds(); j++)
       {
+        if (j % checkAbortInterval == 0 && this->CheckAbort())
+        {
+          break;
+        }
         this->Wave->InsertNextId(this->CellIds->GetId(j));
       }
     }
@@ -503,13 +517,16 @@ int vtkConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
     outScalars->Resize(output->GetNumberOfPoints());
   }
 
+#ifndef NDEBUG
   int num = this->GetNumberOfExtractedRegions();
   int count = 0;
+  (void)count; // Only used in Debug builds.
 
   for (int ii = 0; ii < num; ii++)
   {
     count += this->RegionSizes->GetValue(ii);
   }
+#endif
   vtkDebugMacro(<< "Total # of cells accounted for: " << count);
   vtkDebugMacro(<< "Extracted " << output->GetNumberOfCells() << " cells");
 
@@ -523,11 +540,17 @@ void vtkConnectivityFilter::TraverseAndMark(vtkDataSet* input)
 {
   vtkIdType i, j, k, cellId, numIds, ptId, numPts, numCells;
   vtkIdList* tmpWave;
+  vtkIdType checkAbortInterval = 0;
 
-  while ((numIds = this->Wave->GetNumberOfIds()) > 0)
+  while ((numIds = this->Wave->GetNumberOfIds()) > 0 && !this->GetAbortOutput())
   {
+    checkAbortInterval = std::min(numIds / 10 + 1, (vtkIdType)1000);
     for (i = 0; i < numIds; i++)
     {
+      if (i % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       cellId = this->Wave->GetId(i);
       if (this->Visited[cellId] < 0)
       {
@@ -756,3 +779,4 @@ void vtkConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Scalar Range: (" << range[0] << ", " << range[1] << ")\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

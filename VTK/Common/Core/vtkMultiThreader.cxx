@@ -1,23 +1,13 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiThreader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiThreader.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkWindows.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMultiThreader);
+VTK_ABI_NAMESPACE_END
 
 // Need to define "vtkExternCThreadFunctionType" to avoid warning on some
 // platforms about passing function pointer to an argument expecting an
@@ -38,6 +28,7 @@ typedef vtkThreadFunctionType vtkExternCThreadFunctionType;
 #include <sys/types.h>
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 // Initialize static member that controls global maximum number of threads
 static int vtkMultiThreaderGlobalMaximumNumberOfThreads = 0;
 
@@ -642,3 +633,4 @@ void vtkMultiThreader::PrintSelf(ostream& os, vtkIndent indent)
 #endif
      << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,28 +1,17 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIndent.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkIndent.h"
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkIndent* vtkIndent::New()
 {
   return new vtkIndent; // not a VTK object, don't use object factory macros
 }
 
-#define VTK_STD_INDENT 2
-#define VTK_NUMBER_OF_BLANKS 40
+constexpr int VTK_STD_INDENT = 2;
+constexpr int VTK_NUMBER_OF_BLANKS = 40;
 
 static const char blanks[VTK_NUMBER_OF_BLANKS + 1] = "                                        ";
 
@@ -44,3 +33,4 @@ ostream& operator<<(ostream& os, const vtkIndent& ind)
   os << blanks + (VTK_NUMBER_OF_BLANKS - ind.Indent);
   return os;
 }
+VTK_ABI_NAMESPACE_END

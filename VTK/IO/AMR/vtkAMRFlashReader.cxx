@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRFlashReader.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRFlashReader.h"
 #include "vtkAMRBox.h"
 #include "vtkByteSwap.h"
@@ -41,6 +29,7 @@
 
 #include "vtkAMRFlashReaderInternal.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRFlashReader);
 
 //------------------------------------------------------------------------------
@@ -102,7 +91,7 @@ void vtkAMRFlashReader::ReadMetaData()
 }
 
 //------------------------------------------------------------------------------
-int vtkAMRFlashReader::GetBlockLevel(const int blockIdx)
+int vtkAMRFlashReader::GetBlockLevel(int blockIdx)
 {
   assert("pre: Internal Flash Reader is nullptr" && (this->Internal != nullptr));
   if (!this->IsReady)
@@ -223,7 +212,7 @@ int vtkAMRFlashReader::FillMetaData()
 }
 
 //------------------------------------------------------------------------------
-vtkUniformGrid* vtkAMRFlashReader::GetAMRGrid(const int blockIdx)
+vtkUniformGrid* vtkAMRFlashReader::GetAMRGrid(int blockIdx)
 {
   if (!this->IsReady)
   {
@@ -251,7 +240,7 @@ vtkUniformGrid* vtkAMRFlashReader::GetAMRGrid(const int blockIdx)
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRFlashReader::GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field)
+void vtkAMRFlashReader::GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field)
 {
   assert("pre: AMR block is nullptr" && (block != nullptr));
   this->Internal->GetBlockAttribute(field, blockIdx, block);
@@ -269,3 +258,4 @@ void vtkAMRFlashReader::SetUpDataArraySelections()
     this->CellDataArraySelection->AddArray(this->Internal->AttributeNames[i].c_str());
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkStructuredAMRNeighbor.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStructuredAMRNeighbor
  * @brief   An internal, light-weight object used to store neighbor information for
@@ -27,6 +15,7 @@
 #include "vtkFiltersGeometryModule.h" // For export macro
 #include "vtkStructuredNeighbor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGEOMETRY_EXPORT vtkStructuredAMRNeighbor : public vtkStructuredNeighbor
 {
 public:
@@ -61,8 +50,8 @@ public:
    * neighbors overlap at the pre-computed overlap extent which is given w.r.t
    * to the current grid (i.e., not the neighboring grid).
    */
-  vtkStructuredAMRNeighbor(const int gridLevel, const int neiID, const int neighborLevel,
-    int gridOverlap[6], int neiOverlap[6], int orient[3], const int relationShip);
+  vtkStructuredAMRNeighbor(int gridLevel, int neiID, int neighborLevel, int gridOverlap[6],
+    int neiOverlap[6], int orient[3], int relationShip);
 
   /**
    * Copy constructor.
@@ -87,7 +76,7 @@ public:
    * Returns the receive extent w.r.t. the grid's level, i.e., not the
    * neighbor's level.
    */
-  void GetReceiveExtentOnGrid(const int ng, int gridExtent[6], int ext[6]);
+  void GetReceiveExtentOnGrid(int ng, int gridExtent[6], int ext[6]);
 
   /**
    * Returns the neighbor relationship as a string (useful for debugging).
@@ -102,9 +91,10 @@ public:
    * extents for this neighbor instance.
    */
   void ComputeSendAndReceiveExtent(int gridRealExtent[6], int gridGhostedExtent[6],
-    int neiRealExtent[6], int WholeExtent[6], const int N) override;
+    int neiRealExtent[6], int WholeExtent[6], int N) override;
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkStructuredAMRNeighbor_h */
 // VTK-HeaderTest-Exclude: vtkStructuredAMRNeighbor.h

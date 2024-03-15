@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMRangeDomainTemplate.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMRangeDomainTemplate
  * @brief   superclass for type-specific range domains
@@ -101,13 +89,13 @@ public:
    */
   int GetResolution();
 
-  //@{
+  ///@{
   /**
    * Returns if minimum/maximum bound is set for the domain.
    */
   bool GetMinimumExists(unsigned int idx);
   bool GetMaximumExists(unsigned int idx);
-  //@}
+  ///@}
 
   /**
    * Returns if a resolution is set for the domain.

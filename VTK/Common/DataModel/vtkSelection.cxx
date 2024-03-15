@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSelection.h"
 
 #include "vtkFieldData.h"
@@ -42,6 +30,7 @@
 //============================================================================
 namespace parser
 {
+VTK_ABI_NAMESPACE_BEGIN
 class Node
 {
 public:
@@ -53,19 +42,18 @@ public:
 
 class NodeVariable : public Node
 {
-  vtkSignedCharArray* Data;
+  signed char* Data;
   std::string Name;
 
 public:
   NodeVariable(vtkSignedCharArray* data, const std::string& name)
-    : Data(data)
+    : Data(data ? data->GetPointer(0) : nullptr)
     , Name(name)
   {
   }
   bool Evaluate(vtkIdType offset) const override
   {
-    assert(this->Data == nullptr || this->Data->GetNumberOfValues() > offset);
-    return this->Data ? (this->Data->GetValue(offset) != 0) : false;
+    return this->Data ? this->Data[offset] != 0 : false;
   }
   void Print(ostream& os) const override { os << this->Name; }
 };
@@ -168,8 +156,10 @@ public:
     os << ")";
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace parser
 
+VTK_ABI_NAMESPACE_BEGIN
 //============================================================================
 class vtkSelection::vtkInternals
 {
@@ -518,10 +508,11 @@ void vtkSelection::PrintSelf(ostream& os, vtkIndent indent)
   unsigned int numNodes = this->GetNumberOfNodes();
   os << indent << "Number of nodes: " << numNodes << endl;
   os << indent << "Nodes: " << endl;
-  for (unsigned int i = 0; i < numNodes; i++)
+  size_t counter = 0;
+  for (const auto& nodePair : this->Internals->Items)
   {
-    os << indent << "Node #" << i << endl;
-    this->GetNode(i)->PrintSelf(os, indent.GetNextIndent());
+    os << indent << "Node #" << counter++ << endl;
+    nodePair.second->PrintSelf(os, indent.GetNextIndent());
   }
 }
 
@@ -561,9 +552,9 @@ void vtkSelection::DeepCopy(vtkDataObject* src)
 //------------------------------------------------------------------------------
 void vtkSelection::Union(vtkSelection* s)
 {
-  for (unsigned int n = 0; n < s->GetNumberOfNodes(); ++n)
+  for (const auto& nodePair : s->Internals->Items)
   {
-    this->Union(s->GetNode(n));
+    this->Union(nodePair.second);
   }
 }
 
@@ -571,12 +562,12 @@ void vtkSelection::Union(vtkSelection* s)
 void vtkSelection::Union(vtkSelectionNode* node)
 {
   bool merged = false;
-  for (unsigned int tn = 0; tn < this->GetNumberOfNodes(); ++tn)
+  for (const auto& nodePair : this->Internals->Items)
   {
-    vtkSelectionNode* tnode = this->GetNode(tn);
-    if (tnode->EqualProperties(node))
+    auto& selNode = nodePair.second;
+    if (selNode->EqualProperties(node))
     {
-      tnode->UnionSelectionList(node);
+      selNode->UnionSelectionList(node);
       merged = true;
       break;
     }
@@ -592,9 +583,9 @@ void vtkSelection::Union(vtkSelectionNode* node)
 //------------------------------------------------------------------------------
 void vtkSelection::Subtract(vtkSelection* s)
 {
-  for (unsigned int n = 0; n < s->GetNumberOfNodes(); ++n)
+  for (const auto& nodePair : s->Internals->Items)
   {
-    this->Subtract(s->GetNode(n));
+    this->Subtract(nodePair.second);
   }
 }
 
@@ -602,13 +593,13 @@ void vtkSelection::Subtract(vtkSelection* s)
 void vtkSelection::Subtract(vtkSelectionNode* node)
 {
   bool subtracted = false;
-  for (unsigned int tn = 0; tn < this->GetNumberOfNodes(); ++tn)
+  for (const auto& nodePair : this->Internals->Items)
   {
-    vtkSelectionNode* tnode = this->GetNode(tn);
+    vtkSelectionNode* selNode = nodePair.second;
 
-    if (tnode->EqualProperties(node))
+    if (selNode->EqualProperties(node))
     {
-      tnode->SubtractSelectionList(node);
+      selNode->SubtractSelectionList(node);
       subtracted = true;
     }
   }
@@ -643,8 +634,62 @@ vtkSelection* vtkSelection::GetData(vtkInformationVector* v, int i)
 }
 
 //------------------------------------------------------------------------------
-vtkSmartPointer<vtkSignedCharArray> vtkSelection::Evaluate(
-  vtkSignedCharArray* const* values, unsigned int num_values) const
+struct vtkSelection::EvaluateFunctor
+{
+  std::array<signed char, 2>& Range;
+  std::shared_ptr<parser::Node> Tree;
+  signed char* Result;
+
+  EvaluateFunctor(std::array<signed char, 2>& range, std::shared_ptr<parser::Node> tree,
+    vtkSignedCharArray* result)
+    : Range(range)
+    , Tree(tree)
+    , Result(result->GetPointer(0))
+  {
+    this->Range = { VTK_SIGNED_CHAR_MAX, VTK_SIGNED_CHAR_MIN };
+  }
+
+  void Initialize() {}
+
+  void operator()(vtkIdType begin, vtkIdType end)
+  {
+    for (vtkIdType i = begin; i < end; ++i)
+    {
+      this->Result[i] = static_cast<signed char>(this->Tree->Evaluate(i));
+      if (this->Range[0] == VTK_SIGNED_CHAR_MAX && this->Result[i] == 0)
+      {
+        this->Range[0] = 0;
+      }
+      else if (this->Range[1] == VTK_SIGNED_CHAR_MIN && this->Result[i] == 1)
+      {
+        this->Range[1] = 1;
+      }
+    }
+  }
+
+  void Reduce()
+  {
+    if (this->Range[0] == VTK_SIGNED_CHAR_MAX)
+    {
+      if (this->Range[1] == VTK_SIGNED_CHAR_MIN)
+      {
+        this->Range[0] = 0;
+      }
+      else
+      {
+        this->Range[0] = this->Range[1];
+      }
+    }
+    if (this->Range[1] == VTK_SIGNED_CHAR_MIN)
+    {
+      this->Range[1] = 0;
+    }
+  }
+};
+
+//------------------------------------------------------------------------------
+vtkSmartPointer<vtkSignedCharArray> vtkSelection::Evaluate(vtkSignedCharArray* const* values,
+  unsigned int num_values, std::array<signed char, 2>& range) const
 {
   std::map<std::string, vtkSignedCharArray*> values_map;
 
@@ -693,14 +738,9 @@ vtkSmartPointer<vtkSignedCharArray> vtkSelection::Evaluate(
   if (tree && (!values_map.empty()) && numVals != -1)
   {
     auto result = vtkSmartPointer<vtkSignedCharArray>::New();
-    result->SetNumberOfComponents(1);
-    result->SetNumberOfTuples(numVals);
-    vtkSMPTools::For(0, numVals, [&](vtkIdType start, vtkIdType end) {
-      for (vtkIdType idx = start; idx < end; ++idx)
-      {
-        result->SetTypedComponent(idx, 0, tree->Evaluate(idx));
-      }
-    });
+    result->SetNumberOfValues(numVals);
+    EvaluateFunctor functor(range, tree, result);
+    vtkSMPTools::For(0, numVals, functor);
     return result;
   }
   else if (!tree)
@@ -726,10 +766,11 @@ void vtkSelection::Dump(ostream& os)
 {
   vtkSmartPointer<vtkTable> tmpTable = vtkSmartPointer<vtkTable>::New();
   cerr << "==Selection==" << endl;
-  for (unsigned int i = 0; i < this->GetNumberOfNodes(); ++i)
+  size_t counter = 0;
+  for (const auto& nodePair : this->Internals->Items)
   {
-    os << "===Node " << i << "===" << endl;
-    vtkSelectionNode* node = this->GetNode(i);
+    os << "===Node " << counter++ << "===" << endl;
+    vtkSelectionNode* node = nodePair.second;
     os << "ContentType: ";
     switch (node->GetContentType())
     {
@@ -798,3 +839,4 @@ void vtkSelection::Dump(ostream& os)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeMask.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkVolumeMask_h
 #define vtkVolumeMask_h
@@ -26,6 +14,7 @@
 #include <map> // STL required
 
 //----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVolumeMask
 {
 public:
@@ -279,7 +268,7 @@ public:
 
   // Get the texture unit
   //--------------------------------------------------------------------------
-  int GetTextureUnit(void)
+  int GetTextureUnit()
   {
     if (!this->Texture)
     {
@@ -322,5 +311,6 @@ private:
   vtkMapMaskTextureId& operator=(const vtkMapMaskTextureId& other) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkVolumeMask_h
 // VTK-HeaderTest-Exclude: vtkVolumeMask.h

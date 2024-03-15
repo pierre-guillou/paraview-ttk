@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSelector.h"
 
@@ -35,6 +23,7 @@
 #include "vtkUniformGridAMRDataIterator.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkSelector::vtkSelector() = default;
 
 //------------------------------------------------------------------------------
@@ -364,15 +353,16 @@ vtkSmartPointer<vtkSignedCharArray> vtkSelector::ComputeCellsContainingSelectedP
   // run through cells and accept those with any point inside
   vtkSMPTools::For(0, numCells, [&](vtkIdType first, vtkIdType last) {
     vtkNew<vtkIdList> cellPts;
+    vtkIdType numCellPts;
+    const vtkIdType* pts;
+    signed char selectedPointFound;
     for (vtkIdType cellId = first; cellId < last; ++cellId)
     {
-      dataset->GetCellPoints(cellId, cellPts);
-      const vtkIdType numCellPts = cellPts->GetNumberOfIds();
-      signed char selectedPointFound = 0;
+      dataset->GetCellPoints(cellId, numCellPts, pts, cellPts);
+      selectedPointFound = 0;
       for (vtkIdType i = 0; i < numCellPts; ++i)
       {
-        vtkIdType ptId = cellPts->GetId(i);
-        if (selectedPoints->GetValue(ptId) != 0)
+        if (selectedPoints->GetValue(pts[i]) != 0)
         {
           selectedPointFound = 1;
           break;
@@ -391,3 +381,4 @@ void vtkSelector::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "InsidednessArrayName: " << this->InsidednessArrayName << endl;
 }
+VTK_ABI_NAMESPACE_END

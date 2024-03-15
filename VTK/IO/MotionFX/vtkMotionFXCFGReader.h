@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMotionFXCFGReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkMotionFXCFGReader_h
 #define vtkMotionFXCFGReader_h
 
@@ -36,6 +24,7 @@
  * The reader uses PEGTL (https://github.com/taocpp/PEGTL)
  * to define and parse the grammar for the CFG file.
  */
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOMOTIONFX_EXPORT vtkMotionFXCFGReader : public vtkMultiBlockDataSetAlgorithm
 {
 public:
@@ -87,4 +76,5 @@ private:
   vtkInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

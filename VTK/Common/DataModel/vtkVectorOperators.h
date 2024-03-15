@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVectorOperators.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkVectorOperators_h
 #define vtkVectorOperators_h
@@ -22,6 +10,7 @@
 
 // Description:
 // Unary minus / negation of vector.
+VTK_ABI_NAMESPACE_BEGIN
 template <typename A, int Size>
 vtkVector<A, Size> operator-(const vtkVector<A, Size>& v)
 {
@@ -73,7 +62,7 @@ vtkVector<A, Size> operator-(const vtkVector<A, Size>& v1, const vtkVector<A, Si
 }
 
 // Description:
-// Substract the vector b to the vector a of the same basic type.
+// Subtract the vector b to the vector a of the same basic type.
 template <typename T, int Size>
 vtkVector<T, Size>& operator-=(vtkVector<T, Size>& a, const vtkVector<T, Size>& b)
 {
@@ -190,5 +179,6 @@ vtkVectorOperatorMacro(vtkVector3i, int, 3);
 vtkVectorOperatorMacro(vtkVector3f, float, 3);
 vtkVectorOperatorMacro(vtkVector3d, double, 3);
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkVectorOperators.h

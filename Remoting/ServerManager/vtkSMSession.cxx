@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSMSession.h"
 
@@ -400,11 +385,4 @@ void vtkSMSession::ProcessNotification(const vtkSMMessage* message)
     remoteObj->DisableLocalPushOnly();
     this->StopProcessingRemoteNotification(previousValue);
   }
-}
-
-//----------------------------------------------------------------------------
-bool vtkSMSession::GetIsAutoMPI() const
-{
-  VTK_LEGACY_BODY(vtkMyClass::GetIsAutoMPI, "ParaView 5.10");
-  return false;
 }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBiQuadraticQuadraticWedge.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Thanks to Soeren Gebbert who developed this class and
 // integrated it into VTK 5.0.
@@ -27,8 +15,10 @@
 #include "vtkQuadraticTriangle.h"
 #include "vtkWedge.h"
 
+#include <algorithm> //std::copy
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBiQuadraticQuadraticWedge);
 
 //------------------------------------------------------------------------------
@@ -65,7 +55,7 @@ vtkBiQuadraticQuadraticWedge::~vtkBiQuadraticQuadraticWedge()
 
 //------------------------------------------------------------------------------
 // We are using 8 linear wedge
-static int LinearWedges[8][6] = {
+static vtkIdType LinearWedges[8][6] = {
   { 0, 6, 8, 12, 15, 17 },
   { 6, 7, 8, 15, 16, 17 },
   { 6, 1, 7, 15, 13, 16 },
@@ -78,11 +68,11 @@ static int LinearWedges[8][6] = {
 
 // We use 2 quadratic triangles and 3 quadratic-linear quads
 static constexpr vtkIdType WedgeFaces[5][9] = {
-  { 0, 1, 2, 6, 7, 8, 0, 0, 0 },     // first quad triangle
-  { 3, 5, 4, 11, 10, 9, 0, 0, 0 },   // second quad triangle
-  { 0, 3, 4, 1, 12, 9, 13, 6, 15 },  // 1. biquad quad
-  { 1, 4, 5, 2, 13, 10, 14, 7, 16 }, // 2. biquad quad
-  { 2, 5, 3, 0, 14, 11, 12, 8, 17 }, // 3. biquad quad
+  { 0, 2, 1, 8, 7, 6, 0, 0, 0 },     // first quad triangle
+  { 3, 4, 5, 9, 10, 11, 0, 0, 0 },   // second quad triangle
+  { 0, 1, 4, 3, 6, 13, 9, 12, 15 },  // 1. biquad quad
+  { 1, 2, 5, 4, 7, 14, 10, 13, 16 }, // 2. biquad quad
+  { 2, 0, 3, 5, 8, 12, 11, 14, 17 }, // 3. biquad quad
 };
 
 // We have 9 quadratic edges
@@ -162,12 +152,22 @@ int vtkBiQuadraticQuadraticWedge::EvaluatePosition(const double x[3], double* cl
   double params[3];
   double fcol[3], rcol[3], scol[3], tcol[3];
   int i, j;
-  double d, pt[3];
+  double d;
+  const double* pt;
   double derivs[3 * 18];
 
   //  set initial position for Newton's method
   subId = 0;
   pcoords[0] = pcoords[1] = pcoords[2] = params[0] = params[1] = params[2] = 0.5;
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   //  enter iteration loop
   for (iteration = converged = 0; !converged && (iteration < VTK_WEDGE_MAX_ITERATION); iteration++)
@@ -183,7 +183,7 @@ int vtkBiQuadraticQuadraticWedge::EvaluatePosition(const double x[3], double* cl
     }
     for (i = 0; i < 18; i++)
     {
-      this->Points->GetPoint(i, pt);
+      pt = pts + 3 * i;
       for (j = 0; j < 3; j++)
       {
         fcol[j] += pt[j] * weights[i];
@@ -286,14 +286,23 @@ int vtkBiQuadraticQuadraticWedge::EvaluatePosition(const double x[3], double* cl
 void vtkBiQuadraticQuadraticWedge::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
-  double pt[3];
+  const double* pt;
 
   vtkBiQuadraticQuadraticWedge::InterpolationFunctions(pcoords, weights);
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   x[0] = x[1] = x[2] = 0.0;
   for (int i = 0; i < 18; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (int j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -439,21 +448,10 @@ int vtkBiQuadraticQuadraticWedge::IntersectWithLine(
 }
 
 //------------------------------------------------------------------------------
-int vtkBiQuadraticQuadraticWedge::Triangulate(
-  int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkBiQuadraticQuadraticWedge::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-
-  for (int i = 0; i < 8; i++)
-  {
-    for (int j = 0; j < 6; j++)
-    {
-      ptIds->InsertId(6 * i + j, this->PointIds->GetId(LinearWedges[i][j]));
-      pts->InsertPoint(6 * i + j, this->Points->GetPoint(LinearWedges[i][j]));
-    }
-  }
-
+  ptIds->SetNumberOfIds(48);
+  std::copy(&LinearWedges[0][0], &LinearWedges[0][0] + 48, ptIds->begin());
   return 1;
 }
 
@@ -706,3 +704,4 @@ void vtkBiQuadraticQuadraticWedge::PrintSelf(ostream & os, vtkIndent indent)
   os << indent << "Scalars:\n";
   this->Scalars->PrintSelf (os, indent.GetNextIndent ());
 }
+VTK_ABI_NAMESPACE_END

@@ -1,27 +1,20 @@
-if (NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
-endif ()
+CMAKE_MINIMUM_REQUIRED(VERSION 3.12)
 
 PROJECT(QtTesting)
 
 IF(NOT DEFINED QtTesting_QT_VERSION)
-  SET(QtTesting_QT_VERSION "4" CACHE STRING "Expected Qt version")
+  SET(QtTesting_QT_VERSION "5" CACHE STRING "Expected Qt version")
   MARK_AS_ADVANCED(QtTesting_QT_VERSION)
-  SET_PROPERTY(CACHE QtTesting_QT_VERSION PROPERTY STRINGS 4 5)
+  SET_PROPERTY(CACHE QtTesting_QT_VERSION PROPERTY STRINGS 5 6)
 ENDIF()
-IF(NOT (QtTesting_QT_VERSION VERSION_EQUAL "4" OR
-  QtTesting_QT_VERSION VERSION_EQUAL "5"))
-  message(FATAL_ERROR "Expected value for QtTesting_QT_VERSION is either '4' or '5'")
+IF(NOT (QtTesting_QT_VERSION VERSION_EQUAL "5" OR
+  QtTesting_QT_VERSION VERSION_EQUAL "6"))
+  message(FATAL_ERROR "Expected value for QtTesting_QT_VERSION is either '5' or '6'")
 ENDIF()
 
 set(qt_imported_targets)
-IF(QtTesting_QT_VERSION VERSION_GREATER "4")
-  FIND_PACKAGE(Qt5 REQUIRED COMPONENTS Core Widgets)
-  SET(qt_imported_targets Qt5::Core Qt5::Widgets)
-ELSE()
-  FIND_PACKAGE(Qt4 REQUIRED COMPONENTS QtGui)
-  SET(qt_imported_targets Qt4::QtCore Qt4::QtGui)
-ENDIF()
+FIND_PACKAGE(Qt${QtTesting_QT_VERSION} REQUIRED COMPONENTS Core Widgets Gui)
+SET(qt_imported_targets Qt${QtTesting_QT_VERSION}::Core Qt${QtTesting_QT_VERSION}::Widgets Qt${QtTesting_QT_VERSION}::Gui)
 
 IF(NOT DEFINED QT_TESTING_WITH_PYTHON)
   OPTION(QT_TESTING_WITH_PYTHON "Enable Qt Testing with Python" OFF)
@@ -209,41 +202,60 @@ SET(QtTesting_DEVEL_HEADERS
   ${QtTesting_BINARY_DIR}/QtTestingConfigure.h
 )
 
-vtk_module_add_module(ParaView::qttesting
-  SOURCES
+if(NOT DEFINED QTTESTING_BUILD_AS_VTK_MODULE)
+  option(QTTESTING_BUILD_AS_VTK_MODULE "Build QtTesting as a VTK module" OFF)
+ENDIF()
+
+if (QTTESTING_BUILD_AS_VTK_MODULE)
+  # When building as a ThirdParty in ParaView
+  # or in any vtk module based software
+  # it can be useful to build qttesting as a VTK Module.
+  # This macro is defined in VTK cmake macros
+  vtk_module_add_module(ParaView::qttesting
+    SOURCES
+      ${QtTesting_SOURCES}
+      ${ui_files}
+      ${rc_files}
+      ${PYTHON_SRCS}
+    HEADERS
+      ${QtTesting_DEVEL_HEADERS}
+    HEADERS_SUBDIR
+      "vtkqttesting"
+  )
+  set_target_properties(qttesting
+    PROPERTIES
+      DEFINE_SYMBOL QtTesting_EXPORTS)
+  add_library(ParaView::qttesting ALIAS qttesting)
+  target_include_directories(qttesting
+    PUBLIC
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+      "$<INSTALL_INTERFACE:${_vtk_build_HEADERS_DESTINATION}/vtkqttesting>")
+else ()
+  add_library(qttesting
     ${QtTesting_SOURCES}
     ${ui_files}
     ${rc_files}
     ${PYTHON_SRCS}
-  HEADERS
-    ${QtTesting_DEVEL_HEADERS}
-  HEADERS_SUBDIR
-    "vtkqttesting"
-)
-set_target_properties(qttesting
-  PROPERTIES
-    DEFINE_SYMBOL QtTesting_EXPORTS)
-add_library(ParaView::qttesting ALIAS qttesting)
-target_include_directories(qttesting
-  PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
-    "$<INSTALL_INTERFACE:${_vtk_build_HEADERS_DESTINATION}/vtkqttesting>")
+    ${QtTesting_DEVEL_HEADERS})
+  add_library(QtTesting ALIAS qttesting)
+
+  target_include_directories(
+    qttesting
+    PUBLIC
+      $<INSTALL_INTERFACE:${QtTesting_INSTALL_INCLUDE_DIR}>
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>")
+endif ()
+
 target_compile_definitions(qttesting PRIVATE QT_NO_KEYWORDS)
 
 # Set library name to include custom prefixes/suffixes.
 set_property(TARGET qttesting
-  PROPERTY OUTPUT_NAME ${QT_TESTING_CUSTOM_LIBRARY_PREFIX}QtTesting${QT_TESTING_CUSTOM_LIBRARY_SUFFIX})
+  PROPERTY OUTPUT_NAME ${QT_TESTING_CUSTOM_LIBRARY_PREFIX}qttesting${QT_TESTING_CUSTOM_LIBRARY_SUFFIX})
 
-TARGET_LINK_LIBRARIES(qttesting
+TARGET_LINK_LIBRARIES(qttesting PRIVATE
   ${qt_imported_targets}
-)
-
-TARGET_INCLUDE_DIRECTORIES(
-  qttesting
-  PUBLIC
-    $<INSTALL_INTERFACE:${QtTesting_INSTALL_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 )
 
 IF(QT_TESTING_WITH_PYTHON)
@@ -256,12 +268,12 @@ SET(QTTESTING_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
 CONFIGURE_FILE(${QtTesting_SOURCE_DIR}/QtTestingConfigure.h.in
                ${QtTesting_BINARY_DIR}/QtTestingConfigure.h)
 
-if (FALSE)
-INSTALL(TARGETS qttesting
-  EXPORT ${QT_TESTING_INSTALL_EXPORT_NAME}
-  RUNTIME DESTINATION ${QtTesting_INSTALL_BIN_DIR} COMPONENT Runtime
-  LIBRARY DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Runtime
-  ARCHIVE DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Development)
+if (NOT QTTESTING_BUILD_AS_VTK_MODULE)
+  INSTALL(TARGETS qttesting
+    EXPORT ${QT_TESTING_INSTALL_EXPORT_NAME}
+    RUNTIME DESTINATION ${QtTesting_INSTALL_BIN_DIR} COMPONENT Runtime
+    LIBRARY DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Runtime
+    ARCHIVE DESTINATION ${QtTesting_INSTALL_LIB_DIR} COMPONENT Development)
 endif ()
 
 

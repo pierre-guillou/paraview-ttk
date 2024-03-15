@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtrusionMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtrusionMapper
  * @brief   Mapper for showing datasets with extrusion along the normal.
@@ -30,26 +19,26 @@
  * This work was supported by the German Climate Computing Center (DKRZ).
  *
  * @sa
- * vtkCompositePolyDataMapper2
+ * vtkCompositePolyDataMapper
  *
  */
 
 #ifndef vtkExtrusionMapper_h
 #define vtkExtrusionMapper_h
 
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkEmbossingRepresentationsModule.h" // for export macro
 
 class vtkMultiProcessController;
 
-class VTKEMBOSSINGREPRESENTATIONS_EXPORT vtkExtrusionMapper : public vtkCompositePolyDataMapper2
+class VTKEMBOSSINGREPRESENTATIONS_EXPORT vtkExtrusionMapper : public vtkCompositePolyDataMapper
 {
 public:
   static vtkExtrusionMapper* New();
-  vtkTypeMacro(vtkExtrusionMapper, vtkCompositePolyDataMapper2);
+  vtkTypeMacro(vtkExtrusionMapper, vtkCompositePolyDataMapper);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the factor used to scale the extrusion. Its value is a percentage,
    * defined according to the maximum length of the bounding box of the mesh.
@@ -59,9 +48,9 @@ public:
    */
   void SetExtrusionFactor(float factor);
   vtkGetMacro(ExtrusionFactor, float);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the basis visibility flag. If disabled, the original cell is not drawn.
    * Default is disabeld.
@@ -69,9 +58,9 @@ public:
   vtkSetMacro(BasisVisibility, bool);
   vtkGetMacro(BasisVisibility, bool);
   vtkBooleanMacro(BasisVisibility, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the auto scaling flag. If disabled, user range is used.
    * Default is enabled.
@@ -79,26 +68,26 @@ public:
   vtkSetMacro(AutoScaling, bool);
   vtkGetMacro(AutoScaling, bool);
   vtkBooleanMacro(AutoScaling, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the user range.
    * Default is [0,1].
    */
   vtkSetVector2Macro(UserRange, float);
   vtkGetVector2Macro(UserRange, float);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the multi process controller object.
    */
   void SetController(vtkMultiProcessController* c);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the data normalization flag.
    * Default is enabled.
@@ -106,9 +95,9 @@ public:
   vtkSetMacro(NormalizeData, bool);
   vtkGetMacro(NormalizeData, bool);
   vtkBooleanMacro(NormalizeData, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Override SetInputArrayToProcess to update data range and save field association.
    */
@@ -118,7 +107,7 @@ public:
   void SetInputArrayToProcess(
     int idx, int port, int connection, int fieldAssociation, int fieldAttributeType) override;
   void SetInputArrayToProcess(int idx, vtkInformation* info) override;
-  //@}
+  ///@}
 
   void ResetDataRange();
 
@@ -127,9 +116,9 @@ protected:
   ~vtkExtrusionMapper() override;
 
   /**
-   * Creation of a helper
+   * Creation of a delegator
    */
-  vtkCompositeMapperHelper2* CreateHelper() override;
+  vtkCompositePolyDataMapperDelegator* CreateADelegator() override;
 
   /**
    * Extends bounds to take into account extrusion
@@ -137,9 +126,10 @@ protected:
   void ComputeBounds() override;
 
   /**
-   * Override to compute data range
+   * Override to collect global data range in a distributed environment.
    */
-  void InitializeHelpersBeforeRendering(vtkRenderer* ren, vtkActor* actor) override;
+  void PreRender(const std::vector<vtkSmartPointer<vtkCompositePolyDataMapperDelegator>>&,
+    vtkRenderer*, vtkActor*) override;
 
   vtkMultiProcessController* Controller = nullptr;
   bool NormalizeData = true;
@@ -153,7 +143,7 @@ protected:
   bool BasisVisibility = false;
   bool AutoScaling = true;
 
-  friend class vtkExtrusionMapperHelper;
+  friend class vtkOpenGLBatchedExtrusionMapper;
 
 private:
   vtkExtrusionMapper(const vtkExtrusionMapper&) = delete;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLTexture.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLTexture.h"
 #include "vtkOpenGLState.h"
 #include "vtkTextureObject.h"
@@ -33,6 +21,7 @@
 #include <cmath>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLTexture);
 
 //------------------------------------------------------------------------------
@@ -348,6 +337,7 @@ void vtkOpenGLTexture::Load(vtkRenderer* ren)
           this->TextureObject->SetMaximumAnisotropicFiltering(this->MaximumAnisotropicFiltering);
           this->TextureObject->SendParameters();
           glGenerateMipmap(this->TextureObject->GetTarget());
+          vtkOpenGLCheckErrorMacro("Failed glGenerateMipMap. ");
         }
         else
         {
@@ -581,3 +571,4 @@ int vtkOpenGLTexture::IsTranslucent()
 
   return this->Superclass::IsTranslucent();
 }
+VTK_ABI_NAMESPACE_END

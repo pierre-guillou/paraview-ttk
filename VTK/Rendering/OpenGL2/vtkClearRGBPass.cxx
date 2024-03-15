@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClearRGBPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkClearRGBPass.h"
 #include "vtkObjectFactory.h"
@@ -20,6 +8,7 @@
 #include "vtkRenderState.h"
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkClearRGBPass);
 
 //------------------------------------------------------------------------------
@@ -53,3 +42,4 @@ void vtkClearRGBPass::Render(const vtkRenderState* s)
     static_cast<GLclampf>(0.0));
   ostate->vtkglClear(GL_COLOR_BUFFER_BIT);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLinearSubdivisionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLinearSubdivisionFilter.h"
 
 #include "vtkCellArray.h"
@@ -21,6 +9,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLinearSubdivisionFilter);
 
 void vtkLinearSubdivisionFilter::PrintSelf(ostream& os, vtkIndent indent)
@@ -50,15 +39,22 @@ int vtkLinearSubdivisionFilter::GenerateSubdivisionPoints(
 
   double total = inputPolys->GetNumberOfCells();
   double curr = 0;
+  bool abort = false;
 
   // Generate new points for subdivisions surface
-  for (cellId = 0, inputPolys->InitTraversal(); inputPolys->GetNextCell(npts, pts); cellId++)
+  for (cellId = 0, inputPolys->InitTraversal(); !abort && inputPolys->GetNextCell(npts, pts);
+       cellId++)
   {
     p1 = pts[2];
     p2 = pts[0];
 
     for (edgeId = 0; edgeId < 3; edgeId++)
     {
+      abort = this->CheckAbort();
+      if (abort)
+      {
+        break;
+      }
       outputPD->CopyData(inputPD, p1, p1);
       outputPD->CopyData(inputPD, p2, p2);
 
@@ -96,3 +92,4 @@ int vtkLinearSubdivisionFilter::GenerateSubdivisionPoints(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

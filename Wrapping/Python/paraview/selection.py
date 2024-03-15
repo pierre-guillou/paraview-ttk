@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-License-Identifier: BSD-3-Clause
+
 """selection is a module for defining and using selections via Python. It provides
 a convenience layer to provide functionality provided by the underlying C++ classes.
 
@@ -27,20 +30,6 @@ A simple example::
   Show(es)
 
 """
-# ==============================================================================
-#
-#  Program:   ParaView
-#  Module:    selection.py
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY; without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-# ==============================================================================
 
 from __future__ import absolute_import, division, print_function
 
@@ -65,7 +54,8 @@ def _createSelection(proxyname, **args):
     session = sm.ActiveConnection.Session
     pxm = sm.ProxyManager(session)
 
-    proxy = pxm.NewProxy('sources', proxyname)
+    groupname = 'filters' if proxyname == 'AppendSelections' else 'sources'
+    proxy = pxm.NewProxy(groupname, proxyname)
 
     s = SelectionProxy(proxy=proxy)
     for name, value in args.items():
@@ -74,6 +64,19 @@ def _createSelection(proxyname, **args):
         s.SetPropertyWithName(name, value)
 
     return s
+
+
+def CreateSelection(proxyname, registrationname, **args):
+    """Make a new selection source proxy. Can be either vtkSelection or vtkAppendSelection.
+    Use this so that selection don't show up in the pipeline."""
+
+    s = _createSelection(proxyname, **args)
+
+    session = sm.ActiveConnection.Session
+    pxm = sm.ProxyManager(session)
+
+    pxm.RegisterProxy('selection_sources', registrationname, s)
+    return sm._getPyProxy(s)
 
 
 def _collectSelectionPorts(selectedReps, selectionSources, SelectBlocks=False, Modifier=None):
@@ -399,7 +402,7 @@ def SelectCompositeDataIDs(IDs=[], FieldType='POINT', ContainingCells=False, Sou
     - Modifier - 'ADD', 'SUBTRACT', 'TOGGLE', or None to define whether and how the selection
         should modify the existing selection.
     """
-    selectIDsHelper('CompositeDataIDSelectionSource', **locals())
+    _selectIDsHelper('CompositeDataIDSelectionSource', **locals())
 
 
 def SelectHierarchicalDataIDs(IDs=[], FieldType='POINT', ContainingCells=False, Source=None, Modifier=None):

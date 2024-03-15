@@ -1,25 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGmshMetaReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-// -------------------------------------------------------------------
-// ParaViewGmshReaderPlugin - Copyright (C) 2015 Cenaero
-//
-// See the Copyright.txt and License.txt files provided
-// with ParaViewGmshReaderPlugin for license information.
-//
-// -------------------------------------------------------------------
-
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (C) 2015 Cenaero
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGmshMetaReader.h"
 
 #include "vtkCallbackCommand.h"

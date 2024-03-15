@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyLink.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMProxyLink.h"
 
 #include "vtkCommand.h"
@@ -21,6 +9,7 @@
 #include "vtkSMProperty.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyLocator.h"
+#include "vtkSMProxyProperty.h"
 #include "vtkSmartPointer.h"
 
 #include <list>
@@ -56,18 +45,66 @@ struct vtkSMProxyLinkInternals
 
   typedef std::set<std::string> ExceptionPropertiesType;
   ExceptionPropertiesType ExceptionProperties;
+
+  std::set<vtkSmartPointer<vtkSMProxyLink>> ProxyPropLinks;
 };
 
 //---------------------------------------------------------------------------
 vtkSMProxyLink::vtkSMProxyLink()
+  : Internals(new vtkSMProxyLinkInternals)
 {
-  this->Internals = new vtkSMProxyLinkInternals;
 }
 
 //---------------------------------------------------------------------------
-vtkSMProxyLink::~vtkSMProxyLink()
+vtkSMProxyLink::~vtkSMProxyLink() = default;
+
+//---------------------------------------------------------------------------
+void vtkSMProxyLink::LinkProxies(vtkSMProxy* proxy1, vtkSMProxy* proxy2)
 {
-  delete this->Internals;
+  this->AddLinkedProxy(proxy1, vtkSMLink::INPUT);
+  this->AddLinkedProxy(proxy2, vtkSMLink::OUTPUT);
+  this->AddLinkedProxy(proxy2, vtkSMLink::INPUT);
+  this->AddLinkedProxy(proxy1, vtkSMLink::OUTPUT);
+}
+
+//---------------------------------------------------------------------------
+void vtkSMProxyLink::LinkProxyPropertyProxies(
+  vtkSMProxy* proxy1, vtkSMProxy* proxy2, const char* pname)
+{
+  if (!proxy1 || !proxy2)
+  {
+    vtkErrorMacro("Invalid proxies. Please provide 2 existing proxies.");
+    return;
+  }
+
+  if (!pname)
+  {
+    vtkErrorMacro("Undefined proxy property name");
+    return;
+  }
+
+  // also link axes grids for renderview
+  auto proxy1Prop = vtkSMProxyProperty::SafeDownCast(proxy1->GetProperty(pname));
+  auto proxy2Prop = vtkSMProxyProperty::SafeDownCast(proxy2->GetProperty(pname));
+  if (!proxy1Prop || !proxy2Prop)
+  {
+    vtkErrorMacro("Specified proxy property does not exist.");
+    return;
+  }
+
+  if (!proxy1Prop->GetProxy(0u) || !proxy2Prop->GetProxy(0u))
+  {
+    vtkErrorMacro("Specified proxy property does not have proxy.");
+    return;
+  }
+
+  // create their own link.
+  vtkNew<vtkSMProxyLink> proxyPropLink;
+  proxyPropLink->LinkProxies(proxy1Prop->GetProxy(0u), proxy2Prop->GetProxy(0u));
+  // observe them with our own observer, to update consumer if needed.
+  this->ObserveProxyUpdates(proxy1Prop->GetProxy(0u));
+  this->ObserveProxyUpdates(proxy2Prop->GetProxy(0u));
+  this->Internals->ProxyPropLinks.insert(proxyPropLink);
 }
 
 //---------------------------------------------------------------------------
@@ -221,12 +258,20 @@ void vtkSMProxyLink::RemoveException(const char* propertyname)
 }
 
 //---------------------------------------------------------------------------
+void vtkSMProxyLink::ClearExceptions()
+{
+  this->Internals->ExceptionProperties.clear();
+
+  // Update state and push it to share
+  this->UpdateState();
+  this->PushStateToSession();
+}
+
+//---------------------------------------------------------------------------
 void vtkSMProxyLink::PropertyModified(vtkSMProxy* fromProxy, const char* pname)
 {
-  if (pname &&
-    this->Internals->ExceptionProperties.find(pname) != this->Internals->ExceptionProperties.end())
+  if (!this->isPropertyLinked(pname))
   {
-    // Property is in exception list.
     return;
   }
 
@@ -258,10 +303,8 @@ void vtkSMProxyLink::PropertyModified(vtkSMProxy* fromProxy, const char* pname)
 //---------------------------------------------------------------------------
 void vtkSMProxyLink::UpdateProperty(vtkSMProxy* caller, const char* pname)
 {
-  if (pname &&
-    this->Internals->ExceptionProperties.find(pname) != this->Internals->ExceptionProperties.end())
+  if (!this->isPropertyLinked(pname))
   {
-    // Property is in exception list.
     return;
   }
 
@@ -293,29 +336,54 @@ void vtkSMProxyLink::UpdateVTKObjects(vtkSMProxy* caller)
 //---------------------------------------------------------------------------
 void vtkSMProxyLink::SaveXMLState(const char* linkname, vtkPVXMLElement* parent)
 {
-  vtkPVXMLElement* root = vtkPVXMLElement::New();
-  root->SetName("ProxyLink");
+  vtkNew<vtkPVXMLElement> root;
+  root->SetName(this->GetXMLTagName().c_str());
   root->AddAttribute("name", linkname);
+
+  vtkNew<vtkPVXMLElement> propertiesChild;
+  propertiesChild->SetName("Properties");
+  propertiesChild->AddAttribute("exceptionBehavior", this->ExceptionBehavior);
+  root->AddNestedElement(propertiesChild);
+
   vtkSMProxyLinkInternals::LinkedProxiesType::iterator iter =
     this->Internals->LinkedProxies.begin();
   for (; iter != this->Internals->LinkedProxies.end(); ++iter)
   {
-    vtkPVXMLElement* child = vtkPVXMLElement::New();
+    vtkNew<vtkPVXMLElement> child;
     child->SetName("Proxy");
     child->AddAttribute("direction", (iter->UpdateDirection == INPUT ? "input" : "output"));
     child->AddAttribute("id", static_cast<unsigned int>(iter->Proxy.GetPointer()->GetGlobalID()));
+
     root->AddNestedElement(child);
-    child->Delete();
   }
+
   parent->AddNestedElement(root);
-  root->Delete();
 }
 
 //---------------------------------------------------------------------------
 int vtkSMProxyLink::LoadXMLState(vtkPVXMLElement* linkElement, vtkSMProxyLocator* locator)
 {
   unsigned int numElems = linkElement->GetNumberOfNestedElements();
-  for (unsigned int cc = 0; cc < numElems; cc++)
+  unsigned int startIndex = 1;
+
+  if (numElems > 0)
+  {
+    vtkPVXMLElement* child = linkElement->GetNestedElement(0);
+    int exceptionBehavior;
+    if (!child->GetName() || strcmp(child->GetName(), "Properties") != 0 ||
+      !child->GetScalarAttribute("exceptionBehavior", &exceptionBehavior))
+    {
+      vtkWarningMacro("State missing required attribute exceptionBlacklist.");
+      this->ExceptionBehavior = BLACKLIST;
+      startIndex = 0;
+    }
+    else
+    {
+      this->ExceptionBehavior = exceptionBehavior;
+    }
+  }
+
+  for (unsigned int cc = startIndex; cc < numElems; cc++)
   {
     vtkPVXMLElement* child = linkElement->GetNestedElement(cc);
     if (!child->GetName() || strcmp(child->GetName(), "Proxy") != 0)
@@ -357,6 +425,7 @@ int vtkSMProxyLink::LoadXMLState(vtkPVXMLElement* linkElement, vtkSMProxyLocator
     }
     this->AddLinkedProxy(proxy, idirection);
   }
+
   return 1;
 }
 
@@ -365,6 +434,7 @@ void vtkSMProxyLink::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+
 //-----------------------------------------------------------------------------
 void vtkSMProxyLink::LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locator)
 {
@@ -409,6 +479,7 @@ void vtkSMProxyLink::LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locat
     this->AddException(msg->GetExtension(LinkState::exception_property, i).c_str());
   }
 }
+
 //-----------------------------------------------------------------------------
 void vtkSMProxyLink::UpdateState()
 {
@@ -448,4 +519,20 @@ void vtkSMProxyLink::UpdateState()
   {
     this->State->AddExtension(LinkState::exception_property, *exceptIter);
   }
+}
+
+//------------------------------------------------------------------------------
+bool vtkSMProxyLink::isPropertyLinked(const char* pname)
+{
+  if (!pname)
+  {
+    return false;
+  }
+
+  bool isBlacklist = this->ExceptionBehavior == BLACKLIST;
+  bool exceptionFound =
+    this->Internals->ExceptionProperties.find(pname) != this->Internals->ExceptionProperties.end();
+  // Property is in exception black list or
+  // Property is not in exception white list.
+  return exceptionFound != isBlacklist;
 }

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkMySQLDatabasePrivate_h
 #define vtkMySQLDatabasePrivate_h
 
@@ -8,6 +10,7 @@
 #include "vtkIOMySQLModule.h" // For export macro
 #include <mysql.h>            // needed for MYSQL typedefs
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOMYSQL_EXPORT vtkMySQLDatabasePrivate
 {
 public:
@@ -21,5 +24,6 @@ public:
   MYSQL* Connection;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkMySQLDatabasePrivate_h
 // VTK-HeaderTest-Exclude: vtkMySQLDatabasePrivate.h

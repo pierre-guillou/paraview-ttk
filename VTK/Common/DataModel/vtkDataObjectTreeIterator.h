@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectTreeIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataObjectTreeIterator
  * @brief   superclass for composite data iterators
@@ -27,6 +15,7 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkSmartPointer.h" //to store data sets
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObjectTree;
 class vtkDataObjectTreeInternals;
 class vtkDataObjectTreeIndex;
@@ -75,7 +64,7 @@ public:
    * Returns if the a meta-data information object is present for the current
    * item. Return 1 on success, 0 otherwise.
    */
-  int HasCurrentMetaData() override;
+  vtkTypeBool HasCurrentMetaData() override;
 
   /**
    * Flat index is an index obtained by traversing the tree in preorder.
@@ -144,6 +133,10 @@ private:
   class vtkInternals;
   vtkInternals* Internals;
   friend class vtkInternals;
+  /**
+   * Used to improve the speed of vtkDataObjectTree::SafeDownCast().
+   */
+  static bool IsDataObjectTree(vtkDataObject* dataObject);
 
   vtkTypeBool TraverseSubTree;
   vtkTypeBool VisitOnlyLeaves;
@@ -158,4 +151,5 @@ private:
   void UpdateLocation();
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

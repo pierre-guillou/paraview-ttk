@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkColorTransferFunction.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkColorTransferFunction.h"
 
 #include "vtkCIEDE2000.h"
@@ -26,6 +14,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkColorTransferFunction);
 
 #define MY_MAX(x, y) ((x) > (y) ? (x) : (y))
@@ -2034,3 +2023,4 @@ void vtkColorTransferFunction::PrintSelf(ostream& os, vtkIndent indent)
        << " Midpoint: " << this->Internal->Nodes[i]->Midpoint << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

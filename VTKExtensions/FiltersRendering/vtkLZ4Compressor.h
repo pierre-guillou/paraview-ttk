@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkLZ4Compressor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLZ4Compressor
  * @brief   Image compressor/decompressor
@@ -37,7 +25,7 @@ public:
   vtkTypeMacro(vtkLZ4Compressor, vtkImageCompressor);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the quality measure. The value can be between 0 and 5. 0 means preserve
    * input image quality while 5 means improve compression at the cost of image
@@ -46,18 +34,18 @@ public:
    */
   vtkSetClampMacro(Quality, int, 0, 5);
   vtkGetMacro(Quality, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Compress/Decompress data array on the objects input with results
    * in the objects output. See also Set/GetInput/Output.
    */
   int Compress() override;
   int Decompress() override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Serialize/Restore compressor configuration (but not the data) into the stream.
    */
@@ -65,7 +53,7 @@ public:
   bool RestoreConfiguration(vtkMultiProcessStream* stream) override;
   const char* SaveConfiguration() override;
   const char* RestoreConfiguration(const char* stream) override;
-  //@}
+  ///@}
 
 protected:
   vtkLZ4Compressor();

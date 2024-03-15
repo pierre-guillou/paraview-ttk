@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCGNSFileSeriesReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkCGNSFileSeriesReader
  * @brief Adds support for reading temporal or partitioned CGNS files.
@@ -42,6 +31,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCGNSReader;
 class vtkCGNSSubsetInclusionLattice;
 class vtkFileSeriesHelper;
@@ -104,7 +94,8 @@ public:
   /**
    * Overridden to setup the `Reader` and then forward the pass to the reader.
    */
-  int ProcessRequest(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  vtkTypeBool ProcessRequest(
+    vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 protected:
   vtkCGNSFileSeriesReader();
@@ -144,4 +135,5 @@ private:
   std::vector<std::string> ActiveFiles;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqDisplaySizedImplicitPlanePropertyWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDisplaySizedImplicitPlanePropertyWidget.h"
 #include "ui_pqDisplaySizedImplicitPlanePropertyWidget.h"
 
@@ -85,9 +57,9 @@ pqDisplaySizedImplicitPlanePropertyWidget::pqDisplaySizedImplicitPlanePropertyWi
     this->addPropertyLink(ui.originX, "text2", SIGNAL(textChangedAndEditingFinished()), origin, 0);
     this->addPropertyLink(ui.originY, "text2", SIGNAL(textChangedAndEditingFinished()), origin, 1);
     this->addPropertyLink(ui.originZ, "text2", SIGNAL(textChangedAndEditingFinished()), origin, 2);
-    ui.labelOrigin->setText(origin->GetXMLLabel());
-    ui.pickLabel->setText(
-      ui.pickLabel->text().replace("'Origin'", QString("'%1'").arg(origin->GetXMLLabel())));
+    ui.labelOrigin->setText(QCoreApplication::translate("ServerManagerXML", origin->GetXMLLabel()));
+    ui.pickLabel->setText(ui.pickLabel->text().arg(
+      QCoreApplication::translate("ServerManagerXML", origin->GetXMLLabel())));
     QString tooltip = this->getTooltip(origin);
     ui.originX->setToolTip(tooltip);
     ui.originY->setToolTip(tooltip);
@@ -97,6 +69,20 @@ pqDisplaySizedImplicitPlanePropertyWidget::pqDisplaySizedImplicitPlanePropertyWi
   else
   {
     qCritical("Missing required property for function 'Origin'.");
+    ui.pickLabel->setText(ui.pickLabel->text().arg(tr("Origin")));
+  }
+
+  bool normalEditing = true;
+  if (vtkSMIntVectorProperty* alwaysSnapToNearestAxis =
+        vtkSMIntVectorProperty::SafeDownCast(smgroup->GetProperty("AlwaysSnapToNearestAxis")))
+  {
+    if (alwaysSnapToNearestAxis->GetNumberOfElements())
+    {
+      normalEditing = !static_cast<bool>(alwaysSnapToNearestAxis->GetElements()[0]);
+      vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();
+      vtkSMPropertyHelper(wdgProxy, "AlwaysSnapToNearestAxis")
+        .Set(alwaysSnapToNearestAxis->GetElements()[0]);
+    }
   }
 
   if (vtkSMProperty* normal = smgroup->GetProperty("Normal"))
@@ -104,27 +90,19 @@ pqDisplaySizedImplicitPlanePropertyWidget::pqDisplaySizedImplicitPlanePropertyWi
     this->addPropertyLink(ui.normalX, "text2", SIGNAL(textChangedAndEditingFinished()), normal, 0);
     this->addPropertyLink(ui.normalY, "text2", SIGNAL(textChangedAndEditingFinished()), normal, 1);
     this->addPropertyLink(ui.normalZ, "text2", SIGNAL(textChangedAndEditingFinished()), normal, 2);
-    ui.labelNormal->setText(normal->GetXMLLabel());
+    ui.labelNormal->setText(QCoreApplication::translate("ServerManagerXML", normal->GetXMLLabel()));
     QString tooltip = this->getTooltip(normal);
     ui.normalX->setToolTip(tooltip);
+    ui.normalX->setEnabled(normalEditing);
     ui.normalY->setToolTip(tooltip);
+    ui.normalY->setEnabled(normalEditing);
     ui.normalZ->setToolTip(tooltip);
+    ui.normalZ->setEnabled(normalEditing);
     ui.labelNormal->setToolTip(tooltip);
   }
   else
   {
     qCritical("Missing required property for function 'Normal'.");
-  }
-
-  if (vtkSMIntVectorProperty* alwaysSnapToNearestAxis =
-        vtkSMIntVectorProperty::SafeDownCast(smgroup->GetProperty("AlwaysSnapToNearestAxis")))
-  {
-    if (alwaysSnapToNearestAxis->GetNumberOfElements())
-    {
-      vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();
-      vtkSMPropertyHelper(wdgProxy, "AlwaysSnapToNearestAxis")
-        .Set(alwaysSnapToNearestAxis->GetElements()[0]);
-    }
   }
 
   vtkSMNewWidgetRepresentationProxy* wdgProxy = this->widgetProxy();

@@ -1,50 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMNIObjectReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-Copyright (c) 2006 Atamai, Inc.
-
-Use, modification and redistribution of the software, in source or
-binary forms, are permitted provided that the following terms and
-conditions are met:
-
-1) Redistribution of the source code, in verbatim or modified
-   form, must retain the above copyright notice, this license,
-   the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.
-
-2) Redistribution in binary form must include the above copyright
-   notice, a copy of this license and the following disclaimer
-   in the documentation or with other materials provided with the
-   distribution.
-
-3) Modified copies of the source code must be clearly marked as such,
-   and must not be misrepresented as verbatim copies of the source code.
-
-THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
-WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
-MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
-OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
-THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGES.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2006 Atamai, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMNIObjectReader.h"
 
@@ -78,6 +34,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #endif
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMNIObjectReader);
 
 #define VTK_MNIOBJ_LINE_LENGTH 256
@@ -339,8 +296,8 @@ int vtkMNIObjectReader::ParseIdValue(vtkIdType* value)
 
   char* cp = this->CharPointer;
 
-  long lval = strtol(cp, &cp, 10);
-  if (lval > static_cast<long>(VTK_INT_MAX) || lval < static_cast<long>(VTK_INT_MIN))
+  long long lval = strtoll(cp, &cp, 10);
+  if (lval > static_cast<long long>(VTK_INT_MAX) || lval < static_cast<long long>(VTK_INT_MIN))
   {
     vtkErrorMacro(
       "Value " << lval << " is too large for int " << this->FileName << ":" << this->LineNumber);
@@ -851,3 +808,4 @@ int vtkMNIObjectReader::RequestData(vtkInformation* vtkNotUsed(request),
   // read the file
   return this->ReadFile(output);
 }
+VTK_ABI_NAMESPACE_END

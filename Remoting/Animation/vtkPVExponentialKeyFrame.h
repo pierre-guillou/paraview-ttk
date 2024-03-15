@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVExponentialKeyFrame.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVExponentialKeyFrame
  *
@@ -37,13 +25,13 @@ public:
    */
   void UpdateValue(double currenttime, vtkPVAnimationCue* cue, vtkPVKeyFrame* next) override;
 
-  //@{
+  ///@{
   /**
    * Base to be used for exponential function.
    */
   vtkSetMacro(Base, double);
   vtkGetMacro(Base, double);
-  //@}
+  ///@}
 
   vtkSetMacro(StartPower, double);
   vtkGetMacro(StartPower, double);

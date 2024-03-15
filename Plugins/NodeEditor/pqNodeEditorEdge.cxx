@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Plugin:    NodeEditor
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  ParaViewPluginsNodeEditor - BSD 3-Clause License - Copyright (C) 2021 Jonas Lukasczyk
-
-  See the Copyright.txt file provided
-  with ParaViewPluginsNodeEditor for license information.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (C) 2021 Jonas Lukasczyk
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqNodeEditorEdge.h"
 
@@ -30,7 +13,7 @@
 #include <vtkSMProxy.h>
 
 #include <QApplication>
-#include <QGraphicsScene>
+#include <QGraphicsPathItem>
 #include <QPainter>
 #include <QStyleOptionGraphicsItem>
 
@@ -38,12 +21,11 @@
 #include <sstream>
 
 // -----------------------------------------------------------------------------
-pqNodeEditorEdge::pqNodeEditorEdge(QGraphicsScene* qscene, pqNodeEditorNode* producerNode,
-  int outputPortIdx, pqNodeEditorNode* consumerNode, int inputPortIdx, Type edgeType,
-  QGraphicsItem* parent)
-  : QGraphicsPathItem(parent)
-  , scene(qscene)
+pqNodeEditorEdge::pqNodeEditorEdge(pqNodeEditorNode* producerNode, int outputPortIdx,
+  pqNodeEditorNode* consumerNode, int inputPortIdx, Type edgeType, QGraphicsItem* parent)
+  : QGraphicsItem(parent)
   , type(edgeType)
+  , edgeOverlay(new QGraphicsPathItem(parent))
   , producer(producerNode)
   , producerOutputPortIdx(outputPortIdx)
   , consumer(consumerNode)
@@ -58,26 +40,30 @@ pqNodeEditorEdge::pqNodeEditorEdge(QGraphicsScene* qscene, pqNodeEditorNode* pro
   this->connect(
     this->consumer, &pqNodeEditorNode::nodeResized, this, &pqNodeEditorEdge::updatePoints);
 
+  this->setZValue(pqNodeEditorUtils::CONSTS::EDGE_LAYER);
   this->setAcceptedMouseButtons(Qt::NoButton);
-  this->setZValue(type != Type::PIPELINE ? pqNodeEditorUtils::CONSTS::FOREGROUND_LAYER
-                                         : pqNodeEditorUtils::CONSTS::EDGE_LAYER);
+  this->edgeOverlay->setVisible(this->isVisible());
+  this->edgeOverlay->setPath(this->path);
+  this->edgeOverlay->setZValue(pqNodeEditorUtils::CONSTS::MAX_LAYER);
+  this->edgeOverlay->setOpacity(0.15);
+  this->edgeOverlay->setAcceptedMouseButtons(Qt::NoButton);
 
   this->updatePoints();
-
-  this->scene->addItem(this);
 }
 
 // -----------------------------------------------------------------------------
 pqNodeEditorEdge::~pqNodeEditorEdge()
 {
-  this->scene->removeItem(this);
+  if (this->edgeOverlay->parentItem() == nullptr)
+  {
+    delete this->edgeOverlay;
+  }
 }
 
 // -----------------------------------------------------------------------------
 void pqNodeEditorEdge::setType(Type _type)
 {
   this->type = _type;
-  // to update path
   this->updatePoints();
 }
 
@@ -96,33 +82,17 @@ std::string pqNodeEditorEdge::toString()
 // -----------------------------------------------------------------------------
 QRectF pqNodeEditorEdge::boundingRect() const
 {
-  const auto xo = this->oPoint.x();
-  const auto yo = this->oPoint.y();
-  const auto xi = this->iPoint.x();
-  const auto yi = this->iPoint.y();
-
   constexpr qreal BB_MARGIN =
     pqNodeEditorUtils::CONSTS::EDGE_WIDTH + pqNodeEditorUtils::CONSTS::EDGE_OUTLINE;
 
-  if (this->type == Type::VIEW)
-  {
-    qreal x0 = std::min(xo, xi);
-    qreal y0 = std::min(yo, yi - 60);
-    qreal x1 = std::max(xo, std::max(this->cPoint.x(), xi));
-    qreal y1 = std::max(yo, std::max(this->cPoint.y(), yi));
+  return this->path.boundingRect().adjusted(-BB_MARGIN, -BB_MARGIN, BB_MARGIN, BB_MARGIN);
+}
 
-    return QRectF(x0, y0, x1 - x0, y1 - y0).adjusted(-BB_MARGIN, -BB_MARGIN, BB_MARGIN, BB_MARGIN);
-  }
-  else
-  {
-    const auto dx = std::abs(xi - xo) * 0.5;
-    qreal x0 = std::min(xo, xi - dx);
-    qreal y0 = std::min(yo, yi);
-    qreal x1 = std::max(xi, xo + dx);
-    qreal y1 = std::max(yo, yi);
-
-    return QRectF(x0, y0, x1 - x0, y1 - y0).adjusted(-BB_MARGIN, -BB_MARGIN, BB_MARGIN, BB_MARGIN);
-  }
+// ----------------------------------------------------------------------------
+QVariant pqNodeEditorEdge::itemChange(GraphicsItemChange change, const QVariant& value)
+{
+  this->edgeOverlay->setVisible(this->isVisible());
+  return QGraphicsItem::itemChange(change, value);
 }
 
 // -----------------------------------------------------------------------------
@@ -130,65 +100,45 @@ int pqNodeEditorEdge::updatePoints()
 {
   this->prepareGeometryChange();
 
-  this->oPoint =
-    this->producer->getOutputPorts()[this->producerOutputPortIdx]->getConnectionPoint(this);
-  this->iPoint =
-    this->consumer->getInputPorts()[this->consumerInputPortIdx]->getConnectionPoint(this);
-
-  if (this->type == Type::VIEW)
-  {
-    this->cPoint = this->mapFromItem(this->producer, this->producer->boundingRect().bottomRight());
-    // slighly pad the point so it doesnt get too close of the node
-    this->cPoint += QPointF(10, 0);
-  }
+  // clear path
+#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
+  this->path = QPainterPath();
+#else
+  this->path.clear();
+#endif
 
   // compute path
+  const auto oPoint =
+    this->producer->getOutputPorts()[this->producerOutputPortIdx]->getConnectionPoint(this);
+  const auto iPoint =
+    this->consumer->getInputPorts()[this->consumerInputPortIdx]->getConnectionPoint(this);
+  const auto xo = oPoint.x();
+  const auto yo = oPoint.y();
+  const auto xi = iPoint.x();
+  const auto yi = iPoint.y();
+  path.moveTo(oPoint);
+  if (this->type == Type::PIPELINE)
   {
-    const auto xo = this->oPoint.x();
-    const auto yo = this->oPoint.y();
-    const auto xi = this->iPoint.x();
-    const auto yi = this->iPoint.y();
-    const auto xc = this->cPoint.x();
-    const auto yc = this->cPoint.y();
-
-#if QT_VERSION < QT_VERSION_CHECK(5, 13, 0)
-    this->path = QPainterPath();
-#else
-    this->path.clear();
-#endif
-    path.moveTo(this->oPoint);
-
-    if (this->type == Type::PIPELINE)
-    {
-      const auto dx = std::abs(xi - xo) * 0.5;
-      path.cubicTo(xo + dx, yo, xi - dx, yi, xi, yi);
-    }
-    else
-    {
-      if (yc < yi)
-      {
-        path.quadTo(xc, yo, xc, yo + xc - xo);
-        path.lineTo(xc, yc);
-        const auto dy = 0.5 * (yi - yc);
-        path.cubicTo(xc, yc + dy, xi, yi - dy, xi, yi);
-      }
-      else
-      {
-        path.cubicTo(xo, yo, xi, yi - 60, xi, yi);
-      }
-    }
+    const auto dx = std::abs(xi - xo) * 0.5;
+    path.cubicTo(xo + dx, yo, xi - dx, yi, xi, yi);
   }
+  else
+  {
+    const auto dy = std::abs(yi - yo) * 0.5;
+    path.cubicTo(xo, yo + dy, xi, yi - dy, xi, yi);
+  }
+
+  this->edgeOverlay->setPath(this->path);
+  this->edgeOverlay->update();
 
   return 1;
 }
 
 // -----------------------------------------------------------------------------
-void pqNodeEditorEdge::paint(QPainter* painter, const QStyleOptionGraphicsItem*, QWidget*)
+void pqNodeEditorEdge::paint(
+  QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget)
 {
   // Pre-allocate pens for faster rendering
-  static const QPen edgeOutlinePen(pqNodeEditorUtils::CONSTS::COLOR_BASE,
-    pqNodeEditorUtils::CONSTS::EDGE_WIDTH + pqNodeEditorUtils::CONSTS::EDGE_OUTLINE, Qt::SolidLine,
-    Qt::RoundCap, Qt::RoundJoin);
   static const QPen edgePipelinePen(pqNodeEditorUtils::CONSTS::COLOR_HIGHLIGHT,
     pqNodeEditorUtils::CONSTS::EDGE_WIDTH, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
   static const QPen activeViewPen(pqNodeEditorUtils::CONSTS::COLOR_BASE_ORANGE,
@@ -198,17 +148,20 @@ void pqNodeEditorEdge::paint(QPainter* painter, const QStyleOptionGraphicsItem*,
 
   if (this->type == Type::PIPELINE)
   {
-    painter->setPen(edgeOutlinePen);
-    painter->drawPath(this->path);
+    this->edgeOverlay->setPen(edgePipelinePen);
     painter->setPen(edgePipelinePen);
   }
-  else if (this->consumer->getOutlineStyle() == pqNodeEditorNode::OutlineStyle::SELECTED_VIEW)
+  else if (this->consumer->isNodeActive())
   {
+    this->edgeOverlay->setPen(activeViewPen);
     painter->setPen(activeViewPen);
   }
   else
   {
+    this->edgeOverlay->setPen(unfocusedPen);
     painter->setPen(unfocusedPen);
   }
+
   painter->drawPath(this->path);
+  this->edgeOverlay->paint(painter, option, widget);
 }

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkSpyPlotUniReader.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpyPlotUniReader
  * @brief   Read SPCTH Spy Plot file format
@@ -51,14 +40,14 @@ public:
   static vtkSpyPlotUniReader* New();
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set and get the Binary SpyPlot File name the reader will process
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
   virtual void SetCellArraySelection(vtkDataArraySelection* da);
-  //@}
+  ///@}
 
   /**
    * Reads the basic information from the file such as the header, number
@@ -75,7 +64,7 @@ public:
   void PrintInformation();
   void PrintMemoryUsage();
 
-  //@{
+  ///@{
   /**
    * Set and get the current time step to process
    */
@@ -86,27 +75,27 @@ public:
 
   int SetCurrentTimeStep(int timeStep);
   vtkGetMacro(CurrentTimeStep, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set and Get the time range for the simulation run
    */
   vtkGetVector2Macro(TimeStepRange, int);
   vtkGetVector2Macro(TimeRange, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   vtkSetMacro(NeedToCheck, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Functions that map from time to time step and vice versa
    */
   int GetTimeStepFromTime(double time);
   double GetTimeFromTimeStep(int timeStep);
-  //@}
+  ///@}
 
   vtkGetMacro(NumberOfCellFields, int);
 

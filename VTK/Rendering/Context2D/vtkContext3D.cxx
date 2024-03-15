@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContext3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkContext3D.h"
 #include "vtkContextDevice3D.h"
@@ -21,6 +9,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContext3D);
 
 void vtkContext3D::PrintSelf(ostream& os, vtkIndent indent)
@@ -93,10 +82,24 @@ void vtkContext3D::DrawPoints(const float* points, int n, unsigned char* colors,
   this->Device->DrawPoints(points, n, colors, nc_comps);
 }
 
+void vtkContext3D::DrawPoints(
+  vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier)
+{
+  assert(this->Device);
+  this->Device->DrawPoints(positions, colors, cacheIdentifier);
+}
+
 void vtkContext3D::DrawTriangleMesh(const float* mesh, int n, const unsigned char* colors, int nc)
 {
   assert(this->Device);
   this->Device->DrawTriangleMesh(mesh, n, colors, nc);
+}
+
+void vtkContext3D::DrawTriangleMesh(
+  vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier)
+{
+  assert(this->Device);
+  this->Device->DrawTriangleMesh(positions, colors, cacheIdentifier);
 }
 
 void vtkContext3D::ApplyPen(vtkPen* pen)
@@ -162,3 +165,4 @@ void vtkContext3D::DisableClippingPlane(int i)
 vtkContext3D::vtkContext3D() = default;
 
 vtkContext3D::~vtkContext3D() = default;
+VTK_ABI_NAMESPACE_END

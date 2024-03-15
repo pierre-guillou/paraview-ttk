@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRInformation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRInformation
  * @brief   Meta data that describes the structure of an AMR data set
@@ -39,6 +27,7 @@
 
 typedef std::vector<vtkAMRBox> vtkAMRBoxList;
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnsignedIntArray;
 class vtkIntArray;
 class vtkDoubleArray;
@@ -257,7 +246,7 @@ private:
 
   bool HasValidOrigin();
   bool HasValidBounds();
-  void UpdateBounds(const int level, const int id);
+  void UpdateBounds(int level, int id);
   void AllocateBoxes(unsigned int n);
   void GenerateBlockLevel();
   void CalculateParentChildRelationShip(unsigned int level,
@@ -290,4 +279,5 @@ private:
   std::vector<std::vector<std::vector<unsigned int>>> AllParents;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

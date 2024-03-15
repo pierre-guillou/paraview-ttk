@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRecursiveDividingCubes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkRecursiveDividingCubes.h"
 
@@ -26,6 +14,7 @@
 #include "vtkPolyData.h"
 #include "vtkVoxel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRecursiveDividingCubes);
 
 vtkRecursiveDividingCubes::vtkRecursiveDividingCubes()
@@ -116,17 +105,17 @@ int vtkRecursiveDividingCubes::RequestData(vtkInformation* vtkNotUsed(request),
   // appropriate data directly.
   //
   sliceSize = dim[0] * dim[1];
-  for (k = 0; k < (dim[2] - 1); k++)
+  for (k = 0; k < (dim[2] - 1) && !this->CheckAbort(); k++)
   {
     kOffset = k * sliceSize;
     X[2] = origin[2] + k * Spacing[2];
 
-    for (j = 0; j < (dim[1] - 1); j++)
+    for (j = 0; j < (dim[1] - 1) && !this->CheckAbort(); j++)
     {
       jOffset = j * dim[0];
       X[1] = origin[1] + j * Spacing[1];
 
-      for (i = 0; i < (dim[0] - 1); i++)
+      for (i = 0; i < (dim[0] - 1) && !this->CheckAbort(); i++)
       {
         idx = i + jOffset + kOffset;
         X[0] = origin[0] + i * Spacing[0];
@@ -147,6 +136,10 @@ int vtkRecursiveDividingCubes::RequestData(vtkInformation* vtkNotUsed(request),
         // loop over 8 points of voxel to check if cell straddles value
         for (above = below = 0, vertNum = 0; vertNum < 8; vertNum++)
         {
+          if (this->CheckAbort())
+          {
+            break;
+          }
           if (voxelScalars->GetComponent(vertNum, 0) >= this->Value)
           {
             above = 1;
@@ -345,3 +338,4 @@ void vtkRecursiveDividingCubes::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Distance: " << this->Distance << "\n";
   os << indent << "Increment: " << this->Increment << "\n";
 }
+VTK_ABI_NAMESPACE_END

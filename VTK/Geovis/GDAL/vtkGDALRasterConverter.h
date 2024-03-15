@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGDALRasterConverter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-   This software is distributed WITHOUT ANY WARRANTY; without even
-   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-   PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkGDALRasterConverter
  * @brief Convert between VTK image representation and GDAL datasets
@@ -28,8 +16,11 @@
 #include "vtkGeovisGDALModule.h" // For export macro
 #include "vtkObject.h"
 
-// Forward declarations
+// GDAL Forward declarations
 class GDALDataset;
+
+VTK_ABI_NAMESPACE_BEGIN
+// VTK Forward declarations
 class vtkImageData;
 class vtkUniformGrid;
 
@@ -124,4 +115,5 @@ private:
   void operator=(const vtkGDALRasterConverter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkGDALRasterConverter_h

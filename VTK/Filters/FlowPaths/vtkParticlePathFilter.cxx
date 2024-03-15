@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParticlePathFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParticlePathFilter.h"
 
 #include "vtkCell.h"
@@ -29,6 +17,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkParticlePathFilter);
 
 void ParticlePathFilterInternal::Initialize(vtkParticleTracerBase* filter)
@@ -255,3 +244,4 @@ int vtkParticlePathFilter::RequestInformation(
 
   return this->Superclass::RequestInformation(request, inputVector, outputVector);
 }
+VTK_ABI_NAMESPACE_END

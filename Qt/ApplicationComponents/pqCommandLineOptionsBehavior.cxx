@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCommandLineOptionsBehavior.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqCommandLineOptionsBehavior.h"
 
 #include "pqActiveObjects.h"
@@ -67,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QDebug>
 #include <QFile>
 #include <QMainWindow>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 
@@ -152,7 +124,7 @@ void pqCommandLineOptionsBehavior::processServerConnection()
     if (serverURL.indexOf('|') != -1)
     {
       // We should connect multiple times
-      const QStringList urls = serverURL.split(QRegExp("\\|"), PV_QT_SKIP_EMPTY_PARTS);
+      const QStringList urls = serverURL.split(QRegularExpression("\\|"), PV_QT_SKIP_EMPTY_PARTS);
       for (const QString& url : urls)
       {
         if (!pqServerConnectReaction::connectToServer(pqServerResource(url), false))
@@ -199,7 +171,7 @@ void pqCommandLineOptionsBehavior::processData()
     // makes it possible to select a file group.
     // This also resolve relative path into a canonical one.
     pqFileDialog dialog(pqActiveObjects::instance().activeServer(), pqCoreUtilities::mainWidget(),
-      tr("Internal Open File"), QString(), QString());
+      tr("Internal Open File"), QString(), QString(), false);
     dialog.setFileMode(pqFileDialog::ExistingFiles);
 
     if (!dialog.selectFile(path))
@@ -295,10 +267,9 @@ void pqCommandLineOptionsBehavior::processPlugins()
     auto xml =
       QString("<Plugins><Plugin name=\"%1\" auto_load=\"1\"/></Plugins>").arg(plugin.c_str());
 
-    // Load the plugin into the plugin manager. Local and remote
-    // loading is done here.
-    pluginManager->LoadPluginConfigurationXMLFromString(qPrintable(xml), activeSession, true);
+    // Load the plugin into the plugin manager. Local and remote loading is done here.
     pluginManager->LoadPluginConfigurationXMLFromString(qPrintable(xml), activeSession, false);
+    pluginManager->LoadPluginConfigurationXMLFromString(qPrintable(xml), activeSession, true);
   }
 }
 

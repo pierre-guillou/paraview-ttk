@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMathPrivate.hxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMathPrivate
  * @brief   Internal toolkit used in some vtkMath methods.
@@ -27,10 +15,13 @@
 #ifndef vtkMatrixUtilities_h
 #define vtkMatrixUtilities_h
 
+#include "vtkABINamespace.h"
+
 #include <type_traits> // for type traits
 
 namespace vtkMatrixUtilities
 {
+VTK_ABI_NAMESPACE_BEGIN
 //=============================================================================
 /**
  * This struct determines a prior transform to input matrices, changing the
@@ -326,7 +317,7 @@ public:
  * it is set to Layout::Identity, the matrix is assumed to be row-wised ordered.
  * If it is set to Layout::Transpose, the matrix is assumed to be column-wise ordered.
  * One can also convert a 1D input array into a diagonal matrix by setting
- * LayoutT to Layout::Diag. In ths particular case, method Get will return a
+ * LayoutT to Layout::Diag. In this particular case, method Get will return a
  * read-only zero on elements outside of the diagonal.
  */
 template <int RowsT, int ColsT, class MatrixT, class LayoutT = Layout::Identity>
@@ -353,6 +344,7 @@ public:
       MatrixLayoutIs2D<MatrixT>()>::template Get<RowT, ColT>(M);
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace vtkMatrixUtilities
 #endif
 

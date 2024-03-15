@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSplineFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSplineFilter.h"
 
 #include "vtkCardinalSpline.h"
@@ -26,6 +14,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSplineFilter);
 vtkCxxSetObjectMacro(vtkSplineFilter, Spline, vtkSpline);
 
@@ -83,7 +72,7 @@ int vtkSplineFilter::RequestData(vtkInformation* vtkNotUsed(request),
   const vtkIdType* pts = nullptr;
   vtkIdType offset = 0;
   vtkFloatArray* newTCoords = nullptr;
-  int abort = 0;
+  bool abort = false;
   vtkIdType inCellId, numGenPts;
   int genTCoords = VTK_TCOORDS_OFF;
 
@@ -144,7 +133,7 @@ int vtkSplineFilter::RequestData(vtkInformation* vtkNotUsed(request),
        inCellId++)
   {
     this->UpdateProgress(static_cast<double>(inCellId) / numLines);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
 
     if (npts < 2)
     {
@@ -375,3 +364,4 @@ void vtkSplineFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Generate TCoords: " << this->GetGenerateTCoordsAsString() << endl;
   os << indent << "Texture Length: " << this->TextureLength << endl;
 }
+VTK_ABI_NAMESPACE_END

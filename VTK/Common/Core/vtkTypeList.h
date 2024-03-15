@@ -1,31 +1,13 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTypeList.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2001 by Andrei Alexandrescu
+// SPDX-FileCopyrightText: Copyright (c) 2001. Addison-Wesley.
+// SPDX-License-Identifier: BSD-3-Clause AND MIT
 
 ////////////////////////////////////////////////////////////////////////////////
 // The Loki Library
-// Copyright (c) 2001 by Andrei Alexandrescu
 // This code accompanies the book:
 // Alexandrescu, Andrei. "Modern C++ Design: Generic Programming and Design
-//     Patterns Applied". Copyright (c) 2001. Addison-Wesley.
-// Permission to use, copy, modify, distribute and sell this software for any
-//     purpose is hereby granted without fee, provided that the above copyright
-//     notice appear in all copies and that both that copyright notice and this
-//     permission notice appear in supporting documentation.
-// The author or Addison-Wesley Longman make no representations about the
-//     suitability of this software for any purpose. It is provided "as is"
-//     without express or implied warranty.
+//     Patterns Applied".
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -50,10 +32,12 @@
 #ifndef vtkTypeList_h
 #define vtkTypeList_h
 
+#include "vtkABINamespace.h"
 #include "vtkTypeListMacros.h"
 
 namespace vtkTypeList
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 /**
@@ -163,16 +147,19 @@ struct DerivedToFront;
 template <typename TList, typename T>
 struct Append;
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtkTypeList
 
 #include "vtkTypeList.txx"
 
 namespace vtkTypeList
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename... Ts>
 using Create = typename vtkTypeList::detail::CreateImpl<Ts...>::type;
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtkTypeList
 
 #endif // vtkTypeList_h

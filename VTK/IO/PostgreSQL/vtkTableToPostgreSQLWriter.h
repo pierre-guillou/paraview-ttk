@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTableToPostgreSQLWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTableToPostgreSQLWriter
  * @brief   store a vtkTable in a PostgreSQL database
@@ -26,6 +14,7 @@
 #include "vtkIOPostgreSQLModule.h" // For export macro
 #include "vtkTableToDatabaseWriter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPostgreSQLDatabase;
 
 class VTKIOPOSTGRESQL_EXPORT vtkTableToPostgreSQLWriter : public vtkTableToDatabaseWriter
@@ -55,4 +44,5 @@ private:
   void operator=(const vtkTableToPostgreSQLWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

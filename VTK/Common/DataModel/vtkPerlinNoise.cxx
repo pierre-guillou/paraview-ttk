@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPerlinNoise.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPerlinNoise.h"
 #include "vtkObjectFactory.h"
 #include <cassert>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPerlinNoise);
 
 // These functions are from Greg Ward's recursive implementation in
@@ -137,3 +126,4 @@ void vtkPerlinNoise::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Phase: (" << this->Phase[0] << ", " << this->Phase[1] << ", " << this->Phase[2]
      << ")\n";
 }
+VTK_ABI_NAMESPACE_END

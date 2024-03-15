@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   ParaView
-Module:    pvpython.cxx
-
-Copyright (c) Kitware, Inc.
-All rights reserved.
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 extern "C"
 {
@@ -29,6 +17,7 @@ extern "C"
 #include "vtkRemotingCoreConfiguration.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMSession.h"
+#include "vtkSessionIterator.h"
 
 #include <vector>
 #include <vtksys/SystemTools.hxx>
@@ -140,6 +129,14 @@ inline int Run(int processType, int argc, char* argv[])
 
     ret_val =
       vtkPythonInterpreter::PyMain(static_cast<int>(pythonArgs.size()) - 1, &pythonArgs.front());
+
+    // Make sure all RMI loop are aborted if paraview stack was not initialised
+    // https://gitlab.kitware.com/paraview/paraview/-/issues/21546
+    auto iter = vtk::TakeSmartPointer(pm->NewSessionIterator());
+    if (iter->IsDoneWithTraversal())
+    {
+      pm->GetGlobalController()->TriggerBreakRMIs();
+    }
   }
 
   // Free python args

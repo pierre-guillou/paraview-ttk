@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRUtilities.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelAMRUtilities.h"
 #include "vtkAMRBox.h"
 #include "vtkAMRInformation.h"
@@ -25,6 +13,7 @@
 #include <limits>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 void vtkParallelAMRUtilities::PrintSelf(std::ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -48,7 +37,6 @@ void vtkParallelAMRUtilities::DistributeProcessInformation(
     }
     return;
   }
-  vtkAMRInformation* amrInfo = amr->GetAMRInfo();
   int myRank = controller->GetLocalProcessId();
   int numProcs = controller->GetNumberOfProcesses();
 
@@ -74,9 +62,6 @@ void vtkParallelAMRUtilities::DistributeProcessInformation(
     offsets[i] = currentOffset;
     currentOffset += numBlocks[i];
   }
-  cout << "(" << myRank << ")"
-       << "total # of active blocks: " << currentOffset << " out of total "
-       << amrInfo->GetTotalNumberOfBlocks() << endl;
   std::vector<int> allBlocks(currentOffset, -1);
   controller->AllGatherV(myBlocks.data(), allBlocks.data(), (vtkIdType)myBlocks.size(),
     numBlocks.data(), offsets.data());
@@ -144,3 +129,4 @@ void vtkParallelAMRUtilities::BlankCells(
     vtkAMRUtilities::BlankGridsAtLevel(amr, i, info->GetChildrenAtLevel(i), processorMap);
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGeometryFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVGeometryFilter.h"
 
@@ -22,10 +10,12 @@
 #include "vtkCellArray.h"
 #include "vtkCellArrayIterator.h"
 #include "vtkCellData.h"
+#include "vtkCellGrid.h"
 #include "vtkCellTypes.h"
 #include "vtkCommand.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkDataAssembly.h"
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkExplicitStructuredGrid.h"
 #include "vtkExplicitStructuredGridSurfaceFilter.h"
@@ -49,16 +39,17 @@
 #include "vtkObjectFactory.h"
 #include "vtkOutlineSource.h"
 #include "vtkOverlappingAMR.h"
-#include "vtkPVRecoverGeometryWireframe.h"
 #include "vtkPVTrivialProducer.h"
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkPolygon.h"
+#include "vtkRecoverGeometryWireframe.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRectilinearGridOutlineFilter.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringArray.h"
 #include "vtkStructuredGrid.h"
 #include "vtkStructuredGridOutlineFilter.h"
 #include "vtkTimerLog.h"
@@ -72,6 +63,11 @@
 #include <cmath>
 #include <string>
 #include <vector>
+
+namespace details
+{
+static constexpr const char* ORIGINAL_FACE_IDS = "RecoverWireframeOriginalFaceIds";
+}
 
 template <typename T>
 void GetValidWholeExtent(T* ds, const int wholeExt[6], int validWholeExt[6])
@@ -165,7 +161,7 @@ vtkPVGeometryFilter::vtkPVGeometryFilter()
   this->GeometryFilter->SetFastMode(false);
   this->GenericGeometryFilter = vtkGenericGeometryFilter::New();
   this->UnstructuredGridGeometryFilter = vtkUnstructuredGridGeometryFilter::New();
-  this->RecoverWireframeFilter = vtkPVRecoverGeometryWireframe::New();
+  this->RecoverWireframeFilter = vtkRecoverGeometryWireframe::New();
   this->FeatureEdgesFilter = vtkFeatureEdges::New();
 
   // Setup a callback for the internal readers to report progress.
@@ -216,7 +212,7 @@ vtkPVGeometryFilter::~vtkPVGeometryFilter()
   }
   if (this->RecoverWireframeFilter)
   {
-    vtkPVRecoverGeometryWireframe* tmp = this->RecoverWireframeFilter;
+    vtkRecoverGeometryWireframe* tmp = this->RecoverWireframeFilter;
     this->RecoverWireframeFilter = nullptr;
     tmp->Delete();
   }
@@ -484,6 +480,10 @@ void vtkPVGeometryFilter::ExecuteBlock(vtkDataObject* input, vtkPolyData* output
   else if (auto genericDataSet = vtkGenericDataSet::SafeDownCast(input))
   {
     this->GenericDataSetExecute(genericDataSet, output, doCommunicate);
+  }
+  else if (auto cellGrid = vtkCellGrid::SafeDownCast(input))
+  {
+    this->CellGridExecute(cellGrid, output, doCommunicate);
   }
 }
 
@@ -1067,6 +1067,19 @@ int vtkPVGeometryFilter::RequestDataObjectTree(
     // partial.
     this->AddBlockColors(output, 0);
   }
+  // vtkPVGeometryFilter does not support PDC as of now, therefore we need to encode the assembly
+  // as a field data array in the output.
+  if (auto inputPDC = vtkPartitionedDataSetCollection::SafeDownCast(input))
+  {
+    if (inputPDC->GetDataAssembly())
+    {
+      const auto dataAssemblyString = inputPDC->GetDataAssembly()->SerializeToXML(vtkIndent());
+      vtkNew<vtkStringArray> dataAssemblyArray;
+      dataAssemblyArray->SetName("vtkDataAssembly");
+      dataAssemblyArray->InsertNextValue(dataAssemblyString.c_str());
+      output->GetFieldData()->AddArray(dataAssemblyArray);
+    }
+  }
 
   vtkTimerLog::MarkEndEvent("vtkPVGeometryFilter::RequestDataObjectTree");
   return 1;
@@ -1255,6 +1268,21 @@ void vtkPVGeometryFilter::GenericDataSetExecute(
 }
 
 //----------------------------------------------------------------------------
+void vtkPVGeometryFilter::CellGridExecute(
+  vtkCellGrid* input, vtkPolyData* output, int vtkNotUsed(doCommunicate))
+{
+  double bounds[6];
+  input->GetBounds(bounds);
+  vtkNew<vtkOutlineSource> outline;
+  outline->SetBounds(bounds);
+  outline->Update();
+
+  output->SetPoints(outline->GetOutput()->GetPoints());
+  output->SetLines(outline->GetOutput()->GetLines());
+  output->SetPolys(outline->GetOutput()->GetPolys());
+}
+
+//----------------------------------------------------------------------------
 void vtkPVGeometryFilter::ImageDataExecute(
   vtkImageData* input, vtkPolyData* output, int doCommunicate, int updatePiece, const int* ext)
 {
@@ -1408,7 +1436,7 @@ void vtkPVGeometryFilter::UnstructuredGridExecute(
     {
       // Use the vtkUnstructuredGridGeometryFilter to extract 2D surface cells
       // from the geometry.  This is important to extract an appropriate
-      // wireframe in vtkPVRecoverGeometryWireframe.  Also, at the time of this
+      // wireframe in vtkRecoverGeometryWireframe.  Also, at the time of this
       // writing vtkGeometryFilter only properly subdivides 2D cells past level 1.
       this->UnstructuredGridGeometryFilter->SetInputData(input);
 
@@ -1416,6 +1444,9 @@ void vtkPVGeometryFilter::UnstructuredGridExecute(
       // cell each face comes from in the standard vtkOriginalCellIds array.
       this->UnstructuredGridGeometryFilter->SetPassThroughCellIds(this->PassThroughCellIds);
       this->UnstructuredGridGeometryFilter->SetPassThroughPointIds(this->PassThroughPointIds);
+
+      this->UnstructuredGridGeometryFilter->SetMatchBoundariesIgnoringCellOrder(
+        this->MatchBoundariesIgnoringCellOrder);
 
       // Turn off ghost cell clipping. This ensures that ghost cells are retained
       // and handed to the GeometryFilter to ensure only valid faces are
@@ -1442,13 +1473,12 @@ void vtkPVGeometryFilter::UnstructuredGridExecute(
         vtkIdTypeArray::SafeDownCast(input->GetPointData()->GetArray("vtkOriginalPointIds"));
 
       // Flag the data set surface filter to record original cell ids, but do it
-      // in a specially named array that vtkPVRecoverGeometryWireframe will
-      // recognize.  Note that because the data set comes from
+      // in a specially named array that vtkRecoverGeometryWireframe will later
+      // use.  Note that because the data set comes from
       // UnstructuredGridGeometryFilter, the ids will represent the faces rather
       // than the original cells, which is important.
       this->GeometryFilter->PassThroughCellIdsOn();
-      this->GeometryFilter->SetOriginalCellIdsName(
-        vtkPVRecoverGeometryWireframe::ORIGINAL_FACE_IDS());
+      this->GeometryFilter->SetOriginalCellIdsName(details::ORIGINAL_FACE_IDS);
 
       if (this->PassThroughPointIds)
       {
@@ -1475,18 +1505,22 @@ void vtkPVGeometryFilter::UnstructuredGridExecute(
       output->ShallowCopy(triangleFilter->GetOutput());
     }
 
-    if (handleSubdivision)
+    if (handleSubdivision && !this->GenerateFeatureEdges)
     {
       // Restore state of GeometryFilter.
       this->GeometryFilter->SetPassThroughCellIds(this->PassThroughCellIds);
       this->GeometryFilter->SetOriginalCellIdsName(nullptr);
       this->GeometryFilter->SetPassThroughPointIds(this->PassThroughPointIds);
 
-      // Now use vtkPVRecoverGeometryWireframe to create an edge flag attribute
+      this->GeometryFilter->SetMatchBoundariesIgnoringCellOrder(
+        this->MatchBoundariesIgnoringCellOrder);
+
+      // Now use vtkRecoverGeometryWireframe to create an edge flag attribute
       // that will cause the wireframe to be rendered correctly.
       vtkNew<vtkPolyData> nextStageInput;
       nextStageInput->ShallowCopy(output); // Yes output is correct.
       this->RecoverWireframeFilter->SetInputData(nextStageInput.Get());
+      this->RecoverWireframeFilter->SetCellIdsAttribute(details::ORIGINAL_FACE_IDS);
       // TODO: Make the consecutive internal filter execution have monotonically
       // increasing progress rather than restarting for every internal filter.
       this->RecoverWireframeFilter->Update();
@@ -1526,7 +1560,7 @@ void vtkPVGeometryFilter::UnstructuredGridExecute(
       }
     }
 
-    output->GetCellData()->RemoveArray(vtkPVRecoverGeometryWireframe::ORIGINAL_FACE_IDS());
+    output->GetCellData()->RemoveArray(details::ORIGINAL_FACE_IDS);
     return;
   }
 
@@ -1549,7 +1583,7 @@ void vtkPVGeometryFilter::PolyDataExecute(
       originalCellIds->SetName("vtkOriginalCellIds");
       originalCellIds->SetNumberOfComponents(1);
       vtkNew<vtkIdTypeArray> originalFaceIds;
-      originalFaceIds->SetName(vtkPVRecoverGeometryWireframe::ORIGINAL_FACE_IDS());
+      originalFaceIds->SetName(details::ORIGINAL_FACE_IDS);
       originalFaceIds->SetNumberOfComponents(1);
       vtkCellData* outputCD = output->GetCellData();
       outputCD->AddArray(originalCellIds.Get());
@@ -1588,7 +1622,7 @@ void vtkPVGeometryFilter::PolyDataExecute(
       triangleFilter->SetInputData(output);
       triangleFilter->Update();
 
-      // Now use vtkPVRecoverGeometryWireframe to create an edge flag attribute
+      // Now use vtkRecoverGeometryWireframe to create an edge flag attribute
       // that will cause the wireframe to be rendered correctly.
       this->RecoverWireframeFilter->SetInputData(triangleFilter->GetOutput());
       // TODO: Make the consecutive internal filter execution have monotonically
@@ -1599,7 +1633,7 @@ void vtkPVGeometryFilter::PolyDataExecute(
       // Get what should be the final output.
       output->ShallowCopy(this->RecoverWireframeFilter->GetOutput());
 
-      output->GetCellData()->RemoveArray(vtkPVRecoverGeometryWireframe::ORIGINAL_FACE_IDS());
+      output->GetCellData()->RemoveArray(details::ORIGINAL_FACE_IDS);
     }
     return;
   }
@@ -1620,6 +1654,8 @@ void vtkPVGeometryFilter::HyperTreeGridExecute(
     vtkNew<vtkHyperTreeGrid> htgCopy;
     htgCopy->ShallowCopy(input);
     internalFilter->SetInputData(htgCopy);
+    internalFilter->SetPassThroughCellIds(this->PassThroughCellIds);
+    internalFilter->SetOriginalCellIdArrayName("vtkOriginalCellIds");
     internalFilter->Update();
     output->ShallowCopy(internalFilter->GetOutput());
     return;
@@ -1708,6 +1744,7 @@ int vtkPVGeometryFilter::FillInputPortInformation(int port, vtkInformation* info
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGenericDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCellGrid");
   return 1;
 }
 
@@ -1734,6 +1771,8 @@ void vtkPVGeometryFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "GenerateCellNormals: " << (this->GenerateCellNormals ? "on" : "off") << endl;
   os << indent << "Triangulate: " << (this->Triangulate ? "on" : "off") << endl;
   os << indent << "NonlinearSubdivisionLevel: " << this->NonlinearSubdivisionLevel << endl;
+  os << indent << "MatchBoundariesIgnoringCellOrder: " << this->MatchBoundariesIgnoringCellOrder
+     << endl;
   os << indent << "Controller: " << this->Controller << endl;
   os << indent << "PassThroughCellIds: " << (this->PassThroughCellIds ? "on" : "off") << endl;
   os << indent << "PassThroughPointIds: " << (this->PassThroughPointIds ? "on" : "off") << endl;
@@ -1777,6 +1816,23 @@ void vtkPVGeometryFilter::SetNonlinearSubdivisionLevel(int newvalue)
     if (this->GeometryFilter)
     {
       this->GeometryFilter->SetNonlinearSubdivisionLevel(this->NonlinearSubdivisionLevel);
+    }
+
+    this->Modified();
+  }
+}
+
+//-----------------------------------------------------------------------------
+void vtkPVGeometryFilter::SetMatchBoundariesIgnoringCellOrder(int newvalue)
+{
+  if (this->MatchBoundariesIgnoringCellOrder != newvalue)
+  {
+    this->MatchBoundariesIgnoringCellOrder = newvalue;
+
+    if (this->GeometryFilter)
+    {
+      this->GeometryFilter->SetMatchBoundariesIgnoringCellOrder(
+        this->MatchBoundariesIgnoringCellOrder);
     }
 
     this->Modified();

@@ -1,37 +1,10 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqStringVectorPropertyWidget.cxx
-
-   Copyright (c) 2005-2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqStringVectorPropertyWidget.h"
 
+#include "vtkCollection.h"
 #include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMArrayListDomain.h"
@@ -74,18 +47,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTreeWidget.h"
 
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QLabel>
 #include <QPushButton>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QStyle>
 #include <QTextEdit>
 #include <QTreeWidget>
 #include <QVBoxLayout>
-
 #include <cassert>
 
 #if VTK_MODULE_ENABLE_ParaView_pqPython
+#include "pqPythonCalculatorCompleter.h"
 #include "pqPythonScriptEditor.h"
 #include "pqPythonSyntaxHighlighter.h"
 #endif
@@ -102,38 +76,26 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     return;
   }
 
+  // parse <Hint> element
   vtkPVXMLElement* hints = svp->GetHints();
-
-  bool multiline_text = false;
-  bool wrap_text = false;
-  bool python = false;
-  bool showLabel = false;
+  vtkPVXMLElement* showComponentLabels = nullptr;
   QString placeholderText;
   if (hints)
   {
-    vtkPVXMLElement* widgetHint = hints->FindNestedElementByName("Widget");
-    if (widgetHint && widgetHint->GetAttribute("type") &&
-      strcmp(widgetHint->GetAttribute("type"), "multi_line") == 0)
-    {
-      multiline_text = true;
-    }
-    else if (widgetHint && widgetHint->GetAttribute("type") &&
-      strcmp(widgetHint->GetAttribute("type"), "one_liner_wrapped") == 0)
-    {
-      wrap_text = true;
-    }
-    if (widgetHint && widgetHint->GetAttribute("syntax") &&
-      strcmp(widgetHint->GetAttribute("syntax"), "python") == 0)
-    {
-      python = true;
-    }
+    this->WidgetHint = hints->FindNestedElementByName("Widget");
     if (vtkPVXMLElement* phtElement = hints->FindNestedElementByName("PlaceholderText"))
     {
       placeholderText = phtElement->GetCharacterData();
       placeholderText = placeholderText.trimmed();
     }
-    showLabel = (hints->FindNestedElementByName("ShowLabel") != nullptr);
+
+    showComponentLabels = hints->FindNestedElementByName("ShowComponentLabels");
   }
+  bool multilineText = this->widgetHintHasAttributeEqualTo("type", "multi_line");
+  bool wrapText = this->widgetHintHasAttributeEqualTo("type", "one_liner_wrapped");
+  bool usePython = this->widgetHintHasAttributeEqualTo("syntax", "python");
+  bool autocompletePython = this->widgetHintHasAttributeEqualTo("autocomplete", "python_calc");
+  bool showLabel = (hints && hints->FindNestedElementByName("ShowLabel") != nullptr);
 
   // find the domain(s)
   vtkSMEnumerationDomain* enumerationDomain = nullptr;
@@ -159,15 +121,18 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
   domainIter->Delete();
 
   QVBoxLayout* vbox = new QVBoxLayout;
-  vbox->setMargin(0);
+  vbox->setContentsMargins(0, 0, 0, 0);
   vbox->setSpacing(0);
 
+  // create the right widget depending on the domain
   if (fileListDomain)
   {
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqFileChooserWidget`.");
     pqFileChooserWidget* chooser = new pqFileChooserWidget(this);
     chooser->setObjectName("FileChooser");
-    chooser->setTitle(QString("Select %1").arg(smProperty->GetXMLLabel()));
+    chooser->setTitle(
+      tr("Select %1")
+        .arg(QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel())));
 
     // decide whether to allow multiple files
     if (smProperty->GetRepeatable())
@@ -239,7 +204,8 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
 
       auto selectorWidget = new pqArraySelectionWidget(this);
       selectorWidget->setObjectName("ArraySelectionWidget");
-      selectorWidget->setHeaderLabel(smProperty->GetXMLLabel());
+      selectorWidget->setHeaderLabel(
+        QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel()));
       selectorWidget->setMaximumRowCountBeforeScrolling(
         pqPropertyWidget::hintsWidgetHeightNumberOfRows(smProperty->GetHints()));
 
@@ -275,7 +241,8 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqArraySelectionWidget`.");
     auto selectorWidget = new pqArraySelectionWidget(this);
     selectorWidget->setObjectName("ArraySelectionWidget");
-    selectorWidget->setHeaderLabel(smProperty->GetXMLLabel());
+    selectorWidget->setHeaderLabel(
+      QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel()));
     selectorWidget->setMaximumRowCountBeforeScrolling(
       pqPropertyWidget::hintsWidgetHeightNumberOfRows(smProperty->GetHints()));
 
@@ -307,15 +274,35 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
 
     vbox->addWidget(comboBox);
   }
-  else if (multiline_text)
+  else if (enumerationDomain)
+  {
+    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqComboBoxDomain`.");
+    QComboBox* comboBox = new QComboBox(this);
+    comboBox->setObjectName("ComboBox");
+
+    pqSignalAdaptorComboBox* adaptor = new pqSignalAdaptorComboBox(comboBox);
+
+    this->addPropertyLink(adaptor, "currentText", SIGNAL(currentTextChanged(QString)), svp);
+    this->setChangeAvailableAsChangeFinished(true);
+
+    for (unsigned int i = 0; i < enumerationDomain->GetNumberOfEntries(); i++)
+    {
+      comboBox->addItem(
+        QCoreApplication::translate("ServerManagerXML", enumerationDomain->GetEntryText(i)));
+    }
+
+    vbox->addWidget(comboBox);
+  }
+  else if (multilineText)
   {
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqTextEdit`.");
 
     QWidget* w = new QWidget(this);
     QHBoxLayout* hbox = new QHBoxLayout(this);
-    hbox->setMargin(0);
+    hbox->setContentsMargins(0, 0, 0, 0);
     hbox->setSpacing(0);
-    QLabel* label = new QLabel(smProperty->GetXMLLabel(), w);
+    QLabel* label =
+      new QLabel(QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel()), w);
     hbox->addWidget(label);
     hbox->addStretch();
 
@@ -336,12 +323,32 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
 
     w->setLayout(hbox);
     vbox->addWidget(w);
-    if (python)
+
+    if (autocompletePython)
+    {
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use Python calculator autocomplete.");
+
+      vtkSMSourceProxy* input =
+        vtkSMSourceProxy::SafeDownCast(vtkSMPropertyHelper(this->proxy(), "Input").GetAsProxy(0));
+
+      pqPythonCalculatorCompleter* completer = new pqPythonCalculatorCompleter(this, input);
+      completer->setCompletionMode(QCompleter::PopupCompletion);
+      completer->setCompleteEmptyPrompts(false);
+      textEdit->setCompleter(completer);
+#else
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        "Python not enabled, no Python autocomplete support.");
+#endif
+    }
+
+    if (usePython)
     {
 #if VTK_MODULE_ENABLE_ParaView_pqPython
       vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "supports Python syntax highlighter.");
       auto highlighter = new pqPythonSyntaxHighlighter(textEdit, *textEdit);
       highlighter->ConnectHighligter();
+      Q_EMIT textEdit->textChanged();
 
       QPushButton* pushButton = new QPushButton(this);
       pushButton->setIcon(this->style()->standardIcon(QStyle::SP_TitleBarMaxButton));
@@ -355,7 +362,9 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
       vtkVLogF(
         PARAVIEW_LOG_APPLICATION_VERBOSITY(), "Python not enabled, no syntax highlighter support.");
       pqPopOutWidget* popOut = new pqPopOutWidget(textEdit,
-        QString("%1 - %2").arg(smProperty->GetParent()->GetXMLLabel(), smProperty->GetXMLLabel()),
+        QString("%1 - %2").arg(
+          QCoreApplication::translate("ServerManagerXML", smProperty->GetParent()->GetXMLLabel()),
+          QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel())),
         this);
       QPushButton* popToDialogButton = new QPushButton(this);
       popOut->setPopOutButton(popToDialogButton);
@@ -369,25 +378,8 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     }
     this->setShowLabel(showLabel);
   }
-  else if (enumerationDomain)
-  {
-    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqComboBoxDomain`.");
-    QComboBox* comboBox = new QComboBox(this);
-    comboBox->setObjectName("ComboBox");
 
-    pqSignalAdaptorComboBox* adaptor = new pqSignalAdaptorComboBox(comboBox);
-
-    this->addPropertyLink(adaptor, "currentText", SIGNAL(currentTextChanged(QString)), svp);
-    this->setChangeAvailableAsChangeFinished(true);
-
-    for (unsigned int i = 0; i < enumerationDomain->GetNumberOfEntries(); i++)
-    {
-      comboBox->addItem(enumerationDomain->GetEntryText(i));
-    }
-
-    vbox->addWidget(comboBox);
-  }
-  else
+  else // No domain specified
   {
     if (smProperty->GetRepeatable())
     {
@@ -396,6 +388,13 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
         new pqScalarValueListPropertyWidget(smProperty, smProxy, this);
       widget->setObjectName("ScalarValueList");
       this->addPropertyLink(widget, "scalars", SIGNAL(scalarsChanged()), smProperty);
+      widget->setShowLabels(showComponentLabels);
+      if (showComponentLabels)
+      {
+        const int elementCount = svp->GetNumberOfElements();
+        widget->setLabels(
+          pqPropertyWidget::parseComponentLabels(showComponentLabels, elementCount));
+      }
       this->setChangeAvailableAsChangeFinished(true);
       vbox->addWidget(widget);
       this->setShowLabel(showLabel);
@@ -403,17 +402,18 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     else
     {
       // add a single line edit.
-      if (wrap_text)
+      if (wrapText)
       {
         vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqOneLinerTextEdit`.");
 
-        QString group = python ? pqExpressionsManager::PYTHON_EXPRESSION_GROUP()
-                               : pqExpressionsManager::EXPRESSION_GROUP();
+        QString group = usePython ? pqExpressionsManager::PYTHON_EXPRESSION_GROUP()
+                                  : pqExpressionsManager::EXPRESSION_GROUP();
         auto expressionsWidget = new pqExpressionsWidget(this, group);
         expressionsWidget->setObjectName("ExpressionWidget");
         vbox->addWidget(expressionsWidget);
 
         pqOneLinerTextEdit* lineEdit = expressionsWidget->lineEdit();
+
         if (!placeholderText.isEmpty())
         {
           lineEdit->setPlaceholderText(placeholderText);
@@ -422,11 +422,29 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
         this->addPropertyLink(lineEdit, "plainText", SIGNAL(textChanged()), smProperty);
         this->connect(
           lineEdit, SIGNAL(textChangedAndEditingFinished()), this, SIGNAL(changeFinished()));
+
+        if (autocompletePython)
+        {
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+          vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use Python calculator autocomplete.");
+
+          vtkSMSourceProxy* input = vtkSMSourceProxy::SafeDownCast(
+            vtkSMPropertyHelper(this->proxy(), "Input").GetAsProxy(0));
+
+          pqPythonCalculatorCompleter* completer = new pqPythonCalculatorCompleter(this, input);
+          completer->setCompletionMode(QCompleter::PopupCompletion);
+          lineEdit->setCompleter(completer);
+#else
+          vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+            "Python not enabled, no Python autocomplete support.");
+#endif
+        }
       }
       else
       {
         vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqLineEdit`.");
         pqLineEdit* lineEdit = new pqLineEdit(this);
+
         if (!placeholderText.isEmpty())
         {
           lineEdit->setPlaceholderText(placeholderText);
@@ -489,7 +507,7 @@ void pqStringVectorPropertyWidget::processFileChooserHints(vtkPVXMLElement* hint
       else
       {
         QStringList lextensions =
-          QString(extensions).split(QRegExp("\\s+"), PV_QT_SKIP_EMPTY_PARTS);
+          QString(extensions).split(QRegularExpression("\\s+"), PV_QT_SKIP_EMPTY_PARTS);
         supportedExtensions.push_back(
           QString("%1 (*.%2)").arg(file_description).arg(lextensions.join(" *.")));
       }
@@ -502,4 +520,12 @@ void pqStringVectorPropertyWidget::processFileChooserHints(vtkPVXMLElement* hint
       supportedExtensions.join(", ").toUtf8().data());
     filter = supportedExtensions.join(";;");
   }
+}
+
+//-----------------------------------------------------------------------------
+bool pqStringVectorPropertyWidget::widgetHintHasAttributeEqualTo(
+  const std::string& attribute, const std::string& value)
+{
+  return (this->WidgetHint && this->WidgetHint->GetAttribute(attribute.c_str()) &&
+    strcmp(this->WidgetHint->GetAttribute(attribute.c_str()), value.c_str()) == 0);
 }

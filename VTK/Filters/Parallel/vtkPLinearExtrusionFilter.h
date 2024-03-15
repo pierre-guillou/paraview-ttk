@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLinearExtrusionFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPLinearExtrusionFilter
  * @brief   Subclass that handles piece invariance.
@@ -28,6 +16,7 @@
 #include "vtkFiltersParallelModule.h" // For export macro
 #include "vtkLinearExtrusionFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSPARALLEL_EXPORT vtkPLinearExtrusionFilter : public vtkLinearExtrusionFilter
 {
 public:
@@ -63,4 +52,5 @@ private:
   void operator=(const vtkPLinearExtrusionFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

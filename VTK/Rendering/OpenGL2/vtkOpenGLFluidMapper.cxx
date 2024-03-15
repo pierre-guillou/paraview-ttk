@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLFluidMapper.h"
 #include "vtkOpenGLHelper.h"
@@ -57,6 +46,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLFluidMapper);
 
 //------------------------------------------------------------------------------
@@ -230,7 +220,7 @@ void vtkOpenGLFluidMapper::SetDepthThicknessColorShaderParameters(
   }
 }
 
-void vtkOpenGLFluidMapper::SetupBuffers(vtkOpenGLRenderWindow* const renderWindow)
+void vtkOpenGLFluidMapper::SetupBuffers(vtkOpenGLRenderWindow* renderWindow)
 {
   // create textures we need if not done already
   if (this->TexBuffer[0]->GetHandle() == 0)
@@ -982,3 +972,4 @@ void vtkOpenGLFluidMapper::ReleaseGraphicsResources(vtkWindow* w)
 
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

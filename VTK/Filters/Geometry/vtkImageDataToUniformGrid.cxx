@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDataToUniformGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkImageDataToUniformGrid.h"
 
@@ -27,6 +15,7 @@
 #include "vtkUniformGrid.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageDataToUniformGrid);
 
 //------------------------------------------------------------------------------
@@ -127,6 +116,10 @@ int vtkImageDataToUniformGrid::RequestData(
   iter->TraverseSubTreeOn();
   for (iter->GoToFirstItem(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (vtkImageData* inImageData = vtkImageData::SafeDownCast(iter->GetCurrentDataObject()))
     {
       vtkNew<vtkUniformGrid> outUniformGrid;
@@ -243,6 +236,10 @@ int vtkImageDataToUniformGrid::Process(
 
   for (vtkIdType i = 0; i < blankingArray->GetNumberOfTuples(); i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     double scalarValue = inScalars->GetTuple1(i);
     char value = ((scalarValue > -1) && (scalarValue < 1)) ? value1 : value2;
     blankingArray->SetValue(i, value);
@@ -259,3 +256,4 @@ int vtkImageDataToUniformGrid::Process(
 
   return VTK_OK;
 }
+VTK_ABI_NAMESPACE_END

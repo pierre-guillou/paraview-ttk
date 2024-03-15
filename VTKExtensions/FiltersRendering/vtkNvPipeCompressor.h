@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNvPipeCompressor.h
-
-  Copyright (c) 2016-2017, NVIDIA CORPORATION.
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2016-2017, NVIDIA CORPORATION
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME vtkNvPipeCompressor - Image compressor/decompressor using NvPipe.
 // .SECTION Description
@@ -36,7 +25,7 @@ public:
   vtkTypeMacro(vtkNvPipeCompressor, vtkImageCompressor);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the quality measure. The value can be between 1 and 5. 1 means
    * preserve input image quality while 5 emphasizes compression ratio at the
@@ -44,26 +33,26 @@ public:
    */
   vtkSetClampMacro(Quality, unsigned int, 1, 5);
   vtkGetMacro(Quality, unsigned int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   // Description:
   // Compress/Decompress data array on the objects input with results
   // in the objects output. See also Set/GetInput/Output.
   virtual int Compress();
   virtual int Decompress();
-  //@}
+  ///@}
 
   void SetImageResolution(int img_width, int img_height);
 
-  //@{
+  ///@{
   /// Description:
   /// Serialize/Restore compressor configuration (but not the data) into the stream.
   virtual void SaveConfiguration(vtkMultiProcessStream* stream);
   virtual bool RestoreConfiguration(vtkMultiProcessStream* stream);
   virtual const char* SaveConfiguration();
   virtual const char* RestoreConfiguration(const char* stream);
-  //@}
+  ///@}
 
 protected:
   vtkNvPipeCompressor();

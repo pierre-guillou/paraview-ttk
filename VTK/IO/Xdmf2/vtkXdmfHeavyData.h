@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfHeavyData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkXdmfHeavyData_h
 #define vtkXdmfHeavyData_h
 
@@ -20,6 +8,7 @@
 #include VTKXDMF2_HEADER(XdmfGrid.h) //won't compile without it
 #include "vtkIOXdmf2Module.h"        // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithm;
 class vtkDataArray;
 class vtkDataObject;
@@ -50,7 +39,6 @@ public:
   int Stride[3];
   XdmfFloat64 Time;
 
-public:
   vtkXdmfHeavyData(vtkXdmfDomain* domain, vtkAlgorithm* reader);
   ~vtkXdmfHeavyData();
 
@@ -113,22 +101,22 @@ private:
 
   // Description:
   // Read attributes.
-  bool ReadAttributes(vtkDataSet* dataSet, xdmf2::XdmfGrid* xmfGrid, int* update_extents = 0);
+  bool ReadAttributes(vtkDataSet* dataSet, xdmf2::XdmfGrid* xmfGrid, int* update_extents = nullptr);
 
   // Description:
   // Reads an attribute.
   // If update_extents are non-null, then we are reading structured attributes
   // and we read only the sub-set specified by update_extents.
   vtkDataArray* ReadAttribute(
-    xdmf2::XdmfAttribute* xmfAttribute, int data_dimensionality, int* update_extents = 0);
+    xdmf2::XdmfAttribute* xmfAttribute, int data_dimensionality, int* update_extents = nullptr);
 
   // Description:
   // Read sets that mark ghost cells/nodes and then create attribute arrays for
   // marking the cells as such.
-  bool ReadGhostSets(vtkDataSet* ds, xdmf2::XdmfGrid* xmfGrid, int* update_extents = 0);
+  bool ReadGhostSets(vtkDataSet* ds, xdmf2::XdmfGrid* xmfGrid, int* update_extents = nullptr);
 
   vtkMultiBlockDataSet* ReadSets(
-    vtkDataSet* dataSet, xdmf2::XdmfGrid* xmfGrid, int* update_extents = 0);
+    vtkDataSet* dataSet, xdmf2::XdmfGrid* xmfGrid, int* update_extents = nullptr);
 
   // Description:
   // Used when reading node-sets.
@@ -155,6 +143,7 @@ private:
   vtkDataSet* ExtractEdges(xdmf2::XdmfSet* xmfSet, vtkDataSet* dataSet);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 
 // VTK-HeaderTest-Exclude: vtkXdmfHeavyData.h

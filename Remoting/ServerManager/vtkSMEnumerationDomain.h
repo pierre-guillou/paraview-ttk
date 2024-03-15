@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMEnumerationDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMEnumerationDomain
  * @brief   list of integers with associated strings
@@ -159,7 +147,7 @@ public:
    */
   void Update(vtkSMProperty* property) override;
 
-  //@{
+  ///@{
   /**
    * Overridden to ensure that the property's default value is valid for the
    * enumeration, if not it will be set to the first enumeration value.
@@ -169,7 +157,7 @@ public:
 protected:
   vtkSMEnumerationDomain();
   ~vtkSMEnumerationDomain() override;
-  //@}
+  ///@}
 
   /**
    * Set the appropriate ivars from the xml element. Should

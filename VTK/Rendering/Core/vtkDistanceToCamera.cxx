@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDistanceToCamera.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for morei nformation.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkDistanceToCamera.h"
 
 #include "vtkCamera.h"
@@ -31,6 +15,7 @@
 #include "vtkRenderer.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDistanceToCamera);
 
 vtkDistanceToCamera::vtkDistanceToCamera()
@@ -249,3 +234,4 @@ void vtkDistanceToCamera::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ScreenSize: " << this->ScreenSize << endl;
   os << indent << "Scaling: " << (this->Scaling ? "on" : "off") << endl;
 }
+VTK_ABI_NAMESPACE_END

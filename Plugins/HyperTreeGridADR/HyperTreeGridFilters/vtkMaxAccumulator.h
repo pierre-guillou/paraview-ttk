@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMaxAccumulator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkMaxAccumulator
@@ -36,13 +25,13 @@ public:
 
   using Superclass::Add;
 
-  //@{
+  ///@{
   /**
    * Methods for adding data to the accumulator.
    */
   void Add(vtkAbstractAccumulator* accumulator) override;
   void Add(double value, double weight) override;
-  //@}
+  ///@}
 
   /**
    * Accessor to the accumulated value.
@@ -70,13 +59,13 @@ public:
   bool HasSameParameters(vtkAbstractAccumulator* accumulator) const override;
 
 protected:
-  //@{
+  ///@{
   /**
    * Default constructor and destructor.
    */
   vtkMaxAccumulator();
   ~vtkMaxAccumulator() override = default;
-  //@}
+  ///@}
 
   /**
    * Accumulated value

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPUniformGridBuilder.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPUniformGridBuilder
  * @brief   Class for creating uniform grids.
@@ -42,29 +30,29 @@ public:
    */
   vtkDataObject* GetGrid(unsigned long timeStep, double time, int& builtNewGrid) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the Dimensions of the uniform grid.
    */
   vtkSetVector3Macro(Dimensions, int);
   int* GetDimensions();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the Dimensions of the uniform grid.
    */
   vtkSetVector3Macro(Spacing, double);
   double* GetSpacing();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the Dimensions of the uniform grid.
    */
   vtkSetVector3Macro(Origin, double);
   double* GetOrigin();
-  //@}
+  ///@}
 
   /**
    * Get the UniformGrid.
@@ -105,7 +93,7 @@ private:
    */
   vtkUniformGrid* UniformGrid;
 
-  //@{
+  ///@{
   /**
    * Macro to set UniformGrid.
    */

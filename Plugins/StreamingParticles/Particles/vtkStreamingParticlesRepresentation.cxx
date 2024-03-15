@@ -1,24 +1,12 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStreamingParticlesRepresentation.h"
 
 #include "vtkAlgorithmOutput.h"
 #include "vtkAppendCompositeDataLeaves.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkFieldData.h"
 #include "vtkGeometryRepresentation.h"
 #include "vtkInformation.h"
@@ -75,7 +63,7 @@ vtkStreamingParticlesRepresentation::vtkStreamingParticlesRepresentation()
 
   this->PriorityQueue = vtkSmartPointer<vtkStreamingParticlesPriorityQueue>::New();
   this->PriorityQueue->UseBlockDetailInformationOn();
-  this->Mapper = vtkSmartPointer<vtkCompositePolyDataMapper2>::New();
+  this->Mapper = vtkSmartPointer<vtkCompositePolyDataMapper>::New();
 
   this->Actor = vtkSmartPointer<vtkPVLODActor>::New();
   this->Actor->SetMapper(this->Mapper);

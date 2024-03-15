@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridNonOrientedSuperCursor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridNonOrientedSuperCursor
  * @brief   Objects for traversal a HyperTreeGrid.
@@ -22,6 +10,10 @@
  * the compact hyper tree cursor implemented in vtkHyperTree can.
  * This is an abstract class.
  * Cursors are created by the HyperTreeGrid implementation.
+ *
+ * Supercursor allows to retrieve various kind of cursor for any childs.
+ * This class is also a building block for Moore and VonNeumann SuperCursor,
+ * which have neighborhood traversal abilities.
  *
  * @sa
  * vtkHyperTreeCursor vtkHyperTree vtkHyperTreeGrid
@@ -46,6 +38,7 @@
 
 #include <vector> // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTree;
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridNonOrientedGeometryCursor;
@@ -110,7 +103,7 @@ public:
 
   /**
    * JB Return the global index (relative to the grid) of the
-   * neighboor icursor current vertex in the tree.
+   * neighbor icursor current vertex in the tree.
    */
   vtkIdType GetGlobalNodeIndex(unsigned int icursor);
 
@@ -306,4 +299,5 @@ private:
   void operator=(const vtkHyperTreeGridNonOrientedSuperCursor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

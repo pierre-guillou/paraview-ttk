@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFieldData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFieldData
  * @brief   represent and manipulate fields of data
@@ -32,7 +20,7 @@
  * exchange, or you can do it by grabbing the arrays and manipulating them
  * directly. The former is simpler but performs type conversion, which is bad
  * if your data has non-castable types like (void) pointers, or you lose
- * information as a result of the cast. The, more efficient method means
+ * information as a result of the cast. The more efficient method means
  * managing each array in the field.  Using this method you can create
  * faster, more efficient algorithms that do not lose information.
  *
@@ -52,8 +40,9 @@
 #include <tuple>  // For CachedGhostRangeType
 #include <vector> // For list indices
 
-class vtkDoubleArray;
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
+class vtkDoubleArray;
 class vtkUnsignedCharArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkFieldData : public vtkObject
@@ -85,7 +74,7 @@ public:
   void CopyStructure(vtkFieldData*);
 
   /**
-   * AllocateOfArrays actually sets the number of
+   * AllocateArrays actually sets the number of
    * vtkAbstractArray pointers in the vtkFieldData object, not the
    * number of used pointers (arrays). Adding more arrays will
    * cause the object to dynamically adjust the number of pointers
@@ -98,7 +87,7 @@ public:
   /**
    * Get the number of arrays of data available.
    * This does not include nullptr array pointers therefore after
-   * fd->AllocateArray(n); nArrays = GetNumberOfArrays()
+   * fd->AllocateArray(n); nArrays = GetNumberOfArrays();
    * nArrays is not necessarily equal to n.
    */
   int GetNumberOfArrays() { return this->NumberOfActiveArrays; }
@@ -106,7 +95,8 @@ public:
   /**
    * Add an array to the array list. If an array with the same name
    * already exists - then the added array will replace it.
-   * Return the index of the added array.
+   * Return the index of the added array. If the given array is nullptr,
+   * does nothing and returns -1.
    */
   int AddArray(vtkAbstractArray* array);
 
@@ -117,9 +107,13 @@ public:
 
   ///@{
   /**
-   * Remove an array (with the given name or index) from the list of arrays.
+   * Remove an array (with the given name) from the list of arrays.
    */
   virtual void RemoveArray(const char* name);
+
+  /**
+   * Remove an array (with the given index) from the list of arrays.
+   */
   virtual void RemoveArray(int index);
   ///@}
 
@@ -194,11 +188,10 @@ public:
   /**
    * Return 1 if an array with the given name could be found. 0 otherwise.
    */
-  int HasArray(const char* name)
+  vtkTypeBool HasArray(const char* name)
   {
     int i;
     vtkAbstractArray* array = this->GetAbstractArray(name, i);
-    // assert( i == -1);
     return array ? 1 : 0;
   }
   ///@}
@@ -226,10 +219,10 @@ public:
    * Turn on/off the copying of the field specified by name.
    * During the copying/passing, the following rules are followed for each
    * array:
-   * 1. If the copy flag for an array is set (on or off), it is applied
+   * 1. If the copy flag for an array is set (on or off), it is applied.
    * This overrides rule 2.
    * 2. If CopyAllOn is set, copy the array.
-   * If CopyAllOff is set, do not copy the array
+   * If CopyAllOff is set, do not copy the array.
    */
   void CopyFieldOn(const char* name) { this->CopyFieldOnOff(name, 1); }
   void CopyFieldOff(const char* name) { this->CopyFieldOnOff(name, 0); }
@@ -238,10 +231,10 @@ public:
    * Turn on copying of all data.
    * During the copying/passing, the following rules are followed for each
    * array:
-   * 1. If the copy flag for an array is set (on or off), it is applied
+   * 1. If the copy flag for an array is set (on or off), it is applied.
    * This overrides rule 2.
    * 2. If CopyAllOn is set, copy the array.
-   * If CopyAllOff is set, do not copy the array
+   * If CopyAllOff is set, do not copy the array.
    */
   virtual void CopyAllOn(int unused = 0);
 
@@ -249,10 +242,10 @@ public:
    * Turn off copying of all data.
    * During the copying/passing, the following rules are followed for each
    * array:
-   * 1. If the copy flag for an array is set (on or off), it is applied
+   * 1. If the copy flag for an array is set (on or off), it is applied.
    * This overrides rule 2.
    * 2. If CopyAllOn is set, copy the array.
-   * If CopyAllOff is set, do not copy the array
+   * If CopyAllOff is set, do not copy the array.
    */
   virtual void CopyAllOff(int unused = 0);
 
@@ -341,27 +334,27 @@ public:
    * stored with the other fields and will cause the method
    * to behave in an unexpected way.
    */
-  void SetNumberOfTuples(const vtkIdType number);
+  void SetNumberOfTuples(vtkIdType number);
 
   /**
    * Set the jth tuple in source field data at the ith location.
    * Set operations mean that no range checking is performed, so
    * they're faster.
    */
-  void SetTuple(const vtkIdType i, const vtkIdType j, vtkFieldData* source);
+  void SetTuple(vtkIdType i, vtkIdType j, vtkFieldData* source);
 
   /**
    * Insert the jth tuple in source field data at the ith location.
    * Range checking is performed and memory allocates as necessary.
    */
-  void InsertTuple(const vtkIdType i, const vtkIdType j, vtkFieldData* source);
+  void InsertTuple(vtkIdType i, vtkIdType j, vtkFieldData* source);
 
   /**
    * Insert the jth tuple in source field data at the end of the
    * tuple matrix. Range checking is performed and memory is allocated
    * as necessary.
    */
-  vtkIdType InsertNextTuple(const vtkIdType j, vtkFieldData* source);
+  vtkIdType InsertNextTuple(vtkIdType j, vtkFieldData* source);
 
   ///@{
   /**
@@ -554,4 +547,5 @@ public:
   };
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

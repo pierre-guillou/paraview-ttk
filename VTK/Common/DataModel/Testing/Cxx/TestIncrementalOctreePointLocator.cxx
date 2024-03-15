@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestIncrementalOctreePointLocator.cxx
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkEndian.h"
 #include "vtkIdList.h"
@@ -21,6 +10,9 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkUnstructuredGridReader.h"
 #include <vtksys/SystemTools.hxx>
+
+// TODO: Convert this test to use C++-based RAII memory management instead.
+// NOLINTBEGIN(bugprone-suspicious-realloc-usage)
 
 #define VTK_BRUTE_FORCE_VERIFICATION
 
@@ -899,3 +891,5 @@ int TestIncrementalOctreePointLocator(int argc, char* argv[])
 
   return retValue;
 }
+
+// NOLINTEND(bugprone-suspicious-realloc-usage)

@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestIOADIOS2.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 /*
  * UnitTestIOADIOS2.cxx : unit tests covering nearly 100%
@@ -26,11 +9,14 @@
  *      Author: William F Godoy godoywf@ornl.gov
  */
 
+#include "ADIOSTestUtilities.h"
 #include "vtkADIOS2VTXReader.h"
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
 #include "vtkMPICommunicator.h"
 #include "vtkMPIController.h"
+#endif
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkTesting.h"
@@ -41,6 +27,7 @@
 
 namespace
 {
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
 MPI_Comm MPIGetComm()
 {
   MPI_Comm comm = MPI_COMM_NULL;
@@ -56,12 +43,13 @@ MPI_Comm MPIGetComm()
 
   return comm;
 }
+#endif
 
 void WriteBPFileNoSchema(const std::string& fileName)
 {
   const std::string extent = "0 10 0 10 0 10";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   for (size_t t = 0; t < 2; ++t)
   {
     fw.write("dummy", t);
@@ -89,7 +77,7 @@ void WriteBPFileMissingVTKFileNode(const std::string& fileName)
       </ImageData>
     </VTKFileWrong>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -113,7 +101,7 @@ void WriteBPFileUnsupportedExtent(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -137,7 +125,7 @@ void WriteBPFileUnsupportedVTKType(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -161,7 +149,7 @@ void WriteBPFileNoVTKFileNode(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -188,7 +176,7 @@ void WriteBPFileNoTime(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -217,7 +205,7 @@ void WriteBPFileTwoNodes(const std::string& fileName)
 
      <VTKFile type="ImageData" version="0.1" byte_order="LittleEndian" />)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -241,7 +229,7 @@ void WriteBPFileWrongWholeExtent(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -264,7 +252,7 @@ void WriteBPFileWrongOrigin(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -287,7 +275,7 @@ void WriteBPFileMandatoryNode(const std::string& fileName)
       </XXXImageData>
   </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   for (size_t t = 0; t < 2; ++t)
   {
@@ -316,7 +304,7 @@ void WriteBPFileTwoImageNodes(const std::string& fileName)
     <ImageData />
   </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   for (size_t t = 0; t < 2; ++t)
   {
@@ -347,7 +335,7 @@ void WriteBPFileWrongNumberOfComponents(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -373,7 +361,7 @@ void WriteBPFileWrongTime(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -399,7 +387,7 @@ void WriteBPFileWrongNodePC1(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -426,7 +414,7 @@ void WriteBPFileWrongNodePC2(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -443,7 +431,7 @@ void WriteBPFileNoPieceVTI(const std::string& fileName)
           </ImageData>
         </VTKFile>)";
 
-  adios2::fstream fw(fileName, adios2::fstream::out, MPIGetComm());
+  ADIOS_OPEN(fw, fileName);
   fw.write_attribute("vtk.xml", imageSchema);
   fw.close();
 }
@@ -456,7 +444,7 @@ void WriteBPFileNoPieceVTU(const std::string& fileName)
           </UnstructuredGrid>
         </VTKFile>)";
 
-  adios2::fstream fs(fileName, adios2::fstream::out, MPI_COMM_SELF);
+  ADIOS_OPEN(fs, fileName);
   fs.write_attribute("vtk.xml", unstructureGridSchema);
   fs.close();
 }
@@ -481,7 +469,7 @@ void WriteBPFileUnsupportedShape(const std::string& fileName)
           </UnstructuredGrid>
         </VTKFile>)";
 
-  adios2::fstream fs(fileName, adios2::fstream::out, MPI_COMM_SELF);
+  ADIOS_OPEN(fs, fileName);
 
   std::vector<uint32_t> dummyConnectivity(18, 1);
   std::vector<double> dummyVertices(9, 1.05);
@@ -531,7 +519,7 @@ void WriteBPFileUnsupportedType(const std::string& fileName)
   // clang-format on
   std::vector<double> dummySol(8, -1);
 
-  adios2::fstream fs(fileName, adios2::fstream::out, MPI_COMM_SELF);
+  ADIOS_OPEN(fs, fileName);
   fs.write<double>("types", 11.);
   fs.write("connectivity", dummyConnectivity.data(), {}, {}, { 1, 9 });
   fs.write("vertices", dummyVertices.data(), {}, {}, { 8, 3 });
@@ -573,9 +561,11 @@ int UnitTestIOADIOS2VTX(int argc, char* argv[])
     }
   };
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   vtkNew<vtkMPIController> mpiController;
   mpiController->Initialize(&argc, &argv, 0);
   vtkMultiProcessController::SetGlobalController(mpiController);
+#endif
 
   size_t testID = 0;
   std::string fileName;
@@ -624,6 +614,8 @@ int UnitTestIOADIOS2VTX(int argc, char* argv[])
       "ERROR: ADIOS2 VTK Reader unit test " + std::to_string(testID) + " failed\n");
   }
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
   mpiController->Finalize();
+#endif
   return 0;
 }

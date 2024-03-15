@@ -1,33 +1,23 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqXRInterfaceControls.h"
 #include "ui_pqXRInterfaceControls.h"
 
 #include "pqAnimationManager.h"
+#include "pqCustomViewpointsToolbar.h"
 #include "pqPVApplicationCore.h"
 #include "pqPipelineModel.h"
 #include "pqPipelineSource.h"
 #include "pqRenderView.h"
 #include "pqServerManagerModel.h"
 #include "pqSetName.h"
-#include "pqVCRController.h"
-#include "vtkOpenVRInteractorStyle.h"
+#include "pqXRCustomViewpointsController.h"
 #include "vtkPVXRInterfaceHelper.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkVRInteractorStyle.h"
 #include "vtkVRRenderer.h"
 
+#include <QButtonGroup>
 #include <QItemSelectionModel>
 #include <QMenu>
 #include <QStringList>
@@ -35,163 +25,257 @@
 #include <functional>
 #include <sstream>
 
-#if QT_VERSION < QT_VERSION_CHECK(5, 14, 0)
-#define QCOMBOBOX_TEXT_ACTIVATED_SLOT QOverload<const QString&>::of(&QComboBox::activated)
-#else
-#define QCOMBOBOX_TEXT_ACTIVATED_SLOT &QComboBox::textActivated
-#endif
+// Name of view up used for view up button group
+namespace
+{
+constexpr std::array<const char*, 6> viewUpNames = { "-X", "+X", "-Y", "+Y", "-Z", "+Z" };
+constexpr std::array<double, 7> sceneScaleButtonValues = { 0.001, 0.01, 0.1, 1.0, 10.0, 100.0,
+  1000.0 };
+}
 
 //------------------------------------------------------------------------------
-class pqXRInterfaceControls::pqInternals : public Ui::pqXRInterfaceControls
+struct pqXRInterfaceControls::pqInternals
 {
+  Ui::pqXRInterfaceControls Ui;
+  QButtonGroup* ViewUpGroup = nullptr;
+  vtkPVXRInterfaceHelper* Helper = nullptr;
+  pqCustomViewpointsToolbar* CustomViewpointsToolbar = nullptr;
+  bool NoForward = false;
 };
+
+//------------------------------------------------------------------------------
+pqXRInterfaceControls::pqXRInterfaceControls(vtkPVXRInterfaceHelper* val, QWidget* parent)
+  : Superclass(parent)
+  , Internals(new pqXRInterfaceControls::pqInternals())
+{
+  this->constructor(val);
+
+  auto* controller = new pqXRCustomViewpointsController(this->Internals->Helper, this);
+  auto* toolbar = new pqCustomViewpointsToolbar(controller, this);
+  toolbar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+
+  const auto getAction = [toolbar](const QString& name) -> QAction* {
+    for (auto action : toolbar->actions())
+    {
+      if (action->objectName() == name)
+      {
+        return action;
+      }
+    }
+
+    return toolbar->actions()[0];
+  };
+
+  getAction("ConfigAction")->setText("Clear");
+  getAction("PlusAction")->setText("Save pose");
+
+  this->Internals->Ui.movementPageVLayout->insertWidget(4, toolbar);
+  this->Internals->Ui.pqXRInterfaceTabs->tabBar()->setExpanding(true);
+
+  this->Internals->CustomViewpointsToolbar = toolbar;
+}
+
+//------------------------------------------------------------------------------
+pqXRInterfaceControls::~pqXRInterfaceControls() = default;
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::constructor(vtkPVXRInterfaceHelper* val)
 {
-  this->Helper = val;
+  this->Internals->Helper = val;
 
   this->setWindowTitle("pqXRInterfaceControls");
   this->setWindowFlags(Qt::Window | Qt::FramelessWindowHint);
   QWidget* t_widget = new QWidget(this);
-  this->Internals = new pqInternals();
-  this->Internals->setupUi(t_widget);
+  this->Internals->Ui.setupUi(t_widget);
 
-  QObject::connect(this->Internals->exitButton, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::Quit, this->Helper));
+  QObject::connect(this->Internals->Ui.exitButton, &QPushButton::clicked,
+    std::bind(&vtkPVXRInterfaceHelper::Quit, this->Internals->Helper));
 
-  QObject::connect(this->Internals->resetPositionsButton, &QPushButton::clicked, this,
+  QObject::connect(this->Internals->Ui.resetCameraButton, &QPushButton::clicked, this,
+    &pqXRInterfaceControls::resetCamera);
+
+  QObject::connect(this->Internals->Ui.resetPositionsButton, &QPushButton::clicked, this,
     &pqXRInterfaceControls::resetPositions);
 
-  QObject::connect(this->Internals->measurement, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::TakeMeasurement, this->Helper));
+  QObject::connect(this->Internals->Ui.rulerButton, &QPushButton::toggled, [&](bool checked) {
+    if (checked)
+    {
+      this->Internals->Helper->TakeMeasurement();
+    }
+    else
+    {
+      this->Internals->Helper->RemoveMeasurement();
+    }
+  });
 
-  QObject::connect(this->Internals->comeToMeButton, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::ComeToMe, this->Helper));
+  QObject::connect(this->Internals->Ui.comeToMeButton, &QPushButton::clicked,
+    std::bind(&vtkPVXRInterfaceHelper::ComeToMe, this->Internals->Helper));
 
-  QObject::connect(this->Internals->removeMeasurement, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::RemoveMeasurement, this->Helper));
+  QObject::connect(this->Internals->Ui.navigationPanel, &QPushButton::toggled,
+    [&](bool checked) { this->Internals->Helper->SetShowNavigationPanel(checked); });
 
-  QObject::connect(this->Internals->navigationPanel, &QCheckBox::stateChanged,
-    [&](int state) { this->Helper->SetShowNavigationPanel(state == Qt::Checked); });
+  QObject::connect(this->Internals->Ui.interactiveRay, &QPushButton::toggled,
+    [&](bool checked) { this->Internals->Helper->SetHoverPick(checked); });
 
-  QObject::connect(this->Internals->interactiveRay, &QCheckBox::stateChanged,
-    [&](int state) { this->Helper->SetHoverPick(state == Qt::Checked); });
+  // Fill and connect Right Trigger action combo box
+  this->Internals->Ui.rightTrigger->addItem(
+    tr("Add Point to Source"), QVariant(vtkPVXRInterfaceHelper::ADD_POINT_TO_SOURCE));
+  this->Internals->Ui.rightTrigger->addItem(tr("Grab"), QVariant(vtkPVXRInterfaceHelper::GRAB));
+  this->Internals->Ui.rightTrigger->addItem(tr("Pick"), QVariant(vtkPVXRInterfaceHelper::PICK));
+  this->Internals->Ui.rightTrigger->addItem(
+    tr("Interactive Crop"), QVariant(vtkPVXRInterfaceHelper::INTERACTIVE_CROP));
+  this->Internals->Ui.rightTrigger->addItem(tr("Probe"), QVariant(vtkPVXRInterfaceHelper::PROBE));
+  this->Internals->Ui.rightTrigger->addItem(
+    tr("Teleportation"), QVariant(vtkPVXRInterfaceHelper::TELEPORTATION));
 
-  QObject::connect(this->Internals->rightTrigger,
-    QOverload<int>::of(&QComboBox::currentIndexChanged),
-    [&](int index) { this->Helper->SetRightTriggerMode(index); });
+  QObject::connect(this->Internals->Ui.rightTrigger,
+    QOverload<int>::of(&QComboBox::currentIndexChanged), [&](int index) {
+      this->Internals->Helper->SetRightTriggerMode(
+        this->Internals->Ui.rightTrigger->itemData(index).toInt());
+    });
 
-  QObject::connect(this->Internals->movementStyle,
-    QOverload<int>::of(&QComboBox::currentIndexChanged),
-    [&](int index) { this->Helper->SetMovementStyle(index); });
+  // Fill and connect Movement Style combo box
+  this->Internals->Ui.movementStyle->addItem(
+    tr("Flying"), QVariant(vtkVRInteractorStyle::FLY_STYLE));
+  this->Internals->Ui.movementStyle->addItem(
+    tr("Grounded"), QVariant(vtkVRInteractorStyle::GROUNDED_STYLE));
 
-  QObject::connect(this->Internals->fieldValueButton, &QPushButton::clicked, this,
-    &pqXRInterfaceControls::assignFieldValue);
+  QObject::connect(this->Internals->Ui.movementStyle,
+    QOverload<int>::of(&QComboBox::currentIndexChanged), [&](int index) {
+      this->Internals->Helper->SetMovementStyle(
+        this->Internals->Ui.movementStyle->itemData(index).toInt());
+    });
 
   pqServerManagerModel* smmodel = pqApplicationCore::instance()->getServerManagerModel();
   QList<pqRenderViewBase*> views = smmodel->findItems<pqRenderViewBase*>();
   if (!views.isEmpty())
   {
-    this->Internals->pipelineBrowser->setActiveView(views[0]);
+    this->Internals->Ui.pipelineBrowser->setActiveView(views[0]);
   }
 
   // connect crop plane buttons to the helper
-  QObject::connect(this->Internals->addCropButton, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::AddACropPlane, this->Helper, nullptr, nullptr));
-  QObject::connect(this->Internals->addThickCropButton, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::AddAThickCrop, this->Helper, nullptr));
-  QObject::connect(this->Internals->removeCropsButton, &QPushButton::clicked,
-    std::bind(&vtkPVXRInterfaceHelper::RemoveAllCropPlanesAndThickCrops, this->Helper));
-  QObject::connect(this->Internals->cropSnapping, &QCheckBox::stateChanged,
-    std::bind(&vtkPVXRInterfaceHelper::SetCropSnapping, this->Helper, std::placeholders::_1));
+  QObject::connect(this->Internals->Ui.addCropButton, &QPushButton::clicked,
+    std::bind(&vtkPVXRInterfaceHelper::AddACropPlane, this->Internals->Helper, nullptr, nullptr));
+  QObject::connect(this->Internals->Ui.addThickCropButton, &QPushButton::clicked,
+    std::bind(&vtkPVXRInterfaceHelper::AddAThickCrop, this->Internals->Helper, nullptr));
 
-  QObject::connect(
-    this->Internals->viewUpCombo, QCOMBOBOX_TEXT_ACTIVATED_SLOT, [=](QString const& text) {
-      if (!text.isEmpty())
-      {
-        this->Helper->SetViewUp(text.toUtf8().toStdString());
-      }
+  QObject::connect(this->Internals->Ui.hideCropPlanesButton, &QPushButton::toggled,
+    [&](bool checked) { this->Internals->Helper->ShowCropPlanes(!checked); });
+
+  QObject::connect(this->Internals->Ui.removeCropsButton, &QPushButton::clicked,
+    std::bind(&vtkPVXRInterfaceHelper::RemoveAllCropPlanesAndThickCrops, this->Internals->Helper));
+  QObject::connect(this->Internals->Ui.cropSnapping, &QPushButton::toggled,
+    [&](bool checked) { this->Internals->Helper->SetCropSnapping(checked); });
+
+  this->Internals->ViewUpGroup = new QButtonGroup{ this };
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewMinusX, 0);
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewPlusX, 1);
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewMinusY, 2);
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewPlusY, 3);
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewMinusZ, 4);
+  this->Internals->ViewUpGroup->addButton(this->Internals->Ui.viewPlusZ, 5);
+
+  QObject::connect(this->Internals->ViewUpGroup,
+    QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked), [this](QAbstractButton* button) {
+      this->Internals->Helper->SetViewUp(viewUpNames[this->Internals->ViewUpGroup->id(button)]);
     });
 
-  QObject::connect(this->Internals->showFloorCheckbox, &QCheckBox::stateChanged, [&](int state) {
-    auto ovrr = vtkVRRenderer::SafeDownCast(this->Helper->GetRenderer());
+  QObject::connect(this->Internals->Ui.showFloorButton, &QPushButton::toggled, [&](bool checked) {
+    auto ovrr = vtkVRRenderer::SafeDownCast(this->Internals->Helper->GetRenderer());
     if (ovrr)
     {
-      ovrr->SetShowFloor(state == Qt::Checked);
+      ovrr->SetShowFloor(checked);
     }
   });
 
-  QObject::connect(
-    this->Internals->scaleFactorCombo, QCOMBOBOX_TEXT_ACTIVATED_SLOT, [=](QString const& text) {
-      if (!this->NoForward && !text.isEmpty())
+  auto* scaleGroup = new QButtonGroup{ this };
+  // use ID to store buttons' scale value
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_0001, 0);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_001, 1);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_01, 2);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_1, 3);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_10, 4);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_100, 5);
+  scaleGroup->addButton(this->Internals->Ui.scaleButton_1000, 6);
+
+  QObject::connect(scaleGroup, QOverload<QAbstractButton*>::of(&QButtonGroup::buttonClicked),
+    [this, scaleGroup](QAbstractButton* button) {
+      if (!this->Internals->NoForward)
       {
-        this->Helper->SetScaleFactor(std::stof(text.toUtf8().toStdString()));
+        this->Internals->Helper->SetScaleFactor(sceneScaleButtonValues[scaleGroup->id(button)]);
       }
     });
 
-  QObject::connect(
-    this->Internals->motionFactorCombo, QCOMBOBOX_TEXT_ACTIVATED_SLOT, [=](QString const& text) {
-      if (!this->NoForward && !text.isEmpty())
-      {
-        this->Helper->SetMotionFactor(std::stof(text.toUtf8().toStdString()));
-      }
-    });
+  QObject::connect(this->Internals->Ui.movementSpeedSlider, &QSlider::valueChanged, [=](int value) {
+    if (!this->Internals->NoForward)
+    {
+      const auto scale = std::pow(10.0, (value - 50.0) / 25.0); // [0; 100] -> [0.01; 100]
+      const auto precision = 2 - static_cast<int>(std::log(scale) / std::log(10.0));
+      this->Internals->Ui.movementSpeedLabel->setText(
+        tr("Movement speed: x%1").arg(scale, 0, 'f', precision));
+      this->Internals->Helper->SetMotionFactor(scale);
+    }
+  });
 
-  QObject::connect(
-    this->Internals->loadCameraCombo, QCOMBOBOX_TEXT_ACTIVATED_SLOT, [=](QString const& text) {
-      if (!this->NoForward && !text.isEmpty())
-      {
-        this->Helper->LoadCameraPose(std::stoi(text.toUtf8().toStdString()));
-      }
-    });
+  QObject::connect(this->Internals->Ui.cropThicknessSlider, &QSlider::valueChanged, [=](int value) {
+    if (!this->Internals->NoForward)
+    {
+      this->Internals->Helper->SetDefaultCropThickness(value);
 
-  QObject::connect(
-    this->Internals->saveCameraCombo, QCOMBOBOX_TEXT_ACTIVATED_SLOT, [=](QString const& text) {
-      if (!text.isEmpty())
+      if (value == 0)
       {
-        this->Helper->SaveCameraPose(std::stoi(text.toUtf8().toStdString()));
+        this->Internals->Ui.cropThicknessLabel->setText(tr("Crop Thickness: Auto"));
       }
-    });
+      else
+      {
+        this->Internals->Ui.cropThicknessLabel->setText(tr("Crop Thickness: x%1").arg(value));
+      }
+    }
+  });
+
+  // This centers the toolbar actions
+  auto leftSpacer = new QWidget(this);
+  leftSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  leftSpacer->setVisible(true);
+  this->Internals->Ui.VCR->insertWidget(this->Internals->Ui.VCR->actions()[0], leftSpacer);
+  auto rightSpacer = new QWidget(this);
+  rightSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+  rightSpacer->setVisible(true);
+  this->Internals->Ui.VCR->addWidget(rightSpacer);
+
+#ifndef XRINTERFACE_HAS_COLLABORATION
+  this->Internals->Ui.comeToMeButton->setVisible(false);
+#endif
 }
 
 //------------------------------------------------------------------------------
-pqXRInterfaceControls::~pqXRInterfaceControls()
+void pqXRInterfaceControls::resetCamera()
 {
-  delete this->Internals;
+  this->Internals->Helper->ResetCamera();
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::resetPositions()
 {
-  this->Helper->ResetPositions();
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::assignFieldValue()
-{
-  // get the current combo setting
-  std::string val = this->Internals->fieldValueCombo->currentText().toUtf8().toStdString();
-
-  this->Helper->SetEditableFieldValue(val);
+  this->Internals->Helper->ResetPositions();
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetRightTriggerMode(vtkPVXRInterfaceHelper::RightTriggerAction action)
 {
-  this->Internals->rightTrigger->setCurrentIndex(static_cast<int>(action));
+  this->Internals->Ui.rightTrigger->setCurrentIndex(static_cast<int>(action));
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetMovementStyle(vtkVRInteractorStyle::MovementStyle style)
 {
-  this->Internals->movementStyle->setCurrentIndex(static_cast<int>(style));
+  this->Internals->Ui.movementStyle->setCurrentIndex(static_cast<int>(style));
 }
 
 //------------------------------------------------------------------------------
 pqPipelineSource* pqXRInterfaceControls::GetSelectedPipelineSource()
 {
-  QItemSelectionModel* smodel = this->Internals->pipelineBrowser->getSelectionModel();
+  QItemSelectionModel* smodel = this->Internals->Ui.pipelineBrowser->getSelectionModel();
   QModelIndex selindex = smodel->currentIndex();
   if (!selindex.isValid())
   {
@@ -199,8 +283,8 @@ pqPipelineSource* pqXRInterfaceControls::GetSelectedPipelineSource()
   }
 
   // Get object relative to pqPipelineModel
-  const pqPipelineModel* model = this->Internals->pipelineBrowser->getPipelineModel(selindex);
-  QModelIndex index = this->Internals->pipelineBrowser->pipelineModelIndex(selindex);
+  const pqPipelineModel* model = this->Internals->Ui.pipelineBrowser->getPipelineModel(selindex);
+  QModelIndex index = this->Internals->Ui.pipelineBrowser->pipelineModelIndex(selindex);
 
   // We need to obtain the source to give the undo element some sensible name.
   pqServerManagerModelItem* smModelItem = model->getItemFor(index);
@@ -208,107 +292,65 @@ pqPipelineSource* pqXRInterfaceControls::GetSelectedPipelineSource()
 }
 
 //------------------------------------------------------------------------------
-namespace
-{
-std::string trim(std::string const& str)
-{
-  if (str.empty())
-    return str;
-
-  std::size_t firstScan = str.find_first_not_of(' ');
-  std::size_t first = firstScan == std::string::npos ? str.length() : firstScan;
-  std::size_t last = str.find_last_not_of(' ');
-  return str.substr(first, last - first + 1);
-}
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::SetFieldValues(const QStringList& values)
-{
-  this->Internals->fieldValueCombo->clear();
-  this->Internals->fieldValueCombo->addItems(values);
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::SetAvailablePositions(std::vector<int> const& vals)
-{
-  this->Internals->loadCameraCombo->clear();
-  QStringList list;
-
-  for (auto s : vals)
-  {
-    list << QString::number(s);
-  }
-  this->Internals->loadCameraCombo->addItems(list);
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::SetCurrentSavedPosition(int val)
-{
-  this->NoForward = true;
-
-  auto idx = this->Internals->saveCameraCombo->findText(QString::number(val));
-  this->Internals->saveCameraCombo->setCurrentIndex(idx);
-  this->NoForward = false;
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::SetCurrentPosition(int val)
-{
-  this->NoForward = true;
-
-  auto idx = this->Internals->loadCameraCombo->findText(QString::number(val));
-  this->Internals->loadCameraCombo->setCurrentIndex(idx);
-  this->NoForward = false;
-}
-
-//------------------------------------------------------------------------------
-void pqXRInterfaceControls::SetCurrentScaleFactor(double val)
-{
-  this->NoForward = true;
-
-  auto idx = this->Internals->scaleFactorCombo->findText(QString::number(val));
-  this->Internals->scaleFactorCombo->setCurrentIndex(idx);
-  this->NoForward = false;
-}
-
-//------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetCurrentMotionFactor(double val)
 {
-  this->NoForward = true;
+  this->Internals->NoForward = true;
 
-  auto idx = this->Internals->motionFactorCombo->findText(QString::number(val));
-  this->Internals->motionFactorCombo->setCurrentIndex(idx);
-  this->NoForward = false;
+  const auto scale = std::min(std::max(val, 0.01), 100.0); // clamp [0.01; 100]
+  const auto logScale = std::log(scale) / std::log(10.0);
+  const auto sliderValue = static_cast<int>(25.0 * logScale + 50.0); // [0.01; 100] -> [0; 100]
+  const auto precision = 2 - static_cast<int>(logScale);
+
+  this->Internals->Ui.movementSpeedLabel->setText(
+    tr("Movement speed: x%1").arg(scale, 0, 'f', precision));
+  this->Internals->Ui.movementSpeedSlider->setValue(sliderValue);
+
+  this->Internals->NoForward = false;
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetCurrentViewUp(std::string dir)
 {
-  auto idx = this->Internals->viewUpCombo->findText(QString::fromStdString(dir));
-  this->Internals->viewUpCombo->setCurrentIndex(idx);
+  const auto it = std::find_if(
+    viewUpNames.begin(), viewUpNames.end(), [&dir](const char* str) { return dir == str; });
+
+  if (it == viewUpNames.end())
+  {
+    return;
+  }
+
+  this->Internals->NoForward = true;
+  auto* button = this->Internals->ViewUpGroup->button(std::distance(viewUpNames.begin(), it));
+  button->setChecked(true);
+  this->Internals->NoForward = false;
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetInteractiveRay(bool val)
 {
-  this->Internals->interactiveRay->setCheckState(val ? Qt::Checked : Qt::Unchecked);
+  this->Internals->Ui.interactiveRay->setChecked(val);
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetNavigationPanel(bool val)
 {
-  this->Internals->navigationPanel->setCheckState(val ? Qt::Checked : Qt::Unchecked);
+  this->Internals->Ui.navigationPanel->setChecked(val);
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetSnapCropPlanes(bool checked)
 {
-  this->Internals->cropSnapping->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+  this->Internals->Ui.cropSnapping->setChecked(checked);
 }
 
 //------------------------------------------------------------------------------
 void pqXRInterfaceControls::SetShowFloor(bool checked)
 {
-  this->Internals->showFloorCheckbox->setCheckState(checked ? Qt::Checked : Qt::Unchecked);
+  this->Internals->Ui.showFloorButton->setChecked(checked);
+}
+
+//------------------------------------------------------------------------------
+void pqXRInterfaceControls::UpdateCustomViewpointsToolbar()
+{
+  this->Internals->CustomViewpointsToolbar->updateCustomViewpointActions();
 }

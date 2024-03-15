@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPStructuredGridConnectivity.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME TestPStructuredGridConnectivity.cxx -- Parallel structured connectivity
 //
 // .SECTION Description
@@ -336,7 +324,7 @@ double GetXYZSumForGrid(vtkUniformGrid* grid)
 
 //------------------------------------------------------------------------------
 // Tests computing the average serially vs. in paraller using a factor*N
-// partitions where N is the total number of processes. An artificialy field
+// partitions where N is the total number of processes. An artificially field
 // F=X+Y+Z is imposed on each node.
 int TestAverage(const int factor)
 {

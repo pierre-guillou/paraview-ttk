@@ -1,45 +1,26 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVContourFilter.h"
 
-#include "vtkAMRDualContour.h"
-#include "vtkAppendPolyData.h"
 #include "vtkArrayDispatch.h"
 #include "vtkAssume.h"
-#include "vtkCompositeDataIterator.h"
-#include "vtkContour3DLinearGrid.h"
 #include "vtkDataArray.h"
 #include "vtkDataArrayAccessor.h"
 #include "vtkDataObject.h"
 #include "vtkDemandDrivenPipeline.h"
 #include "vtkEventForwarderCommand.h"
 #include "vtkHyperTreeGrid.h"
-#include "vtkHyperTreeGridContour.h"
 #include "vtkInformation.h"
 #include "vtkInformationStringVectorKey.h"
 #include "vtkInformationVector.h"
 #include "vtkLogger.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
-#include "vtkNonOverlappingAMR.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
-#include "vtkUnstructuredGrid.h"
 
 #include <cmath>
 #include <set>
@@ -56,19 +37,6 @@ vtkPVContourFilter::~vtkPVContourFilter() = default;
 void vtkPVContourFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-}
-
-//-----------------------------------------------------------------------------
-int vtkPVContourFilter::ProcessRequest(
-  vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
-{
-  // create the output
-  if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA_OBJECT()))
-  {
-    return this->RequestDataObject(request, inputVector, outputVector);
-  }
-
-  return this->Superclass::ProcessRequest(request, inputVector, outputVector);
 }
 
 //-----------------------------------------------------------------------------
@@ -103,48 +71,6 @@ int vtkPVContourFilter::RequestData(
     return 1;
   }
 
-  // Check if input is non overlapping AMR data.
-  if (vtkNonOverlappingAMR::SafeDownCast(inDataObj))
-  {
-    // This is a lot to go through to get the name of the array to process.
-    vtkInformation* inArrayInfo = this->GetInputArrayInformation(0);
-    if (!inArrayInfo)
-    {
-      vtkErrorMacro("Problem getting name of array to process.");
-      return 0;
-    }
-    int fieldAssociation = -1;
-    if (!inArrayInfo->Has(vtkDataObject::FIELD_ASSOCIATION()))
-    {
-      vtkErrorMacro("Unable to query field association for the scalar.");
-      return 0;
-    }
-    fieldAssociation = inArrayInfo->Get(vtkDataObject::FIELD_ASSOCIATION());
-    if (fieldAssociation == vtkDataObject::FIELD_ASSOCIATION_CELLS)
-    {
-      vtkSmartPointer<vtkAMRDualContour> amrDC(vtkSmartPointer<vtkAMRDualContour>::New());
-
-      amrDC->SetInputData(0, inDataObj);
-      amrDC->SetInputArrayToProcess(0, inArrayInfo);
-      amrDC->SetEnableCapping(1);
-      amrDC->SetEnableDegenerateCells(1);
-      amrDC->SetEnableMultiProcessCommunication(1);
-      amrDC->SetSkipGhostCopy(1);
-      amrDC->SetTriangulateCap(1);
-      amrDC->SetEnableMergePoints(1);
-
-      for (int i = 0; i < this->GetNumberOfContours(); ++i)
-      {
-        vtkSmartPointer<vtkMultiBlockDataSet> out(vtkSmartPointer<vtkMultiBlockDataSet>::New());
-        amrDC->SetIsoValue(this->GetValue(i));
-        amrDC->Update();
-        out->ShallowCopy(amrDC->GetOutput(0));
-        vtkMultiBlockDataSet::SafeDownCast(outDataObj)->SetBlock(i, out);
-      }
-      return 1;
-    }
-  }
-
   // Check if input is hyper tree grid
   if (vtkHyperTreeGrid::SafeDownCast(inDataObj))
   {
@@ -161,6 +87,7 @@ int vtkPVContourFilter::RequestData(
     vtkNew<vtkHyperTreeGridContour> contourFilter;
     contourFilter->SetInputData(0, inDataObj);
     contourFilter->SetInputArrayToProcess(0, inArrayInfo);
+    contourFilter->SetStrategy3D(this->HTGStrategy3D);
     for (vtkIdType i = 0; i < this->GetNumberOfContours(); ++i)
     {
       contourFilter->SetValue(i, this->GetValue(i));
@@ -179,76 +106,7 @@ int vtkPVContourFilter::RequestData(
     return 1;
   }
 
-  // See if we can delegate to the faster vtkContour3DLinearGrid for this dataset and settings
-  // Note: vtkContour3DLinearGrid does not support the ComputeScalars option.
-  bool useLinear3DContour = this->ComputeScalars == 0 &&
-    vtkContour3DLinearGrid::CanFullyProcessDataObject(inDataObj, array->GetName());
-
-  if (useLinear3DContour)
-  {
-    vtkNew<vtkContour3DLinearGrid> linear3DContour;
-    linear3DContour->SetNumberOfContours(this->GetNumberOfContours());
-    for (int i = 0; i < this->GetNumberOfContours(); ++i)
-    {
-      linear3DContour->SetValue(i, this->GetValue(i));
-    }
-    linear3DContour->SetMergePoints(this->GetLocator() != nullptr);
-    linear3DContour->SetInterpolateAttributes(true);
-    linear3DContour->SetComputeNormals(this->GetComputeNormals());
-    linear3DContour->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
-    linear3DContour->SetUseScalarTree(this->GetUseScalarTree());
-    linear3DContour->SetScalarTree(this->GetScalarTree());
-    linear3DContour->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
-    vtkNew<vtkEventForwarderCommand> progressForwarder;
-    progressForwarder->SetTarget(this);
-    linear3DContour->AddObserver(vtkCommand::ProgressEvent, progressForwarder);
-    auto retval = linear3DContour->ProcessRequest(request, inputVector, outputVector);
-
-    return retval;
-  }
-
   return this->ContourUsingSuperclass(request, inputVector, outputVector);
-}
-
-//-----------------------------------------------------------------------------
-int vtkPVContourFilter::RequestDataObject(vtkInformation* vtkNotUsed(request),
-  vtkInformationVector** inputVector, vtkInformationVector* outputVector)
-{
-  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-  if (!inInfo)
-  {
-    return 0;
-  }
-
-  vtkNonOverlappingAMR* input = vtkNonOverlappingAMR::GetData(inInfo);
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-
-  if (input)
-  {
-    vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::GetData(outInfo);
-    if (!output)
-    {
-      output = vtkMultiBlockDataSet::New();
-      outInfo->Set(vtkDataObject::DATA_OBJECT(), output);
-      this->GetOutputPortInformation(0)->Set(
-        vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());
-      output->Delete();
-    }
-    return 1;
-  }
-  else
-  {
-    vtkDataSet* output = vtkDataSet::GetData(outInfo);
-    if (!output)
-    {
-      output = vtkPolyData::New();
-      outInfo->Set(vtkDataObject::DATA_OBJECT(), output);
-      this->GetOutputPortInformation(0)->Set(
-        vtkDataObject::DATA_EXTENT_TYPE(), output->GetExtentType());
-      output->Delete();
-    }
-    return 1;
-  }
 }
 
 //----------------------------------------------------------------------------
@@ -277,43 +135,14 @@ int vtkPVContourFilter::ContourUsingSuperclass(
   progressForwarder->SetTarget(this);
   instance->AddObserver(vtkCommand::ProgressEvent, progressForwarder);
 
-  vtkDataObject* inputDO = vtkDataObject::GetData(inputVector[0], 0);
-  vtkDataObject* outputDO = vtkDataObject::GetData(outputVector, 0);
+  vtkDataSet* inputDS = vtkDataSet::GetData(inputVector[0], 0);
+  vtkPolyData* outputPD = vtkPolyData::GetData(outputVector, 0);
 
-  vtkCompositeDataSet* inputCD = vtkCompositeDataSet::SafeDownCast(inputDO);
-  if (!inputCD)
-  {
-    instance->SetInputDataObject(inputDO);
-    instance->Update();
-    auto polydata = instance->GetOutput();
-    this->CleanOutputScalars(polydata->GetPointData()->GetScalars());
-    outputDO->ShallowCopy(polydata);
-    return 1;
-  }
-
-  vtkCompositeDataSet* outputCD = vtkCompositeDataSet::SafeDownCast(outputDO);
-  outputCD->CopyStructure(inputCD);
-
-  vtkSmartPointer<vtkCompositeDataIterator> iter;
-  iter.TakeReference(inputCD->NewIterator());
-
-  // Loop over all the datasets.
-  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
-  {
-    instance->SetInputDataObject(iter->GetCurrentDataObject());
-    instance->Update();
-    auto polydata = instance->GetOutput();
-    this->CleanOutputScalars(polydata->GetPointData()->GetScalars());
-    outputCD->SetDataSet(iter, polydata);
-  }
-
-  return 1;
-}
-
-//-----------------------------------------------------------------------------
-int vtkPVContourFilter::FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info)
-{
-  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkDataObject");
+  instance->SetInputDataObject(inputDS);
+  instance->Update();
+  auto polydata = instance->GetOutput();
+  this->CleanOutputScalars(polydata->GetPointData()->GetScalars());
+  outputPD->ShallowCopy(polydata);
   return 1;
 }
 

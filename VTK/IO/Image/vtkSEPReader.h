@@ -1,13 +1,6 @@
-/*=========================================================================
-  Copyright (c) GeometryFactory
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) GeometryFactory
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSEPReader
  * @brief Stanford Exploration Project files reader.
@@ -31,6 +24,7 @@
 
 namespace details
 {
+VTK_ABI_NAMESPACE_BEGIN
 enum class EndiannessType : std::uint8_t
 {
   SEP_LITTLE_ENDIAN = 0,
@@ -38,8 +32,10 @@ enum class EndiannessType : std::uint8_t
 };
 
 static constexpr int SEP_READER_MAX_DIMENSION = 32u;
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStringArray;
 
 class VTKIOIMAGE_EXPORT vtkSEPReader : public vtkImageAlgorithm
@@ -115,7 +111,7 @@ protected:
   /**
    * Exposed Properties
    */
-  std::string FileName = "";
+  std::string FileName;
   int OutputGridDimension = 3;
   int ExtentSplitMode = vtkExtentTranslator::BLOCK_MODE;
   double DataOrigin[details::SEP_READER_MAX_DIMENSION];
@@ -164,4 +160,5 @@ private:
   void operator=(const vtkSEPReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkSEPReader_h

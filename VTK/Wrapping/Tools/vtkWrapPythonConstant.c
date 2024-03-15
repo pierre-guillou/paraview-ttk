@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonConstant.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonConstant.h"
 #include "vtkWrap.h"
@@ -81,7 +69,7 @@ void vtkWrapPython_AddConstantHelper(FILE* fp, const char* indent, const char* d
     }
     else
     {
-      fprintf(fp, "%s%s = PyInt_FromLong(%s%s%s);\n", indent, objvar,
+      fprintf(fp, "%s%s = PyLong_FromLong(%s%s%s);\n", indent, objvar,
         ((scope && !attribval) ? scope : ""), ((scope && !attribval) ? "::" : ""),
         (!attribval ? valname : attribval));
       objcreated = 1;
@@ -99,7 +87,7 @@ void vtkWrapPython_AddConstantHelper(FILE* fp, const char* indent, const char* d
         break;
 
       case VTK_PARSE_CHAR_PTR:
-        fprintf(fp, "%s%s = PyString_FromString(%s);\n", indent, objvar, valstring);
+        fprintf(fp, "%s%s = PyUnicode_FromString(%s);\n", indent, objvar, valstring);
         objcreated = 1;
         break;
 
@@ -116,20 +104,12 @@ void vtkWrapPython_AddConstantHelper(FILE* fp, const char* indent, const char* d
       case VTK_PARSE_CHAR:
       case VTK_PARSE_SIGNED_CHAR:
       case VTK_PARSE_UNSIGNED_CHAR:
-        fprintf(fp, "%s%s = PyInt_FromLong(%s);\n", indent, objvar, valstring);
+        fprintf(fp, "%s%s = PyLong_FromLong(%s);\n", indent, objvar, valstring);
         objcreated = 1;
         break;
 
       case VTK_PARSE_UNSIGNED_INT:
-        fprintf(fp,
-          "#ifdef VTK_PY3K\n"
-          "%s%s = PyLong_FromUnsignedLong(%s);\n"
-          "#elif defined(_LP64) || defined(__LP64__)\n"
-          "%s%s = PyInt_FromLong(%s);\n"
-          "#else\n"
-          "%s%s = PyLong_FromUnsignedLong(%s);\n"
-          "#endif\n",
-          indent, objvar, valstring, indent, objvar, valstring, indent, objvar, valstring);
+        fprintf(fp, "%s%s = PyLong_FromUnsignedLong(%s);\n", indent, objvar, valstring);
         objcreated = 1;
         break;
 
@@ -268,7 +248,7 @@ void vtkWrapPython_AddPublicConstants(
       /* check to make sure that the enum type is wrapped */
       for (i = 0; i < data->NumberOfEnums && !found; i++)
       {
-        EnumInfo* info = data->Enums[i];
+        const EnumInfo* info = data->Enums[i];
         found = (info->IsExcluded && info->Name && strcmp(typeName, info->Name) == 0);
       }
       if (found)

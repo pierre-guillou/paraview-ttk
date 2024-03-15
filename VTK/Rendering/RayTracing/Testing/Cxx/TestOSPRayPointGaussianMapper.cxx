@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestOSPRayPointGaussianMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Description
 // This is a test for the point gaussian mapper in the ospray backend
@@ -70,7 +58,7 @@ int TestOSPRayPointGaussianMapper(int argc, char* argv[])
   randomAttr->Update();
 
   mapper->SetInputConnection(randomAttr->GetOutputPort());
-  mapper->SetTriangleScale(3.0);
+  mapper->SetBoundScale(3.0);
   mapper->SetScaleFactor(0.75);
   mapper->SetColorModeToMapScalars();
   mapper->SetScalarModeToUsePointFieldData();

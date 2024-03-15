@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHierarchicalBinningFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 /**
  * @class   vtkHierarchicalBinningFilter
  * @brief   uniform binning of points into
@@ -75,6 +63,7 @@
 
 #define VTK_MAX_LEVEL 12
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkBinTree;
 
 class VTKFILTERSPOINTS_EXPORT vtkHierarchicalBinningFilter : public vtkPolyDataAlgorithm
@@ -209,4 +198,5 @@ private:
   void operator=(const vtkHierarchicalBinningFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

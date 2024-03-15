@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTextWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTextWidget
  * @brief   widget for placing text on overlay plane
@@ -31,11 +19,12 @@
 #ifndef vtkTextWidget_h
 #define vtkTextWidget_h
 
-class vtkTextRepresentation;
-class vtkTextActor;
-
 #include "vtkBorderWidget.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkTextRepresentation;
+class vtkTextActor;
 
 class VTKINTERACTIONWIDGETS_EXPORT vtkTextWidget : public vtkBorderWidget
 {
@@ -85,4 +74,5 @@ private:
   void operator=(const vtkTextWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWendlandQuinticKernel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWendlandQuinticKernel
  * @brief   a quintic SPH interpolation kernel
@@ -41,6 +29,7 @@
 #include "vtkSPHKernel.h"
 #include <algorithm> // For std::min()
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkDoubleArray;
 
@@ -110,4 +99,5 @@ private:
   void operator=(const vtkWendlandQuinticKernel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

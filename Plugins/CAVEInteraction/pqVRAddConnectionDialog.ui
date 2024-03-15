@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>VRAddConnectionDialog</class>
  <widget class="QDialog" name="VRAddConnectionDialog">
@@ -114,7 +116,7 @@
       <widget class="QComboBox" name="inputType">
        <item>
         <property name="text">
-         <string>Analog</string>
+         <string>Valuator</string>
         </property>
        </item>
        <item>

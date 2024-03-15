@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageReslice.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageReslice
  * @brief   Reslices a volume along a new set of axes.
@@ -23,8 +11,8 @@
  * with similar efficiently to the specialized vtkImagePermute,
  * vtkImageResample, and vtkImagePad filters.  There are a number of
  * tasks that vtkImageReslice is well suited for:
- * <p>1) Application of simple rotations, scales, and translations to
- * an image. It is often a good idea to use vtkImageChangeInformation
+ * <p>1) Application of transformations (either linear or nonlinear) to
+ * an image. It is sometimes convenient to use vtkImageChangeInformation
  * to center the image first, so that scales and rotations occur around
  * the center rather than around the lower-left corner of the image.
  * <p>2) Resampling of one data set to match the voxel sampling of
@@ -33,20 +21,18 @@
  * A transformation, either linear or nonlinear, can be applied
  * at the same time via the SetResliceTransform method if the two
  * images are not in the same coordinate space.
- * <p>3) Extraction of slices from an image volume.  The most convenient
- * way to do this is to use SetResliceAxesDirectionCosines() to
- * specify the orientation of the slice.  The direction cosines give
- * the x, y, and z axes for the output volume.  The method
- * SetOutputDimensionality(2) is used to specify that want to output a
- * slice rather than a volume.  The SetResliceAxesOrigin() command is
- * used to provide an (x,y,z) point that the slice will pass through.
- * You can use both the ResliceAxes and the ResliceTransform at the
- * same time, in order to extract slices from a volume that you have
- * applied a transformation to.
+ * <p>3) Extraction of slices from an image volume. The most convenient
+ * way to do this is to use SetOutputDirection() to specify the
+ * orientation of the output slices. The columns of the direction
+ * matrix specify the x, y, and z axes for the output volume or slice,
+ * and SetOutputOrigin() can be used to specify the position. You can
+ * use these methods together with SetResliceTransform() in order
+ * to extract slices in a certain orientation while simultaneously
+ * applying a transformation to the coordinate system.
  * @warning
  * This filter is very inefficient if the output X dimension is 1.
  * @sa
- * vtkAbstractTransform vtkMatrix4x4
+ * vtkAbstractImageInterpolator vtkAbstractTransform vtkImageResliceToColors
  */
 
 #ifndef vtkImageReslice_h
@@ -60,6 +46,7 @@
 #define VTK_RESLICE_LINEAR VTK_LINEAR_INTERPOLATION
 #define VTK_RESLICE_CUBIC VTK_CUBIC_INTERPOLATION
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkAbstractTransform;
 class vtkMatrix4x4;
@@ -389,6 +376,26 @@ public:
 
   ///@{
   /**
+   * Set the direction for the output data.  By default, the direction of
+   * the input data is passed to the output.  But if SetOutputDirection()
+   * is used, then the image will be resliced according to the new output
+   * direction.  Unlike SetResliceAxes(), this does not change the physical
+   * coordinate system for the image.  Instead, it changes the orientation
+   * of the sampling grid while maintaining the same physical coordinate
+   * system.
+   */
+  virtual void SetOutputDirection(double xx, double xy, double xz, double yx, double yy, double yz,
+    double zx, double zy, double zz);
+  virtual void SetOutputDirection(const double a[9])
+  {
+    this->SetOutputDirection(a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8]);
+  }
+  vtkGetVector3Macro(OutputDirection, double);
+  void SetOutputDirectionToDefault();
+  ///@}
+
+  ///@{
+  /**
    * Set the origin for the output data.  The default output origin
    * is the input origin permuted through the ResliceAxes.
    */
@@ -515,6 +522,7 @@ protected:
   double ScalarScale;
   double BorderThickness;
   double BackgroundColor[4];
+  double OutputDirection[9];
   double OutputOrigin[3];
   double OutputSpacing[3];
   int OutputExtent[6];
@@ -525,6 +533,7 @@ protected:
   int HitInputExtent;
   int UsePermuteExecute;
   int ComputeOutputSpacing;
+  bool PassDirectionToOutput;
   int ComputeOutputOrigin;
   int ComputeOutputExtent;
   vtkTypeBool GenerateStencilOutput;
@@ -536,7 +545,7 @@ protected:
    * This should be set to 1 by derived classes that override the
    * ConvertScalars method.
    */
-  int HasConvertScalars;
+  vtkTypeBool HasConvertScalars;
 
   /**
    * This should be overridden by derived classes that operate on
@@ -569,7 +578,8 @@ protected:
    */
   int RequestInformationBase(vtkInformationVector**, vtkInformationVector*);
 
-  void GetAutoCroppedOutputBounds(vtkInformation* inInfo, double bounds[6]);
+  void GetAutoCroppedOutputBounds(
+    vtkInformation* inInfo, const double outDirection[9], double bounds[6]);
   void AllocateOutputData(vtkImageData* output, vtkInformation* outInfo, int* uExtent) override;
   vtkImageData* AllocateOutputData(vtkDataObject*, vtkInformation*) override;
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
@@ -589,4 +599,5 @@ private:
   void operator=(const vtkImageReslice&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

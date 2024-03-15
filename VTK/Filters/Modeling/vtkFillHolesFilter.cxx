@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFillHolesFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFillHolesFilter.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 #include "vtkSphere.h"
 #include "vtkTriangleStrip.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFillHolesFilter);
 
 //------------------------------------------------------------------------------
@@ -105,7 +94,7 @@ int vtkFillHolesFilter::RequestData(vtkInformation* vtkNotUsed(request),
   Lines->SetPoints(inPts);
 
   // grab all free edges and place them into a temporary polydata
-  int abort = 0;
+  bool abort = false;
   vtkIdType cellId, p1, p2, numNei, i, numCells = newPolys->GetNumberOfCells();
   vtkIdType progressInterval = numCells / 20 + 1;
   vtkIdList* neighbors = vtkIdList::New();
@@ -115,7 +104,7 @@ int vtkFillHolesFilter::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(cellId % progressInterval)) // manage progress / early abort
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     for (i = 0; i < npts; i++)
@@ -138,7 +127,6 @@ int vtkFillHolesFilter::RequestData(vtkInformation* vtkNotUsed(request),
   // Track all free edges and see whether polygons can be built from them.
   // For each polygon of appropriate HoleSize, triangulate the hole and
   // add to the output list of cells
-  vtkIdType numHolesFilled = 0;
   numCells = newLines->GetNumberOfCells();
   vtkCellArray* newCells = nullptr;
   if (numCells >= 3) // only do the work if there are free edges
@@ -159,6 +147,7 @@ int vtkFillHolesFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
     for (cellId = 0; cellId < numCells && !abort; cellId++)
     {
+      abort = this->CheckAbort();
       if (!visited[cellId])
       {
         visited[cellId] = 1;
@@ -207,7 +196,6 @@ int vtkFillHolesFilter::RequestData(vtkInformation* vtkNotUsed(request),
           if (sphere[3] <= this->HoleSize)
           {
             // Now triangulate the loop and pass to the output
-            numHolesFilled++;
             polygon->NonDegenerateTriangulate(neighbors);
             for (i = 0; i < neighbors->GetNumberOfIds(); i += 3)
             {
@@ -262,3 +250,4 @@ void vtkFillHolesFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Hole Size: " << this->HoleSize << "\n";
 }
+VTK_ABI_NAMESPACE_END

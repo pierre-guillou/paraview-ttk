@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtk3DWidget
  * @brief   an abstract superclass for 3D widgets
@@ -59,6 +47,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkInteractorObserver.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtk3DWidgetConnection;
 class vtkAlgorithmOutput;
 class vtkDataSet;
@@ -162,4 +151,5 @@ private:
   void operator=(const vtk3DWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabeledContourPolyDataItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLabeledContourPolyDataItem
  * @brief   Filter that translate a vtkPolyData 2D mesh into vtkContextItems.
@@ -29,6 +17,7 @@
 #include "vtkRenderingContext2DModule.h" // For export macro
 #include "vtkSmartPointer.h"             // For vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkContext2D;
 class vtkDoubleArray;
@@ -154,4 +143,5 @@ private:
   Private* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

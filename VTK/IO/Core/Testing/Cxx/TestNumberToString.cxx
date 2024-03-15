@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestNumberToString.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSmartPointer.h"
 
@@ -23,7 +11,9 @@
 namespace
 {
 template <typename T>
-int TestConvert(unsigned int samples);
+int TestConvertPrecision(unsigned int samples);
+template <typename T>
+int TestConvertLowHigh(unsigned int samples);
 template <typename T>
 int ConvertNumericLimitsValue(const char* t, T);
 }
@@ -71,31 +61,33 @@ int TestNumberToString(int, char*[])
   }
 
   unsigned int samples = 10000;
-  if (TestConvert<float>(samples) || TestConvert<double>(samples))
+  if (TestConvertPrecision<float>(samples) || TestConvertPrecision<double>(samples))
   {
     return EXIT_FAILURE;
   }
-  else
+
+  if (TestConvertLowHigh<float>(samples) || TestConvertLowHigh<double>(samples))
   {
-    return EXIT_SUCCESS;
+    return EXIT_FAILURE;
   }
+
+  return EXIT_SUCCESS;
 }
 
 namespace
 {
 template <typename T>
-int TestConvert(unsigned int samples)
+int TestConvertPrecision(unsigned int samples)
 {
   std::cout << "Testing type: " << typeid(T).name() << std::endl;
+  vtkNumberToString converter;
   for (int p = 5; p < 20; ++p)
   {
-
     unsigned int matches = 0;
     unsigned int mismatches = 0;
 
     // Now convert numbers to strings. Read the strings as floats and doubles
     // and compare the results with the original values.
-    vtkNumberToString convert;
     {
       vtkSmartPointer<vtkMinimalStandardRandomSequence> randomSequence =
         vtkSmartPointer<vtkMinimalStandardRandomSequence>::New();
@@ -104,7 +96,7 @@ int TestConvert(unsigned int samples)
         randomSequence->Next();
         T value = randomSequence->GetRangeValue(-1.0, 1.0);
         std::stringstream convertedStr;
-        convertedStr << convert(value);
+        convertedStr << converter.Convert(value);
         std::stringstream rawStr;
         rawStr << std::setprecision(p) << value;
 
@@ -142,14 +134,49 @@ int TestConvert(unsigned int samples)
 }
 
 template <typename T>
+int TestConvertLowHigh(unsigned int samples)
+{
+  // Now convert numbers to strings. Read the strings as floats and doubles
+  // and compare the results with the original values.
+  for (int iLow = -20; iLow <= 0; iLow++)
+  {
+    for (int iHigh = 0; iHigh <= 20; iHigh++)
+    {
+      std::cout << "Testing low exponent: " << iLow << ", high exponent: " << iHigh << "."
+                << std::endl;
+      vtkNumberToString converter;
+      converter.SetLowExponent(iLow);
+      converter.SetHighExponent(iHigh);
+      vtkSmartPointer<vtkMinimalStandardRandomSequence> randomSequence =
+        vtkSmartPointer<vtkMinimalStandardRandomSequence>::New();
+      for (unsigned int i = 0; i < samples; ++i)
+      {
+        randomSequence->Next();
+        T value = randomSequence->GetRangeValue(
+          std::numeric_limits<T>::min(), std::numeric_limits<T>::max());
+        std::string str = converter.Convert(value);
+        T convertedValue = std::stod(str);
+        if (convertedValue != value)
+        {
+          std::cout << "ERROR: " << value << " != " << convertedValue << std::endl;
+          return EXIT_FAILURE;
+        }
+      }
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+template <typename T>
 int ConvertNumericLimitsValue(const char* t, T)
 {
-  vtkNumberToString convert;
+  vtkNumberToString converter;
   int status = EXIT_SUCCESS;
   {
     T value = std::numeric_limits<T>::max();
     std::stringstream convertedStr;
-    convertedStr << convert(value);
+    convertedStr << converter.Convert(value);
     std::istringstream convertedStream(convertedStr.str());
     std::cout << t << "(max) "
               << "raw: " << value << " converted: " << convertedStream.str() << std::endl;
@@ -165,7 +192,7 @@ int ConvertNumericLimitsValue(const char* t, T)
   {
     T value = std::numeric_limits<T>::min();
     std::stringstream convertedStr;
-    convertedStr << convert(value);
+    convertedStr << converter.Convert(value);
     std::istringstream convertedStream(convertedStr.str());
     std::cout << t << "(min) "
               << "raw: " << value << " converted: " << convertedStream.str() << std::endl;
@@ -181,7 +208,7 @@ int ConvertNumericLimitsValue(const char* t, T)
   {
     T value = std::numeric_limits<T>::lowest();
     std::stringstream convertedStr;
-    convertedStr << convert(value);
+    convertedStr << converter.Convert(value);
     std::istringstream convertedStream(convertedStr.str());
     std::cout << t << "(lowest) "
               << "raw: " << value << " converted: " << convertedStream.str() << std::endl;
@@ -197,7 +224,7 @@ int ConvertNumericLimitsValue(const char* t, T)
   {
     T value = std::numeric_limits<T>::epsilon();
     std::stringstream convertedStr;
-    convertedStr << convert(value);
+    convertedStr << converter.Convert(value);
     std::istringstream convertedStream(convertedStr.str());
     std::cout << t << "(epsilon) "
               << "raw: " << value << " converted: " << convertedStream.str() << std::endl;

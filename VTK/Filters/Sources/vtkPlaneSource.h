@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlaneSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPlaneSource
  * @brief   create an array of quadrilaterals located in a plane
@@ -51,6 +39,7 @@
 #include "vtkFiltersSourcesModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkPlaneSource : public vtkPolyDataAlgorithm
 {
 public:
@@ -83,7 +72,7 @@ public:
   /**
    * Set the number of x-y subdivisions in the plane.
    */
-  void SetResolution(const int xR, const int yR);
+  void SetResolution(int xR, int yR);
   void GetResolution(int& xR, int& yR)
   {
     xR = this->XResolution;
@@ -195,4 +184,5 @@ private:
   void operator=(const vtkPlaneSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

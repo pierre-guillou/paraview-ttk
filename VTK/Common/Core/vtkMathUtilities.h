@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMathUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkMathUtilities
@@ -27,6 +15,8 @@
 #ifndef vtkMathUtilities_h
 #define vtkMathUtilities_h
 
+#include "vtkABINamespace.h"
+
 #include <cmath>
 #include <limits>
 #include <tuple>
@@ -34,6 +24,7 @@
 
 namespace vtkMathUtilities
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 /**
  * Perform a fuzzy compare of floats/doubles, specify the allowed tolerance
@@ -137,6 +128,7 @@ void UpdateRange(A& min0, A& max0, const A& value,
   }
 }
 
+VTK_ABI_NAMESPACE_END
 } // End vtkMathUtilities namespace.
 
 #endif // vtkMathUtilities_h

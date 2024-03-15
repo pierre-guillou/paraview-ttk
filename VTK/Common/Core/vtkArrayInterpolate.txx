@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayInterpolate.txx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #ifndef vtkArrayInterpolate_txx
 #define vtkArrayInterpolate_txx
@@ -25,6 +8,7 @@
 #include "vtkArrayExtentsList.h"
 #include "vtkArrayWeights.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 void vtkInterpolate(vtkTypedArray<T>* source_array, const vtkArrayExtentsList& source_slices,
   const vtkArrayWeights& source_weights, const vtkArrayExtents& target_slice,
@@ -77,4 +61,5 @@ void vtkInterpolate(vtkTypedArray<T>* source_array, const vtkArrayExtentsList& s
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

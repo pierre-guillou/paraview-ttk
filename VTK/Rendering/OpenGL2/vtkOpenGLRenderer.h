@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLRenderer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLRenderer
  * @brief   OpenGL renderer
@@ -24,11 +12,15 @@
 #define vtkOpenGLRenderer_h
 
 #include "vtkRenderer.h"
+
+#include "vtkOpenGLQuadHelper.h"       // for ivar
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           // For vtkSmartPointer
+#include <memory>                      // for unique_ptr
 #include <string>                      // Ivars
 #include <vector>                      // STL Header
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkOpenGLFXAAFilter;
 class vtkRenderPass;
@@ -54,7 +46,7 @@ public:
   /**
    * Concrete open gl render method.
    */
-  void DeviceRender(void) override;
+  void DeviceRender() override;
 
   /**
    * Overridden to support hidden line removal.
@@ -69,12 +61,12 @@ public:
    */
   void DeviceRenderTranslucentPolygonalGeometry(vtkFrameBufferObjectBase* fbo = nullptr) override;
 
-  void Clear(void) override;
+  void Clear() override;
 
   /**
    * Ask lights to load themselves into graphics pipeline.
    */
-  int UpdateLights(void) override;
+  int UpdateLights() override;
 
   /**
    * Is rendering at translucent geometry stage using depth peeling and
@@ -159,7 +151,18 @@ public:
   ///@}
 
   /**
-   * Overridden in order to connect the texture to the environment map textures.
+   * Set/Get the environment texture used for image based lighting.
+   * This texture is supposed to represent the scene background.
+   * If it is not a cubemap, the texture is supposed to represent an equirectangular projection.
+   * If used with raytracing backends, the texture must be an equirectangular projection and must be
+   * constructed with a valid vtkImageData.
+   * Warning, this texture must be expressed in linear color space.
+   * If the texture is in sRGB color space, set the color flag on the texture or
+   * set the argument isSRGB to true.
+   * Note that this texture can be omitted if LUT, SpecularColorMap and SphericalHarmonics
+   * are used and provided
+   *
+   * @sa vtkTexture::UseSRGBColorSpaceOn
    */
   void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false) override;
 
@@ -237,10 +240,11 @@ protected:
    */
   vtkSmartPointer<vtkTransform> UserLightTransform;
 
-  vtkPBRLUTTexture* EnvMapLookupTable;
-  vtkPBRIrradianceTexture* EnvMapIrradiance;
-  vtkPBRPrefilterTexture* EnvMapPrefiltered;
+  vtkSmartPointer<vtkPBRLUTTexture> EnvMapLookupTable;
+  vtkSmartPointer<vtkPBRIrradianceTexture> EnvMapIrradiance;
+  vtkSmartPointer<vtkPBRPrefilterTexture> EnvMapPrefiltered;
   vtkSmartPointer<vtkFloatArray> SphericalHarmonics;
+  std::unique_ptr<vtkOpenGLQuadHelper> BackgroundRenderer;
   bool UseSphericalHarmonics;
 
 private:
@@ -248,4 +252,5 @@ private:
   void operator=(const vtkOpenGLRenderer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

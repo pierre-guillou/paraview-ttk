@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlatonicSolidSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPlatonicSolidSource
  * @brief   produce polygonal Platonic solids
@@ -35,6 +23,7 @@
 #define VTK_SOLID_ICOSAHEDRON 3
 #define VTK_SOLID_DODECAHEDRON 4
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkPlatonicSolidSource : public vtkPolyDataAlgorithm
 {
 public:
@@ -78,4 +67,5 @@ private:
   void operator=(const vtkPlatonicSolidSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPPainterCommunicator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPPainterCommunicator.h"
 
 #include "vtkMPI.h"
@@ -24,6 +12,7 @@
 using std::vector;
 
 // use PImpl to avoid MPI types in public API.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPPainterCommunicatorInternals
 {
 public:
@@ -314,3 +303,4 @@ void vtkPPainterCommunicator::SubsetCommunicator(vtkMPICommunicatorOpaqueComm* c
     }
   }
 }
+VTK_ABI_NAMESPACE_END

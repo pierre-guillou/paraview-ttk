@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMapper3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageMapper3D
  * @brief   abstract class for mapping images to the screen
@@ -33,6 +21,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkThreads.h"             // for VTK_MAX_THREADS
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkProp3D;
 class vtkPoints;
@@ -190,8 +179,19 @@ protected:
 
   /**
    * Perform window/level and color mapping operations to produce
-   * unsigned char data that can be used as a texture.  See the
-   * source file for more information.
+   * unsigned char data that can be used as a texture.
+   *
+   * Given an image and an extent that describes a single slice, this method
+   * will return a contiguous block of unsigned char data that can be loaded
+   * into a texture.
+   * The values of xsize, ysize, bytesPerPixel, must be pre-loaded with the
+   * current texture size and depth.
+   * When the method returns, these values will be set to the dimensions
+   * of the data that was produced.
+   * The values of reuseData and reuseTexture are typically pre-loaded with true.
+   * If reuseTexture is false upon return, then texture size or format has changed
+   * If reuseData is false upon return, then the returned array must be
+   * freed after use with delete [].
    */
   unsigned char* MakeTextureData(vtkImageProperty* property, vtkImageData* input, int extent[6],
     int& xsize, int& ysize, int& bytesPerPixel, bool& reuseTexture, bool& reuseData);
@@ -272,4 +272,5 @@ private:
   friend class vtkImageToImageMapper3DFriendship;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

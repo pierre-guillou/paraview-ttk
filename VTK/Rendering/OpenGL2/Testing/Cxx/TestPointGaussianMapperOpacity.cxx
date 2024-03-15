@@ -1,27 +1,13 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    TestSprites.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) CSCS - Swiss National Supercomputing Centre
+// SPDX-FileCopyrightText: EDF - Electricite de France
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .SECTION Thanks
 // \verbatim
 //
 // This file is based loosely on the PointSprites plugin developed
 // and contributed by
-//
-//  Copyright (c) CSCS - Swiss National Supercomputing Centre
-//                EDF - Electricite de France
-//
 //  John Biddiscombe, Ugo Varetto (CSCS)
 //  Stephane Ploix (EDF)
 //
@@ -116,7 +102,7 @@ int TestPointGaussianMapperOpacity(int argc, char* argv[])
 
   // since this shader only uses a radus of sqrt(2) we will adjust the mapper
   // to render a smaller area than the default radius of 3.0
-  mapper->SetTriangleScale(1.5);
+  mapper->SetBoundScale(1.5);
 
   vtkNew<vtkColorTransferFunction> ctf;
   ctf->AddHSVPoint(0.0, 0.1, 0.7, 1.0);

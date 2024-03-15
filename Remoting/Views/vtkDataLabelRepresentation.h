@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkDataLabelRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataLabelRepresentation
  * @brief   representation for showing cell and point
@@ -52,23 +40,23 @@ public:
   vtkTypeMacro(vtkDataLabelRepresentation, vtkPVDataRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the visibility for this representation. When the visibility of
    * representation of false, all view passes are ignored.
    */
   void SetVisibility(bool val) override;
   bool GetVisibility() override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the maximum number of points/cells that will be labeled.  Too many labels
    * is difficult to read so this may help with large datasets.  Default: 100.
    */
   void SetMaximumNumberOfLabels(int numLabels);
   int GetMaximumNumberOfLabels();
-  //@}
+  ///@}
 
   //***************************************************************************
   // Methods to change various parameters on internal objects
@@ -100,7 +88,7 @@ public:
   void SetCellLabelFontSize(int);
   void SetCellLabelFormat(const char*);
 
-  //@{
+  ///@{
   /**
    * Used to build the internal transform.
    */
@@ -109,7 +97,7 @@ public:
   void SetPosition(double, double, double);
   void SetScale(double, double, double);
   void SetUserTransform(const double[16]);
-  //@}
+  ///@}
 
   /**
    * vtkAlgorithm::ProcessRequest() equivalent for rendering passes. This is

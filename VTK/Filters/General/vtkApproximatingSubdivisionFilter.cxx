@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkApproximatingSubdivisionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkApproximatingSubdivisionFilter.h"
 
 #include "vtkCell.h"
@@ -27,6 +15,7 @@
 #include "vtkUnsignedCharArray.h"
 
 // Construct object with number of subdivisions set to 1.
+VTK_ABI_NAMESPACE_BEGIN
 vtkApproximatingSubdivisionFilter::vtkApproximatingSubdivisionFilter() = default;
 
 int vtkApproximatingSubdivisionFilter::RequestData(
@@ -66,11 +55,11 @@ int vtkApproximatingSubdivisionFilter::RequestData(
   inputDS->CopyStructure(input);
   inputDS->CopyAttributes(input);
 
-  int abort = 0;
+  bool abort = false;
   for (level = 0; level < this->NumberOfSubdivisions && !abort; level++)
   {
     this->UpdateProgress(static_cast<double>(level + 1) / this->NumberOfSubdivisions);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
 
     // Generate topology for the input dataset
     inputDS->BuildLinks();
@@ -211,6 +200,10 @@ void vtkApproximatingSubdivisionFilter::GenerateSubdivisionCells(
   // Now create new cells from existing points and generated edge points
   for (cellId = 0; cellId < numCells; cellId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (inputDS->GetCellType(cellId) != VTK_TRIANGLE)
     {
       continue;
@@ -253,3 +246,4 @@ void vtkApproximatingSubdivisionFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

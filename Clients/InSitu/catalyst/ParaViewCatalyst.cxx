@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    ParaViewCatalyst.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <catalyst.h>
 #include <catalyst_api.h>
@@ -34,6 +22,7 @@
 #include "vtkSMProxyManager.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
@@ -51,7 +40,7 @@
 
 static bool update_producer_mesh_blueprint(const std::string& channel_name,
   const conduit_node* node, const conduit_node* global_fields, bool multimesh,
-  const conduit_node* assemblyNode, bool multiblock)
+  const conduit_node* assemblyNode, bool multiblock, bool amr)
 {
   auto producer = vtkInSituInitializationHelper::GetProducer(channel_name);
   if (producer == nullptr)
@@ -73,6 +62,7 @@ static bool update_producer_mesh_blueprint(const std::string& channel_name,
   algo->SetUseMultiMeshProtocol(multimesh);
   algo->SetOutputMultiBlock(multiblock);
   algo->SetAssemblyNode(assemblyNode);
+  algo->SetUseAMRMeshProtocol(amr);
   vtkInSituInitializationHelper::MarkProducerModified(channel_name);
   return true;
 }
@@ -128,11 +118,10 @@ static bool update_producer_ioss(const std::string& channel_name, const conduit_
 #endif
 }
 
-#if VTK_MODULE_ENABLE_VTK_IOFides
-static bool create_producer_fides(const std::string& channel_name, const conduit_cpp::Node& node)
+static bool update_producer_fides(
+  const std::string& channel_name, const conduit_cpp::Node& node, double& time)
 {
-  // For the ADIOS Inline engine, the reader proxy must be created before simulation
-  // steps can start
+#if VTK_MODULE_ENABLE_VTK_IOFides
   auto producer = vtkInSituInitializationHelper::GetProducer(channel_name);
   if (producer == nullptr)
   {
@@ -158,20 +147,6 @@ static bool create_producer_fides(const std::string& channel_name, const conduit
     // Required so that vtkFidesReader will setup the inline reader
     producer->UpdatePipelineInformation();
     producer->Delete();
-  }
-
-  return true;
-}
-#endif
-
-static bool update_producer_fides(const std::string& channel_name, double& time)
-{
-#if VTK_MODULE_ENABLE_VTK_IOFides
-  auto producer = vtkInSituInitializationHelper::GetProducer(channel_name);
-  if (producer == nullptr)
-  {
-    vtkLogF(ERROR, "Fides producer doesn't exist!");
-    return false;
   }
   auto algo = vtkFidesReader::SafeDownCast(producer->GetClientSideObject());
   algo->PrepareNextStep();
@@ -280,7 +255,7 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
 
         vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "Analysis script: '%s'", fname.c_str());
 
-        auto pipeline = vtkInSituInitializationHelper::AddPipeline(fname);
+        auto pipeline = vtkInSituInitializationHelper::AddPipeline(script.name(), fname);
 
         // check for optional 'args'
         if (script.has_path("args"))
@@ -326,6 +301,7 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
     {
       if (auto p = create_precompiled_pipeline(pipelines.child(i)))
       {
+        p->SetName(pipelines.child(i).name().c_str());
         vtkInSituInitializationHelper::AddPipeline(p);
       }
     }
@@ -338,16 +314,6 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
       "No Catalyst Python scripts or pre-compiled pipelines specified. No "
       "analysis pipelines will be executed.");
   }
-
-#if VTK_MODULE_ENABLE_VTK_IOFides
-  // For the ADIOS Inline engine, the reader proxy must be created before simulation
-  // steps can start
-  if (cpp_params.has_path("catalyst/fides"))
-  {
-    auto& fidesParams = cpp_params["catalyst/fides"];
-    create_producer_fides("fides", fidesParams);
-  }
-#endif
 
   return catalyst_status_ok;
 }
@@ -470,6 +436,13 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
         vtkLogF(ERROR, "Fides mesh is not supported by this build. Rebuild with Fides enabled.");
 #endif
       }
+      else if (type == "amrmesh")
+      {
+        is_valid = true;
+        vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(),
+          "amrmesh mesh detected for channel (%s); validation will be skipped for now",
+          channel_name.c_str());
+      }
       else
       {
         is_valid = false;
@@ -488,7 +461,7 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
       fields["timestep"].set(channel_timestep);
       fields["cycle"].set(channel_timestep);
       fields["channel"].set(channel_name);
-      if (type == "mesh" || type == "multimesh")
+      if (type == "mesh" || type == "multimesh" || type == "amrmesh")
       {
         conduit_node* assembly = nullptr;
         if (channel_node.has_path("assembly"))
@@ -498,7 +471,7 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
         }
         update_producer_mesh_blueprint(channel_name, conduit_cpp::c_node(&data_node),
           conduit_cpp::c_node(&fields), type == "multimesh", assembly,
-          channel_output_multiblock != 0);
+          channel_output_multiblock != 0, type == "amrmesh");
       }
       else if (type == "ioss")
       {
@@ -506,7 +479,15 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
       }
       else if (type == "fides")
       {
-        update_producer_fides(channel_name, time);
+        update_producer_fides(channel_name, cpp_params["catalyst/fides"], time);
+      }
+
+      // Set in situ mode. Temporal filters are notified that they don't have the whole time
+      // series up front
+      auto producer = vtkInSituInitializationHelper::GetProducer(channel_name);
+      if (auto algo = vtkAlgorithm::SafeDownCast(producer->GetClientSideObject()))
+      {
+        algo->SetNoPriorTemporalAccessInformationKey();
       }
     }
   }
@@ -527,7 +508,17 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
       parameters.push_back(state_parameters.child(i).as_string());
     }
   }
-  vtkInSituInitializationHelper::ExecutePipelines(timestep, time, parameters);
+
+  if (root.has_path("state/pipelines"))
+  {
+    const auto state_pipelines = root["state/pipelines"];
+    vtkInSituInitializationHelper::ExecutePipelines(
+      timestep, time, conduit_cpp::c_node(&state_pipelines), parameters);
+  }
+  else
+  {
+    vtkInSituInitializationHelper::ExecutePipelines(timestep, time, nullptr, parameters);
+  }
 
   return catalyst_status_ok;
 }

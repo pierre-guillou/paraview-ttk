@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationVector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationVector.h"
 
 #include "vtkGarbageCollector.h"
@@ -20,6 +8,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInformationVector);
 
 class vtkInformationVectorInternals
@@ -195,7 +184,7 @@ void vtkInformationVector::Remove(int i)
 }
 
 //------------------------------------------------------------------------------
-void vtkInformationVector::Copy(vtkInformationVector* from, int deep)
+void vtkInformationVector::Copy(vtkInformationVector* from, vtkTypeBool deep)
 {
   // if deep we can reuse existing info objects
   if (deep)
@@ -227,3 +216,4 @@ void vtkInformationVector::ReportReferences(vtkGarbageCollector* collector)
     vtkGarbageCollectorReport(collector, this->Internal->Vector[i], "Entry");
   }
 }
+VTK_ABI_NAMESPACE_END

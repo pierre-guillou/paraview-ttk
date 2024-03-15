@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLParser.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLParser.h"
 #include "vtkObjectFactory.h"
 #include "vtk_expat.h"
@@ -21,6 +9,7 @@
 
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLParser);
 
 //------------------------------------------------------------------------------
@@ -410,6 +399,22 @@ int vtkXMLParser::IsSpace(char c)
 }
 
 //------------------------------------------------------------------------------
+bool vtkXMLParser::hasLargeOffsets()
+{
+  // see if expat is configured correctly to use `long long` for file offsets
+  // on Windows, this is necessary for binary xml files > 2Gb.
+  const XML_Feature* xmlFeature = XML_GetFeatureList();
+  for (; xmlFeature && xmlFeature->feature != XML_FEATURE_END; xmlFeature++)
+  {
+    if (xmlFeature->feature == XML_FEATURE_LARGE_SIZE)
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
 void vtkXMLParserStartElement(void* parser, const char* name, const char** atts)
 {
   // Begin element handler that is registered with the XML_Parser.
@@ -425,3 +430,4 @@ void vtkXMLParserEndElement(void* parser, const char* name)
   // just casts the user data to a vtkXMLParser and calls EndElement.
   static_cast<vtkXMLParser*>(parser)->EndElement(name);
 }
+VTK_ABI_NAMESPACE_END

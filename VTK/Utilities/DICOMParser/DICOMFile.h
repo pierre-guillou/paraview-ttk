@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMFile.h
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifndef __DICOMFILE_H_
 #define __DICOMFILE_H_
 
@@ -38,6 +24,7 @@
 // This should probably be cleaned up so that it
 // can be used to abstract a stream.
 //
+VTK_ABI_NAMESPACE_BEGIN
 class DICOM_EXPORT DICOMFile
 {
 public:
@@ -238,4 +225,5 @@ private:
 #pragma warning(pop)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif // __DICOMFILE_H_

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBiDimensionalRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBiDimensionalRepresentation
  * @brief   represent the vtkBiDimensionalWidget
@@ -24,7 +12,7 @@
  * the four points are referred to as Point1, Point2, Point3 and
  * Point4. Point1 and Point2 define the first line; and Point3 and Point4
  * define the second orthogonal line.) This particular class is an abstract
- * class, contrete subclasses (e.g., vtkBiDimensionalRepresentation2D) actual
+ * class, concrete subclasses (e.g., vtkBiDimensionalRepresentation2D) actual
  * implement the widget.
  *
  * To create this widget, you click to place the first two points. The third
@@ -46,6 +34,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHandleRepresentation;
 
 class VTKINTERACTIONWIDGETS_EXPORT vtkBiDimensionalRepresentation : public vtkWidgetRepresentation
@@ -263,4 +252,5 @@ private:
   void operator=(const vtkBiDimensionalRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitSelectionLoop.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitSelectionLoop.h"
 
 #include "vtkDoubleArray.h"
@@ -22,6 +10,7 @@
 #include "vtkPoints.h"
 #include "vtkPolygon.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitSelectionLoop);
 vtkCxxSetObjectMacro(vtkImplicitSelectionLoop, Loop, vtkPoints);
 
@@ -208,3 +197,4 @@ void vtkImplicitSelectionLoop::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Normal: (" << this->Normal[0] << ", " << this->Normal[1] << ", "
      << this->Normal[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

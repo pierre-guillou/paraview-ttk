@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqFindDataSelectionDisplayFrame.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqFindDataSelectionDisplayFrame.h"
 #include "ui_pqFindDataSelectionDisplayFrame.h"
 
@@ -79,7 +51,9 @@ public:
     this->PointLabelsMenu.setObjectName("PointLabelsMenu");
 
     this->Ui.setupUi(self);
-    this->Ui.mainLayout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->Ui.mainLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->Ui.mainLayout->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
 
     this->Ui.cellLabelsButton->setMenu(&this->CellLabelsMenu);
@@ -165,7 +139,7 @@ public:
     vtkPVDataSetAttributesInformation* attrInfo = this->attributeInformation(fieldAssociation);
     if (!attrInfo)
     {
-      menu.addAction("(not available)");
+      menu.addAction(QString("(%1)").arg(tr("not available")));
       return;
     }
 
@@ -183,7 +157,7 @@ public:
       // from the selection ;).
       if (arrayInfo->GetIsPartial())
       {
-        QAction* action = menu.addAction(QString("%1 (partial)").arg(arrayInfo->GetName()));
+        QAction* action = menu.addAction(tr("%1 (partial)").arg(arrayInfo->GetName()));
         action->setData(arrayInfo->GetName());
       }
       else
@@ -246,7 +220,7 @@ public:
       (fieldAssociation == vtkDataObject::FIELD_ASSOCIATION_CELLS) ? "CellLabelVisibility"
                                                                    : "PointLabelVisibility";
 
-    BEGIN_UNDO_SET("Change labels");
+    BEGIN_UNDO_SET(QCoreApplication::translate("pqFindDataSelectionDisplayFrame", "Change labels"));
     {
       SM_SCOPED_TRACE(PropertiesModified).arg("proxy", selectionProxy);
       if (action->isChecked())
@@ -421,9 +395,9 @@ void pqFindDataSelectionDisplayFrame::editLabelPropertiesInteractiveSelection()
              << "PointLabelOpacity"
              << "PointLabelShadow";
 
-  BEGIN_UNDO_SET("Interactive selection label properties");
+  BEGIN_UNDO_SET(tr("Interactive selection label properties"));
   pqProxyWidgetDialog dialog(proxyISelectionRepresentation, properties, this);
-  dialog.setWindowTitle("Interactive Selection Label Properties");
+  dialog.setWindowTitle(tr("Interactive Selection Label Properties"));
   this->Internals->View->connect(&dialog, SIGNAL(accepted()), SLOT(render()));
   dialog.exec();
   END_UNDO_SET();
@@ -459,9 +433,9 @@ void pqFindDataSelectionDisplayFrame::editLabelPropertiesSelection()
              << "SelectionPointLabelOpacity"
              << "SelectionPointLabelShadow";
 
-  BEGIN_UNDO_SET("Change selection display properties");
+  BEGIN_UNDO_SET(tr("Change selection display properties"));
   pqProxyWidgetDialog dialog(repr->getProxy(), properties, this);
-  dialog.setWindowTitle("Selection Label Properties");
+  dialog.setWindowTitle(tr("Selection Label Properties"));
   this->Internals->View->connect(&dialog, SIGNAL(accepted()), SLOT(render()));
   dialog.exec();
   this->updateInteractiveSelectionLabelProperties();

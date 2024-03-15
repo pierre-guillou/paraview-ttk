@@ -268,8 +268,6 @@
         <EnumerationDomain name="enum">
           <Entry text="Sequence"
                  value="0" />
-          <Entry text="Real Time"
-                 value="1" />
           <Entry text="Snap To TimeSteps"
                  value="2" />
         </EnumerationDomain>
@@ -282,13 +280,6 @@
                         name="range" />
         <Documentation>Set the number of frames in which to play the
         animation.</Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetDuration"
-                         default_values="10"
-                         name="Duration"
-                         number_of_elements="1">
-        <Documentation>Set the duration for playing the animation in
-        seconds.</Documentation>
       </IntVectorProperty>
       <IntVectorProperty command="SetFramesPerTimestep"
                          default_values="1"
@@ -523,7 +514,7 @@
   </ProxyGroup>
   <!-- ==================================================================== -->
   <ProxyGroup name="animation_writers">
-    <Proxy name="JPEG" class="vtkJPEGWriter" process="client"
+    <Proxy name="JPEG" class="vtkJPEGWriter" process="client,dataserver"
       base_proxygroup="screenshot_writers"
       base_proxyname="JPEG">
       <StringVectorProperty name="SuffixFormat"
@@ -535,7 +526,7 @@
         </Documentation>
       </StringVectorProperty>
     </Proxy>
-    <Proxy name="PNG" class="vtkPNGWriter" process="client"
+    <Proxy name="PNG" class="vtkPNGWriter" process="client,dataserver"
       base_proxygroup="screenshot_writers"
       base_proxyname="PNG">
       <StringVectorProperty name="SuffixFormat"
@@ -547,7 +538,7 @@
         </Documentation>
       </StringVectorProperty>
     </Proxy>
-    <Proxy name="TIFF" class="vtkTIFFWriter" process="client"
+    <Proxy name="TIFF" class="vtkTIFFWriter" process="client,dataserver"
       base_proxygroup="screenshot_writers"
       base_proxyname="TIFF">
       <StringVectorProperty name="SuffixFormat"
@@ -559,7 +550,7 @@
         </Documentation>
       </StringVectorProperty>
     </Proxy>
-    <Proxy name="BMP" class="vtkBMPWriter" process="client"
+    <Proxy name="BMP" class="vtkBMPWriter" process="client,dataserver"
       base_proxygroup="screenshot_writers"
       base_proxyname="BMP">
       <StringVectorProperty name="SuffixFormat"

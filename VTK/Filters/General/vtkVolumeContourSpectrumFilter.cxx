@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeContourSpectrumFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkVolumeContourSpectrumFilter.h"
 
@@ -29,6 +17,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkVariantArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVolumeContourSpectrumFilter);
 
 //------------------------------------------------------------------------------
@@ -190,6 +179,10 @@ int vtkVolumeContourSpectrumFilter::RequestData(vtkInformation* vtkNotUsed(reque
              max = scalarField->GetComponent(vertexIds[vertexIds.size() - 1], 0);
       for (unsigned int i = 0; i < vertexIds.size(); i++)
       {
+        if (this->CheckAbort())
+        {
+          break;
+        }
         scalarValues[i] = scalarField->GetComponent(vertexIds[i], 0);
 
         vtkIdList* starTetrahedronList = vtkIdList::New();
@@ -304,3 +297,4 @@ int vtkVolumeContourSpectrumFilter::RequestData(vtkInformation* vtkNotUsed(reque
   }
   return 0;
 }
+VTK_ABI_NAMESPACE_END

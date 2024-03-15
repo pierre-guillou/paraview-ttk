@@ -1,39 +1,18 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqCopyReaction_h
 #define pqCopyReaction_h
 
 #include "pqReaction.h"
 
+#include <QMap>
+#include <QPointer>
+#include <QSet>
+
+#include <iostream>
+
+class pqProxy;
 class vtkSMProxy;
 /**
  * @ingroup Reactions
@@ -45,7 +24,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqCopyReaction : public pqReaction
   typedef pqReaction Superclass;
 
 public:
-  pqCopyReaction(QAction* parent, bool paste_mode = false);
+  pqCopyReaction(QAction* parent, bool paste_mode = false, bool pipeline_mode = false);
   ~pqCopyReaction() override;
 
   /**
@@ -56,6 +35,10 @@ public:
 
   static void copy();
   static void paste();
+  static void copyPipeline();
+  static void pastePipeline();
+  static pqProxy* getSelectedPipelineRoot();
+  static bool canPastePipeline();
 
 public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
@@ -63,22 +46,58 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
    */
   void updateEnableState() override;
 
+Q_SIGNALS:
+  void pipelineCopied();
+
 protected:
   /**
    * Called when the action is triggered.
    */
   void onTriggered() override
   {
-    if (this->Paste)
+    if (this->Paste && !this->CreatePipeline)
     {
       pqCopyReaction::paste();
     }
-    else
+    else if (this->Paste && this->CreatePipeline)
+    {
+      this->pastePipeline();
+    }
+    else if (!this->Paste && !this->CreatePipeline)
     {
       pqCopyReaction::copy();
     }
+    else
+    {
+      this->copyPipeline();
+      Q_EMIT this->pipelineCopied();
+    }
   }
   bool Paste;
+  bool CreatePipeline;
+
+  ///@{
+  /**
+   * Used for copy/paste pipeline. pqApplicationCore::registerManager() requires
+   * a QObject, but we need to track potentially multiple pipeline sources.
+   * Also using QPointer, so that way if any pqPipelineSource in this selection
+   * is deleted between Copy Pipeline and Paste Pipeline, we will be able to easily
+   * determine this.
+   */
+  static QSet<QPointer<pqProxy>> FilterSelection;
+  static pqProxy* SelectionRoot;
+  ///@}
+
+  ///@{
+  /**
+   * Containers storing all instances of pipeline paster / copier.
+   * They enable to trigger `updateEnableState` of pasters once a pipeline
+   * has been copied in the clipboard.
+   */
+  static QSet<pqCopyReaction*> PastePipelineContainer;
+  static QSet<pqCopyReaction*> CopyPipelineContainer;
+  static QMap<pqProxy*, QMetaObject::Connection> SelectedProxyConnections;
+  ///@}
 
 private:
   Q_DISABLE_COPY(pqCopyReaction)

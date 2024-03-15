@@ -1,19 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractContextItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAbstractContextItem.h"
+#include "vtkContext2D.h"
+#include "vtkContext3D.h"
+#include "vtkContextDevice2D.h"
+#include "vtkContextDevice3D.h"
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScenePrivate.h"
 #include "vtkObjectFactory.h"
@@ -22,6 +14,7 @@
 #include <algorithm>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractContextItem::vtkAbstractContextItem()
 {
   this->Scene = nullptr;
@@ -257,6 +250,31 @@ void vtkAbstractContextItem::ReleaseGraphicsResources()
   {
     (*it)->ReleaseGraphicsResources();
   }
+  if (!this->Scene)
+  {
+    return;
+  }
+  this->ReleaseGraphicsCache();
+}
+
+//------------------------------------------------------------------------------
+void vtkAbstractContextItem::ReleaseGraphicsCache()
+{
+  // Remove our cache from 2D and 3D devices.
+  if (auto lastPainter = this->Scene->GetLastPainter())
+  {
+    if (auto device2d = lastPainter->GetDevice())
+    {
+      device2d->ReleaseCache(reinterpret_cast<std::uintptr_t>(this));
+    }
+    if (auto ctx3D = lastPainter->GetContext3D())
+    {
+      if (auto device3D = ctx3D->GetDevice())
+      {
+        device3D->ReleaseCache(reinterpret_cast<std::uintptr_t>(this));
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -319,3 +337,4 @@ void vtkAbstractContextItem::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

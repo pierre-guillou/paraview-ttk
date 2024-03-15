@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAnnotationLayersAlgorithm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAnnotationLayersAlgorithm.h"
 
 #include "vtkAnnotationLayers.h"
@@ -21,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAnnotationLayersAlgorithm);
 
 //------------------------------------------------------------------------------
@@ -49,6 +38,11 @@ vtkTypeBool vtkAnnotationLayersAlgorithm::ProcessRequest(
   if (request->Has(vtkDemandDrivenPipeline::REQUEST_DATA()))
   {
     return this->RequestData(request, inputVector, outputVector);
+  }
+
+  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
   }
 
   if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
@@ -120,6 +114,13 @@ int vtkAnnotationLayersAlgorithm::RequestUpdateExtent(vtkInformation* vtkNotUsed
 }
 
 //------------------------------------------------------------------------------
+int vtkAnnotationLayersAlgorithm::RequestUpdateTime(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+{
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 // This is the superclasses style of Execute method.  Convert it into
 // an imaging style Execute method.
 int vtkAnnotationLayersAlgorithm::RequestData(vtkInformation* vtkNotUsed(request),
@@ -127,3 +128,4 @@ int vtkAnnotationLayersAlgorithm::RequestData(vtkInformation* vtkNotUsed(request
 {
   return 0;
 }
+VTK_ABI_NAMESPACE_END

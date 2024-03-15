@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkTypeTraits.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTypeTraits
  * @brief   Template defining traits of native types used by VTK.
@@ -26,6 +15,7 @@
 #include "vtkSystemIncludes.h"
 
 // Forward-declare template.  There is no primary template.
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 struct vtkTypeTraits;
 
@@ -153,5 +143,6 @@ VTK_TYPE_TRAITS(unsigned long long, UNSIGNED_LONG_LONG, 0, UInt64, unsigned long
 
 #undef VTK_TYPE_TRAITS
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkTypeTraits.h

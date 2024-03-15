@@ -1,10 +1,12 @@
 # Force some VTK options for wheels.
-set(VTK_PYTHON_VERSION 3)
 set(VTK_BUILD_TESTING OFF)
 set(VTK_LEGACY_SILENT ON)
 set(VTK_ENABLE_WRAPPING ON)
 set(VTK_WRAP_PYTHON ON)
 set(Python3_ARTIFACTS_INTERACTIVE ON)
+# Disable the PythonInterpreter module; there's not much use for it within a
+# Python wheel as the interpreter should be managed externally.
+set(VTK_MODULE_ENABLE_VTK_PythonInterpreter NO)
 
 if (UNIX AND NOT APPLE)
   # On Linux, prefer Legacy OpenGL library. We will revisit
@@ -18,6 +20,13 @@ endif ()
 find_package(Python3 COMPONENTS Interpreter Development.Module)
 set_property(GLOBAL PROPERTY _vtk_python_soabi "${Python3_SOABI}")
 
+set(VTK_VERSION_SUFFIX "dev0"
+  CACHE STRING "Suffix to use for the wheel version (e.g, 'dev0')")
+mark_as_advanced(VTK_VERSION_SUFFIX)
+set(VTK_DIST_NAME_SUFFIX ""
+  CACHE STRING "Suffix to use for the wheel distribution name (e.g., 'osmesa')")
+mark_as_advanced(VTK_DIST_NAME_SUFFIX)
+
 execute_process(
   COMMAND "${Python3_EXECUTABLE}"
           "${CMAKE_CURRENT_LIST_DIR}/wheel_extract_platlib.py"
@@ -29,6 +38,9 @@ execute_process(
 if (res)
   message(FATAL_ERROR
     "Failed to determine the platform build directory: ${err}")
+elseif (err)
+  message(AUTHOR_WARNING
+    "Platform build directory warning: ${err}")
 endif ()
 
 set(wheel_data_dir
@@ -49,11 +61,9 @@ set(vtk_hierarchy_destination_args
   HIERARCHY_DESTINATION "${wheel_data_dir}/headers/hierarchy")
 set(setup_py_build_dir
   "${build_platlib}")
-# Required for Windows DLL placement.
+# Required for shared library placement.
 if (WIN32)
-  set(CMAKE_INSTALL_BINDIR
-    # Must correlate with `vtk_module_wrap_python(PYTHON_PACKAGE)` argument
-    "${setup_py_build_dir}/vtkmodules")
+  # Defaults are fine; handled by `delvewheel`.
 elseif (APPLE)
   set(CMAKE_INSTALL_LIBDIR
     # Store libraries in a subdirectory here.

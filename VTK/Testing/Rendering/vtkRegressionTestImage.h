@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRegressionTestImage.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkRegressionTestImage_h
 #define vtkRegressionTestImage_h
 
@@ -21,6 +9,7 @@
 
 #include "vtkTesting.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRegressionTester : public vtkTesting
 {
 protected:
@@ -39,5 +28,20 @@ private:
 
 #define vtkRegressionTestImageThreshold(rw, t) vtkTesting::Test(argc, argv, rw, t)
 
+#define vtkRegressionTestPassForMesaLessThan(rw, major, minor, patch)                              \
+  do                                                                                               \
+  {                                                                                                \
+    int mesaVersion[3] = {};                                                                       \
+    if (vtkTesting::GetMesaVersion(rw, mesaVersion))                                               \
+    {                                                                                              \
+      if (mesaVersion[0] < major || (mesaVersion[0] == major && mesaVersion[1] < minor) ||         \
+        (mesaVersion[0] == major && mesaVersion[1] == minor && mesaVersion[2] < patch))            \
+      {                                                                                            \
+        return EXIT_SUCCESS;                                                                       \
+      }                                                                                            \
+    }                                                                                              \
+  } while (false)
+
+VTK_ABI_NAMESPACE_END
 #endif // vtkRegressionTestImage_h
 // VTK-HeaderTest-Exclude: vtkRegressionTestImage.h

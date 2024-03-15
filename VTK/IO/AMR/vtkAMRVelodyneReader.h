@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRVelodyneReader.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRVelodyneReader
  *
@@ -28,6 +16,7 @@
 #include <unordered_map>    // for std::unordered_map
 #include <vector>           // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformation;
 class vtkInformationVector;
 class vtkOverlappingAMR;
@@ -63,7 +52,7 @@ protected:
   /**
    * See vtkAMRBaseReader::GetBlockLevel
    */
-  int GetBlockLevel(const int blockIdx) override;
+  int GetBlockLevel(int blockIdx) override;
 
   /**
    * See vtkAMRBaseReader::FillMetaData
@@ -73,16 +62,16 @@ protected:
   /**
    * See vtkAMRBaseReader::GetAMRGrid
    */
-  vtkUniformGrid* GetAMRGrid(const int blockIdx) override;
+  vtkUniformGrid* GetAMRGrid(int blockIdx) override;
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
-  void GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field) override;
+  void GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field) override;
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
 
-  void GetAMRGridPointData(const int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
+  void GetAMRGridPointData(int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
     const char* vtkNotUsed(field)) override
   {
   }
@@ -110,4 +99,5 @@ private:
   std::unordered_map<std::string, bool> LoadedHash;
   unsigned int currentIndex;
 };
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellIntegrator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellIntegrator
  * @brief   Calculates length/area/volume of a cell
@@ -46,8 +35,8 @@ public:
   static double Integrate(vtkDataSet* input, vtkIdType cellId);
 
 protected:
-  vtkCellIntegrator(){};
-  ~vtkCellIntegrator() override{};
+  vtkCellIntegrator() = default;
+  ~vtkCellIntegrator() override = default;
 
 private:
   static double IntegratePolyLine(vtkDataSet* input, vtkIdType cellId, vtkIdList* ptIds);

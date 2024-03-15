@@ -73,7 +73,7 @@
       </IntVectorProperty>
     </Proxy>
     <Proxy class="vtkNonMergingPointLocator"
-           label="Don't Merge Points"
+           label="Not Merging Points"
            name="NonMergingPointLocator">
       <Documentation>
         Perform direct / check-free point insertion (any point is
@@ -504,6 +504,12 @@
                          number_of_elements="1">
         <BooleanDomain name="bool"/>
       </IntVectorProperty>
+      <IntVectorProperty command="SetExamplesInSpecialDirectories"
+                         default_values="0"
+                         name="ExamplesInSpecialDirectories"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+      </IntVectorProperty>
       <IntVectorProperty command="SetGroupFileSequences"
                          default_values="1"
                          name="GroupFileSequences"
@@ -598,7 +604,6 @@
            name="EnvironmentInformationHelper">
       <StringVectorProperty command="SetVariable"
                             name="Variable"/>
-      <!-- End of FileInformationHelper -->
     </Proxy>
     <TimeKeeperProxy class="vtkSMTimeKeeper"
                      name="TimeKeeper"
@@ -836,17 +841,35 @@
     </Proxy>
 
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkRemoteWriterHelper" name="RemoteWriterHelper" processes="client|dataserver">
+    <WriterProxy class="vtkRemoteWriterHelper" name="RemoteWriterHelper" processes="client|dataserver">
       <Documentation>
         Proxy used internally to help write data generated on the client-side on the data-server side.
       </Documentation>
+      <InputProperty name="DummyInput" panel_visibility="never">
+      </InputProperty>
       <IntVectorProperty name="OutputDestination"
                          command="SetOutputDestination"
                          number_of_elements="1"
                          default_values="0"
                          panel_visibility="never"/>
+      <IntVectorProperty name="State"
+                         command="SetState"
+                         number_of_elements="1"
+                         default_values="1"
+                         panel_visibility="never"/>
+      <IntVectorProperty name="TryWritingInBackground"
+                         command="SetTryWritingInBackground"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="never">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Turns ON/OFF writing files in the background when possible.
+          This is typically the case for writing screenshots.
+        </Documentation>
+      </IntVectorProperty>
       <ProxyProperty name="Writer" command="SetWriter"/>
-    </SourceProxy>
+    </WriterProxy>
 
     <!-- ================================================================= -->
     <Proxy name="MultiBlockInspectorHelper">
@@ -859,8 +882,7 @@
       <InputProperty name="Input"/>
 
       <StringVectorProperty name="Assembly"
-                            number_of_elements="1"
-                            default_values="Hierarchy">
+                            number_of_elements="1">
         <DataAssemblyListDomain name="data_assembly_list">
           <RequiredProperties>
             <Property function="Input" name="Input"/>
@@ -979,8 +1001,7 @@
       </IntVectorProperty>
 
       <StringVectorProperty name="Assembly"
-                            number_of_elements="1"
-                            default_values="Hierarchy">
+                            number_of_elements="1">
         <DataAssemblyListDomain name="data_assembly">
           <RequiredProperties>
             <Property function="Input" name="Input"/>
@@ -1105,6 +1126,31 @@
 
     <!-- ================================================================= -->
     <Proxy label="Warm Gray Background" name="WarmGrayBackground">
+      <DoubleVectorProperty default_values="1.0 1.0 1.0"
+                            name="ForegroundColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <DoubleVectorProperty default_values="0.384313725 0.364705882 0.352941176"
+                            name="BackgroundColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <DoubleVectorProperty default_values="1.0 1.0 1.0"
+                            name="SurfaceColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <DoubleVectorProperty default_values="1.0 1.0 1.0"
+                            name="TextAnnotationColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <DoubleVectorProperty default_values="1.0 0.0 1.0"
+                            name="SelectionColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <DoubleVectorProperty default_values="0.0 0.0 0.5"
+                            name="EdgeColor"
+                            number_of_elements="3"></DoubleVectorProperty>
+      <IntVectorProperty default_values="0"
+                         name="BackgroundColorMode"
+                         number_of_elements="1"></IntVectorProperty>
+    </Proxy>
+
+    <!-- ================================================================= -->
+    <Proxy label="Dark Gray Background" name="DarkGrayBackground">
       <DoubleVectorProperty default_values="1.0 1.0 1.0"
                             name="ForegroundColor"
                             number_of_elements="3"></DoubleVectorProperty>
@@ -1950,15 +1996,15 @@
         Options proxy used to prompt user for tracing options when starting trace.
       </Documentation>
       <IntVectorProperty name="PropertiesToTraceOnCreate"
-                         default_values="1"
+                         default_values="2"
                          number_of_elements="1">
         <Documentation>
           Select which properties to save in trace
         </Documentation>
         <EnumerationDomain name="enum">
-          <Entry text="all properties" value="0"/>
-          <Entry text="any *modified* properties" value="1"/>
-          <Entry text="only *user-modified* properites" value="2"/>
+          <Entry text="All Properties" value="0"/>
+          <Entry text="Any *Modified* Properties" value="1"/>
+          <Entry text="Only *User-Modified* Properties" value="2"/>
         </EnumerationDomain>
       </IntVectorProperty>
 

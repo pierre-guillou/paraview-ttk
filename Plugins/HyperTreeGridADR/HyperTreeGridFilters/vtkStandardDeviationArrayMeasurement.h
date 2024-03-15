@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStandardDeviationArrayMeasurement.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkStandardDeviationArrayMeasurement
@@ -43,13 +32,13 @@ public:
   using Superclass::CanMeasure;
   using Superclass::Measure;
 
-  //@{
+  ///@{
   /**
    * Indexes of identity / squared accumulators in the accumulator array.
    */
   static constexpr std::size_t IdentityId = 0;
   static constexpr std::size_t SquaredId = 1;
-  //@}
+  ///@}
 
   /**
    * Minimum times the function Add should be called on accumulators or this class
@@ -98,7 +87,7 @@ public:
   bool Measure(vtkAbstractAccumulator** accumulators, vtkIdType numberOfAccumulatedData,
     double totalWeight, double& value) override;
 
-  //@{
+  ///@{
   /**
    * See the vtkAbstractArrayMeasurement API for description of this method.
    */
@@ -106,16 +95,16 @@ public:
   std::vector<vtkAbstractAccumulator*> NewAccumulatorInstances() const override;
   vtkIdType GetMinimumNumberOfAccumulatedData() const override;
   vtkIdType GetNumberOfAccumulators() const override;
-  //@}
+  ///@}
 
 protected:
-  //@{
+  ///@{
   /**
    * Default constructor and destructor
    */
   vtkStandardDeviationArrayMeasurement();
   ~vtkStandardDeviationArrayMeasurement() override = default;
-  //@}
+  ///@}
 
 private:
   vtkStandardDeviationArrayMeasurement(const vtkStandardDeviationArrayMeasurement&) = delete;

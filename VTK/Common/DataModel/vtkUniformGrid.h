@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUniformGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformGrid
  * @brief   image data with blanking
@@ -26,6 +14,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkImageData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkEmptyCell;
 class vtkStructuredVisibilityConstraint;
 class vtkUnsignedCharArray;
@@ -131,8 +120,8 @@ public:
    */
   virtual void BlankPoint(vtkIdType ptId);
   virtual void UnBlankPoint(vtkIdType ptId);
-  virtual void BlankPoint(const int i, const int j, const int k);
-  virtual void UnBlankPoint(const int i, const int j, const int k);
+  virtual void BlankPoint(int i, int j, int k);
+  virtual void UnBlankPoint(int i, int j, int k);
   ///@}
 
   ///@{
@@ -144,8 +133,8 @@ public:
    */
   virtual void BlankCell(vtkIdType ptId);
   virtual void UnBlankCell(vtkIdType ptId);
-  virtual void BlankCell(const int i, const int j, const int k);
-  virtual void UnBlankCell(const int i, const int j, const int k);
+  virtual void BlankCell(int i, int j, int k);
+  virtual void UnBlankCell(int i, int j, int k);
   ///@}
 
   /**
@@ -173,7 +162,7 @@ public:
    */
   virtual unsigned char IsCellVisible(vtkIdType cellId);
 
-  virtual vtkImageData* NewImageDataCopy();
+  virtual VTK_NEWINSTANCE vtkImageData* NewImageDataCopy();
 
   ///@{
   /**
@@ -208,4 +197,5 @@ private:
   static unsigned char MASKED_CELL_VALUE;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

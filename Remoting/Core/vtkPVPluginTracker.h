@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPluginTracker.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVPluginTracker
  * @brief   a global manager for each processes to keep track
@@ -75,7 +63,7 @@ public:
    */
   unsigned int RegisterAvailablePlugin(const char* filename);
 
-  //@{
+  ///@{
   /**
    * Called to load application-specific configuration xml. The xml is of the
    * form:
@@ -96,7 +84,7 @@ public:
   void LoadPluginConfigurationXML(const char* filename, bool forceLoad = false);
   void LoadPluginConfigurationXML(vtkPVXMLElement*, bool forceLoad = false);
   void LoadPluginConfigurationXMLFromString(const char* xmlcontents, bool forceLoad = false);
-  //@}
+  ///@}
 
   /**
    * Methods to iterate over registered plugins.
@@ -110,7 +98,7 @@ public:
    */
   vtkPVPlugin* GetPlugin(unsigned int index);
 
-  //@{
+  ///@{
   /**
    * This is provided for wrapped languages since they can't directly access the
    * vtkPVPlugin instance.
@@ -119,15 +107,15 @@ public:
   const char* GetPluginFileName(unsigned int index);
   bool GetPluginLoaded(unsigned int index);
   bool GetPluginAutoLoad(unsigned int index);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the function used to load static plugins.
    */
   static void RegisterStaticPluginSearchFunction(vtkPluginSearchFunction function);
   static void RegisterStaticPluginListFunction(vtkPluginListFunction function);
-  //@}
+  ///@}
 
   enum
   {

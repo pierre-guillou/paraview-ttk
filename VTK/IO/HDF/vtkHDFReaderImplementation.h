@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHDFReaderImplementation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHDFReaderImplementation
  * @brief   Implementation class for vtkHDFReader
@@ -28,6 +16,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataArray;
 class vtkStringArray;
@@ -64,9 +53,15 @@ public:
   template <typename T>
   bool GetAttribute(const char* attributeName, size_t numberOfElements, T* value);
   /**
-   * Returns the number of partitions for this dataset.
+   * Reads an attribute from the group passed to it
    */
-  int GetNumberOfPieces() { return this->NumberOfPieces; }
+  template <typename T>
+  bool GetAttribute(hid_t group, const char* attributeName, size_t numberOfElements, T* value);
+  /**
+   * Returns the number of partitions for this dataset at the time step
+   * `step` if applicable.
+   */
+  int GetNumberOfPieces(vtkIdType step = -1);
   /**
    * For an ImageData, sets the extent for 'partitionIndex'. Returns
    * true for success and false otherwise.
@@ -88,7 +83,7 @@ public:
   vtkDataArray* NewArray(
     int attributeType, const char* name, const std::vector<hsize_t>& fileExtent);
   vtkDataArray* NewArray(int attributeType, const char* name, hsize_t offset, hsize_t size);
-  vtkAbstractArray* NewFieldArray(const char* name);
+  vtkAbstractArray* NewFieldArray(const char* name, vtkIdType offset = -1, vtkIdType size = -1);
   ///@}
 
   ///@{
@@ -99,7 +94,7 @@ public:
    * empty vector.
    */
   vtkDataArray* NewMetadataArray(const char* name, hsize_t offset, hsize_t size);
-  std::vector<vtkIdType> GetMetadata(const char* name, hsize_t size);
+  std::vector<vtkIdType> GetMetadata(const char* name, hsize_t size, hsize_t offset = 0);
   ///@}
   /**
    * Returns the dimensions of a HDF dataset.
@@ -115,6 +110,27 @@ public:
    */
   bool FillAMR(vtkOverlappingAMR* data, unsigned int maximumLevelsToReadByDefault, double origin[3],
     vtkDataArraySelection* dataArraySelection[3]);
+
+  ///@{
+  /**
+   * Read the number of steps from the opened file
+   */
+  std::size_t GetNumberOfSteps();
+  std::size_t GetNumberOfSteps(hid_t group);
+  ///@}
+
+  ///@{
+  /**
+   * Read the values of the steps from the open file
+   */
+  vtkDataArray* GetStepValues();
+  vtkDataArray* GetStepValues(hid_t group);
+  ///@}
+
+  /**
+   * Methods to query for array offsets when steps are present
+   */
+  vtkIdType GetArrayOffset(vtkIdType step, int attributeType, std::string name);
 
 protected:
   /**
@@ -138,7 +154,6 @@ protected:
     }
   };
 
-protected:
   /**
    * Opens the hdf5 dataset given the 'group'
    * and 'name'.
@@ -174,8 +189,8 @@ protected:
    */
   vtkDataArray* NewArrayForGroup(
     hid_t group, const char* name, const std::vector<hsize_t>& fileExtent);
-  vtkDataArray* NewArrayForGroup(hid_t dataset, const hid_t nativeType,
-    const std::vector<hsize_t>& dims, const std::vector<hsize_t>& fileExtent);
+  vtkDataArray* NewArrayForGroup(hid_t dataset, hid_t nativeType, const std::vector<hsize_t>& dims,
+    const std::vector<hsize_t>& fileExtent);
   template <typename T>
   vtkDataArray* NewArray(
     hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents);
@@ -189,7 +204,7 @@ protected:
    */
   void BuildTypeReaderMap();
   /**
-   * Associates a struc of three integers with HDF type. This can be used as
+   * Associates a struct of three integers with HDF type. This can be used as
    * key in a map.
    */
   TypeDescription GetTypeDescription(hid_t type);
@@ -224,12 +239,6 @@ private:
   ///@}
 };
 
-//------------------------------------------------------------------------------
-// explicit template instantiation declaration
-extern template bool vtkHDFReader::Implementation::GetAttribute<int>(
-  const char* attributeName, size_t dim, int* value);
-extern template bool vtkHDFReader::Implementation::GetAttribute<double>(
-  const char* attributeName, size_t dim, double* value);
-
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkHDFReaderImplementation.h

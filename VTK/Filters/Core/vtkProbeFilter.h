@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProbeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProbeFilter
  * @brief   sample data values at specified point locations
@@ -71,9 +59,10 @@
 
 #include <vector> // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractCellLocator;
-class vtkCell;
 class vtkCharArray;
+class vtkGenericCell;
 class vtkIdTypeArray;
 class vtkImageData;
 class vtkPointData;
@@ -267,6 +256,7 @@ protected:
    * Initializes output and various arrays which keep track for probing status.
    */
   virtual void InitializeForProbing(vtkDataSet* input, vtkDataSet* output);
+  virtual void InitializeSourceArrays(vtkDataSet* source);
   virtual void InitializeOutputArrays(vtkPointData* outPD, vtkIdType numPts);
 
   /**
@@ -309,9 +299,9 @@ private:
   // A faster implementation for vtkImageData input.
   void ProbePointsImageData(
     vtkImageData* input, int srcIdx, vtkDataSet* source, vtkImageData* output);
-  void ProbeImagePointsInCell(vtkCell* cell, vtkIdType cellId, vtkDataSet* source, int srcBlockId,
-    const double start[3], const double spacing[3], const int dim[3], vtkPointData* outPD,
-    char* maskArray, double* wtsBuff);
+  void ProbeImagePointsInCell(vtkGenericCell* cell, vtkIdType cellId, vtkDataSet* source,
+    int srcBlockId, const double start[3], const double spacing[3], const int dim[3],
+    vtkPointData* outPD, char* maskArray, double* wtsBuff);
 
   class ProbeImageDataWorklet;
 
@@ -326,7 +316,9 @@ private:
 
   class ProbeEmptyPointsWorklet;
 
-  std::vector<vtkDataArray*> CellArrays;
+  std::vector<vtkDataArray*> InputCellArrays;
+  std::vector<vtkDataArray*> SourceCellArrays;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

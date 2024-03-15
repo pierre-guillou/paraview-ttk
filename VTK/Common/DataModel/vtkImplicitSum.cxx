@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitSum.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitSum.h"
 
 #include "vtkDoubleArray.h"
@@ -20,6 +8,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitSum);
 
 //------------------------------------------------------------------------------
@@ -79,13 +68,12 @@ void vtkImplicitSum::AddFunction(vtkImplicitFunction* f, double scale)
 //------------------------------------------------------------------------------
 void vtkImplicitSum::SetFunctionWeight(vtkImplicitFunction* f, double scale)
 {
-  int loc = this->FunctionList->IsItemPresent(f);
-  if (!loc)
+  int loc = this->FunctionList->IndexOfFirstOccurence(f);
+  if (loc < 0)
   {
     vtkWarningMacro("Function not found in function list");
     return;
   }
-  loc--; // IsItemPresent returns index+1.
 
   if (this->Weights->GetValue(loc) != scale)
   {
@@ -188,3 +176,4 @@ void vtkImplicitSum::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Weights:\n";
   this->Weights->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

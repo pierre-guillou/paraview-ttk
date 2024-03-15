@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDynamicLoader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDynamicLoader.h"
 
 #include "vtkDebugLeaks.h"
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkDynamicLoader* vtkDynamicLoader::New()
 {
   VTK_STANDARD_NEW_BODY(vtkDynamicLoader);
@@ -70,3 +59,4 @@ const char* vtkDynamicLoader::LastError()
 {
   return vtksys::DynamicLoader::LastError();
 }
+VTK_ABI_NAMESPACE_END

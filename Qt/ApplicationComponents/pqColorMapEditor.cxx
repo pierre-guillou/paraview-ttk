@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqColorMapEditor.h"
 #include "ui_pqColorMapEditor.h"
 
@@ -36,6 +8,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqApplicationCore.h"
 #include "pqDataRepresentation.h"
 #include "pqEditScalarBarReaction.h"
+#include "pqPipelineSource.h"
 #include "pqProxyWidget.h"
 #include "pqProxyWidgetDialog.h"
 #include "pqSMAdaptor.h"
@@ -43,13 +16,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSearchBox.h"
 #include "pqSettings.h"
 #include "pqUndoStack.h"
+#include "pqUse2DTransferFunctionReaction.h"
+#include "pqUseSeparateColorMapReaction.h"
+#include "pqUseSeparateOpacityArrayReaction.h"
 
 #include "vtkCommand.h"
 #include "vtkPVArrayInformation.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMCoreUtilities.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
+#include "vtkSMProxy.h"
 #include "vtkSMSettings.h"
 #include "vtkSMTransferFunctionProxy.h"
 #include "vtkWeakPointer.h"
@@ -70,6 +47,9 @@ public:
   QPointer<pqDataRepresentation> ActiveRepresentation;
   QPointer<QAction> ScalarBarVisibilityAction;
   QPointer<QAction> EditScalarBarAction;
+  QPointer<QAction> UseSeparateColorArrayAction;
+  QPointer<QAction> UseSeparateOpacityArrayAction;
+  QPointer<QAction> UseTransfer2DAction;
 
   unsigned long ObserverId;
 
@@ -79,7 +59,7 @@ public:
     this->Ui.setupUi(self);
 
     QVBoxLayout* vbox = new QVBoxLayout(this->Ui.PropertiesFrame);
-    vbox->setMargin(0);
+    vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
   }
 
@@ -105,23 +85,49 @@ pqColorMapEditor::pqColorMapEditor(QWidget* parentObject)
     this->Internals->Ui.AutoUpdate, SIGNAL(clicked(bool)), this, SLOT(setAutoUpdate(bool)));
   QObject::connect(this->Internals->Ui.Update, SIGNAL(clicked()), this, SLOT(renderViews()));
 
-  // Let pqScalarBarVisibilityReaction do the heavy lifting for managing the
-  // show-scalar bar button.
-  QAction* showSBAction = new QAction(this);
+  // Let reactions do the heavy lifting for managing the enabled state of the tool buttons.
+  this->Internals->ScalarBarVisibilityAction = new QAction(this);
   this->Internals->Ui.ShowScalarBar->connect(
-    showSBAction, SIGNAL(toggled(bool)), SLOT(setChecked(bool)));
-  showSBAction->connect(this->Internals->Ui.ShowScalarBar, SIGNAL(clicked()), SLOT(trigger()));
-  new pqScalarBarVisibilityReaction(showSBAction);
-  this->Internals->ScalarBarVisibilityAction = showSBAction;
+    this->Internals->ScalarBarVisibilityAction, SIGNAL(toggled(bool)), SLOT(setChecked(bool)));
+  this->Internals->ScalarBarVisibilityAction->connect(
+    this->Internals->Ui.ShowScalarBar, SIGNAL(clicked()), SLOT(trigger()));
+  new pqScalarBarVisibilityReaction(this->Internals->ScalarBarVisibilityAction);
 
-  QAction* editSBAction = new QAction(this);
-  editSBAction->connect(this->Internals->Ui.EditScalarBar, SIGNAL(clicked()), SLOT(trigger()));
-  new pqEditScalarBarReaction(editSBAction);
-  this->Internals->EditScalarBarAction = editSBAction;
+  this->Internals->EditScalarBarAction = new QAction(this);
+  this->Internals->EditScalarBarAction->connect(
+    this->Internals->Ui.EditScalarBar, SIGNAL(clicked()), SLOT(trigger()));
+  new pqEditScalarBarReaction(this->Internals->EditScalarBarAction);
+
+  this->Internals->UseSeparateColorArrayAction = new QAction(this);
+  this->Internals->UseSeparateColorArrayAction->connect(
+    this->Internals->Ui.UseSeparateColorArray, SIGNAL(clicked()), SLOT(trigger()));
+  QObject::connect(this->Internals->UseSeparateColorArrayAction, &QAction::changed, this,
+    &pqColorMapEditor::updateColorArraySelectorWidgets);
+  this->updateColorArraySelectorWidgets();
+  new pqUseSeparateColorMapReaction(
+    this->Internals->UseSeparateColorArrayAction, this->Internals->Ui.DisplayColorWidget);
+
+  this->Internals->UseSeparateOpacityArrayAction = new QAction(this);
+  this->Internals->UseSeparateOpacityArrayAction->connect(
+    this->Internals->Ui.UseSeparateOpacityArray, SIGNAL(clicked()), SLOT(trigger()));
+  QObject::connect(this->Internals->UseSeparateOpacityArrayAction, &QAction::changed, this,
+    &pqColorMapEditor::updateOpacityArraySelectorWidgets);
+  this->updateOpacityArraySelectorWidgets();
+  new pqUseSeparateOpacityArrayReaction(this->Internals->UseSeparateOpacityArrayAction);
+
+  this->Internals->UseTransfer2DAction = new QAction(this);
+  this->Internals->UseTransfer2DAction->connect(
+    this->Internals->Ui.Use2DTransferFunction, SIGNAL(clicked()), SLOT(trigger()));
+  QObject::connect(this->Internals->UseTransfer2DAction, &QAction::changed, this,
+    &pqColorMapEditor::updateColor2ArraySelectorWidgets);
+  this->updateColor2ArraySelectorWidgets();
+  new pqUse2DTransferFunctionReaction(this->Internals->UseTransfer2DAction);
 
   // update the enable state for the buttons based on the actions.
-  this->connect(showSBAction, SIGNAL(changed()), SLOT(updateScalarBarButtons()));
-  this->connect(editSBAction, SIGNAL(changed()), SLOT(updateScalarBarButtons()));
+  this->connect(
+    this->Internals->ScalarBarVisibilityAction, SIGNAL(changed()), SLOT(updateScalarBarButtons()));
+  this->connect(
+    this->Internals->EditScalarBarAction, SIGNAL(changed()), SLOT(updateScalarBarButtons()));
   this->updateScalarBarButtons();
 
   pqActiveObjects* activeObjects = &pqActiveObjects::instance();
@@ -169,28 +175,43 @@ void pqColorMapEditor::updateActive()
 
   this->setDataRepresentation(repr);
 
-  QString arrayNameLabel("Array Name: ");
-
   // Set the current LUT proxy to edit.
-  if (repr && vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr->getProxy()))
+  if (repr && vtkSMColorMapEditorHelper::GetUsingScalarColoring(repr->getProxy()))
   {
-    this->setColorTransferFunction(
-      vtkSMPropertyHelper(repr->getProxy(), "LookupTable", true).GetAsProxy());
-
-    vtkPVArrayInformation* arrayInfo =
-      vtkSMPVRepresentationProxy::GetArrayInformationForColorArray(repr->getProxy());
-    if (arrayInfo)
+    vtkSMProxy* lutProxy = vtkSMPropertyHelper(repr->getProxy(), "LookupTable", true).GetAsProxy();
+    if (lutProxy)
     {
-      arrayNameLabel.append(arrayInfo->GetName());
+      // setup property links with the representation.
+      if (vtkSMProperty* useTF2DProperty = repr->getProxy()->GetProperty("UseTransfer2D"))
+      {
+        useTF2DProperty->AddLinkedProperty(lutProxy->GetProperty("Using2DTransferFunction"));
+      }
+      else
+      {
+        vtkSMPropertyHelper(lutProxy, "Using2DTransferFunction").Set(0);
+      }
+      if (vtkSMProperty* useSepOpacityProperty =
+            repr->getProxy()->GetProperty("UseSeparateOpacityArray"))
+      {
+        useSepOpacityProperty->AddLinkedProperty(
+          lutProxy->GetProperty("UsingSeparateOpacityArray"));
+      }
+      else
+      {
+        vtkSMPropertyHelper(lutProxy, "UsingSeparateOpacityArray").Set(0);
+      }
     }
+    else if (lutProxy != nullptr)
+    {
+      vtkSMPropertyHelper(lutProxy, "Using2DTransferFunction").Set(0);
+      vtkSMPropertyHelper(lutProxy, "UsingSeparateOpacityArray").Set(0);
+    }
+    this->setColorTransferFunction(lutProxy);
   }
   else
   {
     this->setColorTransferFunction(nullptr);
-    arrayNameLabel.append("<none>");
   }
-
-  this->Internals->Ui.ArrayLabel->setText(arrayNameLabel);
 }
 
 //-----------------------------------------------------------------------------
@@ -220,6 +241,9 @@ void pqColorMapEditor::setDataRepresentation(pqDataRepresentation* repr)
     this->Internals->ObserverId = repr->getProxy()->AddObserver(
       vtkCommand::PropertyModifiedEvent, this, &pqColorMapEditor::updateActive);
   }
+  this->Internals->Ui.DisplayColorWidget->setRepresentation(repr);
+  this->Internals->Ui.DisplayOpacityWidget->setRepresentation(repr);
+  this->Internals->Ui.DisplayColor2Widget->setRepresentation(repr);
 }
 
 //-----------------------------------------------------------------------------
@@ -274,11 +298,71 @@ void pqColorMapEditor::updateScalarBarButtons()
 }
 
 //-----------------------------------------------------------------------------
+void pqColorMapEditor::updateColorArraySelectorWidgets()
+{
+  pqInternals& internals = *this->Internals;
+  Ui::ColorMapEditor& ui = internals.Ui;
+
+  bool enabled = internals.UseSeparateColorArrayAction->isEnabled();
+  ui.UseSeparateColorArray->setEnabled(enabled);
+
+  bool checked = internals.UseSeparateColorArrayAction->isChecked();
+  ui.UseSeparateColorArray->setChecked(checked);
+}
+
+//-----------------------------------------------------------------------------
+void pqColorMapEditor::updateColor2ArraySelectorWidgets()
+{
+  pqInternals& internals = *this->Internals;
+  Ui::ColorMapEditor& ui = internals.Ui;
+
+  bool enabled = internals.UseTransfer2DAction->isEnabled();
+  ui.Use2DTransferFunction->setEnabled(enabled);
+
+  bool checked = internals.UseTransfer2DAction->isChecked();
+  ui.Use2DTransferFunction->setChecked(checked);
+
+  ui.Color2Label->setEnabled(checked && enabled);
+  ui.DisplayColor2Widget->setEnabled(checked && enabled);
+
+  if (checked && enabled)
+  {
+    ui.ColorLabel->setText(tr("Color X"));
+  }
+  else
+  {
+    ui.ColorLabel->setText(tr("Color"));
+  }
+}
+
+//-----------------------------------------------------------------------------
+void pqColorMapEditor::updateOpacityArraySelectorWidgets()
+{
+  pqInternals& internals = *this->Internals;
+  Ui::ColorMapEditor& ui = internals.Ui;
+
+  bool enabled = internals.UseSeparateOpacityArrayAction->isEnabled();
+  ui.UseSeparateOpacityArray->setEnabled(enabled);
+
+  bool checked = internals.UseSeparateOpacityArrayAction->isChecked();
+  ui.UseSeparateOpacityArray->setChecked(checked);
+
+  ui.OpacityLabel->setEnabled(checked && enabled);
+  ui.DisplayOpacityWidget->setEnabled(checked && enabled);
+}
+
+//-----------------------------------------------------------------------------
 void pqColorMapEditor::renderViews()
 {
-  if (this->Internals->ActiveRepresentation)
+  const auto source = this->Internals->ActiveRepresentation->getInput();
+  // render all views which display the representation of this pqPipelineSource
+  for (auto& view : source->getViews())
   {
-    this->Internals->ActiveRepresentation->renderViewEventually();
+    const auto representation = source->getRepresentation(view);
+    if (representation && representation->isVisible())
+    {
+      representation->renderViewEventually();
+    }
   }
 }
 
@@ -368,7 +452,7 @@ void pqColorMapEditor::restoreDefaults()
   std::string arrayName =
     vtkSMCoreUtilities::SanitizeName(colorArrayHelper.GetInputArrayNameToProcess());
 
-  BEGIN_UNDO_SET("Reset color map to defaults");
+  BEGIN_UNDO_SET(tr("Reset color map to defaults"));
   if (vtkSMProxy* lutProxy = vtkSMPropertyHelper(proxy, "LookupTable").GetAsProxy())
   {
     // Load array-specific preset, if specified.

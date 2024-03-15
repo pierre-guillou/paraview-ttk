@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqComparativeVisPanel.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqComparativeVisPanel.h"
 #include "ui_pqComparativeVisPanel.h"
 
@@ -52,18 +24,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // ParaView Includes.
 #include "pqActiveObjects.h"
-#include "pqAnimationCue.h"
-#include "pqAnimationKeyFrame.h"
-#include "pqAnimationModel.h"
-#include "pqAnimationTrack.h"
 #include "pqApplicationCore.h"
-#include "pqPipelineSource.h"
 #include "pqPropertyLinks.h"
 #include "pqSMAdaptor.h"
 #include "pqSMProxy.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
-#include "pqSignalAdaptors.h"
 #include "pqTimeKeeper.h"
 #include "pqUndoStack.h"
 #include "pqView.h"
@@ -104,11 +70,14 @@ QString getName(vtkSMProxy* proxy)
     vtkSMProperty* prop = pq_proxy->getProxy()->GetProperty(helper_key.toUtf8().data());
     if (prop)
     {
-      return QString("%1 - %2").arg(pq_proxy->getSMName()).arg(prop->GetXMLLabel());
+      return QString("%1 - %2")
+        .arg(pq_proxy->getSMName())
+        .arg(QApplication::translate("pqComparativeVisPanelNS", prop->GetXMLLabel()));
     }
     return pq_proxy->getSMName();
   }
-  return "<unrecognized-proxy>";
+  return QString("<%1>").arg(
+    QApplication::translate("pqComparativeVisPanelNS", "unrecognized-proxy"));
 }
 
 QString getName(vtkSMProxy* proxy, const char* pname, int index)
@@ -116,7 +85,8 @@ QString getName(vtkSMProxy* proxy, const char* pname, int index)
   vtkSMVectorProperty* smproperty = vtkSMVectorProperty::SafeDownCast(proxy->GetProperty(pname));
   if (!smproperty)
   {
-    return "<unrecognized-property>";
+    return QString("<%1>").arg(
+      QApplication::translate("pqComparativeVisPanelNS", "unrecognized-property"));
   }
 
   unsigned int num_elems = smproperty->GetNumberOfElements();
@@ -127,9 +97,11 @@ QString getName(vtkSMProxy* proxy, const char* pname, int index)
 
   if (num_elems == 1 || index == -1)
   {
-    return smproperty->GetXMLLabel();
+    return QApplication::translate("pqComparativeVisPanelNS", smproperty->GetXMLLabel());
   }
-  return QString("%1 (%2)").arg(smproperty->GetXMLLabel()).arg(index);
+  return QString("%1 (%2)")
+    .arg(QApplication::translate("pqComparativeVisPanelNS", smproperty->GetXMLLabel()))
+    .arg(index);
 }
 
 QTableWidgetItem* newItem(vtkSMProxy* proxy, const char* pname, int index)
@@ -363,13 +335,13 @@ void pqComparativeVisPanel::addParameter()
   if (realProxy)
   {
     BEGIN_UNDO_SET(
-      QString("Add parameter %1 : %2")
+      tr("Add parameter %1 : %2")
         .arg(pqComparativeVisPanelNS::getName(realProxy))
         .arg(pqComparativeVisPanelNS::getName(realProxy, pname.toUtf8().data(), pindex)));
   }
   else
   {
-    BEGIN_UNDO_SET("Add parameter Time");
+    BEGIN_UNDO_SET(tr("Add parameter Time"));
   }
 
   // Add new cue.
@@ -441,7 +413,7 @@ void pqComparativeVisPanel::removeParameter(int index)
   QTableWidgetItem* item = this->Internal->activeParameters->item(index, 0);
   assert(item);
 
-  BEGIN_UNDO_SET("Remove Parameter");
+  BEGIN_UNDO_SET(tr("Remove Parameter"));
 
   vtkSMSessionProxyManager* pxm = this->view()->proxyManager();
   vtkSmartPointer<vtkSMProxy> cue =
@@ -460,98 +432,3 @@ void pqComparativeVisPanel::removeParameter(int index)
 
   this->Internal->View->render();
 }
-
-//-----------------------------------------------------------------------------
-/*
-void pqComparativeVisPanel::setTimeRangeFromSource(vtkSMProxy* source)
-{
-  if (!source || !this->Internal->View)
-    {
-    return;
-    }
-
-  // Get TimeRange property
-  vtkSMDoubleVectorProperty* timeRangeProp = vtkSMDoubleVectorProperty::SafeDownCast(
-    this->Internal->View->getProxy()->GetProperty("TimeRange"));
-
-  // Try to get TimestepValues property from the source proxy
-  vtkSMDoubleVectorProperty* tsv = vtkSMDoubleVectorProperty::SafeDownCast(
-    source->GetProperty("TimestepValues"));
-
-  // Set the TimeRange to the first and last of TimestepValues.
-  if (tsv && timeRangeProp && tsv->GetNumberOfElements())
-    {
-    double tBegin = tsv->GetElement(0);
-    double tEnd = tsv->GetElement(tsv->GetNumberOfElements()-1);
-    timeRangeProp->SetElement(0, tBegin);
-    timeRangeProp->SetElement(1, tEnd);
-    this->Internal->View->getProxy()->UpdateProperty("TimeRange");
-    }
-}
-*/
-
-//-----------------------------------------------------------------------------
-/*
-void pqComparativeVisPanel::activateCue(
-  vtkSMProperty* cuesProperty,
-  vtkSMProxy* animatedProxy, const QString& animatedPName, int animatedIndex)
-{
-  if (!cuesProperty || !animatedProxy || animatedPName.isEmpty())
-    {
-    return;
-    }
-
-  // Try to locate the cue, if already present.
-  vtkSMProxyProperty* pp = vtkSMProxyProperty::SafeDownCast(cuesProperty);
-  vtkSmartPointer<vtkSMAnimationCueProxy> cueProxy;
-
-  for (unsigned int cc=0; cc < pp->GetNumberOfProxies(); ++cc)
-    {
-    vtkSMAnimationCueProxy* cur = vtkSMAnimationCueProxy::SafeDownCast(
-      pp->GetProxy(cc));
-    if (cur && cur->GetAnimatedProxy() == animatedProxy &&
-      cur->GetAnimatedPropertyName() == animatedPName &&
-      cur->GetAnimatedElement() == animatedIndex)
-      {
-      cueProxy = cur;
-      }
-    else if (cur)
-      {
-      pqSMAdaptor::setElementProperty(cur->GetProperty("Enabled"), 0);
-      cur->UpdateVTKObjects();
-      }
-    }
-
-  if (!cueProxy)
-    {
-    vtkSMProxyManager *pxm = vtkSMProxyManager::GetProxyManager();
-
-    // Create a new cueProxy.
-    cueProxy.TakeReference(
-      vtkSMAnimationCueProxy::SafeDownCast(pxm->NewProxy("animation", "KeyFrameAnimationCue")));
-    cueProxy->SetServers(vtkProcessModule::CLIENT);
-    cueProxy->SetConnectionID(this->Internal->View->getProxy()->GetConnectionID());
-
-    pqSMAdaptor::setElementProperty(cueProxy->GetProperty("AnimatedPropertyName"),
-      animatedPName);
-    pqSMAdaptor::setElementProperty(cueProxy->GetProperty("AnimatedElement"),
-      animatedIndex);
-    pqSMAdaptor::setProxyProperty(cueProxy->GetProperty("AnimatedProxy"),
-        animatedProxy);
-
-    // This cueProxy must be registered so that state works fine. For that
-    // purpose we just make it an helper of the view.
-    this->Internal->View->addHelperProxy("AnimationCues", cueProxy);
-
-    // We want to add default keyframes to this cue.
-    pqServerManagerModel* smmodel = pqApplicationCore::instance()->getServerManagerModel();
-    pqAnimationCue* pqcue = smmodel->findItem<pqAnimationCue*>(cueProxy);
-    pqcue->insertKeyFrame(0);
-    pqcue->insertKeyFrame(1);
-    }
-
-  pqSMAdaptor::addProxyProperty(cuesProperty, cueProxy);
-  pqSMAdaptor::setElementProperty(cueProxy->GetProperty("Enabled"), 1);
-  cueProxy->UpdateVTKObjects();
-}
-*/

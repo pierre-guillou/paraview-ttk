@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelopipedRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelopipedRepresentation.h"
 
 #include "vtkActor.h"
@@ -43,6 +31,7 @@
 // README : Uncomment the line that reads "PrintTopology(cout) to
 //          understand what the class does. The goal of the class is succintly
 //          described in that one line.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkParallelopipedTopology
 {
 public:
@@ -142,7 +131,7 @@ public:
     // PrintTopology( cout );
   }
 
-  // Populate topoplogy into a vtkCellArray.
+  // Populate topology into a vtkCellArray.
   // If configuration is 0, the topoology populated is that of a parallelopiped.
   // If configuration > 0, the topology populated is that of a parallelopiped
   // with a chair at node = (configuration - 1).
@@ -1621,3 +1610,4 @@ void vtkParallelopipedRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   // this->InteractionState is printed in superclass
   // this is commented to avoid PrintSelf errors
 }
+VTK_ABI_NAMESPACE_END

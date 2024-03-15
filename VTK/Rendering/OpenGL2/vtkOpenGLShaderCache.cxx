@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLShaderCache.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLShaderCache.h"
 #include "vtk_glew.h"
 
@@ -27,6 +15,7 @@
 
 #include "vtksys/MD5.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLShaderCache::Private
 {
 public:
@@ -133,9 +122,25 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
       "#define highp\n"
       "#define mediump\n"
       "#define lowp\n"
+#ifdef GL_ES_VERSION_3_0
+      "#else\n"
+      "#define texelFetchBuffer(a,b) texelFetch(a, Get2DIndexFrom1DIndex(b, textureSize(a, 0)), "
+      "0)\n"
+#else
+      "#define texelFetchBuffer texelFetch\n"
+#endif
       "#endif // GL_ES\n"
       "#define attribute in\n" // to be safe
       "#define varying out\n"  // to be safe
+#ifdef GL_ES_VERSION_3_0
+      "ivec2 Get2DIndexFrom1DIndex(int idx, ivec2 texSize)\n"
+      "{\n"
+      "  int w = texSize.x;\n"
+      "  int i = idx % w;\n"
+      "  int j = (idx - i) / texSize.x;\n"
+      "  return ivec2(i, j);\n"
+      "}"
+#endif
   );
 
   vtkShaderProgram::Substitute(FSSource, "//VTK::System::Dec",
@@ -150,7 +155,12 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
       "precision mediump sampler2D;\n"
       "precision mediump sampler3D;\n"
       "#endif\n"
+#ifdef GL_ES_VERSION_3_0
+      "#define texelFetchBuffer(a,b) texelFetch(a, Get2DIndexFrom1DIndex(b, textureSize(a, 0)), "
+      "0)\n"
+#else
       "#define texelFetchBuffer texelFetch\n"
+#endif
       "#define texture1D texture\n"
       "#define texture2D texture\n"
       "#define texture3D texture\n"
@@ -166,6 +176,15 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
       "#endif\n"
       "#endif // GL_ES\n"
       "#define varying in\n" // to be safe
+#ifdef GL_ES_VERSION_3_0
+      "ivec2 Get2DIndexFrom1DIndex(int idx, ivec2 texSize)\n"
+      "{\n"
+      "  int w = texSize.x;\n"
+      "  int i = idx % w;\n"
+      "  int j = (idx - i) / texSize.x;\n"
+      "  return ivec2(i, j);\n"
+      "}"
+#endif
   );
 
   vtkShaderProgram::Substitute(GSSource, "//VTK::System::Dec",
@@ -206,6 +225,11 @@ unsigned int vtkOpenGLShaderCache::ReplaceShaderValues(
       count++;
     }
   }
+#ifdef GL_ES_VERSION_3_0
+  // Emulate texture buffers with 2D textures.
+  vtkShaderProgram::Substitute(VSSource, "samplerBuffer", "sampler2D");
+  vtkShaderProgram::Substitute(FSSource, "samplerBuffer", "sampler2D");
+#endif
   vtkShaderProgram::Substitute(FSSource, "//VTK::Output::Dec", fragDecls);
   return count;
 }
@@ -393,3 +417,4 @@ void vtkOpenGLShaderCache::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonFileIO.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqPythonFileIO_h
 #define pqPythonFileIO_h
@@ -36,6 +8,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPythonModule.h"
 
 #include "pqPythonUtils.h"
+
+#include "vtkType.h" // For vtkTypeUInt32
 
 #include <QAction>
 #include <QDir>
@@ -85,9 +59,10 @@ public:
   /**
    * @brief Opens and load the given file.
    * @param[in] filename the file to be opened
+   * @param[in] location the location of the file
    * @returns false if the file is invalid
    */
-  bool openFile(const QString& filename);
+  bool openFile(const QString& filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
 
   /**
    * @brief Sets the default save directory
@@ -98,6 +73,11 @@ public:
    * @brief Returns the filename the editor acts on
    */
   const QString& getFilename() const { return this->File.Name; }
+
+  /**
+   * @brief Returns the location of the file that the editor acts on
+   */
+  vtkTypeUInt32 getLocation() const { return this->File.Location; }
 
   /**
    * @brief Returns true if the buffer content has been saved on the disk
@@ -160,8 +140,9 @@ private:
   {
     PythonFile() = default;
 
-    PythonFile(const QString& str, QTextEdit* textEdit)
+    PythonFile(const QString& str, const vtkTypeUInt32 location, QTextEdit* textEdit)
       : Name(str)
+      , Location(location)
       , Text(textEdit)
     {
     }
@@ -177,10 +158,11 @@ private:
     void removeSwap() const;
 
     QString Name = "";
+    vtkTypeUInt32 Location = 0x10 /*vtkPVSession::CLIENT*/;
     QTextEdit* Text = nullptr;
   } File;
 
-  bool saveBuffer(const QString& file);
+  bool saveBuffer(const QString& file, vtkTypeUInt32 location);
 
   QTextEdit& TextEdit;
 

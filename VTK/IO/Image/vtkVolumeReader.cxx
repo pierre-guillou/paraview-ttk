@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVolumeReader.h"
 
 // Construct object with nullptr file prefix; file pattern "%s.%d"; image range
 // set to (1,1);
+VTK_ABI_NAMESPACE_BEGIN
 vtkVolumeReader::vtkVolumeReader()
 {
   this->FilePrefix = nullptr;
@@ -45,3 +34,4 @@ void vtkVolumeReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FilePattern: " << (this->FilePattern ? this->FilePattern : "(none)") << "\n";
   os << indent << "Image Range: (" << this->ImageRange[0] << ", " << this->ImageRange[1] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

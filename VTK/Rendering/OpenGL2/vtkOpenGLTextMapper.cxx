@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLTextMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLTextMapper.h"
 
@@ -23,6 +11,7 @@
 #include "vtkRenderer.h"
 #include "vtkViewport.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLTextMapper);
 
 //------------------------------------------------------------------------------
@@ -85,3 +74,4 @@ void vtkOpenGLTextMapper::RenderGL2PS(vtkViewport* vp, vtkActor2D* act, vtkOpenG
 
   gl2ps->DrawString(input, this->TextProperty, pos, pos[2] + 1e-6, ren);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTypedDataArrayIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTypedDataArrayIterator
@@ -26,7 +14,7 @@
  * for safely iterating through subclasses of vtkMappedDataArray, which may
  * not use the same memory layout as a typical vtkDataArray.
  *
- * NOTE: This class has been superceded by the newer vtkGenericDataArray and
+ * NOTE: This class has been superseded by the newer vtkGenericDataArray and
  * vtkArrayDispatch mechanism.
  */
 
@@ -37,6 +25,7 @@
 
 #include "vtkTypedDataArray.h" // For vtkTypedDataArray
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class Scalar>
 class vtkTypedDataArrayIterator
 {
@@ -165,6 +154,7 @@ private:
   vtkIdType Index;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkTypedDataArrayIterator_h
 
 // VTK-HeaderTest-Exclude: vtkTypedDataArrayIterator.h

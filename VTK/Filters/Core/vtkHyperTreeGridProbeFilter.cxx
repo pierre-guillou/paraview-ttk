@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridProbeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridProbeFilter.h"
 
 #include "vtkAbstractArray.h"
@@ -41,6 +29,7 @@
 #include <cmath>
 #include <numeric>
 #include <vector>
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkHyperTreeGridProbeFilter);
@@ -146,7 +135,8 @@ int vtkHyperTreeGridProbeFilter::RequestUpdateExtent(vtkInformation* vtkNotUsed(
   vtkInformation* sourceInfo = inputVector[1]->GetInformationObject(0);
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
 
-  // the updating of ouput transfers directly into input while the source is entirely updated always
+  // the updating of output transfers directly into input while the source is entirely updated
+  // always
   vtkDataObject* output = vtkDataObject::GetData(outInfo);
   if (output && (output->IsA("vtkUnstructuredGrid") || output->IsA("vtkPolyData")))
   {
@@ -516,3 +506,4 @@ vtkIdTypeArray* vtkHyperTreeGridProbeFilter::GetValidPoints()
 
   return this->ValidPoints;
 }
+VTK_ABI_NAMESPACE_END

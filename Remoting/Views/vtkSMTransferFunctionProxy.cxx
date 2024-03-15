@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMTransferFunctionProxy.h"
 
 #include "vtkAlgorithm.h"
@@ -23,11 +11,12 @@
 #include "vtkPVProminentValuesInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMCoreUtilities.h"
 #include "vtkSMNamedPropertyIterator.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyManager.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMScalarBarWidgetRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettings.h"
@@ -257,7 +246,8 @@ bool vtkSMTransferFunctionProxy::GetRange(double range[2])
 //----------------------------------------------------------------------------
 bool vtkSMTransferFunctionProxy::ExportTransferFunction(
   vtkSMTransferFunctionProxy* colorTransferFunction,
-  vtkSMTransferFunctionProxy* opacityTransferFunction, const char* tfname, const char* filename)
+  vtkSMTransferFunctionProxy* opacityTransferFunction, const char* tfname, const char* filename,
+  vtkTypeUInt32 location)
 {
   Json::Value exportCollection(Json::arrayValue);
   Json::Value transferFunction =
@@ -275,16 +265,8 @@ bool vtkSMTransferFunctionProxy::ExportTransferFunction(
 
   exportCollection.append(transferFunction);
 
-  vtksys::ofstream outfs;
-  outfs.open(filename);
-  if (!outfs.is_open())
-  {
-    std::cerr << "Failed to open file for writing: " << filename;
-    return false;
-  }
-  outfs << exportCollection.toStyledString().c_str() << endl;
-  outfs.close();
-  return true;
+  auto pxm = vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
+  return pxm->SaveString(exportCollection.toStyledString().c_str(), filename, location);
 }
 
 //----------------------------------------------------------------------------
@@ -379,14 +361,15 @@ bool vtkSMTransferFunctionProxy::ComputeDataRange(double range[2])
     // consumers could be subproxy of something; so, we locate the true-parent
     // proxy for a proxy.
     proxy = proxy ? proxy->GetTrueParentProxy() : nullptr;
-    vtkSMPVRepresentationProxy* consumer = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
+    vtkSMRepresentationProxy* consumer = vtkSMRepresentationProxy::SafeDownCast(proxy);
     if (consumer &&
       // consumer is visible.
       vtkSMPropertyHelper(consumer, "Visibility", true).GetAsInt() == 1 &&
       // consumer is using scalar coloring.
-      consumer->GetUsingScalarColoring())
+      vtkSMColorMapEditorHelper::GetUsingScalarColoring(consumer))
     {
-      vtkPVArrayInformation* arrayInfo = consumer->GetArrayInformationForColorArray();
+      vtkPVArrayInformation* arrayInfo =
+        vtkSMColorMapEditorHelper::GetArrayInformationForColorArray(consumer);
       if (!arrayInfo || (component >= 0 && arrayInfo->GetNumberOfComponents() <= component))
       {
         // skip if no arrayInfo available of doesn't have enough components.
@@ -443,15 +426,15 @@ bool vtkSMTransferFunctionProxy::ComputeAvailableAnnotations(bool extend)
     // consumers could be subproxy of something; so, we locate the true-parent
     // proxy for a proxy.
     proxy = proxy ? proxy->GetTrueParentProxy() : nullptr;
-    vtkSMPVRepresentationProxy* consumer = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
+    vtkSMRepresentationProxy* consumer = vtkSMRepresentationProxy::SafeDownCast(proxy);
     if (consumer &&
       // consumer is visible.
       vtkSMPropertyHelper(consumer, "Visibility", true).GetAsInt() == 1 &&
       // consumer is using scalar coloring.
-      consumer->GetUsingScalarColoring())
+      vtkSMColorMapEditorHelper::GetUsingScalarColoring(consumer))
     {
       vtkPVProminentValuesInformation* prominentValues =
-        vtkSMPVRepresentationProxy::GetProminentValuesInformationForColorArray(consumer);
+        vtkSMColorMapEditorHelper::GetProminentValuesInformationForColorArray(consumer);
       if (!prominentValues)
       {
         continue;
@@ -518,17 +501,18 @@ vtkTable* vtkSMTransferFunctionProxy::ComputeDataHistogramTable(int numberOfBins
     // consumers could be subproxy of something; so, we locate the true-parent
     // proxy for a proxy.
     proxy = proxy ? proxy->GetTrueParentProxy() : nullptr;
-    vtkSMPVRepresentationProxy* consumer = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
+    vtkSMRepresentationProxy* consumer = vtkSMRepresentationProxy::SafeDownCast(proxy);
     if (consumer &&
       // consumer is visible.
       vtkSMPropertyHelper(consumer, "Visibility", true).GetAsInt() == 1 &&
       // consumer is using scalar coloring.
-      consumer->GetUsingScalarColoring() &&
+      vtkSMColorMapEditorHelper::GetUsingScalarColoring(consumer) &&
       // do not count proxy multiples times
       usedProxy.find(consumer) == usedProxy.end())
     {
       // Recover consumer color array
-      vtkPVArrayInformation* tmpArrayInfo = consumer->GetArrayInformationForColorArray(false);
+      vtkPVArrayInformation* tmpArrayInfo =
+        vtkSMColorMapEditorHelper::GetArrayInformationForColorArray(consumer, false);
       if (!tmpArrayInfo)
       {
         continue;
@@ -1371,6 +1355,142 @@ bool vtkSMTransferFunctionProxy::ConvertLegacyColorMapsToJSON(
     return true;
   }
   return false;
+}
+
+//----------------------------------------------------------------------------
+Json::Value vtkSMTransferFunctionProxy::ConvertVisItColorMapXMLToJSON(vtkPVXMLElement* xml)
+{
+  if (!xml || !xml->GetName() || strcmp(xml->GetName(), "Object") != 0)
+  {
+    vtkGenericWarningMacro("'Object' XML expected.");
+    return Json::Value();
+  }
+  if (std::string(xml->GetAttribute("name")) != "ColorTable")
+  {
+    vtkGenericWarningMacro("'ColorTable' XML name attribute expected.");
+    return Json::Value();
+  }
+
+  Json::Value json(Json::objectValue);
+
+  bool indexedLookup = false;
+
+  // So far, no reason to check the version string
+  // vtkPVXMLElement* versionElement = xml->FindNestedElementByName("Field");
+  vtkPVXMLElement* pointListElement = xml->FindNestedElementByName("Object");
+  if (!pointListElement ||
+    std::string(pointListElement->GetAttribute("name")) != "ColorControlPointList")
+  {
+    vtkGenericWarningMacro("'ColorControlPointList' XML name attribute expected.");
+    return Json::Value();
+  }
+
+  // Read the control points from the XML.
+  std::vector<vtkTuple<double, 4>> new_points;
+
+  for (unsigned int cc = 0; cc < pointListElement->GetNumberOfNestedElements(); cc++)
+  {
+    vtkPVXMLElement* pointElement = pointListElement->GetNestedElement(cc);
+    if (!pointElement)
+    {
+      continue;
+    }
+    if (std::string(pointElement->GetName()) == "Object" &&
+      std::string(pointElement->GetAttribute("name")) == "ColorControlPoint")
+    {
+      double xrgb[4];
+      xrgb[0] = cc; // provide dummy value just in case "position" is not available.
+      for (unsigned int ii = 0; ii < pointElement->GetNumberOfNestedElements(); ii++)
+      {
+        vtkPVXMLElement* fieldElement = pointElement->GetNestedElement(ii);
+        if (!fieldElement || std::string(fieldElement->GetName()) != "Field")
+        {
+          continue;
+        }
+        if (std::string(fieldElement->GetAttribute("name")) == "colors")
+        {
+          if (std::string(fieldElement->GetAttribute("type")) == "unsignedCharArray")
+          {
+            int rgba[4];
+            fieldElement->GetCharacterDataAsVector(4, &rgba[0]);
+            xrgb[1] = rgba[0] / 255.0;
+            xrgb[2] = rgba[1] / 255.0;
+            xrgb[3] = rgba[2] / 255.0;
+            // rgba[3], opacity, is ignored.
+          }
+        }
+        else if (std::string(fieldElement->GetAttribute("name")) == "position")
+        {
+          // assume type="float"
+          fieldElement->GetCharacterDataAsVector(1, &xrgb[0]);
+        }
+      }
+      new_points.push_back(vtkTuple<double, 4>(xrgb));
+    }
+    else if (std::string(pointElement->GetName()) == "Field" &&
+      std::string(pointElement->GetAttribute("name")) == "tags")
+    {
+      // possibly do something with tag list.
+    }
+    else if (std::string(pointElement->GetName()) == "Field" &&
+      std::string(pointElement->GetAttribute("name")) == "discrete")
+    {
+      if (std::string(pointElement->GetCharacterData()) == "true")
+      {
+        indexedLookup = true;
+      }
+    }
+  }
+  if (!indexedLookup)
+  {
+    // load color-space for only for non-categorical color maps. All seem to be RGB
+    json["ColorSpace"] = "RGB";
+  }
+  if (new_points.empty())
+  {
+    vtkGenericWarningMacro("'ColorControlPoint' items missing, no control point data.");
+    return Json::Value();
+  }
+
+  if (indexedLookup)
+  {
+    Json::Value rgbColors(Json::arrayValue);
+    for (int cc = 0, max = static_cast<int>(new_points.size()); cc < max; cc++)
+    {
+      rgbColors[3 * cc] = new_points[cc].GetData()[1];
+      rgbColors[3 * cc + 1] = new_points[cc].GetData()[2];
+      rgbColors[3 * cc + 2] = new_points[cc].GetData()[3];
+    }
+    json["IndexedColors"] = rgbColors;
+  }
+  else
+  {
+    // sort the points by x, just in case user didn't add them correctly.
+    std::sort(new_points.begin(), new_points.end(), StrictWeakOrdering());
+
+    Json::Value rgbColors(Json::arrayValue);
+    for (int cc = 0, max = static_cast<int>(new_points.size()); cc < max; cc++)
+    {
+      rgbColors[4 * cc] = new_points[cc].GetData()[0];
+      rgbColors[4 * cc + 1] = new_points[cc].GetData()[1];
+      rgbColors[4 * cc + 2] = new_points[cc].GetData()[2];
+      rgbColors[4 * cc + 3] = new_points[cc].GetData()[3];
+    }
+    json["RGBPoints"] = rgbColors;
+  }
+
+  return json;
+}
+
+//----------------------------------------------------------------------------
+Json::Value vtkSMTransferFunctionProxy::ConvertVisItColorMapXMLToJSON(const char* xmlcontents)
+{
+  vtkNew<vtkPVXMLParser> parser;
+  if (!parser->Parse(xmlcontents))
+  {
+    return Json::Value();
+  }
+  return vtkSMTransferFunctionProxy::ConvertVisItColorMapXMLToJSON(parser->GetRootElement());
 }
 
 //----------------------------------------------------------------------------

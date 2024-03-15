@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedSizeHandleRepresentation3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFixedSizeHandleRepresentation3D.h"
 
 #include "vtkCamera.h"
@@ -23,6 +11,7 @@
 #include "vtkTransform.h"
 #include "vtkTransformPolyDataFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFixedSizeHandleRepresentation3D);
 
 //------------------------------------------------------------------------------
@@ -150,3 +139,4 @@ void vtkFixedSizeHandleRepresentation3D::BuildRepresentation()
     this->SetHandle(this->SphereSource->GetOutput());
   }
 }
+VTK_ABI_NAMESPACE_END

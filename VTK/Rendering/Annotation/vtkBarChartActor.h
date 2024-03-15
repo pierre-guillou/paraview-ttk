@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBarChartActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBarChartActor
  * @brief   create a bar chart from an array
@@ -37,6 +25,7 @@
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor2D;
 class vtkDataObject;
 class vtkPolyData;
@@ -137,7 +126,7 @@ public:
    * Specify the names of each bar. If
    * not specified, then an integer number is automatically generated.
    */
-  void SetBarLabel(const int i, const char*);
+  void SetBarLabel(int i, const char*);
   const char* GetBarLabel(int i);
   ///@}
 
@@ -239,9 +228,9 @@ private:
   int PlaceAxes(vtkViewport* viewport, const int* size);
   int BuildPlot(vtkViewport*);
 
-private:
   vtkBarChartActor(const vtkBarChartActor&) = delete;
   void operator=(const vtkBarChartActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

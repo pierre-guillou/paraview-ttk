@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLTexture.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLVertexBufferObjectGroup
  * @brief   manage vertex buffer objects shared within a mapper
@@ -66,6 +54,7 @@
 #include <string>                      // for ivars
 #include <vector>                      // for ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkOpenGLVertexArrayObject;
 class vtkOpenGLVertexBufferObject;
@@ -183,4 +172,5 @@ private:
   void operator=(const vtkOpenGLVertexBufferObjectGroup&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,18 +1,5 @@
-
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMTestDriver.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSystemIncludes.h"
 
 #include "vtkSMTestDriver.h"
@@ -148,9 +135,19 @@ void vtkSMTestDriver::CollectConfiguredOptions()
 #ifdef PARAVIEW_MPI_PREFLAGS
   this->SeparateArguments(PARAVIEW_MPI_PREFLAGS, this->MPIPreFlags);
 #endif
+  if (vtksys::SystemTools::HasEnv("SMTESTDRIVER_MPI_PREFLAGS"))
+  {
+    this->SeparateArguments(
+      vtksys::SystemTools::GetEnv("SMTESTDRIVER_MPI_PREFLAGS"), this->MPIPreFlags);
+  }
 #ifdef PARAVIEW_MPI_POSTFLAGS
   this->SeparateArguments(PARAVIEW_MPI_POSTFLAGS, this->MPIPostFlags);
 #endif
+  if (vtksys::SystemTools::HasEnv("SMTESTDRIVER_MPI_POSTFLAGS"))
+  {
+    this->SeparateArguments(
+      vtksys::SystemTools::GetEnv("SMTESTDRIVER_MPI_POSTFLAGS"), this->MPIPostFlags);
+  }
   char buf[1024];
   sprintf(buf, "%d", serverNumProc);
   this->MPIServerNumProcessFlag = buf;
@@ -532,9 +529,6 @@ int vtkSMTestDriver::OutputStringHasError(const char* pname, std::string& output
 int vtkSMTestDriver::Main(int argc, char* argv[])
 {
   vtksys::SystemTools::PutEnv("DASHBOARD_TEST_FROM_CTEST=1");
-  // we add this so that vtksys::SystemTools::EnableMSVCDebugHook() works. At
-  // somepoint vtksys needs to be updated to use the newer variable.
-  vtksys::SystemTools::PutEnv("DART_TEST_FROM_DART=1");
   vtksys::SystemTools::PutEnv("PARAVIEW_SMTESTDRIVER=1");
   vtksys::SystemTools::EnableMSVCDebugHook();
 

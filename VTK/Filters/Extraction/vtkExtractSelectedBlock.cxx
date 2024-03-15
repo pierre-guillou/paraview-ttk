@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedBlock.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -29,6 +17,7 @@
 #include "vtkUnsignedIntArray.h"
 
 #include <unordered_set>
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedBlock);
 //------------------------------------------------------------------------------
 vtkExtractSelectedBlock::vtkExtractSelectedBlock() = default;
@@ -97,7 +86,7 @@ void vtkCopySubTree(std::unordered_set<unsigned int>& ids, vtkCompositeDataItera
     assert(coutput != nullptr);
 
     // shallow copy..this pass the non-leaf nodes over.
-    coutput->ShallowCopy(cinput);
+    coutput->CompositeShallowCopy(cinput);
 
     // now, we need to remove all composite ids for the subtree from the set to
     // extract to avoid attempting to copy them multiple times (although it
@@ -190,7 +179,7 @@ int vtkExtractSelectedBlock::RequestData(vtkInformation* vtkNotUsed(request),
   if (has_root && !inverse)
   {
     // pass everything.
-    output->ShallowCopy(cd);
+    output->CompositeShallowCopy(cd);
     return 1;
   }
 
@@ -212,6 +201,10 @@ int vtkExtractSelectedBlock::RequestData(vtkInformation* vtkNotUsed(request),
 
   for (citer->InitTraversal(); !citer->IsDoneWithTraversal(); citer->GoToNextItem())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     auto fiter = blocks.find(citer->GetCurrentFlatIndex());
     if ((inverse && fiter == blocks.end()) || (!inverse && fiter != blocks.end()))
     {
@@ -227,3 +220,4 @@ void vtkExtractSelectedBlock::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

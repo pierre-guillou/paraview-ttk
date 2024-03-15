@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRectilinearGrid
  * @brief   a dataset that is topologically regular with variable spacing in the three coordinate
@@ -41,6 +29,7 @@
 #include "vtkDataSet.h"
 #include "vtkStructuredData.h" // For inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVertex;
 class vtkLine;
 class vtkPixel;
@@ -106,6 +95,7 @@ public:
   }
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
+  int GetMaxSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
   ///@}
@@ -193,7 +183,7 @@ public:
    * xyz-coordinates. The xyz coordinates are stored in the user-supplied
    * array p.
    */
-  void GetPoint(const int i, const int j, const int k, double p[3]);
+  void GetPoint(int i, int j, int k, double p[3]);
 
   ///@{
   /**
@@ -315,7 +305,6 @@ protected:
 private:
   void Cleanup();
 
-private:
   vtkRectilinearGrid(const vtkRectilinearGrid&) = delete;
   void operator=(const vtkRectilinearGrid&) = delete;
 };
@@ -354,6 +343,12 @@ inline int vtkRectilinearGrid::GetDataDimension()
 }
 
 //----------------------------------------------------------------------------
+inline int vtkRectilinearGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
 inline vtkIdType vtkRectilinearGrid::ComputePointId(int ijk[3])
 {
   return vtkStructuredData::ComputePointId(this->Dimensions, ijk);
@@ -365,4 +360,5 @@ inline vtkIdType vtkRectilinearGrid::ComputeCellId(int ijk[3])
   return vtkStructuredData::ComputeCellId(this->Dimensions, ijk);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

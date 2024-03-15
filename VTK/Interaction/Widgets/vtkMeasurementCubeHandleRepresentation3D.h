@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMeasurementCubeHandleRepresentation3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMeasurementCubeHandleRepresentation3D
  * @brief   represent a unit cube for measuring/comparing to data.
@@ -26,6 +14,7 @@
 #include "vtkHandleRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkProperty;
 class vtkPolyDataMapper;
 class vtkCellPicker;
@@ -261,7 +250,7 @@ protected:
    * world coordinates), the new display position of the handle center is
    * populated into requestedDisplayPos. This is again only a request for the
    * new display position. It is up to the point placer to deduce the
-   * appropriate world co-ordinates that this display position will map into.
+   * appropriate world coordinates that this display position will map into.
    * The placer may even disallow such a movement.
    * If "SmoothMotion" is OFF, the returned requestedDisplayPos is the same
    * as the event position, ie the location of the mouse cursor. If its OFF,
@@ -306,4 +295,5 @@ private:
   void operator=(const vtkMeasurementCubeHandleRepresentation3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

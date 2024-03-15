@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotBar.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotBar
@@ -29,6 +17,7 @@
 #include "vtkPlot.h"
 #include "vtkSmartPointer.h" // Needed to hold ColorSeries
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkTable;
 class vtkPoints2D;
@@ -85,7 +74,7 @@ public:
   void SetColorF(double r, double g, double b) override;
 
   VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
-  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); };
+  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); }
   ///@}
 
   ///@{
@@ -95,7 +84,7 @@ public:
   void GetColorF(double rgb[3]) override;
 
   VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetColorF method instead.")
-  void GetColor(double rgb[3]) override { this->GetColorF(rgb); };
+  void GetColor(double rgb[3]) override { this->GetColorF(rgb); }
   ///@}
 
   ///@{
@@ -285,7 +274,7 @@ protected:
   /**
    * Test if the internal cache requires an update.
    */
-  virtual bool CacheRequiresUpdate() override;
+  bool CacheRequiresUpdate() override;
 
   /**
    * Store a well packed set of XY coordinates for this data series.
@@ -323,4 +312,5 @@ private:
   vtkPlotBarPrivate* Private;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotBar_h

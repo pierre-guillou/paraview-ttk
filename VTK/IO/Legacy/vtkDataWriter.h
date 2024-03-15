@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataWriter
  * @brief   helper class for objects that write VTK data files
@@ -34,6 +22,7 @@
 
 #include <locale> // For locale settings
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
 class vtkDataSet;
@@ -373,7 +362,8 @@ protected:
   bool CanWriteInformationKey(vtkInformation* info, vtkInformationKey* key);
 
   /**
-   * Format is detailed \ref IOLegacyInformationFormat "here".
+   * Format is detailed at
+   * https://docs.vtk.org/en/latest/design_documents/IOLegacyInformationFormat.html
    */
   int WriteInformation(ostream* fp, vtkInformation* info);
 
@@ -382,4 +372,5 @@ private:
   void operator=(const vtkDataWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

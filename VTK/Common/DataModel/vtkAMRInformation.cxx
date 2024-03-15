@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRInformation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRInformation.h"
 #include "vtkAMRBox.h"
 #include "vtkBoundingBox.h"
@@ -24,6 +12,7 @@
 #include <cassert>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRInformation);
 
 namespace
@@ -876,7 +865,7 @@ bool vtkAMRInformation::GetOrigin(unsigned int level, unsigned int id, double* o
   return true;
 }
 
-void vtkAMRInformation::UpdateBounds(const int level, const int id)
+void vtkAMRInformation::UpdateBounds(int level, int id)
 {
   double bb[6];
   vtkAMRBox::GetBounds(
@@ -989,3 +978,4 @@ bool vtkAMRInformation::FindGrid(double q[3], int level, unsigned int& gridId)
   }
   return false;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMREnzoReader.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMREnzoReader.h"
 #include "vtkDataArray.h"
@@ -47,11 +35,14 @@
 
 #include "vtkAMREnzoReaderInternal.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMREnzoReader);
 
+VTK_ABI_NAMESPACE_END
 #include "vtkAMRInformation.h"
 #include <limits>
 
+VTK_ABI_NAMESPACE_BEGIN
 void vtkAMREnzoReader::ComputeStats(
   vtkEnzoReaderInternal* internal, std::vector<int>& numBlocks, double min[3])
 {
@@ -288,7 +279,7 @@ void vtkAMREnzoReader::ReadMetaData()
 }
 
 //------------------------------------------------------------------------------
-int vtkAMREnzoReader::GetBlockLevel(const int blockIdx)
+int vtkAMREnzoReader::GetBlockLevel(int blockIdx)
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
 
@@ -384,7 +375,7 @@ int vtkAMREnzoReader::FillMetaData()
 }
 
 //------------------------------------------------------------------------------
-vtkUniformGrid* vtkAMREnzoReader::GetAMRGrid(const int blockIdx)
+vtkUniformGrid* vtkAMREnzoReader::GetAMRGrid(int blockIdx)
 {
   assert("pre: Internal Enzo Reader is nullptr" && (this->Internal != nullptr));
 
@@ -418,7 +409,7 @@ vtkUniformGrid* vtkAMREnzoReader::GetAMRGrid(const int blockIdx)
 }
 
 //------------------------------------------------------------------------------
-void vtkAMREnzoReader::GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field)
+void vtkAMREnzoReader::GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field)
 {
   assert("pre: AMR block is nullptr" && (block != nullptr));
 
@@ -458,3 +449,4 @@ void vtkAMREnzoReader::SetUpDataArraySelections()
     this->CellDataArraySelection->AddArray(this->Internal->BlockAttributeNames[i].c_str());
   } // END for all attributes
 }
+VTK_ABI_NAMESPACE_END

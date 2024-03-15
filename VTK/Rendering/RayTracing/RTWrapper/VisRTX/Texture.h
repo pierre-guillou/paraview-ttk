@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "../Types.h"
@@ -8,6 +10,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Texture : public Object
     {
         friend class Renderer;
@@ -79,4 +82,5 @@ namespace RTW
     private:
         VisRTX::Texture* texture = nullptr;
     };
+VTK_ABI_NAMESPACE_END
 }

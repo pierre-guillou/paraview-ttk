@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDataLIC2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageDataLIC2D.h"
 
 #include "vtkCellData.h"
@@ -57,6 +45,7 @@ using std::deque;
   ext[0] << ", " << ext[1] << ", " << ext[2] << ", " << ext[3] << ", " << ext[4] << ", " << ext[5]
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageDataLIC2D);
 
 //------------------------------------------------------------------------------
@@ -619,3 +608,4 @@ void vtkImageDataLIC2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Magnification: " << this->Magnification << "\n";
   os << indent << "OpenGLExtensionsSupported: " << this->OpenGLExtensionsSupported << "\n";
 }
+VTK_ABI_NAMESPACE_END

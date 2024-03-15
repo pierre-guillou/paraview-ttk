@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAppendSelection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAppendSelection
  * @brief   appends one or more selections together
@@ -46,6 +31,7 @@
 
 #include <memory> // For std::unique_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSelection;
 
 class VTKFILTERSCORE_EXPORT vtkAppendSelection : public vtkSelectionAlgorithm
@@ -108,6 +94,22 @@ public:
 
   ///@{
   /**
+   * Set/Get colors for inputs selections.
+   *
+   * Assign a color to a selection specified by its index.
+   * If defined, the given color will be used to display this selection.
+   */
+  void SetInputColor(int index, double r, double g, double b);
+  double* GetInputColor(int index) const;
+  ///@}
+
+  /**
+   * Remove all assigned input selection colors.
+   */
+  void RemoveAllInputColors();
+
+  ///@{
+  /**
    * UserManagedInputs allows the user to set inputs by number instead of
    * using the AddInput/RemoveInput functions. Calls to
    * SetNumberOfInputs/SetInputByNumber should not be mixed with calls
@@ -164,6 +166,11 @@ public:
   vtkBooleanMacro(AppendByUnion, vtkTypeBool);
   ///@}
 
+  /**
+   * Return the specific name used for the selection color array.
+   */
+  static const char* GetColorArrayName() { return "vtkSelectionColor"; }
+
 protected:
   vtkAppendSelection();
   ~vtkAppendSelection() override;
@@ -179,6 +186,11 @@ private:
     vtkErrorMacro(<< "AddInput() must be called with a vtkSelection not a vtkDataObject.");
   }
 
+  /**
+   * Add on SelectionData a new special array named `vtkSelectionColor` containing the given color.
+   */
+  void SetColorArray(vtkSelectionNode* node, double* color);
+
   vtkTypeBool UserManagedInputs;
   vtkTypeBool AppendByUnion;
   std::string Expression;
@@ -186,9 +198,9 @@ private:
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;
 
-private:
   vtkAppendSelection(const vtkAppendSelection&) = delete;
   void operator=(const vtkAppendSelection&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

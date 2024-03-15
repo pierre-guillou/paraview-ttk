@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSkyboxMovieRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSkyboxMovieRepresentation
  *
@@ -54,14 +42,14 @@ public:
 
   void SetPlay(bool);
 
-  //@{
+  ///@{
   /**
    * Methods farwarded to the skybox instance
    */
   virtual void SetFloorPlane(float, float, float, float);
   virtual void SetFloorRight(float, float, float);
   virtual void SetProjection(int);
-  //@}
+  ///@}
 
 protected:
   vtkSkyboxMovieRepresentation();

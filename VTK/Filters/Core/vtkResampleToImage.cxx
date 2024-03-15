@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResampleToImage.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkResampleToImage.h"
 
 #include "vtkBoundingBox.h"
@@ -32,6 +20,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkResampleToImage);
 
 //------------------------------------------------------------------------------
@@ -216,6 +205,7 @@ void vtkResampleToImage::PerformResampling(vtkDataObject* input, const double sa
   structure->SetExtent(probingExtent);
 
   vtkNew<vtkCompositeDataProbeFilter> prober;
+  prober->SetContainerAlgorithm(this);
   prober->SetInputData(structure);
   prober->SetSourceData(input);
   prober->Update();
@@ -231,16 +221,32 @@ namespace
 class MarkHiddenPoints
 {
 public:
-  MarkHiddenPoints(char* maskArray, vtkUnsignedCharArray* pointGhostArray)
+  MarkHiddenPoints(
+    char* maskArray, vtkUnsignedCharArray* pointGhostArray, vtkResampleToImage* filter)
     : MaskArray(maskArray)
     , PointGhostArray(pointGhostArray)
+    , Filter(filter)
   {
   }
 
   void operator()(vtkIdType begin, vtkIdType end)
   {
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((end - begin) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType i = begin; i < end; ++i)
     {
+      if (i % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       if (!this->MaskArray[i])
       {
         this->PointGhostArray->SetValue(
@@ -252,15 +258,18 @@ public:
 private:
   char* MaskArray;
   vtkUnsignedCharArray* PointGhostArray;
+  vtkResampleToImage* Filter;
 };
 
 class MarkHiddenCells
 {
 public:
-  MarkHiddenCells(vtkImageData* data, char* maskArray, vtkUnsignedCharArray* cellGhostArray)
+  MarkHiddenCells(vtkImageData* data, char* maskArray, vtkUnsignedCharArray* cellGhostArray,
+    vtkResampleToImage* filter)
     : Data(data)
     , MaskArray(maskArray)
     , CellGhostArray(cellGhostArray)
+    , Filter(filter)
   {
     this->Data->GetDimensions(this->PointDim);
     this->PointSliceSize = this->PointDim[0] * this->PointDim[1];
@@ -276,8 +285,21 @@ public:
 
   void operator()(vtkIdType begin, vtkIdType end)
   {
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((end - begin) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType cellId = begin; cellId < end; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       int ptijk[3];
       ptijk[2] = cellId / this->CellSliceSize;
       ptijk[1] = (cellId % CellSliceSize) / this->CellDim[0];
@@ -316,6 +338,7 @@ private:
   int CellDim[3];
   vtkIdType CellSliceSize;
   int Dim[3];
+  vtkResampleToImage* Filter;
 };
 
 } // anonymous namespace
@@ -335,14 +358,14 @@ void vtkResampleToImage::SetBlankPointsAndCells(vtkImageData* data)
   vtkUnsignedCharArray* pointGhostArray = data->GetPointGhostArray();
 
   vtkIdType numPoints = data->GetNumberOfPoints();
-  MarkHiddenPoints pointWorklet(mask, pointGhostArray);
+  MarkHiddenPoints pointWorklet(mask, pointGhostArray, this);
   vtkSMPTools::For(0, numPoints, pointWorklet);
 
   data->AllocateCellGhostArray();
   vtkUnsignedCharArray* cellGhostArray = data->GetCellGhostArray();
 
   vtkIdType numCells = data->GetNumberOfCells();
-  MarkHiddenCells cellWorklet(data, mask, cellGhostArray);
+  MarkHiddenCells cellWorklet(data, mask, cellGhostArray, this);
   vtkSMPTools::For(0, numCells, cellWorklet);
 }
 
@@ -413,3 +436,4 @@ void vtkResampleToImage::ComputeDataBounds(vtkDataObject* data, double bounds[6]
     }
   }
 }
+VTK_ABI_NAMESPACE_END

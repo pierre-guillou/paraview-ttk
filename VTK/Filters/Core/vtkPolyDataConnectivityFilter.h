@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataConnectivityFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataConnectivityFilter
  * @brief   extract polygonal data based on geometric connectivity
@@ -60,6 +48,7 @@
 #define VTK_EXTRACT_ALL_REGIONS 5
 #define VTK_EXTRACT_CLOSEST_POINT_REGION 6
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkIdList;
 class vtkIdTypeArray;
@@ -308,4 +297,5 @@ inline const char* vtkPolyDataConnectivityFilter::GetExtractionModeAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

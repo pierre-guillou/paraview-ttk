@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSpreadSheetView.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpreadSheetView
  *
@@ -44,14 +32,14 @@ public:
   vtkTypeMacro(vtkSpreadSheetView, vtkPVView);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * A unique identifier for this vtkSpreadSheetView across all processes.
    *
    */
   vtkSetMacro(Identifier, vtkTypeUInt32);
   vtkGetMacro(Identifier, vtkTypeUInt32);
-  //@}
+  ///@}
 
   /**
    * Triggers a high-resolution render.
@@ -71,7 +59,7 @@ public:
    */
   void Update() override;
 
-  //@{
+  ///@{
   /**
    * Get/Set if the view shows extracted selection only or the actual data.
    * false by default.
@@ -80,27 +68,54 @@ public:
   void SetShowExtractedSelection(bool);
   vtkBooleanMacro(ShowExtractedSelection, bool);
   vtkGetMacro(ShowExtractedSelection, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Allow user to enable/disable cell connectivity generation.
    */
   vtkSetMacro(GenerateCellConnectivity, bool);
   vtkGetMacro(GenerateCellConnectivity, bool);
   vtkBooleanMacro(GenerateCellConnectivity, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Allow user to enable/disable field data visibility.
+   * Default to false.
+   */
+  vtkSetMacro(ShowFieldData, bool);
+  vtkGetMacro(ShowFieldData, bool);
+  vtkBooleanMacro(ShowFieldData, bool);
+  ///@}
+
+  ///@{
   /**
    * Specify the field association for the data to be shown in the view.
    * This is passed on to the vtkSpreadSheetRepresentation in `Update` pass.
    */
   vtkSetMacro(FieldAssociation, int);
   vtkGetMacro(FieldAssociation, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Specify sorting method that we want to use, when it's enabled, columns will be sorted
+   * internally by a given array, this array will be cached in `OrderedColumnList`.
+   *
+   * Default of `OrderedColumnList` will be the list of each visible columns visible in the current
+   * SpreadSheetView.
+   *
+   * Default is false.
+   */
+  void OrderColumnsByList(bool enable);
+  void InitializeOrderedColumnList();
+  std::vector<std::string> GetOrderedColumnList();
+  void SetOrderedColumnList(std::vector<std::string> list);
+  void ClearOrderedColumnList();
+  ///@}
+
+  ///@{
   /**
    * This API enables the users to hide columns that should be shown.
    * Columns can be hidden using their names or labels.
@@ -112,7 +127,7 @@ public:
   void HideColumnByLabel(const char* columnLabel);
   bool IsColumnHiddenByLabel(const std::string& columnLabel);
   void ClearHiddenColumnsByLabel();
-  //@}
+  ///@}
 
   /**
    * Get the number of columns.
@@ -132,15 +147,15 @@ public:
    */
   virtual const char* GetColumnName(vtkIdType index);
 
-  //@{
+  ///@{
   /**
    * Returns true if the column is internal.
    */
   virtual bool IsColumnInternal(vtkIdType index);
   virtual bool IsColumnInternal(const char* columnName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the user-friendly label to use for the column
    * in the spreadsheet view.
@@ -152,7 +167,7 @@ public:
    */
   virtual std::string GetColumnLabel(vtkIdType index);
   virtual std::string GetColumnLabel(const char* columnName);
-  //@}
+  ///@}
 
   /**
    * Returns the column index for a column given its name.
@@ -165,7 +180,7 @@ public:
    */
   virtual bool GetColumnVisibility(vtkIdType index);
 
-  //@{
+  ///@{
   /**
    * Returns the value at given location. This may result in collective
    * operations is data is not available locally. This method can only be called
@@ -174,7 +189,7 @@ public:
    */
   virtual vtkVariant GetValue(vtkIdType row, vtkIdType col);
   virtual vtkVariant GetValueByName(vtkIdType row, const char* columnName);
-  //@}
+  ///@}
 
   /**
    * Returns true if the row is selected.
@@ -242,8 +257,9 @@ protected:
 
   virtual vtkTable* FetchBlock(vtkIdType blockindex);
 
-  bool ShowExtractedSelection;
-  bool GenerateCellConnectivity;
+  bool ShowExtractedSelection = false;
+  bool GenerateCellConnectivity = false;
+  bool ShowFieldData = false;
   vtkSortedTableStreamer* TableStreamer;
   vtkMarkSelectedRows* TableSelectionMarker;
   vtkReductionFilter* ReductionFilter;

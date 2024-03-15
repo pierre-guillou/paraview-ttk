@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVtkJSViewNodeFactory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVtkJSViewNodeFactory.h"
 
 #include <vtkActor.h>
@@ -28,12 +16,9 @@
 
 #include "vtkVtkJSSceneGraphSerializer.h"
 
-#if VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
-#include <vtkCompositePolyDataMapper2.h>
-#endif
-
 #include <type_traits>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // A template for performing a compile-time check if a scene element inherits
@@ -116,10 +101,6 @@ vtkVtkJSViewNodeFactory::vtkVtkJSViewNodeFactory()
   // performed when converting these renderables to vtk-js.
   this->RegisterOverride(
     "vtkCompositePolyDataMapper", vtkVtkJSViewNode<vtkMapperNode, vtkCompositePolyDataMapper>::New);
-#if VTK_MODULE_ENABLE_VTK_RenderingOpenGL2
-  this->RegisterOverride("vtkCompositePolyDataMapper2",
-    vtkVtkJSViewNode<vtkMapperNode, vtkCompositePolyDataMapper2>::New);
-#endif
   this->RegisterOverride(
     "vtkGlyph3DMapper", vtkVtkJSViewNode<vtkMapperNode, vtkGlyph3DMapper>::New);
 }
@@ -135,3 +116,4 @@ void vtkVtkJSViewNodeFactory::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

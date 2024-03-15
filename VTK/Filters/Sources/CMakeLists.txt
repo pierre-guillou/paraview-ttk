@@ -36,6 +36,7 @@ set(classes
   vtkRectangularButtonSource
   vtkRegularPolygonSource
   vtkSelectionSource
+  vtkSpatioTemporalHarmonicsSource
   vtkSphereSource
   vtkSuperquadricSource
   vtkTessellatedBoxSource
@@ -45,3 +46,4 @@ set(classes
 
 vtk_module_add_module(VTK::FiltersSources
   CLASSES ${classes})
+vtk_add_test_mangling(VTK::FiltersSources)

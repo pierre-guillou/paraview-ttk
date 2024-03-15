@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLFluidMapper
  * @brief   Render fluid from position data (and color, if available)
@@ -32,6 +21,7 @@
 
 #include <map> //for methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix3x3;
 class vtkMatrix4x4;
 class vtkOpenGLFramebufferObject;
@@ -292,7 +282,7 @@ protected:
   /**
    * Setup the texture buffers
    */
-  void SetupBuffers(vtkOpenGLRenderWindow* const renderWindow);
+  void SetupBuffers(vtkOpenGLRenderWindow* renderWindow);
 
   /**
    * Render the fluid particles
@@ -395,4 +385,5 @@ private:
   void operator=(const vtkOpenGLFluidMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

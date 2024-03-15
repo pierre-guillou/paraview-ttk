@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVProminentValuesInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVProminentValuesInformation
  * @brief   Prominent values a data array takes on.
@@ -48,39 +36,39 @@ public:
   vtkTypeMacro(vtkPVProminentValuesInformation, vtkPVInformation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the output port whose dataset should be queried.
    */
   vtkSetMacro(PortNumber, int);
   vtkGetMacro(PortNumber, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get array's association
    */
   vtkSetStringMacro(FieldAssociation);
   vtkGetStringMacro(FieldAssociation);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get array's name
    */
   vtkSetStringMacro(FieldName);
   vtkGetStringMacro(FieldName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Changing the number of components clears the ranges back to the default.
    */
   void SetNumberOfComponents(int numComps);
   vtkGetMacro(NumberOfComponents, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the minimum fraction of the array that should be composed of
    * a value (between 0 and 1) in order for it to be considered prominent.
@@ -90,9 +78,9 @@ public:
    */
   vtkSetClampMacro(Fraction, double, 0., 1.);
   vtkGetMacro(Fraction, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the maximum uncertainty allowed in the detection of prominent values.
    * The uncertainty is the probability of prominent values going undetected.
@@ -100,9 +88,9 @@ public:
    */
   vtkSetClampMacro(Uncertainty, double, 0., 1.);
   vtkGetMacro(Uncertainty, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the force flag that will be used when recovering the prominents values.
    * If not set, a maximum of vtkAbstractArray::MAX_DISCRETE_VALUES (32) values
@@ -114,7 +102,7 @@ public:
   vtkSetMacro(Force, bool);
   vtkGetMacro(Force, bool);
 
-  //@{
+  ///@{
   /**
    * Get the validity of the information. The flag has a meaning after trying to recover
    * prominent values, if true, the data can be used, if false, this information should
@@ -151,21 +139,21 @@ public:
    */
   void AddInformation(vtkPVInformation* other) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Push/pop parameters controlling which array to sample onto/off of the stream.
    */
   void CopyParametersToStream(vtkMultiProcessStream&) override;
   void CopyParametersFromStream(vtkMultiProcessStream&) override;
-  //@}
+  ///@}
 
   /**
    * Remove all parameter information.
@@ -204,7 +192,7 @@ protected:
   void CopyFromLeafDataObject(vtkDataObject*);
 
   /// Information parameters
-  //@{
+  ///@{
   int PortNumber;
   int NumberOfComponents;
   char* FieldName;
@@ -213,15 +201,15 @@ protected:
   double Uncertainty;
   bool Force;
   bool Valid;
-  //@}
+  ///@}
 
   /// Information results
-  //@{
+  ///@{
 
   class vtkInternalDistinctValues;
   vtkInternalDistinctValues* DistinctValues;
 
-  //@}
+  ///@}
 
   vtkPVProminentValuesInformation(const vtkPVProminentValuesInformation&) = delete;
   void operator=(const vtkPVProminentValuesInformation&) = delete;

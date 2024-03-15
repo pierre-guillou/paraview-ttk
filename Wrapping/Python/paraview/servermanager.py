@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-License-Identifier: BSD-3-Clause
+
 r"""servermanager is a module for using paraview server manager in Python.
 One can always use the server manager API directly. However, this module
 provides an interface easier to use from Python by wrapping several VTK
@@ -31,20 +34,6 @@ A simple example::
   renModule.StillRender()
 
 """
-#==============================================================================
-#
-#  Program:   ParaView
-#  Module:    servermanager.py
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-#==============================================================================
 from __future__ import print_function
 import paraview, re, os, os.path, types, sys
 
@@ -90,7 +79,7 @@ def _wrap_property(proxy, smproperty):
     appropriate python object.
     """
     property = None
-    if paraview.compatibility.GetVersion() >= 3.5 and \
+    if paraview.compatibility.GetVersion() >= (3, 5) and \
       smproperty.IsA("vtkSMStringVectorProperty"):
         arraySelectionDomain = smproperty.FindDomain("vtkSMArraySelectionDomain")
         chartSeriesSelectionDomain = smproperty.FindDomain("vtkSMChartSeriesSelectionDomain")
@@ -358,7 +347,7 @@ class Proxy(object):
         """Returns a scalar for properties with 1 elements, the property
         itself for vectors."""
         p = self.GetProperty(name)
-        if isinstance(p, VectorProperty) and paraview.compatibility.GetVersion() <= 4.1 and name == "ColorArrayName":
+        if isinstance(p, VectorProperty) and paraview.compatibility.GetVersion() <= (4, 1) and name == "ColorArrayName":
             # Return ColorArrayName as just the array name for backwards compatibility.
             return p[1]
         if isinstance(p, EnumerationProperty) or \
@@ -495,13 +484,17 @@ class Proxy(object):
             try:
                 setter(self, value)
             except ValueError:
-                # Let the backwards compatibility helper try to handle this
+                # Try without spaces
                 try:
-                    _bc.setattr_fix_value(self, name, value, setter)
-                except _bc.Continue:
-                    pass
+                    setter(self, _make_name_valid(value))
                 except ValueError:
-                    raise ValueError("%s is not a valid value for attribute %s." % (value, name))
+                    # Let the backwards compatibility helper try to handle this
+                    try:
+                        _bc.setattr_fix_value(self, name, value, setter)
+                    except _bc.Continue:
+                        pass
+                    except ValueError:
+                        raise ValueError("%s is not a valid value for attribute %s." % (value, name))
 
     def __getattr__(self, name):
         """With the exception of a few overloaded methods,
@@ -608,7 +601,7 @@ class ExodusIIReaderProxy(SourceProxy):
     """Special class to define convenience functions for array
     selection."""
 
-    if paraview.compatibility.GetVersion() >= 3.5:
+    if paraview.compatibility.GetVersion() >= (3, 5):
         def FileNameChanged(self):
             "Called when the filename changes. Selects all variables."
             SourceProxy.FileNameChanged(self)
@@ -862,7 +855,7 @@ class VectorProperty(Property):
         if not self.GetRepeatable() and len(values) != self.GetNumberOfElements():
             raise RuntimeError("This property requires %d values." % self.GetNumberOfElements())
 
-        # Python3: map returns an iterable, must be converted to list. Safe for python2
+        # map returns an iterable, must be converted to list.
         convertedValues = list(map(self.ConvertValue, values))
         if self.GetRepeatable():
           # Clean up first
@@ -1273,7 +1266,7 @@ class ProxyProperty(Property):
         if listdomain:
             for i in range(listdomain.GetNumberOfProxies()):
                 proxy = listdomain.GetProxy(i)
-                retval.append(proxy.GetXMLLabel())
+                retval.append(_make_name_valid(proxy.GetXMLLabel()))
         return retval
 
     Available = property(GetAvailable, None, None,
@@ -1505,12 +1498,17 @@ class DataInformation(object):
         self.Idx = idx
 
     def Update(self):
-        """****Deprecated**** There is no reason anymore to use this method
+        """
+        PARAVIEW_DEPRECATED_IN_5_12_0 There is no reason anymore to use this method
         explicitly, it is called automatically when one gets any value from the
         data information object.
+
         Update the data information if necessary. Note that this
         does not cause execution of the underlying object. In certain
         cases, you may have to call UpdatePipeline() on the proxy."""
+        import warnings
+        warnings.warn("'DataInformation.Update' is no longer necessary and thus deprecated.", DeprecationWarning)
+
         if self.Proxy:
             self.Proxy.GetDataInformation(self.Idx)
 
@@ -1579,7 +1577,7 @@ class ArrayInformation(object):
     def __neq__(self, other):
         return not self.__eq__(other)
 
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
        def Range(self, component=0):
            return self.GetRange(component)
 
@@ -1894,11 +1892,11 @@ class ProxyManager(object):
             pass
         return getattr(self.SMProxyManager, name)
 
-    def LoadState(self, filename, loader = None):
-        self.SMProxyManager.LoadXMLState(filename, loader)
+    def LoadState(self, filename, loader = None, location=vtkPVSession.CLIENT):
+        self.SMProxyManager.LoadXMLState(filename, loader, location)
 
-    def SaveState(self, filename):
-        self.SMProxyManager.SaveXMLState(filename)
+    def SaveState(self, filename, location=vtkPVSession.CLIENT):
+        self.SMProxyManager.SaveXMLState(filename, location)
 
 class PropertyIterator(object):
     """Wrapper for a vtkSMPropertyIterator class to satisfy
@@ -2108,13 +2106,13 @@ class Connection(object):
         if self.Alive:
            self.close()
 
-def SaveState(filename):
+def SaveState(filename, location=vtkPVSession.CLIENT):
     """Given a state filename, saves the state of objects registered
     with the proxy manager."""
     pm = ProxyManager()
-    pm.SaveState(filename)
+    pm.SaveState(filename, location)
 
-def LoadState(filename, connection=None):
+def LoadState(filename, connection=None, location=vtkPVSession.CLIENT):
     """Given a state filename and an optional connection, loads the server
     manager state."""
     if not connection:
@@ -2122,7 +2120,7 @@ def LoadState(filename, connection=None):
     if not connection:
         raise RuntimeError ("Cannot load state without a connection")
     pm = ProxyManager()
-    pm.LoadState(filename, None)
+    pm.LoadState(filename, None, location)
     views = GetRenderViews()
     for view in views:
         # Make sure that the client window size matches the
@@ -2359,7 +2357,9 @@ class ParaViewLoader(importlib.abc.InspectLoader):
         return self._info(fullname).GetSource()
 
 def LoadXML(xmlstring):
-    """DEPRECATED. Given a server manager XML as a string, parse and process it."""
+    """
+    PARAVIEW_DEPRECATED_IN_5_12_0 Use LoadPlugin(...) instead
+    """
     raise RuntimeError ("Deprecated. Use LoadPlugin(...) instead.")
 
 def LoadPlugin(filename,  remote=True, connection=None):
@@ -2472,12 +2472,18 @@ def Fetch(input, arg1=None, arg2=None, idx=0):
 
 def AnimateReader(reader, view):
     """This is a utility function that, given a reader and a view
-    animates over all time steps of the reader."""
+    animates over all time steps of the reader.
+    It creates an AnimationScene and add a new TimeAnimationCue in it.
+
+    When running from the GUI and python shell, prefer using the
+    existing scene and cue to maintain time consistency in the
+    application."""
     if not reader:
         raise RuntimeError ("No reader was specified, cannot animate.")
     if not view:
         raise RuntimeError ("No view was specified, cannot animate.")
     # Create an animation scene
+    # This is why it is not recommended to use this method from the GUI. See #18984
     scene = animation.AnimationScene()
 
     # We need to have the reader and the view registered with
@@ -2599,7 +2605,7 @@ def _createGetProperty(pName):
     """Internal method to create a GetXXX() method where XXX == pName."""
     propName = pName
     def getProperty(self):
-        if paraview.compatibility.GetVersion() >= 3.5:
+        if paraview.compatibility.GetVersion() >= (3, 5):
             return self.GetPropertyValue(propName)
         else:
             return self.GetProperty(propName)
@@ -2642,7 +2648,9 @@ def _printProgress(caller, event):
         currentProgress = 0
 
 def updateModules(m=None):
-    """Deprecated. Not needed since 5.10."""
+    """PARAVIEW_DEPRECATED_IN_5_12_0. Not needed since 5.10."""
+    import warnings
+    warnings.warn("'servermanager.updateModules' is no longer necessary and thus deprecated.", DeprecationWarning)
     pass
 
 class ProxyNamespace:
@@ -2670,7 +2678,7 @@ class ProxyNamespace:
         assert xml or smproxy or proxyname
         if proxyname:
             name = proxyname
-        elif paraview.compatibility.GetVersion() >= 3.5:
+        elif paraview.compatibility.GetVersion() >= (3, 5):
             if xml:
                 name = xml.GetAttributeOrDefault("label", xml.GetAttribute("name"))
             elif smproxy:
@@ -2832,12 +2840,12 @@ def _createClassProperties(proto, excludeset=frozenset()):
     # Add all properties as python properties.
     for prop in iter:
         propName = iter.GetKey()
-        if paraview.compatibility.GetVersion() >= 3.5:
+        if paraview.compatibility.GetVersion() >= (3, 5):
             if (prop.GetInformationOnly() and propName != "TimestepValues" \
               and prop.GetPanelVisibility() == "never") or prop.GetIsInternal():
                 continue
         names = [propName]
-        if paraview.compatibility.GetVersion() >= 3.5:
+        if paraview.compatibility.GetVersion() >= (3, 5):
             names = [iter.PropertyLabel]
 
         propDoc = None
@@ -2863,7 +2871,7 @@ def _createClass(groupName, proxyName, apxm=None, prototype=None):
        paraview.print_error("Error while loading %s %s"%(groupName, proxyName))
        return None
     pname = proxyName
-    if paraview.compatibility.GetVersion() >= 3.5 and proto.GetXMLLabel():
+    if paraview.compatibility.GetVersion() >= (3, 5) and proto.GetXMLLabel():
         pname = proto.GetXMLLabel()
     pname = _make_name_valid(pname)
     if not pname:
@@ -2949,7 +2957,7 @@ def demo1():
     view)"""
     if not ActiveConnection:
         Connect()
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
         ss = sources.SphereSource(Radius=2, ThetaResolution=32)
         shr = filters.ShrinkFilter(Input=OutputPort(ss,0))
         cs = sources.ConeSource()
@@ -2979,7 +2987,7 @@ def demo2(fname="/Users/berk/Work/ParaViewData/Data/disk_out_ref.ex2"):
     # Create the exodus reader and specify a file name
     reader = sources.ExodusIIReader(FileName=fname)
     # Get the list of point arrays.
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
         arraySelection = reader.PointResultArrayStatus
     else:
         arraySelection = reader.PointVariables
@@ -3016,7 +3024,7 @@ def demo2(fname="/Users/berk/Work/ParaViewData/Data/disk_out_ref.ex2"):
         numComps = ai.GetNumberOfComponents()
         print ("Number of components:", numComps)
         for j in range(numComps):
-            if paraview.compatibility.GetVersion() <= 3.4:
+            if paraview.compatibility.GetVersion() <= (3, 4):
                 print ("Range:", ai.Range(j))
             else:
                 print ("Range:", ai.GetRange(j))
@@ -3049,7 +3057,7 @@ def demo3():
     if not ActiveConnection:
         Connect()
     # Create a synthetic data source
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
         source = sources.RTAnalyticSource()
     else:
         source = sources.Wavelet()
@@ -3083,7 +3091,7 @@ def demo3():
     rv.StillRender()
 
     # Now, let's probe the data
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
         probe = filters.Probe(Input=source)
         # with a line
         line = sources.LineSource(Resolution=60)
@@ -3133,7 +3141,7 @@ def demo5():
     """ Simple sphere animation"""
     if not ActiveConnection:
         Connect()
-    if paraview.compatibility.GetVersion() <= 3.4:
+    if paraview.compatibility.GetVersion() <= (3, 4):
         sphere = sources.SphereSource()
     else:
         sphere = sources.Sphere()

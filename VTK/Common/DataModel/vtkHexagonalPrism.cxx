@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHexagonalPrism.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .SECTION Thanks
 // Thanks to Philippe Guerville who developed this class. <br>
 // Thanks to Charles Pignerol (CEA-DAM, France) who ported this class under
@@ -22,6 +10,7 @@
 
 #include "vtkHexagonalPrism.h"
 
+#include "vtkDoubleArray.h"
 #include "vtkLine.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
@@ -29,9 +18,12 @@
 #include "vtkPolygon.h"
 #include "vtkQuad.h"
 
+#include <algorithm> //std::copy
+#include <array>
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHexagonalPrism);
 
 static const double VTK_DIVERGED = 1.e6;
@@ -94,8 +86,18 @@ int vtkHexagonalPrism::EvaluatePosition(const double x[3], double closestPoint[3
   double params[3];
   double fcol[3], rcol[3], scol[3], tcol[3];
   int i, j;
-  double d, pt[3];
+  double d;
+  const double* pt;
   double derivs[36];
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   //  set initial position for Newton's method
   subId = 0;
@@ -115,7 +117,7 @@ int vtkHexagonalPrism::EvaluatePosition(const double x[3], double closestPoint[3
     }
     for (i = 0; i < 12; i++)
     {
-      this->Points->GetPoint(i, pt);
+      pt = pts + 3 * i;
       for (j = 0; j < 3; j++)
       {
         fcol[j] += pt[j] * weights[i];
@@ -313,14 +315,23 @@ void vtkHexagonalPrism::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i, j;
-  double pt[3];
+  const double* pt;
 
   this->InterpolationFunctions(pcoords, weights);
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   x[0] = x[1] = x[2] = 0.0;
   for (i = 0; i < 12; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -839,119 +850,20 @@ int vtkHexagonalPrism::IntersectWithLine(const double p1[3], const double p2[3],
 
   return intersection;
 }
-//------------------------------------------------------------------------------
-int vtkHexagonalPrism::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
-{
-  ptIds->Reset();
-  pts->Reset();
-  int i, p[4];
 
+//------------------------------------------------------------------------------
+int vtkHexagonalPrism::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
+{
   // Create 10 tetrahedron. This might not be the minimum, but it is a simple solution.
   // The Hexagonal Prism is divided here in two mirrored hexaedra. For the second hexaedron,
   // 2 points of each tetra are swapped in ordered to get a positive Jacobian.
-
-  p[0] = 0;
-  p[1] = 1;
-  p[2] = 3;
-  p[3] = 6;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 1;
-  p[1] = 6;
-  p[2] = 7;
-  p[3] = 8;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 1;
-  p[1] = 6;
-  p[2] = 8;
-  p[3] = 3;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 1;
-  p[1] = 3;
-  p[2] = 8;
-  p[3] = 2;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 3;
-  p[1] = 8;
-  p[2] = 9;
-  p[3] = 6;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 0;
-  p[1] = 5;
-  p[3] = 3;
-  p[2] = 6;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 5;
-  p[1] = 6;
-  p[3] = 11;
-  p[2] = 10;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 5;
-  p[1] = 6;
-  p[3] = 10;
-  p[2] = 3;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 5;
-  p[1] = 3;
-  p[3] = 10;
-  p[2] = 4;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
-  p[0] = 3;
-  p[1] = 10;
-  p[3] = 9;
-  p[2] = 6;
-  for (i = 0; i < 4; i++)
-  {
-    ptIds->InsertNextId(this->PointIds->GetId(p[i]));
-    pts->InsertNextPoint(this->Points->GetPoint(p[i]));
-  }
-
+  constexpr std::array<vtkIdType, 40> localPtIds{ 0, 1, 3, 6, 1, 6, 7, 8, 1, 6, 8, 3, 1, 3, 8, 2, 3,
+    8, 9, 6, 0, 5, 6, 3, 5, 6, 10, 11, 5, 6, 3, 10, 5, 3, 4, 10, 3, 10, 6, 9 };
+  ptIds->SetNumberOfIds(40);
+  std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   return 1;
 }
+
 //------------------------------------------------------------------------------
 //
 // Compute derivatives in x-y-z directions. Use chain rule in combination
@@ -1117,3 +1029,4 @@ void vtkHexagonalPrism::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Polygon:\n";
   this->Polygon->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

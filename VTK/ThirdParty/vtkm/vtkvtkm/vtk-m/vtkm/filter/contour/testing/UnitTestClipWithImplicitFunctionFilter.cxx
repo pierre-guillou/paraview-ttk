@@ -39,24 +39,30 @@ vtkm::cont::DataSet MakeTestDatasetStructured()
   return ds;
 }
 
-void TestClipStructured()
+void TestClipStructured(vtkm::Float64 offset)
 {
   std::cout << "Testing ClipWithImplicitFunction Filter on Structured data" << std::endl;
 
   vtkm::cont::DataSet ds = MakeTestDatasetStructured();
 
   vtkm::Vec3f center(1, 1, 0);
-  vtkm::FloatDefault radius(0.5);
+
+  // the `expected` results are based on radius = 0.5 and offset = 0.
+  // for a given offset, compute the radius that would produce the same results
+  auto radius = static_cast<vtkm::FloatDefault>(vtkm::Sqrt(0.25 - offset));
+
+  std::cout << "offset = " << offset << ", radius = " << radius << std::endl;
 
   vtkm::filter::contour::ClipWithImplicitFunction clip;
   clip.SetImplicitFunction(vtkm::Sphere(center, radius));
+  clip.SetOffset(offset);
   clip.SetFieldsToPass("scalars");
 
   vtkm::cont::DataSet outputData = clip.Execute(ds);
 
   VTKM_TEST_ASSERT(outputData.GetNumberOfCoordinateSystems() == 1,
                    "Wrong number of coordinate systems in the output dataset");
-  VTKM_TEST_ASSERT(outputData.GetNumberOfFields() == 1,
+  VTKM_TEST_ASSERT(outputData.GetNumberOfFields() == 2,
                    "Wrong number of fields in the output dataset");
   VTKM_TEST_ASSERT(outputData.GetNumberOfCells() == 8,
                    "Wrong number of cells in the output dataset");
@@ -65,11 +71,11 @@ void TestClipStructured()
   vtkm::cont::ArrayHandle<vtkm::Float32> resultArrayHandle;
   temp.AsArrayHandle(resultArrayHandle);
 
-  VTKM_TEST_ASSERT(resultArrayHandle.GetNumberOfValues() == 13,
+  VTKM_TEST_ASSERT(resultArrayHandle.GetNumberOfValues() == 12,
                    "Wrong number of points in the output dataset");
 
-  vtkm::Float32 expected[13] = { 1, 1, 1, 1, 0, 1, 1, 1, 1, 0.25, 0.25, 0.25, 0.25 };
-  for (int i = 0; i < 13; ++i)
+  vtkm::Float32 expected[12] = { 1, 1, 1, 1, 1, 1, 1, 1, 0.25, 0.25, 0.25, 0.25 };
+  for (int i = 0; i < 12; ++i)
   {
     VTKM_TEST_ASSERT(test_equal(resultArrayHandle.ReadPortal().Get(i), expected[i]),
                      "Wrong result for ClipWithImplicitFunction fliter on sturctured quads data");
@@ -92,7 +98,7 @@ void TestClipStructuredInverted()
   clip.SetFieldsToPass("scalars");
   auto outputData = clip.Execute(ds);
 
-  VTKM_TEST_ASSERT(outputData.GetNumberOfFields() == 1,
+  VTKM_TEST_ASSERT(outputData.GetNumberOfFields() == 2,
                    "Wrong number of fields in the output dataset");
   VTKM_TEST_ASSERT(outputData.GetNumberOfCells() == 4,
                    "Wrong number of cells in the output dataset");
@@ -101,11 +107,11 @@ void TestClipStructuredInverted()
   vtkm::cont::ArrayHandle<vtkm::Float32> resultArrayHandle;
   temp.AsArrayHandle(resultArrayHandle);
 
-  VTKM_TEST_ASSERT(resultArrayHandle.GetNumberOfValues() == 13,
+  VTKM_TEST_ASSERT(resultArrayHandle.GetNumberOfValues() == 5,
                    "Wrong number of points in the output dataset");
 
-  vtkm::Float32 expected[13] = { 1, 1, 1, 1, 0, 1, 1, 1, 1, 0.25, 0.25, 0.25, 0.25 };
-  for (int i = 0; i < 13; ++i)
+  vtkm::Float32 expected[5] = { 0, 0.25, 0.25, 0.25, 0.25 };
+  for (int i = 0; i < 5; ++i)
   {
     VTKM_TEST_ASSERT(test_equal(resultArrayHandle.ReadPortal().Get(i), expected[i]),
                      "Wrong result for ClipWithImplicitFunction fliter on sturctured quads data");
@@ -115,7 +121,9 @@ void TestClipStructuredInverted()
 void TestClip()
 {
   //todo: add more clip tests
-  TestClipStructured();
+  TestClipStructured(-0.2);
+  TestClipStructured(0.0);
+  TestClipStructured(0.2);
   TestClipStructuredInverted();
 }
 

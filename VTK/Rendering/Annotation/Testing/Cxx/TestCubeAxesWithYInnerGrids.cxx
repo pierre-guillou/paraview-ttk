@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCubeAxes3.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .SECTION Thanks
 // This test was written by Philippe Pebay, Kitware SAS 2011
 
@@ -99,7 +87,7 @@ int TestCubeAxesWithYInnerGrids(int argc, char* argv[])
   axes2->SetScreenSize(15.0);
   axes2->SetFlyModeToClosestTriad();
   axes2->SetCornerOffset(0.0);
-  axes2->SetDrawYInnerGridlines(1);
+  axes2->SetDrawYInnerGridlines(true);
 
   ren2->AddViewProp(axes2);
   renWin->Render();

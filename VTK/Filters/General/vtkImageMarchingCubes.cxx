@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMarchingCubes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageMarchingCubes.h"
 
 #include "vtkCellArray.h"
@@ -29,6 +17,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageMarchingCubes);
 
 //------------------------------------------------------------------------------
@@ -186,7 +175,7 @@ int vtkImageMarchingCubes::RequestData(vtkInformation* vtkNotUsed(request),
   // Loop through the chunks running marching cubes on each one
   int zMin = extent[4];
   int zMax = extent[5];
-  for (int chunkMin = zMin, chunkMax; chunkMin < zMax; chunkMin = chunkMax)
+  for (int chunkMin = zMin, chunkMax; chunkMin < zMax && !this->CheckAbort(); chunkMin = chunkMax)
   {
     // Get the chunk from the input
     chunkMax = chunkMin + this->NumberOfSlicesPerChunk;
@@ -216,7 +205,7 @@ int vtkImageMarchingCubes::RequestData(vtkInformation* vtkNotUsed(request),
     inputExec->Update();
 
     this->March(inData, chunkMin, chunkMax, numContours, values);
-    if (!this->AbortExecute)
+    if (!this->GetAbortOutput())
     {
       this->UpdateProgress(static_cast<double>(chunkMax - zMin) / (zMax - zMin));
     }
@@ -542,7 +531,7 @@ void vtkImageMarchingCubesHandleCube(vtkImageMarchingCubes* self, int cellX, int
     {
       cubeIndex += 128;
     }
-    // Make sure we have trianlges
+    // Make sure we have triangles
     if (cubeIndex != 0 && cubeIndex != 255)
     {
       // Get edges.
@@ -603,7 +592,7 @@ void vtkImageMarchingCubesMarch(vtkImageMarchingCubes* self, vtkImageData* inDat
     {
       if (!(count % target))
       {
-        if (self->GetAbortExecute())
+        if (self->CheckAbort())
         {
           return;
         }
@@ -806,3 +795,4 @@ void vtkImageMarchingCubes::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "InputMemoryLimit: " << this->InputMemoryLimit << "K bytes\n";
 }
+VTK_ABI_NAMESPACE_END

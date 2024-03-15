@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotParallelCoordinates.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotParallelCoordinates.h"
 
 #include "vtkAxis.h"
+#include "vtkBrush.h"
 #include "vtkChartParallelCoordinates.h"
 #include "vtkContext2D.h"
 #include "vtkContextDevice2D.h"
@@ -43,6 +32,7 @@
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPlotParallelCoordinates::Private : public std::vector<std::vector<float>>
 {
 public:
@@ -64,6 +54,7 @@ vtkPlotParallelCoordinates::vtkPlotParallelCoordinates()
   this->LookupTable = nullptr;
   this->Colors = nullptr;
   this->ScalarVisibility = 0;
+  this->ColorMode = VTK_COLOR_MODE_MAP_SCALARS;
 }
 
 //------------------------------------------------------------------------------
@@ -172,10 +163,17 @@ bool vtkPlotParallelCoordinates::Paint(vtkContext2D* painter)
 }
 
 //------------------------------------------------------------------------------
-bool vtkPlotParallelCoordinates::PaintLegend(vtkContext2D* painter, const vtkRectf& rect, int)
+bool vtkPlotParallelCoordinates::PaintLegend(
+  vtkContext2D* painter, const vtkRectf& rect, int legendIndex)
 {
+  if (this->Colors)
+  {
+    this->Brush->SetColor(this->Colors->GetPointer(4 * legendIndex));
+  }
   painter->ApplyPen(this->Pen);
+  painter->ApplyBrush(this->Brush);
   painter->DrawLine(rect[0], rect[1] + 0.5 * rect[3], rect[0] + rect[2], rect[1] + 0.5 * rect[3]);
+  painter->DrawRect(rect[0], rect[1], rect[2], rect[3]);
   return true;
 }
 
@@ -390,7 +388,7 @@ bool vtkPlotParallelCoordinates::UpdateCache()
       {
         this->CreateDefaultLookupTable();
       }
-      this->Colors = this->LookupTable->MapScalars(c, VTK_COLOR_MODE_MAP_SCALARS, -1);
+      this->Colors = this->LookupTable->MapScalars(c, this->ColorMode, -1);
       // Consistent register and unregisters
       this->Colors->Register(this);
       this->Colors->Delete();
@@ -510,3 +508,4 @@ void vtkPlotParallelCoordinates::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

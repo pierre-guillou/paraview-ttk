@@ -8,10 +8,27 @@
 ##  PURPOSE.  See the above copyright notice for more information.
 ##============================================================================
 
-#add the directory that contains the VTK-m config file to the cmake
-#path so that our examples can find VTK-m
-
 if(VTKm_ENABLE_EXAMPLES)
+  # VTKm examples expects vtkm libraries to be namespaced with the prefix vtkm::.
+  # However as the examples are also built as just another part of the VTK-m code
+  # those prefix are not added to the targets (This happens during the
+  # installation). To workaround this issue here, we create IMPORTED libs linking
+  # to the vtkm libraries used by the examples with expected the vtkm:: prefix.
+  vtkm_module_get_list(module_list)
+  foreach(tgt IN LISTS module_list)
+    if(TARGET ${tgt})
+      # The reason of creating this phony IMPORTED libraries instead of making
+      # ALIAS libraries is that ALIAS libraries are GLOBAL whereas IMPORTED are
+      # local at the directory level where they are created. We do not want these
+      # phony targets to be visible outside of the example directory.
+      vtkm_target_mangle(tgt_name_mangled ${tgt})
+      add_library("vtkm::${tgt_name_mangled}" INTERFACE IMPORTED)
+      target_link_libraries("vtkm::${tgt_name_mangled}" INTERFACE ${tgt})
+    endif()
+  endforeach()
+
+  #add the directory that contains the VTK-m config file to the cmake
+  #path so that our examples can find VTK-m
   set(CMAKE_PREFIX_PATH ${VTKm_BINARY_DIR}/${VTKm_INSTALL_CONFIG_DIR})
   add_subdirectory(clipping)
   add_subdirectory(contour_tree)
@@ -40,7 +57,8 @@ endif()
 if (VTKm_ENABLE_TESTING)
   # These need to be fast to build as they will
   # be built each time we run the test
-  vtkm_test_against_install(demo)
-  vtkm_test_against_install(histogram)
-  vtkm_test_against_install(smoke_test)
+  vtkm_test_against_install_cmake(demo)
+  vtkm_test_against_install_cmake(histogram)
+  vtkm_test_against_install_cmake(smoke_test)
+  vtkm_test_against_install_make(smoke_test)
 endif()

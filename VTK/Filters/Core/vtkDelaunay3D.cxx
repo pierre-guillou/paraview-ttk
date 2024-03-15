@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDelaunay3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDelaunay3D.h"
 
@@ -29,6 +17,7 @@
 #include "vtkTriangle.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDelaunay3D);
 
 //------------------------------------------------------------------------------
@@ -205,7 +194,7 @@ vtkIdType vtkDelaunay3D::FindEnclosingFaces(double x[3], vtkUnstructuredGrid* Me
   }
 
   closestPoint = locator->FindClosestInsertedPoint(x);
-  vtkCellLinks* links = static_cast<vtkCellLinks*>(Mesh->GetCellLinks());
+  vtkCellLinks* links = static_cast<vtkCellLinks*>(Mesh->GetLinks());
   int numCells = links->GetNcells(closestPoint);
   vtkIdType* cells = links->GetCells(closestPoint);
   if (numCells <= 0) // shouldn't happen
@@ -506,7 +495,7 @@ int vtkDelaunay3D::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkDebugMacro(<< "point #" << ptId);
       this->UpdateProgress(static_cast<double>(ptId) / numPoints);
-      if (this->GetAbortExecute())
+      if (this->CheckAbort())
       {
         break;
       }
@@ -1101,7 +1090,7 @@ static int GetTetraFaceNeighbor(vtkUnstructuredGrid* Mesh, vtkIdType tetraId, vt
   vtkIdType p2, vtkIdType p3, vtkIdType& nei)
 {
   // gather necessary information
-  vtkCellLinks* links = static_cast<vtkCellLinks*>(Mesh->GetCellLinks());
+  vtkCellLinks* links = static_cast<vtkCellLinks*>(Mesh->GetLinks());
   int numCells = links->GetNcells(p1);
   vtkIdType* cells = links->GetCells(p1);
   int i;
@@ -1143,3 +1132,4 @@ int vtkDelaunay3D::FillInputPortInformation(int port, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPointSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

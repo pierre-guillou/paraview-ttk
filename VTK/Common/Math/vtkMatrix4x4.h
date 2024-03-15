@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMatrix4x4.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMatrix4x4
  * @brief   represent and manipulate 4x4 transformation matrices
@@ -32,6 +20,7 @@
 #include "vtkCommonMathModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONMATH_EXPORT vtkMatrix4x4 : public vtkObject
 {
 public:
@@ -77,7 +66,7 @@ public:
    */
   void DeepCopy(const double elements[16])
   {
-    this->DeepCopy(*this->Element, elements);
+    vtkMatrix4x4::DeepCopy(*this->Element, elements);
     this->Modified();
   }
 
@@ -313,4 +302,5 @@ inline bool vtkMatrix4x4::IsIdentity()
     M[12] == 0.0 && M[13] == 0.0 && M[14] == 0.0 && M[15] == 1.0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

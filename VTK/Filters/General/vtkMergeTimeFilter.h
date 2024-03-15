@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeTimeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMergeTimeFilter
  * @brief   Create a multiblock containing one block per input, with unified timestep list.
@@ -24,7 +12,7 @@
  *
  * When source time is exactly 0., absolute tolerance is used even in relative mode.
  *
- * Note that the actual merge of timesteps is done duing the RequestInformation pass.
+ * Note that the actual merge of timesteps is done during the RequestInformation pass.
  * In the 'Relative' mode, inputs are processed in order and compararison is done with
  * previously processed inputs.
  */
@@ -37,6 +25,7 @@
 
 #include <vector> // Use of dynamically allocated array
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkMergeTimeFilter : public vtkMultiBlockDataSetAlgorithm
 {
 public:
@@ -136,4 +125,5 @@ private:
   void operator=(const vtkMergeTimeFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

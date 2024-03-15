@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextScenePrivate.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContextScenePrivate
@@ -34,6 +22,7 @@
 // STL headers
 #include <vector> // Needed for STL vector.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 
 //-----------------------------------------------------------------------------
@@ -44,8 +33,7 @@ public:
    * Default constructor.
    */
   vtkContextScenePrivate(vtkAbstractContextItem* item)
-    : std::vector<vtkAbstractContextItem*>()
-    , Scene(nullptr)
+    : Scene(nullptr)
     , Item(item)
   {
   }
@@ -139,6 +127,8 @@ public:
     {
       (*it)->SetParent(nullptr);
       (*it)->SetScene(nullptr);
+      // releases cache from 2D, 3D devices
+      (*it)->ReleaseGraphicsResources();
       (*it)->Delete();
     }
     this->clear();
@@ -177,5 +167,6 @@ public:
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkContextScenePrivate_h
 // VTK-HeaderTest-Exclude: vtkContextScenePrivate.h

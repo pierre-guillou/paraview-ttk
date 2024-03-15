@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMTrace.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMTrace
  * @brief   vtkSMTrace is used to produce Python trace in the ParaView
@@ -99,7 +87,7 @@ public:
    */
   static std::string StopTrace();
 
-  //@{
+  ///@{
   /**
    * Get/Set whether all properties should be saved for a proxy,
    * including the default values. If false, only the properties
@@ -107,18 +95,18 @@ public:
    */
   vtkSetMacro(TraceXMLDefaults, bool);
   vtkGetMacro(TraceXMLDefaults, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Log generated trace to stdout as the trace is being generated
    * (useful for debugging).
    */
   vtkSetMacro(LogTraceToStdout, bool);
   vtkGetMacro(LogTraceToStdout, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Supplemental proxies are proxies that not explicitly created by the user
    * i.e. proxies such as lookup tables, scalar bars, animation scene, etc.
@@ -128,23 +116,23 @@ public:
    */
   vtkSetMacro(FullyTraceSupplementalProxies, bool);
   vtkGetMacro(FullyTraceSupplementalProxies, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Skip rendering components such as views, representations.
    */
   vtkSetMacro(SkipRenderingComponents, bool);
   vtkGetMacro(SkipRenderingComponents, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * The trace will include camera interaction. (default false)
    */
   vtkSetMacro(FullyTraceCameraAdjustments, bool);
   vtkGetMacro(FullyTraceCameraAdjustments, bool);
-  //@}
+  ///@}
 
   enum
   {
@@ -172,7 +160,7 @@ public:
   static std::string GetState(vtkSMProxy* options);
 
   // ************** BEGIN INTERNAL *************************
-  //@{
+  ///@{
   /**
    * Internal class not meant to be used directly.
    */
@@ -182,7 +170,7 @@ public:
   public:
     TraceItemArgs();
     ~TraceItemArgs();
-    //@}
+    ///@}
 
     // Overloads for keyword arguments.
     TraceItemArgs& arg(const char* key, vtkObject* val);

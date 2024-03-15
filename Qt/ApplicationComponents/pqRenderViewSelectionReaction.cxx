@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqRenderViewSelectionReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqRenderViewSelectionReaction.h"
 
 #include "pqActiveObjects.h"
@@ -51,9 +23,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkRenderWindowInteractor.h"
 #include "vtkSMArrayListDomain.h"
 #include "vtkSMInteractiveSelectionPipeline.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
@@ -97,10 +69,11 @@ pqRenderViewSelectionReaction::pqRenderViewSelectionReaction(
   // if view == nullptr, we track the active view.
   if (view == nullptr)
   {
-    QObject::connect(
-      &pqActiveObjects::instance(), SIGNAL(viewChanged(pqView*)), this, SLOT(setView(pqView*)));
+    pqActiveObjects* activeObjects = &pqActiveObjects::instance();
+    this->connect(activeObjects, SIGNAL(viewChanged(pqView*)), this, SLOT(setView(pqView*)));
+
     // this ensure that the enabled-state is set correctly.
-    this->setView(nullptr);
+    this->setView(activeObjects->activeView());
   }
 
   if (this->Mode == CLEAR_SELECTION || this->Mode == GROW_SELECTION ||
@@ -122,6 +95,20 @@ pqRenderViewSelectionReaction::pqRenderViewSelectionReaction(
       SLOT(setRepresentation(pqDataRepresentation*)));
   }
 
+  switch (this->Mode)
+  {
+    case SELECT_SURFACE_POINTDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLDATA_INTERACTIVELY:
+    case SELECT_SURFACE_CELLS_INTERACTIVELY:
+    case SELECT_SURFACE_POINTS_INTERACTIVELY:
+    case SELECT_SURFACE_POINTS_TOOLTIP:
+    case SELECT_SURFACE_CELLS_TOOLTIP:
+      QObject::connect(&pqActiveObjects::instance(), &pqActiveObjects::dataUpdated, this,
+        &pqRenderViewSelectionReaction::clearSelectionCache);
+      break;
+    default:
+      break;
+  }
   this->updateEnableState();
 
   this->MouseMovingTimer.setSingleShot(true);
@@ -828,8 +815,8 @@ void pqRenderViewSelectionReaction::fastPreSelection()
 
   if (status)
   {
-    vtkSMPVRepresentationProxy* repr =
-      vtkSMPVRepresentationProxy::SafeDownCast(selectedRepresentations->GetItemAsObject(0));
+    vtkSMRepresentationProxy* repr =
+      vtkSMRepresentationProxy::SafeDownCast(selectedRepresentations->GetItemAsObject(0));
 
     if (this->CurrentRepresentation != nullptr && repr != this->CurrentRepresentation)
     {
@@ -867,6 +854,15 @@ void pqRenderViewSelectionReaction::onMouseStop()
 {
   this->MouseMoving = false;
   this->UpdateTooltip();
+}
+
+//-----------------------------------------------------------------------------
+void pqRenderViewSelectionReaction::clearSelectionCache()
+{
+  if (pqRenderViewSelectionReaction::ActiveReaction == this)
+  {
+    this->View->getRenderViewProxy()->ClearSelectionCache(true);
+  }
 }
 
 //-----------------------------------------------------------------------------

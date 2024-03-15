@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMAppHelper.cxx
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifdef _MSC_VER
 #pragma warning(disable : 4514)
 #pragma warning(disable : 4786)
@@ -39,6 +25,7 @@
 
 //#define DEBUG_DICOM_APP_HELPER
 
+VTK_ABI_NAMESPACE_BEGIN
 class DICOMAppHelperImplementation
 {
 public:
@@ -1293,3 +1280,4 @@ void DICOMAppHelper::GantryAngleCallback(
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+VTK_ABI_NAMESPACE_END

@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 // This class is either a simple subclass of mvCollaborationClient
 // if collaboration is enabled or an empty class if not
@@ -42,7 +31,6 @@
 class vtkBoxWidget2;
 class vtkImplicitPlaneWidget2;
 class vtkOpenGLRenderer;
-class vtkPVOpenVRCollaborationClientInternal;
 class vtkPVXRInterfaceHelper;
 class vtkVRModel;
 
@@ -88,13 +76,15 @@ public:
 
 protected:
   vtkPVXRInterfaceCollaborationClient();
-  ~vtkPVXRInterfaceCollaborationClient();
-  vtkPVOpenVRCollaborationClientInternal* Internal;
-  int CurrentLocation;
+  ~vtkPVXRInterfaceCollaborationClient() override;
 
 private:
   vtkPVXRInterfaceCollaborationClient(const vtkPVXRInterfaceCollaborationClient&) = delete;
   void operator=(const vtkPVXRInterfaceCollaborationClient&) = delete;
+
+  class vtkPVXRCollaborationClientInternal;
+  vtkSmartPointer<vtkPVXRCollaborationClientInternal> Internal;
+  int CurrentLocation = -1;
 };
 
 #endif

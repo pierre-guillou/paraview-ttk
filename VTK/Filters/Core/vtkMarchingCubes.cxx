@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMarchingCubes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMarchingCubes.h"
 
 #include "vtkArrayDispatch.h"
@@ -40,6 +28,7 @@
 #include "vtkUnsignedLongArray.h"
 #include "vtkUnsignedShortArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMarchingCubes);
 
 // Description:
@@ -175,9 +164,9 @@ struct ComputeGradientWorker
     int contNum, jOffset, ii, index, *vert;
     vtkIdType kOffset, idx;
     vtkIdType ptIds[3];
-    int ComputeNormals = newNormals != nullptr;
-    int ComputeGradients = newGradients != nullptr;
-    int ComputeScalars = newScalars != nullptr;
+    vtkTypeBool ComputeNormals = newNormals != nullptr;
+    vtkTypeBool ComputeGradients = newGradients != nullptr;
+    vtkTypeBool ComputeScalars = newScalars != nullptr;
     int NeedGradients;
     int extent[6];
     double t, *x1, *x2, x[3], *n1, *n2, n[3], min, max;
@@ -214,10 +203,11 @@ struct ComputeGradientWorker
     // using marching cubes algorithm.
     //
     sliceSize = dims[0] * dims[1];
+    int checkAbortInterval = std::min((dims[2] - 1) / 10 + 1, 1000);
     for (k = 0; k < (dims[2] - 1); k++)
     {
       self->UpdateProgress(k / static_cast<double>(dims[2] - 1));
-      if (self->GetAbortExecute())
+      if (k % checkAbortInterval == 0 && self->CheckAbort())
       {
         break;
       }
@@ -606,3 +596,4 @@ void vtkMarchingCubes::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Locator: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

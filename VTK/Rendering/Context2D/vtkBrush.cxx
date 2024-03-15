@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBrush.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBrush.h"
 
@@ -21,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBrush);
 
 //------------------------------------------------------------------------------
@@ -173,3 +162,4 @@ void vtkBrush::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Texture: " << reinterpret_cast<void*>(this->Texture) << endl;
   os << indent << "Texture Properties: " << this->TextureProperties << endl;
 }
+VTK_ABI_NAMESPACE_END

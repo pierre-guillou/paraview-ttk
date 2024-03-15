@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageProbeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageProbeFilter.h"
 
 #include "vtkImageData.h"
@@ -19,17 +7,20 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
+#include "vtkMultiThreader.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkSMPThreadLocal.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkThreadedImageAlgorithm.h"
 #include "vtkUnsignedCharArray.h"
 
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageProbeFilter);
 
 vtkCxxSetObjectMacro(vtkImageProbeFilter, Interpolator, vtkAbstractImageInterpolator);
@@ -214,11 +205,78 @@ private:
 };
 
 //------------------------------------------------------------------------------
+// This is for vtkMultiThreader (not for vtkSMPTools)
+struct vtkImageProbeFilter::ProbePointsThreadStruct
+{
+  ProbePointsThreadStruct(vtkImageProbeFilter* probeFilter, vtkDataSet* input, vtkImageData* source,
+    vtkPointData* outPD, vtkIdType numberOfPoints, int numberOfThreads)
+    : ProbeFilter(probeFilter)
+    , Input(input)
+    , Source(source)
+    , OutPointData(outPD)
+    , NumberOfPoints(numberOfPoints)
+    , Thread(numberOfThreads)
+  {
+    if (numberOfThreads > 0)
+    {
+      Thread[0].BaseThread = true;
+    }
+  }
+
+  static VTK_THREAD_RETURN_TYPE Execute(void* arg)
+  {
+    vtkMultiThreader::ThreadInfo* ti = static_cast<vtkMultiThreader::ThreadInfo*>(arg);
+    ProbePointsThreadStruct* ts = static_cast<ProbePointsThreadStruct*>(ti->UserData);
+
+    vtkTypeInt64 numPts = ts->NumberOfPoints;
+    vtkIdType startId = static_cast<vtkIdType>((numPts * ti->ThreadID) / ti->NumberOfThreads);
+    vtkIdType endId = static_cast<vtkIdType>((numPts * (ti->ThreadID + 1)) / ti->NumberOfThreads);
+
+    ts->ProbeFilter->ProbePoints(
+      ts->Input, ts->Source, ts->OutPointData, startId, endId, &ts->Thread[ti->ThreadID]);
+
+    return VTK_THREAD_RETURN_VALUE;
+  }
+
+private:
+  vtkImageProbeFilter* ProbeFilter;
+  vtkDataSet* Input;
+  vtkImageData* Source;
+  vtkPointData* OutPointData;
+  vtkIdType NumberOfPoints;
+  std::vector<vtkImageProbeFilter::ProbePointsThreadLocal> Thread;
+};
+
+//------------------------------------------------------------------------------
 void vtkImageProbeFilter::DoProbing(vtkDataSet* input, vtkImageData* source, vtkDataSet* output)
 {
   vtkDebugMacro(<< "Probing data");
 
   vtkPointData* outPD = output->GetPointData();
+
+  if (!vtkThreadedImageAlgorithm::GetGlobalDefaultEnableSMP())
+  {
+    // Use vtkMultiThreader, use fewer threads for small data
+    vtkIdType numPts = input->GetNumberOfPoints();
+    int numThreads = vtkMultiThreader::GetGlobalDefaultNumberOfThreads();
+    numThreads = (numPts >= numThreads * 100 ? numThreads : static_cast<int>(1 + numPts / 100));
+    if (numThreads > 1)
+    {
+      // Use multi-threader to execute in parallel
+      ProbePointsThreadStruct ts(this, input, source, outPD, numPts, numThreads);
+      vtkNew<vtkMultiThreader> threader;
+      threader->SetNumberOfThreads(numThreads);
+      threader->SetSingleMethod(ProbePointsThreadStruct::Execute, &ts);
+      threader->SingleMethodExecute();
+    }
+    else
+    {
+      // Execute in main thread
+      vtkImageProbeFilter::ProbePointsThreadLocal tl;
+      this->ProbePoints(input, source, outPD, 0, numPts, &tl);
+    }
+    return;
+  }
 
   // Estimate the granularity for multithreading
   int threads = vtkSMPTools::GetEstimatedNumberOfThreads();
@@ -321,7 +379,7 @@ void vtkImageProbeFilter::ProbePoints(vtkDataSet* input, vtkImageData* source, v
       interpolator->InterpolateIJK(ijk, value);
       for (int c = 0; c < numToClamp; c++)
       {
-        // Clamping is needed to avoid overlow when output is integer
+        // Clamping is needed to avoid overflow when output is integer
         value[c] = vtkMath::ClampValue(value[c], minVal, maxVal);
       }
       for (int c = 0; c < numToRound; c++)
@@ -398,3 +456,4 @@ void vtkImageProbeFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Source: " << source << "\n";
   os << indent << "Interpolator: " << interpolator << "\n";
 }
+VTK_ABI_NAMESPACE_END

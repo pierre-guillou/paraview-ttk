@@ -4,16 +4,21 @@ vtk_add_test_cxx(vtkImagingCoreCxxTests tests
   ImageAccumulateLarge.cxx,NO_VALID,NO_DATA,NO_OUTPUT 32
   ImageAutoRange.cxx
   ImageBSplineCoefficients.cxx
+  ImageChangeInformation.cxx,NO_VALID,NO_DATA
   ImageDifference.cxx,NO_VALID
   ImageGenericInterpolateSlidingWindow3D.cxx
   ImageHistogram.cxx
   ImageHistogramStatistics.cxx,NO_VALID
   ImageInterpolateSlidingWindow2D.cxx
   ImageInterpolateSlidingWindow3D.cxx
+  ImageInterpolator.cxx,NO_VALID,NO_DATA
+  ImagePassInformation.cxx,NO_VALID,NO_DATA
   ImageResize.cxx
   ImageResize3D.cxx
   ImageResizeCropping.cxx
   ImageReslice.cxx
+  ImageResliceDirection.cxx
+  ImageResliceOriented.cxx
   ImageWeightedSum.cxx,NO_VALID
   ImportExport.cxx,NO_VALID
   TestBSplineWarp.cxx

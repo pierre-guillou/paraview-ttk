@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitModeller.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImplicitModeller
  * @brief   compute distance from input geometry on structured point dataset
@@ -94,6 +82,7 @@
 #define VTK_VOXEL_MODE 0
 #define VTK_CELL_MODE 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkExtractGeometry;
 class vtkMultiThreader;
@@ -320,4 +309,5 @@ private:
   void operator=(const vtkImplicitModeller&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

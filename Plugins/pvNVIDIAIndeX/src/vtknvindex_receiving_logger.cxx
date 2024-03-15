@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtknvindex_receiving_logger.h"
 
@@ -71,14 +73,8 @@ void vtknvindex_receiving_logger::message(mi::base::Message_severity level, cons
   {
     use_output_window = true; // Always show these in the Output Messages window
 
-#if ((NVIDIA_INDEX_LIBRARY_REVISION_MAJOR > 327600 && NVIDIA_INDEX_LIBRARY_REVISION_MINOR > 0) ||  \
-  NVIDIA_INDEX_LIBRARY_REVISION_MAJOR >= 337377)
     const std::string cluster_interface_warning =
       "TCPNET net  warn : The 'any' address can't be used as the cluster interface address.";
-#else
-    const std::string cluster_interface_warning =
-      "TCPNET net  warn : The any address can't be used.";
-#endif
     if (message_str.find(cluster_interface_warning) != std::string::npos)
     {
       level = mi::base::MESSAGE_SEVERITY_INFO; // make it less severe

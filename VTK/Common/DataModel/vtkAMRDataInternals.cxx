@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRDataInternals.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRDataInternals.h"
 #include "vtkObjectFactory.h"
 #include "vtkUniformGrid.h"
 
 #include <cassert>
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRDataInternals);
 
 vtkAMRDataInternals::Block::Block(unsigned int i, vtkUniformGrid* g)
@@ -108,7 +97,7 @@ void vtkAMRDataInternals::GenerateIndex(bool force)
   }
 }
 
-void vtkAMRDataInternals::ShallowCopy(vtkObject* src)
+void vtkAMRDataInternals::CompositeShallowCopy(vtkObject* src)
 {
   if (src == this)
   {
@@ -123,7 +112,31 @@ void vtkAMRDataInternals::ShallowCopy(vtkObject* src)
   this->Modified();
 }
 
-void vtkAMRDataInternals::RecursiveShallowCopy(vtkObject* src)
+void vtkAMRDataInternals::DeepCopy(vtkObject* src)
+{
+  if (src == this)
+  {
+    return;
+  }
+
+  if (vtkAMRDataInternals* hbds = vtkAMRDataInternals::SafeDownCast(src))
+  {
+    this->Blocks = hbds->Blocks;
+    for (auto& item : this->Blocks)
+    {
+      if (item.Grid)
+      {
+        auto clone = item.Grid->NewInstance();
+        clone->DeepCopy(item.Grid);
+        item.Grid.TakeReference(clone);
+      }
+    }
+  }
+
+  this->Modified();
+}
+
+void vtkAMRDataInternals::ShallowCopy(vtkObject* src)
 {
   if (src == this)
   {
@@ -146,3 +159,4 @@ void vtkAMRDataInternals::RecursiveShallowCopy(vtkObject* src)
 
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

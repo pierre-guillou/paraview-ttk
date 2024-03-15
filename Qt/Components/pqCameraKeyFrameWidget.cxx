@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCameraKeyFrameWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqCameraKeyFrameWidget.h"
 #include "ui_pqCameraKeyFrameWidget.h"
 
@@ -39,13 +11,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqServer.h"
 #include "vtkCamera.h"
 #include "vtkPVSession.h"
-#include "vtkPVXMLElement.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSmartPointer.h"
+#include "vtk_jsoncpp.h"
 
 #include <QDebug>
 #include <QDoubleValidator>
@@ -197,7 +169,7 @@ pqCameraKeyFrameWidget::pqCameraKeyFrameWidget(QWidget* parentObject)
   this->Internal->PSplineWidget->filterWidgets();
 
   (new QVBoxLayout(this->Internal->positionContainer))->addWidget(this->Internal->PSplineWidget);
-  this->Internal->positionContainer->layout()->setMargin(0);
+  this->Internal->positionContainer->layout()->setContentsMargins(0, 0, 0, 0);
 
   this->Internal->FSplineProxy.TakeReference(pxm->NewProxy("parametric_functions", "Spline"));
   this->Internal->PSplineProxy->SetLocation(vtkPVSession::CLIENT);
@@ -210,7 +182,7 @@ pqCameraKeyFrameWidget::pqCameraKeyFrameWidget(QWidget* parentObject)
   this->Internal->FSplineWidget->filterWidgets();
 
   (new QVBoxLayout(this->Internal->focusContainer))->addWidget(this->Internal->FSplineWidget);
-  this->Internal->focusContainer->layout()->setMargin(0);
+  this->Internal->focusContainer->layout()->setContentsMargins(0, 0, 0, 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -229,6 +201,109 @@ void pqCameraKeyFrameWidget::setUsePathBasedMode(bool use_paths)
 bool pqCameraKeyFrameWidget::usePathBasedMode() const
 {
   return (this->Internal->stackedWidgetMode->currentIndex() == 0);
+}
+
+//-----------------------------------------------------------------------------
+void pqCameraKeyFrameWidget::initializeUsingJSON(const Json::Value& json)
+{
+  std::vector<double> value;
+  auto parseJSONVector = [&json, &value](const char* name, unsigned int size) -> bool {
+    value.resize(size);
+    for (unsigned int idx = 0; idx < size; idx++)
+    {
+      if (json[name][idx].isDouble())
+      {
+        value[idx] = json[name][idx].asDouble();
+      }
+      else
+      {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  if (json["viewUp"].size() == 3 && parseJSONVector("viewUp", 3))
+  {
+    this->Internal->setViewUp(value.data());
+  }
+  if (this->usePathBasedMode())
+  {
+    unsigned int size = json["positions"].size();
+    if (size >= 3 && size % 3 == 0 && parseJSONVector("positions", size))
+    {
+      vtkSMPropertyHelper(this->Internal->PSplineProxy, "Points").Set(value.data(), size);
+    }
+    size = json["focalPoints"].size();
+    if (size >= 3 && size % 3 == 0 && parseJSONVector("focalPoints", size))
+    {
+      vtkSMPropertyHelper(this->Internal->FSplineProxy, "Points").Set(value.data(), size);
+    }
+    if (json["positionPathClosed"].isInt())
+    {
+      vtkSMPropertyHelper(this->Internal->PSplineProxy, "Closed")
+        .Set(json["positionPathClosed"].asInt());
+    }
+    if (json["focalPointPathClosed"].isInt())
+    {
+      vtkSMPropertyHelper(this->Internal->FSplineProxy, "Closed")
+        .Set(json["focalPointPathClosed"].asInt());
+    }
+  }
+  else
+  {
+    if (json["position"].size() == 3 && parseJSONVector("position", 3))
+    {
+      this->Internal->setPosition(value.data());
+    }
+    if (json["focalPoint"].size() == 3 && parseJSONVector("focalPoint", 3))
+    {
+      this->Internal->setFocalPoint(value.data());
+    }
+    if (json["viewAngle"].isDouble())
+    {
+      this->Internal->setViewAngle(json["viewAngle"].asDouble());
+    }
+    if (json["parallelScale"].isDouble())
+    {
+      this->Internal->setParallelScale(json["parallelScale"].asDouble());
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+Json::Value pqCameraKeyFrameWidget::serializeToJSON() const
+{
+  Json::Value keyFrame;
+
+  auto addJSONVector = [&keyFrame](const char* name, const double* value, size_t size) {
+    for (unsigned int idx = 0; idx < size; idx++)
+    {
+      keyFrame[name].insert(idx, value[idx]);
+    }
+  };
+
+  if (this->usePathBasedMode())
+  {
+    auto positions = vtkSMPropertyHelper(this->Internal->PSplineProxy, "Points").GetDoubleArray();
+    addJSONVector("positions", positions.data(), positions.size());
+    keyFrame["positionPathClosed"] =
+      vtkSMPropertyHelper(this->Internal->PSplineProxy, "Closed").GetAsInt();
+    auto focalPoints = vtkSMPropertyHelper(this->Internal->FSplineProxy, "Points").GetDoubleArray();
+    addJSONVector("focalPoints", focalPoints.data(), focalPoints.size());
+    keyFrame["focalPointPathClosed"] =
+      vtkSMPropertyHelper(this->Internal->FSplineProxy, "Closed").GetAsInt();
+    addJSONVector("viewUp", this->Internal->viewUp_Path(), 3);
+  }
+  else
+  {
+    keyFrame["parallelScale"] = this->Internal->getParallelScale();
+    keyFrame["viewAngle"] = this->Internal->getViewAngle();
+    addJSONVector("viewUp", this->Internal->viewUp_NonPath(), 3);
+    addJSONVector("position", this->Internal->position(), 3);
+    addJSONVector("focalPoint", this->Internal->focalPoint(), 3);
+  }
+  return keyFrame;
 }
 
 //-----------------------------------------------------------------------------
@@ -261,6 +336,12 @@ void pqCameraKeyFrameWidget::setFocalPoints(const std::vector<double>& focals)
     this->Internal->FSplineProxy->GetProperty("FocalPoints"), varFocus);
 
   this->Internal->FSplineProxy->UpdateVTKObjects();
+}
+
+//-----------------------------------------------------------------------------
+void pqCameraKeyFrameWidget::setViewUp(double viewUp[3])
+{
+  this->Internal->setViewUp(viewUp);
 }
 
 //-----------------------------------------------------------------------------

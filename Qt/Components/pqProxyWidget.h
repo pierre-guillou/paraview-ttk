@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqProxyWidget_h
 #define pqProxyWidget_h
 
@@ -40,6 +12,7 @@ class pqPropertyWidget;
 class pqView;
 class vtkSMProperty;
 class vtkSMProxy;
+class QPoint;
 
 /**
  * pqProxyWidget represents a panel for a vtkSMProxy. pqProxyWidget creates
@@ -143,7 +116,7 @@ public:
    */
   static DocumentationType showProxyDocumentationInPanel(vtkSMProxy* proxy);
 
-  //@{
+  ///@{
   /**
    * pqProxyWidget shows widgets for properties in two configurations: basic and
    * advanced. Properties on Proxies can have `PanelVisibility` set to an
@@ -158,7 +131,9 @@ public:
    */
   const QSet<QString>& defaultVisibilityLabels() const { return this->DefaultVisibilityLabels; }
   const QSet<QString>& advancedVisibilityLabels() const { return this->AdvancedVisibilityLabels; }
-  //@}
+  ///@}
+
+  void showContextMenu(const QPoint& pt, pqPropertyWidget* propWidget);
 
 Q_SIGNALS:
   /**
@@ -190,9 +165,9 @@ public Q_SLOTS:
 
   /**
    * Show any interactive widget linked to a specific output port
-   * this proxyWdiget has. See XML hint <WidgetVisibilityLink port="X" />.
+   * this proxyWdiget has. See XML hint \verbatim<WidgetVisibilityLink port="X" />\endverbatim.
    */
-  void showLinkedInteractiveWidget(int portIndex, bool show);
+  void showLinkedInteractiveWidget(int portIndex, bool show, bool changeFocus);
 
   /**
    * Accepts the property widget changes changes.

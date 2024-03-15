@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderTimingTests.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkRenderTimingTests_h
 #define vtkRenderTimingTests_h
@@ -45,6 +33,7 @@ Define a test for simple triangle mesh surfaces
 #include "vtkParametricFunctionSource.h"
 #include "vtkParametricTorus.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class surfaceTest : public vtkRTTest
 {
 public:
@@ -145,11 +134,13 @@ protected:
 /*=========================================================================
 Define a test for glyphing
 =========================================================================*/
+VTK_ABI_NAMESPACE_END
 #include "vtkElevationFilter.h"
 #include "vtkGlyph3DMapper.h"
 #include "vtkPlaneSource.h"
 #include "vtkSphereSource.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class glyphTest : public vtkRTTest
 {
 public:
@@ -245,12 +236,14 @@ protected:
 /*=========================================================================
 Define a test for molecules
 =========================================================================*/
+VTK_ABI_NAMESPACE_END
 #include "vtkBoxMuellerRandomSequence.h"
 #include "vtkMath.h"
 #include "vtkMolecule.h"
 #include "vtkMoleculeMapper.h"
 #include "vtkPointLocator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class moleculeTest : public vtkRTTest
 {
 public:
@@ -392,6 +385,7 @@ protected:
 /*=========================================================================
 Define a test for volume rendering
 =========================================================================*/
+VTK_ABI_NAMESPACE_END
 #include "vtkColorTransferFunction.h"
 #include "vtkGPUVolumeRayCastMapper.h"
 #include "vtkPiecewiseFunction.h"
@@ -400,6 +394,7 @@ Define a test for volume rendering
 #include "vtkVolumeMapper.h"
 #include "vtkVolumeProperty.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class volumeTest : public vtkRTTest
 {
 public:
@@ -509,11 +504,11 @@ protected:
 /*=========================================================================
 Define a test for depth peeling transluscent geometry.
 =========================================================================*/
-#include "vtkParametricFunctionSource.h"
-#include "vtkParametricTorus.h"
+VTK_ABI_NAMESPACE_END
 #include "vtkProperty.h"
 #include "vtkTransform.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class depthPeelingTest : public vtkRTTest
 {
 public:
@@ -636,10 +631,9 @@ protected:
 /*=========================================================================
 Define a test for simple triangle mesh surfaces
 =========================================================================*/
-#include "vtkParametricBoy.h"
-#include "vtkParametricFunctionSource.h"
-#include "vtkParametricTorus.h"
+VTK_ABI_NAMESPACE_END
 
+VTK_ABI_NAMESPACE_BEGIN
 class manyActorTest : public vtkRTTest
 {
 public:
@@ -733,5 +727,6 @@ public:
 protected:
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkRenderTimingTests.h

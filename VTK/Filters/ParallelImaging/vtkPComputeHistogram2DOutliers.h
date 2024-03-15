@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPComputeHistogram2DOutliers.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkPComputeHistogram2DOutliers
  * @brief   extract outlier rows from
@@ -46,6 +30,7 @@
 #include "vtkComputeHistogram2DOutliers.h"
 #include "vtkFiltersParallelImagingModule.h" // For export macro
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 //------------------------------------------------------------------------------
 class VTKFILTERSPARALLELIMAGING_EXPORT vtkPComputeHistogram2DOutliers
@@ -72,4 +57,5 @@ private:
   void operator=(const vtkPComputeHistogram2DOutliers&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

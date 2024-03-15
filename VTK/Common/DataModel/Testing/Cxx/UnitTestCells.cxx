@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestCells.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellType.h"
 #include "vtkSmartPointer.h"
@@ -1324,8 +1312,7 @@ int TestOneCell(VTKCellType cellType, vtkSmartPointer<T> aCell, int linear)
   int index = 0;
   vtkSmartPointer<vtkIdList> ptIds = vtkSmartPointer<vtkIdList>::New();
   ptIds->SetNumberOfIds(100);
-  vtkSmartPointer<vtkPoints> triPoints = vtkSmartPointer<vtkPoints>::New();
-  aCell->Triangulate(index, ptIds, triPoints);
+  aCell->TriangulateIds(index, ptIds);
   int pts = ptIds->GetNumberOfIds();
   if (aCell->GetCellDimension() == 0)
   {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockPLOT3DReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMultiBlockPLOT3DReader
  * @brief   read PLOT3D data files
@@ -91,6 +79,7 @@
 #include "vtkParallelReader.h"
 #include <vector> // For holding function-names
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkDataSetAttributes;
 class vtkIntArray;
@@ -100,9 +89,11 @@ class vtkStructuredGrid;
 class vtkUnsignedCharArray;
 struct vtkMultiBlockPLOT3DReaderInternals;
 class vtkMultiBlockDataSet;
+VTK_ABI_NAMESPACE_END
 
 namespace Functors
 {
+VTK_ABI_NAMESPACE_BEGIN
 class ComputeFunctor;
 class ComputeTemperatureFunctor;
 class ComputePressureFunctor;
@@ -119,7 +110,10 @@ class ComputeVorticityMagnitudeFunctor;
 class ComputePressureGradientFunctor;
 class ComputeVorticityFunctor;
 class ComputeStrainRateFunctor;
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class VTKIOPARALLEL_EXPORT vtkMultiBlockPLOT3DReader : public vtkParallelReader
 {
@@ -525,4 +519,5 @@ private:
   void RemoveIntermediateFunctions(vtkDataSetAttributes* dsa);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

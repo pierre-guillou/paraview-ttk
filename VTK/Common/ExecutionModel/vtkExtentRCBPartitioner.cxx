@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkExtentRCBPartitioner.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkExtentRCBPartitioner.h"
 #include "vtkMath.h"
@@ -23,6 +11,7 @@
 #include <cassert>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtentRCBPartitioner);
 
 //------------------------------------------------------------------------------
@@ -130,7 +119,7 @@ void vtkExtentRCBPartitioner::Partition()
 }
 
 //------------------------------------------------------------------------------
-void vtkExtentRCBPartitioner::GetExtent(const int idx, int ext[6])
+void vtkExtentRCBPartitioner::GetExtent(int idx, int ext[6])
 {
   // Sanity check
   assert("pre: idx is out-of-bounds" && ((idx >= 0) && (idx < this->NumExtents)));
@@ -152,7 +141,7 @@ void vtkExtentRCBPartitioner::AddExtent(int ext[6])
 }
 
 //------------------------------------------------------------------------------
-void vtkExtentRCBPartitioner::ReplaceExtent(const int idx, int ext[6])
+void vtkExtentRCBPartitioner::ReplaceExtent(int idx, int ext[6])
 {
   // Sanity check
   assert("pre: idx is out-of-bounds" && ((idx >= 0) && (idx < this->NumExtents)));
@@ -164,7 +153,7 @@ void vtkExtentRCBPartitioner::ReplaceExtent(const int idx, int ext[6])
 }
 
 //------------------------------------------------------------------------------
-void vtkExtentRCBPartitioner::GetPartitionExtent(const int idx, int ext[6])
+void vtkExtentRCBPartitioner::GetPartitionExtent(int idx, int ext[6])
 {
   // Sanity check
   assert("pre: idx is out-of-bounds" && ((idx >= 0) && (idx < this->NumExtents)));
@@ -422,3 +411,4 @@ void vtkExtentRCBPartitioner::PrintExtent(const std::string& name, int ext[6])
   cout << "]\n";
   cout.flush();
 }
+VTK_ABI_NAMESPACE_END

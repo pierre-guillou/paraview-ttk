@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageNonMaximumSuppression.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageNonMaximumSuppression
  * @brief   Performs non-maximum suppression
@@ -34,6 +22,7 @@
 #include "vtkImagingMorphologicalModule.h" // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIMAGINGMORPHOLOGICAL_EXPORT vtkImageNonMaximumSuppression
   : public vtkThreadedImageAlgorithm
 {
@@ -88,4 +77,5 @@ private:
   void operator=(const vtkImageNonMaximumSuppression&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

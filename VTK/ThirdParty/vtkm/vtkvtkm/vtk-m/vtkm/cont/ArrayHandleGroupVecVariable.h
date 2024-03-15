@@ -47,7 +47,7 @@ public:
   {
   }
 
-  /// Copy constructor for any other ArrayPortalConcatenate with a portal type
+  /// Copy constructor for any other ArrayPortalGroupVecVariable with a portal type
   /// that can be copied to this portal type. This allows us to do any type
   /// casting that the portals do (like the non-const to const cast).
   VTKM_SUPPRESS_EXEC_WARNINGS
@@ -77,12 +77,19 @@ public:
 
   VTKM_SUPPRESS_EXEC_WARNINGS
   VTKM_EXEC_CONT
-  void Set(vtkm::Id vtkmNotUsed(index), const ValueType& vtkmNotUsed(value)) const
+  void Set(vtkm::Id index, const ValueType& value) const
   {
-    // The ValueType (VecFromPortal) operates on demand. Thus, if you set
-    // something in the value, it has already been passed to the array. Perhaps
-    // we should check to make sure that the value used matches the location
-    // you are trying to set in the array, but we don't do that.
+    if ((&value.GetPortal() == &this->ComponentsPortal) &&
+        (value.GetOffset() == this->OffsetsPortal.Get(index)))
+    {
+      // The ValueType (VecFromPortal) operates on demand. Thus, if you set
+      // something in the value, it has already been passed to the array.
+    }
+    else
+    {
+      // The value comes from somewhere else. Copy data in.
+      this->Get(index) = value;
+    }
   }
 
   VTKM_SUPPRESS_EXEC_WARNINGS
@@ -122,20 +129,32 @@ class Storage<vtkm::VecFromPortal<ComponentsPortal>,
   using ComponentsStorage = vtkm::cont::internal::Storage<ComponentType, ComponentsStorageTag>;
   using OffsetsStorage = vtkm::cont::internal::Storage<vtkm::Id, OffsetsStorageTag>;
 
+  using ComponentsArray = vtkm::cont::ArrayHandle<ComponentType, ComponentsStorageTag>;
+  using OffsetsArray = vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorageTag>;
+
   VTKM_STATIC_ASSERT_MSG(
     (std::is_same<ComponentsPortal, typename ComponentsStorage::WritePortalType>::value),
     "Used invalid ComponentsPortal type with expected ComponentsStorageTag.");
 
-  template <typename Buff>
-  VTKM_CONT static Buff* ComponentsBuffers(Buff* buffers)
+  struct Info
   {
-    return buffers;
+    std::size_t OffsetsBuffersOffset;
+  };
+
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> ComponentsBuffers(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
+  {
+    Info info = buffers[0].GetMetaData<Info>();
+    return std::vector<vtkm::cont::internal::Buffer>(buffers.begin() + 1,
+                                                     buffers.begin() + info.OffsetsBuffersOffset);
   }
 
-  template <typename Buff>
-  VTKM_CONT static Buff* OffsetsBuffers(Buff* buffers)
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> OffsetsBuffers(
+    const std::vector<vtkm::cont::internal::Buffer> buffers)
   {
-    return buffers + ComponentsStorage::GetNumberOfBuffers();
+    Info info = buffers[0].GetMetaData<Info>();
+    return std::vector<vtkm::cont::internal::Buffer>(buffers.begin() + info.OffsetsBuffersOffset,
+                                                     buffers.end());
   }
 
 public:
@@ -148,17 +167,13 @@ public:
     vtkm::internal::ArrayPortalGroupVecVariable<typename ComponentsStorage::WritePortalType,
                                                 typename OffsetsStorage::ReadPortalType>;
 
-  VTKM_CONT static vtkm::IdComponent GetNumberOfBuffers()
-  {
-    return ComponentsStorage::GetNumberOfBuffers() + OffsetsStorage::GetNumberOfBuffers();
-  }
-
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return OffsetsStorage::GetNumberOfValues(OffsetsBuffers(buffers)) - 1;
   }
 
-  VTKM_CONT static void Fill(vtkm::cont::internal::Buffer*,
+  VTKM_CONT static void Fill(const std::vector<vtkm::cont::internal::Buffer>&,
                              const vtkm::VecFromPortal<ComponentsPortal>&,
                              vtkm::Id,
                              vtkm::Id,
@@ -167,18 +182,20 @@ public:
     throw vtkm::cont::ErrorBadType("Fill not supported for ArrayHandleGroupVecVariable.");
   }
 
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId device,
-                                                   vtkm::cont::Token& token)
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return ReadPortalType(
       ComponentsStorage::CreateReadPortal(ComponentsBuffers(buffers), device, token),
       OffsetsStorage::CreateReadPortal(OffsetsBuffers(buffers), device, token));
   }
 
-  VTKM_CONT static WritePortalType CreateWritePortal(vtkm::cont::internal::Buffer* buffers,
-                                                     vtkm::cont::DeviceAdapterId device,
-                                                     vtkm::cont::Token& token)
+  VTKM_CONT static WritePortalType CreateWritePortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return WritePortalType(
       ComponentsStorage::CreateWritePortal(ComponentsBuffers(buffers), device, token),
@@ -186,31 +203,24 @@ public:
   }
 
   VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> CreateBuffers(
-    const vtkm::cont::ArrayHandle<ComponentType, ComponentsStorageTag>& componentsArray,
-    const vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorageTag>& offsetsArray)
+    const ComponentsArray& componentsArray = ComponentsArray{},
+    const OffsetsArray& offsetsArray = OffsetsArray{})
   {
-    std::vector<vtkm::cont::internal::Buffer> destBuffer(
-      static_cast<std::size_t>(GetNumberOfBuffers()));
-    auto destIter = destBuffer.begin();
-
-    destIter =
-      std::copy_n(componentsArray.GetBuffers(), ComponentsStorage::GetNumberOfBuffers(), destIter);
-    destIter =
-      std::copy_n(offsetsArray.GetBuffers(), OffsetsStorage::GetNumberOfBuffers(), destIter);
-
-    return destBuffer;
+    Info info;
+    info.OffsetsBuffersOffset = 1 + componentsArray.GetBuffers().size();
+    return vtkm::cont::internal::CreateBuffers(info, componentsArray, offsetsArray);
   }
 
-  VTKM_CONT static vtkm::cont::ArrayHandle<ComponentType, ComponentsStorageTag> GetComponentsArray(
-    const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static ComponentsArray GetComponentsArray(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    return vtkm::cont::ArrayHandle<ComponentType, ComponentsStorageTag>(ComponentsBuffers(buffers));
+    return ComponentsArray(ComponentsBuffers(buffers));
   }
 
-  VTKM_CONT static vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorageTag> GetOffsetsArray(
-    const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static OffsetsArray GetOffsetsArray(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    return vtkm::cont::ArrayHandle<vtkm::Id, OffsetsStorageTag>(OffsetsBuffers(buffers));
+    return OffsetsArray(OffsetsBuffers(buffers));
   }
 };
 
@@ -234,13 +244,15 @@ public:
 /// it contains three values of Vec-like objects with the data [0,1,2,3],
 /// [4,5], and [6,7,8].
 ///
-/// Note that this version of \c ArrayHandle breaks some of the assumptions
-/// about \c ArrayHandle a little bit. Typically, there is exactly one type for
-/// every value in the array, and this value is also the same between the
-/// control and execution environment. However, this class uses \c
-/// VecFromPortal it implement a Vec-like class that has a variable number of
-/// values, and this type can change between control and execution
-/// environments.
+/// Note that caution should be used with `ArrayHandleRuntimeVec` because the
+/// size of the `Vec` values is not known at compile time. Thus, the value
+/// type of this array is forced to a special `VecFromPortal` class that can cause
+/// surprises if treated as a `Vec`. In particular, the static `NUM_COMPONENTS`
+/// expression does not exist. Furthermore, new variables of type `VecFromPortal`
+/// cannot be created. This means that simple operators like `+` will not work
+/// because they require an intermediate object to be created. (Equal operators
+/// like `+=` do work because they are given an existing variable to place the
+/// output.)
 ///
 /// The offsets array is often derived from a list of sizes for each of the
 /// entries. You can use the convenience function \c
@@ -273,10 +285,6 @@ public:
 
   using ComponentType = typename ComponentsArrayHandleType::ValueType;
 
-private:
-  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
-
-public:
   VTKM_CONT
   ArrayHandleGroupVecVariable(const ComponentsArrayHandleType& componentsArray,
                               const OffsetsArrayHandleType& offsetsArray)
@@ -310,10 +318,6 @@ make_ArrayHandleGroupVecVariable(const ComponentsArrayHandleType& componentsArra
 }
 }
 } // namespace vtkm::cont
-
-//=============================================================================
-// Specializations of worklet arguments using ArrayHandleGropuVecVariable
-#include <vtkm/exec/arg/FetchTagArrayDirectOutArrayHandleGroupVecVariable.h>
 
 //=============================================================================
 // Specializations of serialization related classes

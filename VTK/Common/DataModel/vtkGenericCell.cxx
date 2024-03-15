@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericCell.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGenericCell.h"
 
@@ -67,6 +55,7 @@
 #include "vtkVoxel.h"
 #include "vtkWedge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericCell);
 
 //------------------------------------------------------------------------------
@@ -233,6 +222,18 @@ int vtkGenericCell::IntersectWithLine(const double p1[3], const double p2[3], do
 int vtkGenericCell::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
 {
   return this->Cell->Triangulate(index, ptIds, pts);
+}
+
+//------------------------------------------------------------------------------
+int vtkGenericCell::TriangulateLocalIds(int index, vtkIdList* ptIds)
+{
+  return this->Cell->TriangulateLocalIds(index, ptIds);
+}
+
+//------------------------------------------------------------------------------
+int vtkGenericCell::TriangulateIds(int index, vtkIdList* ptIds)
+{
+  return this->Cell->TriangulateIds(index, ptIds);
 }
 
 //------------------------------------------------------------------------------
@@ -497,3 +498,4 @@ void vtkGenericCell::SetPointIds(vtkIdList* pointIds)
     this->Cell->PointIds->Register(this);
   }
 }
+VTK_ABI_NAMESPACE_END

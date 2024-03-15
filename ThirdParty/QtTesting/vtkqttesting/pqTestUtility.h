@@ -100,9 +100,9 @@ public:
   /// Returns if the utility is currently playing a test.
   bool playingTest() const { return this->PlayingTest; }
 
-  /// Plays back the test given by the filename(s). This is a blocking call i.e.
-  /// it does not return until the test has been played or aborted due to
-  /// failure. Returns true if the test played successfully.
+  /// Plays back the tests given by the filename(s). This is a blocking call i.e.
+  /// it does not return until all the tests have been played or any of the test aborted due to
+  /// failure. Returns true if the tests exist and played successfully.
   virtual bool playTests(const QStringList& filenames);
 
   /// start the recording of tests to a file
@@ -134,6 +134,13 @@ public:
   bool recordWithDialog() const;
   /// Set whether a dialog is opened when recording.
   void setRecordWithDialog(bool withDialog);
+
+  /**
+   * Wether a pqTestUtility implementation supports
+   * dashboard mode. Always return false in this implementation.
+   */
+  virtual bool supportsDashboardMode() { return false; };
+
 public Q_SLOTS:
   bool playTests(const QString& filename);
 
@@ -145,6 +152,27 @@ public Q_SLOTS:
   void pauseRecords(bool value);
 
   void onRecordStopped();
+
+  /**
+   * Slot called when the dashboard mode checkbox is changed
+   * and just before recording / stopping recording events.
+   * Not implemented in this implementation.
+   */
+  virtual void setDashboardMode(bool){};
+
+  /**
+   * Update the players if needed by the environnement
+   * called before playing events.
+   * Not implemented in this implementation.
+   */
+  virtual void updatePlayers(){};
+
+  /**
+   * Update the translators if needed by the environnement
+   * called before and after recording events.
+   * Not implemented in this implementation.
+   */
+  virtual void updateTranslators(){};
 
 Q_SIGNALS:
   void playbackStarted();

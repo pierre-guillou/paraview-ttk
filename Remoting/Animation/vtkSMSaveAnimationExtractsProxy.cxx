@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSaveAnimationExtractsProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMSaveAnimationExtractsProxy.h"
 
 #include "vtkCompositeAnimationPlayer.h"
@@ -154,10 +142,6 @@ bool vtkSMSaveAnimationExtractsProxy::SaveExtracts()
     }
 
     break;
-    case vtkCompositeAnimationPlayer::REAL_TIME:
-      // this should not happen. vtkSMSaveAnimationProxy::Prepare() should have
-      // changed the play mode to SEQUENCE or SNAP_TO_TIMESTEPS.
-      abort();
   }
   writer->SetStartFileCount(frameWindow[0]);
   writer->SetPlaybackTimeWindow(playbackTimeWindow);

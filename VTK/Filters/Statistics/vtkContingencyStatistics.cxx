@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkContingencyStatistics.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkContingencyStatistics.h"
 #include "vtkStatisticsAlgorithmPrivate.h"
@@ -42,6 +26,7 @@ typedef std::map<std::string, vtkIdType> StringCounts;
 typedef std::map<vtkIdType, double> Entropies;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <typename TypeSpec, typename vtkType>
 class BivariateContingenciesAndInformationFunctor : public vtkStatisticsAlgorithm::AssessFunctor
 {
@@ -915,7 +900,7 @@ vtkContingencyStatistics::vtkContingencyStatistics()
   this->AssessNames->SetValue(1, "Py|x");
   this->AssessNames->SetValue(2, "Px|y");
   this->AssessNames->SetValue(3, "PMI");
-};
+}
 
 //------------------------------------------------------------------------------
 vtkContingencyStatistics::~vtkContingencyStatistics() = default;
@@ -1727,3 +1712,4 @@ void vtkContingencyStatistics::SelectAssessFunctor(vtkTable* outData, vtkMultiBl
       "Incorrect CDF for column pair:" << varNameX << "," << varNameY << "). Ignoring it.");
   }
 }
+VTK_ABI_NAMESPACE_END

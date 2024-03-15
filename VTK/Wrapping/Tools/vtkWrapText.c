@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapText.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapText.h"
 #include "vtkWrap.h"
@@ -171,7 +159,7 @@ static void vtkWPString_PushChar(struct vtkWPString* str, char c)
 static void vtkWPString_Strip(struct vtkWPString* str, const char* trailers)
 {
   size_t k = str->len;
-  char* cp = str->str;
+  const char* cp = str->str;
   size_t j = 0;
   size_t n;
 
@@ -865,7 +853,7 @@ static void vtkWrapText_PythonPODSignature(
   struct vtkWPString* result, const char* classname, const char* braces[2]);
 
 static void vtkWrapText_PythonStdVectorSignature(
-  struct vtkWPString* result, ValueInfo* arg, const char* braces[2]);
+  struct vtkWPString* result, const ValueInfo* arg, const char* braces[2]);
 
 static void vtkWrapText_PythonValueSignature(struct vtkWPString* result, ValueInfo* arg);
 
@@ -1110,7 +1098,7 @@ static void vtkWrapText_PythonPODSignature(
 }
 
 static void vtkWrapText_PythonStdVectorSignature(
-  struct vtkWPString* result, ValueInfo* arg, const char* braces[2])
+  struct vtkWPString* result, const ValueInfo* arg, const char* braces[2])
 {
   StringCache cache = { 0, 0, 0, 0 };
   ValueInfo val;

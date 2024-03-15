@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRDataInternals.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRDataInternals
  * @brief   container of vtkUniformGrid for an AMR data set
@@ -31,6 +19,7 @@
 #include "vtkSmartPointer.h" //for storing smart pointers to blocks
 #include <vector>            //for storing blocks
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUniformGrid;
 class VTKCOMMONDATAMODEL_EXPORT vtkAMRDataInternals : public vtkObject
 {
@@ -52,8 +41,9 @@ public:
   void Insert(unsigned int index, vtkUniformGrid* grid);
   vtkUniformGrid* GetDataSet(unsigned int compositeIndex);
 
-  virtual void ShallowCopy(vtkObject* src);
-  void RecursiveShallowCopy(vtkObject* src);
+  void CompositeShallowCopy(vtkObject* src);
+  void ShallowCopy(vtkObject* src);
+  void DeepCopy(vtkObject* src);
 
   bool Empty() const { return this->GetNumberOfBlocks() == 0; }
 
@@ -77,4 +67,5 @@ private:
   void operator=(const vtkAMRDataInternals&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEncodedGradientEstimator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEncodedGradientEstimator.h"
 
 #include "vtkGarbageCollector.h"
@@ -22,6 +10,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkEncodedGradientEstimator, InputData, vtkImageData);
 
 // Construct a vtkEncodedGradientEstimator with initial values of nullptr for
@@ -333,3 +322,4 @@ void vtkEncodedGradientEstimator::ReportReferences(vtkGarbageCollector* collecto
   this->Superclass::ReportReferences(collector);
   vtkGarbageCollectorReport(collector, this->InputData, "Input");
 }
+VTK_ABI_NAMESPACE_END

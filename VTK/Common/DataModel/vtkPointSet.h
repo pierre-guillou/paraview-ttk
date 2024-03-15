@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointSet
  * @brief   concrete class for storing a set of points
@@ -60,6 +48,7 @@
 #include "vtkGenericCell.h" // For GetCell
 #include "vtkPoints.h"      // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkAbstractCellLocator;
 
@@ -137,7 +126,7 @@ public:
    * This method always return a `vtkEmptyCell`, as there is no cell in a
    * `vtkPointSet`.
    */
-  vtkCell* GetCell(vtkIdType) override { return this->EmptyCell; }
+  vtkCell* GetCell(vtkIdType) override;
 
   ///@{
   /**
@@ -300,4 +289,5 @@ inline vtkIdType vtkPointSet::GetNumberOfPoints()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

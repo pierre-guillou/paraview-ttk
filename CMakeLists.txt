@@ -1,33 +1,6 @@
-#==========================================================================
-#
-#     Program: ParaView
-#
-#     Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-#     All rights reserved.
-#
-#     ParaView is a free software; you can redistribute it and/or modify it
-#     under the terms of the ParaView license version 1.2.
-#
-#     See License_v1.2.txt for the full ParaView license.
-#     A copy of this license can be obtained by contacting
-#     Kitware Inc.
-#     28 Corporate Drive
-#     Clifton Park, NY 12065
-#     USA
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#==========================================================================
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 cmake_minimum_required(VERSION 3.12...3.16 FATAL_ERROR)
 project(ParaView)
 
@@ -38,6 +11,11 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
     "binary directory and run CMake command there giving "
     "in parameter the ParaView source directory.")
 endif ()
+
+# Set behavior for ninja DEPFILE usage in VTK
+if (POLICY CMP0116)
+  cmake_policy(SET CMP0116 NEW)
+endif()
 
 #------------------------------------------------------------------------------
 # Set a default build type if none was specified
@@ -87,6 +65,7 @@ include(ParaViewTesting)
 include(ParaViewClient)
 include(ParaViewPlugin)
 include(ParaViewPluginDebugging)
+include(ParaViewTranslations)
 include(vtkModuleWrapClientServer)
 include(CTest)
 set_property(CACHE BUILD_TESTING
@@ -98,10 +77,13 @@ include(vtkCompilerPlatformFlags)
 include(vtkCompilerExtraFlags)
 include(vtkInitializeBuildType)
 include(vtkSupportMacros)
-
 include(CMakeDependentOption)
 include(ParaViewOptions)
 include(ParaViewMigrations)
+
+if (PARAVIEW_USE_QT)
+  include(paraviewQt)
+endif()
 
 # Some flags are really bad for caching. Replace them with better variants.
 if (paraview_replace_uncacheable_flags)
@@ -275,6 +257,8 @@ set_property(GLOBAL
   PROPERTY
     "_vtk_module_autoinit_include" "\"vtkAutoInit.h\"")
 
+set(paraview_incubator_requested_modules)
+
 # Note that the way that this flag gets used, it only has an effect on the
 # initial configuration.
 set(_paraview_plugins_default OFF)
@@ -288,8 +272,11 @@ set(paraview_default_plugins
   AnalyzeNIfTIReaderWriter
   ArrowGlyph
   BagPlotViewsAndFilters
+  CFSReader
+  ContourLabelPlugin
   Datamine
   DigitalRockPhysics
+  DigitalSignalProcessing
   EULATestPlugin
   EmbossingRepresentations
   EyeDomeLighting
@@ -310,14 +297,27 @@ set(paraview_default_plugins
   PanoramicProjectionView
   ParametricSurfaces
   # ParFlow - Because of dependency to nlohmann_json
+  Prism
   SaveStateAndScreenshot
   SLACTools
+  StereoCursorView
   StreamLinesRepresentation
   StreamingParticles
   SurfaceLIC
   ThickenLayeredCells
   VTKmFilters
   pvblot)
+
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  list(APPEND paraview_default_plugins TranslationsTesting)
+endif()
+
+if (PARAVIEW_BUILD_SHARED_LIBS)
+  # Disabled by default in case of static build, because of restricted features
+  # in that case (default textures will not be found)
+  list(APPEND paraview_default_plugins BivariateRepresentations)
+endif()
+
 foreach (paraview_default_plugin IN LISTS paraview_default_plugins)
   set("_paraview_plugin_default_${paraview_default_plugin}" "${PARAVIEW_PLUGINS_DEFAULT}")
 endforeach ()
@@ -328,7 +328,51 @@ paraview_plugin_find_plugins(paraview_plugin_files ${paraview_plugin_directories
 paraview_plugin_scan(
   PLUGIN_FILES      ${paraview_plugin_files}
   PROVIDES_PLUGINS  paraview_plugins
-  REQUIRES_MODULES  paraview_plugin_required_modules)
+  REQUIRES_MODULES  paraview_plugin_required_modules_all)
+
+set(paraview_plugin_required_modules)
+foreach (paraview_module IN LISTS paraview_plugin_required_modules_all)
+  if (paraview_module MATCHES "ParaViewIncubator::")
+    list(APPEND paraview_incubator_requested_modules
+      "${paraview_module}")
+  elseif (paraview_module MATCHES "ParaView::")
+    list(APPEND paraview_plugin_required_modules
+      "${paraview_module}")
+  elseif (paraview_module MATCHES "VTK::")
+    list(APPEND vtk_plugin_required_modules
+      "${paraview_module}")
+  endif ()
+endforeach ()
+
+set(all_incubator_modules)
+vtk_module_find_modules(paraview_incubator_module_files
+  "${CMAKE_CURRENT_SOURCE_DIR}/Incubator")
+vtk_module_scan(
+  MODULE_FILES            ${paraview_incubator_module_files}
+  REQUEST_MODULES         ParaViewIncubator::Core
+                          ${paraview_incubator_requested_modules}
+  PROVIDES_MODULES        paraview_incubator_modules
+  REQUIRES_MODULES        paraview_incubator_required_modules_all
+  UNRECOGNIZED_MODULES    paraview_incubator_unrecognized_modules
+  WANT_BY_DEFAULT         OFF
+  HIDE_MODULES_FROM_CACHE ON
+  ENABLE_TESTS            "${PARAVIEW_BUILD_TESTING}")
+
+set(paraview_incubator_required_modules)
+foreach (paraview_module IN LISTS paraview_incubator_required_modules_all)
+  if (NOT paraview_module MATCHES "ParaView::")
+    list(APPEND paraview_plugin_required_modules
+      "${paraview_module}")
+  endif ()
+endforeach ()
+
+set(paraview_unrecognized_paraview_modules)
+foreach (paraview_module IN LISTS paraview_incubator_unrecognized_modules)
+  if (paraview_module MATCHES "ParaView::")
+    list(APPEND paraview_unrecognized_paraview_modules
+      "${paraview_module}")
+  endif ()
+endforeach ()
 
 set(paraview_client_directories
   "${CMAKE_CURRENT_SOURCE_DIR}/Clients"
@@ -362,6 +406,7 @@ vtk_module_scan(
   KIT_FILES           ${paraview_kit_files}
   REQUEST_MODULES     ${paraview_requested_modules}
                       ${paraview_plugin_required_modules}
+                      ${paraview_incubator_required_modules}
                       ${paraview_client_required_modules}
   REJECT_MODULES      ${paraview_rejected_modules}
   PROVIDES_MODULES    paraview_modules
@@ -423,9 +468,13 @@ endif ()
 
 if (PARAVIEW_USE_EXTERNAL_VTK)
   if (paraview_required_modules OR paraview_unrecognized_modules)
+    set(required_modules
+      ${paraview_required_modules}
+      ${paraview_unrecognized_modules})
+    string(REPLACE ";" ", " required_modules "${required_modules}")
     message(FATAL_ERROR
       "The following modules were requested or required, but not found: "
-      "${paraview_required_modules};${paraview_unrecognized_modules}.")
+      "${required_modules}.")
   endif ()
 
   if (PARAVIEW_USE_PYTHON)
@@ -440,7 +489,8 @@ else ()
   set(vtk_requested_modules)
   foreach (vtk_module IN LISTS
                 paraview_requested_modules
-                paraview_plugin_required_modules
+                vtk_plugin_required_modules
+                paraview_incubator_required_modules
                 paraview_client_required_modules)
     if (vtk_module MATCHES "ParaView::")
       continue ()
@@ -486,6 +536,14 @@ else ()
 
   # Forward logging option to VTK.
   set(VTK_ENABLE_LOGGING ON)
+  set(VTK_LOGGING_TIME_PRECISION "${PARAVIEW_LOGGING_TIME_PRECISION}")
+
+  # Create a translation source file generation target and create the
+  # option-specified source files directory if not already created
+  if (PARAVIEW_BUILD_TRANSLATIONS)
+    file(MAKE_DIRECTORY "${PARAVIEW_TRANSLATIONS_DIRECTORY}")
+    add_custom_target(localization ALL)
+  endif()
 
   # ParaView assumes these are created. These should probably be moved to
   # distinct modules for easier handling however.
@@ -529,6 +587,7 @@ else ()
     KIT_FILES           ${vtk_kit_files}
     REQUEST_MODULES     ${vtk_requested_modules}
                         ${paraview_required_modules}
+                        ${paraview_incubator_required_modules}
     REJECT_MODULES      ${vtk_rejected_modules}
     PROVIDES_MODULES    vtk_modules
     PROVIDES_KITS       vtk_kits
@@ -541,9 +600,13 @@ else ()
     list(REMOVE_ITEM vtk_unrecognized_modules ${vtk_rejected_modules})
   endif()
   if (vtk_required_modules OR vtk_unrecognized_modules)
+    set(required_modules
+      ${vtk_required_modules}
+      ${vtk_unrecognized_modules})
+    string(REPLACE ";" ", " required_modules "${required_modules}")
     message(FATAL_ERROR
       "The following modules were requested or required, but not found: "
-      "${vtk_required_modules};${vtk_unrecognized_modules}.")
+      "${required_modules}.")
   endif ()
 
   # Handle the requirement of `sqlitebin` for `proj`.
@@ -564,7 +627,6 @@ else ()
 
   set(VTK_BUILD_QT_DESIGNER_PLUGIN OFF)
   set(VTK_INSTALL_PYTHON_EXES OFF)
-  set(VTK_QT_VERSION 5)
 
   cmake_dependent_option(VTK_NO_PYTHON_THREADS "Disable Python Threads support" ON
     "PARAVIEW_USE_PYTHON" OFF)
@@ -609,7 +671,10 @@ else ()
     ENABLE_WRAPPING     ON
     TEST_INPUT_DATA_DIRECTORY   "${CMAKE_CURRENT_SOURCE_DIR}/VTK/Testing"
     TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/VTK/Testing"
-    TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}")
+    TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}"
+    GENERATE_SPDX       "${PARAVIEW_GENERATE_SPDX}"
+    SPDX_DOCUMENT_NAMESPACE "https://paraview.org/spdx"
+    SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/vtk/vtk/-/tree/master")
 
   if (PARAVIEW_SKIP_CLANG_TIDY_FOR_VTK)
     set(CMAKE_C_CLANG_TIDY "${CMAKE_C_CLANG_TIDY_save}")
@@ -659,7 +724,10 @@ vtk_module_build(
   USE_EXTERNAL        "${PARAVIEW_BUILD_WITH_EXTERNAL}"
   TEST_INPUT_DATA_DIRECTORY   "${paraview_test_data_directory_input}"
   TEST_OUTPUT_DATA_DIRECTORY  "${paraview_test_data_directory_output}"
-  TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}")
+  TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}"
+  GENERATE_SPDX       "${PARAVIEW_GENERATE_SPDX}"
+  SPDX_DOCUMENT_NAMESPACE "https://paraview.org/spdx"
+  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/paraview/paraview/-/tree/master")
 
 vtk_module_build(
   MODULES             ${paraview_client_modules}
@@ -679,7 +747,30 @@ vtk_module_build(
   USE_EXTERNAL        "${PARAVIEW_BUILD_WITH_EXTERNAL}"
   TEST_INPUT_DATA_DIRECTORY   "${paraview_test_data_directory_input}"
   TEST_OUTPUT_DATA_DIRECTORY  "${paraview_test_data_directory_output}"
-  TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}")
+  TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}"
+  GENERATE_SPDX       "${PARAVIEW_GENERATE_SPDX}"
+  SPDX_DOCUMENT_NAMESPACE "https://paraview.org/spdx"
+  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/paraview/paraview/-/tree/master")
+
+vtk_module_build(
+  MODULES             ${paraview_incubator_modules}
+  PACKAGE             ParaViewIncubator
+  INSTALL_EXPORT      ParaViewIncubator
+  INSTALL_HEADERS     "${PARAVIEW_INSTALL_DEVELOPMENT_FILES}"
+  HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}/Incubator"
+  CMAKE_DESTINATION   "${paraview_cmake_destination}"
+  LICENSE_DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
+  HIERARCHY_DESTINATION "${CMAKE_INSTALL_LIBDIR}/vtk/hierarchy/${CMAKE_PROJECT_NAME}"
+  LIBRARY_NAME_SUFFIX "${PARAVIEW_CUSTOM_LIBRARY_SUFFIX}"
+  VERSION             "${PARAVIEW_VERSION}"
+  SOVERSION           "1"
+  TEST_DATA_TARGET    ParaViewData
+  TEST_INPUT_DATA_DIRECTORY   "${paraview_test_data_directory_input}"
+  TEST_OUTPUT_DATA_DIRECTORY  "${paraview_test_data_directory_output}"
+  TEST_OUTPUT_DIRECTORY "${PARAVIEW_TEST_DIR}"
+  GENERATE_SPDX       "${PARAVIEW_GENERATE_SPDX}"
+  SPDX_DOCUMENT_NAMESPACE "https://paraview.org/spdx"
+  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/paraview/paraview/-/tree/master")
 
 # Catalyst sanity check. Ensure every module is using the same Catalyst dependency.
 if (PARAVIEW_ENABLE_CATALYST)
@@ -743,7 +834,10 @@ paraview_plugin_build(
   PLUGINS_COMPONENT "plugins"
   PLUGINS ${paraview_plugins}
   AUTOLOAD ${autoload_plugins}
-  DISABLE_XML_DOCUMENTATION "${PARAVIEW_PLUGIN_DISABLE_XML_DOCUMENTATION}")
+  DISABLE_XML_DOCUMENTATION "${PARAVIEW_PLUGIN_DISABLE_XML_DOCUMENTATION}"
+  GENERATE_SPDX "${PARAVIEW_GENERATE_SPDX}"
+  SPDX_DOCUMENT_NAMESPACE "https://paraview.org/spdx"
+  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/paraview/paraview/-/tree/master")
 
 set(CMAKE_INSTALL_RPATH
   "${_paraview_CMAKE_INSTALL_RPATH_save}")
@@ -755,12 +849,24 @@ vtk_module_wrap_client_server(
   TARGET    paraview_client_server
   INSTALL_EXPORT ParaView)
 
+set(_paraview_server_manager_process_args)
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  list(APPEND _paraview_server_manager_process_args
+    TRANSLATIONS_DIRECTORY "${PARAVIEW_TRANSLATIONS_DIRECTORY}"
+    TRANSLATIONS_TARGET "ServerManager-XMLs.ts")
+endif ()
+
 paraview_server_manager_process(
   MODULES   ${paraview_modules}
             ${vtk_modules}
   TARGET    paraview_server_manager
   XML_FILES paraview_server_manager_files
-  INSTALL_EXPORT ParaView)
+  INSTALL_EXPORT ParaView
+  ${_paraview_server_manager_process_args})
+
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  add_dependencies(localization "ServerManager-XMLs.ts")
+endif()
 
 if (PARAVIEW_USE_PYTHON)
   if (PARAVIEW_USE_EXTERNAL_VTK)
@@ -820,6 +926,20 @@ if (PARAVIEW_USE_PYTHON)
     TARGET          ParaView::pvpythonmodules
     DEPENDS         VTK::vtkpythonmodules)
 
+  vtk_module_wrap_python(
+    MODULES         ${paraview_incubator_modules}
+    INSTALL_EXPORT  ParaViewPythonIncubator
+    INSTALL_HEADERS "${PARAVIEW_INSTALL_DEVELOPMENT_FILES}"
+    PYTHON_PACKAGE  "paraview.incubator"
+    MODULE_DESTINATION  "${PARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX}"
+    CMAKE_DESTINATION   "${paraview_cmake_destination}"
+    LIBRARY_DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    USE_DEBUG_SUFFIX    "${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE}"
+    HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}/pvincubatorpythonmodules"
+    WRAPPED_MODULES paraview_incubator_python_wrapped_modules
+    TARGET          ParaView::pvincubatorpythonmodules
+    DEPENDS         VTK::vtkpythonmodules)
+
   if (PARAVIEW_INSTALL_DEVELOPMENT_FILES)
     export(
       EXPORT    ParaViewPython
@@ -829,6 +949,17 @@ if (PARAVIEW_USE_PYTHON)
       EXPORT      ParaViewPython
       NAMESPACE   ParaView::
       FILE        ParaViewPython-targets.cmake
+      DESTINATION "${paraview_cmake_destination}"
+      COMPONENT   "development")
+
+    export(
+      EXPORT    ParaViewPythonIncubator
+      NAMESPACE ParaView::
+      FILE      "${CMAKE_BINARY_DIR}/${paraview_cmake_destination}/ParaViewPythonIncubator-targets.cmake")
+    install(
+      EXPORT      ParaViewPythonIncubator
+      NAMESPACE   ParaView::
+      FILE        ParaViewPythonIncubator-targets.cmake
       DESTINATION "${paraview_cmake_destination}"
       COMPONENT   "development")
   endif ()
@@ -942,7 +1073,6 @@ endif()
 
 install(
   FILES       "${CMAKE_CURRENT_SOURCE_DIR}/Copyright.txt"
-              "${CMAKE_CURRENT_SOURCE_DIR}/License_v1.2.txt"
   DESTINATION "${CMAKE_INSTALL_LICENSEDIR}"
   COMPONENT   "license")
 

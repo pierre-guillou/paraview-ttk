@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqRemoteCommandDialog.h"
 #include "pqRemoteCommandTemplateDialog.h"
 #include "ui_pqRemoteCommandDialogForm.h"
@@ -535,9 +537,9 @@ void pqRemoteCommandDialog::FindXTermExecutable()
 //------------------------------------------------------------------------------
 string pqRemoteCommandDialog::LocateFile()
 {
-  QString filters = QString("All Files (*)");
+  QString filters = tr("All Files") + QString(" (*)");
 
-  pqFileDialog dialog(nullptr, this, "Find file", "", filters);
+  pqFileDialog dialog(nullptr, this, tr("Find file"), "", filters, false);
   dialog.setFileMode(pqFileDialog::ExistingFile);
 
   if (dialog.exec() == QDialog::Accepted)

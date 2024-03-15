@@ -1,24 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPSLACReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkPSLACReader.h"
 
@@ -83,6 +65,7 @@
 //// This may or may not work with the netCDF 4 library reading in netCDF 3 files.
 //#define nc_get_vars_vtkIdType nc_get_vars_longlong
 //#else // NC_INT64
+VTK_ABI_NAMESPACE_BEGIN
 static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], const size_t count[],
   const ptrdiff_t stride[], vtkIdType* ip)
 {
@@ -111,12 +94,14 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
 
   return NC_NOERR;
 }
+VTK_ABI_NAMESPACE_END
 //#endif // NC_INT64
 #else // VTK_USE_64_BIT_IDS
 #define nc_get_vars_vtkIdType nc_get_vars_int
 #endif // VTK_USE_64BIT_IDS
 
 //=============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 static int NetCDFTypeToVTKType(nc_type type)
 {
   switch (type)
@@ -210,7 +195,7 @@ static void SynchronizeBlocks(vtkMultiBlockDataSet* blocks, vtkMultiProcessContr
 //=============================================================================
 // Structures used by ReadMidpointCoordinates to store and transfer midpoint
 // information.
-namespace vtkPSLACReaderTypes
+namespace
 {
 struct EdgeEndpointsHash
 {
@@ -255,8 +240,8 @@ typedef std::unordered_map<vtkSLACReader::EdgeEndpoints, midpointPointersType, E
 
 //------------------------------------------------------------------------------
 // Convenience function for gathering midpoint information to a process.
-static void GatherMidpoints(vtkMultiProcessController* controller,
-  const midpointListsType& sendMidpoints, midpointListsType& recvMidpoints, int process)
+void GatherMidpoints(vtkMultiProcessController* controller, const midpointListsType& sendMidpoints,
+  midpointListsType& recvMidpoints, int process)
 {
   vtkIdType sendLength = static_cast<vtkIdType>(sendMidpoints.position.size());
   if (sendLength != static_cast<vtkIdType>(sendMidpoints.topology.size()))
@@ -318,7 +303,6 @@ static void GatherMidpoints(vtkMultiProcessController* controller,
     &topologyLengths.at(0), &topologyOffsets.at(0), process);
 }
 };
-using namespace vtkPSLACReaderTypes;
 
 //------------------------------------------------------------------------------
 // Simple hash function for vtkIdType.
@@ -1163,3 +1147,4 @@ int vtkPSLACReader::MeshUpToDate()
   this->Controller->AllReduce(&localflag, &globalflag, 1, vtkCommunicator::LOGICAL_AND_OP);
   return globalflag;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPSurfaceLICComposite.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPSurfaceLICComposite
  *
@@ -35,6 +23,7 @@
 #include <list>             // for list
 #include <vector>           // for vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
 class vtkRenderWindow;
 class vtkTextureObject;
@@ -166,7 +155,6 @@ private:
     std::deque<std::deque<vtkPixelExtent>>& guardExts,
     std::deque<std::deque<vtkPixelExtent>>& disjointGuardExts, float* vectors);
 
-private:
   vtkPPainterCommunicator* PainterComm; // mpi state
   vtkPPixelExtentOps* PixelOps;
   int CommRank;
@@ -191,4 +179,5 @@ private:
 VTKRENDERINGPARALLELLIC_EXPORT
 ostream& operator<<(ostream& os, vtkPSurfaceLICComposite& ss);
 
+VTK_ABI_NAMESPACE_END
 #endif

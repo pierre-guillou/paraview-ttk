@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyLine.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyLine
  * @brief   cell represents a set of 1D lines
@@ -25,13 +13,15 @@
 
 #include "vtkCell.h"
 #include "vtkCommonDataModelModule.h" // For export macro
+#include "vtkNew.h"                   // For vtkNew.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkCellArray;
-class vtkLine;
-class vtkDataArray;
-class vtkIncrementalPointLocator;
 class vtkCellData;
+class vtkDataArray;
+class vtkLine;
+class vtkIncrementalPointLocator;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkPolyLine : public vtkCell
 {
@@ -79,7 +69,7 @@ public:
   void EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights) override;
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   int IsPrimaryCell() override { return 0; }
@@ -94,11 +84,12 @@ protected:
   vtkPolyLine();
   ~vtkPolyLine() override;
 
-  vtkLine* Line;
+  vtkNew<vtkLine> Line;
 
 private:
   vtkPolyLine(const vtkPolyLine&) = delete;
   void operator=(const vtkPolyLine&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,7 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QQmlVTKPlugin.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
+// this class is deprecated, don't warn about deprecated classes it uses
+#define VTK_DEPRECATION_LEVEL 0
 // vtk includes
 #include "QQmlVTKPlugin.h"
 
@@ -24,6 +14,7 @@
 #include <QQmlEngine>
 
 //-------------------------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 void QQmlVTKPlugin::registerTypes(const char* uri)
 {
   Q_ASSERT(QString::compare(uri, "VTK") == 0);
@@ -48,3 +39,4 @@ void QQmlVTKPlugin::initializeEngine(QQmlEngine* engine, const char* uri)
 
 //-------------------------------------------------------------------------------------------------
 void QQmlVTKPlugin::cleanup() {}
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqDisplayColorWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDisplayColorWidget.h"
 
 #include "pqDataRepresentation.h"
@@ -43,8 +15,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVArrayInformation.h"
 #include "vtkPVDataInformation.h"
 #include "vtkPVGeneralSettings.h"
+#include "vtkPVRepresentedArrayListSettings.h"
+#include "vtkPVXMLElement.h"
 #include "vtkSMArrayListDomain.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMTrace.h"
@@ -54,8 +28,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkWeakPointer.h"
 
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QIcon>
+#include <QStandardItemModel>
 #include <QtDebug>
 
 #include <cassert>
@@ -86,7 +62,7 @@ bool supportedAssociation(int assoc)
 /// This class makes it possible to add custom logic when updating the
 /// "ColorArrayName" property instead of directly setting the SMProperty. The
 /// custom logic, in this case, ensures that the LUT is setup and initialized
-/// (all done by vtkSMPVRepresentationProxy::SetScalarColoring()).
+/// (all done by vtkSMColorMapEditorHelper::SetScalarColoring()).
 class pqDisplayColorWidget::PropertyLinksConnection : public pqPropertyLinksConnection
 {
   typedef pqPropertyLinksConnection Superclass;
@@ -139,15 +115,14 @@ protected:
     int association = val.first;
     const QString& arrayName = val.second;
 
-    BEGIN_UNDO_SET("Change coloring");
+    BEGIN_UNDO_SET(QCoreApplication::translate("PropertyLinksConnection", "Change coloring"));
     vtkSMProxy* reprProxy = this->proxySM();
 
     // before changing scalar color, save the LUT being used so we can hide the
     // scalar bar later, if needed.
     vtkSMProxy* oldLutProxy = vtkSMPropertyHelper(reprProxy, "LookupTable", true).GetAsProxy();
 
-    vtkSMPVRepresentationProxy::SetScalarColoring(
-      reprProxy, arrayName.toUtf8().data(), association);
+    vtkSMColorMapEditorHelper::SetScalarColoring(reprProxy, arrayName.toUtf8().data(), association);
 
     vtkNew<vtkSMTransferFunctionManager> tmgr;
     pqDisplayColorWidget* widget = qobject_cast<pqDisplayColorWidget*>(this->objectQt());
@@ -177,7 +152,7 @@ protected:
     Q_UNUSED(use_unchecked);
     ValueType val;
     vtkSMProxy* reprProxy = this->proxySM();
-    if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy))
+    if (vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
     {
       vtkSMPropertyHelper helper(this->propertySM());
       val.first = helper.GetInputArrayAssociation();
@@ -209,7 +184,7 @@ void pqDisplayColorWidget::updateScalarBarVisibility(vtkSMViewProxy* view, vtkSM
 {
   // we could now respect some application setting to determine if the LUT is
   // to be reset.
-  vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(
+  vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(
     reprProxy, /*extend*/ true, /*force*/ false);
 
   /// BUG #0011858. Users often do silly things!
@@ -222,7 +197,7 @@ void pqDisplayColorWidget::updateScalarBarVisibility(vtkSMViewProxy* view, vtkSM
   if (reprVisibility &&
     gsettings->GetScalarBarMode() == vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
   {
-    vtkSMPVRepresentationProxy::SetScalarBarVisibility(reprProxy, view, true);
+    vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, view, true);
   }
 }
 
@@ -234,6 +209,7 @@ public:
   vtkNew<vtkEventQtSlotConnect> Connector;
   vtkWeakPointer<vtkSMArrayListDomain> Domain;
   int OutOfDomainEntryIndex;
+  QSet<QString> NoSolidColor;
 
   pqInternals()
     : OutOfDomainEntryIndex(-1)
@@ -253,7 +229,7 @@ pqDisplayColorWidget::pqDisplayColorWidget(QWidget* parentObject)
   this->SolidColorIcon = new QIcon(":/pqWidgets/Icons/pqSolidColor.svg");
 
   QHBoxLayout* hbox = new QHBoxLayout(this);
-  hbox->setMargin(0);
+  hbox->setContentsMargins(0, 0, 0, 0);
   hbox->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
 
   this->Variables = new QComboBox(this);
@@ -277,6 +253,11 @@ pqDisplayColorWidget::pqDisplayColorWidget(QWidget* parentObject)
   this->connect(this->Components, SIGNAL(currentIndexChanged(int)), SLOT(componentNumberChanged()));
 
   this->connect(&this->Internals->Links, SIGNAL(qtWidgetChanged()), SLOT(renderActiveView()));
+
+  this->connect(this, &pqDisplayColorWidget::representationTextChanged, [this](const QString&) {
+    // The representation type, like Slice or Volume, can disable some entries.
+    this->refreshColorArrayNames();
+  });
 }
 
 //-----------------------------------------------------------------------------
@@ -330,6 +311,7 @@ void pqDisplayColorWidget::setRepresentation(pqDataRepresentation* repr)
   this->Variables->setEnabled(false);
   this->Components->setEnabled(false);
   this->Internals->Links.clear();
+  this->Internals->NoSolidColor.clear();
   this->Internals->Connector->Disconnect();
   this->Internals->Domain = nullptr;
   this->Variables->clear();
@@ -365,9 +347,24 @@ void pqDisplayColorWidget::setRepresentation(pqDataRepresentation* repr)
   // property.
   this->connect(repr, SIGNAL(colorTransferFunctionModified()), SLOT(updateColorTransferFunction()));
 
-  this->Internals->Links.addPropertyLink<PropertyLinksConnection>(
+  this->Internals->Links.addPropertyLink<pqDisplayColorWidget::PropertyLinksConnection>(
     this, "notused", SIGNAL(arraySelectionChanged()), proxy, prop);
-
+  // add a link to representation, because some representations don't like Solid Color
+  vtkSMProperty* reprProperty = proxy->GetProperty("Representation");
+  if (reprProperty)
+  {
+    this->Internals->Links.addPropertyLink(this, "representationText", "", proxy, reprProperty);
+    // process hints to see which representation types skip "Solid Color".
+    vtkPVXMLElement* hints = proxy->GetHints();
+    for (unsigned int cc = 0; cc < (hints ? hints->GetNumberOfNestedElements() : 0); cc++)
+    {
+      vtkPVXMLElement* child = hints->GetNestedElement(cc);
+      if (child && child->GetName() && strcmp(child->GetName(), "NoSolidColor") == 0)
+      {
+        this->Internals->NoSolidColor.insert(child->GetAttributeOrEmpty("representation"));
+      }
+    }
+  }
   this->updateColorTransferFunction();
 }
 
@@ -376,7 +373,7 @@ QPair<int, QString> pqDisplayColorWidget::arraySelection() const
 {
   if (this->Variables->currentIndex() != -1)
   {
-    return PropertyLinksConnection::convert(
+    return pqDisplayColorWidget::PropertyLinksConnection::convert(
       this->Variables->itemData(this->Variables->currentIndex()));
   }
 
@@ -416,7 +413,7 @@ void pqDisplayColorWidget::setArraySelection(const QPair<int, QString>& value)
 //-----------------------------------------------------------------------------
 QVariant pqDisplayColorWidget::itemData(int association, const QString& arrayName) const
 {
-  return PropertyLinksConnection::convert(ValueType(association, arrayName));
+  return pqDisplayColorWidget::PropertyLinksConnection::convert(ValueType(association, arrayName));
 }
 
 //-----------------------------------------------------------------------------
@@ -446,15 +443,21 @@ void pqDisplayColorWidget::refreshColorArrayNames()
 {
   // Simply update the this->Variables combo-box with values from the domain.
   // Try to preserve the current text if possible.
-  QVariant current = PropertyLinksConnection::convert(this->arraySelection());
+  QVariant current = pqDisplayColorWidget::PropertyLinksConnection::convert(this->arraySelection());
 
   bool prev = this->Variables->blockSignals(true);
 
   this->Variables->clear();
   this->Internals->OutOfDomainEntryIndex = -1;
 
-  // add solid color.
-  this->Variables->addItem(*this->SolidColorIcon, "Solid Color", QVariant());
+  // add solid color, but disable for some representations.
+  this->Variables->addItem(*this->SolidColorIcon, tr("Solid Color"), QVariant());
+  if (this->Representation && this->Internals->NoSolidColor.contains(this->representationText()))
+  {
+    QStandardItemModel* model = qobject_cast<QStandardItemModel*>(this->Variables->model());
+    QStandardItem* item = model->item(0);
+    item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
+  }
 
   vtkSMArrayListDomain* domain = this->Internals->Domain;
   assert(domain);
@@ -498,7 +501,8 @@ void pqDisplayColorWidget::refreshColorArrayNames()
     // The previous value set on the widget is no longer available in the
     // "domain". This happens when the pipeline is modified, for example. In
     // that case, the UI still needs to reflect the value. So we add it.
-    QPair<int, QString> currentColoring = PropertyLinksConnection::convert(current);
+    QPair<int, QString> currentColoring =
+      pqDisplayColorWidget::PropertyLinksConnection::convert(current);
     this->Variables->setCurrentIndex(
       this->addOutOfDomainEntry(currentColoring.first, currentColoring.second));
   }
@@ -553,7 +557,7 @@ void pqDisplayColorWidget::componentNumberChanged()
 {
   if (this->ColorTransferFunction)
   {
-    BEGIN_UNDO_SET("Change color component");
+    BEGIN_UNDO_SET(tr("Change color component"));
     int number = this->componentNumber();
     QPair<int, QString> val = this->arraySelection();
     int association = val.first;
@@ -573,7 +577,7 @@ void pqDisplayColorWidget::componentNumberChanged()
     // we could now respect some application setting to determine if the LUT is
     // to be reset.
     vtkSMProxy* reprProxy = this->Representation ? this->Representation->getProxy() : nullptr;
-    vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(
+    vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(
       reprProxy, /*extend*/ false, /*force*/ false);
 
     // Update scalar bars.
@@ -623,15 +627,19 @@ void pqDisplayColorWidget::refreshComponents()
 
   bool prev = this->Components->blockSignals(true);
 
+  const int nComponents = arrayInfo->GetNumberOfComponents();
   this->Components->clear();
-  for (int cc = 0, max = arrayInfo->GetNumberOfComponents(); cc < max; cc++)
+
+  // add magnitude for non-scalar values when needed
+  auto* arraySettings = vtkPVRepresentedArrayListSettings::GetInstance();
+  if (nComponents > 1 && arraySettings->ShouldUseMagnitudeMode(nComponents))
   {
-    if (cc == 0 && max > 1)
-    {
-      // add magnitude for non-scalar values.
-      this->Components->addItem(arrayInfo->GetComponentName(-1), -1);
-    }
-    this->Components->addItem(arrayInfo->GetComponentName(cc), cc);
+    this->Components->addItem(arrayInfo->GetComponentName(-1), -1);
+  }
+
+  for (int comp = 0; comp < nComponents; comp++)
+  {
+    this->Components->addItem(arrayInfo->GetComponentName(comp), comp);
   }
 
   /// restore component choice if possible.
@@ -690,5 +698,15 @@ void pqDisplayColorWidget::pruneOutOfDomainEntries()
     // Yay! Prune that entry!
     this->Variables->removeItem(this->Internals->OutOfDomainEntryIndex);
     this->Internals->OutOfDomainEntryIndex = -1;
+  }
+}
+
+void pqDisplayColorWidget::setRepresentationText(const QString& text)
+{
+  if (this->RepresentationText != text)
+  {
+    this->RepresentationText = text;
+    // this lets us disable Solid Color based on the representation type changing.
+    Q_EMIT this->representationTextChanged(text);
   }
 }

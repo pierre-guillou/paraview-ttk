@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <stdarg.h>
 #if defined(_WIN32)
-#include <win32-regex.h>
+#include <regex>
 #else
 #include <regex.h>
 #endif
@@ -429,6 +429,29 @@ StringHelpers::FindRE(const string &s, const string &re)
 int
 StringHelpers::FindRE(const char *strToSearch, const char *re)
 {
+#if defined(_WIN32)
+    std::regex cre;
+    try
+    {
+        cre = std::regex(re, std::regex::extended);
+    }
+    catch (std::regex_error&)
+    {
+        return FindError;
+    }
+
+    std::cmatch m;
+    if (!std::regex_search(strToSearch, m, cre))
+        return FindNone;
+
+    if (m.size() < 1)
+        return FindError;
+
+    if (!m[0].matched)
+        return FindError;
+
+    return (int) (m[0].first - strToSearch);
+#else
     regex_t cre;
     regmatch_t pm;
 
@@ -449,6 +472,7 @@ StringHelpers::FindRE(const char *strToSearch, const char *re)
         return FindError;
 
     return (int) pm.rm_so;
+#endif
 }
 
 // ****************************************************************************
@@ -539,8 +563,10 @@ StringHelpers::Replace(const string &source,
 std::string
 StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
 {
+#if !defined(_WIN32)
     regex_t cre;
     regmatch_t pm[255];
+#endif
     string reToUse;
     string retval = "";
 
@@ -572,6 +598,35 @@ StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
         return retval;
     }
 
+#if defined(_WIN32)
+    std::regex cre;
+    try
+    {
+        cre = std::regex(reToUse, std::regex::extended);
+    }
+    catch (std::regex_error&)
+    {
+        return retval;
+    }
+
+    std::cmatch m;
+    if (!std::regex_search(strToSearch, m, cre))
+        return retval;
+
+    std::cregex_iterator rit(strToSearch, strToSearch + strlen(strToSearch), cre);
+
+    for (size_t i = 0; i < m.size(); ++i)
+    {
+        const auto& match = m[i];
+        if (!match.matched)
+            continue;
+        if (i == matchToExtract)
+        {
+            retval = match.str();
+            break;
+        }
+    }
+#else
     if (regcomp(&cre, reToUse.c_str(), REG_EXTENDED))
         return retval;
 
@@ -593,6 +648,7 @@ StringHelpers::ExtractRESubstr(const char *strToSearch, const char *re)
             break;
         }
     }
+#endif
     return retval;
 }
 

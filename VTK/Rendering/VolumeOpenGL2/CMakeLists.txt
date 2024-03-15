@@ -32,8 +32,6 @@ set(private_headers)
 foreach (shader_file IN LISTS shader_files)
   vtk_encode_string(
     INPUT         "${shader_file}"
-    EXPORT_SYMBOL "VTKRENDERINGVOLUMEOPENGL2_EXPORT"
-    EXPORT_HEADER "vtkRenderingVolumeOpenGL2Module.h"
     HEADER_OUTPUT header
     SOURCE_OUTPUT source)
   list(APPEND sources ${source})
@@ -63,3 +61,4 @@ vtk_module_add_module(VTK::RenderingVolumeOpenGL2
   NOWRAP_TEMPLATE_CLASSES  ${nowrap_template_classes}
   SOURCES ${sources} ${vtk_object_factory_source}
   PRIVATE_HEADERS ${private_headers} ${vtk_object_factory_header})
+vtk_add_test_mangling(VTK::RenderingVolumeOpenGL2)

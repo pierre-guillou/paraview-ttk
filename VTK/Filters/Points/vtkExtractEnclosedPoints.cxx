@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractEnclosedPoints.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractEnclosedPoints.h"
 
 #include "vtkArrayDispatch.h"
@@ -41,6 +29,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractEnclosedPoints);
 
 //------------------------------------------------------------------------------
@@ -192,7 +181,7 @@ int vtkExtractEnclosedPoints::RequestData(
 // the enclosing surface.
 int vtkExtractEnclosedPoints::FilterPoints(vtkPointSet* input)
 {
-  // Initiailize search structures
+  // Initialize search structures
   vtkStaticCellLocator* locator = vtkStaticCellLocator::New();
 
   vtkPolyData* surface = this->Surface;
@@ -277,3 +266,4 @@ void vtkExtractEnclosedPoints::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Tolerance: " << this->Tolerance << "\n";
 }
+VTK_ABI_NAMESPACE_END

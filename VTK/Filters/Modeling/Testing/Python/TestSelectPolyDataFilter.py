@@ -1,6 +1,25 @@
 #!/usr/bin/env python
-import vtk
-from vtk.util.misc import vtkGetDataRoot
+from vtkmodules.vtkCommonCore import (
+    VTK_STRING,
+    vtkCommand,
+    vtkIntArray,
+    vtkPoints,
+)
+from vtkmodules.vtkCommonDataModel import vtkPolyData
+from vtkmodules.vtkFiltersCore import vtkClipPolyData
+from vtkmodules.vtkFiltersModeling import vtkSelectPolyData
+from vtkmodules.vtkIOXML import vtkXMLPolyDataReader
+from vtkmodules.vtkRenderingCore import (
+    vtkActor,
+    vtkPolyDataMapper,
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+    vtkRenderer,
+)
+import vtkmodules.vtkInteractionStyle
+import vtkmodules.vtkRenderingFreeType
+import vtkmodules.vtkRenderingOpenGL2
+from vtkmodules.util.misc import vtkGetDataRoot
 VTK_DATA_ROOT = vtkGetDataRoot()
 
 # Callback object to capture errors
@@ -19,7 +38,7 @@ class callback:
         self.calldata = None
 
 
-reader = vtk.vtkXMLPolyDataReader()
+reader = vtkXMLPolyDataReader()
 reader.SetFileName(VTK_DATA_ROOT + "/Data/cow.vtp")
 reader.Update()
 
@@ -68,15 +87,15 @@ loopPointPositions = [[ 4.5208645 ,  2.0485868 , -0.5763462 ],
        [ 4.463926  ,  2.1002119 , -0.5689619 ],
        [ 4.5208645 ,  2.0485868 , -0.5763462 ]]
 
-loopPoints = vtk.vtkPoints()
+loopPoints = vtkPoints()
 for xyz in loopPointPositions:
     loopPoints.InsertNextPoint(xyz)
 
 # Add attribute information
-cowPolyData = vtk.vtkPolyData()
+cowPolyData = vtkPolyData()
 cowPolyData.ShallowCopy(reader.GetOutput())
 
-ptScalarArray = vtk.vtkIntArray()
+ptScalarArray = vtkIntArray()
 ptScalarArray.SetName("ScalarArray")
 ptScalarArray.SetNumberOfComponents(1)
 ptScalarArray.SetNumberOfTuples(cowPolyData.GetNumberOfPoints())
@@ -84,7 +103,7 @@ ptScalarArray.Fill(1)
 
 cowPolyData.GetPointData().AddArray(ptScalarArray)
 
-cellScalarArray = vtk.vtkIntArray()
+cellScalarArray = vtkIntArray()
 cellScalarArray.SetName("ScalarArray")
 cellScalarArray.SetNumberOfComponents(1)
 cellScalarArray.SetNumberOfTuples(cowPolyData.GetNumberOfCells())
@@ -93,7 +112,7 @@ cellScalarArray.Fill(1)
 cowPolyData.GetCellData().AddArray(cellScalarArray)
 
 # Filter setup
-selectionFilter = vtk.vtkSelectPolyData()
+selectionFilter = vtkSelectPolyData()
 selectionFilter.SetInputData(cowPolyData)
 selectionFilter.SetLoop(loopPoints)
 selectionFilter.GenerateSelectionScalarsOn()
@@ -104,8 +123,8 @@ selectionFilter.SetSelectionModeToSmallestRegion()
 
 # Add error observer to catch the expected error (uncaught error would make the test fail)
 cb = callback()
-cb.CallDataType = vtk.VTK_STRING
-observerId = selectionFilter.AddObserver(vtk.vtkCommand.ErrorEvent, cb)
+cb.CallDataType = VTK_STRING
+observerId = selectionFilter.AddObserver(vtkCommand.ErrorEvent, cb)
 # Run the computation
 selectionFilter.SetEdgeSearchModeToGreedy()
 selectionFilter.Update()
@@ -113,9 +132,9 @@ selectionFilter.Update()
 selectionFilter.RemoveObserver(observerId)
 # Check the results
 if cb.event:
-    print(f"As expected, greedy edge search failed: {cb.calldata}")
+    print("As expected, greedy edge search failed: %s" % cb.calldata)
 numberOfOutputPoints = selectionFilter.GetOutput().GetNumberOfPoints()
-print(f"Number of points extracted using greedy edge search (0 means failure): {numberOfOutputPoints}")
+print("Number of points extracted using greedy edge search (0 means failure): %d" % numberOfOutputPoints)
 
 # Run selection filter using Dijkstra method (expected to succeed)
 
@@ -124,13 +143,20 @@ selectionFilter.SetEdgeSearchModeToDijkstra()
 selectionFilter.Update()
 # Check the results
 numberOfOutputPoints = selectionFilter.GetOutput().GetNumberOfPoints()
-print(f"Number of points extracted using Dijkstra edge search (0 means failure): {numberOfOutputPoints}")
+print("Number of points extracted using Dijkstra edge search (0 means failure): %d" % numberOfOutputPoints)
 if numberOfOutputPoints == 0:
     raise ValueError("Dijkstra edge search failed.")
 
 testArray = selectionFilter.GetOutput().GetPointData().GetArray("SelectionArray")
 if testArray is None:
     raise ValueError("Selection scalar array failed to generate using Dijkstra edge search.")
+
+# Selection array range (signed distance from the loop) is expected to be about (-0.421, 8.379).
+# If minimum or maximum of the range is near zero on one side then it means that the algorithm failed to split the surface.
+if testArray.GetRange()[0] > -0.1:
+    raise ValueError("Selection scalar array failed to generate using Dijkstra edge search: larger negative range is expected.")
+if testArray.GetRange()[1] < 0.1:
+    raise ValueError("Selection scalar array failed to generate using Dijkstra edge search: larger positive range is expected.")
 
 testPtScalarArray = selectionFilter.GetOutput().GetPointData().GetArray("ScalarArray")
 if testPtScalarArray is None:
@@ -143,20 +169,20 @@ if testCellScalarArray is None:
 # Display results
 
 # Clip the mesh with the selection (cuts out a hole around the cow's ear)
-clipFilter = vtk.vtkClipPolyData()
+clipFilter = vtkClipPolyData()
 clipFilter.SetInputConnection(selectionFilter.GetOutputPort())
 
 # Set up renderer
-ren1 = vtk.vtkRenderer()
-renWin = vtk.vtkRenderWindow()
+ren1 = vtkRenderer()
+renWin = vtkRenderWindow()
 renWin.AddRenderer(ren1)
-iren = vtk.vtkRenderWindowInteractor()
+iren = vtkRenderWindowInteractor()
 iren.SetRenderWindow(renWin)
 
 # Set up actor
-mapper = vtk.vtkPolyDataMapper()
+mapper = vtkPolyDataMapper()
 mapper.SetInputConnection(clipFilter.GetOutputPort())
-actor = vtk.vtkActor()
+actor = vtkActor()
 actor.SetMapper(mapper)
 ren1.AddActor(actor)
 

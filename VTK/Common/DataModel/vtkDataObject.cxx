@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkDataObject.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataObject.h"
 
 #include "vtkDataSetAttributes.h"
@@ -30,6 +18,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkObjectFactory.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataObject);
 
 vtkCxxSetObjectMacro(vtkDataObject, Information, vtkInformation);
@@ -66,7 +55,7 @@ vtkInformationKeyRestrictedMacro(vtkDataObject, BOUNDING_BOX, DoubleVector, 6);
 
 // Initialize static member that controls global data release
 // after use by filter
-static int vtkDataObjectGlobalReleaseDataFlag = 0;
+static vtkTypeBool vtkDataObjectGlobalReleaseDataFlag = 0;
 
 // this list must be kept in-sync with the FieldAssociations enum
 static const char* FieldAssociationsNames[] = { "vtkDataObject::FIELD_ASSOCIATION_POINTS",
@@ -163,7 +152,7 @@ void vtkDataObject::Initialize()
 }
 
 //------------------------------------------------------------------------------
-void vtkDataObject::SetGlobalReleaseDataFlag(int val)
+void vtkDataObject::SetGlobalReleaseDataFlag(vtkTypeBool val)
 {
   if (val == vtkDataObjectGlobalReleaseDataFlag)
   {
@@ -466,7 +455,7 @@ void vtkDataObject::DataHasBeenGenerated()
 }
 
 //------------------------------------------------------------------------------
-int vtkDataObject::GetGlobalReleaseDataFlag()
+vtkTypeBool vtkDataObject::GetGlobalReleaseDataFlag()
 {
   return vtkDataObjectGlobalReleaseDataFlag;
 }
@@ -500,6 +489,12 @@ void vtkDataObject::ShallowCopy(vtkDataObject* src)
     return;
   }
 
+  if (src == this)
+  {
+    vtkWarningMacro("Attempted to ShallowCopy the data object into itself.");
+    return;
+  }
+
   this->InternalDataObjectCopy(src);
 
   if (!src->FieldData)
@@ -525,6 +520,18 @@ void vtkDataObject::ShallowCopy(vtkDataObject* src)
 //------------------------------------------------------------------------------
 void vtkDataObject::DeepCopy(vtkDataObject* src)
 {
+  if (!src)
+  {
+    vtkWarningMacro("Attempted to DeepCopy from null.");
+    return;
+  }
+
+  if (src == this)
+  {
+    vtkWarningMacro("Attempted to DeepCopy the data object into itself.");
+    return;
+  }
+
   vtkFieldData* srcFieldData = src->GetFieldData();
 
   this->InternalDataObjectCopy(src);
@@ -580,6 +587,8 @@ void vtkDataObject::InternalDataObjectCopy(vtkDataObject* src)
   // this->PipelineMTime = src->PipelineMTime;
   // this->UpdateTime = src->UpdateTime;
   // this->Locality = src->Locality;
+
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -656,6 +665,12 @@ vtkUnsignedCharArray* vtkDataObject::GetGhostArray(int type)
 }
 
 //------------------------------------------------------------------------------
+bool vtkDataObject::SupportsGhostArray(int vtkNotUsed(type))
+{
+  return false;
+}
+
+//------------------------------------------------------------------------------
 vtkFieldData* vtkDataObject::GetAttributesAsFieldData(int type)
 {
   switch (type)
@@ -696,3 +711,4 @@ vtkIdType vtkDataObject::GetNumberOfElements(int type)
   }
   return 0;
 }
+VTK_ABI_NAMESPACE_END

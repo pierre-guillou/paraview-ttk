@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLDataElement.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLDataElement
  * @brief   Represents an XML element and those nested inside.
@@ -31,6 +19,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLDataParser;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkXMLDataElement : public vtkObject
@@ -307,7 +296,7 @@ protected:
 
   // Tags that have specialized character data handlers
   // can set this flag to improve performance. The default is unset.
-  int IgnoreCharacterData;
+  vtkTypeBool IgnoreCharacterData;
 
   // Get/Set the stream position of the elements inline data.
   vtkGetMacro(InlineDataPosition, vtkTypeInt64);
@@ -371,7 +360,7 @@ inline void vtkXMLDataElement::AddCharacterData(const char* data, size_t length)
   char* pCD = this->CharacterData + eod;
   memmove(pCD, data, length);
   pCD[length] = '\0';
-  return;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

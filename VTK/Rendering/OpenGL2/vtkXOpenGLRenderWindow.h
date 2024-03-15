@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXOpenGLRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXOpenGLRenderWindow
  * @brief   OpenGL rendering window
@@ -25,11 +13,13 @@
 #ifndef vtkXOpenGLRenderWindow_h
 #define vtkXOpenGLRenderWindow_h
 
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include <X11/Xlib.h>                  // Needed for X types used in the public interface
 #include <stack>                       // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkXOpenGLRenderWindowInternal;
 struct vtkXVisualInfo;
@@ -108,6 +98,7 @@ public:
    * Specify the size of the rendering window in pixels but do not resize
    * the XWindow. Useful when resizing is done interactively.
    */
+  VTK_DEPRECATED_IN_9_3_0("Use vtkRenderWindow::SetSize(w,h) instead")
   void SetSizeNoXResize(int, int);
 
   ///@{
@@ -377,4 +368,5 @@ private:
   void operator=(const vtkXOpenGLRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

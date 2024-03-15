@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStatisticalOutlierRemoval.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 /**
  * @class   vtkStatisticalOutlierRemoval
  * @brief   remove sparse outlier points
@@ -53,6 +41,7 @@
 #include "vtkFiltersPointsModule.h" // For export macro
 #include "vtkPointCloudFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkPointSet;
 
@@ -139,4 +128,5 @@ private:
   void operator=(const vtkStatisticalOutlierRemoval&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

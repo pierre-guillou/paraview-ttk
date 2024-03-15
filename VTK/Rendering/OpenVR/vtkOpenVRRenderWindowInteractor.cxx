@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenVRRenderWindowInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenVRRenderWindowInteractor.h"
 
 #include "vtkMatrix4x4.h"
@@ -24,6 +12,7 @@
 
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenVRRenderWindowInteractor);
 
 //------------------------------------------------------------------------------
@@ -31,7 +20,7 @@ vtkOpenVRRenderWindowInteractor::vtkOpenVRRenderWindowInteractor()
 {
   vtkNew<vtkOpenVRInteractorStyle> style;
   this->SetInteractorStyle(style);
-  this->ActionManifestFileName = "./vtk_openvr_actions.json";
+  this->ActionManifestFileName = "vtk_openvr_actions.json";
   this->ActionSetName = "/actions/vtk";
 }
 
@@ -41,7 +30,8 @@ void vtkOpenVRRenderWindowInteractor::Initialize()
   // Start with superclass initialization
   this->Superclass::Initialize();
 
-  std::string fullpath = vtksys::SystemTools::CollapseFullPath(this->ActionManifestFileName);
+  std::string fullpath = vtksys::SystemTools::CollapseFullPath(
+    this->ActionManifestDirectory + this->ActionManifestFileName);
   vr::VRInput()->SetActionManifestPath(fullpath.c_str());
   vr::VRInput()->GetActionSetHandle(this->ActionSetName.c_str(), &this->ActionsetVTK);
 
@@ -53,10 +43,8 @@ void vtkOpenVRRenderWindowInteractor::Initialize()
   vr::VRInput()->GetInputSourceHandle(
     "/user/head", &this->Trackers[vtkOpenVRRenderWindowInteractor::HEAD].Source);
 
-  this->AddAction("/actions/vtk/in/LeftGripAction", false,
-    [this](vtkEventData* ed) { this->HandleGripEvents(ed); });
-  this->AddAction("/actions/vtk/in/RightGripAction", false,
-    [this](vtkEventData* ed) { this->HandleGripEvents(ed); });
+  this->AddAction("/actions/vtk/in/ComplexGestureAction", false,
+    [this](vtkEventData* ed) { this->HandleComplexGestureEvents(ed); });
 
   // add extra event actions
   for (auto& it : this->ActionMap)
@@ -407,3 +395,4 @@ bool GetDigitalActionState(
   }
   return actionData.bActive && actionData.bState;
 }
+VTK_ABI_NAMESPACE_END

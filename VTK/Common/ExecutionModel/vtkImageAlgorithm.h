@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageAlgorithm
  * @brief   Generic algorithm superclass for image algs
@@ -31,6 +19,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkCommonExecutionModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkImageData;
 
@@ -106,6 +95,8 @@ protected:
    */
   virtual int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
 
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
+
   /**
    * Convenience method to copy the scalar type and number of components
    * from the input data to the output data.  You will generally want to
@@ -172,4 +163,5 @@ private:
   void operator=(const vtkImageAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

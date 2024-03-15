@@ -42,6 +42,10 @@ private:
   VTKM_CONT static vtkm::Id3 ToId3(vtkm::Id&& src) { return vtkm::Id3(src, 1, 1); }
 
 public:
+  struct LastCell
+  {
+  };
+
   template <vtkm::IdComponent dimensions>
   VTKM_CONT CellLocatorRectilinearGrid(const vtkm::Id planeSize,
                                        const vtkm::Id rowSize,
@@ -85,6 +89,15 @@ public:
         inside = false;
     }
     return inside;
+  }
+
+  VTKM_EXEC
+  vtkm::ErrorCode FindCell(const vtkm::Vec3f& point,
+                           vtkm::Id& cellId,
+                           vtkm::Vec3f& parametric,
+                           LastCell& vtkmNotUsed(lastCell)) const
+  {
+    return this->FindCell(point, cellId, parametric);
   }
 
   VTKM_EXEC
@@ -143,11 +156,6 @@ public:
 
     return vtkm::ErrorCode::Success;
   }
-
-  VTKM_DEPRECATED(1.6, "Locators are no longer pointers. Use . operator.")
-  VTKM_EXEC CellLocatorRectilinearGrid* operator->() { return this; }
-  VTKM_DEPRECATED(1.6, "Locators are no longer pointers. Use . operator.")
-  VTKM_EXEC const CellLocatorRectilinearGrid* operator->() const { return this; }
 
 private:
   vtkm::Id PlaneSize;

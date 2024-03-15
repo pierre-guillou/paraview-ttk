@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXRenderWindowInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Must be included first to avoid conflicts with X11's `Status` define.
 #include <vtksys/SystemTools.hxx>
@@ -39,10 +27,12 @@
 
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXRenderWindowInteractor);
 
 template <int EventType>
@@ -80,25 +70,35 @@ public:
 
   void DestroyLocalTimer(int id) { this->LocalToTimer.erase(id); }
 
-  void GetTimeToNextTimer(timeval& tv)
+  /**
+   * This interactor uses `select` to coordinate timers.
+   * Returns true if `select` needs to block until some time elapses or a user interaction event
+   * occurs. Returns false if `select` needs to block indefinitely until a user interaction event
+   * occurs. The `tv` arg is populated with a time-interval that can be used by `select` when it
+   * needs to use a timeout.
+   */
+  bool GetTimeToNextTimer(timeval& tv)
   {
-    uint64_t lowestDelta = 1000000;
+    bool useTimeout = false; // whether `select` must block for some time.
+    uint64_t delta = 0;      // in microsecs
     if (!this->LocalToTimer.empty())
     {
       timeval ctv;
       gettimeofday(&ctv, nullptr);
+      delta = VTK_UNSIGNED_INT_MAX; // arbitrary high value for time interval
       for (auto& timer : this->LocalToTimer)
       {
-        uint64_t delta = (ctv.tv_sec - timer.second.lastFire.tv_sec) * 1000000 + ctv.tv_usec -
-          timer.second.lastFire.tv_usec;
-        if (delta < lowestDelta)
-        {
-          lowestDelta = delta;
-        }
+        uint64_t duration = timer.second.duration * 1000; // in microsecs
+        uint64_t elapsed = (ctv.tv_sec - timer.second.lastFire.tv_sec) * 1000000 + ctv.tv_usec -
+          timer.second.lastFire.tv_usec; // in microsecs
+        // 0 lets the timer fire immediately.
+        delta = duration > elapsed ? std::min<uint64_t>(duration - elapsed, delta) : 0;
+        useTimeout = true;
       }
     }
-    tv.tv_sec = lowestDelta / 1000000;
-    tv.tv_usec = lowestDelta % 1000000;
+    tv.tv_sec = delta / 1000000;
+    tv.tv_usec = delta % 1000000;
+    return useTimeout;
   }
 
   void FireTimers(vtkXRenderWindowInteractor* rwi)
@@ -107,38 +107,57 @@ public:
     {
       timeval ctv;
       gettimeofday(&ctv, nullptr);
-      std::vector<unsigned long> expired;
-      for (auto& timer : this->LocalToTimer)
+      std::vector<LocalToTimerType::value_type> timers(
+        this->LocalToTimer.begin(), this->LocalToTimer.end());
+      for (auto& timer : timers)
       {
         int64_t delta = (ctv.tv_sec - timer.second.lastFire.tv_sec) * 1000000 + ctv.tv_usec -
           timer.second.lastFire.tv_usec;
         if (delta / 1000 >= static_cast<int64_t>(timer.second.duration))
         {
           int timerId = rwi->GetVTKTimerId(timer.first);
-          rwi->InvokeEvent(vtkCommand::TimerEvent, &timerId);
-          if (rwi->IsOneShotTimer(timerId))
+          if (timerId != 0)
           {
-            expired.push_back(timer.first);
-          }
-          else
-          {
-            timer.second.lastFire.tv_sec = ctv.tv_sec;
-            timer.second.lastFire.tv_usec = ctv.tv_usec;
+            rwi->InvokeEvent(vtkCommand::TimerEvent, &timerId);
+            if (rwi->IsOneShotTimer(timerId))
+            {
+              this->DestroyLocalTimer(timer.first);
+            }
+            else
+            {
+              auto it = this->LocalToTimer.find(timer.first);
+              if (it != this->LocalToTimer.end())
+              {
+                it->second.lastFire.tv_sec = ctv.tv_sec;
+                it->second.lastFire.tv_usec = ctv.tv_usec;
+              }
+            }
           }
         }
-      }
-      for (auto exp : expired)
-      {
-        this->DestroyLocalTimer(exp);
       }
     }
   }
 
   static std::set<vtkXRenderWindowInteractor*> Instances;
 
+  struct FDWaitInformation
+  {
+    // whether application was terminated
+    bool Done = false;
+    // whether `WaitForEvents` invokes `select` with a timeout argument.
+    bool UseTimeout = false;
+    // the number of events dispatched by `ProcessEvents()`
+    uint64_t NumEventsDispatched = 0;
+    // the timeout value provided to `select`. waits until an event occurs or this interval expires.
+    timeval WaitInterval;
+    // file descriptors that are monitored for activity in `WaitForEvents`
+    std::vector<int> RwiFileDescriptors;
+  } FDWaitInfo;
+
 private:
   int TimerIdCount;
-  std::map<int, vtkXRenderWindowInteractorTimer> LocalToTimer;
+  typedef std::map<int, vtkXRenderWindowInteractorTimer> LocalToTimerType;
+  LocalToTimerType LocalToTimer;
 };
 
 std::set<vtkXRenderWindowInteractor*> vtkXRenderWindowInteractorInternals::Instances;
@@ -207,18 +226,22 @@ void vtkXRenderWindowInteractor::TerminateApp()
 
 void vtkXRenderWindowInteractor::ProcessEvents()
 {
-  std::vector<int> rwiFileDescriptors;
-  fd_set in_fds;
-  struct timeval tv;
-  struct timeval minTv;
+  auto& internals = (*this->Internal);
+  auto& done = internals.FDWaitInfo.Done;
+  auto& evCount = internals.FDWaitInfo.NumEventsDispatched;
+  auto& waitTv = internals.FDWaitInfo.WaitInterval;
+  auto& rwiFileDescriptors = internals.FDWaitInfo.RwiFileDescriptors;
+  auto& useTimeout = internals.FDWaitInfo.UseTimeout;
 
-  bool wait = true;
-  bool done = true;
-  minTv.tv_sec = 1000;
-  minTv.tv_usec = 1000;
-  XEvent event;
-
+  // reset vars which help VTK wait for new events or timer timeouts.
+  done = true;
+  evCount = 0;
+  rwiFileDescriptors.clear();
   rwiFileDescriptors.reserve(vtkXRenderWindowInteractorInternals::Instances.size());
+  useTimeout = false;
+
+  // these file descriptors will be polled for new events. after pending events are processed, if
+  // any.
   for (auto rwi : vtkXRenderWindowInteractorInternals::Instances)
   {
     rwiFileDescriptors.push_back(ConnectionNumber(rwi->DisplayId));
@@ -227,20 +250,18 @@ void vtkXRenderWindowInteractor::ProcessEvents()
   for (auto rwi = vtkXRenderWindowInteractorInternals::Instances.begin();
        rwi != vtkXRenderWindowInteractorInternals::Instances.end();)
   {
-
+    XEvent event;
     if (XPending((*rwi)->DisplayId) == 0)
     {
       // get how long to wait for the next timer
-      (*rwi)->Internal->GetTimeToNextTimer(tv);
-      minTv.tv_sec = std::min(tv.tv_sec, minTv.tv_sec);
-      minTv.tv_usec = std::min(tv.tv_usec, minTv.tv_usec);
+      useTimeout = (*rwi)->Internal->GetTimeToNextTimer(waitTv);
     }
     while (XPending((*rwi)->DisplayId) != 0)
     {
       // If events are pending, dispatch them to the right RenderWindowInteractor
       XNextEvent((*rwi)->DisplayId, &event);
       (*rwi)->DispatchEvent(&event);
-      wait = false;
+      evCount++;
     }
     (*rwi)->FireTimers();
 
@@ -271,20 +292,27 @@ void vtkXRenderWindowInteractor::ProcessEvents()
       ++rwi;
     }
   }
-
-  if (wait && !done)
-  {
-    // select will wait until 'tv' elapses or something else wakes us
-    FD_ZERO(&in_fds);
-    for (auto rwiFileDescriptor : rwiFileDescriptors)
-    {
-      FD_SET(rwiFileDescriptor, &in_fds);
-    }
-    int maxFileDescriptor = *std::max_element(rwiFileDescriptors.begin(), rwiFileDescriptors.end());
-    select(maxFileDescriptor + 1, &in_fds, nullptr, nullptr, &minTv);
-  }
-
   this->Done = done;
+}
+
+//------------------------------------------------------------------------------
+void vtkXRenderWindowInteractor::WaitForEvents()
+{
+  auto& internals = (*this->Internal);
+  auto& fdWaitInfo = (internals.FDWaitInfo);
+  fd_set in_fds;
+
+  // select will wait until 'tv' elapses or something else wakes us
+  FD_ZERO(&in_fds);
+  int maxFd = -1;
+  timeval* timeout = fdWaitInfo.UseTimeout ? &fdWaitInfo.WaitInterval : nullptr;
+  for (const auto& rwiFileDescriptor : fdWaitInfo.RwiFileDescriptors)
+  {
+    FD_SET(rwiFileDescriptor, &in_fds);
+    maxFd = std::max<int>(maxFd, rwiFileDescriptor);
+  }
+  vtkDebugMacro(<< "wait");
+  select(maxFd + 1, &in_fds, nullptr, nullptr, timeout);
 }
 
 //------------------------------------------------------------------------------
@@ -299,7 +327,15 @@ void vtkXRenderWindowInteractor::StartEventLoop()
   }
   do
   {
+    auto& internals = (*this->Internal);
+    auto& fdWaitInfo = (internals.FDWaitInfo);
+    // process pending events.
     this->ProcessEvents();
+    // wait for events only if no events were dispatched and application is not yet terminated.
+    if (!fdWaitInfo.NumEventsDispatched && !fdWaitInfo.Done)
+    {
+      this->WaitForEvents();
+    }
   } while (!this->Done);
 }
 
@@ -374,9 +410,15 @@ void vtkXRenderWindowInteractor::Finalize()
   if (this->OwnDisplay && this->DisplayId)
   {
     XCloseDisplay(this->DisplayId);
-    this->DisplayId = nullptr;
-    this->OwnDisplay = false;
   }
+
+  // disconnect from the display, even if we didn't own it
+  this->DisplayId = nullptr;
+  this->OwnDisplay = false;
+
+  // revert to uninitialized state
+  this->Initialized = false;
+  this->Enabled = false;
 }
 
 //------------------------------------------------------------------------------
@@ -972,3 +1014,4 @@ void vtkXRenderWindowInteractor::GetMousePosition(int* x, int* y)
 // {
 //   vtkXRenderWindowInteractorCallback(w, client_data, event, ctd);
 // }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonClass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkWrapPythonClass_h
 #define vtkWrapPythonClass_h
@@ -28,11 +16,11 @@ int vtkWrapPython_WrapOneClass(FILE* fp, const char* module, const char* classna
    then also provide the name of the module.  The "supermodule" will be set
    to NULL if the superclass is in the same module as the class. */
 const char* vtkWrapPython_GetSuperClass(
-  ClassInfo* data, HierarchyInfo* hinfo, const char** supermodule);
+  ClassInfo* data, const HierarchyInfo* hinfo, const char** supermodule);
 
 /* generate the class docstring and write it to "fp" */
 void vtkWrapPython_ClassDoc(
-  FILE* fp, FileInfo* file_info, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject);
+  FILE* fp, FileInfo* file_info, ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject);
 
 #endif /* vtkWrapPythonClass_h */
 /* VTK-HeaderTest-Exclude: vtkWrapPythonClass.h */

@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFUtils.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGLTFUtils.h"
 
-#include "vtkBase64Utilities.h"
+#include "vtkResourceStream.h"
+#include "vtkURILoader.h"
 #include "vtksys/FStream.hxx"
 #include "vtksys/RegularExpression.hxx"
 #include "vtksys/SystemTools.hxx"
@@ -24,8 +13,11 @@
 #include <iostream>
 
 #define MIN_GLTF_VERSION "2.0"
+namespace vtkGLTFUtils
+{
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetBoolValue(const nlohmann::json& root, const std::string& key, bool& value)
+VTK_ABI_NAMESPACE_BEGIN
+bool GetBoolValue(const nlohmann::json& root, const std::string& key, bool& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_boolean())
@@ -37,7 +29,7 @@ bool vtkGLTFUtils::GetBoolValue(const nlohmann::json& root, const std::string& k
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetIntValue(const nlohmann::json& root, const std::string& key, int& value)
+bool GetIntValue(const nlohmann::json& root, const std::string& key, int& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_number_integer())
@@ -49,8 +41,7 @@ bool vtkGLTFUtils::GetIntValue(const nlohmann::json& root, const std::string& ke
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetUIntValue(
-  const nlohmann::json& root, const std::string& key, unsigned int& value)
+bool GetUIntValue(const nlohmann::json& root, const std::string& key, unsigned int& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_number_unsigned())
@@ -62,7 +53,7 @@ bool vtkGLTFUtils::GetUIntValue(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetDoubleValue(const nlohmann::json& root, const std::string& key, double& value)
+bool GetDoubleValue(const nlohmann::json& root, const std::string& key, double& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_number())
@@ -74,8 +65,7 @@ bool vtkGLTFUtils::GetDoubleValue(const nlohmann::json& root, const std::string&
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetIntArray(
-  const nlohmann::json& root, const std::string& key, std::vector<int>& value)
+bool GetIntArray(const nlohmann::json& root, const std::string& key, std::vector<int>& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_array())
@@ -101,7 +91,7 @@ bool vtkGLTFUtils::GetIntArray(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetUIntArray(
+bool GetUIntArray(
   const nlohmann::json& root, const std::string& key, std::vector<unsigned int>& value)
 {
   auto it = root.find(key);
@@ -128,8 +118,7 @@ bool vtkGLTFUtils::GetUIntArray(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetFloatArray(
-  const nlohmann::json& root, const std::string& key, std::vector<float>& value)
+bool GetFloatArray(const nlohmann::json& root, const std::string& key, std::vector<float>& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_array())
@@ -155,8 +144,7 @@ bool vtkGLTFUtils::GetFloatArray(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetDoubleArray(
-  const nlohmann::json& root, const std::string& key, std::vector<double>& value)
+bool GetDoubleArray(const nlohmann::json& root, const std::string& key, std::vector<double>& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_array())
@@ -182,8 +170,7 @@ bool vtkGLTFUtils::GetDoubleArray(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetStringValue(
-  const nlohmann::json& root, const std::string& key, std::string& value)
+bool GetStringValue(const nlohmann::json& root, const std::string& key, std::string& value)
 {
   auto it = root.find(key);
   if (it == root.end() || !it.value().is_string())
@@ -195,7 +182,7 @@ bool vtkGLTFUtils::GetStringValue(
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::CheckVersion(const nlohmann::json& glTFAsset)
+bool CheckVersion(const nlohmann::json& glTFAsset)
 {
   auto assetMinVersionIt = glTFAsset.find("minVersion");
   auto assetVersionIt = glTFAsset.find("version");
@@ -222,123 +209,68 @@ bool vtkGLTFUtils::CheckVersion(const nlohmann::json& glTFAsset)
 }
 
 //------------------------------------------------------------------------------
-std::string vtkGLTFUtils::GetResourceFullPath(
-  const std::string& resourcePath, const std::string& glTFFilePath)
+bool GetBinaryBufferFromUri(
+  const std::string& uri, vtkURILoader* loader, std::vector<char>& buffer, size_t bufferSize)
 {
-  // Check for relative path
-  if (!vtksys::SystemTools::FileIsFullPath(resourcePath.c_str()))
-  {
-    // Append relative path to base dir
-    std::string baseDirPath = vtksys::SystemTools::GetParentDirectory(glTFFilePath);
-    return vtksys::SystemTools::CollapseFullPath(resourcePath, baseDirPath);
-  }
-  return resourcePath;
-}
-
-//------------------------------------------------------------------------------
-std::string vtkGLTFUtils::GetDataUriMimeType(const std::string& uri)
-{
-  vtksys::RegularExpression regex("^data:.*;");
-  if (regex.find(uri))
-  {
-    // Remove preceding 'data:' and trailing semicolon
-    size_t start = regex.start(0) + 5;
-    size_t end = regex.end(0) - 1;
-    return uri.substr(start, end - start);
-  }
-  return std::string();
-}
-
-//------------------------------------------------------------------------------
-bool vtkGLTFUtils::GetBinaryBufferFromUri(const std::string& uri, const std::string& glTFFilePath,
-  std::vector<char>& buffer, size_t bufferSize)
-{
-  // Check for data-uri
-  if (vtksys::SystemTools::StringStartsWith(uri, "data:"))
-  {
-    // Extract base64 buffer
-    std::vector<std::string> tokens;
-    vtksys::SystemTools::Split(uri, tokens, ',');
-    std::string base64Buffer = *(tokens.end() - 1); // Last token contains the base64 data
-    buffer.resize(bufferSize);
-    vtkBase64Utilities::DecodeSafely(reinterpret_cast<const unsigned char*>(base64Buffer.c_str()),
-      base64Buffer.size(), reinterpret_cast<unsigned char*>(buffer.data()), bufferSize);
-  }
-  // Load buffer from file
-  else
-  {
-    vtksys::ifstream fin;
-
-    std::string bufferPath = GetResourceFullPath(uri, glTFFilePath);
-
-    // Open file
-    fin.open(bufferPath.c_str(), ios::binary);
-    if (!fin.is_open())
-    {
-      return false;
-    }
-    // Check file length
-    unsigned int len = vtksys::SystemTools::FileLength(bufferPath);
-    if (len != bufferSize)
-    {
-      fin.close();
-      return false;
-    }
-    // Load data
-    buffer.resize(bufferSize);
-    fin.read(buffer.data(), bufferSize);
-    fin.close();
-  }
-  return true;
-}
-
-//------------------------------------------------------------------------------
-bool vtkGLTFUtils::ExtractGLBFileInformation(const std::string& fileName, std::string& magic,
-  uint32_t& version, uint32_t& fileLength, std::vector<vtkGLTFUtils::ChunkInfoType>& chunkInfo)
-{
-  vtksys::ifstream fin;
-  fin.open(fileName.c_str(), std::ios::binary | std::ios::in);
-  if (!fin.is_open())
+  auto stream = loader->Load(uri);
+  if (!stream)
   {
     return false;
   }
 
-  // Load glb header
-  // Read first word ("magic")
-  char magicBuffer[vtkGLTFUtils::GLBWordSize];
-  fin.read(magicBuffer, vtkGLTFUtils::GLBWordSize);
-  magic = std::string(magicBuffer, magicBuffer + vtkGLTFUtils::GLBWordSize);
+  buffer.resize(bufferSize);
+  return stream->Read(buffer.data(), buffer.size()) == buffer.size();
+}
+
+//------------------------------------------------------------------------------
+bool ExtractGLBFileInformation(vtkResourceStream* stream, uint32_t& version, uint32_t& fileLength,
+  std::vector<vtkGLTFUtils::ChunkInfoType>& chunkInfo)
+{
   // Read version
-  fin.read(reinterpret_cast<char*>(&version), vtkGLTFUtils::GLBWordSize);
-  // Read file length
-  fin.read(reinterpret_cast<char*>(&fileLength), vtkGLTFUtils::GLBWordSize);
-  // Check equality between extracted and actual file lengths
-  fin.seekg(0, std::ios::end);
-  if (fin.tellg() != std::streampos(fileLength))
+  if (stream->Read(&version, GLBWordSize) != GLBWordSize)
   {
+    vtkErrorWithObjectMacro(nullptr, "Truncated glb file");
     return false;
   }
-  fin.seekg(vtkGLTFUtils::GLBHeaderSize);
+
+  // Read file length
+  if (stream->Read(&fileLength, GLBWordSize) != GLBWordSize)
+  {
+    vtkErrorWithObjectMacro(nullptr, "Truncated glb file");
+    return false;
+  }
+
   // Read chunks until end of file
-  while (fin.tellg() < fileLength)
+  while (stream->Tell() != fileLength)
   {
     // Read chunk length
-    uint32_t chunkDataSize;
-    fin.read(reinterpret_cast<char*>(&chunkDataSize), vtkGLTFUtils::GLBWordSize);
+    std::uint32_t chunkDataSize;
+    if (stream->Read(&chunkDataSize, GLBWordSize) != GLBWordSize)
+    {
+      vtkErrorWithObjectMacro(nullptr, "Truncated glb file");
+      return false;
+    }
 
     // Read chunk type
-    char chunkTypeBuffer[vtkGLTFUtils::GLBWordSize];
-    fin.read(chunkTypeBuffer, vtkGLTFUtils::GLBWordSize);
-    std::string chunkType(chunkTypeBuffer, chunkTypeBuffer + vtkGLTFUtils::GLBWordSize);
+    std::string chunkType;
+    chunkType.resize(GLBWordSize);
+    if (stream->Read(&chunkType[0], chunkType.size()) != chunkType.size())
+    {
+      vtkErrorWithObjectMacro(nullptr, "Truncated glb file");
+      return false;
+    }
+
     chunkInfo.emplace_back(chunkType, chunkDataSize);
+
     // Jump to next chunk
-    fin.seekg(chunkDataSize, std::ios::cur);
+    stream->Seek(chunkDataSize, vtkResourceStream::SeekDirection::Current);
   }
+
   return true;
 }
 
 //------------------------------------------------------------------------------
-bool vtkGLTFUtils::ValidateGLBFile(const std::string& magic, uint32_t version, uint32_t fileLength,
+bool ValidateGLBFile(const std::string& magic, uint32_t version, uint32_t fileLength,
   std::vector<vtkGLTFUtils::ChunkInfoType> chunkInfo)
 {
   // Check header
@@ -367,4 +299,6 @@ bool vtkGLTFUtils::ValidateGLBFile(const std::string& magic, uint32_t version, u
   lengthSum += vtkGLTFUtils::GLBHeaderSize + chunkInfo.size() * vtkGLTFUtils::GLBChunkHeaderSize;
   // Check for inconsistent chunk sizes
   return fileLength == lengthSum;
+}
+VTK_ABI_NAMESPACE_END
 }

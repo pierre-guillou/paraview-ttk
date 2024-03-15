@@ -1,19 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGroupDataSetsFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGroupDataSetsFilter.h"
 
+#include "vtkConvertToMultiBlockDataSet.h"
+#include "vtkConvertToPartitionedDataSetCollection.h"
+#include "vtkDataSet.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMultiBlockDataSet.h"
@@ -34,6 +25,7 @@
 #include VTK_FMT(fmt/core.h)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGroupDataSetsFilter::vtkInternals
 {
 public:
@@ -184,6 +176,10 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkPartitionedDataSet::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(input.second);
       for (auto& ds : datasets)
       {
@@ -197,16 +193,30 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkMultiBlockDataSet::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
-      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
-        vtkPartitionedDataSet::SafeDownCast(input.second))
+      if (this->CheckAbort())
       {
-        vtkErrorMacro("Cannot group " << input.second->GetClassName()
-                                      << " as a vtkMultiBlockDataSet. Skipping.");
-        continue;
+        break;
       }
-
       const auto idx = next++;
-      output->SetBlock(idx, input.second);
+      vtkSmartPointer<vtkDataObject> inputDO;
+      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second))
+      {
+        vtkNew<vtkConvertToMultiBlockDataSet> converter;
+        converter->SetInputDataObject(input.second);
+        converter->Update();
+        inputDO = converter->GetOutput();
+      }
+      else if (auto inputPD = vtkPartitionedDataSet::SafeDownCast(input.second))
+      {
+        vtkNew<vtkMultiPieceDataSet> data;
+        data->ShallowCopy(inputPD);
+        inputDO = data;
+      }
+      else
+      {
+        inputDO = input.second;
+      }
+      output->SetBlock(idx, inputDO);
       output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
     }
   }
@@ -216,29 +226,59 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     auto output = vtkPartitionedDataSetCollection::GetData(outputVector, 0);
     for (auto& input : inputs)
     {
-      if (vtkPartitionedDataSetCollection::SafeDownCast(input.second) ||
-        vtkMultiBlockDataSet::SafeDownCast(input.second))
+      if (this->CheckAbort())
       {
-        vtkErrorMacro("Cannot group " << input.second->GetClassName()
-                                      << " as a vtkPartitionedDataSetCollection. Skipping.");
-        continue;
+        break;
       }
-
-      const auto idx = next++;
-      output->SetNumberOfPartitionedDataSets(idx + 1);
-      output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
-      if (auto pd = vtkPartitionedDataSet::SafeDownCast(input.second))
+      if (input.second->IsA("vtkPartitionedDataSetCollection") ||
+        input.second->IsA("vtkMultiBlockDataSet") || input.second->IsA("vtkUniformGridAMR"))
       {
-        unsigned int piece = 0;
-        const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(pd);
-        for (auto& ds : datasets)
+        vtkNew<vtkConvertToPartitionedDataSetCollection> converter;
+        converter->SetInputDataObject(input.second);
+        converter->Update();
+        auto tempPDC = converter->GetOutput();
+
+        auto numPartitionDataSets = tempPDC->GetNumberOfPartitionedDataSets();
+        output->SetNumberOfPartitionedDataSets(next + numPartitionDataSets);
+        for (unsigned int i = 0; i < numPartitionDataSets; ++i)
         {
-          output->SetPartition(idx, piece++, ds);
+          const auto idx = next++;
+          for (unsigned int j = 0; j < tempPDC->GetNumberOfPartitions(i); ++j)
+          {
+            output->SetPartition(idx, j, tempPDC->GetPartition(i, j));
+          }
+          std::string partitionName;
+          if (tempPDC->GetMetaData(i)->Has(vtkCompositeDataSet::NAME()) &&
+            tempPDC->GetMetaData(i)->Get(vtkCompositeDataSet::NAME()))
+          {
+            partitionName =
+              input.first + "_" + tempPDC->GetMetaData(i)->Get(vtkCompositeDataSet::NAME());
+          }
+          else
+          {
+            partitionName = input.first + "_" + std::to_string(i);
+          }
+          output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), partitionName.c_str());
         }
       }
       else
       {
-        output->SetPartition(idx, 0, input.second);
+        const auto idx = next++;
+        output->SetNumberOfPartitionedDataSets(idx + 1);
+        output->GetMetaData(idx)->Set(vtkCompositeDataSet::NAME(), input.first.c_str());
+        if (auto pd = vtkPartitionedDataSet::SafeDownCast(input.second))
+        {
+          unsigned int piece = 0;
+          const auto datasets = vtkCompositeDataSet::GetDataSets<vtkDataObject>(pd);
+          for (auto& ds : datasets)
+          {
+            output->SetPartition(idx, piece++, ds);
+          }
+        }
+        else
+        {
+          output->SetPartition(idx, 0, input.second);
+        }
       }
     }
   }
@@ -255,3 +295,4 @@ void vtkGroupDataSetsFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

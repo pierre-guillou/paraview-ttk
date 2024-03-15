@@ -1,29 +1,18 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QQuickVTKInteractorAdapter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef QQuickVTKInteractorAdapter_h
 #define QQuickVTKInteractorAdapter_h
 
 // VTK includes
 #include "QVTKInteractorAdapter.h"
+#include "vtkDeprecation.h"
 #include "vtkGUISupportQtQuickModule.h" // for export macro
 
 // Qt includes
 #include <QList>    // for QList
 #include <QPointer> // for QPointer
 
-// Forward declarations
+// Qt Forward declarations
 class QEnterEvent;
 class QEvent;
 class QFocusEvent;
@@ -33,6 +22,9 @@ class QMouseEvent;
 class QQuickItem;
 class QQuickWindow;
 class QWheelEvent;
+
+VTK_ABI_NAMESPACE_BEGIN
+// VTK Forward declarations
 class vtkRenderWindowInteractor;
 class vtkRenderer;
 
@@ -40,7 +32,9 @@ class vtkRenderer;
  * @class QQuickVTKInteractorAdapter
  * @brief Intermediate class that handles relaying Qt events to VTK
  */
-class VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKInteractorAdapter : public QVTKInteractorAdapter
+class VTK_DEPRECATED_IN_9_3_0(
+  "Use QQuickVTKItem instead") VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKInteractorAdapter
+  : public QVTKInteractorAdapter
 {
   Q_OBJECT
   typedef QVTKInteractorAdapter Superclass;
@@ -89,4 +83,5 @@ private:
   Q_DISABLE_COPY(QQuickVTKInteractorAdapter)
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // QQuickVTKInteractorAdapter_h

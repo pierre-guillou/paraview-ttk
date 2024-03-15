@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfReader.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXdmfReader
  * @brief   Reads <tt>eXtensible Data Model and Format</tt> files
@@ -39,6 +26,7 @@
 #include <map>                // for caching
 #include <string>             // needed for string API
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXdmfArraySelection;
 class vtkXdmfDocument;
 class vtkGraph;
@@ -185,8 +173,6 @@ public:
   public:
     XdmfDataSetTopoGeoPath()
       : dataset(nullptr)
-      , topologyPath()
-      , geometryPath()
     {
     }
     vtkDataSet* dataset;
@@ -307,9 +293,9 @@ private:
    */
   int ChooseTimeStep(vtkInformation* outInfo);
 
-private:
   vtkXdmfReader(const vtkXdmfReader&) = delete;
   void operator=(const vtkXdmfReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

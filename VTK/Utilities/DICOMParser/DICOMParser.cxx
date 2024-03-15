@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMParser.cxx
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifdef _MSC_VER
 #pragma warning(disable : 4514)
 #pragma warning(disable : 4786)
@@ -44,6 +30,7 @@
 
 #define DICOMPARSER_IGNORE_MAGIC_NUMBER
 
+VTK_ABI_NAMESPACE_BEGIN
 static const char* DICOM_MAGIC = "DICM";
 static const int OPTIONAL_SKIP = 128;
 
@@ -775,3 +762,4 @@ void DICOMParser::operator=(const DICOMParser&)
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPoints.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPoints
  * @brief   represent and manipulate 3D points
@@ -28,6 +16,7 @@
 
 #include "vtkDataArray.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
 class VTKCOMMONCORE_EXPORT vtkPoints : public vtkObject
@@ -302,4 +291,5 @@ inline vtkIdType vtkPoints::InsertNextPoint(double x, double y, double z)
   return this->Data->InsertNextTuple(p);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

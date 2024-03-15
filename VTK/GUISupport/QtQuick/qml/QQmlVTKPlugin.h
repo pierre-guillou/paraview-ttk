@@ -1,19 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QQmlVTKPlugin.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef QQmlVTKPlugin_h
 #define QQmlVTKPlugin_h
+
+#include "vtkABINamespace.h"
+#include "vtkDeprecation.h"
 
 // Qt includes
 #include <QQmlExtensionPlugin>
@@ -57,7 +48,9 @@
  * The VTK QML module follows the version number of the VTK source tree. For example, if compiled
  * against VTK 9.0.x, the VTK module version will be 9.0
  */
-class QQmlVTKPlugin : public QQmlExtensionPlugin
+VTK_ABI_NAMESPACE_BEGIN
+class VTK_DEPRECATED_IN_9_3_0("Use QQuickVTKItem instead") QQmlVTKPlugin
+  : public QQmlExtensionPlugin
 {
   Q_OBJECT
   typedef QQmlExtensionPlugin Superclass;
@@ -73,19 +66,19 @@ public:
   /**
    * Destructor
    */
-  virtual ~QQmlVTKPlugin() = default;
+  ~QQmlVTKPlugin() override = default;
 
   /**
    * Register QML types provided by VTK
    */
-  void registerTypes(const char* uri);
+  void registerTypes(const char* uri) override;
 
   /**
    * Initialize the extension using the QQmlEngine
    *
    * \sa cleanup
    */
-  void initializeEngine(QQmlEngine* engine, const char* uri);
+  void initializeEngine(QQmlEngine* engine, const char* uri) override;
 
 protected Q_SLOTS:
   /**
@@ -99,4 +92,5 @@ private:
   Q_DISABLE_COPY(QQmlVTKPlugin);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // QQmlVTKPlugin_h

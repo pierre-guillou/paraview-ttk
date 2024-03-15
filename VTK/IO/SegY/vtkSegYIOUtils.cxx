@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSegYIOUtils.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSegYIOUtils.h"
 
@@ -21,6 +9,7 @@
 #include <sys/types.h>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkSegYIOUtils::vtkSegYIOUtils()
 {
   this->IsBigEndian = checkIfBigEndian();
@@ -127,7 +116,7 @@ float vtkSegYIOUtils::readIBMFloat(std::istream& in)
   // More details at
   // https://en.m.wikipedia.org/wiki/IBM_Floating_Point_Architecture
 
-  uint32_t* longbuffer = reinterpret_cast<uint32_t*>(buffer);
+  const uint32_t* longbuffer = reinterpret_cast<uint32_t*>(buffer);
   int sign = longbuffer[0] >> 31 & 0x01;
   int exponent = longbuffer[0] >> 24 & 0x7F;
   float fraction = (longbuffer[0] & 0x00ffffff) / powf(2.0f, 24.0f);
@@ -170,3 +159,4 @@ std::streamoff vtkSegYIOUtils::getFileSize(std::istream& in)
   in.seekg(0, std::istream::end);
   return in.tellg();
 }
+VTK_ABI_NAMESPACE_END

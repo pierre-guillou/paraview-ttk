@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRModel.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRModel.h"
 
 #include "vtkMatrix4x4.h"
@@ -30,6 +18,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtk_glew.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkVRModel::vtkVRModel()
 {
   this->Loaded = false;
@@ -178,3 +167,4 @@ void vtkVRModel::SetRayColor(double r, double g, double b)
   float color[] = { static_cast<float>(r), static_cast<float>(g), static_cast<float>(b) };
   this->Ray->SetColor(color);
 }
+VTK_ABI_NAMESPACE_END

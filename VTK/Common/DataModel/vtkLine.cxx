@@ -1,22 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLine.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2001, softSurfer (www.softsurfer.com)
+// SPDX-License-Identifier: BSD-3-Clause AND MIT
 #include "vtkLine.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataArrayRange.h"
+#include "vtkDoubleArray.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkMath.h"
 #include "vtkMathUtilities.h"
@@ -24,6 +14,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLine);
 
 //------------------------------------------------------------------------------
@@ -43,13 +34,22 @@ vtkLine::vtkLine()
 int vtkLine::EvaluatePosition(const double x[3], double closestPoint[3], int& subId,
   double pcoords[3], double& dist2, double weights[])
 {
-  double a1[3], a2[3];
+  const double *a1, *a2;
 
   subId = 0;
   pcoords[0] = pcoords[1] = pcoords[2] = 0.0;
 
-  this->Points->GetPoint(0, a1);
-  this->Points->GetPoint(1, a2);
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  a1 = pts;
+  a2 = pts + 3;
 
   // DistanceToLine sets pcoords[0] to a value t
   dist2 = vtkLine::DistanceToLine(x, a1, a2, pcoords[0], closestPoint);
@@ -86,7 +86,7 @@ void vtkLine::EvaluateLocation(
 // The parameters (u,v) are the parametric coordinates of the lines at the
 // position of closest approach.
 int vtkLine::Intersection(const double a1[3], const double a2[3], const double b1[3],
-  const double b2[3], double& u, double& v, const double tolerance, int tolType)
+  const double b2[3], double& u, double& v, double tolerance, int tolType)
 {
   double a21[3], b21[3], b1a1[3];
   double c[2];
@@ -319,14 +319,6 @@ double vtkLine::DistanceBetweenLines(double l0[3], double l1[3], // line 1
   double& t1, double& t2) // parametric coords of the closest points
 {
   // Part of this function was adapted from "GeometryAlgorithms.com"
-  //
-  // Copyright 2001, softSurfer (www.softsurfer.com)
-  // This code may be freely used and modified for any purpose
-  // providing that this copyright notice is included with it.
-  // SoftSurfer makes no warranty for this code, and cannot be held
-  // liable for any real or imagined damage resulting from its use.
-  // Users of this code must verify correctness for their application.
-
   const double u[3] = { l1[0] - l0[0], l1[1] - l0[1], l1[2] - l0[2] };
   const double v[3] = { m1[0] - m0[0], m1[1] - m0[1], m1[2] - m0[2] };
   const double w[3] = { l0[0] - m0[0], l0[1] - m0[1], l0[2] - m0[2] };
@@ -369,14 +361,6 @@ double vtkLine::DistanceBetweenLineSegments(double l0[3], double l1[3], // line 
                                                                         // of the closest points
 {
   // Part of this function was adapted from "GeometryAlgorithms.com"
-  //
-  // Copyright 2001, softSurfer (www.softsurfer.com)
-  // This code may be freely used and modified for any purpose
-  // providing that this copyright notice is included with it.
-  // SoftSurfer makes no warranty for this code, and cannot be held
-  // liable for any real or imagined damage resulting from its use.
-  // Users of this code must verify correctness for their application.
-
   const double u[3] = { l1[0] - l0[0], l1[1] - l0[1], l1[2] - l0[2] };
   const double v[3] = { m1[0] - m0[0], m1[1] - m0[1], m1[2] - m0[2] };
   const double w[3] = { l0[0] - m0[0], l0[1] - m0[1], l0[2] - m0[2] };
@@ -667,17 +651,11 @@ int vtkLine::IntersectWithLine(const double p1[3], const double p2[3], double to
 }
 
 //------------------------------------------------------------------------------
-int vtkLine::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkLine::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-
-  ptIds->InsertId(0, this->PointIds->GetId(0));
-  pts->InsertPoint(0, this->Points->GetPoint(0));
-
-  ptIds->InsertId(1, this->PointIds->GetId(1));
-  pts->InsertPoint(1, this->Points->GetPoint(1));
-
+  ptIds->SetNumberOfIds(2);
+  ptIds->SetId(0, 0);
+  ptIds->SetId(1, 1);
   return 1;
 }
 
@@ -781,7 +759,10 @@ void vtkLine::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPointL
         this->Points->GetPoint(vertexId, x);
         if (locator->InsertUniquePoint(x, pts[i]))
         {
-          outPd->CopyData(inPd, this->PointIds->GetId(vertexId), pts[i]);
+          if (outPd)
+          {
+            outPd->CopyData(inPd, this->PointIds->GetId(vertexId), pts[i]);
+          }
         }
       }
 
@@ -799,9 +780,11 @@ void vtkLine::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPointL
 
         if (locator->InsertUniquePoint(x, pts[i]))
         {
-          vtkIdType p1 = this->PointIds->GetId(0);
-          vtkIdType p2 = this->PointIds->GetId(1);
-          outPd->InterpolateEdge(inPd, pts[i], p1, p2, t);
+          if (outPd)
+          {
+            outPd->InterpolateEdge(
+              inPd, pts[i], this->PointIds->GetId(0), this->PointIds->GetId(1), t);
+          }
         }
       }
     }
@@ -809,7 +792,10 @@ void vtkLine::Clip(double value, vtkDataArray* cellScalars, vtkIncrementalPointL
     if (pts[0] != pts[1])
     {
       newCellId = lines->InsertNextCell(2, pts);
-      outCd->CopyData(inCd, cellId, newCellId);
+      if (outCd)
+      {
+        outCd->CopyData(inCd, cellId, newCellId);
+      }
     }
   }
 }
@@ -843,3 +829,4 @@ void vtkLine::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

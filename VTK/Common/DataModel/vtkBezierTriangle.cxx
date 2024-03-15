@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierTriangle.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBezierTriangle.h"
 #include "vtkBezierInterpolation.h"
 
@@ -32,6 +20,7 @@
 #define ENABLE_CACHING
 #define SEVEN_POINT_TRIANGLE
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierTriangle);
 //------------------------------------------------------------------------------
 vtkBezierTriangle::vtkBezierTriangle() = default;
@@ -80,8 +69,7 @@ vtkCell* vtkBezierTriangle::GetEdge(int edgeId)
 
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
-void vtkBezierTriangle::SetRationalWeightsFromPointData(
-  vtkPointData* point_data, const vtkIdType numPts)
+void vtkBezierTriangle::SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts)
 {
   vtkDataArray* v = point_data->GetRationalWeights();
   if (v)
@@ -111,7 +99,7 @@ void vtkBezierTriangle::InterpolateFunctions(const double pcoords[3], double* we
     weights[Index(lbv, deg)] = coeffs[i];
   }
 
-  // If the unit cell has rational weigths: weights_i = weights_i * rationalWeights / sum( weights_i
+  // If the unit cell has rational weights: weights_i = weights_i * rationalWeights / sum( weights_i
   // * rationalWeights )
   const bool has_rational_weights = RationalWeights->GetNumberOfTuples() > 0;
   if (has_rational_weights)
@@ -156,3 +144,4 @@ vtkHigherOrderCurve* vtkBezierTriangle::GetEdgeCell()
 {
   return EdgeCell;
 }
+VTK_ABI_NAMESPACE_END

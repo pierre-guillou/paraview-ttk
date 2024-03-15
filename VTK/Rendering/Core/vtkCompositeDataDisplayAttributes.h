@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataDisplayAttributes.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeDataDisplayAttributes
  * @brief   Rendering attributes for a multi-block dataset.
@@ -32,9 +20,13 @@
 #include "vtkColor.h" // for vtkColor3d
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // for export macro
+#include "vtkSmartPointer.h"        // for arg
+#include "vtkVector.h"              // for vtkVector2d
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 class vtkDataObject;
+class vtkScalarsToColors;
 
 class VTKRENDERINGCORE_EXPORT vtkCompositeDataDisplayAttributes : public vtkObject
 {
@@ -102,6 +94,42 @@ public:
    * for all blocks to true.
    */
   void RemoveBlockPickabilities();
+
+  ///@{
+  /**
+   * @see vtkMapper::SetScalarVisibility
+   */
+  void SetBlockScalarVisibility(vtkDataObject* data_object, bool value);
+  bool GetBlockScalarVisibility(vtkDataObject* data_object) const;
+  bool HasBlockScalarVisibility(vtkDataObject* data_object) const;
+  bool HasBlockScalarVisibilities() const;
+  void RemoveBlockScalarVisibility(vtkDataObject* data_object);
+  void RemoveBlockScalarVisibilities();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetUseLookupTableScalarRange
+   */
+  void SetBlockUseLookupTableScalarRange(vtkDataObject* data_object, bool value);
+  bool GetBlockUseLookupTableScalarRange(vtkDataObject* data_object) const;
+  bool HasBlockUseLookupTableScalarRange(vtkDataObject* data_object) const;
+  bool HasBlockUseLookupTableScalarRanges() const;
+  void RemoveBlockUseLookupTableScalarRange(vtkDataObject* data_object);
+  void RemoveBlockUseLookupTableScalarRanges();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetInterpolateScalarsBeforeMapping
+   */
+  void SetBlockInterpolateScalarsBeforeMapping(vtkDataObject* data_object, bool value);
+  bool GetBlockInterpolateScalarsBeforeMapping(vtkDataObject* data_object) const;
+  bool HasBlockInterpolateScalarsBeforeMapping(vtkDataObject* data_object) const;
+  bool HasBlockInterpolateScalarsBeforeMappings() const;
+  void RemoveBlockInterpolateScalarsBeforeMapping(vtkDataObject* data_object);
+  void RemoveBlockInterpolateScalarsBeforeMappings();
+  ///@}
 
   ///@{
   /**
@@ -189,6 +217,114 @@ public:
    */
   void RemoveBlockMaterials();
 
+  ///@{
+  /**
+   * @see vtkMapper::SetColorMode
+   */
+  void SetBlockColorMode(vtkDataObject* data_object, int value);
+  int GetBlockColorMode(vtkDataObject* data_object) const;
+  bool HasBlockColorMode(vtkDataObject* data_object) const;
+  bool HasBlockColorModes() const;
+  void RemoveBlockColorMode(vtkDataObject* data_object);
+  void RemoveBlockColorModes();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetScalarMode
+   */
+  void SetBlockScalarMode(vtkDataObject* data_object, int value);
+  int GetBlockScalarMode(vtkDataObject* data_object) const;
+  bool HasBlockScalarMode(vtkDataObject* data_object) const;
+  bool HasBlockScalarModes() const;
+  void RemoveBlockScalarMode(vtkDataObject* data_object);
+  void RemoveBlockScalarModes();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetArrayAccessMode
+   */
+  void SetBlockArrayAccessMode(vtkDataObject* data_object, int value);
+  int GetBlockArrayAccessMode(vtkDataObject* data_object) const;
+  bool HasBlockArrayAccessMode(vtkDataObject* data_object) const;
+  bool HasBlockArrayAccessModes() const;
+  void RemoveBlockArrayAccessMode(vtkDataObject* data_object);
+  void RemoveBlockArrayAccessModes();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetArrayComponent
+   */
+  void SetBlockArrayComponent(vtkDataObject* data_object, int value);
+  int GetBlockArrayComponent(vtkDataObject* data_object) const;
+  bool HasBlockArrayComponent(vtkDataObject* data_object) const;
+  bool HasBlockArrayComponents() const;
+  void RemoveBlockArrayComponent(vtkDataObject* data_object);
+  void RemoveBlockArrayComponents();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetArrayId
+   */
+  void SetBlockArrayId(vtkDataObject* data_object, int value);
+  int GetBlockArrayId(vtkDataObject* data_object) const;
+  bool HasBlockArrayId(vtkDataObject* data_object) const;
+  bool HasBlockArrayIds() const;
+  void RemoveBlockArrayId(vtkDataObject* data_object);
+  void RemoveBlockArrayIds();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetScalarRange
+   */
+  void SetBlockScalarRange(vtkDataObject* data_object, const vtkVector2d& value);
+  vtkVector2d GetBlockScalarRange(vtkDataObject* data_object) const;
+  bool HasBlockScalarRange(vtkDataObject* data_object) const;
+  bool HasBlockScalarRanges() const;
+  void RemoveBlockScalarRange(vtkDataObject* data_object);
+  void RemoveBlockScalarRanges();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetArrayName
+   */
+  void SetBlockArrayName(vtkDataObject* data_object, const std::string& value);
+  std::string GetBlockArrayName(vtkDataObject* data_object) const;
+  bool HasBlockArrayName(vtkDataObject* data_object) const;
+  bool HasBlockArrayNames() const;
+  void RemoveBlockArrayName(vtkDataObject* data_object);
+  void RemoveBlockArrayNames();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetFieldDataTupleId
+   */
+  void SetBlockFieldDataTupleId(vtkDataObject* data_object, vtkIdType value);
+  vtkIdType GetBlockFieldDataTupleId(vtkDataObject* data_object) const;
+  bool HasBlockFieldDataTupleId(vtkDataObject* data_object) const;
+  bool HasBlockFieldDataTupleIds() const;
+  void RemoveBlockFieldDataTupleId(vtkDataObject* data_object);
+  void RemoveBlockFieldDataTupleIds();
+  ///@}
+
+  ///@{
+  /**
+   * @see vtkMapper::SetLookupTable
+   */
+  void SetBlockLookupTable(vtkDataObject* data_object, vtkSmartPointer<vtkScalarsToColors> lut);
+  vtkSmartPointer<vtkScalarsToColors> GetBlockLookupTable(vtkDataObject* data_object) const;
+  bool HasBlockLookupTable(vtkDataObject* data_object) const;
+  bool HasBlockLookupTables() const;
+  void RemoveBlockLookupTable(vtkDataObject* data_object);
+  void RemoveBlockLookupTables();
+  ///@}
+
   /**
    * If the input \a dobj is a vtkCompositeDataSet, we will loop over the
    * hierarchy recursively starting from initial index 0 and use only visible
@@ -203,7 +339,7 @@ public:
    * parent_obj. Traverses the entire hierarchy recursively.
    */
   static vtkDataObject* DataObjectFromIndex(
-    const unsigned int flat_index, vtkDataObject* parent_obj, unsigned int current_flat_index = 0);
+    unsigned int flat_index, vtkDataObject* parent_obj, unsigned int current_flat_index = 0);
 
   void VisitVisibilities(std::function<bool(vtkDataObject*, bool)> visitor)
   {
@@ -237,14 +373,31 @@ private:
 
   using BoolMap = std::unordered_map<vtkDataObject*, bool>;
   using DoubleMap = std::unordered_map<vtkDataObject*, double>;
+  using IntMap = std::unordered_map<vtkDataObject*, int>;
+  using VtkIdTypeMap = std::unordered_map<vtkDataObject*, vtkIdType>;
   using ColorMap = std::unordered_map<vtkDataObject*, vtkColor3d>;
+  using RangeMap = std::unordered_map<vtkDataObject*, vtkVector2d>;
   using StringMap = std::unordered_map<vtkDataObject*, std::string>;
+  using LookupTableMap = std::unordered_map<vtkDataObject*, vtkSmartPointer<vtkScalarsToColors>>;
 
   BoolMap BlockVisibilities;
   ColorMap BlockColors;
   DoubleMap BlockOpacities;
   StringMap BlockMaterials;
   BoolMap BlockPickabilities;
+  BoolMap BlockScalarVisibilities;
+  BoolMap BlockUseLookupTableScalarRanges;
+  BoolMap BlockInterpolateScalarsBeforeMappings;
+  IntMap BlockColorModes;
+  IntMap BlockScalarModes;
+  IntMap BlockArrayAccessModes;
+  IntMap BlockArrayComponents;
+  IntMap BlockArrayIds;
+  RangeMap BlockScalarRanges;
+  StringMap BlockArrayNames;
+  LookupTableMap BlockLookupTables;
+  VtkIdTypeMap BlockFieldDataTupleIds;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkCompositeDataDisplayAttributes_h

@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitArrayUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConduitArrayUtilities.h"
 
 #include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
+#include "vtkDataSetAttributes.h"
 #include "vtkLogger.h"
 #include "vtkObjectFactory.h"
 #include "vtkSOADataArrayTemplate.h"
@@ -37,6 +26,7 @@
 
 namespace internals
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 using AOSArrays = vtkTypeList::Unique<
   vtkTypeList::Create<vtkAOSDataArrayTemplate<vtkTypeInt8>, vtkAOSDataArrayTemplate<vtkTypeInt16>,
@@ -201,7 +191,10 @@ conduit_cpp::DataType::Id GetTypeId(conduit_cpp::DataType::Id type, bool force_s
   }
 }
 
+VTK_ABI_NAMESPACE_END
 } // internals
+
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkConduitArrayUtilities);
 //----------------------------------------------------------------------------
@@ -230,6 +223,42 @@ vtkSmartPointer<vtkDataArray> vtkConduitArrayUtilities::MCArrayToVTKArray(
 }
 
 //----------------------------------------------------------------------------
+vtkSmartPointer<vtkDataArray> vtkConduitArrayUtilities::MCGhostArrayToVTKGhostArray(
+  const conduit_node* c_mcarray, bool is_cell_data)
+{
+  vtkSmartPointer<vtkUnsignedCharArray> array = vtkSmartPointer<vtkUnsignedCharArray>::New();
+  array->SetName(vtkDataSetAttributes::GhostArrayName());
+
+  const conduit_cpp::Node mcarray = conduit_cpp::cpp_node(const_cast<conduit_node*>(c_mcarray));
+
+  const int num_components = static_cast<int>(mcarray.number_of_children());
+  if (num_components != 0)
+  {
+    vtkLogF(ERROR, "number of components for ascent_ghost should be 1 but is %d", num_components);
+    return nullptr;
+  }
+  const conduit_cpp::DataType dtype0 = mcarray.dtype();
+  const vtkIdType num_tuples = static_cast<vtkIdType>(dtype0.number_of_elements());
+  array->SetNumberOfTuples(num_tuples);
+  const int* vals = mcarray.as_int_ptr();
+  unsigned char ghost_type = is_cell_data
+    ? static_cast<unsigned char>(vtkDataSetAttributes::HIDDENCELL)
+    : static_cast<unsigned char>(vtkDataSetAttributes::HIDDENPOINT);
+  for (vtkIdType i = 0; i < num_tuples; i++)
+  {
+    if (vals[i] == 0)
+    {
+      array->SetTypedComponent(i, 0, 0);
+    }
+    else
+    {
+      array->SetTypedComponent(i, 0, ghost_type);
+    }
+  }
+  return array;
+}
+
+//----------------------------------------------------------------------------
 vtkSmartPointer<vtkDataArray> vtkConduitArrayUtilities::MCArrayToVTKArrayImpl(
   const conduit_node* c_mcarray, bool force_signed)
 {
@@ -247,6 +276,13 @@ vtkSmartPointer<vtkDataArray> vtkConduitArrayUtilities::MCArrayToVTKArrayImpl(
       temp.append().set_external(mcarray);
       return vtkConduitArrayUtilities::MCArrayToVTKArrayImpl(
         conduit_cpp::c_node(&temp), force_signed);
+    }
+    // in some cases, the array is inside a values subnode. handle that
+    else if (mcarray.has_path("values"))
+    {
+      const auto& tmp = mcarray["values"];
+      return vtkConduitArrayUtilities::MCArrayToVTKArrayImpl(
+        conduit_cpp::c_node(&tmp), force_signed);
     }
     else
     {
@@ -459,8 +495,11 @@ vtkSmartPointer<vtkCellArray> vtkConduitArrayUtilities::MCArrayToVTKCellArray(
   return cellArray;
 }
 
+VTK_ABI_NAMESPACE_END
+
 namespace
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct O2MRelationToVTKCellArrayWorker
 {
@@ -495,7 +534,11 @@ struct O2MRelationToVTKCellArrayWorker
     }
   }
 };
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
+
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkCellArray> vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
   const conduit_node* c_o2mrelation, const std::string& leafname)
@@ -542,3 +585,4 @@ void vtkConduitArrayUtilities::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

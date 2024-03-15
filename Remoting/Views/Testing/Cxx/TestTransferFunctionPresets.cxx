@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   ParaView
-Module:    TestTransferFunctionPresets.cxx
-
-Copyright (c) Kitware, Inc.
-All rights reserved.
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkInitializationHelper.h"
 #include "vtkNew.h"
@@ -19,6 +7,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkProcessModule.h"
 #include "vtkSMTransferFunctionPresets.h"
 #include "vtkSmartPointer.h"
+#include "vtkTestUtilities.h"
 
 #include "vtk_jsoncpp.h"
 #include <cassert>
@@ -85,6 +74,15 @@ int TestTransferFunctionPresets(int argc, char* argv[])
   myassert(presets->GetPresetAsString(testPreset) != nullptr, "Has test preset");
   myassert(presets->RemovePreset(testPreset) == false, "Cannot remove builtin preset");
   */
+
+  old_size = presets->GetNumberOfPresets();
+  char* fname = vtkTestUtilities::ExpandDataFileName(argc, argv, "Testing/Data/RdPu.ct");
+  presets->ImportPresets(fname);
+  myassert(presets->GetNumberOfPresets() == old_size + 1, "Preset size is incremented");
+  preset = presets->GetFirstPresetWithName("RdPu");
+  myassert(!preset.empty(), "Import of Visit preset should succeed");
+
+  delete[] fname;
 
   presets = nullptr;
 

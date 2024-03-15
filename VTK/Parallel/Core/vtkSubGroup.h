@@ -1,22 +1,7 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSubGroup.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSubGroup
  * @brief   scalable collective communication for a
@@ -45,6 +30,7 @@
 #include "vtkObject.h"
 #include "vtkParallelCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 class vtkCommunicator;
 
@@ -146,4 +132,5 @@ private:
   vtkSubGroup(const vtkSubGroup&) = delete;
   void operator=(const vtkSubGroup&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

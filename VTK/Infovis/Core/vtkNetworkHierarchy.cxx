@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNetworkHierarchy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkNetworkHierarchy.h"
 
@@ -40,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkNetworkHierarchy);
 
 // This is just a macro wrapping for smart pointers
@@ -127,7 +112,7 @@ int vtkNetworkHierarchy::RequestData(
   for (vtkIdType i = 0; i < ipArray->GetNumberOfTuples(); ++i)
   {
     unsigned int packedID = this->ITON(ipArray->GetValue(i));
-    SubnetMap.push_back(std::make_pair(packedID, i));
+    SubnetMap.emplace_back(packedID, i);
   }
   std::sort(SubnetMap.begin(), SubnetMap.end());
 
@@ -305,3 +290,4 @@ int vtkNetworkHierarchy::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

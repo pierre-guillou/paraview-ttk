@@ -1,16 +1,14 @@
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "CustomLinkView.h"
 #include "ui_CustomLinkView.h"
 
 #include "vtkGenericOpenGLRenderWindow.h"
 #include <vtkAnnotationLink.h>
+#include <vtkAttributeDataToTableFilter.h>
 #include <vtkCommand.h>
-#include <vtkDataObjectToTable.h>
 #include <vtkDataRepresentation.h>
 #include <vtkEventQtSlotConnect.h>
 #include <vtkGraphLayoutView.h>
@@ -166,9 +164,9 @@ void CustomLinkView::slotOpenXMLFile()
   this->ColumnView->SetRepresentationFromInputConnection(this->XMLReader->GetOutputPort());
 
   // Extract a table and give to table view
-  VTK_CREATE(vtkDataObjectToTable, toTable);
+  VTK_CREATE(vtkAttributeDataToTableFilter, toTable);
   toTable->SetInputConnection(this->XMLReader->GetOutputPort());
-  toTable->SetFieldType(vtkDataObjectToTable::VERTEX_DATA);
+  toTable->SetFieldAssociation(vtkDataObject::FIELD_ASSOCIATION_VERTICES);
   this->TableView->SetRepresentationFromInputConnection(toTable->GetOutputPort());
 
   this->SetupCustomLink();

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMParaViewPipelineController.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMParaViewPipelineController
  * @brief Controller that encapsulates control logic for typical ParaView
@@ -41,6 +29,7 @@
 #ifndef vtkSMParaViewPipelineController_h
 #define vtkSMParaViewPipelineController_h
 
+#include "vtkParaViewDeprecation.h"
 #include "vtkSMObject.h"
 
 #include <string> // for std::string
@@ -166,12 +155,18 @@ public:
    */
   virtual bool UnRegisterViewProxy(vtkSMProxy* proxy, bool unregister_representations = true);
 
+  ///@{
   /**
    * Registration method for representations to be used after
    * PreInitializeProxy() and PostInitializeProxy(). Register the proxy under
    * the appropriate group.
    */
-  virtual bool RegisterRepresentationProxy(vtkSMProxy* proxy);
+  virtual bool RegisterRepresentationProxy(vtkSMProxy* proxy)
+  {
+    return this->RegisterRepresentationProxy(proxy, nullptr);
+  }
+  virtual bool RegisterRepresentationProxy(vtkSMProxy* proxy, const char* proxyname);
+  ///@}
 
   /**
    * Unregisters a representation proxy.
@@ -321,14 +316,14 @@ protected:
   vtkSMProxy* FindProxy(
     vtkSMSessionProxyManager* pxm, const char* reggroup, const char* xmlgroup, const char* xmltype);
 
-  //@{
+  ///@{
   /**
    * Creates new proxies for proxies referred in vtkSMProxyListDomain for any of
    * the properties for the given proxy.
    */
   virtual bool CreateProxiesForProxyListDomains(vtkSMProxy* proxy);
   virtual void RegisterProxiesForProxyListDomains(vtkSMProxy* proxy);
-  //@}
+  ///@}
 
   /**
    * Setup global properties links based on hints for properties in the XML.
@@ -354,13 +349,13 @@ protected:
    */
   vtkMTimeType GetInitializationTime(vtkSMProxy*);
 
-  //@{
+  ///@{
   /**
    * Proxies can specify custom initialization using XML hints. This method
    * calls those initialization helpers, if any.
    */
   void ProcessInitializationHelper(vtkSMProxy*, vtkMTimeType initializationTimeStamp);
-  //@}
+  ///@}
 
   /**
    * If the proxy has initialization helpers, let those classes also handle
@@ -371,12 +366,14 @@ protected:
   /**
    * An entry point to load a catalog of OSPRay rendering materials.
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "Material setup is now handled by the RenderView proxy on raytracing back-end update")
   virtual void DoMaterialSetup(vtkSMProxy* proxy);
 
 private:
   vtkSMParaViewPipelineController(const vtkSMParaViewPipelineController&) = delete;
   void operator=(const vtkSMParaViewPipelineController&) = delete;
-  //@}
+  ///@}
 
   class vtkInternals;
   vtkInternals* Internals;

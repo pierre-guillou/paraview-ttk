@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPythonSelector.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPython.h" // must be the first thing that's included
 
 #include "vtkPythonSelector.h"
@@ -103,10 +91,10 @@ void vtkPythonSelector::Execute(vtkDataObject* input, vtkDataObject* output)
     }
   }
 
-  vtkSmartPyObject functionName(PyString_FromString("execute"));
+  vtkSmartPyObject functionName(PyUnicode_FromString("execute"));
   vtkSmartPyObject inputObj(vtkPythonUtil::GetObjectFromPointer(input));
   vtkSmartPyObject nodeObj(vtkPythonUtil::GetObjectFromPointer(this->Node));
-  vtkSmartPyObject arrayNameObj(PyString_FromString(vtkInternals::MASK_ARRAYNAME));
+  vtkSmartPyObject arrayNameObj(PyUnicode_FromString(vtkInternals::MASK_ARRAYNAME));
   vtkSmartPyObject outputObj(vtkPythonUtil::GetObjectFromPointer(output));
   vtkSmartPyObject retVal(
     PyObject_CallMethodObjArgs(psModule, functionName.GetPointer(), inputObj.GetPointer(),

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransformToGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTransformToGrid.h"
 
 #include "vtkAbstractTransform.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTransformToGrid);
 
 vtkCxxSetObjectMacro(vtkTransformToGrid, Input, vtkAbstractTransform);
@@ -300,8 +289,9 @@ void vtkTransformToGridExecute(vtkTransformToGrid* self, vtkImageData* grid, T* 
   unsigned long target =
     (unsigned long)((extent[5] - extent[4] + 1) * (extent[3] - extent[2] + 1) / 50.0);
   target++;
+  bool abort = false;
 
-  for (int k = extent[4]; k <= extent[5]; k++)
+  for (int k = extent[4]; k <= extent[5] && !abort; k++)
   {
     point[2] = k * spacing[2] + origin[2];
     T* gridPtr1 = gridPtr0;
@@ -314,6 +304,11 @@ void vtkTransformToGridExecute(vtkTransformToGrid* self, vtkImageData* grid, T* 
         if (count % target == 0)
         {
           self->UpdateProgress(count / (50.0 * target));
+          if (self->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
         }
         count++;
       }
@@ -460,3 +455,4 @@ int vtkTransformToGrid::FillOutputPortInformation(int vtkNotUsed(port), vtkInfor
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkImageData");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

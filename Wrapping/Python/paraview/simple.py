@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-License-Identifier: BSD-3-Clause
+
 r"""simple is a module for using paraview server manager in Python. It
 provides a simple convenience layer to functionality provided by the
 C++ classes wrapped to Python as well as the servermanager module.
@@ -20,26 +23,13 @@ A simple example::
   Render()
 
 """
-#==============================================================================
-#
-#  Program:   ParaView
-#  Module:    simple.py
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY; without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-#==============================================================================
 
 from __future__ import absolute_import, division, print_function
 
 import paraview
 from paraview import servermanager
 import paraview._backwardscompatibilityhelper
+from paraview.modules.vtkRemotingCore import vtkPVSession
 
 # Bring OutputPort in our namespace.
 from paraview.servermanager import OutputPort
@@ -139,16 +129,10 @@ def SetActiveConnection(connection=None, ns=None):
 #==============================================================================
 # Views and Layout methods
 #==============================================================================
-def CreateView(view_xml_name, detachedFromLayout=None, **params):
+def CreateView(view_xml_name, **params):
     """Creates and returns the specified proxy view based on its name/label.
     Also set params keywords arguments as view properties.
-
-    `detachedFromLayout` has been deprecated in ParaView 5.7 as it is no longer
-    needed. All views are created detached by default.
     """
-    if detachedFromLayout is not None:
-        warnings.warn("`detachedFromLayout` is deprecated in ParaView 5.7", DeprecationWarning)
-
     view = servermanager._create_view(view_xml_name)
     if not view:
         raise RuntimeError ("Failed to create requested view", view_xml_name)
@@ -169,12 +153,12 @@ def CreateView(view_xml_name, detachedFromLayout=None, **params):
     controller.PostInitializeProxy(view)
     controller.RegisterViewProxy(view, registrationName)
 
-    if paraview.compatibility.GetVersion() <= 5.6:
+    if paraview.compatibility.GetVersion() <= (5, 6):
         # older versions automatically assigned view to a
         # layout.
         controller.AssignViewToLayout(view)
 
-    if paraview.compatibility.GetVersion() <= 5.9:
+    if paraview.compatibility.GetVersion() <= (5, 9):
         if hasattr(view, "UseColorPaletteForBackground"):
             view.UseColorPaletteForBackground = 0
 
@@ -191,67 +175,67 @@ def CreateView(view_xml_name, detachedFromLayout=None, **params):
 
 # -----------------------------------------------------------------------------
 
-def CreateRenderView(detachedFromLayout=False, **params):
+def CreateRenderView(**params):
     """Create standard 3D render view.
     See CreateView for arguments documentation"""
-    return CreateView("RenderView", detachedFromLayout, **params)
+    return CreateView("RenderView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateXYPlotView(detachedFromLayout=False, **params):
+def CreateXYPlotView(**params):
     """Create XY plot Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("XYChartView", detachedFromLayout, **params)
+    return CreateView("XYChartView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateXYPointPlotView(detachedFromLayout=False, **params):
+def CreateXYPointPlotView(**params):
     """Create XY plot point Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("XYPointChartView", detachedFromLayout, **params)
+    return CreateView("XYPointChartView", **params)
 
 # -----------------------------------------------------------------------------
 
 
-def CreateBarChartView(detachedFromLayout=False, **params):
+def CreateBarChartView(**params):
     """Create Bar Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("XYBarChartView", detachedFromLayout, **params)
+    return CreateView("XYBarChartView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateComparativeRenderView(detachedFromLayout=False, **params):
+def CreateComparativeRenderView(**params):
     """Create Comparative view.
     See CreateView for arguments documentation"""
-    return CreateView("ComparativeRenderView", detachedFromLayout, **params)
+    return CreateView("ComparativeRenderView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateComparativeXYPlotView(detachedFromLayout=False, **params):
+def CreateComparativeXYPlotView(**params):
     """Create comparative XY plot Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("ComparativeXYPlotView", detachedFromLayout, **params)
+    return CreateView("ComparativeXYPlotView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateComparativeBarChartView(detachedFromLayout=False, **params):
+def CreateComparativeBarChartView(**params):
     """Create comparative Bar Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("ComparativeBarChartView", detachedFromLayout, **params)
+    return CreateView("ComparativeBarChartView", **params)
 
 # -----------------------------------------------------------------------------
 
-def CreateParallelCoordinatesChartView(detachedFromLayout=False, **params):
+def CreateParallelCoordinatesChartView(**params):
     """Create Parallele coordinate Chart view.
     See CreateView for arguments documentation"""
-    return CreateView("ParallelCoordinatesChartView", detachedFromLayout, **params)
+    return CreateView("ParallelCoordinatesChartView", **params)
 
 # -----------------------------------------------------------------------------
 
-def Create2DRenderView(detachedFromLayout=False, **params):
+def Create2DRenderView(**params):
     """Create the standard 3D render view with the 2D interaction mode turned ON.
     See CreateView for arguments documentation"""
-    return CreateView("2DRenderView", detachedFromLayout, **params)
+    return CreateView("2DRenderView", **params)
 
 # -----------------------------------------------------------------------------
 
@@ -597,7 +581,7 @@ def UpdateSteerableParameters(steerable_proxy, steerable_source_name):
 #==============================================================================
 
 def LoadState(statefile, data_directory = None, restrict_to_data_directory = False,
-        filenames = None, *args, **kwargs):
+        filenames = None, location=vtkPVSession.CLIENT, *args, **kwargs):
     """
     Load PVSM state file.
 
@@ -641,7 +625,7 @@ def LoadState(statefile, data_directory = None, restrict_to_data_directory = Fal
 
     pxm = servermanager.ProxyManager()
     pyproxy = servermanager._getPyProxy(pxm.NewProxy('options', 'LoadStateOptions'))
-    if pyproxy.PrepareToLoad(statefile):
+    if pyproxy.PrepareToLoad(statefile, location):
         pyproxy.LoadStateDataFileOptions = pyproxy.SMProxy.USE_FILES_FROM_STATE
         if pyproxy.HasDataFiles():
             if data_directory is not None:
@@ -693,8 +677,8 @@ def _LoadStateLegacy(filename, connection=None, **extraArgs):
 
 # -----------------------------------------------------------------------------
 
-def SaveState(filename):
-    servermanager.SaveState(filename)
+def SaveState(filename, location=vtkPVSession.CLIENT):
+    servermanager.SaveState(filename, location)
 
 #==============================================================================
 # Representation methods
@@ -968,6 +952,9 @@ def LoadPalette(paletteName):
             name = "BlueGrayBackground"
         elif paletteName == "PrintBackground":
             name = "WhiteBackground"
+    if paraview.compatibility.GetVersion() <= (5, 11):
+        if paletteName == "WarmGrayBackground":
+            name = "DarkGrayBackground"
 
     pxm = servermanager.ProxyManager()
     palette = pxm.GetProxy("settings", "ColorPalette")
@@ -1242,16 +1229,6 @@ def ReplaceReaderFileName(readerProxy, files, propName):
     servermanager.vtkSMCoreUtilities.ReplaceReaderFileName(readerProxy.SMProxy, files, propName)
 
 # -----------------------------------------------------------------------------
-def ImportCinema(filename, view=None):
-    """::deprecated:: 5.9
-
-    Cinema import capabilities are no longer supported in this version.
-    """
-    import warnings
-    warnings.warn("'ImportCinema' is no longer supported", DeprecationWarning)
-    return False
-
-# -----------------------------------------------------------------------------
 def CreateWriter(filename, proxy=None, **extraArgs):
     """Creates a writer that can write the data produced by the source proxy in
        the given file format (identified by the extension). If no source is
@@ -1290,24 +1267,6 @@ def SaveData(filename, proxy=None, **extraArgs):
     del writer
 
 # -----------------------------------------------------------------------------
-
-def WriteImage(filename, view=None, **params):
-    """::deprecated:: 4.2
-    Use :func:`SaveScreenshot` instead.
-    """
-    if not view:
-        view = active_objects.view
-    writer = None
-    if 'Writer' in params:
-        writer = params['Writer']
-    mag = 1
-    if 'Magnification' in params:
-        mag = int(params['Magnification'])
-    if not writer:
-        writer = _find_writer(filename)
-    view.WriteImage(filename, writer, mag)
-
-# -----------------------------------------------------------------------------
 def _SaveScreenshotLegacy(filename,
     view=None, layout=None, magnification=None, quality=None, **params):
     if view is not None and layout is not None:
@@ -1322,9 +1281,9 @@ def _SaveScreenshotLegacy(filename,
     except TypeError:
         magnification = 1
     try:
-        quality = int(quality)
+        quality = max(0, min(100, int(quality)))
     except TypeError:
-        quality = -1
+        quality = 100
 
     # convert magnification to image resolution.
     if viewOrLayout.IsA("vtkSMViewProxy"):
@@ -1337,15 +1296,22 @@ def _SaveScreenshotLegacy(filename,
 
     imageResolution = (size[0]*magnification, size[1]*magnification)
 
-    # convert quality to ImageQuality
-    imageQuality = quality
-
-    # now, call the new API
-    return SaveScreenshot(filename, viewOrLayout,
+    import os.path
+    _, extension = os.path.splitext(filename)
+    if (extension == '.jpg'):
+        return SaveScreenshot(filename, viewOrLayout,
             ImageResolution=imageResolution,
-            ImageQuality=imageQuality)
+            Quality=quality)
+    elif (extension == '.png'):
+        compression = int(((quality * 0.01) - 1.0) * -9.0)
+        return SaveScreenshot(filename, viewOrLayout,
+            ImageResolution=imageResolution,
+            CompressionLevel=compression)
+    else:
+        return SaveScreenshot(filename, viewOrLayout,
+            ImageResolution=imageResolution)
 
-def SaveScreenshot(filename, viewOrLayout=None, **params):
+def SaveScreenshot(filename, viewOrLayout=None, saveInBackground = False, location=vtkPVSession.CLIENT, **params):
     """Save screenshot for a view or layout (collection of views) to an image.
 
     `SaveScreenshot` is used to save the rendering results to an image.
@@ -1362,6 +1328,16 @@ def SaveScreenshot(filename, viewOrLayout=None, **params):
           the active view is used, if available. To save image from a single
           view, this must be set to a view, to save an image from all views in a
           layout, pass the layout.
+
+        saveInBackground (bool)
+          If set to `True`, the screenshot will be saved by a different thread
+          and run in the background. In such circumstances, one can wait
+          until the file is written by calling `WaitForScreenshot(filename)`.
+
+        location (int)
+          Location where the screenshot should be saved. This can be one of
+          the following values: `vtkPVSession.CLIENT`, `vtkPVSession.DATA_SERVER`.
+          The default is `vtkPVSession.CLIENT`.
 
     **Keyword Parameters (optional)**
 
@@ -1433,11 +1409,6 @@ def SaveScreenshot(filename, viewOrLayout=None, **params):
 
         quality (int)
           Output image quality, a number in the range [0, 100].
-
-        ImageQuality (int)
-            For ParaView 5.4, the following parameters were available, however
-            it is ignored starting with ParaView 5.5. Instead, it is recommended
-            to use format-specific quality parameters based on the file format being used.
     """
     # Let's handle backwards compatibility.
     # Previous API for this method took the following arguments:
@@ -1471,6 +1442,7 @@ def SaveScreenshot(filename, viewOrLayout=None, **params):
     options = servermanager.misc.SaveScreenshot()
     controller.PreInitializeProxy(options)
 
+    options.SaveInBackground = saveInBackground
     options.Layout = viewOrLayout if viewOrLayout.IsA("vtkSMViewLayoutProxy") else None
     options.View = viewOrLayout if viewOrLayout.IsA("vtkSMViewProxy") else None
     options.SaveAllViews = True if viewOrLayout.IsA("vtkSMViewLayoutProxy") else False
@@ -1488,16 +1460,35 @@ def SaveScreenshot(filename, viewOrLayout=None, **params):
             formatProxy.SetPropertyWithName(prop, params[prop])
             del params[prop]
 
-    if "ImageQuality" in params:
-        import warnings
-        warnings.warn("'ImageQuality' is deprecated and will be ignored.", DeprecationWarning)
-        del params["ImageQuality"]
-
     SetProperties(options, **params)
-    return options.WriteImage(filename)
+    return options.WriteImage(filename, location)
 
 # -----------------------------------------------------------------------------
-def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
+def SetNumberOfCallbackThreads(n):
+    """Sets the number of threads used by the threaded callback queue that can be used for saving
+    screenshots.
+    """
+    paraview.modules.vtkRemotingSetting.GetInstance().SetNumberOfCallbackThreads(n)
+
+# -----------------------------------------------------------------------------
+    """Gets the number of threads used by the threaded callback queue that can be used for saving
+    screenshots.
+    """
+def GetNumberOfCallbackThreads(n):
+    paraview.modules.vtkRemotingSetting.GetInstance().GetNumberOfCallbackThreads()
+
+# -----------------------------------------------------------------------------
+def WaitForScreenshot(filename = None):
+    """Pause this thread until screenshot named filename has terminated.
+    If no filename is provided, then this thread pauses until all screenshot have been saved.
+    """
+    if not filename:
+        paraview.servermanager.vtkRemoteWriterHelper.Wait()
+    else:
+        paraview.servermanager.vtkRemoteWriterHelper.Wait(filename)
+
+# -----------------------------------------------------------------------------
+def SaveAnimation(filename, viewOrLayout=None, scene=None, location=vtkPVSession.CLIENT, **params):
     """Save animation as a movie file or series of images.
 
     `SaveAnimation` is used to save an animation as a movie file (avi or ogv) or
@@ -1520,6 +1511,11 @@ def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
         scene (``proxy``, optional)
           Animation scene to save. If None, then the active scene returned by
           `GetAnimationScene` is used.
+
+        location (int)
+          Location where the screenshot should be saved. This can be one of
+          the following values: `vtkPVSession.CLIENT`, `vtkPVSession.DATA_SERVER`.
+          The default is `vtkPVSession.CLIENT`.
 
     **Keyword Parameters (optional)**
 
@@ -1569,17 +1565,6 @@ def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
         UseSubsampling:
           When set to 1 (or True), the video will be encoded using 4:2:0
           subsampling for the color channels.
-
-    **Obsolete Parameters**
-
-        DisconnectAndSave (int):
-          This mode is no longer supported as of ParaView 5.5, and will be
-          ignored.
-
-        ImageQuality (int)
-            For ParaView 5.4, the following parameters were available, however
-            it is ignored starting with ParaView 5.5. Instead, it is recommended
-            to use format-specific quality parameters based on the file format being used.
     """
     # use active view if no view or layout is specified.
     viewOrLayout = viewOrLayout if viewOrLayout else GetActiveView()
@@ -1590,11 +1575,6 @@ def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
     scene = scene if scene else GetAnimationScene()
     if not scene:
         raise RuntimeError("Missing animation scene.")
-
-    if "DisconnectAndSave" in params:
-        import warnings
-        warnings.warn("'DisconnectAndSave' is deprecated and will be ignored.", DeprecationWarning)
-        del params["DisconnectAndSave"]
 
     controller = servermanager.ParaViewPipelineController()
     options = servermanager.misc.SaveAnimation()
@@ -1624,72 +1604,8 @@ def SaveAnimation(filename, viewOrLayout=None, scene=None, **params):
                 formatProxy.SetPropertyWithName(prop, params[prop])
                 del params[prop]
 
-    if "ImageQuality" in params:
-        import warnings
-        warnings.warn("'ImageQuality' is deprecated and will be ignored.", DeprecationWarning)
-        del params["ImageQuality"]
-
     SetProperties(options, **params)
-    return options.WriteAnimation(filename)
-
-def WriteAnimation(filename, **params):
-    """
-    ::deprecated:: 5.3
-    Use :func:`SaveAnimation` instead.
-
-    This function can still be used to save an animation, but using
-    :func: `SaveAnimation` is strongly recommended as it provides more
-    flexibility.
-
-    The following parameters are currently supported.
-
-    **Parameters**
-
-        filename (str)
-          Name of the output file.
-
-    **Keyword Parameters (optional)**
-
-        Magnification (int):
-          Magnification factor for the saved animation.
-
-        Quality (int)
-          int in range [0,2].
-
-        FrameRate (int)
-          Frame rate.
-
-    The following parameters are no longer supported and are ignored:
-    Subsampling, BackgroundColor, FrameRate, StartFileCount, PlaybackTimeWindow
-    """
-    newparams = {}
-
-    # this method simply tries to provide legacy behavior.
-    scene = GetAnimationScene()
-    newparams["scene"] = scene
-
-    # previously, scene saved all views and only worked well if there was 1
-    # layout, so do that.
-    layout = GetLayout()
-    newparams["viewOrLayout"] = layout
-
-    if "Magnification" in params:
-        magnification = params["Magnification"]
-        exts = [0] * 4
-        layout.GetLayoutExtent(exts)
-        size = [exts[1]-exts[0]+1, exts[3]-exts[2]+1]
-        imageResolution = (size[0]*magnification, size[1]*magnification)
-        newparams["ImageResolution"] = imageResolution
-
-    if "Quality" in params:
-        # convert quality (0=worst, 2=best) to imageQuality (0 = worst, 100 = best)
-        quality = int(params["Quality"])
-        imageQuality = int(100 * quality/2.0)
-        newparams["ImageQuality"] = imageQuality
-
-    if "FrameRate" in params:
-        newparams["FrameRate"] = int(params["FrameRate"])
-    return SaveAnimation(filename, **newparams)
+    return options.WriteAnimation(filename, location)
 
 def WriteAnimationGeometry(filename, view=None):
     """Save the animation geometry from a specific view to a file specified.
@@ -1882,20 +1798,21 @@ def GetTransferFunction2D(arrayname, array2name=None, representation=None, separ
     return tf2d
 
 # -----------------------------------------------------------------------------
-def ImportPresets(filename):
+def ImportPresets(filename, location=vtkPVSession.CLIENT):
     """Import presets from a file. The file can be in the legacy color map xml
     format or in the new JSON format. Returns True on success."""
     presets = servermanager.vtkSMTransferFunctionPresets.GetInstance()
-    return presets.ImportPresets(filename)
+    return presets.ImportPresets(filename, location)
 
 # -----------------------------------------------------------------------------
-def ExportTransferFunction(colortransferfunction, opacitytransferfunction, tfname, filename):
+def ExportTransferFunction(colortransferfunction, opacitytransferfunction, tfname, filename,
+                           location=vtkPVSession.CLIENT):
     """Export transfer function to a file. The file will be saved in the new JSON format.
     Note that opacitytransferfunction can be None. The tfname is the name that will be
     given to the transfer function preset when imported back into ParaView.
     Returns True on success."""
     return servermanager.vtkSMTransferFunctionProxy.ExportTransferFunction(\
-             colortransferfunction.SMProxy, opacitytransferfunction.SMProxy, tfname, filename)
+             colortransferfunction.SMProxy, opacitytransferfunction.SMProxy, tfname, filename, location)
 
 # -----------------------------------------------------------------------------
 def CreateLookupTable(**params):
@@ -1927,7 +1844,10 @@ def GetLookupTableForArray(arrayname, num_components, **params):
     """Used to get an existing lookuptable for a array or to create one if none
     exists. Keyword arguments can be passed in to initialize the LUT if a new
     one is created.
-    *** DEPRECATED ***: Use GetColorTransferFunction instead"""
+    PARAVIEW_DEPRECATED_IN_5_12_0: Use GetColorTransferFunction instead"""
+    import warnings
+    warnings.warn("'GetLookupTableForArray' is deprecated, use GetColorTransferFunction instead", DeprecationWarning)
+
     return GetColorTransferFunction(arrayname, **params)
 
 # -----------------------------------------------------------------------------
@@ -1995,34 +1915,6 @@ def LoadLookupTable(fileName):
 
 # -----------------------------------------------------------------------------
 
-def CreateScalarBar(**params):
-    """Create and return a scalar bar widget.  The returned widget may
-    be added to a render view by appending it to the view's representations
-    The widget must have a valid lookup table before it is added to a view.
-    It is possible to pass the lookup table (and other properties) as arguments
-    to this method::
-
-        lt = MakeBlueToRedLT(3.5, 7.5)
-        bar = CreateScalarBar(LookupTable=lt, Title="Velocity")
-        GetRenderView().Representations.append(bar)
-
-    By default the returned widget is selectable and resizable.
-    ::deprecated:: 5.10
-    Use :func:`GetScalarBar` instead.
-    """
-    import warnings
-    warnings.warn("`CreateScalarBar` is deprecated in ParaView 5.10. Use `GetScalarBar` instead",
-        DeprecationWarning)
-    sb = servermanager.rendering.ScalarBarWidgetRepresentation()
-    sb.Selectable = 1
-    sb.Resizable = 1
-    sb.Enabled = 1
-    sb.Title = "Scalars"
-    SetProperties(sb, **params)
-    return sb
-
-# -----------------------------------------------------------------------------
-
 # TODO: Change this to take the array name and number of components. Register
 # the lt under the name ncomp.array_name
 def MakeBlueToRedLT(min, max):
@@ -2043,22 +1935,89 @@ def RemoveLink(linkName):
     """Remove a link with the given name."""
     servermanager.ProxyManager().UnRegisterLink(linkName)
 
+
+def AddProxyLink(proxy1, proxy2, linkName='', link=None):
+    """Create a link between two proxies and return its name.
+
+    An instance of a vtkSMProxyLink subclass can be given, otherwise
+    a vtkSMProxyLink is created.
+    This does not link proxy properties. See vtkSMProxyLink.LinkProxyPropertyProxies
+
+    If linkName is empty, a default one is created for registration.
+    If a link with the given name already exists it will be removed first.
+
+    Return the link registration name.
+    """
+    if link == None:
+        link = servermanager.vtkSMProxyLink()
+
+    link.LinkProxies(proxy1.SMProxy, proxy2.SMProxy)
+    pm = servermanager.ProxyManager()
+    if linkName == '':
+        name1 = pm.GetProxyName(proxy1.SMProxy.GetXMLGroup(), proxy1.SMProxy)
+        name2 = pm.GetProxyName(proxy2.SMProxy.GetXMLGroup(), proxy2.SMProxy)
+        linkName = name1 + '-' + name2 + '-link'
+
+    RemoveLink(linkName)
+    pm.RegisterLink(linkName, link)
+    return linkName
+
+#==============================================================================
+# ViewLink methods
+#==============================================================================
+
+def AddViewLink(viewProxy, viewProxyOther, linkName=''):
+    """Create a view link between two view proxies.
+
+    A view link is an extension of a proxy link, that also do
+    a rendering when a property changes.
+
+    Cameras are not linked.
+
+    If a link with the given name already exists it will be removed first.
+
+    Return the link registration name.
+    """
+    link = servermanager.vtkSMViewLink()
+    return AddProxyLink(viewProxy, viewProxyOther, linkName, link)
+
+def AddRenderViewLink(viewProxy, viewProxyOther, linkName = '', linkCameras=False):
+    """Create a view link between two render view proxies.
+
+    It also creates links for the AxesGrid proxy property.
+    By default, cameras are not linked.
+
+    If a link with the given name already exists it will be removed first.
+
+    Return the link registration name.
+    """
+    linkName = AddViewLink(viewProxy, viewProxyOther, linkName)
+    pm = servermanager.ProxyManager()
+    link = pm.GetRegisteredLink(linkName)
+    link.EnableCameraLink(linkCameras)
+    link.LinkProxyPropertyProxies(viewProxy.SMProxy, viewProxyOther.SMProxy, "AxesGrid")
+    return linkName
+
 #==============================================================================
 # CameraLink methods
 #==============================================================================
 
-def AddCameraLink(viewProxy, viewProxyOther, linkName):
+def AddCameraLink(viewProxy, viewProxyOther, linkName = ''):
     """Create a camera link between two view proxies.  A name must be given
     so that the link can be referred to by name.  If a link with the given
-    name already exists it will be removed first."""
+    name already exists it will be removed first.
+
+    Return the link registration name.
+    """
     if not viewProxyOther: viewProxyOther = GetActiveView()
     link = servermanager.vtkSMCameraLink()
-    link.AddLinkedProxy(viewProxy.SMProxy, 1)
-    link.AddLinkedProxy(viewProxyOther.SMProxy, 2)
-    link.AddLinkedProxy(viewProxyOther.SMProxy, 1)
-    link.AddLinkedProxy(viewProxy.SMProxy, 2)
-    RemoveCameraLink(linkName)
-    servermanager.ProxyManager().RegisterLink(linkName, link)
+    if linkName == '':
+        pm = servermanager.ProxyManager()
+        name1 = pm.GetProxyName(viewProxy.SMProxy.GetXMLGroup(), viewProxy.SMProxy)
+        name2 = pm.GetProxyName(viewProxyOther.SMProxy.GetXMLGroup(), viewProxyOther.SMProxy)
+        linkName = name1 + '-' + name2 + '-cameraLink'
+
+    return AddProxyLink(viewProxy, viewProxyOther, linkName, link)
 
 # -----------------------------------------------------------------------------
 
@@ -2084,6 +2043,7 @@ def AddSelectionLink(objProxy, objProxyOther, linkName, convertToIndices = True)
     link.AddLinkedSelection(objProxy.SMProxy, 1)
     RemoveSelectionLink(linkName)
     servermanager.ProxyManager().RegisterLink(linkName, link)
+    return link
 
 # -----------------------------------------------------------------------------
 
@@ -2521,7 +2481,7 @@ def Show3DWidgets(proxy=None):
     If possible in the current environment, this method will
     request the application to show the 3D widget(s) for proxy
 
-    ::deprecated:: 5.11
+    PARAVIEW_DEPRECATED_IN_5_11_0
     Use :func:`ShowInteractiveWidgets` instead.
     """
     import warnings
@@ -2534,7 +2494,7 @@ def Hide3DWidgets(proxy=None):
     If possible in the current environment, this method will
     request the application to show the 3D widget(s) for proxy
 
-    ::deprecated:: 5.11
+    PARAVIEW_DEPRECATED_IN_5_11_0
     Use :func:`HideInteractiveWidgets` instead.
     """
     import warnings

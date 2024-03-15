@@ -1,42 +1,17 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqColorAnnotationsWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqColorAnnotationsWidget.h"
+#include "pqAnimationManager.h"
+#include "pqAnimationScene.h"
+#include "pqPVApplicationCore.h"
 #include "ui_pqColorAnnotationsWidget.h"
 #include "ui_pqSavePresetOptions.h"
 
 #include "pqActiveObjects.h"
 #include "pqChooseColorPresetReaction.h"
+#include "pqCoreUtilities.h"
 #include "pqDataRepresentation.h"
-#include "pqDoubleLineEdit.h"
 #include "pqDoubleRangeDialog.h"
 #include "pqDoubleRangeWidget.h"
 #include "pqHeaderView.h"
@@ -47,19 +22,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkAbstractArray.h"
 #include "vtkCollection.h"
 #include "vtkNew.h"
-#include "vtkNumberToString.h"
 #include "vtkPVArrayInformation.h"
 #include "vtkPVProminentValuesInformation.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
+#include "vtkSMTransferFunctionManager.h"
 #include "vtkSMTransferFunctionPresets.h"
 #include "vtkSMTransferFunctionProxy.h"
 #include "vtkSmartPointer.h"
 #include "vtkVariant.h"
 #include "vtkVariantArray.h"
 
+#include <qnamespace.h>
 #include <vtk_jsoncpp.h>
 
 #include <QColorDialog>
@@ -134,12 +111,90 @@ std::vector<std::pair<QString, QString>> MergeAnnotations(
   return merged_pairs;
 }
 
+//-----------------------------------------------------------------------------
+// Custom proxy model used to apply global modifications (when editing the data from
+// the header of the table) to the sorted items only.
 class ColorAnnotationsFilterProxyModel : public QSortFilterProxyModel
 {
 public:
   explicit ColorAnnotationsFilterProxyModel(QObject* parent = nullptr)
     : QSortFilterProxyModel(parent)
   {
+  }
+
+  // Overriden to update the global checkbox based on filtered elements only.
+  QVariant headerData(int section, Qt::Orientation orientation, int role) const override
+  {
+    pqAnnotationsModel* sourceModel = qobject_cast<pqAnnotationsModel*>(this->sourceModel());
+    if (!sourceModel)
+    {
+      return false;
+    }
+
+    // Return the global visibility value based on the filtered element values only
+    if (orientation == Qt::Horizontal && role == Qt::CheckStateRole &&
+      section == pqAnnotationsModel::VISIBILITY)
+    {
+      // No items
+      if (this->rowCount() == 0)
+      {
+        return Qt::Unchecked;
+      }
+
+      int currentCheckState = this->data(this->index(0, section), role).toInt();
+      for (int row = 1; row < this->rowCount(); row++)
+      {
+        if (this->data(this->index(row, section), role).toInt() != currentCheckState)
+        {
+          currentCheckState = Qt::PartiallyChecked;
+          break;
+        }
+      }
+      return static_cast<Qt::CheckState>(currentCheckState);
+    }
+
+    // Forward to the source model in all other cases
+    return sourceModel->headerData(section, orientation, role);
+  }
+
+  // Overriden in order to set the visibility / opacity values on the filtered elements only.
+  bool setHeaderData(
+    int section, Qt::Orientation orientation, const QVariant& value, int role) override
+  {
+    pqAnnotationsModel* sourceModel = qobject_cast<pqAnnotationsModel*>(this->sourceModel());
+    if (!sourceModel)
+    {
+      return false;
+    }
+
+    if (orientation == Qt::Horizontal)
+    {
+      // Change the visibility values on filtered items only
+      if (role == Qt::CheckStateRole && section == pqAnnotationsModel::VISIBILITY)
+      {
+        for (int row = 0; row < this->rowCount(); row++)
+        {
+          this->setData(this->index(row, section), value, role);
+        }
+        Q_EMIT this->headerDataChanged(orientation, section, section);
+        return true;
+      }
+      // Change the opacity values on filtered items only
+      else if (role == Qt::EditRole && section == pqAnnotationsModel::OPACITY)
+      {
+        sourceModel->setGlobalOpacity(value.toDouble());
+
+        for (int row = 0; row < this->rowCount(); row++)
+        {
+          this->setData(this->index(row, section), value, role);
+        }
+        Q_EMIT this->headerDataChanged(orientation, section, section);
+        return true;
+      }
+    }
+
+    // Forward the call to the source model in all other cases
+    return sourceModel->setHeaderData(section, orientation, value, role);
   }
 
   bool filterAcceptsRow(int sourceRow, const QModelIndex& sourceParent) const override
@@ -152,22 +207,19 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-// Dialog to set global and selected lines opacity
-class pqGlobalOpacityRangeDialog : public QDialog
+// Dialog to set opacity value(s)
+class pqOpacityRangeDialog : public QDialog
 {
+  // Enable the use of the tr() method in a class without Q_OBJECT macro
+  Q_DECLARE_TR_FUNCTIONS(pqOpacityRangeDialog)
 public:
-  pqGlobalOpacityRangeDialog(
-    double globalOpacity = 1.0, double selectedOpacity = 1.0, QWidget* parent = nullptr)
+  pqOpacityRangeDialog(double initialValue = 1.0, QWidget* parent = nullptr)
     : QDialog(parent)
   {
-    this->GlobalOpacityWidget = new pqDoubleRangeWidget(this);
-    this->GlobalOpacityWidget->setMinimum(0.0);
-    this->GlobalOpacityWidget->setMaximum(1.0);
-    this->GlobalOpacityWidget->setValue(globalOpacity);
-    this->SelectedOpacityWidget = new pqDoubleRangeWidget(this);
-    this->SelectedOpacityWidget->setMinimum(0.0);
-    this->SelectedOpacityWidget->setMaximum(1.0);
-    this->SelectedOpacityWidget->setValue(selectedOpacity);
+    this->OpacityWidget = new pqDoubleRangeWidget(this);
+    this->OpacityWidget->setMinimum(0.0);
+    this->OpacityWidget->setMaximum(1.0);
+    this->OpacityWidget->setValue(initialValue);
 
     QDialogButtonBox* buttonBox =
       new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -175,27 +227,72 @@ public:
     connect(buttonBox, SIGNAL(rejected()), this, SLOT(reject()));
 
     QHBoxLayout* widgetLayout = new QHBoxLayout;
-    widgetLayout->addWidget(new QLabel(tr("Global Opacity :"), this));
-    widgetLayout->addWidget(this->GlobalOpacityWidget);
-    QHBoxLayout* widgetLayout2 = new QHBoxLayout;
-    widgetLayout2->addWidget(new QLabel(tr("Selected Categories Opacity :"), this));
-    widgetLayout2->addWidget(this->SelectedOpacityWidget);
-
+    widgetLayout->addWidget(new QLabel(tr("Opacity value :"), this));
+    widgetLayout->addWidget(this->OpacityWidget);
     QVBoxLayout* layout_ = new QVBoxLayout;
     layout_->addLayout(widgetLayout);
-    layout_->addLayout(widgetLayout2);
     layout_->addWidget(buttonBox);
     this->setLayout(layout_);
+
+    // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+    this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
   }
 
-  ~pqGlobalOpacityRangeDialog() override = default;
+  ~pqOpacityRangeDialog() override = default;
 
-  double globalOpacity() const { return this->GlobalOpacityWidget->value(); }
-  double selectedOpacity() const { return this->SelectedOpacityWidget->value(); }
+  double opacity() const { return this->OpacityWidget->value(); }
 
 private:
-  pqDoubleRangeWidget* GlobalOpacityWidget;
-  pqDoubleRangeWidget* SelectedOpacityWidget;
+  pqDoubleRangeWidget* OpacityWidget;
+};
+
+//-----------------------------------------------------------------------------
+// Custom pqTreeViewHelper used to set opacity values on selected items.
+class pqColorAnnotationsSelectionHelper : public pqTreeViewSelectionHelper
+{
+  // Enable the use of the tr() method in a class without Q_OBJECT macro
+  Q_DECLARE_TR_FUNCTIONS(pqColorAnnotationsSelectionHelper)
+public:
+  explicit pqColorAnnotationsSelectionHelper(QAbstractItemView* view)
+    : pqTreeViewSelectionHelper(view, false)
+  {
+  }
+
+protected:
+  void execOpacityDialog()
+  {
+    pqOpacityRangeDialog dialog(1.0, nullptr);
+    dialog.setWindowTitle(tr("Set opacity of highlited items"));
+    dialog.move(QCursor::pos());
+    if (dialog.exec() == QDialog::Accepted)
+    {
+      // Set the opacity on selected elements
+      QAbstractItemModel* model = this->TreeView->model();
+      QItemSelectionModel* select = this->TreeView->selectionModel();
+      for (QModelIndex idx : select->selectedRows(pqAnnotationsModel::OPACITY))
+      {
+        model->setData(idx, dialog.opacity(), Qt::EditRole);
+      }
+    }
+  }
+
+  void buildupMenu(QMenu& menu, int section, const QPoint& pos) override
+  {
+    pqTreeViewSelectionHelper::buildupMenu(menu, section, pos);
+
+    if (section == pqAnnotationsModel::OPACITY)
+    {
+      // Add a menu section to set the opacity of the selected rows
+      if (!menu.isEmpty())
+      {
+        menu.addSeparator();
+      }
+      if (auto actn = menu.addAction(tr("Set opacity of highlighted items")))
+      {
+        QObject::connect(actn, &QAction::triggered, [this](bool) { this->execOpacityDialog(); });
+      }
+    }
+  }
 };
 }
 
@@ -218,10 +315,14 @@ public:
   {
     this->SetCurrentPresetName("");
     this->Ui.setupUi(self);
-    this->Ui.gridLayout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->Ui.gridLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->Ui.gridLayout->setVerticalSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
     this->Ui.gridLayout->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
-    this->Ui.verticalLayout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->Ui.verticalLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->Ui.verticalLayout->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
 
     this->Model = new pqAnnotationsModel(self);
@@ -255,17 +356,13 @@ bool pqColorAnnotationsWidget::pqInternals::updateAnnotations(vtkAbstractArray* 
     const auto val = values->GetVariantValue(idx);
     if (val.IsDouble())
     {
-      std::ostringstream str;
-      str << vtkNumberToString()(val.ToDouble());
-      candidate_tuples.push_back(std::make_pair(QString(str.str().c_str()),
-        pqDoubleLineEdit::formatDoubleUsingGlobalPrecisionAndNotation(val.ToDouble())));
+      candidate_tuples.push_back(std::make_pair(pqCoreUtilities::formatFullNumber(val.ToDouble()),
+        pqCoreUtilities::formatNumber(val.ToDouble())));
     }
     else if (val.IsFloat())
     {
-      std::ostringstream str;
-      str << vtkNumberToString()(val.ToFloat());
-      candidate_tuples.push_back(std::make_pair(QString(str.str().c_str()),
-        pqDoubleLineEdit::formatDoubleUsingGlobalPrecisionAndNotation(val.ToDouble())));
+      candidate_tuples.push_back(std::make_pair(pqCoreUtilities::formatFullNumber(val.ToFloat()),
+        pqCoreUtilities::formatNumber(val.ToFloat())));
     }
     else
     {
@@ -318,8 +415,6 @@ pqColorAnnotationsWidget::pqColorAnnotationsWidget(QWidget* parentObject)
     SLOT(onHeaderDoubleClicked(int)));
   QObject::connect(ui.AnnotationsTable, SIGNAL(editPastLastRow()), this, SLOT(editPastLastRow()));
   ui.AnnotationsTable->setContextMenuPolicy(Qt::CustomContextMenu);
-  QObject::connect(ui.AnnotationsTable, SIGNAL(customContextMenuRequested(QPoint)), this,
-    SLOT(customMenuRequested(QPoint)));
 
   this->connect(ui.AnnotationsTable->selectionModel(),
     SIGNAL(selectionChanged(const QItemSelection&, const QItemSelection&)), this,
@@ -330,6 +425,35 @@ pqColorAnnotationsWidget::pqColorAnnotationsWidget(QWidget* parentObject)
     ui.EnableOpacityMapping, SIGNAL(stateChanged(int)), SLOT(updateOpacityColumnState()));
   this->connect(ui.EnableOpacityMapping, SIGNAL(clicked()), SIGNAL(opacityMappingChanged()));
 
+  // Animation tick events will update list of available annotations.
+  if (auto manager = pqPVApplicationCore::instance()->animationManager())
+  {
+    if (auto scene = manager->getActiveScene())
+    {
+      QObject::connect(scene, &pqAnimationScene::tick, this, [this](const int) {
+        const auto& internals = *(this->Internals);
+        if (internals.LookupTableProxy != nullptr)
+        {
+          int rescaleMode =
+            vtkSMPropertyHelper(internals.LookupTableProxy, "AutomaticRescaleRangeMode", true)
+              .GetAsInt();
+          if (rescaleMode ==
+            vtkSMTransferFunctionManager::TransferFunctionResetMode::GROW_ON_APPLY_AND_TIMESTEP)
+          {
+            // extends the list of annotations.
+            this->addActiveAnnotations(/*force=*/false, /*extend=*/true);
+          }
+          else if (rescaleMode ==
+            vtkSMTransferFunctionManager::TransferFunctionResetMode::RESET_ON_APPLY_AND_TIMESTEP)
+          {
+            // clamps the list of annotations to the scalar range of the active source.
+            this->addActiveAnnotations(/*force=*/false, /*extend=*/false);
+          }
+        }
+      });
+    }
+  }
+
   this->updateOpacityColumnState();
 
   this->setSupportsReorder(false);
@@ -338,6 +462,8 @@ pqColorAnnotationsWidget::pqColorAnnotationsWidget(QWidget* parentObject)
   proxyModel->setSourceModel(this->Internals->Model);
   ui.AnnotationsTable->setModel(proxyModel);
   ui.AnnotationsTable->setSortingEnabled(false);
+
+  new pqColorAnnotationsSelectionHelper(ui.AnnotationsTable);
 }
 
 //-----------------------------------------------------------------------------
@@ -431,20 +557,21 @@ void pqColorAnnotationsWidget::onHeaderDoubleClicked(int index)
 //-----------------------------------------------------------------------------
 void pqColorAnnotationsWidget::execGlobalOpacityDialog()
 {
-  pqGlobalOpacityRangeDialog dialog(this->Internals->Model->globalOpacity(), 1.0, this);
-  dialog.setWindowTitle(tr("Set Global Opacity"));
+  QAbstractItemModel* model = this->Internals->Ui.AnnotationsTable->model();
+  if (!model)
+  {
+    return;
+  }
+  double globalOpacity =
+    model->headerData(pqAnnotationsModel::OPACITY, Qt::Horizontal, Qt::EditRole).toDouble();
+  pqOpacityRangeDialog dialog(globalOpacity, this);
+  dialog.setWindowTitle(tr("Set global opacity"));
   dialog.move(QCursor::pos());
   if (dialog.exec() == QDialog::Accepted)
   {
-    this->Internals->Model->setGlobalOpacity(dialog.globalOpacity());
-
-    QList<int> selectedRows;
-    QItemSelectionModel* select = this->Internals->Ui.AnnotationsTable->selectionModel();
-    for (QModelIndex idx : select->selectedRows(1))
-    {
-      selectedRows.append(idx.row());
-    }
-    this->Internals->Model->setSelectedOpacity(selectedRows, dialog.selectedOpacity());
+    // Set the global opacity
+    model->setHeaderData(
+      pqAnnotationsModel::OPACITY, Qt::Horizontal, dialog.opacity(), Qt::EditRole);
   }
 }
 
@@ -650,15 +777,17 @@ void pqColorAnnotationsWidget::addActiveAnnotations()
 {
   if (!this->addActiveAnnotations(false))
   {
-    QString warningTitle("Could not determine discrete values");
+    QString warningTitle(tr("Could not determine discrete values"));
     QString warningMessage;
     QTextStream qs(&warningMessage);
-    qs << "Could not automatically determine annotation values. Usually this means "
-       << "too many discrete values (more than " << vtkAbstractArray::MAX_DISCRETE_VALUES << ") "
-       << "are available in the data produced by the "
-       << "current source/filter. This can happen if the data array type is floating "
-       << "point. Please add annotations manually or force generation. Forcing the "
-       << "generation will automatically hide the Scalar Bar.";
+    qs << tr("Could not automatically determine annotation values. Usually this means "
+             "too many discrete values (more than %1) "
+             "are available in the data produced by the "
+             "current source/filter.")
+            .arg(vtkAbstractArray::MAX_DISCRETE_VALUES)
+       << tr(" This can happen if the data array type is floating "
+             "point. Please add annotations manually or force generation. Forcing the "
+             "generation will automatically hide the Scalar Bar.");
     QMessageBox* box = new QMessageBox(this);
     box->setWindowTitle(warningTitle);
     box->setText(warningMessage);
@@ -685,6 +814,12 @@ void pqColorAnnotationsWidget::addActiveAnnotations()
 //-----------------------------------------------------------------------------
 bool pqColorAnnotationsWidget::addActiveAnnotations(bool force)
 {
+  return this->addActiveAnnotations(force, true);
+}
+
+//-----------------------------------------------------------------------------
+bool pqColorAnnotationsWidget::addActiveAnnotations(bool force, bool extend)
+{
   // obtain prominent values from the server and add them
   pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
   if (!repr)
@@ -693,7 +828,7 @@ bool pqColorAnnotationsWidget::addActiveAnnotations(bool force)
   }
 
   vtkPVProminentValuesInformation* info =
-    vtkSMPVRepresentationProxy::GetProminentValuesInformationForColorArray(
+    vtkSMColorMapEditorHelper::GetProminentValuesInformationForColorArray(
       repr->getProxy(), 1e-3, 1e-6, force);
   if (!info || !info->GetValid())
   {
@@ -721,7 +856,7 @@ bool pqColorAnnotationsWidget::addActiveAnnotations(bool force)
 
   // Set the merged annotations
   auto& internals = (*this->Internals);
-  if (internals.updateAnnotations(uniqueValues, true))
+  if (internals.updateAnnotations(uniqueValues, extend))
   {
     Q_EMIT this->annotationsChanged();
   }
@@ -733,15 +868,17 @@ void pqColorAnnotationsWidget::addActiveAnnotationsFromVisibleSources()
 {
   if (!this->addActiveAnnotationsFromVisibleSources(false))
   {
-    QString warningTitle("Could not determine discrete values");
+    QString warningTitle(tr("Could not determine discrete values"));
     QString warningMessage;
     QTextStream qs(&warningMessage);
-    qs << "Could not automatically determine annotation values. Usually this means "
-       << "too many discrete values (more than " << vtkAbstractArray::MAX_DISCRETE_VALUES << ") "
-       << "are available in the data produced by the "
-       << "current source/filter. This can happen if the data array type is floating "
-       << "point. Please add annotations manually or force generation. Forcing the "
-       << "generation will automatically hide the Scalar Bar.";
+    qs << tr("Could not automatically determine annotation values. Usually this means "
+             "too many discrete values (more than %1) "
+             "are available in the data produced by the "
+             "current source/filter.")
+            .arg(vtkAbstractArray::MAX_DISCRETE_VALUES)
+       << tr(" This can happen if the data array type is floating "
+             "point. Please add annotations manually or force generation. Forcing the "
+             "generation will automatically hide the Scalar Bar.");
 
     QMessageBox* box = new QMessageBox(this);
     box->setWindowTitle(warningTitle);
@@ -783,15 +920,15 @@ bool pqColorAnnotationsWidget::addActiveAnnotationsFromVisibleSources(bool force
     return false;
   }
 
-  vtkSMPVRepresentationProxy* activeRepresentationProxy =
-    vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMRepresentationProxy* activeRepresentationProxy =
+    vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
   if (!activeRepresentationProxy)
   {
     return false;
   }
 
   vtkPVArrayInformation* activeArrayInfo =
-    vtkSMPVRepresentationProxy::GetArrayInformationForColorArray(activeRepresentationProxy);
+    vtkSMColorMapEditorHelper::GetArrayInformationForColorArray(activeRepresentationProxy);
 
   vtkSMSessionProxyManager* pxm = server->proxyManager();
 
@@ -809,7 +946,7 @@ bool pqColorAnnotationsWidget::addActiveAnnotationsFromVisibleSources(bool force
     }
 
     vtkPVArrayInformation* currentArrayInfo =
-      vtkSMPVRepresentationProxy::GetArrayInformationForColorArray(representationProxy);
+      vtkSMColorMapEditorHelper::GetArrayInformationForColorArray(representationProxy);
     if (!activeArrayInfo || !activeArrayInfo->GetName() || !currentArrayInfo ||
       !currentArrayInfo->GetName() ||
       strcmp(activeArrayInfo->GetName(), currentArrayInfo->GetName()) != 0)
@@ -818,7 +955,7 @@ bool pqColorAnnotationsWidget::addActiveAnnotationsFromVisibleSources(bool force
     }
 
     vtkPVProminentValuesInformation* info =
-      vtkSMPVRepresentationProxy::GetProminentValuesInformationForColorArray(
+      vtkSMColorMapEditorHelper::GetProminentValuesInformationForColorArray(
         representationProxy, 1e-3, 1e-6, force);
     if (!info)
     {
@@ -870,7 +1007,8 @@ bool pqColorAnnotationsWidget::addActiveAnnotationsFromVisibleSources(bool force
 void pqColorAnnotationsWidget::removeAllAnnotations()
 {
   this->Internals->Model->removeAllAnnotations();
-  this->Internals->Model->setGlobalOpacity(1.0);
+  this->Internals->Model->setHeaderData(
+    pqAnnotationsModel::OPACITY, Qt::Horizontal, 1.0, Qt::EditRole);
   Q_EMIT this->annotationsChanged();
 }
 
@@ -891,14 +1029,14 @@ void pqColorAnnotationsWidget::saveAsNewPreset()
   auto name =
     this->Internals->Model->headerData(pqAnnotationsModel::LABEL, Qt::Horizontal, Qt::DisplayRole)
       .toString();
-  ui.saveAnnotations->setText(QString("Save %1s").arg(name));
+  ui.saveAnnotations->setText(QString(tr("Save %1s")).arg(name));
 
   // For now, let's not provide an option to not save colors. We'll need to fix
   // the pqPresetToPixmap to support rendering only opacities.
   ui.saveColors->setChecked(true);
   ui.saveColors->setEnabled(false);
   ui.saveColors->hide();
-  ui.presetName->setText("Preset");
+  ui.presetName->setText(tr("Preset"));
 
   if (dialog.exec() != QDialog::Accepted)
   {
@@ -988,19 +1126,6 @@ void pqColorAnnotationsWidget::saveAsPreset(
   this->applyPreset(presetName.c_str());
   this->onPresetApplied(QString(presetName.c_str()));
   this->choosePreset(presetName.c_str());
-}
-
-//-----------------------------------------------------------------------------
-void pqColorAnnotationsWidget::customMenuRequested(QPoint pos)
-{
-  // Show a contextual menu to set global opacity and selected rows opacities
-  QMenu* menu = new QMenu(this);
-  Ui::ColorAnnotationsWidget& ui = this->Internals->Ui;
-  QAction* opacityAction = new QAction(tr("Set global and selected opacity"), this);
-  opacityAction->setEnabled(ui.EnableOpacityMapping->isChecked());
-  QObject::connect(opacityAction, SIGNAL(triggered(bool)), this, SLOT(execGlobalOpacityDialog()));
-  menu->addAction(opacityAction);
-  menu->popup(ui.AnnotationsTable->viewport()->mapToGlobal(pos));
 }
 
 //-----------------------------------------------------------------------------
@@ -1158,22 +1283,6 @@ void pqColorAnnotationsWidget::supportsOpacityMapping(bool val)
   Ui::ColorAnnotationsWidget& ui = this->Internals->Ui;
   ui.EnableOpacityMapping->setVisible(val);
   ui.EnableOpacityMapping->setChecked(val);
-
-  if (!val)
-  {
-    ui.AnnotationsTable->disconnect(SIGNAL(customContextMenuRequested(QPoint)));
-    new pqTreeViewSelectionHelper(ui.AnnotationsTable, false);
-  }
-  else
-  {
-    auto selectionHelper = this->findChild<pqTreeViewSelectionHelper*>();
-    if (selectionHelper)
-    {
-      selectionHelper->deleteLater();
-    }
-    QObject::connect(ui.AnnotationsTable, SIGNAL(customContextMenuRequested(QPoint)), this,
-      SLOT(customMenuRequested(QPoint)));
-  }
 }
 
 //-----------------------------------------------------------------------------

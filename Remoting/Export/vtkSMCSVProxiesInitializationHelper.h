@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMCSVProxiesInitializationHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMCSVProxiesInitializationHelper
  * @brief   initialization helper for
@@ -19,7 +7,7 @@
  *
  * vtkSMCSVProxiesInitializationHelper is an initialization helper for
  * the PCSVReader or PCSVWriter proxy that sets up the delimiter to use based on the
- * file extension. If the file extension is .txt or .tsv then '\t' is set as
+ * file extension. If the file extension is .txt or .tsv then \verbatim'\t'\endverbatim is set as
  * the delimiter.
  */
 

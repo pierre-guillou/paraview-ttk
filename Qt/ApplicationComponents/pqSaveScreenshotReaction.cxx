@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSaveScreenshotReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSaveScreenshotReaction.h"
 
 #include "pqActiveObjects.h"
@@ -38,13 +10,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqFileDialog.h"
 #include "pqImageUtil.h"
 #include "pqProxyWidgetDialog.h"
-#include "pqServer.h"
 #include "pqSettings.h"
 #include "pqTabbedMultiViewWidget.h"
 #include "pqUndoStack.h"
 #include "pqView.h"
+
 #include "vtkImageData.h"
 #include "vtkNew.h"
+#include "vtkPVXMLElement.h"
 #include "vtkSMParaViewPipelineController.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
@@ -82,14 +55,15 @@ pqSaveScreenshotReaction::pqSaveScreenshotReaction(QAction* parentObject, bool c
 void pqSaveScreenshotReaction::updateEnableState()
 {
   pqActiveObjects* activeObjects = &pqActiveObjects::instance();
-  bool is_enabled = (activeObjects->activeView() && activeObjects->activeServer());
+  const bool is_enabled = (activeObjects->activeView() && activeObjects->activeServer());
   this->parentAction()->setEnabled(is_enabled);
 }
 
 //-----------------------------------------------------------------------------
 QString pqSaveScreenshotReaction::promptFileName(
-  vtkSMSaveScreenshotProxy* prototype, const QString& defaultExtension)
+  vtkSMSaveScreenshotProxy* prototype, const QString& defaultExtension, vtkTypeUInt32& location)
 {
+  location = vtkPVSession::CLIENT;
   if (!prototype)
   {
     qWarning("No `prototype` proxy specified.");
@@ -110,8 +84,10 @@ QString pqSaveScreenshotReaction::promptFileName(
     return QString();
   }
 
-  pqFileDialog file_dialog(nullptr, pqCoreUtilities::mainWidget(), tr(prototype->GetXMLLabel()),
-    QString(), filters.c_str());
+  pqServer* server = pqActiveObjects::instance().activeServer();
+  pqFileDialog file_dialog(server, pqCoreUtilities::mainWidget(),
+    QCoreApplication::translate("ServerManagerXML", prototype->GetXMLLabel()), QString(),
+    filters.c_str(), false, false);
   file_dialog.setRecentlyUsedExtension(lastUsedExt);
   file_dialog.setObjectName(QString("%1FileDialog").arg(prototype->GetXMLName()));
   file_dialog.setFileMode(pqFileDialog::AnyFile);
@@ -119,9 +95,10 @@ QString pqSaveScreenshotReaction::promptFileName(
   {
     return QString();
   }
+  location = file_dialog.getSelectedLocation();
 
   QString file = file_dialog.getSelectedFiles()[0];
-  QFileInfo fileInfo(file);
+  const QFileInfo fileInfo(file);
   settings->setValue(skey, fileInfo.suffix().prepend("*."));
   return file;
 }
@@ -143,15 +120,14 @@ bool pqSaveScreenshotReaction::saveScreenshot(bool clipboardMode)
   {
     // Get pixel size (not scaled pixel size) for the view.
     // fixes #20225
-    vtkSMPropertyHelper helper(viewProxy, "ViewSize");
+    const vtkSMPropertyHelper helper(viewProxy, "ViewSize");
     const QSize pixelSize(helper.GetAsInt(0), helper.GetAsInt(1));
     return pqSaveScreenshotReaction::copyScreenshotToClipboard(pixelSize, false);
   }
 
   vtkSMViewLayoutProxy* layout = vtkSMViewLayoutProxy::FindLayout(viewProxy);
   vtkSMSessionProxyManager* pxm = view->getServer()->proxyManager();
-  vtkSmartPointer<vtkSMProxy> proxy;
-  proxy.TakeReference(pxm->NewProxy("misc", "SaveScreenshot"));
+  auto proxy = vtkSmartPointer<vtkSMProxy>::Take(pxm->NewProxy("misc", "SaveScreenshot"));
   vtkSMSaveScreenshotProxy* shProxy = vtkSMSaveScreenshotProxy::SafeDownCast(proxy);
   if (!shProxy)
   {
@@ -159,8 +135,9 @@ bool pqSaveScreenshotReaction::saveScreenshot(bool clipboardMode)
     return false;
   }
 
-  // Get the filename first, this will determine some of the options shown.
-  QString filename = pqSaveScreenshotReaction::promptFileName(shProxy, "*.png");
+  // Get the filename first, this will determine some options shown.
+  vtkTypeUInt32 location;
+  const QString filename = pqSaveScreenshotReaction::promptFileName(shProxy, "*.png", location);
   if (filename.isEmpty())
   {
     return false;
@@ -169,7 +146,7 @@ bool pqSaveScreenshotReaction::saveScreenshot(bool clipboardMode)
   bool restorePreviewMode = false;
 
   // Cache the separator width and color
-  int width = vtkSMPropertyHelper(shProxy, "SeparatorWidth").GetAsInt();
+  const int width = vtkSMPropertyHelper(shProxy, "SeparatorWidth").GetAsInt();
   double color[3];
   vtkSMPropertyHelper(shProxy, "SeparatorColor").Get(color, 3);
   // Link the vtkSMViewLayoutProxy to vtkSMSaveScreenshotProxy to update
@@ -182,6 +159,7 @@ bool pqSaveScreenshotReaction::saveScreenshot(bool clipboardMode)
     colorLink->AddLinkedProperty(shProxy, "SeparatorColor", vtkSMLink::INPUT);
     colorLink->AddLinkedProperty(layout, "SeparatorColor", vtkSMLink::OUTPUT);
   }
+  auto stateXMLRoot = vtkSmartPointer<vtkPVXMLElement>::Take(pxm->SaveXMLState());
 
   vtkNew<vtkSMParaViewPipelineController> controller;
   controller->PreInitializeProxy(shProxy);
@@ -215,12 +193,22 @@ bool pqSaveScreenshotReaction::saveScreenshot(bool clipboardMode)
   pqProxyWidgetDialog dialog(shProxy, pqCoreUtilities::mainWidget());
   dialog.setObjectName("SaveScreenshotDialog");
   dialog.setApplyChangesImmediately(true);
-  dialog.setWindowTitle("Save Screenshot Options");
+  dialog.setWindowTitle(tr("Save Screenshot Options"));
   dialog.setEnableSearchBar(true);
   dialog.setSettingsKey("SaveScreenshotDialog");
   if (dialog.exec() == QDialog::Accepted)
   {
-    shProxy->WriteImage(filename.toUtf8().data());
+    const bool embedParaViewState =
+      vtkSMPropertyHelper(shProxy, "EmbedParaViewState").GetAsInt() == 1;
+    if (embedParaViewState)
+    {
+      Q_EMIT pqApplicationCore::instance()->aboutToWriteState(filename);
+    }
+    else
+    {
+      stateXMLRoot = nullptr;
+    }
+    shProxy->WriteImage(filename.toUtf8().data(), location, stateXMLRoot);
   }
 
   if (layout)
@@ -273,7 +261,7 @@ vtkSmartPointer<vtkImageData> pqSaveScreenshotReaction::takeScreenshot(
 bool pqSaveScreenshotReaction::saveScreenshot(
   const QString& filename, const QSize& size, int quality, bool all_views)
 {
-  vtkSmartPointer<vtkImageData> image = takeScreenshot(size, all_views);
+  const vtkSmartPointer<vtkImageData> image = takeScreenshot(size, all_views);
   if (!image)
   {
     return false;
@@ -284,7 +272,7 @@ bool pqSaveScreenshotReaction::saveScreenshot(
 //-----------------------------------------------------------------------------
 bool pqSaveScreenshotReaction::copyScreenshotToClipboard(const QSize& size, bool all_views)
 {
-  vtkSmartPointer<vtkImageData> image = takeScreenshot(size, all_views);
+  const vtkSmartPointer<vtkImageData> image = takeScreenshot(size, all_views);
   if (!image)
   {
     return false;

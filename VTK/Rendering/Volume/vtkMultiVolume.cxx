@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiVolume.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiVolume.h"
 #include "vtkBoundingBox.h"
 #include "vtkGPUVolumeRayCastMapper.h"
@@ -24,6 +12,7 @@
 #include "vtkVectorOperators.h"
 #include "vtkVolumeProperty.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkMultiVolume::vtkMultiVolume()
   : TexToBBox(vtkSmartPointer<vtkMatrix4x4>::New())
 {
@@ -221,13 +210,13 @@ std::array<double, 6> vtkMultiVolume::ComputeAABounds(double bounds[6], vtkMatri
   PointVec pointsDataCoords;
   pointsDataCoords.reserve(8);
   pointsDataCoords.push_back(minPoint);
-  pointsDataCoords.push_back(minPoint + Point(dim[0], 0., 0., 0.));
-  pointsDataCoords.push_back(minPoint + Point(dim[0], dim[1], 0., 0.));
-  pointsDataCoords.push_back(minPoint + Point(0., dim[1], 0., 0.));
-  pointsDataCoords.push_back(minPoint + Point(0., 0., dim[2], 0.));
-  pointsDataCoords.push_back(minPoint + Point(dim[0], 0., dim[2], 0.));
-  pointsDataCoords.push_back(Point(bounds[1], bounds[3], bounds[5], 0.));
-  pointsDataCoords.push_back(minPoint + Point(0., dim[1], dim[2], 0.));
+  pointsDataCoords.emplace_back(minPoint + Point(dim[0], 0., 0., 0.));
+  pointsDataCoords.emplace_back(minPoint + Point(dim[0], dim[1], 0., 0.));
+  pointsDataCoords.emplace_back(minPoint + Point(0., dim[1], 0., 0.));
+  pointsDataCoords.emplace_back(minPoint + Point(0., 0., dim[2], 0.));
+  pointsDataCoords.emplace_back(minPoint + Point(dim[0], 0., dim[2], 0.));
+  pointsDataCoords.emplace_back(bounds[1], bounds[3], bounds[5], 0.);
+  pointsDataCoords.emplace_back(minPoint + Point(0., dim[1], dim[2], 0.));
 
   // Transform all points from data to world coordinates
   vtkBoundingBox bBoxWorld;
@@ -342,3 +331,4 @@ vtkVolumeProperty* vtkMultiVolume::GetProperty()
 
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

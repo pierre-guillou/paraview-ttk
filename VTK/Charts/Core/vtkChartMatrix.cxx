@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartMatrix.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChartMatrix.h"
 
@@ -29,6 +17,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChartMatrix::PIMPL
 {
 public:
@@ -500,7 +489,7 @@ vtkVector2i vtkChartMatrix::GetChartIndex(const vtkVector2f& position)
     const vtkRectf& rect = this->ComputeCurrentElementSceneRect(index, offset, increment);
     vtkBoundingBox bbox(rect.GetLeft(), rect.GetRight(), rect.GetBottom(), rect.GetTop(),
       VTK_DOUBLE_MIN, VTK_DOUBLE_MAX);
-    if (bbox.ContainsPoint(position))
+    if (bbox.ContainsPoint(position.GetX(), position.GetY(), 0.0))
     {
       return this->Private->Index;
     }
@@ -852,3 +841,4 @@ void vtkChartMatrix::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

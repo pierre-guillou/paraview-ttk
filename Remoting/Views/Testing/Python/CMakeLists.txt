@@ -29,6 +29,7 @@ set(PY_TESTS
   LockScalarRangeBackwardsCompatibility.py,NO_VALID
   SpreadSheetViewBlockNames.py,NO_VALID
   SpreadSheetViewPartialArrays.py,NO_VALID
+  SpreadSheetViewSortByList.py,NO_VALID
   TransferFunctionPresets.py,NO_VALID
   TestSurfaceLIC.py,NO_VALID
   RenderViewOSPRayParameters.py,NO_VALID
@@ -80,3 +81,8 @@ paraview_add_test_python(
   JUST_VALID
   ${PY_TESTS}
   )
+
+paraview_add_test_python(
+  NO_RT
+  PolarAxesAutoPoleOffTranslation.py
+)

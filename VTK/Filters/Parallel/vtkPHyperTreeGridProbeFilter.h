@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPHyperTreeGridProbeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPHyperTreeGridProbeFilter
  * @brief   probe a vtkHyperTreeGrid in parallel
@@ -34,6 +22,7 @@
 #include "vtkHyperTreeGridProbeFilter.h"
 #include "vtkSmartPointer.h" //For Locator member
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 class vtkIdList;
 class vtkDataSet;
@@ -77,7 +66,7 @@ protected:
   /**
    * Helper method for reducing the distributed data to the master process
    */
-  bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds);
+  bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds) override;
   ///@}
 
   enum
@@ -93,4 +82,5 @@ private:
 
 }; // vtkPHyperTreeGridProbeFilter
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPHyperTreeGridProbeFilter_h

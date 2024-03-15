@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonProgrammableFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPythonProgrammableFilter.h"
 
 #include "vtkCommand.h"
@@ -21,7 +10,6 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
-#include "vtkPVOptions.h"
 #include "vtkProcessModule.h"
 #include "vtkPythonInterpreter.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
@@ -393,7 +381,7 @@ void vtkPythonProgrammableFilter::Exec(const char* script, const char* funcname)
 
   // Set self to point to this
   char addrofthis[1024];
-  sprintf(addrofthis, "%p", this);
+  snprintf(addrofthis, sizeof(addrofthis), "%p", this);
   char* aplusthis = addrofthis;
   if ((addrofthis[0] == '0') && ((addrofthis[1] == 'x') || addrofthis[1] == 'X'))
   {
@@ -412,7 +400,7 @@ void vtkPythonProgrammableFilter::Exec(const char* script, const char* funcname)
   {
     // Set pointer to request
     char addrofrequest[1024];
-    sprintf(addrofrequest, "%p", this->Request);
+    snprintf(addrofrequest, sizeof(addrofrequest), "%p", this->Request);
     char* aplusrequest = addrofrequest;
     if ((addrofrequest[0] == '0') && ((addrofrequest[1] == 'x') || addrofrequest[1] == 'X'))
     {

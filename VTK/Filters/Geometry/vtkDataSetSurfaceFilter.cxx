@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetSurfaceFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataSetSurfaceFilter.h"
 
@@ -21,7 +9,6 @@
 #include "vtkCell.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
-#include "vtkCellIterator.h"
 #include "vtkCellTypes.h"
 #include "vtkDoubleArray.h"
 #include "vtkGenericCell.h"
@@ -59,26 +46,22 @@
 
 #include <algorithm>
 #include <cassert>
-#include <memory>
 #include <numeric>
 #include <unordered_map>
 
 namespace
 {
+constexpr int FSize = sizeof(vtkFastGeomQuad);
+constexpr int SizeId = sizeof(vtkIdType);
+constexpr int PointerSize = sizeof(void*);
+constexpr bool Is64BitsSystem = PointerSize == 8;
+constexpr bool IsId64Bits = SizeId == 8;
+constexpr bool EasyToComputeSize = !Is64BitsSystem || IsId64Bits;
+constexpr int FSizeDivSizeId = FSize / SizeId;
 inline int sizeofFastQuad(int numPts)
 {
-  const int qsize = sizeof(vtkFastGeomQuad);
-  const int sizeId = sizeof(vtkIdType);
-  // If necessary, we create padding after vtkFastGeomQuad such that
-  // the beginning of ids aligns evenly with sizeof(vtkIdType).
-  if (qsize % sizeId == 0)
-  {
-    return static_cast<int>(qsize + numPts * sizeId);
-  }
-  else
-  {
-    return static_cast<int>((qsize / sizeId + 1 + numPts) * sizeId);
-  }
+  return FSize +
+    (EasyToComputeSize ? numPts * SizeId : (numPts + (numPts & 1 /*fast %2*/)) * SizeId);
 }
 
 /**
@@ -297,6 +280,7 @@ bool StructuredExecuteWithBlanking(
 
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSetSurfaceFilter::vtkEdgeInterpolationMap
 {
 public:
@@ -308,6 +292,10 @@ public:
   }
   vtkIdType FindEdge(vtkIdType endpoint1, vtkIdType endpoint2)
   {
+    if (endpoint1 == endpoint2)
+    {
+      return endpoint1;
+    }
     if (endpoint1 > endpoint2)
       std::swap(endpoint1, endpoint2);
     MapType::iterator iter = Map.find(std::make_pair(endpoint1, endpoint2));
@@ -320,6 +308,8 @@ public:
       return -1;
     }
   }
+
+  void clear() { Map.clear(); }
 
 protected:
   struct HashFunction
@@ -362,6 +352,7 @@ vtkDataSetSurfaceFilter::vtkDataSetSurfaceFilter()
   this->OriginalPointIdsName = nullptr;
 
   this->NonlinearSubdivisionLevel = 1;
+  this->MatchBoundariesIgnoringCellOrder = 0;
 
   this->Delegation = false;
 }
@@ -457,6 +448,10 @@ int vtkDataSetSurfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
         this->OriginalCellIds->SetNumberOfValues(numTup);
         for (vtkIdType cId = 0; cId < numTup; cId++)
         {
+          if (this->CheckAbort())
+          {
+            break;
+          }
           this->OriginalCellIds->SetValue(cId, cId);
         }
         this->OriginalCellIds->Delete();
@@ -474,6 +469,10 @@ int vtkDataSetSurfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
         this->OriginalPointIds->SetNumberOfValues(numTup);
         for (vtkIdType cId = 0; cId < numTup; cId++)
         {
+          if (this->CheckAbort())
+          {
+            break;
+          }
           this->OriginalPointIds->SetValue(cId, cId);
         }
         this->OriginalPointIds->Delete();
@@ -666,6 +665,7 @@ int vtkDataSetSurfaceFilter::StructuredExecuteNoBlanking(
         vtkNew<vtkRectilinearGridGeometryFilter> filter;
         filter->SetInputData(input);
         filter->SetExtent(ext[0], ext[1], ext[2], ext[3], ext[4], ext[5]);
+        filter->SetContainerAlgorithm(this);
         filter->Update();
         output->ShallowCopy(filter->GetOutput());
         return 1;
@@ -675,6 +675,7 @@ int vtkDataSetSurfaceFilter::StructuredExecuteNoBlanking(
         vtkNew<vtkStructuredGridGeometryFilter> filter;
         filter->SetInputData(input);
         filter->SetExtent(ext[0], ext[1], ext[2], ext[3], ext[4], ext[5]);
+        filter->SetContainerAlgorithm(this);
         filter->Update();
         output->ShallowCopy(filter->GetOutput());
         return 1;
@@ -816,6 +817,8 @@ int vtkDataSetSurfaceFilter::StructuredExecuteNoBlanking(
 
   this->PassThroughCellIds = originalPassThroughCellIds;
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -848,7 +851,7 @@ void vtkDataSetSurfaceFilter::ExecuteFaceQuads(vtkDataSet* input, vtkPolyData* o
   pInc[0] = 1;
   pInc[1] = (ext[1] - ext[0] + 1);
   pInc[2] = (ext[3] - ext[2] + 1) * pInc[1];
-  // quad increments (cell incraments, but cInc could be confused with c axis).
+  // quad increments (cell increments, but cInc could be confused with c axis).
   qInc[0] = 1;
   qInc[1] = ext[1] - ext[0];
   // The conditions are for when we have one or more degenerate axes (2d or 1d cells).
@@ -975,7 +978,7 @@ void vtkDataSetSurfaceFilter::ExecuteFaceQuads(vtkDataSet* input, vtkPolyData* o
   pInc[0] = 1;
   pInc[1] = (ext[1] - ext[0] + 1);
   pInc[2] = (ext[3] - ext[2] + 1) * pInc[1];
-  // quad increments (cell incraments, but cInc could be confused with c axis).
+  // quad increments (cell increments, but cInc could be confused with c axis).
   qInc[0] = 1;
   qInc[1] = ext[1] - ext[0];
   // The conditions are for when we have one or more degenerate axes (2d or 1d cells).
@@ -1127,7 +1130,7 @@ int vtkDataSetSurfaceFilter::DataSetExecute(vtkDataSet* input, vtkPolyData* outp
 
   // Traverse cells to extract geometry
   //
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numCells / 20 + 1;
 
   for (cellId = 0; cellId < numCells && !abort; cellId++)
@@ -1137,7 +1140,7 @@ int vtkDataSetSurfaceFilter::DataSetExecute(vtkDataSet* input, vtkPolyData* outp
     {
       vtkDebugMacro(<< "Process cell #" << cellId);
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
     vtkCell* cell = input->GetCell(cellId);
     switch (cell->GetCellDimension())
@@ -1283,6 +1286,8 @@ void vtkDataSetSurfaceFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "OriginalCellIdsName: " << this->GetOriginalCellIdsName() << endl;
   os << indent << "OriginalPointIdsName: " << this->GetOriginalPointIdsName() << endl;
   os << indent << "NonlinearSubdivisionLevel: " << this->GetNonlinearSubdivisionLevel() << endl;
+  os << indent
+     << "MatchBoundariesIgnoringCellOrder: " << this->GetMatchBoundariesIgnoringCellOrder() << endl;
   os << indent << "FastMode: " << this->GetFastMode() << endl;
   os << indent << "Delegation: " << this->GetDelegation() << endl;
 }
@@ -1340,10 +1345,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecute(
   }
 
   // If here, the data is gnarly and this filter will process it.
-  vtkSmartPointer<vtkCellIterator> cellIter =
-    vtkSmartPointer<vtkCellIterator>::Take(input->NewCellIterator());
-
-  return this->UnstructuredGridExecuteInternal(input, output, handleSubdivision, cellIter);
+  return this->UnstructuredGridExecuteInternal(input, output, handleSubdivision);
 }
 
 //------------------------------------------------------------------------------
@@ -1352,9 +1354,6 @@ int vtkDataSetSurfaceFilter::UnstructuredGridBaseExecute(
   vtkDataSet* dataSetInput, vtkPolyData* output)
 {
   vtkUnstructuredGridBase* input = vtkUnstructuredGridBase::SafeDownCast(dataSetInput);
-
-  vtkSmartPointer<vtkCellIterator> cellIter =
-    vtkSmartPointer<vtkCellIterator>::Take(input->NewCellIterator());
 
   // Before we start doing anything interesting, check if we need handle
   // non-linear cells using sub-division.
@@ -1373,9 +1372,9 @@ int vtkDataSetSurfaceFilter::UnstructuredGridBaseExecute(
     }
     else
     {
-      for (cellIter->InitTraversal(); !cellIter->IsDoneWithTraversal(); cellIter->GoToNextCell())
+      for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
       {
-        if (!vtkCellTypes::IsLinear(cellIter->GetCellType()))
+        if (!vtkCellTypes::IsLinear(input->GetCellType(cellId)))
         {
           handleSubdivision = true;
           break;
@@ -1384,14 +1383,14 @@ int vtkDataSetSurfaceFilter::UnstructuredGridBaseExecute(
     }
   }
 
-  return this->UnstructuredGridExecuteInternal(input, output, handleSubdivision, cellIter);
+  return this->UnstructuredGridExecuteInternal(input, output, handleSubdivision);
 }
 
 //========================================================================
 // Tris are now degenerate quads so we only need one hash table.
 // We might want to change the method names from QuadHash to just Hash.
-int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGridBase* input,
-  vtkPolyData* output, bool handleSubdivision, vtkSmartPointer<vtkCellIterator> cellIter)
+int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
+  vtkUnstructuredGridBase* input, vtkPolyData* output, bool handleSubdivision)
 {
   vtkSmartPointer<vtkUnstructuredGrid> tempInput;
   if (handleSubdivision)
@@ -1406,8 +1405,10 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     uggf->SetPassThroughCellIds(this->PassThroughCellIds);
     uggf->SetOriginalCellIdsName(this->GetOriginalCellIdsName());
     uggf->SetPassThroughPointIds(this->PassThroughPointIds);
+    uggf->SetMatchBoundariesIgnoringCellOrder(this->MatchBoundariesIgnoringCellOrder);
     uggf->SetOriginalPointIdsName(this->GetOriginalPointIdsName());
     uggf->DuplicateGhostCellClippingOff();
+    uggf->SetContainerAlgorithm(this);
     // Disable point merging as it may prevent the correct visualization
     // of non-continuous attributes.
     uggf->MergingOff();
@@ -1416,7 +1417,11 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     tempInput = vtkSmartPointer<vtkUnstructuredGrid>::New();
     tempInput->ShallowCopy(uggf->GetOutputDataObject(0));
     input = tempInput;
-    cellIter = vtkSmartPointer<vtkCellIterator>::Take(input->NewCellIterator());
+
+    if (this->CheckAbort())
+    {
+      return 1;
+    }
   }
 
   vtkUnsignedCharArray* ghosts = input->GetPointGhostArray();
@@ -1425,18 +1430,16 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
   vtkCellArray* newLines;
   vtkCellArray* newPolys;
   vtkPoints* newPts;
-  vtkIdType* ids;
   int progressCount;
-  int i, j;
+  vtkIdType i, j, k;
   int cellType;
   vtkIdType numPts = input->GetNumberOfPoints();
   vtkIdType numCells = input->GetNumberOfCells();
   vtkGenericCell* cell;
-  vtkIdList* pointIdList;
-  vtkIdType* pointIdArray;
-  vtkIdType* pointIdArrayEnd;
-  int numFacePts, numCellPts;
-  vtkIdType inPtId, outPtId;
+  vtkNew<vtkIdList> pointIdList;
+  const vtkIdType* ids;
+  vtkIdType numFacePts;
+  vtkIdType inPtId, outPtId, numCellPts;
   vtkPointData* inputPD = input->GetPointData();
   vtkCellData* inputCD = input->GetCellData();
   vtkFieldData* inputFD = input->GetFieldData();
@@ -1451,25 +1454,18 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
 
   // These are for the default case/
   vtkIdList* pts;
-  vtkPoints* coords;
   vtkCell* face;
   int flag2D = 0;
 
   // These are for subdividing quadratic cells
-  vtkDoubleArray* parametricCoords;
-  vtkDoubleArray* parametricCoords2;
+  std::vector<double> parametricCoords;
+  std::unique_ptr<vtkEdgeInterpolationMap> localEdgeMap(new vtkEdgeInterpolationMap());
   vtkIdList* outPts;
-  vtkIdList* outPts2;
+  vtkIdList* pts2;
 
   pts = vtkIdList::New();
-  coords = vtkPoints::New();
-  parametricCoords = vtkDoubleArray::New();
-  parametricCoords2 = vtkDoubleArray::New();
   outPts = vtkIdList::New();
-  outPts2 = vtkIdList::New();
-  // might not be necessary to set the data type for coords
-  // but certainly safer to do so
-  coords->SetDataType(input->GetPoints()->GetData()->GetDataType());
+  pts2 = vtkIdList::New();
   cell = vtkGenericCell::New();
   std::vector<double> weights;
 
@@ -1512,24 +1508,20 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
   }
 
   // First insert all points.  Points have to come first in poly data.
-  for (cellIter->InitTraversal(); !cellIter->IsDoneWithTraversal(); cellIter->GoToNextCell())
+  for (vtkIdType cellId = 0; cellId < numCells; cellId++)
   {
-    cellType = cellIter->GetCellType();
+    cellType = input->GetCellType(cellId);
 
     // A couple of common cases to see if things go faster.
     if (cellType == VTK_VERTEX || cellType == VTK_POLY_VERTEX)
     {
-      pointIdList = cellIter->GetPointIds();
-      numCellPts = pointIdList->GetNumberOfIds();
-      pointIdArray = pointIdList->GetPointer(0);
-      pointIdArrayEnd = pointIdArray + numCellPts;
+      input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
       newVerts->InsertNextCell(numCellPts);
-      while (pointIdArray != pointIdArrayEnd)
+      for (i = 0; i < numCellPts; i++)
       {
-        outPtId = this->GetOutputPointId(*(pointIdArray++), input, newPts, outputPD);
+        outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
         newVerts->InsertCellPoint(outPtId);
       }
-      vtkIdType cellId = cellIter->GetCellId();
       this->RecordOrigCellId(this->NumberOfNewCells, cellId);
       outputCD->CopyData(cd, cellId, this->NumberOfNewCells++);
     }
@@ -1538,16 +1530,13 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
   // Traverse cells to extract geometry
   //
   progressCount = 0;
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numCells / 20 + 1;
 
   // First insert all points lines in output and 3D geometry in hash.
   // Save 2D geometry for second pass.
-  for (cellIter->InitTraversal(); !cellIter->IsDoneWithTraversal() && !abort;
-       cellIter->GoToNextCell())
+  for (vtkIdType cellId = 0; cellId < numCells && !abort; cellId++)
   {
-    vtkIdType cellId = cellIter->GetCellId();
-
     // We skip cells marked as hidden
     if (ghostCells &&
       (ghostCells->GetValue(cellId) & vtkDataSetAttributes::CellGhostTypes::HIDDENCELL))
@@ -1560,12 +1549,12 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     {
       vtkDebugMacro(<< "Process cell #" << cellId);
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
       progressCount = 0;
     }
     progressCount++;
 
-    cellType = cellIter->GetCellType();
+    cellType = input->GetCellType(cellId);
 
     switch (cellType)
     {
@@ -1577,15 +1566,11 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
 
       case VTK_LINE:
       case VTK_POLY_LINE:
-        pointIdList = cellIter->GetPointIds();
-        numCellPts = pointIdList->GetNumberOfIds();
-        pointIdArray = pointIdList->GetPointer(0);
-        pointIdArrayEnd = pointIdArray + numCellPts;
-
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         newLines->InsertNextCell(numCellPts);
-        while (pointIdArray != pointIdArrayEnd)
+        for (i = 0; i < numCellPts; i++)
         {
-          outPtId = this->GetOutputPointId(*(pointIdArray++), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
 
@@ -1596,18 +1581,15 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
       case VTK_QUADRATIC_EDGE:
       case VTK_CUBIC_LINE:
       {
-        pointIdList = cellIter->GetPointIds();
-        numCellPts = pointIdList->GetNumberOfIds();
-        pointIdArray = pointIdList->GetPointer(0);
-        pointIdArrayEnd = pointIdArray + numCellPts;
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
 
         if (this->NonlinearSubdivisionLevel == 0)
         {
           // Straight line for NonlinearSubdivisionLevel = 0
           newLines->InsertNextCell(2);
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(0), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(1), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
         else
@@ -1615,21 +1597,20 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
           int numDeltaPtsAfterSubdivision = std::pow(2, this->NonlinearSubdivisionLevel - 1);
           int numCellPtsAfterSubdivision = numDeltaPtsAfterSubdivision * (numCellPts - 1) + 1;
           newLines->InsertNextCell(numCellPtsAfterSubdivision);
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(0), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
-          pointIdArray += 2;
           if (this->NonlinearSubdivisionLevel == 1)
           {
-            while (pointIdArray != pointIdArrayEnd)
+            for (i = 2; i < numCellPts; i++)
             {
-              outPtId = this->GetOutputPointId(*(pointIdArray++), input, newPts, outputPD);
+              outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
               newLines->InsertCellPoint(outPtId);
             }
           }
           else
           {
             double paramCoordDelta = 1. / (numCellPtsAfterSubdivision - 1);
-            cellIter->GetCell(cell);
+            input->GetCell(cellId, cell);
             weights.resize(cell->GetNumberOfPoints());
             double inParamCoords[3];
             inParamCoords[1] = inParamCoords[2] = 0.;
@@ -1644,12 +1625,12 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
               }
               if (i < numCellPts - 2)
               {
-                outPtId = this->GetOutputPointId(*(pointIdArray++), input, newPts, outputPD);
+                outPtId = this->GetOutputPointId(ids[i + 2], input, newPts, outputPD);
                 newLines->InsertCellPoint(outPtId);
               }
             }
           }
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(1), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
         this->RecordOrigCellId(this->NumberOfNewCells, cellId);
@@ -1658,20 +1639,19 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
       }
       case VTK_BEZIER_CURVE:
       {
-        pointIdList = cellIter->GetPointIds();
-        numCellPts = pointIdList->GetNumberOfIds();
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         if (this->NonlinearSubdivisionLevel == 0)
         {
           // Straight line for NonlinearSubdivisionLevel = 0
           newLines->InsertNextCell(2);
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(0), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
-          outPtId = this->GetOutputPointId(*pointIdList->GetPointer(1), input, newPts, outputPD);
+          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
         else
         {
-          cellIter->GetCell(cell);
+          input->GetCell(cellId, cell);
           input->SetCellOrderAndRationalWeights(cellId, cell);
           weights.resize(cell->GetNumberOfPoints());
           int numCellPtsAfterSubdivision =
@@ -1693,8 +1673,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
       }
       case VTK_HEXAHEDRON:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[0], ids[1], ids[5], ids[4], cellId);
         this->InsertQuadInHash(ids[0], ids[3], ids[2], ids[1], cellId);
         this->InsertQuadInHash(ids[0], ids[4], ids[7], ids[3], cellId);
@@ -1704,8 +1683,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_VOXEL:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[0], ids[1], ids[5], ids[4], cellId);
         this->InsertQuadInHash(ids[0], ids[2], ids[3], ids[1], cellId);
         this->InsertQuadInHash(ids[0], ids[4], ids[6], ids[2], cellId);
@@ -1715,8 +1693,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_TETRA:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertTriInHash(ids[0], ids[1], ids[3], cellId, 2);
         this->InsertTriInHash(ids[0], ids[2], ids[1], cellId, 3);
         this->InsertTriInHash(ids[0], ids[3], ids[2], cellId, 1);
@@ -1724,8 +1701,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_PENTAGONAL_PRISM:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[0], ids[1], ids[6], ids[5], cellId);
         this->InsertQuadInHash(ids[1], ids[2], ids[7], ids[6], cellId);
         this->InsertQuadInHash(ids[2], ids[3], ids[8], ids[7], cellId);
@@ -1736,8 +1712,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_HEXAGONAL_PRISM:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[0], ids[1], ids[7], ids[6], cellId);
         this->InsertQuadInHash(ids[1], ids[2], ids[8], ids[7], cellId);
         this->InsertQuadInHash(ids[2], ids[3], ids[9], ids[8], cellId);
@@ -1749,8 +1724,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_PYRAMID:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[3], ids[2], ids[1], ids[0], cellId);
         this->InsertTriInHash(ids[0], ids[1], ids[4], cellId);
         this->InsertTriInHash(ids[1], ids[2], ids[4], cellId);
@@ -1759,8 +1733,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         break;
 
       case VTK_WEDGE:
-        pointIdList = cellIter->GetPointIds();
-        ids = pointIdList->GetPointer(0);
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
         this->InsertQuadInHash(ids[0], ids[2], ids[5], ids[3], cellId);
         this->InsertQuadInHash(ids[1], ids[0], ids[3], ids[4], cellId);
         this->InsertQuadInHash(ids[2], ids[1], ids[4], ids[5], cellId);
@@ -1791,7 +1764,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
       {
         // Default way of getting faces. Differentiates between linear
         // and higher order cells.
-        cellIter->GetCell(cell);
+        input->GetCell(cellId, cell);
         if (cell->IsLinear())
         {
           if (cell->GetCellDimension() == 3)
@@ -1828,7 +1801,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
           input->SetCellOrderAndRationalWeights(cellId, cell);
           if (cell->GetCellDimension() == 1)
           {
-            cell->Triangulate(0, pts, coords);
+            cell->TriangulateIds(0, pts);
             for (i = 0; i < pts->GetNumberOfIds(); i += 2)
             {
               newLines->InsertNextCell(2);
@@ -1860,7 +1833,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
                 if (this->NonlinearSubdivisionLevel >= 1)
                 {
                   // TODO: Handle NonlinearSubdivisionLevel > 1 correctly.
-                  face->Triangulate(0, pts, coords);
+                  face->TriangulateIds(0, pts);
                   for (i = 0; i < pts->GetNumberOfIds(); i += 3)
                   {
                     this->InsertTriInHash(
@@ -1905,11 +1878,8 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
 
   // Now insert 2DCells.  Because of poly datas (cell data) ordering,
   // the 2D cells have to come after points and lines.
-  for (cellIter->InitTraversal(); !cellIter->IsDoneWithTraversal() && !abort && flag2D;
-       cellIter->GoToNextCell())
+  for (vtkIdType cellId = 0; cellId < numCells && !abort && flag2D; ++cellId)
   {
-    vtkIdType cellId = cellIter->GetCellId();
-
     // We skip cells marked as hidden
     if (ghostCells &&
       (ghostCells->GetValue(cellId) & vtkDataSetAttributes::CellGhostTypes::HIDDENCELL))
@@ -1917,8 +1887,8 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
       continue;
     }
 
-    cellType = cellIter->GetCellType();
-    numCellPts = cellIter->GetNumberOfPoints();
+    cellType = input->GetCellType(cellId);
+    input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
 
     // If we have a quadratic face and our subdivision level is zero, just treat
     // it as a linear cell.  This should work so long as the first points of the
@@ -1939,7 +1909,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
         case VTK_QUADRATIC_LINEAR_QUAD:
         case VTK_LAGRANGE_QUADRILATERAL:
         case VTK_BEZIER_QUADRILATERAL:
-          cellType = VTK_POLYGON;
+          cellType = VTK_QUAD;
           numCellPts = 4;
           break;
       }
@@ -1948,8 +1918,6 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     // A couple of common cases to see if things go faster.
     if (cellType == VTK_PIXEL)
     { // Do we really want to insert the 2D cells into a hash?
-      pointIdList = cellIter->GetPointIds();
-      ids = pointIdList->GetPointer(0);
       pts->Reset();
       pts->InsertId(0, this->GetOutputPointId(ids[0], input, newPts, outputPD));
       pts->InsertId(1, this->GetOutputPointId(ids[1], input, newPts, outputPD));
@@ -1961,13 +1929,10 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     }
     else if (cellType == VTK_POLYGON || cellType == VTK_TRIANGLE || cellType == VTK_QUAD)
     {
-      pointIdList = cellIter->GetPointIds();
-      ids = pointIdList->GetPointer(0);
       pts->Reset();
       for (i = 0; i < numCellPts; i++)
       {
-        inPtId = ids[i];
-        outPtId = this->GetOutputPointId(inPtId, input, newPts, outputPD);
+        outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
         pts->InsertId(i, outPtId);
       }
       newPolys->InsertNextCell(pts);
@@ -1976,8 +1941,6 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
     }
     else if (cellType == VTK_TRIANGLE_STRIP)
     {
-      pointIdList = cellIter->GetPointIds();
-      ids = pointIdList->GetPointer(0);
       // Change strips to triangles so we do not have to worry about order.
       int toggle = 0;
       vtkIdType ptIds[3];
@@ -2008,13 +1971,11 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
       // Removed checking for whether all points are ghost, because that's an
       // incorrect assumption.
       bool oneHidden = false;
-      pointIdList = cellIter->GetPointIds();
-      vtkIdType nIds = pointIdList->GetNumberOfIds();
       if (ghosts)
       {
-        for (i = 0; i < nIds; i++)
+        for (i = 0; i < numCellPts; i++)
         {
-          unsigned char val = ghosts->GetValue(pointIdList->GetId(i));
+          unsigned char val = ghosts->GetValue(ids[i]);
           if (val & vtkDataSetAttributes::HIDDENPOINT)
           {
             oneHidden = true;
@@ -2029,133 +1990,185 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
 
       // Note: we should not be here if this->NonlinearSubdivisionLevel is less
       // than 1.  See the check above.
-      cellIter->GetCell(cell);
+      input->GetCell(cellId, cell);
+      double* pc = cell->GetParametricCoords();
 
       // If the cell is of Bezier type, the weights might be rational and the degree nonuniform.
       // This need to be initiated.
-
       input->SetCellOrderAndRationalWeights(cellId, cell);
 
-      cell->Triangulate(0, pts, coords);
+      // Get the triangulation of the first subdivision level.
+      // Note that the output of TriangulateLocalIds records triangles in pts where each 3 points
+      // defines a triangle. The returned ids are local ids with respect to the cell.
+      cell->TriangulateLocalIds(0, pts);
+      assert(pts->GetNumberOfIds() % 3 == 0);
 
-      // Copy the level 1 subdivision points (which also exist in the input and
-      // can therefore just be copied over.  Note that the output of Triangulate
-      // records triangles in pts where each 3 points defines a triangle.  We
-      // will keep this invariant and also keep the same invariant in
-      // parametericCoords and outPts later.
-      // Note that coords is actually not used by default, but only the pts ids are used.
-      // This is problem for Bezier cells, because the interior points are non-interpolartory,
-      // and so, cannot be used as trangulation point.
-      // For this reason, the output from Triangulate is overload in the case of Bezier cell,
-      // to get the projection of the non-interpolate points
-
+      // Start to fill outPts with the cell points
+      numFacePts = cell->GetNumberOfPoints();
       outPts->Reset();
-      weights.resize(cell->GetNumberOfPoints());
+      weights.resize(numFacePts);
       switch (cellType)
       {
         case VTK_BEZIER_QUADRILATERAL:
         case VTK_BEZIER_TRIANGLE:
         {
-          for (i = 0; i < pts->GetNumberOfIds(); i++)
+          // For Bezier cells, the points are overload to get the projection of the non-interpolate
+          // points.
+          for (i = 0; i < numFacePts; i++)
           {
-            vtkIdType op = this->GetOutputPointIdAndInterpolate(
-              pts->GetId(i), input, cell, weights.data(), newPts, outputPD);
-            outPts->InsertNextId(op);
+            outPts->InsertNextId(this->GetOutputPointIdAndInterpolate(
+              i, input, cell, pc, weights.data(), newPts, outputPD));
           }
           break;
         }
         default:
         {
-          for (i = 0; i < pts->GetNumberOfIds(); i++)
+          for (i = 0; i < numFacePts; i++)
           {
-            vtkIdType op = this->GetOutputPointId(pts->GetId(i), input, newPts, outputPD);
-            outPts->InsertNextId(op);
+            outPts->InsertNextId(
+              this->GetOutputPointId(cell->GetPointId(i), input, newPts, outputPD));
           }
           break;
         }
       }
 
+      bool isDegenerateCell = false;
+      auto isDegeneratedSubTriangle = [&](vtkIdType ii) {
+        return outPts->GetId(pts->GetId(ii)) == outPts->GetId(pts->GetId(ii + 1)) ||
+          outPts->GetId(pts->GetId(ii)) == outPts->GetId(pts->GetId(ii + 2)) ||
+          outPts->GetId(pts->GetId(ii + 1)) == outPts->GetId(pts->GetId(ii + 2));
+      };
+
       // Do any further subdivision if necessary.
-      double* pc = cell->GetParametricCoords();
       if (this->NonlinearSubdivisionLevel > 1 && pc)
       {
-        // We are going to need parametric coordinates to further subdivide.
-        parametricCoords->Reset();
-        parametricCoords->SetNumberOfComponents(3);
-        for (i = 0; i < pts->GetNumberOfIds(); i++)
+        for (i = 0; i < pts->GetNumberOfIds(); i += 3)
         {
-          vtkIdType ptId = pts->GetId(i);
-          vtkIdType cellPtId;
-          for (cellPtId = 0; cell->GetPointId(cellPtId) != ptId; cellPtId++)
+          if (isDegeneratedSubTriangle(i))
           {
+            isDegenerateCell = true;
+            break;
           }
-          parametricCoords->InsertNextTypedTuple(pc + 3 * cellPtId);
         }
+
+        vtkIdType maxNumberOfIds =
+          std::pow(4, this->NonlinearSubdivisionLevel - 1) * pts->GetNumberOfIds();
+        pts2->Allocate(maxNumberOfIds);
+        // We are going to need parametric coordinates to further subdivide.
+        parametricCoords.resize(maxNumberOfIds * 3);
+        std::copy(&pc[0], &pc[0] + numFacePts * 3, parametricCoords.begin());
+
+        // localEdgeMap is simular to this->EdgeMap, but only stores local ids
+        localEdgeMap->clear();
+
+        auto isEqualTo1Or0 = [](double a, double e = 1e-10) {
+          return (std::abs(a) <= e) || (std::abs(a - 1) <= e);
+        };
+
+        vtkIdType localIdCpt = numFacePts;
+        vtkIdType pt1, pt2, id;
+        vtkIdType inPts[6];
         // Subdivide these triangles as many more times as necessary.  Remember
         // that we have already done the first subdivision.
         for (j = 1; j < this->NonlinearSubdivisionLevel; j++)
         {
-          parametricCoords2->Reset();
-          parametricCoords2->SetNumberOfComponents(3);
-          outPts2->Reset();
+          pts2->Reset();
+          if (isDegenerateCell)
+          {
+            // For degenerate cells, we can have multiple parametric points linked to the same
+            // output point. But we need to select a single one. The rule is to give priority to
+            // the points that are on the contour of the parametric space. This is necessary for
+            // connecting adjacent cells. The way we give this priority is by calling
+            // this->EdgeMap->FindEgde/AddEdge for those points first. So a first iteration over pts
+            // is performed to add those points. During the second iteration (the one not specific
+            // to degenerate cells), when trying to add a duplicate point, the edge map will return
+            // the output id of the already existing point.
+            double coords[3];
+            for (i = 0; i < pts->GetNumberOfIds(); i += 3)
+            {
+              for (k = 0; k < 3; k++)
+              {
+                pt1 = pts->GetId(i + k);
+                pt2 = pts->GetId(i + ((k < 2) ? (k + 1) : 0));
+                {
+                  coords[0] = 0.5 * (parametricCoords[pt1 * 3] + parametricCoords[pt2 * 3]);
+                  coords[1] = 0.5 * (parametricCoords[pt1 * 3 + 1] + parametricCoords[pt2 * 3 + 1]);
+                  coords[2] = 0.5 * (parametricCoords[pt1 * 3 + 2] + parametricCoords[pt2 * 3 + 2]);
+                  if (isEqualTo1Or0(coords[0]) || isEqualTo1Or0(coords[1]))
+                  {
+                    this->GetInterpolatedPointId(outPts->GetId(pt1), outPts->GetId(pt2), input,
+                      cell, coords, weights.data(), newPts, outputPD);
+                  }
+                }
+              }
+            }
+          }
+
           // Each triangle will be split into 4 triangles.
-          for (i = 0; i < outPts->GetNumberOfIds(); i += 3)
+          for (i = 0; i < pts->GetNumberOfIds(); i += 3)
           {
             // Hold the input point ids and parametric coordinates.  First 3
             // indices are the original points.  Second three are the midpoints
             // in the edges (0,1), (1,2) and (2,0), respectively (see comment
             // below).
-            vtkIdType inPts[6];
-            double inParamCoords[6][3];
-            int k;
             for (k = 0; k < 3; k++)
             {
-              inPts[k] = outPts->GetId(i + k);
-              parametricCoords->GetTypedTuple(i + k, inParamCoords[k]);
-            }
-            for (k = 3; k < 6; k++)
-            {
-              int pt1 = k - 3;
-              int pt2 = (pt1 < 2) ? (pt1 + 1) : 0;
-              inParamCoords[k][0] = 0.5 * (inParamCoords[pt1][0] + inParamCoords[pt2][0]);
-              inParamCoords[k][1] = 0.5 * (inParamCoords[pt1][1] + inParamCoords[pt2][1]);
-              inParamCoords[k][2] = 0.5 * (inParamCoords[pt1][2] + inParamCoords[pt2][2]);
-              inPts[k] = GetInterpolatedPointId(inPts[pt1], inPts[pt2], input, cell,
-                inParamCoords[k], weights.data(), newPts, outputPD);
+              inPts[k] = pts->GetId(i + k);
+              pt1 = inPts[k];
+              pt2 = pts->GetId(i + ((k < 2) ? (k + 1) : 0));
+              id = localEdgeMap->FindEdge(pt1, pt2);
+              if (id == -1)
+              {
+                id = localIdCpt;
+                parametricCoords[id * 3] =
+                  0.5 * (parametricCoords[pt1 * 3] + parametricCoords[pt2 * 3]);
+                parametricCoords[id * 3 + 1] =
+                  0.5 * (parametricCoords[pt1 * 3 + 1] + parametricCoords[pt2 * 3 + 1]);
+                parametricCoords[id * 3 + 2] =
+                  0.5 * (parametricCoords[pt1 * 3 + 2] + parametricCoords[pt2 * 3 + 2]);
+
+                localEdgeMap->AddEdge(pt1, pt2, id);
+                outPts->InsertNextId(
+                  this->GetInterpolatedPointId(outPts->GetId(pt1), outPts->GetId(pt2), input, cell,
+                    &parametricCoords[id * 3], weights.data(), newPts, outputPD));
+                localIdCpt++;
+              }
+              inPts[k + 3] = id;
             }
             //       * 0
             //      / \        Use the 6 points recorded
-            //     /   \       in inPts and inParamCoords
+            //     /   \       in inPts and paramCoords
             //  3 *-----* 5    to create the 4 triangles
             //   / \   / \     shown here.
             //  /   \ /   \    .
             // *-----*-----*
             // 1     4     2
             static const int subtriangles[12] = { 0, 3, 5, 3, 1, 4, 3, 4, 5, 5, 4, 2 };
-            for (k = 0; k < 12; k++)
+            for (int subId : subtriangles)
             {
-              int localId = subtriangles[k];
-              outPts2->InsertNextId(inPts[localId]);
-              parametricCoords2->InsertNextTypedTuple(inParamCoords[localId]);
+              pts2->InsertNextId(inPts[subId]);
             }
           } // Iterate over triangles
-          // Now that we have recorded the subdivided triangles in outPts2 and
-          // parametricCoords2, swap them with outPts and parametricCoords to
+          // Now that we have recorded the subdivided triangles in pts2 , swap them with pts to
           // make them the current ones.
-          std::swap(outPts, outPts2);
-          std::swap(parametricCoords, parametricCoords2);
+          std::swap(pts, pts2);
         } // Iterate over subdivision levels
-      }   // If further subdivision
-
-      // Now that we have done all the subdivisions and created all of the
-      // points, record the triangles.
-      for (i = 0; i < outPts->GetNumberOfIds(); i += 3)
+      }
+      for (i = 0; i < pts->GetNumberOfIds(); i += 3)
       {
-        newPolys->InsertNextCell(3, outPts->GetPointer(i));
+        if (isDegenerateCell && isDegeneratedSubTriangle(i))
+        {
+          continue; // Do not record the degenerate triangle
+        }
+        newPolys->InsertNextCell(3);
+        newPolys->InsertCellPoint(outPts->GetId(pts->GetId(i)));
+        newPolys->InsertCellPoint(outPts->GetId(pts->GetId(i + 1)));
+        newPolys->InsertCellPoint(outPts->GetId(pts->GetId(i + 2)));
         this->RecordOrigCellId(this->NumberOfNewCells, cellId);
         outputCD->CopyData(cd, cellId, this->NumberOfNewCells++);
       }
     }
+
   } // for all cells.
 
   // Now transfer geometry from hash to output (only triangles and quads).
@@ -2203,12 +2216,9 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(vtkUnstructuredGrid
   // Update ourselves and release memory
   //
   cell->Delete();
-  coords->Delete();
   pts->Delete();
-  parametricCoords->Delete();
-  parametricCoords2->Delete();
   outPts->Delete();
-  outPts2->Delete();
+  pts2->Delete();
 
   output->SetPoints(newPts);
   newPts->Delete();
@@ -2616,19 +2626,7 @@ vtkFastGeomQuad* vtkDataSetSurfaceFilter::NewFastGeomQuad(int numPts)
   vtkFastGeomQuad* q = reinterpret_cast<vtkFastGeomQuad*>(
     this->FastGeomQuadArrays[this->NextArrayIndex] + this->NextQuadIndex);
   q->numPts = numPts;
-
-  const int qsize = sizeof(vtkFastGeomQuad);
-  const int sizeId = sizeof(vtkIdType);
-  // If necessary, we create padding after vtkFastGeomQuad such that
-  // the beginning of ids aligns evenly with sizeof(vtkIdType).
-  if (qsize % sizeId == 0)
-  {
-    q->ptArray = (vtkIdType*)q + qsize / sizeId;
-  }
-  else
-  {
-    q->ptArray = (vtkIdType*)q + qsize / sizeId + 1;
-  }
+  q->ptArray = (vtkIdType*)q + FSizeDivSizeId;
 
   this->NextQuadIndex += polySize;
 
@@ -2701,18 +2699,23 @@ vtkIdType vtkDataSetSurfaceFilter::GetOutputPointId(
 }
 
 //------------------------------------------------------------------------------
-vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType inPtId,
+vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType cellPtId,
   vtkDataSet* input, vtkCell* cell, double* weights, vtkPoints* outPts, vtkPointData* outPD)
 {
+  double* pc = cell->GetParametricCoords();
+  return this->GetOutputPointIdAndInterpolate(cellPtId, input, cell, pc, weights, outPts, outPD);
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType cellPtId,
+  vtkDataSet* input, vtkCell* cell, double* pc, double* weights, vtkPoints* outPts,
+  vtkPointData* outPD)
+{
   vtkIdType outPtId;
+  vtkIdType inPtId = cell->GetPointId(cellPtId);
   outPtId = this->PointMap[inPtId];
   if (outPtId == -1)
   {
-    double* pc = cell->GetParametricCoords();
-    vtkIdType cellPtId;
-    for (cellPtId = 0; cell->GetPointId(cellPtId) != inPtId; cellPtId++)
-    {
-    }
     int subId = -1;
     double wcoords[3];
     cell->EvaluateLocation(subId, pc + 3 * cellPtId, wcoords, weights);
@@ -2726,7 +2729,7 @@ vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType inPt
 
 //------------------------------------------------------------------------------
 vtkIdType vtkDataSetSurfaceFilter::GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB,
-  vtkDataSet* input, vtkCell* cell, double pcoords[3], double* weights, vtkPoints* outPts,
+  vtkDataSet* input, vtkCell* cell, double* pcoords, double* weights, vtkPoints* outPts,
   vtkPointData* outPD)
 {
   vtkIdType outPtId = this->EdgeMap->FindEdge(edgePtA, edgePtB);
@@ -2781,3 +2784,4 @@ void vtkDataSetSurfaceFilter::RecordOrigPointId(vtkIdType destIndex, vtkIdType o
     this->OriginalPointIds->InsertValue(destIndex, originalId);
   }
 }
+VTK_ABI_NAMESPACE_END

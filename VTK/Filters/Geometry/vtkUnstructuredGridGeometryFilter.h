@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridGeometryFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUnstructuredGridGeometryFilter
  * @brief   extract geometry from an unstructured grid
@@ -44,6 +32,7 @@
 #include "vtkFiltersGeometryModule.h" // For export macro
 #include "vtkUnstructuredGridBaseAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIncrementalPointLocator;
 class vtkHashTableOfSurfels; // internal class
 
@@ -167,6 +156,17 @@ public:
 
   ///@{
   /**
+   * When two volumetric cells of different order are connected by their corners (for instance, a
+   * quadratic hexahedron next to a linear hexahedron ), the internal face is rendered and is not
+   * considered as a ghost cell. To remove these faces, switch MatchBoundariesIgnoringCellOrder to 1
+   * (default is 0).
+   */
+  vtkSetMacro(MatchBoundariesIgnoringCellOrder, vtkTypeBool);
+  vtkGetMacro(MatchBoundariesIgnoringCellOrder, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
    * If PassThroughCellIds or PassThroughPointIds is on, then these ivars
    * control the name given to the field in which the ids are written into.  If
    * set to nullptr, then vtkOriginalCellIds or vtkOriginalPointIds (the default)
@@ -224,6 +224,7 @@ protected:
 
   vtkTypeBool PassThroughCellIds;
   vtkTypeBool PassThroughPointIds;
+  int MatchBoundariesIgnoringCellOrder;
   char* OriginalCellIdsName;
   char* OriginalPointIdsName;
 
@@ -237,4 +238,5 @@ private:
   void operator=(const vtkUnstructuredGridGeometryFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

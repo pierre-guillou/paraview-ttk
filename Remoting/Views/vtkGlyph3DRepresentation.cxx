@@ -1,23 +1,11 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGlyph3DRepresentation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGlyph3DRepresentation.h"
 
 #include "vtkAlgorithmOutput.h"
 #include "vtkArrowSource.h"
 #include "vtkCompositeDataDisplayAttributes.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkDataObject.h"
 #include "vtkDataObjectTree.h"
 #include "vtkDataObjectTreeIterator.h"
@@ -120,14 +108,18 @@ vtkGlyph3DRepresentation::~vtkGlyph3DRepresentation()
 void vtkGlyph3DRepresentation::SetupDefaults()
 {
   this->Superclass::SetupDefaults();
+  if (!vtkCompositePolyDataMapper::SafeDownCast(this->Mapper))
+  {
+    return;
+  }
 
-  if (auto compositeAttributes = vtkCompositePolyDataMapper2::SafeDownCast(this->Mapper)
-                                   ->GetCompositeDataDisplayAttributes())
+  if (auto compositeAttributes =
+        vtkCompositePolyDataMapper::SafeDownCast(this->Mapper)->GetCompositeDataDisplayAttributes())
   {
     this->GlyphMapper->SetBlockAttributes(compositeAttributes);
   }
 
-  if (auto compositeAttributes = vtkCompositePolyDataMapper2::SafeDownCast(this->LODMapper)
+  if (auto compositeAttributes = vtkCompositePolyDataMapper::SafeDownCast(this->LODMapper)
                                    ->GetCompositeDataDisplayAttributes())
   {
     this->LODGlyphMapper->SetBlockAttributes(compositeAttributes);

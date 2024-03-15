@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDeserializer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMDeserializer
  * @brief   deserializes proxies from their states.
@@ -47,14 +35,14 @@ public:
    */
   void SetSession(vtkSMSession* session);
 
-  //@{
+  ///@{
   /**
    * Get/Set the proxy manager on which this deserializer is expected to
    * operate.
    */
   vtkSMSessionProxyManager* GetSessionProxyManager();
   void SetSessionProxyManager(vtkSMSessionProxyManager*);
-  //@}
+  ///@}
 
   /**
    * Provides access to the session. This is same as calling

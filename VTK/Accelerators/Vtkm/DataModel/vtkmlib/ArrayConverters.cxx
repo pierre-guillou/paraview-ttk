@@ -1,23 +1,12 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "ArrayConverters.hxx"
 
 #include "vtkmDataArray.h"
-#include "vtkmFilterPolicy.h"
 
+#include "vtkmlib/DataSetUtils.h"
 #include "vtkmlib/PortalTraits.h"
 
 #include <vtkm/cont/ArrayHandle.h>
@@ -32,6 +21,7 @@
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 void ProcessFields(vtkDataSet* input, vtkm::cont::DataSet& dataset, tovtkm::FieldsFlag fields)
 {
   if ((fields & tovtkm::FieldsFlag::Points) != tovtkm::FieldsFlag::None)
@@ -125,18 +115,20 @@ vtkm::cont::Field Convert(vtkDataArray* input, int association)
   }
   return field;
 }
+VTK_ABI_NAMESPACE_END
 } // namespace tovtkm
 
 namespace fromvtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 bool ConvertArrays(const vtkm::cont::DataSet& input, vtkDataSet* output)
 {
   vtkPointData* pd = output->GetPointData();
   vtkCellData* cd = output->GetCellData();
 
-  vtkm::IdComponent numFields = input.GetNumberOfFields();
-  for (vtkm::IdComponent i = 0; i < numFields; ++i)
+  // Do not copy the coordinate systems, this is done in a higher level routine.
+  for (auto i : GetFieldsIndicesWithoutCoords(input))
   {
     const vtkm::cont::Field& f = input.GetField(i);
     vtkDataArray* vfield = Convert(f);
@@ -157,4 +149,5 @@ bool ConvertArrays(const vtkm::cont::DataSet& input, vtkDataSet* output)
   }
   return true;
 }
+VTK_ABI_NAMESPACE_END
 } // namespace fromvtkm

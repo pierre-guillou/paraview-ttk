@@ -1,19 +1,7 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    ObjectFactory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-#ifndef vtkConfigDataModel_h
-#define vtkConfigDataModel_h
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
+#ifndef vtkmConfigDataModel_h
+#define vtkmConfigDataModel_h
 
 /*--------------------------------------------------------------------------*/
 /* Other Configuration Options                                              */
@@ -52,4 +40,4 @@
 #endif
 
 
-#endif // vtkConfigDataModel_h
+#endif // vtkmConfigDataModel_h

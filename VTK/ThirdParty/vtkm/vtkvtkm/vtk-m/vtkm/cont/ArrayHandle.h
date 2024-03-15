@@ -13,7 +13,6 @@
 #include <vtkm/cont/vtkm_cont_export.h>
 
 #include <vtkm/Assert.h>
-#include <vtkm/Deprecated.h>
 #include <vtkm/Flags.h>
 #include <vtkm/Types.h>
 
@@ -187,6 +186,18 @@ struct GetTypeInParentheses<void(T)>
   }                                                                                                \
                                                                                                    \
   VTKM_CONT                                                                                        \
+  explicit classname(const std::vector<vtkm::cont::internal::Buffer>& buffers)                     \
+    : Superclass(buffers)                                                                          \
+  {                                                                                                \
+  }                                                                                                \
+                                                                                                   \
+  VTKM_CONT                                                                                        \
+  explicit classname(std::vector<vtkm::cont::internal::Buffer>&& buffers) noexcept                 \
+    : Superclass(std::move(buffers))                                                               \
+  {                                                                                                \
+  }                                                                                                \
+                                                                                                   \
+  VTKM_CONT                                                                                        \
   Thisclass& operator=(const Thisclass& src)                                                       \
   {                                                                                                \
     this->Superclass::operator=(src);                                                              \
@@ -201,7 +212,10 @@ struct GetTypeInParentheses<void(T)>
   }                                                                                                \
                                                                                                    \
   using ValueType = typename__ Superclass::ValueType;                                              \
-  using StorageTag = typename__ Superclass::StorageTag
+  using StorageTag = typename__ Superclass::StorageTag;                                            \
+  using StorageType = typename__ Superclass::StorageType;                                          \
+  using ReadPortalType = typename__ Superclass::ReadPortalType;                                    \
+  using WritePortalType = typename__ Superclass::WritePortalType
 
 /// \brief Macro to make default methods in ArrayHandle subclasses.
 ///
@@ -260,9 +274,6 @@ VTKM_CONT_EXPORT VTKM_CONT bool ArrayHandleIsOnDevice(
   const std::vector<vtkm::cont::internal::Buffer>& buffers,
   vtkm::cont::DeviceAdapterId device);
 
-VTKM_CONT_EXPORT VTKM_CONT vtkm::cont::DeviceAdapterId ArrayHandleGetDeviceAdapterId(
-  const std::vector<vtkm::cont::internal::Buffer>& buffers);
-
 } // namespace detail
 
 /// \brief Manages an array-worth of data.
@@ -298,23 +309,10 @@ public:
   using ReadPortalType = typename StorageType::ReadPortalType;
   using WritePortalType = typename StorageType::WritePortalType;
 
-  // TODO: Deprecate this
-  template <typename Device>
-  struct VTKM_DEPRECATED(1.6, "Use ReadPortalType and WritePortalType.") ExecutionTypes
-  {
-    using Portal = WritePortalType;
-    using PortalConst = ReadPortalType;
-  };
-
-  using PortalControl VTKM_DEPRECATED(1.6, "Use ArrayHandle::WritePortalType instead.") =
-    WritePortalType;
-  using PortalConstControl VTKM_DEPRECATED(1.6, "Use ArrayHandle::ReadPortalType instead.") =
-    ReadPortalType;
-
   /// Constructs an empty ArrayHandle.
   ///
   VTKM_CONT ArrayHandle()
-    : Buffers(static_cast<std::size_t>(StorageType::GetNumberOfBuffers()))
+    : Buffers(StorageType::CreateBuffers())
   {
   }
 
@@ -346,20 +344,13 @@ public:
   /// Special constructor for subclass specializations that need to set the
   /// initial state array. Used when pulling data from other sources.
   ///
-  VTKM_CONT ArrayHandle(const std::vector<vtkm::cont::internal::Buffer>& buffers)
+  VTKM_CONT explicit ArrayHandle(const std::vector<vtkm::cont::internal::Buffer>& buffers)
     : Buffers(buffers)
   {
-    VTKM_ASSERT(static_cast<vtkm::IdComponent>(this->Buffers.size()) == this->GetNumberOfBuffers());
   }
 
-  VTKM_CONT ArrayHandle(std::vector<vtkm::cont::internal::Buffer>&& buffers) noexcept
+  VTKM_CONT explicit ArrayHandle(std::vector<vtkm::cont::internal::Buffer>&& buffers) noexcept
     : Buffers(std::move(buffers))
-  {
-    VTKM_ASSERT(static_cast<vtkm::IdComponent>(this->Buffers.size()) == this->GetNumberOfBuffers());
-  }
-
-  VTKM_CONT ArrayHandle(const vtkm::cont::internal::Buffer* buffers)
-    : Buffers(buffers, buffers + StorageType::GetNumberOfBuffers())
   {
   }
   ///@}
@@ -420,44 +411,11 @@ public:
     return true; // different valuetype and/or storage
   }
 
-  VTKM_CONT static constexpr vtkm::IdComponent GetNumberOfBuffers()
-  {
-    return StorageType::GetNumberOfBuffers();
-  }
-
   /// Get the storage.
   ///
   VTKM_CONT StorageType GetStorage() const { return StorageType{}; }
 
-  /// Get the array portal of the control array.
-  /// Since worklet invocations are asynchronous and this routine is a synchronization point,
-  /// exceptions maybe thrown for errors from previously executed worklets.
-  ///
-  /// \deprecated Use `WritePortal` instead.
-  ///
-  VTKM_CONT
-  VTKM_DEPRECATED(1.6,
-                  "Use ArrayHandle::WritePortal() instead. "
-                  "Note that the returned portal will lock the array while it is in scope.")
-
-  /// \cond NOPE
-  WritePortalType GetPortalControl() const { return this->WritePortal(); }
-  /// \endcond
-
-  /// Get the array portal of the control array.
-  /// Since worklet invocations are asynchronous and this routine is a synchronization point,
-  /// exceptions maybe thrown for errors from previously executed worklets.
-  ///
-  /// \deprecated Use `ReadPortal` instead.
-  ///
-  VTKM_CONT
-  VTKM_DEPRECATED(1.6,
-                  "Use ArrayHandle::ReadPortal() instead. "
-                  "Note that the returned portal will lock the array while it is in scope.")
-  /// \cond NOPE
-  ReadPortalType GetPortalConstControl() const { return this->ReadPortal(); }
-  /// \endcond
-
+  ///@{
   /// \brief Get an array portal that can be used in the control environment.
   ///
   /// The returned array can be used in the control environment to read values from the array. (It
@@ -471,9 +429,14 @@ public:
   VTKM_CONT ReadPortalType ReadPortal() const
   {
     vtkm::cont::Token token;
+    return this->ReadPortal(token);
+  }
+  VTKM_CONT ReadPortalType ReadPortal(vtkm::cont::Token& token) const
+  {
     return StorageType::CreateReadPortal(
       this->GetBuffers(), vtkm::cont::DeviceAdapterTagUndefined{}, token);
   }
+  ///@}
 
   /// \brief Get an array portal that can be used in the control environment.
   ///
@@ -487,7 +450,10 @@ public:
   VTKM_CONT WritePortalType WritePortal() const
   {
     vtkm::cont::Token token;
-
+    return this->WritePortal(token);
+  }
+  VTKM_CONT WritePortalType WritePortal(vtkm::cont::Token& token) const
+  {
     return StorageType::CreateWritePortal(
       this->GetBuffers(), vtkm::cont::DeviceAdapterTagUndefined{}, token);
   }
@@ -568,12 +534,6 @@ public:
     this->AllocateAndFill(numberOfValues, fillValue, preserve, token);
   }
   ///@}
-
-  VTKM_DEPRECATED(1.6, "Use Allocate(n, vtkm::CopyFlag::On) instead of Shrink(n).")
-  VTKM_CONT void Shrink(vtkm::Id numberOfValues)
-  {
-    this->Allocate(numberOfValues, vtkm::CopyFlag::On);
-  }
 
   /// @{
   /// \brief Fills the array with a given value.
@@ -673,25 +633,6 @@ public:
     return StorageType::CreateWritePortal(this->GetBuffers(), device, token);
   }
 
-  VTKM_CONT VTKM_DEPRECATED(1.6, "PrepareForInput now requires a vtkm::cont::Token object.")
-    ReadPortalType PrepareForInput(vtkm::cont::DeviceAdapterId device) const
-  {
-    vtkm::cont::Token token;
-    return this->PrepareForInput(device, token);
-  }
-  VTKM_CONT VTKM_DEPRECATED(1.6, "PrepareForOutput now requires a vtkm::cont::Token object.")
-    WritePortalType PrepareForOutput(vtkm::Id numberOfValues, vtkm::cont::DeviceAdapterId device)
-  {
-    vtkm::cont::Token token;
-    return this->PrepareForOutput(numberOfValues, device, token);
-  }
-  VTKM_CONT VTKM_DEPRECATED(1.6, "PrepareForInPlace now requires a vtkm::cont::Token object.")
-    WritePortalType PrepareForInPlace(vtkm::cont::DeviceAdapterId device) const
-  {
-    vtkm::cont::Token token;
-    return this->PrepareForInPlace(device, token);
-  }
-
   /// Returns true if the ArrayHandle's data is on the given device. If the data are on the given
   /// device, then preparing for that device should not require any data movement.
   ///
@@ -706,19 +647,6 @@ public:
   VTKM_CONT bool IsOnHost() const
   {
     return this->IsOnDevice(vtkm::cont::DeviceAdapterTagUndefined{});
-  }
-
-  /// Returns a DeviceAdapterId for a device currently allocated on. If there is no device
-  /// with an up-to-date copy of the data, VTKM_DEVICE_ADAPTER_UNDEFINED is
-  /// returned.
-  ///
-  /// Note that in a multithreaded environment the validity of this result can
-  /// change.
-  ///
-  VTKM_CONT
-  VTKM_DEPRECATED(1.7, "Use ArrayHandle::IsOnDevice.") DeviceAdapterId GetDeviceAdapterId() const
-  {
-    return detail::ArrayHandleGetDeviceAdapterId(this->Buffers);
   }
 
   /// Synchronizes the control array with the execution array. If either the
@@ -776,9 +704,15 @@ public:
     }
   }
 
-  /// Returns the internal `Buffer` structures that hold the data.
+  /// \brief Returns the internal `Buffer` structures that hold the data.
   ///
-  VTKM_CONT vtkm::cont::internal::Buffer* GetBuffers() const { return this->Buffers.data(); }
+  /// Note that great care should be taken when modifying buffers outside of the ArrayHandle.
+  ///
+  VTKM_CONT const std::vector<vtkm::cont::internal::Buffer>& GetBuffers() const
+  {
+    return this->Buffers;
+  }
+  VTKM_CONT std::vector<vtkm::cont::internal::Buffer>& GetBuffers() { return this->Buffers; }
 
 private:
   mutable std::vector<vtkm::cont::internal::Buffer> Buffers;
@@ -789,11 +723,13 @@ protected:
     this->Buffers[static_cast<std::size_t>(index)] = buffer;
   }
 
-  // BufferContainer must be an iteratable container of Buffer objects.
-  template <typename BufferContainer>
-  VTKM_CONT void SetBuffers(const BufferContainer& buffers)
+  VTKM_CONT void SetBuffers(const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    std::copy(buffers.begin(), buffers.end(), this->Iterators->Buffers.begin());
+    this->Buffers = buffers;
+  }
+  VTKM_CONT void SetBuffers(std::vector<vtkm::cont::internal::Buffer>&& buffers)
+  {
+    this->Buffers = std::move(buffers);
   }
 };
 
@@ -915,6 +851,25 @@ namespace internal
 namespace detail
 {
 
+VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>&);
+template <typename T, typename S, typename... Args>
+VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                        const vtkm::cont::ArrayHandle<T, S>& array,
+                                        const Args&... args);
+template <typename... Args>
+VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                        const vtkm::cont::internal::Buffer& buffer,
+                                        const Args&... args);
+
+template <typename... Args>
+VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                        const std::vector<vtkm::cont::internal::Buffer>& addbuffs,
+                                        const Args&... args);
+template <typename Arg0, typename... Args>
+VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                        const Arg0& arg0,
+                                        const Args&... args);
+
 VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>&)
 {
   // Nothing left to add.
@@ -925,9 +880,7 @@ VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer
                                         const vtkm::cont::ArrayHandle<T, S>& array,
                                         const Args&... args)
 {
-  vtkm::cont::internal::Buffer* arrayBuffers = array.GetBuffers();
-  buffers.insert(buffers.end(), arrayBuffers, arrayBuffers + array.GetNumberOfBuffers());
-  CreateBuffersImpl(buffers, args...);
+  CreateBuffersImpl(buffers, array.GetBuffers(), args...);
 }
 
 template <typename... Args>
@@ -947,11 +900,6 @@ VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer
   buffers.insert(buffers.end(), addbuffs.begin(), addbuffs.end());
   CreateBuffersImpl(buffers, args...);
 }
-
-template <typename Arg0, typename... Args>
-VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer>& buffers,
-                                        const Arg0& arg0,
-                                        const Args&... args);
 
 template <typename T, typename S, typename... Args>
 VTKM_CONT inline void CreateBuffersResolveArrays(std::vector<vtkm::cont::internal::Buffer>& buffers,
@@ -1001,7 +949,7 @@ VTKM_CONT inline void CreateBuffersImpl(std::vector<vtkm::cont::internal::Buffer
 ///   - `ArrayHandle`: The buffers from the `ArrayHandle` are added to the list.
 ///   - `Buffer`: A copy of the buffer is added to the list.
 ///   - `std::vector<Buffer>`: A copy of all buffers in this vector are added to the list.
-///   - Anything else: A buffer with the given object attached as metadata is
+///   - Anything else: A buffer with the given object attached as metadata is added to the list.
 ///
 template <typename... Args>
 VTKM_CONT inline std::vector<vtkm::cont::internal::Buffer> CreateBuffers(const Args&... args)

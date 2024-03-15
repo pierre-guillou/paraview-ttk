@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeStateRAII.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkVolumeStateRAII_h
 #define vtkVolumeStateRAII_h
 #include "vtkOpenGLRenderWindow.h"
@@ -20,6 +8,7 @@
 // Only these states can be queries via glIsEnabled:
 // http://www.khronos.org/opengles/sdk/docs/man/
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVolumeStateRAII
 {
 public:
@@ -104,5 +93,6 @@ private:
   vtkOpenGLState* State;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkVolumeStateRAII_h
 // VTK-HeaderTest-Exclude: vtkVolumeStateRAII.h

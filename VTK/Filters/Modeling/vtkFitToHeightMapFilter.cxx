@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFitToHeightMapFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFitToHeightMapFilter.h"
 
 #include "vtkCellData.h"
@@ -28,6 +16,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTriangle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFitToHeightMapFilter);
 
 // These are created to support a (float,double) fast path. They work in
@@ -54,13 +43,15 @@ struct FitPoints
   double Dims[3];
   double Origin[3];
   double H[3];
+  vtkFitToHeightMapFilter* Filter;
 
   FitPoints(vtkIdType npts, TPoints* inPts, TPoints* outPts, TScalars* s, int dims[3], double o[3],
-    double h[3])
+    double h[3], vtkFitToHeightMapFilter* filter)
     : NPts(npts)
     , InPoints(inPts)
     , OutPoints(outPts)
     , Scalars(s)
+    , Filter(filter)
   {
     for (int i = 0; i < 3; ++i)
     {
@@ -83,9 +74,18 @@ struct FitPoints
     double i, j, z, pc[2], ix, iy, w[4];
     TScalars const* scalars = this->Scalars;
     int s0, s1, s2, s3;
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (; ptId < endPtId; ++ptId, xi += 3, xo += 3)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       // Location in image
       i = (xi[0] - o[0]) / h[0];
       j = (xi[1] - o[1]) / h[1];
@@ -144,9 +144,9 @@ struct FitPoints
   void Reduce() {}
 
   static void Execute(vtkIdType numPts, TPoints* inPts, TPoints* points, TScalars* s, int dims[3],
-    double origin[3], double h[3])
+    double origin[3], double h[3], vtkFitToHeightMapFilter* filter)
   {
-    FitPoints fit(numPts, inPts, points, s, dims, origin, h);
+    FitPoints fit(numPts, inPts, points, s, dims, origin, h, filter);
     vtkSMPTools::For(0, numPts, fit);
   }
 }; // FitPoints
@@ -168,13 +168,15 @@ struct FitCells
   vtkSMPThreadLocalObject<vtkGenericCell> Cell;
   vtkSMPThreadLocalObject<vtkIdList> Prims;
   vtkSMPThreadLocalObject<vtkPoints> PrimPts;
+  vtkFitToHeightMapFilter* Filter;
 
   FitCells(int strat, vtkPolyData* mesh, double* cellHts, TScalars* s, int dims[3], double o[3],
-    double h[3])
+    double h[3], vtkFitToHeightMapFilter* filter)
     : Strategy(strat)
     , Mesh(mesh)
     , CellHeights(cellHts)
     , Scalars(s)
+    , Filter(filter)
   {
     for (int i = 0; i < 3; ++i)
     {
@@ -213,10 +215,19 @@ struct FitCells
     double x0[3], center[2];
     int s0, s1, s2, s3;
     double sum, min, max;
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     // Process all cells of different types and dimensions
     for (; cellId < endCellId; ++cellId)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       this->Mesh->GetCell(cellId, cell);
       cellDim = cell->GetCellDimension();
 
@@ -321,9 +332,9 @@ struct FitCells
   void Reduce() {}
 
   static void Execute(int strategy, vtkPolyData* mesh, double* cellHts, TScalars* s, int dims[3],
-    double origin[3], double h[3])
+    double origin[3], double h[3], vtkFitToHeightMapFilter* filter)
   {
-    FitCells fit(strategy, mesh, cellHts, s, dims, origin, h);
+    FitCells fit(strategy, mesh, cellHts, s, dims, origin, h, filter);
     vtkIdType numCells = mesh->GetNumberOfCells();
     vtkSMPTools::For(0, numCells, fit);
   }
@@ -441,7 +452,7 @@ int vtkFitToHeightMapFilter::RequestData(vtkInformation* vtkNotUsed(request),
     switch (vtkTemplate2PackMacro(ptsType, imgType))
     {
       vtkTemplate2MacroFP((FitPoints<VTK_T1, VTK_T2>::Execute(
-        numPts, (VTK_T1*)inPtr, (VTK_T1*)outPtr, (VTK_T2*)inScalarPtr, dims, origin, h)));
+        numPts, (VTK_T1*)inPtr, (VTK_T1*)outPtr, (VTK_T2*)inScalarPtr, dims, origin, h, this)));
 
       default:
         vtkErrorMacro(<< "Only (float,double) fast path supported");
@@ -459,7 +470,7 @@ int vtkFitToHeightMapFilter::RequestData(vtkInformation* vtkNotUsed(request),
     switch (imgType)
     {
       vtkTemplateMacro(FitCells<VTK_TT>::Execute(
-        this->FittingStrategy, output, cellHts, (VTK_TT*)inScalarPtr, dims, origin, h));
+        this->FittingStrategy, output, cellHts, (VTK_TT*)inScalarPtr, dims, origin, h, this));
 
       default:
         vtkErrorMacro(<< "Only (float,double) fast path supported");
@@ -511,6 +522,10 @@ void vtkFitToHeightMapFilter::AdjustPoints(
   // Otherwise fancier point adjustment
   for (cellId = 0; cellId < numCells; ++cellId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     output->GetCellPoints(cellId, npts, ptIds);
 
     // Gather information about cell
@@ -578,6 +593,10 @@ void vtkFitToHeightMapFilter::AdjustCells(
 
   for (cellId = 0; cellId < numCells; ++cellId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     z = cellHts[cellId];
     output->GetCellPoints(cellId, npts, ptIds);
 
@@ -649,3 +668,4 @@ void vtkFitToHeightMapFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Fitting Strategy: " << this->FittingStrategy << "\n";
   os << indent << "Use Height Map Offset: " << (this->UseHeightMapOffset ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

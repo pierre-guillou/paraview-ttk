@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPluginManager.h"
 #include "ui_pqPluginEULADialog.h"
 
@@ -329,12 +301,22 @@ bool pqPluginManager::confirmEULA(vtkPVPlugin* plugin)
   QDialog dialog(pqCoreUtilities::mainWidget());
   Ui::PluginEULADialog ui;
   ui.setupUi(&dialog);
-  ui.buttonBox->button(QDialogButtonBox::Yes)->setText("Accept");
-  ui.buttonBox->button(QDialogButtonBox::No)->setText("Decline");
+  ui.textEdit->setHtml(
+    QString("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" "
+            "\"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
+            "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
+            "p, li { white-space: pre-wrap; }\n"
+            "</style></head><body style=\" font-family:'Sans Serif'; font-size:9pt; "
+            "font-weight:400; font-style:normal;\">\n"
+            "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; "
+            "-qt-block-indent:0; text-indent:0px;\"><span style=\" font-weight:600;\">EULA for "
+            "plugin</span></p></body></html>"));
+
+  ui.buttonBox->button(QDialogButtonBox::Yes)->setText(tr("Accept"));
+  ui.buttonBox->button(QDialogButtonBox::No)->setText(tr("Decline"));
   ui.buttonBox->button(QDialogButtonBox::No)->setDefault(true);
 
-  dialog.setWindowTitle(
-    QString("End User License Agreement for '%1'").arg(plugin->GetPluginName()));
+  dialog.setWindowTitle(tr("End User License Agreement for '%1'").arg(plugin->GetPluginName()));
   ui.textEdit->setText(plugin->GetEULA());
 
   if (dialog.exec() == QDialog::Accepted)

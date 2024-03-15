@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMultiCorrelativeStatistics.h"
 #include "vtkMultiCorrelativeStatisticsAssessFunctor.h"
 
@@ -29,6 +31,7 @@
 #define VTK_MULTICORRELATIVE_AVERAGECOL "Mean"
 #define VTK_MULTICORRELATIVE_COLUMNAMES "Column"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMultiCorrelativeStatistics);
 
 namespace
@@ -812,7 +815,6 @@ void vtkMultiCorrelativeStatistics::Assess(
       assessValues->Delete();
     }
 
-    vtkIdType count = 0;
     // Assess each entry of the column
     vtkDoubleArray* assessResult = vtkDoubleArray::New();
     for (vtkIdType r = 0; r < nRow; ++r)
@@ -826,7 +828,6 @@ void vtkMultiCorrelativeStatistics::Assess(
       {
         outData->SetValueByName(r, names[v].c_str(), assessResult->GetValue(v));
       }
-      ++count;
     }
 
     assessResult->Delete();
@@ -977,3 +978,4 @@ void vtkMultiCorrelativeStatistics::SelectAssessFunctor(vtkTable* inData, vtkDat
   }
   dfunc = mcfunc;
 }
+VTK_ABI_NAMESPACE_END

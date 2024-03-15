@@ -1,30 +1,21 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotSurface.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotSurface.h"
 #include "vtkChartXYZ.h"
 #include "vtkContext2D.h"
 #include "vtkContext3D.h"
+#include "vtkFloatArray.h"
 #include "vtkLookupTable.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPen.h"
+#include "vtkPoints.h"
 #include "vtkTable.h"
 #include "vtkUnsignedCharArray.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlotSurface);
 
 //------------------------------------------------------------------------------
@@ -39,6 +30,7 @@ vtkPlotSurface::vtkPlotSurface()
   this->ZAxisLabel = "Z";
   this->XMinimum = this->XMaximum = this->YMinimum = this->YMaximum = 0.0;
   this->DataHasBeenRescaled = true;
+  this->Surface->SetDataType(this->Points->GetDataType());
 }
 
 //------------------------------------------------------------------------------
@@ -74,10 +66,10 @@ bool vtkPlotSurface::Paint(vtkContext2D* painter)
   context->ApplyPen(this->Pen);
 
   // draw the surface
-  if (!this->Surface.empty())
+  if (this->Surface->GetNumberOfPoints() > 0)
   {
-    context->DrawTriangleMesh(this->Surface[0].GetData(), static_cast<int>(this->Surface.size()),
-      this->Colors->GetPointer(0), this->ColorComponents);
+    const auto cacheIdentifier = reinterpret_cast<std::uintptr_t>(this);
+    context->DrawTriangleMesh(this->Surface->GetData(), this->Colors, cacheIdentifier);
   }
 
   return true;
@@ -102,9 +94,8 @@ void vtkPlotSurface::SetInputData(vtkTable* input)
     this->YMaximum = this->NumberOfRows - 1;
   }
 
-  this->Points.clear();
-  this->Points.resize(this->NumberOfRows * this->NumberOfColumns);
-  float* data = this->Points[0].GetData();
+  this->Points->SetNumberOfPoints(this->NumberOfRows * this->NumberOfColumns);
+  float* data = vtkArrayDownCast<vtkFloatArray>(this->Points->GetData())->GetPointer(0);
   int pos = 0;
   float surfaceMin = VTK_FLOAT_MAX;
   float surfaceMax = VTK_FLOAT_MIN;
@@ -183,13 +174,13 @@ void vtkPlotSurface::SetInputData(vtkTable* input, vtkIdType vtkNotUsed(xColumn)
 void vtkPlotSurface::GenerateSurface()
 {
   // clear out and initialize our surface & colors
-  this->Surface.clear();
-  this->Surface.resize(this->NumberOfVertices);
+  this->Surface->SetNumberOfPoints(this->NumberOfVertices);
   this->Colors->Reset();
-  this->Colors->Allocate(this->NumberOfVertices * 3);
+  this->Colors->SetNumberOfComponents(this->ColorComponents);
+  this->Colors->Allocate(this->NumberOfVertices);
 
   // collect vertices of triangles
-  float* data = this->Surface[0].GetData();
+  float* data = vtkArrayDownCast<vtkFloatArray>(this->Surface->GetData())->GetPointer(0);
   int pos = 0;
   for (int i = 0; i < this->NumberOfRows - 1; ++i)
   {
@@ -225,8 +216,6 @@ void vtkPlotSurface::InsertSurfaceVertex(float* data, float value, int i, int j,
 
   const unsigned char* rgb = this->LookupTable->MapValue(data[pos - 1]);
   this->Colors->InsertNextTypedTuple(&rgb[0]);
-  this->Colors->InsertNextTypedTuple(&rgb[1]);
-  this->Colors->InsertNextTypedTuple(&rgb[2]);
 }
 
 //------------------------------------------------------------------------------
@@ -248,7 +237,7 @@ void vtkPlotSurface::SetYRange(float min, float max)
 //------------------------------------------------------------------------------
 void vtkPlotSurface::RescaleData()
 {
-  float* data = this->Points[0].GetData();
+  float* data = vtkArrayDownCast<vtkFloatArray>(this->Points->GetData())->GetPointer(0);
 
   // rescale Points (used by ChartXYZ to generate axes scales).
   int pos = 0;
@@ -286,3 +275,4 @@ float vtkPlotSurface::RowToY(int rowIndex)
   float newRange = this->YMaximum - this->YMinimum;
   return static_cast<float>(rowIndex) * (newRange / this->NumberOfRows) + this->YMinimum;
 }
+VTK_ABI_NAMESPACE_END

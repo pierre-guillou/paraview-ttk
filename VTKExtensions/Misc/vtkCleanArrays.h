@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCleanArrays.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCleanArrays
  * @brief   filter used to remove partial arrays across processes.
@@ -38,16 +26,16 @@ public:
   vtkTypeMacro(vtkCleanArrays, vtkPassInputTypeAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * The user can set the controller used for inter-process communication. By
    * default set to the global communicator.
    */
   void SetController(vtkMultiProcessController* controller);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set to true (false by default), 0 filled array will be added for
    * missing arrays on this process (instead of removing partial arrays).
@@ -55,9 +43,9 @@ public:
   vtkSetMacro(FillPartialArrays, bool);
   vtkGetMacro(FillPartialArrays, bool);
   vtkBooleanMacro(FillPartialArrays, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When FillPartialArrays is true, this filter can add a `vtkUnsignedCharArray`
    * for each partial array to indicate which entries are valid and which are
@@ -67,7 +55,7 @@ public:
   vtkSetMacro(MarkFilledPartialArrays, bool);
   vtkGetMacro(MarkFilledPartialArrays, bool);
   vtkBooleanMacro(MarkFilledPartialArrays, bool);
-  //@}
+  ///@}
 
 protected:
   vtkCleanArrays();

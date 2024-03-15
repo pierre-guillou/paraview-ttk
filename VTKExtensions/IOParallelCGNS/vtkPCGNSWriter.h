@@ -1,21 +1,7 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkPCGNSWriter.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
-Copyright (c) Maritime Research Institute Netherlands (MARIN)
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Maritime Research Institute Netherlands (MARIN)
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkPCGNSWriter
@@ -56,13 +42,13 @@ public:
   vtkTypeMacro(vtkPCGNSWriter, vtkCGNSWriter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the MPI controller.
    */
   virtual void SetController(vtkMultiProcessController*);
   virtual vtkMultiProcessController* GetController();
-  //@}
+  ///@}
 
 protected:
   vtkPCGNSWriter();

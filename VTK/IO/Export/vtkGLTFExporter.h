@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFExporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGLTFExporter
  * @brief   export a scene into GLTF 2.0 format.
@@ -40,6 +28,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOEXPORT_EXPORT vtkGLTFExporter : public vtkExporter
 {
 public:
@@ -120,4 +109,5 @@ private:
   void operator=(const vtkGLTFExporter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericClip.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGenericClip.h"
 
 #include "vtkCellArray.h"
@@ -40,6 +28,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericClip);
 vtkCxxSetObjectMacro(vtkGenericClip, ClipFunction, vtkImplicitFunction);
 vtkCxxSetObjectMacro(vtkGenericClip, Locator, vtkIncrementalPointLocator);
@@ -281,7 +270,7 @@ int vtkGenericClip::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Process all cells and clip each in turn
   //
-  int abort = 0;
+  bool abort = false;
   vtkIdType updateTime = numCells / 20 + 1; // update roughly every 5%
 
   int num[2];
@@ -298,7 +287,7 @@ int vtkGenericClip::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     // perform the clipping
@@ -427,3 +416,4 @@ int vtkGenericClip::FillInputPortInformation(int port, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGenericDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

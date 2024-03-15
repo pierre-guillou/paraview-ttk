@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageData
  * @brief   topologically and geometrically regular array of data
@@ -36,6 +24,7 @@
 
 #include "vtkStructuredData.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkLine;
 class vtkMatrix3x3;
@@ -108,6 +97,7 @@ public:
   }
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
+  int GetMaxSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
 
@@ -640,7 +630,6 @@ protected:
 private:
   void InternalImageDataCopy(vtkImageData* src);
 
-private:
   friend class vtkUniformGrid;
 
   // for the GetCell method
@@ -701,4 +690,10 @@ inline int vtkImageData::GetDataDimension()
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }
 
+//----------------------------------------------------------------------------
+inline int vtkImageData::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+VTK_ABI_NAMESPACE_END
 #endif

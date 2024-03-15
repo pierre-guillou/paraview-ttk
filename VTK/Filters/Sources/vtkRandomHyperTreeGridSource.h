@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRandomHyperTreeGridSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkRandomHyperTreeGridSource
  * @brief Builds a randomized but reproducible vtkHyperTreeGrid.
@@ -25,6 +13,7 @@
 
 #include <vtkNew.h> // For vtkNew
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkExtentTranslator;
 class vtkHyperTreeGridNonOrientedCursor;
@@ -115,4 +104,5 @@ private:
   vtkDoubleArray* Levels;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkRandomHyperTreeGridSource_h

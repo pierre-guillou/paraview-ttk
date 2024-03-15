@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    SimpleView.h
-  Language:  C++
-
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #ifndef SimpleView_H
 #define SimpleView_H
 
@@ -21,8 +10,10 @@
 // Forward Qt class declarations
 class Ui_SimpleView;
 
+VTK_ABI_NAMESPACE_BEGIN
 // Forward VTK class declarations
 class vtkQtTableView;
+VTK_ABI_NAMESPACE_END
 
 class SimpleView : public QMainWindow
 {

@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQWidgetWidget
  * @brief   3D VTK widget for a QWidget
  *
  * This 3D widget handles events between VTK and Qt for a QWidget placed
  * in a scene. It currently takes 6dof events as from VR controllers and
- * if they intersect the widghet it converts them to Qt events and fires
+ * if they intersect the widget it converts them to Qt events and fires
  * them off.
  */
 
@@ -30,6 +19,8 @@
 #include <QPointF>                 // for ivar
 
 class QWidget;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQWidgetRepresentation;
 
 class VTKGUISUPPORTQT_EXPORT vtkQWidgetWidget : public vtkAbstractWidget
@@ -109,4 +100,5 @@ private:
   void operator=(const vtkQWidgetWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCameraKeyFrame.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCameraKeyFrame
  *
@@ -50,14 +38,14 @@ public:
   void SetKeyValue(double) override {}
   virtual double GetKeyValue(unsigned int) { return 0; }
 
-  //@{
+  ///@{
   /**
    * Get the camera i.e. the key value for this key frame.
    */
   vtkGetObjectMacro(Camera, vtkCamera);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Methods to set the current camera value.
    */
@@ -66,9 +54,9 @@ public:
   void SetViewUp(double x, double y, double z);
   void SetViewAngle(double angle);
   void SetParallelScale(double scale);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkCameraInterpolator2.
    */
@@ -80,7 +68,7 @@ public:
   void SetPositionMode(int val);
   void SetClosedFocalPath(bool val);
   void SetClosedPositionPath(bool val);
-  //@}
+  ///@}
 
 protected:
   vtkPVCameraKeyFrame();

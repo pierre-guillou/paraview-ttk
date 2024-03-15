@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMServerStateLocator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMServerStateLocator
  * @brief   Class used to retrieve a given message state based
@@ -37,14 +25,14 @@ public:
   vtkTypeMacro(vtkSMServerStateLocator, vtkSMStateLocator);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get a parent locator to search which is used as a backup location
    * to search from if a given state was not found locally.
    */
   vtkSMSession* GetSession();
   void SetSession(vtkSMSession* session);
-  //@}
+  ///@}
 
   /**
    * Fill the provided State message with the state found inside the current

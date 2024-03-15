@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLHierarchicalBoxDataFileConverter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLHierarchicalBoxDataFileConverter.h"
 
 #include "vtkBoundingBox.h"
@@ -34,6 +22,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLHierarchicalBoxDataFileConverter);
 //------------------------------------------------------------------------------
 vtkXMLHierarchicalBoxDataFileConverter::vtkXMLHierarchicalBoxDataFileConverter()
@@ -299,3 +288,4 @@ void vtkXMLHierarchicalBoxDataFileConverter::PrintSelf(ostream& os, vtkIndent in
   os << indent << "OutputFileName: " << (this->OutputFileName ? this->OutputFileName : "(none)")
      << endl;
 }
+VTK_ABI_NAMESPACE_END

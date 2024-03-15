@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTubeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTubeFilter.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTubeFilter);
 
 // Construct object with radius 0.5, radius variation turned off, the number
@@ -118,7 +107,7 @@ int vtkTubeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   const vtkIdType* ptsOrig = nullptr;
   vtkIdType offset = 0;
   vtkFloatArray* newTCoords = nullptr;
-  int abort = 0;
+  bool abort = false;
   vtkIdType inCellId;
   double oldRadius = 1.0;
 
@@ -238,10 +227,17 @@ int vtkTubeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkPolyLine* lineNormalGenerator = vtkPolyLine::New();
   // the line cellIds start after the last vert cellId
   inCellId = input->GetNumberOfVerts();
+  int checkAbortInterval = std::min(numLines / 10 + 1, (vtkIdType)1000);
+  int progressCounter = 0;
   for (inLines->InitTraversal(); inLines->GetNextCell(npts, ptsOrig) && !abort; inCellId++)
   {
     this->UpdateProgress((double)inCellId / numLines);
-    abort = this->GetAbortExecute();
+    if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      abort = this->CheckAbort();
+      break;
+    }
+    progressCounter++;
 
     // Make a copy of point indices to avoid modifying input polydata cells
     // while removing degenerate lines.
@@ -844,3 +840,4 @@ void vtkTubeFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Texture Length: " << this->TextureLength << endl;
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << endl;
 }
+VTK_ABI_NAMESPACE_END

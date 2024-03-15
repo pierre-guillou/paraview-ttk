@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridVolumeRayCastMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUnstructuredGridVolumeRayCastMapper.h"
 
 #include "vtkCamera.h"
@@ -40,6 +28,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 VTK_THREAD_RETURN_TYPE UnstructuredGridVolumeRayCastMapper_CastRays(void* arg);
 
 vtkStandardNewMacro(vtkUnstructuredGridVolumeRayCastMapper);
@@ -722,3 +711,4 @@ void vtkUnstructuredGridVolumeRayCastMapper::PrintSelf(ostream& os, vtkIndent in
   // methods for access from the ray cast function (not part of the public
   // API)
 }
+VTK_ABI_NAMESPACE_END

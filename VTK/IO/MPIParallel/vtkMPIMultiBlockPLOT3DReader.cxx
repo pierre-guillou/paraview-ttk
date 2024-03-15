@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMPIMultiBlockPLOT3DReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMPIMultiBlockPLOT3DReader.h"
 
 #include "vtkByteSwap.h"
@@ -35,6 +23,7 @@
     static MPI_Datatype type() { return mpitype; }                                                 \
   };
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 template <class T>
@@ -324,3 +313,4 @@ void vtkMPIMultiBlockPLOT3DReader::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "UseMPIIO: " << this->UseMPIIO << endl;
 }
+VTK_ABI_NAMESPACE_END

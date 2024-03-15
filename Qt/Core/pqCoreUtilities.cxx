@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCoreUtilities.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqCoreUtilities.h"
 
 #include <QAbstractButton>
@@ -44,16 +16,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QStringList>
 
 #include "pqApplicationCore.h"
+#include "pqDoubleLineEdit.h"
 #include "pqSettings.h"
-#include "vtkNumberToString.h"
 #include "vtkObject.h"
+#include "vtkPVGeneralSettings.h"
 #include "vtkWeakPointer.h"
 #include "vtksys/SystemTools.hxx"
 
 #include <cassert>
 #include <cmath>
 #include <cstdlib>
-#include <sstream>
 
 QPointer<QWidget> pqCoreUtilities::MainWidget = nullptr;
 
@@ -265,13 +237,13 @@ bool pqCoreUtilities::promptUser(const QString& settingsKey, QMessageBox::Icon i
   QAbstractButton* okButton = mbox.button(QMessageBox::Ok);
   if (yesButton && remember)
   {
-    remember->setText("Yes, and don't ask again");
+    remember->setText(tr("Yes, and don't ask again"));
     remember->setObjectName("YesAndSave");
     remember->setIcon(mbox.button(QMessageBox::Yes)->icon());
   }
   else if (okButton && remember)
   {
-    remember->setText("OK, and don't ask again");
+    remember->setText(tr("OK, and don't ask again"));
     remember->setObjectName("OkAndSave");
     remember->setIcon(mbox.button(QMessageBox::Ok)->icon());
   }
@@ -308,11 +280,77 @@ QMessageBox::Button pqCoreUtilities::promptUserGeneric(const QString& title, con
 }
 
 //-----------------------------------------------------------------------------
-QString pqCoreUtilities::number(double value)
+QString pqCoreUtilities::number(double value, int lowExponent, int highExponent)
 {
-  std::ostringstream stream;
-  stream << vtkNumberToString()(value);
-  return QString::fromStdString(stream.str());
+  // When using FullNotation, precision parameter does not matter
+  return pqDoubleLineEdit::formatDouble(
+    value, pqDoubleLineEdit::RealNumberNotation::FullNotation, 0, lowExponent, highExponent);
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::formatFullNumber(double value)
+{
+  auto settings = vtkPVGeneralSettings::GetInstance();
+  int lowExponent = settings->GetFullNotationLowExponent();
+  int highExponent = settings->GetFullNotationHighExponent();
+
+  return pqCoreUtilities::number(value, lowExponent, highExponent);
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::formatDouble(double value, int notation, bool shortestAccurate,
+  int precision, int fullLowExponent, int fullHighExponent)
+{
+  pqDoubleLineEdit::RealNumberNotation dNotation;
+  switch (notation)
+  {
+    case (vtkPVGeneralSettings::RealNumberNotation::FIXED):
+      dNotation = pqDoubleLineEdit::RealNumberNotation::FixedNotation;
+      break;
+    case (vtkPVGeneralSettings::RealNumberNotation::SCIENTIFIC):
+      dNotation = pqDoubleLineEdit::RealNumberNotation::ScientificNotation;
+      break;
+    case (vtkPVGeneralSettings::RealNumberNotation::MIXED):
+      dNotation = pqDoubleLineEdit::RealNumberNotation::MixedNotation;
+      break;
+    case (vtkPVGeneralSettings::RealNumberNotation::FULL):
+      dNotation = pqDoubleLineEdit::RealNumberNotation::FullNotation;
+      break;
+    default:
+      return "";
+      break;
+  }
+  return pqDoubleLineEdit::formatDouble(value, dNotation,
+    shortestAccurate ? QLocale::FloatingPointShortest : precision, fullLowExponent,
+    fullHighExponent);
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::formatTime(double value)
+{
+  auto settings = vtkPVGeneralSettings::GetInstance();
+  int notation = settings->GetAnimationTimeNotation();
+  bool shortAccurate = settings->GetAnimationTimeShortestAccuratePrecision();
+  int precision = settings->GetAnimationTimePrecision();
+  int lowExponent = settings->GetFullNotationLowExponent();
+  int highExponent = settings->GetFullNotationHighExponent();
+
+  return pqCoreUtilities::formatDouble(
+    value, notation, shortAccurate, precision, lowExponent, highExponent);
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::formatNumber(double value)
+{
+  auto settings = vtkPVGeneralSettings::GetInstance();
+  int notation = settings->GetRealNumberDisplayedNotation();
+  bool shortAccurate = settings->GetRealNumberDisplayedShortestAccuratePrecision();
+  int precision = settings->GetRealNumberDisplayedPrecision();
+  int lowExponent = settings->GetFullNotationLowExponent();
+  int highExponent = settings->GetFullNotationHighExponent();
+
+  return pqCoreUtilities::formatDouble(
+    value, notation, shortAccurate, precision, lowExponent, highExponent);
 }
 
 //-----------------------------------------------------------------------------
@@ -398,8 +436,8 @@ void pqCoreUtilities::removeRecursively(QDir dir)
   const bool success = dir.removeRecursively();
   if (!success)
   {
-    QMessageBox(QMessageBox::Warning, QObject::tr("File IO Warning"),
-      QObject::tr("Unable to delete some files in %1").arg(dir.absolutePath()),
+    QMessageBox(QMessageBox::Warning, tr("File IO Warning"),
+      tr("Unable to delete some files in %1").arg(dir.absolutePath()),
       QMessageBox::StandardButton::Ok, pqCoreUtilities::mainWidget())
       .exec();
   }
@@ -414,9 +452,9 @@ void pqCoreUtilities::remove(const QString& filePath)
   const bool success = dir.remove(fileName);
   if (!success)
   {
-    QMessageBox(QMessageBox::Warning, QObject::tr("File IO Warning"),
-      QObject::tr("Unable to delete %1").arg(finfo.absoluteFilePath()),
-      QMessageBox::StandardButton::Ok, pqCoreUtilities::mainWidget())
+    QMessageBox(QMessageBox::Warning, tr("File IO Warning"),
+      tr("Unable to delete %1").arg(finfo.absoluteFilePath()), QMessageBox::StandardButton::Ok,
+      pqCoreUtilities::mainWidget())
       .exec();
   }
 }

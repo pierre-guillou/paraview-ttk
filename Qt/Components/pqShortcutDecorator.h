@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqShortcutDecorator.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqShortcutDecorator_h
 #define pqShortcutDecorator_h
@@ -61,6 +33,22 @@ public:
 
   bool isEnabled() const;
 
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
+  /**
+   * Called to force all shortcuts for the attached property widget to enable/disable.
+   *
+   * This is tied internally to pqPropertyWidget::widgetVisibilityUpdated, which passes
+   * a boolean state so that shortcuts are disabled when the widget is not visible and
+   * the widget grabs shortcuts when it becomes visible.
+   *
+   * If \a refocusWhenEnabling is true, and if an enabled shortcut has a context
+   * widget, the keyboard focus will shift to that widget (so that users can
+   * immediately use it). This parameter is false by default and should only be
+   * enabled when direct user interaction with the decorated frame is what causes
+   * the call to setEnabled().
+   */
+  virtual void setEnabled(bool enable, bool refocusWhenEnabling = false);
+
 protected Q_SLOTS:
   /**
    * Called when any shortcut is enabled (and will enable them all and mark the widget).
@@ -77,16 +65,8 @@ protected Q_SLOTS:
    * are also deactivated so the state is consistent.
    */
   virtual void onShortcutDisabled();
-  /**
-   * Called to force all shortcuts for the attached property widget to enable/disable.
-   *
-   * This is tied internally to pqPropertyWidget::widgetVisibilityUpdated, which passes
-   * a boolean state so that shortcuts are disabled when the widget is not visible and
-   * the widget grabs shortcuts when it becomes visible.
-   */
-  virtual void setEnabled(bool enable);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * The parent property widget (returned as a pqPropertyWidget, not QWidget).
    */
@@ -107,6 +87,15 @@ protected:
   bool m_pressed;
   // Prevent recursive signaling inside onShortcutEnabled/onShortcutDisabled.
   bool m_silent;
+  // Should shortcuts set the keyboard focus to their context widget?
+  // This is set to true when users explicitly click on the widget frame
+  // and false otherwise (so that programmatic changes to the widget made
+  // in response to other events do not interrupt a user; for example,
+  // using the arrow keys in the pipeline browser to change pipelines
+  // should not move the keyboard focus away from the pipeline browser).
+  // Note that this only applies when enabling shortcuts (since disabling
+  // a shortcut would never require a refocus).
+  bool m_allowRefocus;
 };
 
 #endif // pqShortcutDecorator_h

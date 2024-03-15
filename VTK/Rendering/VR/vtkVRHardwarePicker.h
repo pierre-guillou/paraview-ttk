@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRHardwarePicker.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRHardwarePicker
  * @brief   pick an actor/prop given a controller position and orientation
@@ -30,6 +18,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkRenderingVRModule.h" // For export macro
 #include "vtkSmartPointer.h"      // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSelection;
 
 class VTKRENDERINGVR_EXPORT vtkVRHardwarePicker : public vtkPropPicker
@@ -62,4 +51,5 @@ private:
   void operator=(const vtkVRHardwarePicker&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

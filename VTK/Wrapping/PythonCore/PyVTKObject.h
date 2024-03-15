@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    PyVTKObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*-----------------------------------------------------------------------
   The PyVTKObject was created in Oct 2000 by David Gobbi for VTK 3.2.
   It was rewritten in Jul 2015 to wrap VTK classes as python type objects.
@@ -20,11 +8,14 @@
 #ifndef PyVTKObject_h
 #define PyVTKObject_h
 
+#include "vtkABINamespace.h"
 #include "vtkPython.h"
 #include "vtkSystemIncludes.h"
 #include "vtkWrappingPythonCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObjectBase;
+VTK_ABI_NAMESPACE_END
 typedef vtkObjectBase* (*vtknewfunc)();
 
 // Flags for special properties or features
@@ -33,6 +24,7 @@ typedef vtkObjectBase* (*vtknewfunc)();
 // This class is used for defining new VTK wrapped classes.
 // It contains information such as the methods and docstring, as well
 // as extra info that can't easily be stored in the PyTypeObject.
+VTK_ABI_NAMESPACE_BEGIN
 class VTKWRAPPINGPYTHONCORE_EXPORT PyVTKClass
 {
 public:
@@ -66,6 +58,7 @@ struct PyVTKObject
   unsigned long* vtk_observers; // used to find our observers
   unsigned int vtk_flags;       // flags (see list above)
 };
+VTK_ABI_NAMESPACE_END
 
 extern VTKWRAPPINGPYTHONCORE_EXPORT PyGetSetDef PyVTKObject_GetSet[];
 extern VTKWRAPPINGPYTHONCORE_EXPORT PyBufferProcs PyVTKObject_AsBuffer;
@@ -111,3 +104,4 @@ extern "C"
 }
 
 #endif
+/* VTK-HeaderTest-Exclude: PyVTKObject.h */

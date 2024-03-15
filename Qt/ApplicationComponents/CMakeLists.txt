@@ -1,37 +1,11 @@
-#==========================================================================
-#
-#     Program: ParaView
-#
-#     Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-#     All rights reserved.
-#
-#     ParaView is a free software; you can redistribute it and/or modify it
-#     under the terms of the ParaView license version 1.2.
-#
-#     See License_v1.2.txt for the full ParaView license.
-#     A copy of this license can be obtained by contacting
-#     Kitware Inc.
-#     28 Corporate Drive
-#     Clifton Park, NY 12065
-#     USA
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#==========================================================================
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 set(classes
   pqAboutDialogReaction
   pqAddToFavoritesReaction
   pqAlwaysConnectedBehavior
+  pqAnglePropertyWidget
   pqAnimationShortcutDecorator
   pqAnimationShortcutWidget
   pqAnimationTimeToolbar
@@ -82,6 +56,8 @@ set(classes
   pqCustomizeShortcutsDialog
   pqCheckableProperty
   pqCoordinateFramePropertyWidget
+  pqCustomViewpointsController
+  pqCustomViewpointsDefaultController
   pqCustomViewpointsToolbar
   pqCylinderPropertyWidget
   pqDataAssemblyPropertyWidget
@@ -98,6 +74,7 @@ set(classes
   pqEditColorMapReaction
   pqEditScalarBarReaction
   pqEnableWidgetDecorator
+  pqEqualizeLayoutReaction
   pqEqualizerPropertyWidget
   pqExampleVisualizationsDialog
   pqExampleVisualizationsDialogReaction
@@ -118,6 +95,7 @@ set(classes
   pqInteractiveProperty2DWidget
   pqInteractivePropertyWidget
   pqInteractivePropertyWidgetAbstract
+  pqLanguageChooserWidget
   pqLightPropertyWidget
   pqLightToolbar
   pqLinePropertyWidget
@@ -141,6 +119,7 @@ set(classes
   pqManagePluginsReaction
   pqMasterOnlyReaction
   pqMenuReactionUtils
+  pqMetaDataPropertyWidget
   pqModelTransformSupportBehavior
   pqMoleculePropertyWidget
   pqMultiComponentsDecorator
@@ -164,11 +143,11 @@ set(classes
   pqPropertyCollectionWidget
   pqProxyGroupMenuManager
   pqReaction
-  pqMetaDataPropertyWidget
   pqReloadFilesReaction
   pqRenameProxyReaction
   pqRenderViewSelectionReaction
   pqRepresentationToolbar
+  pqRescaleScalarRangeReaction
   pqResetScalarRangeReaction
   pqResetDefaultSettingsReaction
   pqSaveAnimationGeometryReaction
@@ -181,6 +160,7 @@ set(classes
   pqScalarBarVisibilityReaction
   pqSearchItemReaction
   pqSelectionEditor
+  pqSelectionListPropertyWidget
   pqSelectionQueryPropertyWidget
   pqSelectionReaction
   pqSeriesEditorPropertyWidget
@@ -204,6 +184,12 @@ set(classes
   pqTestingReaction
   pqTextLocationWidget
   pqTimeInspectorWidget
+  pqTimelineItemDelegate
+  pqTimelineModel
+  pqTimelinePainter
+  pqTimelineView
+  pqTimelineWidget
+  pqTimeManagerWidget
   pqTimerLogReaction
   pqToggleInteractionViewMode
   pqTransferFunctionWidgetPropertyDialog
@@ -211,7 +197,9 @@ set(classes
   pqUndoRedoBehavior
   pqUndoRedoReaction
   pqUsageLoggingBehavior
+  pqUse2DTransferFunctionReaction
   pqUseSeparateColorMapReaction
+  pqUseSeparateOpacityArrayReaction
   pqVCRToolbar
   pqVerifyRequiredPluginBehavior
   pqViewMenuManager
@@ -228,16 +216,6 @@ set_property(SOURCE pqApplicationComponentsInit.cxx APPEND
 set(headers
   pqCatalystContinueReaction.h
   )
-
-if (TARGET ParaView::pqPython)
-  list(APPEND classes
-    pqMacroReaction
-    pqTraceReaction
-  )
-  list(APPEND headers
-    pqPythonScriptEditorReaction.h
-  )
-endif ()
 
 set(ui_files
   Resources/UI/pqAxesToolbar.ui
@@ -283,10 +261,12 @@ set(ui_files
   Resources/UI/pqSpreadSheetViewDecorator.ui
   Resources/UI/pqTextLocationWidget.ui
   Resources/UI/pqTimeInspectorWidget.ui
+  Resources/UI/pqTimeManagerWidget.ui
   Resources/UI/pqTransferFunctionWidgetPropertyDialog.ui
   Resources/UI/pqVCRToolbar.ui
   Resources/UI/pqViewResolutionPropertyWidget.ui
   Resources/UI/pqWelcomeDialog.ui
+  Resources/UI/pqSelectionListPropertyWidget.ui
   Resources/UI/pqYoungsMaterialPropertyWidget.ui)
 
 set(resource_files
@@ -296,6 +276,26 @@ set(qt_components
   Network
   Widgets
   Svg)
+
+if(PARAVIEW_QT_MAJOR_VERSION GREATER "5")
+  list(APPEND qt_components
+    Core5Compat)
+endif ()
+
+
+if (TARGET ParaView::pqPython)
+  list(APPEND classes
+    pqEditMacrosDialog
+    pqEditMacrosReaction
+    pqMacroReaction
+    pqTraceReaction
+  )
+  list(APPEND headers
+    pqPythonScriptEditorReaction.h
+  )
+  list(APPEND ui_files
+    Resources/UI/pqEditMacrosDialog.ui)
+endif ()
 
 if (paraview_use_materialeditor)
   list(APPEND classes
@@ -320,7 +320,7 @@ if (PARAVIEW_USE_QTHELP)
 endif ()
 
 vtk_module_find_package(
-  PACKAGE     Qt5
+  PACKAGE     "Qt${PARAVIEW_QT_MAJOR_VERSION}"
   COMPONENTS  ${qt_components})
 
 source_group("Resources" FILES
@@ -332,6 +332,20 @@ set(CMAKE_AUTORCC 1)
 set(CMAKE_AUTOUIC 1)
 set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/UI")
 
+set(translatable_files)
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  list(APPEND translatable_files ${ui_files})
+  foreach (el IN LISTS classes)
+    list(APPEND translatable_files "${el}.cxx")
+    list(APPEND translatable_files "${el}.h")
+  endforeach ()
+
+  paraview_create_translation(
+    TARGET "ApplicationComponents.ts"
+    FILES ${translatable_files}
+    OUTPUT_TS "${PARAVIEW_TRANSLATIONS_DIRECTORY}/Qt_ApplicationComponents.ts")
+  add_dependencies(localization "ApplicationComponents.ts")
+endif ()
 vtk_module_add_module(ParaView::pqApplicationComponents
   CLASSES ${classes}
   HEADERS ${headers}
@@ -339,12 +353,19 @@ vtk_module_add_module(ParaView::pqApplicationComponents
           ${resource_files})
 vtk_module_link(ParaView::pqApplicationComponents
   PRIVATE
-    Qt5::Widgets
-    Qt5::Svg
-    Qt5::Network)
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Widgets"
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Svg"
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Network")
 vtk_module_definitions(ParaView::pqApplicationComponents PRIVATE QT_NO_KEYWORDS)
+
+if (PARAVIEW_QT_MAJOR_VERSION GREATER "5")
+  vtk_module_link(ParaView::pqApplicationComponents
+    PRIVATE
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Core5Compat")
+endif ()
+
 if (PARAVIEW_USE_QTHELP)
   vtk_module_link(ParaView::pqApplicationComponents
     PRIVATE
-      Qt5::Help)
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Help")
 endif ()

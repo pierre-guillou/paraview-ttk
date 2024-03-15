@@ -1,23 +1,14 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSegYIOUtils.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkSegYIOUtils_h
 #define vtkSegYIOUtils_h
 
+#include "vtkABINamespace.h"
+
 #include <fstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSegYIOUtils
 {
 public:
@@ -40,11 +31,12 @@ private:
   bool checkIfBigEndian()
   {
     unsigned short a = 0x1234;
-    if (*((unsigned char*)&a) == 0x12)
+    if (*(reinterpret_cast<unsigned char*>(&a)) == 0x12)
       return true;
     return false;
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkSegYIOUtils_h
 // VTK-HeaderTest-Exclude: vtkSegYIOUtils.h

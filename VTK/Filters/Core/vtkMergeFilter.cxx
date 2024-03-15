@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMergeFilter.h"
 
 #include "vtkCellData.h"
@@ -26,6 +14,7 @@
 #include "vtkStructuredPoints.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMergeFilter);
 
 class vtkFieldNode
@@ -131,6 +120,7 @@ vtkMergeFilter::vtkMergeFilter()
 {
   this->FieldList = new vtkFieldList;
   this->SetNumberOfInputPorts(6);
+  this->FieldCount = 0;
 }
 
 vtkMergeFilter::~vtkMergeFilter()
@@ -215,6 +205,7 @@ vtkDataSet* vtkMergeFilter::GetTensors()
 void vtkMergeFilter::AddField(const char* name, vtkDataSet* input)
 {
   this->FieldList->Add(name, input);
+  this->FieldCount++;
 }
 
 int vtkMergeFilter::RequestData(vtkInformation* vtkNotUsed(request),
@@ -478,8 +469,15 @@ int vtkMergeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkDataArray* da;
   const char* name;
   vtkIdType num;
+  int checkAbortInterval = std::min(this->FieldCount / 10 + 1, 1000);
+  int progressCounter = 0;
   for (it.Begin(); !it.End(); it.Next())
   {
+    if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
+    progressCounter++;
     pd = it.Get()->Ptr->GetPointData();
     cd = it.Get()->Ptr->GetCellData();
     name = it.Get()->GetName();
@@ -544,3 +542,4 @@ void vtkMergeFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

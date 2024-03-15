@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelReader.h"
 
 #include "vtkInformation.h"
@@ -22,6 +10,7 @@
 #include <numeric>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkParallelReaderInternal
 {
   using FileNamesType = std::vector<std::string>;
@@ -50,11 +39,11 @@ void vtkParallelReader::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 void vtkParallelReader::AddFileName(const char* fname)
 {
-  if (fname == nullptr || strlen(fname) == 0)
+  if (fname == nullptr || *fname == '\0')
   {
     return;
   }
-  this->Internal->FileNames.push_back(fname);
+  this->Internal->FileNames.emplace_back(fname);
   this->Modified();
 }
 
@@ -185,3 +174,4 @@ double vtkParallelReader::GetTimeValue(const std::string&)
 {
   return vtkMath::Nan();
 }
+VTK_ABI_NAMESPACE_END

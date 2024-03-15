@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFiniteElementFieldDistributor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkFiniteElementFieldDistributor.h"
 
@@ -85,15 +73,15 @@ vtkDataArray* InitializeNewArray(
   return arr;
 }
 
-std::vector<std::string> Split(const std::string& inString, const std::string& delimeter)
+std::vector<std::string> Split(const std::string& inString, const std::string& delimiter)
 {
   std::vector<std::string> subStrings;
   std::size_t sIdx = 0;
   std::size_t eIdx = 0;
-  while ((eIdx = inString.find(delimeter, sIdx)) < inString.size())
+  while ((eIdx = inString.find(delimiter, sIdx)) < inString.size())
   {
     subStrings.emplace_back(inString.substr(sIdx, eIdx - sIdx));
-    sIdx = eIdx + delimeter.size();
+    sIdx = eIdx + delimiter.size();
   }
   if (sIdx < inString.size())
   {
@@ -410,7 +398,7 @@ public:
             const double s = refCoord[1]; //NOLINT(readability-identifier-length)
             const double t = refCoord[2]; //NOLINT(readability-identifier-length)
             const std::size_t& npts = physCoords.size() / stride;
-            assert(npts >= 8); // atleast 8 nodes in a hex. quadratic hex can have more, but we don't use them.
+            assert(npts >= 8); // at least 8 nodes in a hex. quadratic hex can have more, but we don't use them.
             (void) npts;
             int xOfst = 0, yOfst = 1, zOfst = 2;
             // derivatives from https://github.com/trilinos/Trilinos/blob/master/packages/intrepid2/src/Discretization/Basis/Intrepid2_HGRAD_HEX_C1_FEMDef.hpp#L83
@@ -539,7 +527,7 @@ public:
             const double r = refCoord[0]; //NOLINT(readability-identifier-length)
             const double s = refCoord[1]; //NOLINT(readability-identifier-length)
             const std::size_t& npts = physCoords.size() / stride;
-            assert(npts >= 3); // atleast 3 nodes in a triangle. quadratic triangle can have more, but we don't use them.
+            assert(npts >= 3); // at least 3 nodes in a triangle. quadratic triangle can have more, but we don't use them.
             (void) npts;
             int xOfst = 0, yOfst = 1;
             // derivatives from https://github.com/trilinos/Trilinos/blob/master/packages/intrepid2/src/Discretization/Basis/Intrepid2_HGRAD_QUAD_C1_FEMDef.hpp#L78
@@ -608,9 +596,9 @@ public:
             const double& y = p[1];
             const double& z = p[2];
             return std::vector<std::array<double, 3>>({
-              { x,       y - 1.0, z }, 
-              { x,       y,       z }, 
-              { x - 1.0, y, z       }, 
+              { x,       y - 1.0, z },
+              { x,       y,       z },
+              { x - 1.0, y, z       },
               { x,       y, z - 1.0 }
            });
           };
@@ -619,7 +607,7 @@ public:
           // clang-format off
           jacFunc = [](const double vtkNotUsed(refCoord)[3], const std::vector<double>& physCoords, const std::size_t& stride) -> std::vector<std::vector<double>> {
             const std::size_t& npts = physCoords.size() / stride;
-            assert(npts >= 4); // atleast 4 nodes in a tet. quad tet can have more, but we don't use them.
+            assert(npts >= 4); // at least 4 nodes in a tet. quad tet can have more, but we don't use them.
             (void) npts;
             int xOfst = 0, yOfst = 1, zOfst = 2;
             // derivatives from https://github.com/trilinos/Trilinos/blob/master/packages/intrepid2/src/Discretization/Basis/Intrepid2_HGRAD_TET_C1_FEMDef.hpp#L79
@@ -707,7 +695,7 @@ public:
           // clang-format off
           jacFunc = [](const double vtkNotUsed(refCoord)[3], const std::vector<double>& physCoords, const std::size_t& stride) -> std::vector<std::vector<double>> {
             const std::size_t& npts = physCoords.size() / stride;
-            assert(npts >= 3); // atleast 3 nodes in a triangle. quadratic triangle can have more, but we don't use them.
+            assert(npts >= 3); // at least 3 nodes in a triangle. quadratic triangle can have more, but we don't use them.
             (void) npts;
             int xOfst = 0, yOfst = 1;
             // derivatives from https://github.com/trilinos/Trilinos/blob/master/packages/intrepid2/src/Discretization/Basis/Intrepid2_HGRAD_TRI_C1_FEMDef.hpp#L78
@@ -789,7 +777,7 @@ public:
             const double s = refCoord[1]; //NOLINT(readability-identifier-length)
             const double t = refCoord[2]; //NOLINT(readability-identifier-length)
             const std::size_t& npts = physCoords.size() / stride;
-            assert(npts >= 6); // atleast 6 nodes in a wedge. quadratic wedge can have more, but we don't use them.
+            assert(npts >= 6); // at least 6 nodes in a wedge. quadratic wedge can have more, but we don't use them.
             (void) npts;
             int xOfst = 0, yOfst = 1, zOfst = 2;
             // derivatives from https://github.com/trilinos/Trilinos/blob/master/packages/intrepid2/src/Discretization/Basis/Intrepid2_HGRAD_WEDGE_C1_FEMDef.hpp#L81
@@ -896,7 +884,7 @@ public:
     }
     jacMats->resize(npts);
     // jacobian will always be 3 irrespective of cell dimensionality.
-    // for 2d cells, keep an extra row and colum with 0. inefficeint, but makes code readable.
+    // for 2d cells, keep an extra row and column with 0. inefficient, but makes code readable.
     for (size_t ptId = 0; ptId < npts; ++ptId)
     {
       auto& jac = (*jacMats)[ptId];
@@ -1184,6 +1172,8 @@ void InterpolateToNodes(const ::VblpMatrixType& vblpmats, const std::vector<doub
 }
 
 } // end anonymous namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkFiniteElementFieldDistributor::vtkInternals
 {
@@ -2012,7 +2002,7 @@ int vtkFiniteElementFieldDistributor::RequestData(vtkInformation* vtkNotUsed(req
 
         if (c % reportEveryNCells == 0)
         {
-          abortNow = this->GetAbortExecute();
+          abortNow = this->CheckAbort();
           this->UpdateProgress(static_cast<double>(c) / nCells);
         }
       } // for each cell
@@ -2070,3 +2060,4 @@ int vtkFiniteElementFieldDistributor::RequestData(vtkInformation* vtkNotUsed(req
   } // for each element block
   return 1;
 }
+VTK_ABI_NAMESPACE_END

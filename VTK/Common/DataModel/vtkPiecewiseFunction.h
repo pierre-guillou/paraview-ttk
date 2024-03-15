@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPiecewiseFunction.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPiecewiseFunction
@@ -40,6 +28,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPiecewiseFunctionInternals;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkPiecewiseFunction : public vtkDataObject
@@ -51,6 +40,13 @@ public:
 
   void DeepCopy(vtkDataObject* f) override;
   void ShallowCopy(vtkDataObject* f) override;
+
+  enum SearchMethod
+  {
+    BINARY_SEARCH = 0,
+    INTERPOLATION_SEARCH = 1,
+    MAX_ENUM = 2
+  };
 
   /**
    * Return what type of dataset this is.
@@ -151,12 +147,14 @@ public:
    * Fills in an array of function values evaluated at regular intervals.
    * Parameter "stride" is used to step through the output "table". If
    * logIncrements is true, the intervals between entries will be constant in
-   * logarithmic space.
+   * logarithmic space. epsilon is used to move midpoint away from extreme ends
+   * of range, it should be changed if the values are the same magnitude of
+   * the default epsilon.
    */
-  void GetTable(
-    double x1, double x2, int size, float* table, int stride = 1, int logIncrements = 0);
-  void GetTable(
-    double x1, double x2, int size, double* table, int stride = 1, int logIncrements = 0);
+  void GetTable(double x1, double x2, int size, float* table, int stride = 1, int logIncrements = 0,
+    double epsilon = 1e-5);
+  void GetTable(double x1, double x2, int size, double* table, int stride = 1,
+    int logIncrements = 0, double epsilon = 1e-5);
   ///@}
 
   /**
@@ -238,16 +236,38 @@ public:
    */
   int EstimateMinNumberOfSamples(double const& x1, double const& x2);
 
+  /**
+   * Analyses the point distribution and automatically
+   * updates the search method to optimize the time processing
+   * This method assumes that the vector of nodes has been sorted
+   */
+  void UpdateSearchMethod(double epsilon = 1e-12, double thresh = 1e-4);
+
+  //@{
+  /**
+   * Methods to set / get the search method used.
+   * By default the search method used is the one automatically updated
+   * each time the data is modified.
+   * This behavior can be overridden by using SetUseCustomSearchMethod() and SetCustomSearchMethod()
+   */
+  int GetAutomaticSearchMethod();
+  void SetUseCustomSearchMethod(bool use);
+  void SetCustomSearchMethod(int type);
+  int GetCustomSearchMethod();
+  //@}
+
 protected:
   vtkPiecewiseFunction();
   ~vtkPiecewiseFunction() override;
 
   /**
-   * Internal method to sort the vector and update the
+   * Internal methods to sort the vector and update the
    * Range whenever a node is added, edited or removed.
    * It always calls Modified().
+   *
+   * By default it updates search method with UpdateSearchMethod()
    */
-  void SortAndUpdateRange();
+  void SortAndUpdateRange(bool updateSearchMethod = true);
 
   /**
    * Returns true if the range has been updated and Modified() has been called
@@ -283,4 +303,5 @@ private:
   void operator=(const vtkPiecewiseFunction&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLineWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLineWidget
  * @brief   3D widget for manipulating a line
@@ -71,6 +59,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkLineSource.h"               // For passing calls to it
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkPolyDataMapper;
 class vtkPoints;
@@ -290,4 +279,5 @@ private:
   void operator=(const vtkLineWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

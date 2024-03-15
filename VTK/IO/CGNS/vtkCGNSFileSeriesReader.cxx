@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCGNSFileSeriesReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCGNSFileSeriesReader.h"
 
 #include "vtkCGNSReader.h"
@@ -60,6 +49,7 @@ private:
   void operator=(const SCOPED_SET&) = delete;
 };
 }
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkCGNSFileSeriesReader);
 vtkCxxSetObjectMacro(vtkCGNSFileSeriesReader, Controller, vtkMultiProcessController);
@@ -145,7 +135,7 @@ void vtkCGNSFileSeriesReader::OnReaderModifiedEvent()
 }
 
 //----------------------------------------------------------------------------
-int vtkCGNSFileSeriesReader::ProcessRequest(
+vtkTypeBool vtkCGNSFileSeriesReader::ProcessRequest(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   if (!this->Reader)
@@ -214,9 +204,11 @@ int vtkCGNSFileSeriesReader::ProcessRequest(
   this->FileSeriesHelper->FillTimeInformation(outInfo);
   return 1;
 }
+VTK_ABI_NAMESPACE_END
 
 namespace vtkCGNSFileSeriesReaderNS
 {
+VTK_ABI_NAMESPACE_BEGIN
 static bool SetFileNameCallback(vtkAlgorithm* reader, const std::string& fname)
 {
   if (vtkCGNSReader* cgnsReader = vtkCGNSReader::SafeDownCast(reader))
@@ -225,9 +217,11 @@ static bool SetFileNameCallback(vtkAlgorithm* reader, const std::string& fname)
     return true;
   }
   return false;
-};
+}
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 bool vtkCGNSFileSeriesReader::UpdateActiveFileSet(vtkInformation* outInfo)
 {
@@ -285,6 +279,7 @@ void vtkCGNSFileSeriesReader::ChooseActiveFile(int index)
 // data structure, we ignore this warning.
 #pragma warning(disable : 4503)
 #endif
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -449,6 +444,7 @@ private:
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 int vtkCGNSFileSeriesReader::RequestData(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
@@ -493,6 +489,7 @@ int vtkCGNSFileSeriesReader::RequestData(
 
   vtkMultiBlockDataSet* output = vtkMultiBlockDataSet::GetData(outputVector, 0);
   output->Initialize();
-  output->ShallowCopy(hierarchy.Get());
+  output->CompositeShallowCopy(vtkMultiBlockDataSet::SafeDownCast(hierarchy.Get()));
   return 1;
 }
+VTK_ABI_NAMESPACE_END

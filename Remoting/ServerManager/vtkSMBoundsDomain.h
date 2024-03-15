@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMBoundsDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMBoundsDomain
  * @brief   double range domain based on data set bounds
@@ -81,10 +69,10 @@ public:
    */
   void Update(vtkSMProperty*) override;
 
-  //@{
+  ///@{
   vtkSetClampMacro(Mode, int, 0, 3);
   vtkGetMacro(Mode, int);
-  //@}
+  ///@}
 
   /**
    * SCALED_EXTENT: is used for vtkPVScaleFactorEntry.

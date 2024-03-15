@@ -8,24 +8,21 @@
 ##  PURPOSE.  See the above copyright notice for more information.
 ##============================================================================
 
-set(headers
-  Testing.h
-  VecTraitsTests.h
-  )
-
-VTKM_declare_headers(${headers})
-
 if(VTKm_ENABLE_TESTING)
   set(unit_tests
+    UnitTestArrayPortalBasic.cxx
+    UnitTestArrayPortalValueReference.cxx
     UnitTestBinaryPredicates.cxx
     UnitTestBinaryOperators.cxx
     UnitTestBounds.cxx
     UnitTestCellShape.cxx
+    UnitTestConfigureFor32.cxx
+    UnitTestConfigureFor64.cxx
     UnitTestDeprecated.cxx
     UnitTestExceptions.cxx
+    #UnitTestFunctionInterface.cxx #FIXME
     UnitTestHash.cxx
     UnitTestList.cxx
-    UnitTestListTag.cxx
     UnitTestMatrix.cxx
     UnitTestNewtonsMethod.cxx
     UnitTestNoAssert.cxx
@@ -35,7 +32,6 @@ if(VTKm_ENABLE_TESTING)
     UnitTestTransform3D.cxx
     UnitTestTuple.cxx
     UnitTestTypeList.cxx
-    UnitTestTypeListTag.cxx
     UnitTestTypes.cxx
     UnitTestTypeTraits.cxx
     UnitTestUnaryPredicates.cxx
@@ -50,7 +46,6 @@ if(VTKm_ENABLE_TESTING)
 
   # Unit tests that have device-specific code to be tested
   set(unit_tests_device
-    UnitTestAlgorithms.cxx
     UnitTestAtomic.cxx
     UnitTestGeometry.cxx
     UnitTestLowerBound.cxx
@@ -65,5 +60,9 @@ if(VTKm_ENABLE_TESTING)
 
   vtkm_unit_tests(SOURCES ${unit_tests})
 
-  vtkm_unit_tests(NAME UnitTests_vtkm_testing_device SOURCES ${unit_tests_device} ALL_BACKENDS)
+  vtkm_unit_tests(
+    NAME UnitTests_vtkm_testing_device
+    DEVICE_SOURCES ${unit_tests_device}
+    ALL_BACKENDS
+    )
 endif()

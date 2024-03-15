@@ -158,24 +158,100 @@ class VTKM_ALWAYS_EXPORT Storage<T, vtkm::cont::StorageTagStride>
   using StrideInfo = vtkm::internal::ArrayStrideInfo;
 
 public:
-  VTKM_STORAGE_NO_RESIZE;
-
   using ReadPortalType = vtkm::internal::ArrayPortalStrideRead<T>;
   using WritePortalType = vtkm::internal::ArrayPortalStrideWrite<T>;
 
-  VTKM_CONT static StrideInfo& GetInfo(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static StrideInfo& GetInfo(const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return buffers[0].GetMetaData<StrideInfo>();
   }
 
-  VTKM_CONT static vtkm::IdComponent GetNumberOfBuffers() { return 2; }
-
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return GetInfo(buffers).NumberOfValues;
   }
 
-  VTKM_CONT static void Fill(vtkm::cont::internal::Buffer*,
+  VTKM_CONT static void ResizeBuffers(vtkm::Id numValues,
+                                      const std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                      vtkm::CopyFlag preserve,
+                                      vtkm::cont::Token& token)
+  {
+    StrideInfo& info = GetInfo(buffers);
+
+    if (info.NumberOfValues == numValues)
+    {
+      // Array resized to current size. Don't need to do anything.
+      return;
+    }
+
+    // Find the end index after dealing with the divsor and modulo.
+    auto lengthDivMod = [info](vtkm::Id length) -> vtkm::Id {
+      vtkm::Id resultLength = ((length - 1) / info.Divisor) + 1;
+      if ((info.Modulo > 0) && (info.Modulo < resultLength))
+      {
+        resultLength = info.Modulo;
+      }
+      return resultLength;
+    };
+    vtkm::Id lastStridedIndex = lengthDivMod(numValues);
+
+    vtkm::Id originalStride;
+    vtkm::Id originalOffset;
+    if (info.Stride > 0)
+    {
+      originalStride = info.Stride;
+      originalOffset = info.Offset;
+    }
+    else
+    {
+      // The stride is negative, which means we are counting backward. Here we have to be careful
+      // about the offset, which should move to push to the end of the array. We also need to
+      // be careful about multiplying by the stride.
+      originalStride = -info.Stride;
+
+      vtkm::Id originalSize = lengthDivMod(info.NumberOfValues);
+
+      // Because the stride is negative, we expect the offset to be at the end of the array.
+      // We will call the "real" offset the distance from that end.
+      originalOffset = originalSize - info.Offset - 1;
+    }
+
+    // If the offset is more than the stride, that means there are values skipped at the
+    // beginning of the array, and it is impossible to know exactly how many. In this case,
+    // we cannot know how to resize. (If this is an issue, we will have to change
+    // `ArrayHandleStride` to take resizing parameters.)
+    if (originalOffset >= originalStride)
+    {
+      if (numValues == 0)
+      {
+        // Array resized to zero. This can happen when releasing resources.
+        // Should we try to clear out the buffers, or avoid that for messing up shared buffers?
+        return;
+      }
+      throw vtkm::cont::ErrorBadAllocation(
+        "Cannot resize stride array with offset greater than stride (start of stride unknown).");
+    }
+
+    // lastIndex should be the index in the source array after each stride block. Assuming the
+    // offset is inside the first stride, this should be the end of the array regardless of
+    // offset.
+    vtkm::Id lastIndex = lastStridedIndex * originalStride;
+
+    buffers[1].SetNumberOfBytes(
+      vtkm::internal::NumberOfValuesToNumberOfBytes<T>(lastIndex), preserve, token);
+    info.NumberOfValues = numValues;
+
+    if (info.Stride < 0)
+    {
+      // As described above, when the stride is negative, we are counting backward. This means
+      // that the offset is actually relative to the end, so we need to adjust it to the new
+      // end of the array.
+      info.Offset = lastIndex - originalOffset - 1;
+    }
+  }
+
+  VTKM_CONT static void Fill(const std::vector<vtkm::cont::internal::Buffer>&,
                              const T&,
                              vtkm::Id,
                              vtkm::Id,
@@ -184,32 +260,35 @@ public:
     throw vtkm::cont::ErrorBadType("Fill not supported for ArrayHandleStride.");
   }
 
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId device,
-                                                   vtkm::cont::Token& token)
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return ReadPortalType(reinterpret_cast<const T*>(buffers[1].ReadPointerDevice(device, token)),
                           GetInfo(buffers));
   }
 
-  VTKM_CONT static WritePortalType CreateWritePortal(vtkm::cont::internal::Buffer* buffers,
-                                                     vtkm::cont::DeviceAdapterId device,
-                                                     vtkm::cont::Token& token)
+  VTKM_CONT static WritePortalType CreateWritePortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return WritePortalType(reinterpret_cast<T*>(buffers[1].WritePointerDevice(device, token)),
                            GetInfo(buffers));
   }
 
   static std::vector<vtkm::cont::internal::Buffer> CreateBuffers(
-    const vtkm::cont::internal::Buffer& sourceBuffer,
-    vtkm::internal::ArrayStrideInfo&& info)
+    const vtkm::cont::internal::Buffer& sourceBuffer = vtkm::cont::internal::Buffer{},
+    vtkm::internal::ArrayStrideInfo&& info = vtkm::internal::ArrayStrideInfo{})
   {
     return vtkm::cont::internal::CreateBuffers(info, sourceBuffer);
   }
 
-  static vtkm::cont::ArrayHandleBasic<T> GetBasicArray(const vtkm::cont::internal::Buffer* buffers)
+  static vtkm::cont::ArrayHandleBasic<T> GetBasicArray(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    return vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>(buffers + 1);
+    return vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>({ buffers[1] });
   }
 };
 
@@ -254,10 +333,6 @@ public:
                              (ArrayHandleStride<T>),
                              (ArrayHandle<T, vtkm::cont::StorageTagStride>));
 
-private:
-  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
-
-public:
   ArrayHandleStride(vtkm::Id stride, vtkm::Id offset, vtkm::Id modulo = 0, vtkm::Id divisor = 1)
     : Superclass(StorageType::CreateBuffers(
         vtkm::cont::internal::Buffer{},

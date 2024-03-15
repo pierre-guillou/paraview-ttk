@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqScalarValueListPropertyWidget.cxx
-
-   Copyright (c) 2005-2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqScalarValueListPropertyWidget.h"
 #include "ui_pqScalarValueListPropertyWidget.h"
 
@@ -46,9 +18,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCommand.h"
 #include "vtkEventQtSlotConnect.h"
 #include "vtkNew.h"
+#include "vtkPVXMLElement.h"
 #include "vtkSMDoubleRangeDomain.h"
 #include "vtkSMIntRangeDomain.h"
 #include "vtkSMProperty.h"
+#include "vtkSMTimeStepsDomain.h"
 #include "vtkSMVectorProperty.h"
 #include "vtkWeakPointer.h"
 
@@ -82,12 +56,12 @@ public:
 
   ~pqTableModel() override = default;
 
-  void setLabels(std::vector<const char*>& labels)
+  void setLabels(const std::vector<std::string>& labels)
   {
     this->Labels.resize(static_cast<int>(labels.size()));
     for (int i = 0; i < static_cast<int>(labels.size()); i++)
     {
-      this->Labels[i] = QVariant(labels[i]);
+      this->Labels[i] = QVariant(labels[i].c_str());
     }
   }
 
@@ -335,7 +309,8 @@ public:
   enum ValueMode
   {
     MODE_INT,
-    MODE_DOUBLE
+    MODE_DOUBLE,
+    MODE_TIMESTEPS
   };
   Ui::ScalarValueListPropertyWidget Ui;
   vtkNew<vtkEventQtSlotConnect> VTKRangeConnector;
@@ -374,7 +349,8 @@ public:
 
   void clearScalarRangeLabel()
   {
-    this->Ui.ScalarRangeLabel->setText(this->DefaultText.arg("<unknown>").arg("<unknown>"));
+    this->Ui.ScalarRangeLabel->setText(this->DefaultText.arg(QString("<%1>").arg(tr("unknown")))
+                                         .arg(QString("<%1>").arg(tr("unknown"))));
   }
 };
 
@@ -384,6 +360,7 @@ pqScalarValueListPropertyWidget::pqScalarValueListPropertyWidget(
   : Superclass(smProxy, pWidget)
 {
   this->setShowLabel(false);
+  this->setProperty(smProperty);
 
   vtkSMVectorProperty* vp = vtkSMVectorProperty::SafeDownCast(smProperty);
   assert(vp != nullptr);
@@ -398,11 +375,16 @@ pqScalarValueListPropertyWidget::pqScalarValueListPropertyWidget(
   // this will be added back.
   ui.AddRange->hide();
 
+  auto* hints = smProperty->GetHints();
+  const bool showRestoreButton = hints && hints->FindNestedElementByName("AllowRestoreDefaults");
+  ui.RestoreDefaults->setVisible(showRestoreButton);
+
   QObject::connect(ui.Add, SIGNAL(clicked()), this, SLOT(add()));
   QObject::connect(ui.AddRange, SIGNAL(clicked()), this, SLOT(addRange()));
   QObject::connect(ui.Remove, SIGNAL(clicked()), this, SLOT(remove()));
   QObject::connect(ui.RemoveAll, SIGNAL(clicked()), this, SLOT(removeAll()));
   QObject::connect(ui.Table, SIGNAL(editPastLastRow()), this, SLOT(editPastLastRow()));
+  QObject::connect(ui.RestoreDefaults, SIGNAL(clicked()), this, SLOT(restoreDefaults()));
 
   // update `Remove` button enabled state based on selection.
   ui.Remove->setEnabled(false);
@@ -447,6 +429,13 @@ void pqScalarValueListPropertyWidget::setShowLabels(bool showLabels)
 
 //-----------------------------------------------------------------------------
 void pqScalarValueListPropertyWidget::setLabels(std::vector<const char*>& labels)
+{
+  const std::vector<std::string> strLabels(labels.begin(), labels.end());
+  this->Internals->Model.setLabels(strLabels);
+}
+
+//-----------------------------------------------------------------------------
+void pqScalarValueListPropertyWidget::setLabels(const std::vector<std::string>& labels)
 {
   this->Internals->Model.setLabels(labels);
 }
@@ -493,74 +482,82 @@ void pqScalarValueListPropertyWidget::removeAll()
 //-----------------------------------------------------------------------------
 void pqScalarValueListPropertyWidget::addRange()
 {
-  if (this->Internals->Mode == pqInternals::MODE_DOUBLE)
+  switch (this->Internals->Mode)
   {
-    double rangeMin, rangeMax;
-    if (!this->getRange(rangeMin, rangeMax))
+    case pqInternals::MODE_DOUBLE:
+    case pqInternals::MODE_TIMESTEPS:
     {
-      rangeMin = 0.0;
-      rangeMax = 10.0;
-    }
-
-    if (!this->Internals->GeneratorDialog)
-    {
-      this->Internals->GeneratorDialog = new pqSeriesGeneratorDialog(rangeMin, rangeMax, this);
-    }
-    else
-    {
-      this->Internals->GeneratorDialog->setDataRange(rangeMin, rangeMax);
-    }
-
-    if (this->Internals->GeneratorDialog->exec() != QDialog::Accepted)
-    {
-      return;
-    }
-
-    QVariantList value = this->Internals->Model.value().toList();
-    for (const auto& newvalue : this->Internals->GeneratorDialog->series())
-    {
-      value.push_back(QVariant(newvalue));
-    }
-    this->Internals->Model.setValue(value);
-    Q_EMIT this->scalarsChanged();
-  }
-  else if (this->Internals->Mode == pqInternals::MODE_INT)
-  {
-    int rangeMin, rangeMax;
-    if (!this->getRange(rangeMin, rangeMax))
-    {
-      rangeMin = 0;
-      rangeMax = 10;
-    }
-
-    if (!this->Internals->GeneratorDialog)
-    {
-      this->Internals->GeneratorDialog = new pqSeriesGeneratorDialog(rangeMin, rangeMax, this);
-    }
-    else
-    {
-      this->Internals->GeneratorDialog->setDataRange(rangeMin, rangeMax);
-    }
-
-    if (this->Internals->GeneratorDialog->exec() != QDialog::Accepted)
-    {
-      return;
-    }
-
-    QVariantList intRange;
-    for (const auto& newvalue : this->Internals->GeneratorDialog->series())
-    {
-      const int ival = static_cast<int>(std::floor(newvalue + 0.5));
-      if (intRange.empty() || (intRange.back().toInt() != ival))
+      double rangeMin, rangeMax;
+      if (!this->getRange(rangeMin, rangeMax))
       {
-        intRange.push_back(ival);
+        rangeMin = 0.0;
+        rangeMax = 9.0;
       }
-    }
 
-    QVariantList value = this->Internals->Model.value().toList();
-    value += intRange;
-    this->Internals->Model.setValue(value);
-    Q_EMIT this->scalarsChanged();
+      if (!this->Internals->GeneratorDialog)
+      {
+        this->Internals->GeneratorDialog = new pqSeriesGeneratorDialog(rangeMin, rangeMax, this);
+      }
+      else
+      {
+        this->Internals->GeneratorDialog->setDataRange(rangeMin, rangeMax);
+      }
+
+      if (this->Internals->GeneratorDialog->exec() != QDialog::Accepted)
+      {
+        return;
+      }
+
+      QVariantList value = this->Internals->Model.value().toList();
+      for (const auto& newvalue : this->Internals->GeneratorDialog->series())
+      {
+        value.push_back(QVariant(newvalue));
+      }
+      this->Internals->Model.setValue(value);
+      Q_EMIT this->scalarsChanged();
+    }
+    break;
+    case pqInternals::MODE_INT:
+    {
+      int rangeMin, rangeMax;
+      if (!this->getRange(rangeMin, rangeMax))
+      {
+        rangeMin = 0;
+        rangeMax = 10;
+      }
+
+      if (!this->Internals->GeneratorDialog)
+      {
+        this->Internals->GeneratorDialog = new pqSeriesGeneratorDialog(rangeMin, rangeMax, this);
+      }
+      else
+      {
+        this->Internals->GeneratorDialog->setDataRange(rangeMin, rangeMax);
+      }
+
+      if (this->Internals->GeneratorDialog->exec() != QDialog::Accepted)
+      {
+        return;
+      }
+
+      QVariantList intRange;
+      for (const auto& newvalue : this->Internals->GeneratorDialog->series())
+      {
+        const int ival = static_cast<int>(std::floor(newvalue + 0.5));
+        if (intRange.empty() || (intRange.back().toInt() != ival))
+        {
+          intRange.push_back(ival);
+        }
+      }
+
+      QVariantList value = this->Internals->Model.value().toList();
+      value += intRange;
+      this->Internals->Model.setValue(value);
+      Q_EMIT this->scalarsChanged();
+    }
+    break;
+    default:
+      break;
   }
 }
 
@@ -585,6 +582,7 @@ void pqScalarValueListPropertyWidget::setRangeDomain(vtkSMDoubleRangeDomain* smR
     this->Internals->Ui.AddRange->hide();
   }
 }
+
 //-----------------------------------------------------------------------------
 void pqScalarValueListPropertyWidget::setRangeDomain(vtkSMIntRangeDomain* smRangeDomain)
 {
@@ -608,48 +606,97 @@ void pqScalarValueListPropertyWidget::setRangeDomain(vtkSMIntRangeDomain* smRang
 }
 
 //-----------------------------------------------------------------------------
+void pqScalarValueListPropertyWidget::setRangeDomain(vtkSMTimeStepsDomain* tsDomain)
+{
+  this->Internals->VTKRangeConnector->Disconnect();
+  this->Internals->RangeDomain = tsDomain;
+  this->Internals->Mode = pqInternals::MODE_TIMESTEPS;
+  this->Internals->Model.setAllowIntegerValuesOnly(false);
+  if (tsDomain)
+  {
+    this->Internals->VTKRangeConnector->Connect(
+      tsDomain, vtkCommand::DomainModifiedEvent, this, SLOT(smRangeModified()));
+    this->Internals->Ui.ScalarRangeLabel->show();
+    this->Internals->Ui.AddRange->show();
+    this->smRangeModified();
+  }
+  else
+  {
+    this->Internals->Ui.ScalarRangeLabel->hide();
+    this->Internals->Ui.AddRange->hide();
+  }
+}
+
+//-----------------------------------------------------------------------------
 void pqScalarValueListPropertyWidget::smRangeModified()
 {
-  if (this->Internals->Mode == pqInternals::MODE_DOUBLE)
+  switch (this->Internals->Mode)
   {
-    double rangeMin, rangeMax;
-    if (this->getRange(rangeMin, rangeMax))
+    case pqInternals::MODE_DOUBLE:
+    case pqInternals::MODE_TIMESTEPS:
     {
-      this->Internals->setScalarRangeLabel(rangeMin, rangeMax);
+      double rangeMin, rangeMax;
+      if (this->getRange(rangeMin, rangeMax))
+      {
+        this->Internals->setScalarRangeLabel(rangeMin, rangeMax);
+      }
+      else
+      {
+        this->Internals->clearScalarRangeLabel();
+      }
     }
-    else
+    break;
+    case pqInternals::MODE_INT:
     {
-      this->Internals->clearScalarRangeLabel();
+      int rangeMin, rangeMax;
+      if (this->getRange(rangeMin, rangeMax))
+      {
+        this->Internals->setScalarRangeLabel(rangeMin, rangeMax);
+      }
+      else
+      {
+        this->Internals->clearScalarRangeLabel();
+      }
     }
-  }
-  else if (this->Internals->Mode == pqInternals::MODE_INT)
-  {
-    int rangeMin, rangeMax;
-    if (this->getRange(rangeMin, rangeMax))
-    {
-      this->Internals->setScalarRangeLabel(rangeMin, rangeMax);
-    }
-    else
-    {
-      this->Internals->clearScalarRangeLabel();
-    }
+    break;
+    default:
+      break;
   }
 }
 
 //-----------------------------------------------------------------------------
 bool pqScalarValueListPropertyWidget::getRange(double& rangeMin, double& rangeMax)
 {
-  assert(this->Internals->Mode == pqInternals::MODE_DOUBLE);
   // Return the range of values in the input (if available)
   if (this->Internals->RangeDomain)
   {
-    int min_exists = 0, max_exists = 0;
-    vtkSMDoubleRangeDomain* doubleRange =
-      vtkSMDoubleRangeDomain::SafeDownCast(this->Internals->RangeDomain);
-    assert(doubleRange != nullptr);
-    rangeMin = doubleRange->GetMinimum(0, min_exists);
-    rangeMax = doubleRange->GetMaximum(0, max_exists);
-    return (min_exists && max_exists);
+    if (this->Internals->Mode == pqInternals::MODE_DOUBLE)
+    {
+      int min_exists = 0, max_exists = 0;
+      vtkSMDoubleRangeDomain* doubleRange =
+        vtkSMDoubleRangeDomain::SafeDownCast(this->Internals->RangeDomain);
+      assert(doubleRange != nullptr);
+      rangeMin = doubleRange->GetMinimum(0, min_exists);
+      rangeMax = doubleRange->GetMaximum(0, max_exists);
+      return (min_exists && max_exists);
+    }
+    else // this->Internals->Mode == pqInternals::MODE_TIMESTEPS
+    {
+      // Timesteps are sorted in vtkSMTimeStepsDomain
+      vtkSMTimeStepsDomain* tsDomain =
+        vtkSMTimeStepsDomain::SafeDownCast(this->Internals->RangeDomain);
+      auto values = tsDomain->GetValues();
+      if (values.size() >= 2)
+      {
+        rangeMin = values.front();
+        rangeMax = values.back();
+        return true;
+      }
+      else
+      {
+        return false;
+      }
+    }
   }
   return false;
 }
@@ -670,4 +717,11 @@ bool pqScalarValueListPropertyWidget::getRange(int& rangeMin, int& rangeMax)
     return (min_exists && max_exists);
   }
   return false;
+}
+
+//-----------------------------------------------------------------------------
+void pqScalarValueListPropertyWidget::restoreDefaults()
+{
+  this->property()->ResetToXMLDefaults();
+  Q_EMIT this->scalarsChanged();
 }

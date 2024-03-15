@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVectorText.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVectorText.h"
 
 #include "vtkCellArray.h"
@@ -24,12 +12,15 @@
 
 #include <clocale>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVectorText);
 
-// NOLINTNEXTLINE(bugprone-suspicious-include)
-#include "vtkVectorTextData.cxx"
+VTK_ABI_NAMESPACE_END
+
+#include "vtkVectorTextData.inl"
 
 // Construct object with no string set and backing enabled.
+VTK_ABI_NAMESPACE_BEGIN
 vtkVectorText::vtkVectorText()
 {
   this->Text = nullptr;
@@ -141,3 +132,4 @@ vtkVectorText::~vtkVectorText()
 {
   delete[] this->Text;
 }
+VTK_ABI_NAMESPACE_END

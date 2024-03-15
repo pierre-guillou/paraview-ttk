@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPFileGridBuilder.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPFileGridBuilder
  * @brief   Class for creating grids from a VTK file.
@@ -41,29 +29,29 @@ public:
    */
   vtkDataObject* GetGrid(unsigned long timeStep, double time, int& builtNewGrid) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the FileName.
    */
   vtkGetStringMacro(FileName);
   vtkSetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get KeepPointData.
    */
   vtkGetMacro(KeepPointData, bool);
   vtkSetMacro(KeepPointData, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get KeepPointData.
    */
   vtkGetMacro(KeepCellData, bool);
   vtkSetMacro(KeepCellData, bool);
-  //@}
+  ///@}
 
   /**
    * Get the current grid.
@@ -101,7 +89,7 @@ private:
    */
   bool KeepCellData;
 
-  //@{
+  ///@{
   /**
    * The grid that is returned.
    */

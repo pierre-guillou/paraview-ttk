@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqArraySelectorPropertyWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqArraySelectorPropertyWidget.h"
 
 #include "vtkDataObject.h"
@@ -90,6 +62,7 @@ public:
   const int AssociationUnspecified = -1;
 
   QPair<int, QString> Array = qMakePair(AssociationUnspecified, QString());
+  std::vector<QPair<int, QString>> KnownArrays;
   QPointer<QComboBox> ComboBox;
   vtkWeakPointer<vtkSMArrayListDomain> Domain;
   vtkNew<vtkEventQtSlotConnect> VTKConnect;
@@ -109,6 +82,14 @@ public:
 
     combobox->clear();
     const auto none_string = ald->GetNoneString();
+
+    for (const auto& array : this->KnownArrays)
+    {
+      const int& assoc = array.first;
+      const auto& aname = array.second;
+      this->addItem(assoc, aname, false);
+    }
+
     for (unsigned int cc = 0, max = ald->GetNumberOfStrings(); cc < max; ++cc)
     {
       const auto aname = ald->GetString(cc);
@@ -126,12 +107,12 @@ public:
     int index = this->findData(this->Array.first, this->Array.second);
     if (index == -1)
     {
-      index = this->addUnknownItem(this->Array.first, this->Array.second);
+      index = this->addItem(this->Array.first, this->Array.second, true);
     }
     combobox->setCurrentIndex(index);
   }
 
-  int addUnknownItem(int assoc, const QString& aname)
+  int addItem(int assoc, const QString& aname, bool unknown)
   {
     if (assoc <= 0 && aname.isEmpty())
     {
@@ -139,10 +120,10 @@ public:
     }
     auto combobox = this->ComboBox;
     const int index = combobox->count();
-    combobox->addItem(get_icon(assoc), ::get_label(aname, false) + " (?)");
+    combobox->addItem(get_icon(assoc), ::get_label(aname, false) + (unknown ? " (?)" : ""));
     combobox->setItemData(index, QVariant(assoc), ArrayAssociationRole);
     combobox->setItemData(index, QVariant(aname), ArrayNameRole);
-    combobox->setItemData(index, QVariant(true), UnknownItemRole);
+    combobox->setItemData(index, QVariant(unknown), UnknownItemRole);
     return index;
   }
 
@@ -230,16 +211,24 @@ private:
 //-----------------------------------------------------------------------------
 pqArraySelectorPropertyWidget::pqArraySelectorPropertyWidget(
   vtkSMProperty* smproperty, vtkSMProxy* smproxy, QWidget* parentWdg)
+  : pqArraySelectorPropertyWidget(smproperty, smproxy, {}, parentWdg)
+{
+}
+
+//-----------------------------------------------------------------------------
+pqArraySelectorPropertyWidget::pqArraySelectorPropertyWidget(vtkSMProperty* smproperty,
+  vtkSMProxy* smproxy, std::initializer_list<QPair<int, QString>> KnownArrays, QWidget* parentWdg)
   : Superclass(smproxy, parentWdg)
   , Internals(new pqArraySelectorPropertyWidget::pqInternals())
 {
   this->setChangeAvailableAsChangeFinished(true);
 
   auto& internals = *this->Internals;
+  internals.KnownArrays = KnownArrays;
 
   auto l = new QVBoxLayout(this);
   l->setSpacing(0);
-  l->setMargin(0);
+  l->setContentsMargins(0, 0, 0, 0);
 
   auto combobox = new QComboBox(this);
   combobox->setObjectName("ComboBox");
@@ -319,7 +308,7 @@ void pqArraySelectorPropertyWidget::setArray(int assoc, const QString& val)
   int index = internals.findData(assoc, val);
   if (index == -1)
   {
-    index = internals.addUnknownItem(assoc, val);
+    index = internals.addItem(assoc, val, /*unknown=*/true);
   }
   internals.ComboBox->setCurrentIndex(index);
   internals.pruneUnusedUnknownItems();

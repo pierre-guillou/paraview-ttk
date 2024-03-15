@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCityGMLReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCityGMLReader.h"
 
 #include "vtkAppendPolyData.h"
@@ -52,6 +40,7 @@
 #include <unordered_map>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCityGMLReader::Implementation
 {
 public:
@@ -462,7 +451,6 @@ public:
     if (posList)
     {
       vtkNew<vtkLine> line;
-      vtkIdType i = 1;
       std::istringstream iss(posList.child_value());
       bool validPoint = true;
       double p[3] = { 0., 0., 0. };
@@ -504,7 +492,6 @@ public:
           points->InsertNextPoint(p);
           line->GetPointIds()->SetId(1, points->GetNumberOfPoints() - 1);
           lines->InsertNextCell(line);
-          ++i;
         }
       } while (validPoint);
       // first point is repeated in the last position
@@ -1138,3 +1125,4 @@ void vtkCityGMLReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianMatidaIntegrationModel.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangianMatidaIntegrationModel.h"
 
 #include "vtkCellData.h"
@@ -26,6 +14,7 @@
 
 #include <cstring>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkLagrangianMatidaIntegrationModel);
 
 //------------------------------------------------------------------------------
@@ -146,12 +135,11 @@ int vtkLagrangianMatidaIntegrationModel::FunctionValues(vtkLagrangianParticle* p
       flowDynamicViscosity, particleDiameter, particleDensity);
     // Matida Equation
     f[i + 3] = (relax == 0) ? std::numeric_limits<double>::infinity()
-                            : (flowVelocity[i] - x[i + 3]) * drag / relax;
+                            : (flowVelocity[i] - x[i + 3]) * drag / relax +
+        this->Gravity[i] * (1 - (flowDensity / particleDensity));
     f[i] = x[i + 3];
   }
 
-  const double G = 9.8; // Gravity
-  f[5] -= G * (1 - (flowDensity / particleDensity));
   return 1;
 }
 
@@ -180,3 +168,4 @@ double vtkLagrangianMatidaIntegrationModel::GetDragCoefficient(const double* flo
   double reynolds = flowDensity * relativeSpeed * particleDiameter / dynVisc;
   return (1.0 + 0.15 * pow(reynolds, 0.687));
 }
+VTK_ABI_NAMESPACE_END

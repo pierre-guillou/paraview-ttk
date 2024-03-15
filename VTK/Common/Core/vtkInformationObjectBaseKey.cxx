@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationObjectBaseKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationObjectBaseKey.h"
 
 #include "vtkInformation.h" // For vtkErrorWithObjectMacro
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationObjectBaseKey ::vtkInformationObjectBaseKey(
   const char* name, const char* location, const char* requiredClass)
   : vtkInformationKey(name, location)
@@ -71,3 +60,4 @@ void vtkInformationObjectBaseKey::Report(vtkInformation* info, vtkGarbageCollect
 {
   this->ReportAsObjectBase(info, collector);
 }
+VTK_ABI_NAMESPACE_END

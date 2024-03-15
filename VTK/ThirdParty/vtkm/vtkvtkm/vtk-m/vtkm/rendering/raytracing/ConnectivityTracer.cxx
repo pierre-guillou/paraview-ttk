@@ -205,12 +205,12 @@ void ConnectivityTracer::SetVolumeData(const vtkm::cont::Field& scalarField,
   Coords = coords;
   MeshConnIsConstructed = false;
 
-  const bool isSupportedField = ScalarField.IsFieldCell() || ScalarField.IsFieldPoint();
+  const bool isSupportedField = ScalarField.IsCellField() || ScalarField.IsPointField();
   if (!isSupportedField)
   {
     throw vtkm::cont::ErrorBadValue("Field not accociated with cell set or points");
   }
-  FieldAssocPoints = ScalarField.IsFieldPoint();
+  FieldAssocPoints = ScalarField.IsPointField();
 
   this->Integrator = Volume;
 
@@ -435,14 +435,12 @@ public:
 
     FloatType minDistance = static_cast<FloatType>(1e32);
     FloatType maxDistance = static_cast<FloatType>(-1);
-    int hitCount = 0;
     for (vtkm::Int32 i = 0; i < numFaces; ++i)
     {
       FloatType dist = distances[i];
 
       if (dist != -1)
       {
-        hitCount++;
         if (dist < minDistance)
         {
           minDistance = dist;
@@ -564,14 +562,12 @@ public:
       vtkm::Int32 maxFace = -1;
       FloatType minDistance = static_cast<FloatType>(1e32);
       FloatType maxDistance = static_cast<FloatType>(-1);
-      int hitCount = 0;
       for (int i = 0; i < numFaces; ++i)
       {
         FloatType dist = distances[i];
 
         if (dist != -1)
         {
-          hitCount++;
           if (dist < minDistance)
           {
             minDistance = dist;

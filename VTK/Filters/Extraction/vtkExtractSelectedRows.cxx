@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedRows.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkExtractSelectedRows.h"
 
@@ -50,6 +34,7 @@
 #include <map>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedRows);
 //------------------------------------------------------------------------------
 vtkExtractSelectedRows::vtkExtractSelectedRows()
@@ -185,8 +170,15 @@ int vtkExtractSelectedRows::RequestData(vtkInformation* vtkNotUsed(request),
 
   output->GetRowData()->CopyStructure(input->GetRowData());
 
+  unsigned int checkAbortInterval =
+    std::min(converted->GetNumberOfNodes() / 10 + 1, (unsigned int)1000);
+
   for (unsigned int i = 0; i < converted->GetNumberOfNodes(); ++i)
   {
+    if (i % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     vtkSelectionNode* node = converted->GetNode(i);
     if (node->GetFieldType() == vtkSelectionNode::ROW)
     {
@@ -241,3 +233,4 @@ void vtkExtractSelectedRows::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "AddOriginalRowIdsArray: " << this->AddOriginalRowIdsArray << endl;
 }
+VTK_ABI_NAMESPACE_END

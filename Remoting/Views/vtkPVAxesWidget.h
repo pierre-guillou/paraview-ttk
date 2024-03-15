@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVAxesWidget
  * @brief   A widget to manipulate vtkPVAxesWidget.
@@ -50,21 +38,21 @@ public:
    */
   static const int RendererLayer = 1;
 
-  //@{
+  ///@{
   /**
    * Set/get the axes actor to be displayed in this 3D widget.
    */
   void SetAxesActor(vtkPVAxesActor* actor);
   vtkGetObjectMacro(AxesActor, vtkPVAxesActor);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the renderer this 3D widget will be contained in.
    */
   void SetParentRenderer(vtkRenderer* ren);
   vtkRenderer* GetParentRenderer();
-  //@}
+  ///@}
 
   /**
    * Overridden to add interaction observers.
@@ -82,39 +70,56 @@ public:
    */
   void SetEnabled(int) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the visibility. Note if visibility is off, Enabled state is ignored
    * and assumed off.
    */
   void SetVisibility(bool val);
   bool GetVisibility();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the color of the outline of this widget.  The outline is visible
    * when (in interactive mode) the cursor is over this 3D widget.
    */
   void SetOutlineColor(double r, double g, double b);
   double* GetOutlineColor();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the color of the axis labels of this widget.
    */
   void SetAxisLabelColor(double r, double g, double b);
   double* GetAxisLabelColor();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the viewport to position/size this 3D widget.
    */
   void SetViewport(double minX, double minY, double maxX, double maxY);
   double* GetViewport();
-  //@}
+  ///@}
+
+  ///@{
+  /**
+   * Set the color and visibility of each individual axis.
+   */
+  void SetXAxisColor(double r, double g, double b);
+  void SetYAxisColor(double r, double g, double b);
+  void SetZAxisColor(double r, double g, double b);
+
+  void SetXAxisVisibility(bool vis);
+  void SetYAxisVisibility(bool vis);
+  void SetZAxisVisibility(bool vis);
+
+  void SetXAxisLabelText(const char* text);
+  void SetYAxisLabelText(const char* text);
+  void SetZAxisLabelText(const char* text);
+  ///@}
 
 protected:
   vtkPVAxesWidget();

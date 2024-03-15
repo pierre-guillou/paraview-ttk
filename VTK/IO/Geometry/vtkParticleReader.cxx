@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParticleReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParticleReader.h"
 
 #include "vtkByteSwap.h"
@@ -36,6 +24,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkParticleReader);
 
 namespace
@@ -311,7 +300,6 @@ int vtkParticleReader::DetermineFileType()
   size_t zero = 0;
   size_t conventionalASCII = 0;
   size_t extendedASCII = 0;
-  size_t controlASCII = 0;
   size_t otherASCII = 0;
   for (size_t j = 0; j < s.size(); ++j)
   {
@@ -335,7 +323,6 @@ int vtkParticleReader::DetermineFileType()
     // Control characters.
     if (s[j] == '\n' || s[j] == '\r' || s[j] == '\t' || s[j] == '\f')
     {
-      controlASCII++;
       continue;
     }
     otherASCII++;
@@ -993,3 +980,4 @@ void vtkParticleReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Alliquot: " << (unsigned int)this->Alliquot << "\n";
   os << indent << "Count: " << (unsigned int)this->Count << "\n";
 }
+VTK_ABI_NAMESPACE_END

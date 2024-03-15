@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkStreamingParticlesRepresentation - representation for rendering
 // particles with streaming.
 // .SECTION Description
@@ -28,7 +16,7 @@
 #include "vtkWeakPointer.h"              // for weak pointer.
 #include <vector>                        // needed for std::vector
 
-class vtkCompositePolyDataMapper2;
+class vtkCompositePolyDataMapper;
 class vtkMultiBlockDataSet;
 class vtkPVLODActor;
 class vtkScalarsToColors;
@@ -207,7 +195,7 @@ protected:
 
   // Description:
   // Actor used to render the outlines in the view.
-  vtkSmartPointer<vtkCompositePolyDataMapper2> Mapper;
+  vtkSmartPointer<vtkCompositePolyDataMapper> Mapper;
   vtkSmartPointer<vtkPVLODActor> Actor;
 
   // Description:

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoxRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBoxRepresentation.h"
 
@@ -44,6 +32,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBoxRepresentation);
 
 //------------------------------------------------------------------------------
@@ -999,7 +988,7 @@ void vtkBoxRepresentation::CreateDefaultProperties()
   this->HandleProperty->SetColor(1, 1, 1);
 
   this->SelectedHandleProperty = vtkProperty::New();
-  this->SelectedHandleProperty->SetColor(1, 0, 0);
+  this->SelectedHandleProperty->SetColor(0, 1, 0);
 
   // Face properties
   this->FaceProperty = vtkProperty::New();
@@ -1014,13 +1003,13 @@ void vtkBoxRepresentation::CreateDefaultProperties()
   this->OutlineProperty = vtkProperty::New();
   this->OutlineProperty->SetRepresentationToWireframe();
   this->OutlineProperty->SetAmbient(1.0);
-  this->OutlineProperty->SetAmbientColor(1.0, 1.0, 1.0);
+  this->OutlineProperty->SetColor(1.0, 1.0, 1.0);
   this->OutlineProperty->SetLineWidth(2.0);
 
   this->SelectedOutlineProperty = vtkProperty::New();
   this->SelectedOutlineProperty->SetRepresentationToWireframe();
   this->SelectedOutlineProperty->SetAmbient(1.0);
-  this->SelectedOutlineProperty->SetAmbientColor(0.0, 1.0, 0.0);
+  this->SelectedOutlineProperty->SetColor(0.0, 1.0, 0.0);
   this->SelectedOutlineProperty->SetLineWidth(2.0);
 }
 
@@ -1183,6 +1172,37 @@ void vtkBoxRepresentation::SetTransform(vtkTransform* t)
   t->InternalTransformPoint(xIn, pts + 21);
 
   this->PositionHandles();
+}
+
+void vtkBoxRepresentation::SetForegroundColor(double _arg1, double _arg2, double _arg3)
+{
+  double* outlineColor = this->OutlineProperty->GetColor();
+  if ((outlineColor[0] != _arg1) || (outlineColor[1] != _arg2) || (outlineColor[2] != _arg3))
+  {
+    this->OutlineProperty->SetColor(_arg1, _arg2, _arg3);
+    this->HexActor->Modified();
+    this->HexOutline->Modified();
+    this->Modified();
+  }
+}
+
+void vtkBoxRepresentation::SetInteractionColor(double _arg1, double _arg2, double _arg3)
+{
+  double* interactionColor = this->SelectedHandleProperty->GetColor();
+  if ((interactionColor[0] != _arg1) || (interactionColor[1] != _arg2) ||
+    (interactionColor[2] != _arg3))
+  {
+    this->SelectedHandleProperty->SetColor(_arg1, _arg2, _arg3);
+    this->SelectedOutlineProperty->SetColor(_arg1, _arg2, _arg3);
+    // we are leaving the selected face a contrasting color.
+    if (this->CurrentHandle)
+    {
+      this->CurrentHandle->Modified();
+    }
+    this->HexActor->Modified();
+    this->HexOutline->Modified();
+    this->Modified();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1729,6 +1749,7 @@ void vtkBoxRepresentation::HighlightFace(int cellId)
     vtkIdType npts;
     const vtkIdType* pts;
     vtkCellArray* cells = this->HexFacePolyData->GetPolys();
+    // this makes sure the selected face updates.
     this->HexPolyData->GetCellPoints(cellId, npts, pts);
     this->HexFacePolyData->Modified();
     cells->ReplaceCellAtId(0, npts, pts);
@@ -1777,16 +1798,15 @@ void vtkBoxRepresentation::RegisterPickers()
 //------------------------------------------------------------------------------
 void vtkBoxRepresentation::GetActors(vtkPropCollection* pc)
 {
-  if (!pc)
+  if (pc != nullptr && this->GetVisibility())
   {
-    return;
-  }
-  pc->AddItem(this->HexActor);
-  pc->AddItem(this->HexFace);
-  pc->AddItem(this->HexOutline);
-  for (int j = 0; j < 7; j++)
-  {
-    pc->AddItem(this->Handle[j]);
+    pc->AddItem(this->HexActor);
+    pc->AddItem(this->HexFace);
+    pc->AddItem(this->HexOutline);
+    for (int j = 0; j < 7; j++)
+    {
+      pc->AddItem(this->Handle[j]);
+    }
   }
   this->Superclass::GetActors(pc);
 }
@@ -1860,3 +1880,4 @@ void vtkBoxRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Outline Cursor Wires: " << (this->OutlineCursorWires ? "On\n" : "Off\n");
   os << indent << "Inside Out: " << (this->InsideOut ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

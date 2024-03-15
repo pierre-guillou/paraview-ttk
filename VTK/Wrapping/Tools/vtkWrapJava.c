@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapJava.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkParse.h"
 #include "vtkParseHierarchy.h"
@@ -89,8 +77,7 @@ void OutputParamDeclarations(FILE* fp, int i)
     return;
   }
 
-  if ((aType == VTK_PARSE_LONG_PTR) || (aType == VTK_PARSE_LONG_LONG_PTR) ||
-    (aType == VTK_PARSE___INT64_PTR))
+  if ((aType == VTK_PARSE_LONG_PTR) || (aType == VTK_PARSE_LONG_LONG_PTR))
   {
     fprintf(fp, "jlongArray id%i", i);
     return;
@@ -123,7 +110,6 @@ void OutputParamDeclarations(FILE* fp, int i)
       break;
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
       fprintf(fp, "jlong ");
       break;
     case VTK_PARSE_BOOL:
@@ -209,8 +195,6 @@ void use_hints(FILE* fp)
     case VTK_PARSE_UNSIGNED_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
       fprintf(fp,
         "  return vtkJavaMakeJArrayOfLong(env, reinterpret_cast<%sjlong*>(temp%i), %i);\n",
         qualifier, MAX_ARGS, thisFunction->ReturnValue->Count);
@@ -253,10 +237,8 @@ void return_result(FILE* fp)
       break;
     case VTK_PARSE_LONG:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
     case VTK_PARSE_UNSIGNED_LONG:
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       fprintf(fp, "jlong ");
       break;
     case VTK_PARSE_BOOL:
@@ -288,10 +270,8 @@ void return_result(FILE* fp)
       break;
     case VTK_PARSE_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
       fprintf(fp, "jlongArray ");
       break;
     case VTK_PARSE_BOOL_PTR:
@@ -356,9 +336,6 @@ void OutputLocalVariableDeclarations(
       break;
     case VTK_PARSE_LONG_LONG:
       fprintf(fp, "long long ");
-      break;
-    case VTK_PARSE___INT64:
-      fprintf(fp, "__int64 ");
       break;
     case VTK_PARSE_SIGNED_CHAR:
       fprintf(fp, "signed char ");
@@ -493,8 +470,6 @@ void OutputLocalVariableAssignments(FILE* fp, int i)
     case VTK_PARSE_UNSIGNED_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
       fprintf(fp, "  env->GetLongArrayRegion(id%i, 0, %i, reinterpret_cast<jlong*>(&temp%i[0]));\n",
         i, thisFunction->Parameters[i]->Count, i);
       break;
@@ -575,8 +550,6 @@ void OutputCopyAndReleaseLocalVariables(FILE* fp, int i)
         case VTK_PARSE_UNSIGNED_LONG_PTR:
         case VTK_PARSE_LONG_LONG_PTR:
         case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-        case VTK_PARSE___INT64_PTR:
-        case VTK_PARSE_UNSIGNED___INT64_PTR:
           fprintf(fp,
             "  env->SetLongArrayRegion(id%i, 0, %i, reinterpret_cast<jlong*>(&temp%i[0]));\n", i,
             thisFunction->Parameters[i]->Count, i);
@@ -645,8 +618,6 @@ void OutputFunctionResult(FILE* fp)
     case VTK_PARSE_UNSIGNED_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
     case VTK_PARSE_UNSIGNED_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
-    case VTK_PARSE_UNSIGNED___INT64_PTR:
     case VTK_PARSE_BOOL_PTR:
       use_hints(fp);
       break;
@@ -672,7 +643,7 @@ static int CheckMatch(unsigned int type1, unsigned int type2, const char* c1, co
   static unsigned int shortTypes[] = { VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_SHORT, 0 };
   static unsigned int intTypes[] = { VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
   static unsigned int longTypes[] = { VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_UNSIGNED_LONG_LONG,
-    VTK_PARSE_UNSIGNED___INT64, VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE___INT64, 0 };
+    VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, 0 };
 
   static unsigned int stringTypes[] = { VTK_PARSE_CHAR_PTR, VTK_PARSE_STRING_REF, VTK_PARSE_STRING,
     0 };
@@ -789,7 +760,7 @@ int DoneOne(void)
   return 0;
 }
 
-void HandleDataReader(FILE* fp, ClassInfo* data)
+void HandleDataReader(FILE* fp, const ClassInfo* data)
 {
   fprintf(fp, "\n");
   fprintf(fp, "extern \"C\" JNIEXPORT void");
@@ -805,7 +776,7 @@ void HandleDataReader(FILE* fp, ClassInfo* data)
   fprintf(fp, "}\n");
 }
 
-void HandleDataArray(FILE* fp, ClassInfo* data)
+void HandleDataArray(FILE* fp, const ClassInfo* data)
 {
   const char* type = 0;
   const char* jtype = 0;
@@ -938,8 +909,8 @@ int checkFunctionSignature(ClassInfo* data)
   static const unsigned int supported_types[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
     VTK_PARSE_UNSIGNED_INT, VTK_PARSE_SHORT, VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_LONG,
-    VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE___INT64,
-    VTK_PARSE_UNSIGNED___INT64, VTK_PARSE_OBJECT, VTK_PARSE_STRING, VTK_PARSE_UNKNOWN, 0 };
+    VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_LONG_LONG, VTK_PARSE_UNSIGNED_LONG_LONG, VTK_PARSE_OBJECT,
+    VTK_PARSE_STRING, VTK_PARSE_UNKNOWN, 0 };
 
   int i, j;
   int args_ok = 1;
@@ -948,8 +919,9 @@ int checkFunctionSignature(ClassInfo* data)
   unsigned int baseType = 0;
 
   /* some functions will not get wrapped no matter what else */
-  if (thisFunction->IsOperator || thisFunction->ArrayFailure || thisFunction->IsExcluded ||
-    thisFunction->IsDeleted || !thisFunction->IsPublic || !thisFunction->Name)
+  if (thisFunction->IsOperator || thisFunction->ArrayFailure || thisFunction->Template ||
+    thisFunction->IsExcluded || thisFunction->IsDeleted || !thisFunction->IsPublic ||
+    !thisFunction->Name)
   {
     return 0;
   }
@@ -1047,8 +1019,6 @@ int checkFunctionSignature(ClassInfo* data)
       args_ok = 0;
     if (aType == VTK_PARSE_UNSIGNED_LONG_LONG_PTR)
       args_ok = 0;
-    if (aType == VTK_PARSE_UNSIGNED___INT64_PTR)
-      args_ok = 0;
   }
 
   baseType = (rType & VTK_PARSE_BASE_TYPE);
@@ -1112,8 +1082,6 @@ int checkFunctionSignature(ClassInfo* data)
     args_ok = 0;
   if (rType == VTK_PARSE_UNSIGNED_LONG_LONG_PTR)
     args_ok = 0;
-  if (rType == VTK_PARSE_UNSIGNED___INT64_PTR)
-    args_ok = 0;
 
   /* make sure we have all the info we need for array arguments in */
   for (i = 0; i < thisFunction->NumberOfArguments; i++)
@@ -1136,7 +1104,6 @@ int checkFunctionSignature(ClassInfo* data)
     case VTK_PARSE_SHORT_PTR:
     case VTK_PARSE_LONG_PTR:
     case VTK_PARSE_LONG_LONG_PTR:
-    case VTK_PARSE___INT64_PTR:
     case VTK_PARSE_SIGNED_CHAR_PTR:
     case VTK_PARSE_BOOL_PTR:
     case VTK_PARSE_UNSIGNED_CHAR_PTR:
@@ -1352,7 +1319,7 @@ void outputFunction(FILE* fp, ClassInfo* data)
 /* print the parsed structures */
 int VTK_PARSE_MAIN(int argc, char* argv[])
 {
-  OptionInfo* options;
+  const OptionInfo* options;
   FileInfo* file_info;
   ClassInfo* data;
   FILE* fp;
@@ -1383,7 +1350,8 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   if (!fp)
   {
     fprintf(stderr, "Error opening output file %s\n", options->OutputFileName);
-    exit(1);
+    vtkParse_Finalize();
+    return 1;
   }
 
   /* get the main class */
@@ -1391,13 +1359,22 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   if (data == NULL || data->IsExcluded)
   {
     fclose(fp);
-    exit(0);
+    if (vtkParse_Finalize())
+    {
+      return 1;
+    }
+    return 0;
   }
 
   if (data->Template)
   {
     fclose(fp);
-    exit(0);
+    vtkWrap_WarnEmpty(options);
+    if (vtkParse_Finalize())
+    {
+      return 1;
+    }
+    return 0;
   }
 
   for (i = 0; i < data->NumberOfSuperClasses; ++i)
@@ -1405,7 +1382,12 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     if (strchr(data->SuperClasses[i], '<'))
     {
       fclose(fp);
-      exit(0);
+      vtkWrap_WarnEmpty(options);
+      if (vtkParse_Finalize())
+      {
+        return 1;
+      }
+      return 0;
     }
   }
 
@@ -1414,7 +1396,12 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     if (!vtkWrap_IsTypeOf(hierarchyInfo, data->Name, "vtkObjectBase"))
     {
       fclose(fp);
-      exit(0);
+      vtkWrap_WarnEmpty(options);
+      if (vtkParse_Finalize())
+      {
+        return 1;
+      }
+      return 0;
     }
 
     /* resolve using declarations within the header files */
@@ -1586,9 +1573,18 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     fprintf(fp, "}\n");
   }
 
+  if (hierarchyInfo)
+  {
+    vtkParseHierarchy_Free(hierarchyInfo);
+  }
+
   vtkParse_Free(file_info);
 
   fclose(fp);
+  if (vtkParse_Finalize())
+  {
+    return 1;
+  }
 
   return 0;
 }

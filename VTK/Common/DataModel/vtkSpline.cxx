@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpline.h"
 
 #include "vtkPiecewiseFunction.h"
@@ -19,6 +7,7 @@
 //------------------------------------------------------------------------------
 // Construct a spline with the following defaults:
 // ClampValueOff
+VTK_ABI_NAMESPACE_BEGIN
 vtkSpline::vtkSpline()
 {
   this->ComputeTime = 0;
@@ -126,6 +115,12 @@ void vtkSpline::AddPoint(double t, double x)
 }
 
 //------------------------------------------------------------------------------
+void vtkSpline::FillFromDataPointer(int nb, double* data)
+{
+  this->PiecewiseFunction->FillFromDataPointer(nb, data);
+}
+
+//------------------------------------------------------------------------------
 // Remove a point from the Piecewise Functions.
 void vtkSpline::RemovePoint(double t)
 {
@@ -227,3 +222,4 @@ void vtkSpline::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Closed: " << (this->Closed ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

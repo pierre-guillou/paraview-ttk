@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextInteractorStyle.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContextInteractorStyle.h"
 
 #include "vtkCallbackCommand.h"
@@ -25,6 +13,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContextInteractorStyle);
 
 //------------------------------------------------------------------------------
@@ -195,7 +184,7 @@ void vtkContextInteractorStyle::OnMouseMove()
   this->EndProcessingEvent();
 }
 
-inline bool vtkContextInteractorStyle::ProcessMousePress(const vtkContextMouseEvent& event)
+bool vtkContextInteractorStyle::ProcessMousePress(const vtkContextMouseEvent& event)
 {
   bool eatEvent(false);
   if (this->Interactor->GetRepeatCount())
@@ -485,10 +474,13 @@ void vtkContextInteractorStyle::OnKeyRelease()
 }
 
 //------------------------------------------------------------------------------
-inline void vtkContextInteractorStyle::ConstructMouseEvent(vtkContextMouseEvent& event, int button)
+void vtkContextInteractorStyle::ConstructMouseEvent(vtkContextMouseEvent& event, int button)
 {
   event.SetInteractor(this->Interactor);
-  event.SetPos(
-    vtkVector2f(this->Interactor->GetEventPosition()[0], this->Interactor->GetEventPosition()[1]));
+  event.SetScreenPos(vtkVector2i(this->Interactor->GetEventPosition()));
+  event.SetScenePos(vtkVector2f(event.GetScreenPos()[0] - this->Scene->GetSceneLeft(),
+    event.GetScreenPos()[1] - this->Scene->GetSceneBottom()));
+  event.SetPos(event.GetScenePos());
   event.SetButton(button);
 }
+VTK_ABI_NAMESPACE_END

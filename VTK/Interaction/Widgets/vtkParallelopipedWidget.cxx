@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelopipedWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelopipedWidget.h"
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
@@ -32,6 +20,7 @@
 #include "vtkWidgetEventTranslator.h"
 #include "vtkWidgetSet.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkParallelopipedWidget);
 
 //------------------------------------------------------------------------------
@@ -472,3 +461,4 @@ void vtkParallelopipedWidget::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Chair Creation: " << (this->EnableChairCreation ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

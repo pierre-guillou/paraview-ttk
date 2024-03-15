@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMInteractionUndoStackBuilder.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMInteractionUndoStackBuilder
  * @brief   builder server manager undo
@@ -40,22 +28,22 @@ public:
   vtkTypeMacro(vtkSMInteractionUndoStackBuilder, vtkSMObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the render view proxy for which we are monitoring the
    * interactions.
    */
   void SetRenderView(vtkSMRenderViewProxy*);
   vtkGetObjectMacro(RenderView, vtkSMRenderViewProxy);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the undo stack that this builder will build.
    */
   vtkGetObjectMacro(UndoStack, vtkSMUndoStack);
   virtual void SetUndoStack(vtkSMUndoStack*);
-  //@}
+  ///@}
 
   /**
    * Clear the undo set currently being recorded.

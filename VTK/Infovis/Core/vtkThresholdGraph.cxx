@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkThresholdGraph.h"
 
 #include "vtkDoubleArray.h"
@@ -9,6 +11,7 @@
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkThresholdGraph);
 
 //------------------------------------------------------------------------------
@@ -159,3 +162,4 @@ int vtkThresholdGraph::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

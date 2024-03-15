@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPDataSetReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPDataSetReader.h"
 
 #include "vtkAppendFilter.h"
@@ -39,6 +27,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPDataSetReader);
 
 //------------------------------------------------------------------------------
@@ -201,7 +190,7 @@ int vtkPDataSetReader::RequestDataObject(
 // Returns 4 for string inside block.  Puts string in retVal. (param = nullptr)
 // Returns 5 for end block.
 // =======
-// The statics should be instance variables ...
+// The statistics should be instance variables ...
 int vtkPDataSetReader::ReadXML(istream* file, char** retBlock, char** retParam, char** retVal)
 {
   static char str[1024];
@@ -408,7 +397,7 @@ int vtkPDataSetReader::CanReadFile(const char* filename)
   {
     // We cannot leave the XML parser in a bad state.
     // As a quick fix, read to the end of the file block.
-    // A better solution would be to move statics
+    // A better solution would be to move statistics
     // to ivars and initialize them as needed.
     while (this->ReadXML(file, &block, &param, &value) != 5)
     {
@@ -1253,3 +1242,4 @@ void vtkPDataSetReader::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "DataType: " << this->DataType << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkKMeansDistanceFunctorCalculator_h
 #define vtkKMeansDistanceFunctorCalculator_h
 
@@ -24,6 +26,7 @@
 #include "vtkFiltersStatisticsModule.h" // For export macro
 #include "vtkKMeansDistanceFunctor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFunctionParser;
 class vtkDoubleArray;
 
@@ -73,4 +76,5 @@ private:
   void operator=(const vtkKMeansDistanceFunctorCalculator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkKMeansDistanceFunctorCalculator_h

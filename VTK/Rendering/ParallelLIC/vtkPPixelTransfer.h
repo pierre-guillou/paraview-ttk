@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPPixelTransfer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPPixelTransfer
  *
@@ -44,6 +32,7 @@
 
 // #define vtkPPixelTransferDEBUG
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGPARALLELLIC_EXPORT vtkPPixelTransfer : public vtkPixelTransfer
 {
 public:
@@ -269,7 +258,6 @@ private:
   int Execute(MPI_Comm comm, int rank, int nComps, SOURCE_TYPE* srcData, int destType,
     void* destData, std::vector<MPI_Request>& reqs, std::deque<MPI_Datatype>& types, int tag);
 
-private:
   int Id;                      // transaction id
   int SrcRank;                 // rank who owns source memory
   vtkPixelExtent SrcWholeExt;  // source extent
@@ -312,7 +300,7 @@ int vtkPPixelTransfer::Execute(MPI_Comm comm, int rank, int nComps, SOURCE_TYPE*
   if (rank == this->DestRank)
   {
     // use mpi to receive the data
-    if (destData == NULL)
+    if (destData == nullptr)
     {
       return -1;
     }
@@ -351,7 +339,7 @@ int vtkPPixelTransfer::Execute(MPI_Comm comm, int rank, int nComps, SOURCE_TYPE*
   if (rank == this->SrcRank)
   {
     // use mpi to send the data
-    if (srcData == NULL)
+    if (srcData == nullptr)
     {
       return -1;
     }
@@ -398,5 +386,6 @@ int vtkPPixelTransfer::Execute(MPI_Comm comm, int rank, int nComps, SOURCE_TYPE*
 VTKRENDERINGPARALLELLIC_EXPORT
 ostream& operator<<(std::ostream& os, const vtkPPixelTransfer& gt);
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkPPixelTransfer.h

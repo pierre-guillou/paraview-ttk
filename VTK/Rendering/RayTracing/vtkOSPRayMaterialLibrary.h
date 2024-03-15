@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayMaterialLibrary.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOSPRayMaterialLibrary
  * @brief   a collection of materials for vtk apps to draw from
@@ -34,6 +22,7 @@
 #include <string>           //for string!
 #include <vector>           //for vector!
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOSPRayMaterialLibraryInternals;
 class vtkTexture;
 struct TextureInfo;
@@ -147,7 +136,7 @@ public:
    * Given a material @c nickname and a shader variable @c varname, set its data
    * to a specific texture @c tex named @c texturename. If not specified the texture
    * is called "unnamedTexture".
-   * The last parameter, filename, is defaulted to empty. If specified, the absolut path
+   * The last parameter, filename, is defaulted to empty. If specified, the absolute path
    * to find the texture will be stored. Useful when writing the library into a file.
    *
    * Replaces any previous content.
@@ -234,4 +223,5 @@ private:
   vtkOSPRayMaterialLibraryInternals* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

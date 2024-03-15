@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestSOADataArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkArrayIterator.h"
 #include "vtkArrayIteratorIncludes.h"
 #include "vtkMathUtilities.h"
@@ -38,7 +26,7 @@ const double otherSecond[numValues] = { voidPointerData[1], voidPointerData[3], 
 
 bool ValuesInfOrNaN(double v1, double v2)
 {
-  return (isinf(v1) && isinf(v2)) || (isnan(v1) && isnan(v2));
+  return (std::isinf(v1) && std::isinf(v2)) || (std::isnan(v1) && std::isnan(v2));
 }
 
 bool HasCorrectValues(vtkDataArray* array, bool useVoidPointerData)

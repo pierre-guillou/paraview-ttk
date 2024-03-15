@@ -1,45 +1,25 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqTextEdit.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqTextEdit_h
 #define pqTextEdit_h
 
 #include "pqWidgetsModule.h"
+
 #include <QTextEdit>
 
 class pqTextEditPrivate;
+class pqWidgetCompleter;
 
 /**
- * pqTextEdit is a specialization of QTextEdit which provide a
- * editingFinished() signal and a textChangedAndEditingFinished().
+ * pqTextEdit is a specialization of QTextEdit which provide
+ * editingFinished() and textChangedAndEditingFinished() signals,
+ * as well as the possibility to be autocompleted.
+ *
+ * An autocompleter object can be set using setCompleter(). For this, autocompleter must
+ * implement the updateCompletionModel() method through the interface defined
+ * by pqWidgetCompleter, providing completion for a given string.
+ *
  * Unlike editingFinished() which gets fired whenever the widget looses
  * focus irrespective of if the text if actually was edited,
  * textChangedAndEditingFinished() is fired only when the text was changed
@@ -63,6 +43,9 @@ public:
   pqTextEdit(QWidget* parent = nullptr);
   pqTextEdit(const QString& contents, QWidget* parent = nullptr);
 
+  void setCompleter(pqWidgetCompleter* completer);
+  pqWidgetCompleter* getCompleter() { return this->Completer; }
+
   ~pqTextEdit() override;
 
 Q_SIGNALS:
@@ -83,16 +66,41 @@ Q_SIGNALS:
 private Q_SLOTS:
   void onEditingFinished();
   void onTextEdited();
+  void insertCompletion(const QString& completion);
 
 protected:
   void keyPressEvent(QKeyEvent* e) override;
   void focusOutEvent(QFocusEvent* e) override;
+  void focusInEvent(QFocusEvent* e) override;
+
+  /**
+   * Returns the text of the current line in the input field.
+   */
+  QString textUnderCursor() const;
+
+  /**
+   * Trigger an update on the completer if any, and show the popup if completions are available.
+   */
+  void updateCompleter();
+
+  /**
+   * In case the completer popup menu is already shown, update it to reflect modifications on the
+   * input text.
+   */
+  void updateCompleterIfVisible();
+
+  /**
+   * Insert the completion in case there is only one available.
+   */
+  void selectCompletion();
 
   QScopedPointer<pqTextEditPrivate> d_ptr;
 
 private:
   Q_DECLARE_PRIVATE(pqTextEdit);
-  Q_DISABLE_COPY(pqTextEdit)
+  Q_DISABLE_COPY(pqTextEdit);
+
+  pqWidgetCompleter* Completer = nullptr;
 };
 
 #endif

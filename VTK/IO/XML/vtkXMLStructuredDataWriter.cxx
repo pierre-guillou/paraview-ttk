@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLStructuredDataWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLStructuredDataWriter.h"
 
 #include "vtkArrayIteratorIncludes.h"
@@ -32,6 +20,7 @@
 #undef vtkXMLOffsetsManager_DoNotInclude
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkXMLStructuredDataWriter::vtkXMLStructuredDataWriter()
 {
   this->WritePiece = -1;
@@ -632,3 +621,4 @@ void vtkXMLStructuredDataWriter::CalculatePieceFractions(float* fractions)
     fractions[i + 1] = fractions[i + 1] / fractions[this->NumberOfPieces];
   }
 }
+VTK_ABI_NAMESPACE_END

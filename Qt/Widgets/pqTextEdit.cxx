@@ -1,43 +1,15 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqTextEdit.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqTextEdit.h"
 
-// Server Manager Includes.
+#include "pqWidgetCompleter.h"
 
-// Qt Includes.
+#include <QAbstractItemView>
 #include <QDebug>
 #include <QKeyEvent>
-
-// ParaView Includes.
+#include <QRect>
+#include <QScrollBar>
 
 //-----------------------------------------------------------------------------
 class pqTextEditPrivate
@@ -79,6 +51,20 @@ void pqTextEditPrivate::init()
 
   this->StopFocusKeys << Qt::Key_Enter << Qt::Key_Return;
   this->StopFocusModifiers = Qt::ControlModifier | Qt::AltModifier;
+}
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::setCompleter(pqWidgetCompleter* completer)
+{
+  this->Completer = completer;
+  if (!this->Completer)
+  {
+    return;
+  }
+
+  this->Completer->setWidget(this);
+  QObject::connect(this->Completer, QOverload<const QString&>::of(&QCompleter::activated), this,
+    &pqTextEdit::insertCompletion);
 }
 
 //-----------------------------------------------------------------------------
@@ -135,8 +121,130 @@ void pqTextEdit::keyPressEvent(QKeyEvent* e)
     }
   }
 
-  this->Superclass::keyPressEvent(e);
+  if (this->Completer != nullptr && this->Completer->popup()->isVisible())
+  {
+    {
+      // The following keys are forwarded by the completer to the widget
+      switch (e->key())
+      {
+        case Qt::Key_Tab:
+        case Qt::Key_Enter:
+        case Qt::Key_Return:
+        case Qt::Key_Escape:
+        case Qt::Key_Backtab:
+          e->ignore();
+          return; // let the completer do default behavior
+        default:
+          break;
+      }
+    }
+  }
+
+  switch (e->key())
+  {
+    case Qt::Key_Tab: // Display completer or accept
+      e->accept();
+      if (!this->Completer->getCompleteEmptyPrompts() &&
+        this->textUnderCursor().trimmed().isEmpty())
+      {
+        this->Superclass::keyPressEvent(
+          e); // Input a tab and don't complete when the line is empty.
+      }
+      else
+      {
+        this->updateCompleter();
+        this->selectCompletion();
+      }
+      break;
+    default:
+      e->accept();
+      this->Superclass::keyPressEvent(e);
+      this->updateCompleterIfVisible();
+      break;
+  }
 }
+
+//-----------------------------------------------------------------------------
+QString pqTextEdit::textUnderCursor() const
+{
+  QTextCursor tc = this->textCursor();
+  tc.select(QTextCursor::LineUnderCursor);
+  return tc.selectedText();
+}
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::insertCompletion(const QString& completion)
+{
+  if (this->Completer->widget() != this)
+  {
+    return;
+  }
+
+  QTextCursor tc = this->textCursor();
+  tc.movePosition(QTextCursor::Left, QTextCursor::KeepAnchor);
+
+  if (tc.selectedText() == ".")
+  {
+    tc.insertText(QString(".") + completion);
+  }
+  else
+  {
+    tc = this->textCursor();
+    tc.movePosition(QTextCursor::StartOfWord, QTextCursor::MoveAnchor);
+    tc.movePosition(QTextCursor::EndOfWord, QTextCursor::KeepAnchor);
+    tc.insertText(completion);
+    this->setTextCursor(tc);
+  }
+};
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::updateCompleter()
+{
+  if (!this->Completer)
+  {
+    return;
+  }
+
+  QString completionPrefix = this->textUnderCursor();
+
+  // Call the completer to update the completion model
+  this->Completer->updateCompletionModel(completionPrefix);
+
+  // Place and show the completer if there are available completions
+  if (this->Completer->completionCount())
+  {
+    // Get a QRect for the cursor at the start of the
+    // current word and then translate it down 8 pixels.
+    QRect cr = this->cursorRect();
+    cr.translate(0, 8);
+    cr.setWidth(this->Completer->popup()->sizeHintForColumn(0) +
+      this->Completer->popup()->verticalScrollBar()->sizeHint().width());
+    this->Completer->complete(cr);
+  }
+  else
+  {
+    this->Completer->popup()->hide();
+  }
+};
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::updateCompleterIfVisible()
+{
+  if (this->Completer && this->Completer->popup()->isVisible())
+  {
+    this->updateCompleter();
+  }
+};
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::selectCompletion()
+{
+  if (this->Completer && this->Completer->completionCount() == 1)
+  {
+    this->insertCompletion(this->Completer->currentCompletion());
+    this->Completer->popup()->hide();
+  }
+};
 
 //-----------------------------------------------------------------------------
 void pqTextEdit::focusOutEvent(QFocusEvent* e)
@@ -144,3 +252,13 @@ void pqTextEdit::focusOutEvent(QFocusEvent* e)
   this->Superclass::focusOutEvent(e);
   Q_EMIT this->editingFinished();
 }
+
+//-----------------------------------------------------------------------------
+void pqTextEdit::focusInEvent(QFocusEvent* e)
+{
+  if (this->Completer)
+  {
+    this->Completer->setWidget(this);
+  }
+  this->Superclass::focusInEvent(e);
+};

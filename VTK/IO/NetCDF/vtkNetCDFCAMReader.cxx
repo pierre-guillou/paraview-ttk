@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNetCDFCAMReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkNetCDFCAMReader.h"
 
 #include "vtkCallbackCommand.h"
@@ -37,6 +25,7 @@
 #include <vector>
 #include <vtk_netcdf.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // determine if this is a cell that wraps from 360 to 0 (i.e. if it's
@@ -1277,3 +1266,4 @@ void vtkNetCDFCAMReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PointsFile: " << this->Internals->nc_points << endl;
   os << indent << "ConnectivityFile: " << this->Internals->nc_connectivity << endl;
 }
+VTK_ABI_NAMESPACE_END

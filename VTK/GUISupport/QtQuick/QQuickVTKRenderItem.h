@@ -1,22 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QQuickVTKRenderItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class QQuickVTKRenderItem
  * @brief [QQuickItem] subclass to render a VTK scene in a QtQuick/QML application.
  *
- * QQuickVTKRenderItem extends [QQuickItem] so that a VTK visualization pipeline can be rendererd
+ * QQuickVTKRenderItem extends [QQuickItem] so that a VTK visualization pipeline can be rendered
  * within the rect of the item.
  *
  * This item is exported to the QML layer via the QQmlVTKPlugin under the module VTK. It is
@@ -135,19 +123,24 @@
 
 // vtk includes
 #include "QQuickVTKRenderWindow.h" // For QQuickVTKRenderWindow
-#include "vtkNew.h"                // For vtkNew
-#include "vtkRenderer.h"           // For vtkRenderer
+#include "vtkDeprecation.h"
+#include "vtkNew.h"      // For vtkNew
+#include "vtkRenderer.h" // For vtkRenderer
 
 #include "vtkGUISupportQtQuickModule.h" // for export macro
 
-// Forward declarations
+// Qt Forward declarations
 class QHoverEvent;
 class QKeyEvent;
 class QMouseEvent;
+
+VTK_ABI_NAMESPACE_BEGIN
+// VTK Forward declarations
 class QQuickVTKInteractiveWidget;
 class vtkImageData;
 
-class VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKRenderItem
+class VTK_DEPRECATED_IN_9_3_0(
+  "Use QQuickVTKItem instead") VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKRenderItem
   : public QQuickItem
   , protected QOpenGLFunctions
 {
@@ -197,7 +190,7 @@ public:
   virtual void removeWidgetByName(QString name);
   ///@}
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * This is the function called on the QtQuick render thread before the scenegraph state
    * is synchronized. This is where most of the pipeline updates, camera manipulations, etc. and
@@ -235,7 +228,7 @@ public Q_SLOTS:
 protected Q_SLOTS:
   virtual void handleWindowChanged(QQuickWindow* w);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   // Helper members
   QQuickVTKRenderWindow* m_renderWindow = nullptr;
   vtkNew<vtkRenderer> m_renderer;
@@ -260,4 +253,5 @@ private:
   void operator=(const QQuickVTKRenderItem) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // QQuickVTKRenderItem_h

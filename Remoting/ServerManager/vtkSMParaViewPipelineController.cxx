@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMParaViewPipelineController.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMParaViewPipelineController.h"
 
 #include "vtkClientServerStreamInstantiator.h"
@@ -349,7 +337,6 @@ bool vtkSMParaViewPipelineController::InitializeSession(vtkSMSession* session)
     {
       this->InitializeProxy(materialLib);
       materialLib->UpdateVTKObjects();
-      this->DoMaterialSetup(materialLib.Get());
       pxm->RegisterProxy("materiallibrary", materialLib);
     }
 #endif
@@ -523,7 +510,7 @@ bool vtkSMParaViewPipelineController::RegisterPipelineProxy(
 
   // Now register the proxy itself.
   // If proxyname is nullptr, the proxy manager makes up a name.
-  if (proxyname == nullptr)
+  if (proxyname == nullptr || proxyname[0] == 0)
   {
     auto pname = proxy->GetSessionProxyManager()->RegisterProxy("sources", proxy);
 
@@ -613,7 +600,7 @@ bool vtkSMParaViewPipelineController::RegisterViewProxy(vtkSMProxy* proxy, const
   this->ProcessInitializationHelperRegistration(proxy);
 
   // Now register the proxy itself.
-  if (proxyname == nullptr)
+  if (proxyname == nullptr || proxyname[0] == 0)
   {
     auto pname = proxy->GetSessionProxyManager()->RegisterProxy("views", proxy);
 
@@ -738,7 +725,8 @@ bool vtkSMParaViewPipelineController::UnRegisterViewProxy(
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMParaViewPipelineController::RegisterRepresentationProxy(vtkSMProxy* proxy)
+bool vtkSMParaViewPipelineController::RegisterRepresentationProxy(
+  vtkSMProxy* proxy, const char* name)
 {
   if (!proxy)
   {
@@ -752,7 +740,20 @@ bool vtkSMParaViewPipelineController::RegisterRepresentationProxy(vtkSMProxy* pr
   this->ProcessInitializationHelperRegistration(proxy);
 
   // Register the proxy itself.
-  proxy->GetSessionProxyManager()->RegisterProxy("representations", proxy);
+  if (name == nullptr || name[0] == 0)
+  {
+    auto pname = proxy->GetSessionProxyManager()->RegisterProxy("representations", proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(pname.c_str());
+  }
+  else
+  {
+    proxy->GetSessionProxyManager()->RegisterProxy("representations", name, proxy);
+
+    // assign a name for logging
+    proxy->SetLogName(name);
+  }
   return true;
 }
 

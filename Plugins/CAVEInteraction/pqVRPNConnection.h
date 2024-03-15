@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqVRPNConnection.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqVRPNConnection_h
 #define pqVRPNConnection_h
 
@@ -36,7 +8,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vtkMatrix4x4.h"
 #include "vtkTransform.h"
-#include "vtkVRQueue.h"
 
 #include <QtCore/QMutex>
 
@@ -47,6 +18,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <map>
 
 class pqVRPNEventListener;
+class vtkVRQueue;
 
 class vtkPVXMLElement;
 class vtkSMProxyLocator;
@@ -82,8 +54,8 @@ public:
   void addButton(std::string id, std::string name);
 
   // Description:
-  // Add Analog device
-  void addAnalog(std::string id, std::string name);
+  // Add Valuator device
+  void addValuator(std::string id, std::string name);
 
   // Description:
   // Add tracking device
@@ -116,13 +88,13 @@ public:
   /// save the xml configuration.
   virtual vtkPVXMLElement* saveConfiguration() const;
 
-  /// Access to analog map
-  std::map<std::string, std::string> analogMap() { return this->AnalogMapping; }
-  /// Access to analog map
-  void setAnalogMap(const std::map<std::string, std::string>& mapping)
+  /// Access to valuator map
+  std::map<std::string, std::string> valuatorMap() { return this->ValuatorMapping; }
+  /// Access to valuator map
+  void setValuatorMap(const std::map<std::string, std::string>& mapping)
   {
-    this->AnalogMapping = mapping;
-    this->AnalogPresent = (this->AnalogMapping.size() > 0);
+    this->ValuatorMapping = mapping;
+    this->ValuatorPresent = (this->ValuatorMapping.size() > 0);
   }
 
   /// Access to button map
@@ -159,7 +131,7 @@ protected:
 
   void configureTransform(vtkPVXMLElement* child);
   void saveButtonEventConfig(vtkPVXMLElement* child) const;
-  void saveAnalogEventConfig(vtkPVXMLElement* child) const;
+  void saveValuatorEventConfig(vtkPVXMLElement* child) const;
   void saveTrackerEventConfig(vtkPVXMLElement* child) const;
   void saveTrackerTranslationConfig(vtkPVXMLElement* child) const;
   void saveTrackerRotationConfig(vtkPVXMLElement* child) const;
@@ -174,10 +146,10 @@ protected:
 
   // std::map<std::string,std::string> Mapping;
   std::map<std::string, std::string> ButtonMapping;
-  std::map<std::string, std::string> AnalogMapping;
+  std::map<std::string, std::string> ValuatorMapping;
   std::map<std::string, std::string> TrackerMapping;
 
-  bool TrackerPresent, ButtonPresent, AnalogPresent, TrackerTransformPresent;
+  bool TrackerPresent, ButtonPresent, ValuatorPresent, TrackerTransformPresent;
   vtkMatrix4x4* Transformation;
 
   bool Initialized;

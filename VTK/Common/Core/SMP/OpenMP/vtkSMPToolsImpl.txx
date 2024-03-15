@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsImpl.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef OpenMPvtkSMPToolsImpl_txx
 #define OpenMPvtkSMPToolsImpl_txx
@@ -28,8 +16,10 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 int VTKCOMMONCORE_EXPORT GetNumberOfThreadsOpenMP();
+bool VTKCOMMONCORE_EXPORT GetSingleThreadOpenMP();
 void VTKCOMMONCORE_EXPORT vtkSMPToolsImplForOpenMP(vtkIdType first, vtkIdType last, vtkIdType grain,
   ExecuteFunctorPtrType functorExecuter, void* functor, bool nestedActivated);
 
@@ -145,6 +135,11 @@ void vtkSMPToolsImpl<BackendType::OpenMP>::Initialize(int);
 template <>
 int vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedNumberOfThreads();
 
+//--------------------------------------------------------------------------------
+template <>
+bool vtkSMPToolsImpl<BackendType::OpenMP>::GetSingleThread();
+
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk

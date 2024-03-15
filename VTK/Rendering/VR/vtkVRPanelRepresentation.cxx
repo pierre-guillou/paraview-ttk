@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRPanelRepresentation.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRPanelRepresentation.h"
 
 #include "vtkCamera.h"
@@ -27,6 +15,7 @@ PURPOSE.  See the above copyright notice for more information.
 // TODO
 // - add option to remove crop planes
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVRPanelRepresentation);
 
 //------------------------------------------------------------------------------
@@ -565,3 +554,4 @@ void vtkVRPanelRepresentation::SetText(const char* text)
   this->TextActor->SetInput(this->Text.c_str());
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

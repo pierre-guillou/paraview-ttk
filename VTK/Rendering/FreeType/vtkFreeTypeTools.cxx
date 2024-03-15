@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFreeTypeTools.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkFreeTypeTools.h"
 
@@ -54,6 +42,8 @@ void rotateVector2i(vtkVector2i& vec, float sinTheta, float cosTheta)
 }
 
 } // end anon namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkTextPropertyLookup : public std::map<size_t, vtkSmartPointer<vtkTextProperty>>
 {
@@ -1067,7 +1057,7 @@ FT_Error vtkFreeTypeTools::CreateFTCManager()
 }
 
 //------------------------------------------------------------------------------
-inline bool vtkFreeTypeTools::PrepareImageMetaData(
+bool vtkFreeTypeTools::PrepareImageMetaData(
   vtkTextProperty* tprop, vtkImageData* image, ImageMetaData& metaData)
 {
   // Image properties
@@ -1085,7 +1075,7 @@ inline bool vtkFreeTypeTools::PrepareImageMetaData(
 }
 
 //------------------------------------------------------------------------------
-inline bool vtkFreeTypeTools::PrepareMetaData(vtkTextProperty* tprop, int dpi, MetaData& metaData)
+bool vtkFreeTypeTools::PrepareMetaData(vtkTextProperty* tprop, int dpi, MetaData& metaData)
 {
   // Text properties
   metaData.textProperty = tprop;
@@ -1313,10 +1303,14 @@ bool vtkFreeTypeTools::StringToPathInternal(
   return true;
 }
 
+VTK_ABI_NAMESPACE_END
+
 namespace
 {
 const char* DEFAULT_HEIGHT_STRING = "_/7Agfy";
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 bool vtkFreeTypeTools::CalculateBoundingBox(const vtkStdString& str, MetaData& metaData)
@@ -1618,9 +1612,11 @@ void vtkFreeTypeTools::PrepareImageData(vtkImageData* data, int textBbox[4])
     (data->GetNumberOfPoints() * data->GetNumberOfScalarComponents()));
 }
 
+VTK_ABI_NAMESPACE_END
 // Helper functions for rasterizing the background/frame quad:
 namespace RasterScanQuad
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // Return true and set t1 (if 0 <= t1 <= 1) for the intersection of lines:
 //
@@ -1729,8 +1725,10 @@ inline void clampToExtent(int extent[6], int dim, int& value)
   value = std::min(extent[2 * dim + 1], std::max(extent[2 * dim], value));
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace RasterScanQuad
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkFreeTypeTools::RenderBackground(
   vtkTextProperty* tprop, vtkImageData* image, ImageMetaData& metaData)
@@ -2244,7 +2242,7 @@ int vtkFreeTypeTools::FitStringToBBox(
 }
 
 //------------------------------------------------------------------------------
-inline bool vtkFreeTypeTools::GetFace(
+bool vtkFreeTypeTools::GetFace(
   vtkTextProperty* prop, size_t& prop_cache_id, FT_Face& face, bool& face_has_kerning)
 {
   this->MapTextPropertyToId(prop, &prop_cache_id);
@@ -2258,7 +2256,7 @@ inline bool vtkFreeTypeTools::GetFace(
 }
 
 //------------------------------------------------------------------------------
-inline FT_Bitmap* vtkFreeTypeTools::GetBitmap(FT_UInt32 c, size_t prop_cache_id, int prop_font_size,
+FT_Bitmap* vtkFreeTypeTools::GetBitmap(FT_UInt32 c, size_t prop_cache_id, int prop_font_size,
   FT_UInt& gindex, FT_BitmapGlyph& bitmap_glyph)
 {
   // Get the glyph index
@@ -2316,8 +2314,8 @@ FT_Bitmap* vtkFreeTypeTools::GetBitmap(
 }
 
 //------------------------------------------------------------------------------
-inline FT_Outline* vtkFreeTypeTools::GetOutline(FT_UInt32 c, size_t prop_cache_id,
-  int prop_font_size, FT_UInt& gindex, FT_OutlineGlyph& outline_glyph)
+FT_Outline* vtkFreeTypeTools::GetOutline(FT_UInt32 c, size_t prop_cache_id, int prop_font_size,
+  FT_UInt& gindex, FT_OutlineGlyph& outline_glyph)
 {
   // Get the glyph index
   if (!this->GetGlyphIndex(prop_cache_id, c, &gindex))
@@ -2429,3 +2427,4 @@ void vtkFreeTypeTools::GetLineMetrics(std::string::const_iterator begin,
     width += (delta.x + 0x8000) >> 16;
   }
 }
+VTK_ABI_NAMESPACE_END

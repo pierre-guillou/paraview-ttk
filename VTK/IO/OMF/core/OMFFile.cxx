@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFFile.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "OMFFile.h"
 #include "OMFHelpers.h"
@@ -32,9 +19,9 @@
 
 namespace omf
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // OMF doesn't appear to store any information about size of decompressed data
 // so the approach here is to decompress into the correct vtk array type and
@@ -118,8 +105,10 @@ std::string convertToUIDString(const char* buffer)
   return vtksys::SystemTools::LowerCase(uid);
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace detail
 
+VTK_ABI_NAMESPACE_BEGIN
 struct OMFFile::FileImpl
 {
   std::string FileName;
@@ -390,4 +379,5 @@ std::vector<std::string> OMFFile::ReadStringArrayFromStream(const std::string& u
   return retVal;
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace omf

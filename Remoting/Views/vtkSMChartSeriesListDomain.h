@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMChartSeriesListDomain
  * @brief   list of strings corresponding to the names
@@ -37,6 +25,7 @@
 #ifndef vtkSMChartSeriesListDomain_h
 #define vtkSMChartSeriesListDomain_h
 
+#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" // needed for exports
 #include "vtkSMStringListDomain.h"
 
@@ -65,7 +54,12 @@ public:
    * Returns the list of series that are know to this domain are are given a
    * priority when setting default values. This array is nullptr terminated i.e.
    * the last entry in this array will be nullptr.
+   *
+   * @deprecated this should now be accessed via ParaView settings at
+   * vtkPVRepresentedArrayListSettings::GetAllChartsDefaultXAxis
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "See vtkPVRepresentedArrayListSettings::GetAllChartsDefaultXAxis instead")
   static const char** GetKnownSeriesNames();
 
 protected:

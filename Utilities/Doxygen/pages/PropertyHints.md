@@ -6,6 +6,22 @@ for a *Property* element in Server-Manager configuration XMLs.
 
 [TOC]
 
+AllowRestoreDefaults
+----------
+Add a button to restore the property to default values.
+
+Any repeatable vector property is displayed as a table that you update by adding
+or removing values by default. However, you may want to restore default values,
+so adding a button makes it easier than using the context menu.
+In that case, use this property hint as follows.
+
+    <IntVectorProperty ...>
+      ...
+      <Hints>
+        <AllowRestoreDefaults />
+      </Hints>
+    </IntVectorProperty>
+
 NoDefault
 ----------
 Skip setting run-time defaults during initialization.
@@ -24,19 +40,52 @@ In that case, use this property hint as follows.
       </Hints>
     </IntVectorProperty>
 
-ComponentLabels
------------------
-Show vector component labels for double vector properties.
+IsSelectable
+------------
+Add a checkbox for each element of the list and remove list update abilities.
 
-A multi-component double vector property may represent several different types
+A repeatable vector property is displayed as a table that you update by adding
+or removing values by default. This hints changes its representation into a
+checkable but non-editable table.
+For now, can be used only with the timesteps domain that fills a double vector
+property values.
+
+    <DoubleVectorProperty ...>
+      ...
+      <Hints>
+        <IsSelectable />
+      </Hints>
+    </DoubleVectorProperty>
+
+ShowLabel
+-----------------
+Show vector label for double, int or string vector properties.
+
+A repeatable vector property won't show the label of the property by default,
+as the table can have component labels and takes more space. This hint forces
+the label to show up in this case.
+
+    <DoubleVectorProperty ...>
+      ...
+      <Hints>
+        <ShowLabel />
+      </Hints>
+    </DoubleVectorProperty>
+
+ShowComponentLabels
+-----------------
+Show vector component labels for double, int or string vector properties.
+
+A multi-component vector property may represent several different types
 of coordinates.  It may be useful to provide labels for each component's input
-to designate which type of vector is being represented.
+to designate which type of vector is being represented. Labels may also be
+provided for multi-component string vector properties.
 
     <DoubleVectorProperty ...>
       ...
       <Hints>
         <ShowComponentLabels>
-          <ComponentLabel component="0" label="X:"/>
+          <ComponentLabel component="0" label="X"/>
           ...
         </ShowComponentLabels>
       </Hints>
@@ -353,6 +402,7 @@ but text wrapping is enabled for reading purpose. This also enable the integrati
 Expression Manager, to easily save and reuse entered property text.
 
 **Attribute `syntax`**
+
 Set it to `python` to ask for syntax highlighting when `type` is set to `multi_line` (`pygments` python module should be found).
 With `one_liner_wrapped`, the tools button for Expression Manager are configured for `Python` expression type.
 
@@ -366,3 +416,6 @@ With `one_liner_wrapped`, the tools button for Expression Manager are configured
   </Hints>
 </StringVectorProperty>
 ```
+**Attribute `autocomplete`**
+
+Set it to `python_calc` to enable Python Calculator style autocomplete on the text field. Completes many Numpy functions, fields and names from the paraview module. It can be used for widget with `type` attribute set to `one_liner_wrapped` or `multi_line`.

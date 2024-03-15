@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDataInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVDataInformation
  * @brief provides meta data about a vtkDataObject subclass.
@@ -29,12 +17,13 @@
 #include "vtkDataObject.h" // for vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES
 #include "vtkNew.h"        // for vtkNew
 #include "vtkPVInformation.h"
-#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_10_0
-#include "vtkRemotingCoreModule.h"  //needed for exports
-#include "vtkSmartPointer.h"        // for vtkSmartPointer
+#include "vtkRemotingCoreModule.h" //needed for exports
+#include "vtkSmartPointer.h"       // for vtkSmartPointer
 
+#include <set>    // for std::set
 #include <vector> // for std::vector
 
+class vtkCellGrid;
 class vtkCollection;
 class vtkCompositeDataSet;
 class vtkDataAssembly;
@@ -57,7 +46,7 @@ public:
   vtkTypeMacro(vtkPVDataInformation, vtkPVInformation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Indicates which output port of an algorithm this data should information
    * should be / has been collected from.
@@ -66,18 +55,18 @@ public:
    */
   vtkSetMacro(PortNumber, int);
   vtkGetMacro(PortNumber, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Indicates which rank to gather the information from. Default is -1 which
    * means all ranks.
    */
   vtkSetClampMacro(Rank, int, -1, VTK_INT_MAX);
   vtkGetMacro(Rank, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Path if non-null, used to limit blocks from a composite dataset.
    * For details on support form of selector expressions see
@@ -85,9 +74,9 @@ public:
    */
   vtkGetStringMacro(SubsetSelector);
   vtkSetStringMacro(SubsetSelector);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the assembly to use for subsetting. To use hierarchy,
    * set this to `vtkDataAssembly::HierarchyName()` or simply use
@@ -96,7 +85,7 @@ public:
   vtkSetStringMacro(SubsetAssemblyName);
   vtkGetStringMacro(SubsetAssemblyName);
   void SetSubsetAssemblyNameToHierarchy();
-  //@}
+  ///@}
 
   /**
    * Populate vtkPVDataInformation using `object`. The object can be a
@@ -104,7 +93,7 @@ public:
    */
   void CopyFromObject(vtkObject* object) override;
 
-  //@{
+  ///@{
   /**
    * vtkPVInformation API implementation.
    */
@@ -113,7 +102,7 @@ public:
   void CopyFromStream(const vtkClientServerStream*) override;
   void CopyParametersToStream(vtkMultiProcessStream&) override;
   void CopyParametersFromStream(vtkMultiProcessStream&) override;
-  //@}
+  ///@}
 
   /**
    * Initializes and clears all values updated in `CopyFromObject`.
@@ -161,7 +150,7 @@ public:
    */
   bool IsNull() const { return this->DataSetType == -1 && this->CompositeDataSetType == -1; }
 
-  //@{
+  ///@{
   /**
    * For a composite dataset, returns a list of unique data set types for all non-null
    * leaf nodes. May be empty if there are non-null leaf nodes are the dataset is not
@@ -175,9 +164,9 @@ public:
     return static_cast<unsigned int>(this->UniqueBlockTypes.size());
   }
   int GetUniqueBlockType(unsigned int index) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns a string for the given type. This directly returns the classname and hence
    * may not be user-friendly.
@@ -199,17 +188,17 @@ public:
       ? vtkPVDataInformation::GetDataSetTypeAsString(this->CompositeDataSetType)
       : nullptr;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns a user-friendly string describing the datatype.
    */
   const char* GetPrettyDataTypeString() const;
   static const char* GetPrettyDataTypeString(int dtype);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns true if the type is of the requested `classname` (or `typeId`).
    *
@@ -223,9 +212,9 @@ public:
    */
   bool DataSetTypeIsA(const char* classname) const;
   bool DataSetTypeIsA(int typeId) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Similar to `DataSetTypeIsA` except, in case of composite datasets, returns
    * true if any of the leaf nodes match the requested type.
@@ -234,7 +223,7 @@ public:
    */
   bool HasDataSetType(const char* classname) const;
   bool HasDataSetType(int typeId) const;
-  //@}
+  ///@}
 
   /**
    * Returns number of elements of the chosen type in the data. For a composite dataset,
@@ -245,7 +234,7 @@ public:
    */
   vtkTypeInt64 GetNumberOfElements(int elementType) const;
 
-  //@{
+  ///@{
   /**
    * Convenience methods that simply call `GetNumberOfElements` with appropriate element type.
    */
@@ -257,16 +246,16 @@ public:
   }
   vtkTypeInt64 GetNumberOfEdges() const { return this->GetNumberOfElements(vtkDataObject::EDGE); }
   vtkTypeInt64 GetNumberOfRows() const { return this->GetNumberOfElements(vtkDataObject::ROW); }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * vtkHyperTreeGrid / vtkUniformHyperTreeGrid specific properties. Will return 0 for all
    * other data types.
    */
   vtkGetMacro(NumberOfTrees, vtkTypeInt64);
   vtkGetMacro(NumberOfLeaves, vtkTypeInt64);
-  //@}
+  ///@}
 
   /**
    * For vtkUniformGridAMR and subclasses, this returns the number of
@@ -309,16 +298,16 @@ public:
    */
   vtkGetVector6Macro(Bounds, double);
 
-  //@{
+  ///@{
   /**
    * Returns structured extents for the data. These are only valid for structured data types
    * like vtkStructuredGrid, vtkImageData etc. For composite dataset, these represent
    * the combined extents for structured datasets in the collection.
    */
   vtkGetVector6Macro(Extent, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get vtkPVDataSetAttributesInformation information for the given association.
    * `vtkPVDataSetAttributesInformation` can be used to determine available arrays and get meta-data
@@ -329,9 +318,9 @@ public:
    * vtkDataObject::POINT_THEN_CELL) is not supported.
    */
   vtkPVDataSetAttributesInformation* GetAttributeInformation(int fieldAssociation) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Convenience methods to get vtkPVDataSetAttributesInformation for specific
    * field type. Same as calling `GetAttributeInformation` with appropriate type.
@@ -360,7 +349,7 @@ public:
   {
     return this->GetAttributeInformation(vtkDataObject::FIELD);
   }
-  //@}
+  ///@}
 
   /**
    * For a vtkPointSet and subclasses, this provides information about the `vtkPoints`
@@ -369,25 +358,29 @@ public:
    */
   vtkGetObjectMacro(PointArrayInformation, vtkPVArrayInformation);
 
-  //@{
+  ///@{
   /**
    * Returns `DATA_TIME_STEP`, if any, provided by the information object associated
    * with data.
    */
   vtkGetMacro(HasTime, bool);
   vtkGetMacro(Time, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Strictly speaking, these are not data information since these cannot be obtained
    * from the data but from the pipeline producing the data. However, they are provided
    * as part data information for simplicity.
    */
   vtkGetVector2Macro(TimeRange, double);
-  vtkGetMacro(NumberOfTimeSteps, vtkTypeInt64);
   vtkGetMacro(TimeLabel, std::string);
-  //@}
+  const std::set<double>& GetTimeSteps() const { return this->TimeSteps; }
+  vtkTypeInt64 GetNumberOfTimeSteps() const
+  {
+    return static_cast<unsigned int>(this->TimeSteps.size());
+  }
+  ///@}
 
   /**
    * Returns true if the data is structured i.e. supports i-j-k indexing. For composite
@@ -419,7 +412,7 @@ public:
    */
   static int GetExtentType(int dataType);
 
-  //@{
+  ///@{
   /**
    * For composite datasets, this provides access to the information about
    * the dataset hierarchy and any data assembly associated with it.
@@ -430,7 +423,7 @@ public:
   vtkDataAssembly* GetHierarchy() const;
   vtkDataAssembly* GetDataAssembly() const;
   vtkDataAssembly* GetDataAssembly(const char* assemblyName) const;
-  //@}
+  ///@}
 
   /**
    * Until multiblock dataset is deprecated, applications often want to locate
@@ -468,30 +461,6 @@ public:
    * Calling this on a non-AMR dataset will simply return 0.
    */
   unsigned int ComputeCompositeIndexForAMR(unsigned int level, unsigned int index) const;
-
-  //@{
-  /**
-   * Deprecated in ParaView 5.10
-   */
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkPVDataInformation::GetNumberOfCells()` instead")
-  vtkTypeUInt64 GetPolygonCount();
-  PARAVIEW_DEPRECATED_IN_5_10_0("Removed")
-  void* GetCompositeDataInformation();
-  PARAVIEW_DEPRECATED_IN_5_10_0("Removed")
-  vtkPVDataInformation* GetDataInformationForCompositeIndex(int);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Removed")
-  unsigned int GetNumberOfBlockLeafs(bool skipEmpty);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Removed")
-  vtkPVDataInformation* GetDataInformationForCompositeIndex(int*);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkPVDataInformation::GetTimeRange()` instead")
-  double* GetTimeSpan();
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkPVDataInformation::GetTimeRange()` instead")
-  void GetTimeSpan(double&, double&);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkPVDataInformation::GetTimeRange()` instead")
-  void GetTimeSpan(double[2]);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Removed")
-  static void RegisterHelper(const char*, const char*);
-  //@}
 
 protected:
   vtkPVDataInformation();
@@ -535,8 +504,8 @@ private:
   bool HasTime = false;
   double Time = 0.0;
   double TimeRange[2] = { VTK_DOUBLE_MAX, -VTK_DOUBLE_MAX };
+  std::set<double> TimeSteps;
   std::string TimeLabel;
-  vtkTypeInt64 NumberOfTimeSteps = 0;
   std::vector<vtkTypeInt64> AMRNumberOfDataSets;
 
   std::vector<int> UniqueBlockTypes;

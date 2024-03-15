@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericOutlineFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGenericOutlineFilter.h"
 
 #include "vtkGenericDataSet.h"
@@ -21,6 +9,7 @@
 #include "vtkOutlineSource.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericOutlineFilter);
 
 //------------------------------------------------------------------------------
@@ -35,6 +24,7 @@ void vtkGenericOutlineFilter::PrintSelf(ostream& os, vtkIndent indent)
 vtkGenericOutlineFilter::vtkGenericOutlineFilter()
 {
   this->OutlineSource = vtkOutlineSource::New();
+  this->OutlineSource->SetContainerAlgorithm(this);
 }
 
 //------------------------------------------------------------------------------
@@ -68,6 +58,7 @@ int vtkGenericOutlineFilter::RequestData(vtkInformation* vtkNotUsed(request),
   this->OutlineSource->Update();
 
   output->CopyStructure(this->OutlineSource->GetOutput());
+  this->CheckAbort();
   return 1;
 }
 
@@ -102,3 +93,4 @@ int vtkGenericOutlineFilter::FillInputPortInformation(int port, vtkInformation* 
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGenericDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

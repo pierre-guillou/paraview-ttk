@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPluginLoader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVPluginLoader
  * @brief   Used to load ParaView plugins.
@@ -91,61 +79,61 @@ public:
    */
   void LoadPluginsFromPath(const char* path);
 
-  //@{
+  ///@{
   /**
    * Returns the full filename for the plugin attempted to load most recently
    * using LoadPlugin().
    */
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the plugin name. This returns a valid name only after the plugin has
    * been loaded.
    */
   vtkGetStringMacro(PluginName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the plugin version string. This returns a valid version string only
    * after the plugin has been loaded.
    */
   vtkGetStringMacro(PluginVersion);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the error string if the plugin failed to load. Returns nullptr if the
    * plugin was loaded successfully.
    */
   vtkGetStringMacro(ErrorString);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get a string of standard search paths (path1;path2;path3)
    * search paths are based on PV_PLUGIN_PATH,
    * plugin dir relative to executable.
    */
   vtkGetStringMacro(SearchPaths);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the status of most recent LoadPlugin call.
    */
   vtkGetMacro(Loaded, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    */
   using PluginLoaderCallback = std::function<bool(const char*)>;
   static int RegisterLoadPluginCallback(PluginLoaderCallback callback);
   static void UnregisterLoadPluginCallback(int id);
-  //@}
+  ///@}
 
   /**
    * Internal method used in pqParaViewPlugin.cxx.in to tell the

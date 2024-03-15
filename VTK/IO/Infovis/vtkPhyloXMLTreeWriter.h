@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPhyloXMLTreeWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPhyloXMLTreeWriter
  * @brief   write vtkTree data to PhyloXML format.
@@ -28,6 +16,7 @@
 #include "vtkStdString.h"       // For get/set ivars
 #include "vtkXMLWriter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStringArray;
 class vtkTree;
 class vtkXMLDataElement;
@@ -109,13 +98,12 @@ protected:
    * Convert one vertex to PhyloXML.  This function calls itself recursively
    * for any children of the input vertex.
    */
-  void WriteCladeElement(vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* parentElement);
+  void WriteCladeElement(vtkTree* input, vtkIdType vertex, vtkXMLDataElement* parentElement);
 
   /**
    * Write the branch length attribute for the specified vertex.
    */
-  void WriteBranchLengthAttribute(
-    vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element);
+  void WriteBranchLengthAttribute(vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element);
 
   /**
    * Write the name element for the specified vertex.
@@ -125,13 +113,13 @@ protected:
   /**
    * Write the confidence element for the specified vertex.
    */
-  void WriteConfidenceElement(vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element);
+  void WriteConfidenceElement(vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element);
 
   /**
    * Write the color element and its subelements (red, green, blue)
    * for the specified vertex.
    */
-  void WriteColorElement(vtkTree* const input, vtkIdType vertex, vtkXMLDataElement* element);
+  void WriteColorElement(vtkTree* input, vtkIdType vertex, vtkXMLDataElement* element);
 
   /**
    * Write a property element as a child of the specified vtkXMLDataElement.
@@ -160,4 +148,5 @@ private:
   void operator=(const vtkPhyloXMLTreeWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

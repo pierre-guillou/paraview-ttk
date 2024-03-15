@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtListView.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkQtListView
  * @brief   A VTK view based on a Qt List view.
@@ -39,11 +23,13 @@
 #include <QImage>            // Needed for the icon methods
 #include <QPointer>          // Needed for the internal list view
 
-class vtkApplyColors;
-class vtkDataObjectToTable;
 class QItemSelection;
 class QSortFilterProxyModel;
 class QListView;
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkAttributeDataToTableFilter;
+class vtkApplyColors;
 class vtkQtTableModelAdapter;
 
 class VTKVIEWSQT_EXPORT vtkQtListView : public vtkQtView
@@ -158,7 +144,7 @@ protected:
 private Q_SLOTS:
   void slotQtSelectionChanged(const QItemSelection&, const QItemSelection&);
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   void SetVTKSelection();
 
   vtkMTimeType LastSelectionMTime;
@@ -181,11 +167,12 @@ private:
   int FieldType;
   int VisibleColumn;
 
-  vtkSmartPointer<vtkDataObjectToTable> DataObjectToTable;
+  vtkSmartPointer<vtkAttributeDataToTableFilter> DataObjectToTable;
   vtkSmartPointer<vtkApplyColors> ApplyColors;
 
   vtkQtListView(const vtkQtListView&) = delete;
   void operator=(const vtkQtListView&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

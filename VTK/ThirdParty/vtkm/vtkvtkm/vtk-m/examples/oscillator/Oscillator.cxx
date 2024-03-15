@@ -9,18 +9,12 @@
 //============================================================================
 #include <algorithm>
 #include <cctype>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 
 #include <vtkm/Math.h>
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/DataSetBuilderUniform.h>
 #include <vtkm/cont/Initialize.h>
-
-#include <vtkm/filter/FilterDataSet.h>
-
-#include <vtkm/cont/TryExecute.h>
 
 #include <vtkm/source/Oscillator.h>
 
@@ -319,7 +313,9 @@ int main(int argc, char** argv)
     if (generateOutput)
     {
       vtkm::cont::ArrayHandleBasic<vtkm::Float64> tmp;
-      rdata.GetField("oscillating", vtkm::cont::Field::Association::Points).GetData().CopyTo(tmp);
+      rdata.GetField("oscillating", vtkm::cont::Field::Association::Points)
+        .GetData()
+        .AsArrayHandle(tmp);
       const double* values = tmp.GetReadPointer();
       writeData(outputDirectory, count++, sizeX, sizeY, sizeZ, values);
     }

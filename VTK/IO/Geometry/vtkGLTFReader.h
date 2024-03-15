@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGLTFReader
@@ -46,6 +34,8 @@
  *
  * This reader only supports assets that use the 2.x version of the glTF specification.
  *
+ * If Stream is not nullptr, it will have priority against FileName.
+ *
  * For the full glTF specification, see:
  * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
  *
@@ -61,11 +51,14 @@
 
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
-#include "vtkSmartPointer.h" // For SmartPointer
+#include "vtkResourceStream.h" // For vtkResourceStream
+#include "vtkSmartPointer.h"   // For vtkSmartPointer
+#include "vtkURILoader.h"      // For vtkURILoader
 
 #include <string> // For std::string
 #include <vector> // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkFieldData;
 class vtkGLTFDocumentLoader;
@@ -104,6 +97,25 @@ public:
    */
   vtkSetFilePathMacro(FileName);
   vtkGetFilePathMacro(FileName);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the stream from which to read the glTF.
+   * If Stream is not nullptr, it will have priority against FileName
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the URI loader to use when reading from a Stream.
+   * `URILoader` will be used to locate and load other files referenced in the glTF file.
+   * If no URI loader is set when reading through a stream, only single file glTF can be read.
+   */
+  vtkSetSmartPointerMacro(URILoader, vtkURILoader);
+  vtkGetSmartPointerMacro(URILoader, vtkURILoader);
   ///@}
 
   ///@{
@@ -167,6 +179,7 @@ public:
    * as linearly interpolated time values between 0s and the animations' maximum durations,
    * sampled at the specified frame rate.
    * Use the TIME_STEPS information key to obtain integer indices to each of these steps.
+   * Set to 0 to not set any TIME_STEPS and only provide a TIME_RANGE.
    */
   vtkGetMacro(FrameRate, unsigned int);
   vtkSetMacro(FrameRate, unsigned int);
@@ -200,6 +213,9 @@ protected:
   void StoreTextureData();
 
   char* FileName = nullptr;
+  vtkSmartPointer<vtkResourceStream> Stream;
+  vtkMTimeType LastStreamTimeStamp = 0;
+  vtkSmartPointer<vtkURILoader> URILoader;
 
   vtkIdType CurrentScene = 0;
   unsigned int FrameRate = 60;
@@ -236,4 +252,5 @@ private:
   void operator=(const vtkGLTFReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

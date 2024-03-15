@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeArrays.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMergeArrays.h"
 
 #include "vtkCellData.h"
@@ -26,6 +15,7 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMergeArrays);
 
 //------------------------------------------------------------------------------
@@ -163,6 +153,10 @@ int vtkMergeArrays::RequestData(vtkInformation* vtkNotUsed(request),
 
   for (int idx = 1; idx < num; ++idx)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     inInfo = inputVector[0]->GetInformationObject(idx);
     input = inInfo->Get(vtkDataObject::DATA_OBJECT());
     if (!this->MergeDataObjectFields(input, idx, output))
@@ -194,3 +188,4 @@ void vtkMergeArrays::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

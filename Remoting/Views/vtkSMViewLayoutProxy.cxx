@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMViewLayoutProxy.h"
 
 #include "vtkClientServerStream.h"
@@ -946,6 +934,46 @@ int vtkSMViewLayoutProxy::GetViewLocation(vtkSMViewProxy* view)
     }
   }
   return -1;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMViewLayoutProxy::EqualizeViews()
+{
+  this->ComputeSteadySplitFraction(0, Direction::HORIZONTAL);
+  this->ComputeSteadySplitFraction(0, Direction::VERTICAL);
+  this->UpdateState();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMViewLayoutProxy::EqualizeViews(Direction direction)
+{
+  this->ComputeSteadySplitFraction(0, direction);
+  this->UpdateState();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+int vtkSMViewLayoutProxy::ComputeSteadySplitFraction(int location, Direction direction)
+{
+  vtkInternals::Cell& cell = this->Internals->KDTree[location];
+  if (!this->IsSplitCell(location))
+  {
+    return 1;
+  }
+
+  const int first = this->ComputeSteadySplitFraction(this->GetFirstChild(location), direction);
+  const int second = this->ComputeSteadySplitFraction(this->GetSecondChild(location), direction);
+
+  // if direction change, this cell counts for 1 in upstream split fraction.
+  if (cell.Direction != direction)
+  {
+    return 1;
+  }
+
+  cell.SplitFraction = static_cast<double>(first) / static_cast<double>(first + second);
+
+  return first + second;
 }
 
 //----------------------------------------------------------------------------

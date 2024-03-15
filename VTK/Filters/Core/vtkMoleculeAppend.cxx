@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMoleculeAppend.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMoleculeAppend.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -30,6 +18,7 @@
 #include <set>
 #include <utility>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMoleculeAppend);
 
 //------------------------------------------------------------------------------
@@ -81,10 +70,16 @@ int vtkMoleculeAppend::RequestData(
   uniquePoints->InitPointInsertion(uniquePointsList, bounds, 0);
   std::set<std::pair<vtkIdType, vtkIdType>> uniqueBonds;
 
+  int checkAbortInterval = std::min(this->GetNumberOfInputConnections(0) / 10 + 1, 1000);
+
   // ********************
   // Process each input
   for (int idx = 0; idx < this->GetNumberOfInputConnections(0); ++idx)
   {
+    if (idx % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     vtkMolecule* input = vtkMolecule::GetData(inputVector[0], idx);
 
     // --------------------
@@ -282,3 +277,4 @@ bool vtkMoleculeAppend::CheckArrays(vtkAbstractArray* array1, vtkAbstractArray* 
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

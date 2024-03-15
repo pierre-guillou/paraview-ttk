@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLYReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPLYReader.h"
 
 #include "vtkCellArray.h"
@@ -40,6 +28,7 @@
 #include <cstddef>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPLYReader);
 
 namespace
@@ -180,7 +169,15 @@ int vtkPLYReader::RequestData(vtkInformation* vtkNotUsed(request),
   int nelems, numElems, nprops;
   char **elist, *elemName;
 
-  if (this->ReadFromInputString)
+  if (this->ReadFromInputStream)
+  {
+    if (!(ply = vtkPLY::ply_read(this->Stream, &nelems, &elist)))
+    {
+      vtkWarningMacro(<< "Could not open PLY file");
+      return 0;
+    }
+  }
+  else if (this->ReadFromInputString)
   {
     if (!(ply = vtkPLY::ply_open_for_reading_from_string(this->InputString, &nelems, &elist)))
     {
@@ -559,26 +556,24 @@ int vtkPLYReader::RequestData(vtkInformation* vtkNotUsed(request),
                     else
                     {
                       size_t sameTexIndex = 0;
-                      if (pointIds[ti].size() > 1)
+
+                      double first[3];
+                      output->GetPoint(vtkVerts[k], first);
+                      for (; sameTexIndex < pointIds[ti].size(); ++sameTexIndex)
                       {
-                        double first[3];
-                        output->GetPoint(vtkVerts[k], first);
-                        for (; sameTexIndex < pointIds[ti].size(); ++sameTexIndex)
+                        double second[3];
+                        output->GetPoint(pointIds[ti][sameTexIndex], second);
+                        if (FuzzyEqual(first, second, this->FaceTextureTolerance))
                         {
-                          double second[3];
-                          output->GetPoint(pointIds[ti][sameTexIndex], second);
-                          if (FuzzyEqual(first, second, this->FaceTextureTolerance))
-                          {
-                            break;
-                          }
+                          break;
                         }
-                        if (sameTexIndex == pointIds[ti].size())
-                        {
-                          // newly seen point for this texture coordinate
-                          vtkIdType dp = duplicateCellPoint(output, cell, k);
-                          texCoordsPoints->SetTuple2(dp, newTex[0], newTex[1]);
-                          pointIds[ti].push_back(dp);
-                        }
+                      }
+                      if (sameTexIndex == pointIds[ti].size())
+                      {
+                        // newly seen point for this texture coordinate
+                        vtkIdType dp = duplicateCellPoint(output, cell, k);
+                        texCoordsPoints->SetTuple2(dp, newTex[0], newTex[1]);
+                        pointIds[ti].push_back(dp);
                       }
 
                       // texture coordinate already seen before, use the vertex
@@ -652,3 +647,4 @@ void vtkPLYReader::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << this->Comments->GetValue(i) << "\n";
   }
 }
+VTK_ABI_NAMESPACE_END

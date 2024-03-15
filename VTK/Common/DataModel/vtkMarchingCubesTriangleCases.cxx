@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMarchingCubesTriangleCases.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMarchingCubesTriangleCases.h"
 
@@ -19,6 +7,7 @@
 // Edges to intersect.  Three at a time form a triangle. Comments at
 // end of line indicate case number (0->255) and base case number (0->15).
 //
+VTK_ABI_NAMESPACE_BEGIN
 static vtkMarchingCubesTriangleCases VTK_MARCHING_CUBES_TRICASES[] = {
   { { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 } }, /* 0 0 */
   { { 0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 } },    /* 1 1 */
@@ -282,3 +271,4 @@ vtkMarchingCubesTriangleCases* vtkMarchingCubesTriangleCases::GetCases()
 {
   return VTK_MARCHING_CUBES_TRICASES;
 }
+VTK_ABI_NAMESPACE_END

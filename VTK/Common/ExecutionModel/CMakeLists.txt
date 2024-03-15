@@ -1,23 +1,29 @@
 set(classes
+  vtkAggregateToPartitionedDataSetCollection
   vtkAlgorithm
   vtkAlgorithmOutput
   vtkAnnotationLayersAlgorithm
   vtkArrayDataAlgorithm
   vtkCachedStreamingDemandDrivenPipeline
   vtkCastToConcrete
+  vtkCellGridAlgorithm
   vtkCompositeDataPipeline
   vtkCompositeDataSetAlgorithm
   vtkDataObjectAlgorithm
   vtkDataSetAlgorithm
   vtkDemandDrivenPipeline
   vtkDirectedGraphAlgorithm
+  vtkEndFor
   vtkEnsembleSource
+  vtkExecutionAggregator
+  vtkExecutionRange
   vtkExecutive
   vtkExplicitStructuredGridAlgorithm
   vtkExtentRCBPartitioner
   vtkExtentSplitter
   vtkExtentTranslator
   vtkFilteringInformationKeyManager
+  vtkForEach
   vtkGraphAlgorithm
   vtkHierarchicalBoxDataSetAlgorithm
   vtkHyperTreeGridAlgorithm
@@ -57,6 +63,7 @@ set(classes
   vtkTableAlgorithm
   vtkThreadedCompositeDataPipeline
   vtkThreadedImageAlgorithm
+  vtkTimeRange
   vtkTreeAlgorithm
   vtkTrivialConsumer
   vtkTrivialProducer
@@ -70,5 +77,10 @@ set(classes
   vtkOverlappingAMRAlgorithm
   vtkUniformGridAMRAlgorithm)
 
+set (template_classes
+  vtkTemporalAlgorithm)
+
 vtk_module_add_module(VTK::CommonExecutionModel
-  CLASSES ${classes})
+  CLASSES ${classes}
+  TEMPLATE_CLASSES ${template_classes})
+vtk_add_test_mangling(VTK::CommonExecutionModel)

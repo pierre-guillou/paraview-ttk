@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsImpl.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkSMPToolsImpl_h
 #define vtkSMPToolsImpl_h
@@ -35,7 +23,7 @@ namespace detail
 {
 namespace smp
 {
-
+VTK_ABI_NAMESPACE_BEGIN
 enum class BackendType
 {
   Sequential = VTK_SMP_BACKEND_SEQUENTIAL,
@@ -72,6 +60,9 @@ public:
 
   //--------------------------------------------------------------------------------
   bool IsParallelScope() { return this->IsParallel; }
+
+  //--------------------------------------------------------------------------------
+  bool GetSingleThread();
 
   //--------------------------------------------------------------------------------
   template <typename FunctorInternal>
@@ -126,8 +117,10 @@ private:
 
 using ExecuteFunctorPtrType = void (*)(void*, vtkIdType, vtkIdType, vtkIdType);
 
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 
 #endif
+/* VTK-HeaderTest-Exclude: vtkSMPToolsImpl.h */

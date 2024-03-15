@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCubeAxesActor2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCubeAxesActor2D
  * @brief   create a 2D plot of a bounding box edges - used for navigation
@@ -49,6 +37,7 @@
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithmOutput;
 class vtkAxisActor2D;
 class vtkCamera;
@@ -382,11 +371,12 @@ protected:
 
 private:
   // hide the superclass' ShallowCopy() from the user and the compiler.
+  // NOLINTNEXTLINE(bugprone-parent-virtual-call)
   void ShallowCopy(vtkProp* prop) override { this->vtkProp::ShallowCopy(prop); }
 
-private:
   vtkCubeAxesActor2D(const vtkCubeAxesActor2D&) = delete;
   void operator=(const vtkCubeAxesActor2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

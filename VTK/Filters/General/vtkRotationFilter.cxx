@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRotationFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRotationFilter.h"
 
 #include "vtkCellData.h"
@@ -25,6 +13,7 @@
 #include "vtkTransform.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRotationFilter);
 
 //------------------------------------------------------------------------------
@@ -178,10 +167,14 @@ int vtkRotationFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkIdList* cellPts;
 
   // Generate rotated cells.
-  for (int k = 0; k < this->GetNumberOfCopies(); ++k)
+  for (int k = 0; k < this->GetNumberOfCopies() && !this->CheckAbort(); ++k)
   {
     for (vtkIdType i = 0; i < numCells; ++i)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       input->GetCellPoints(i, ptIds);
       input->GetCell(i, cell);
       vtkIdType numCellPts = cell->GetNumberOfPoints();
@@ -224,3 +217,4 @@ int vtkRotationFilter::FillInputPortInformation(int, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

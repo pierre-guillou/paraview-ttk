@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlaneCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPlaneCutter.h"
 
 #include "vtk3DLinearGridPlaneCutter.h"
@@ -54,6 +42,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkPlaneCutter);
 vtkCxxSetObjectMacro(vtkPlaneCutter, Plane, vtkPlane);
 
@@ -160,10 +149,11 @@ struct CuttingFunctor
   double* Normal;
   vtkIdType NumSelected;
   bool Interpolate;
+  vtkPlaneCutter* Filter;
 
   CuttingFunctor(vtkDataSet* input, TPointsArray* pointsArray, int outputPrecision,
     vtkMultiPieceDataSet* outputMP, vtkPlane* plane, vtkSphereTree* tree, double* origin,
-    double* normal, bool interpolate)
+    double* normal, bool interpolate, vtkPlaneCutter* filter)
     : Input(input)
     , InPointsArray(pointsArray)
     , OutputMP(outputMP)
@@ -174,6 +164,7 @@ struct CuttingFunctor
     , Origin(origin)
     , Normal(normal)
     , Interpolate(interpolate)
+    , Filter(filter)
   {
   }
 
@@ -304,9 +295,9 @@ struct UnstructuredDataFunctor : public CuttingFunctor<TPointsArray>
 {
   UnstructuredDataFunctor(TGrid* inputGrid, TPointsArray* pointsArray, int outputPrecision,
     vtkMultiPieceDataSet* outputMP, vtkPlane* plane, vtkSphereTree* tree, double* origin,
-    double* normal, bool interpolate)
-    : CuttingFunctor<TPointsArray>(
-        inputGrid, pointsArray, outputPrecision, outputMP, plane, tree, origin, normal, interpolate)
+    double* normal, bool interpolate, vtkPlaneCutter* filter)
+    : CuttingFunctor<TPointsArray>(inputGrid, pointsArray, outputPrecision, outputMP, plane, tree,
+        origin, normal, interpolate, filter)
   {
     if (auto polyData = vtkPolyData::SafeDownCast(inputGrid))
     {
@@ -387,11 +378,25 @@ struct UnstructuredDataFunctor : public CuttingFunctor<TPointsArray>
     int i, numPts;
     vtkPoints* cellPoints;
     const unsigned char* selected = this->Selected + beginCellId;
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     vtkIdList*& cellPointIds = this->CellPointIds.Local();
+    vtkIdType checkAbortInterval = std::min((endCellId - beginCellId) / 10 + 1, (vtkIdType)1000);
     // Loop over the cell, processing only the one that are needed
     for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       needCell = false;
       if (this->SphereTree)
       {
@@ -481,10 +486,10 @@ struct UnstructuredDataWorker
   template <typename TPointsArray>
   void operator()(TPointsArray* pointsArray, TGrid* inputGrid, int outputPrecision,
     vtkMultiPieceDataSet* outputMP, vtkPlane* plane, vtkSphereTree* tree, double* origin,
-    double* normal, bool interpolate)
+    double* normal, bool interpolate, vtkPlaneCutter* filter)
   {
-    UnstructuredDataFunctor<TGrid, TPointsArray> functor(
-      inputGrid, pointsArray, outputPrecision, outputMP, plane, tree, origin, normal, interpolate);
+    UnstructuredDataFunctor<TGrid, TPointsArray> functor(inputGrid, pointsArray, outputPrecision,
+      outputMP, plane, tree, origin, normal, interpolate, filter);
     functor.BuildAccelerationStructure();
     vtkSMPTools::For(0, inputGrid->GetNumberOfCells(), functor);
   }
@@ -723,6 +728,7 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
     planeCutter->SetGeneratePolygons(this->GeneratePolygons);
     planeCutter->SetComputeNormals(this->ComputeNormals);
     planeCutter->SetInterpolateAttributes(this->InterpolateAttributes);
+    planeCutter->SetContainerAlgorithm(this);
     planeCutter->Update();
     vtkDataSet* outPlane = planeCutter->GetOutput();
     output->ShallowCopy(outPlane);
@@ -747,6 +753,7 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
       planeCutter->SetPlane(xPlane);
       planeCutter->SetComputeNormals(this->ComputeNormals);
       planeCutter->SetInterpolateAttributes(this->InterpolateAttributes);
+      planeCutter->SetContainerAlgorithm(this);
       planeCutter->Update();
       vtkDataSet* outPlane = planeCutter->GetOutput();
       output->ShallowCopy(outPlane);
@@ -773,6 +780,7 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
       planeCutter->SetPlane(xPlane);
       planeCutter->SetComputeNormals(this->ComputeNormals);
       planeCutter->SetInterpolateAttributes(this->InterpolateAttributes);
+      planeCutter->SetContainerAlgorithm(this);
       planeCutter->Update();
       vtkDataSet* outPlane = vtkDataSet::SafeDownCast(planeCutter->GetOutput());
       output->ShallowCopy(outPlane);
@@ -796,10 +804,11 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
     UnstructuredDataWorker<vtkPolyData> worker;
     auto pointsArray = inputPolyData->GetPoints()->GetData();
     if (!Dispatcher::Execute(pointsArray, worker, inputPolyData, this->OutputPointsPrecision,
-          tempOutputMP, plane, sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes))
+          tempOutputMP, plane, sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes,
+          this))
     {
       worker(pointsArray, inputPolyData, this->OutputPointsPrecision, tempOutputMP, plane,
-        sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes);
+        sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes, this);
     }
   }
   // get any implementations of vtkUnstructuredGridBase
@@ -808,10 +817,11 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
     UnstructuredDataWorker<vtkUnstructuredGridBase> worker;
     auto pointsArray = inputUG->GetPoints()->GetData();
     if (!Dispatcher::Execute(pointsArray, worker, inputUG, this->OutputPointsPrecision,
-          tempOutputMP, plane, sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes))
+          tempOutputMP, plane, sphereTree, planeOrigin, planeNormal, this->InterpolateAttributes,
+          this))
     {
       worker(pointsArray, inputUG, this->OutputPointsPrecision, tempOutputMP, plane, sphereTree,
-        planeOrigin, planeNormal, this->InterpolateAttributes);
+        planeOrigin, planeNormal, this->InterpolateAttributes, this);
     }
   }
   else
@@ -836,6 +846,7 @@ int vtkPlaneCutter::ExecuteDataSet(vtkDataSet* input, vtkPolyData* output)
   append->SetOutputDataSetType(VTK_POLY_DATA);
   append->SetOutputPointsPrecision(this->OutputPointsPrecision);
   append->SetMergePoints(this->MergePoints);
+  append->SetContainerAlgorithm(this);
   for (vtkDataObject* dObj : tempOutputMPRange)
   {
     append->AddInputData(vtkPolyData::SafeDownCast(dObj));
@@ -875,3 +886,4 @@ void vtkPlaneCutter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Merge Points: " << (this->MergePoints ? "On\n" : "Off\n");
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

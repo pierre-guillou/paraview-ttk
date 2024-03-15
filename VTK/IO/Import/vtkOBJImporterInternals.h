@@ -1,15 +1,5 @@
-/*=========================================================================
-  Program:   Visualization Toolkit
-  Module:    vtkOBJImporterInternals.h
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkOBJImporterInternals_h
 #define vtkOBJImporterInternals_h
 
@@ -19,6 +9,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 
 struct VTKIOIMPORT_EXPORT vtkOBJImportedMaterial
@@ -127,8 +118,8 @@ public:
 
   std::vector<vtkOBJImportedMaterial*> ParseOBJandMTL(std::string filename, int& result_code);
 
-  void ReadVertices(bool gotFirstUseMaterialTag, char* pLine, float xyz, int lineNr,
-    const double v_scale, bool everything_ok, vtkPoints* points, const bool use_scale);
+  void ReadVertices(bool gotFirstUseMaterialTag, char* pLine, float xyz, int lineNr, double v_scale,
+    bool everything_ok, vtkPoints* points, bool use_scale);
 
 protected:
   vtkOBJPolyDataProcessor();
@@ -155,4 +146,5 @@ VTKIOIMPORT_EXPORT
 void bindTexturedPolydataToRenderWindow(
   vtkRenderWindow* renderWindow, vtkRenderer* renderer, vtkOBJPolyDataProcessor* reader);
 
+VTK_ABI_NAMESPACE_END
 #endif

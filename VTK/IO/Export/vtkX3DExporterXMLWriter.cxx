@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporterXMLWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen, Kristian Sons
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kristian Sons
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkX3DExporterXMLWriter.h"
 
 #include "vtkCellArray.h"
@@ -33,6 +22,7 @@
 
 using namespace vtkX3D;
 
+VTK_ABI_NAMESPACE_BEGIN
 struct XMLInfo
 {
 
@@ -356,3 +346,4 @@ void vtkX3DExporterXMLWriter::SubDepth()
 {
   this->ActTab.erase(0, 2);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqLinksModel.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqLinksModel_h
 #define pqLinksModel_h
@@ -37,6 +9,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QAbstractItemModel>
 
 class vtkCollection;
+class pqCameraWidgetViewLink;
 class pqInteractiveViewLink;
 class pqProxy;
 class pqRenderView;
@@ -66,6 +39,7 @@ public:
     Unknown,
     Proxy,
     Camera,
+    CameraWidget,
     Property,
     Selection
   };
@@ -158,6 +132,11 @@ public:
     const QString& name, vtkSMProxy* proxy1, vtkSMProxy* proxy2, bool interactiveViewLink = false);
 
   /**
+   * add a camera widget based link
+   */
+  void addCameraWidgetLink(const QString& name, vtkSMProxy* proxy1, vtkSMProxy* proxy2);
+
+  /**
    * return true if pqLinksModels contain an interactive view link associated to name
    */
   bool hasInteractiveViewLink(const QString& name);
@@ -166,6 +145,16 @@ public:
    * return pointer to the interactive view link associated to name
    */
   pqInteractiveViewLink* getInteractiveViewLink(const QString& name);
+
+  /**
+   * return true if pqLinksModels contain an camera widget view link associated to name
+   */
+  bool hasCameraWidgetViewLink(const QString& name);
+
+  /**
+   * return pointer to the interactive view link associated to name
+   */
+  pqCameraWidgetViewLink* getCameraWidgetViewLink(const QString& name);
 
   /**
    * add a property based link
@@ -234,6 +223,12 @@ protected Q_SLOTS:
   void createInteractiveViewLink(const QString& name, vtkSMProxy* displayView,
     vtkSMProxy* linkedView, double xPos = 0.375, double yPos = 0.375, double xSize = 0.25,
     double ySize = 0.25);
+
+  /**
+   * Create a camera widget view link with provided parameters
+   */
+  void createCameraWidgetViewLink(
+    const QString& name, vtkSMProxy* displayView, vtkSMProxy* linkedView);
 
   /**
    * Convenience method used by the internal

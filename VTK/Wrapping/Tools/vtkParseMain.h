@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseMain.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  vtkParseMain.h provides argument parsing for the wrapper executables.
@@ -50,8 +38,16 @@
 #include <stddef.h> /* for wchar_t */
 #endif
 
+typedef struct Warnings_
+{
+  int Empty;
+} Warnings;
+
 /**
- * Options for the wrappers
+ * Options for the wrappers.  The command-line options are parsed by
+ * vtkParse_Main()/vtkParse_MainMulti() and stored in this struct as
+ * a static variable that can be accessed from anywhere via the
+ * function vtkParse_GetCommandLineOptions().
  */
 typedef struct OptionInfo_
 {
@@ -64,6 +60,9 @@ typedef struct OptionInfo_
   int NumberOfHierarchyFileNames; /* the total number of types argument */
   char** HierarchyFileNames;      /* the file preceded by "--types" */
   int DumpMacros;                 /* dump macros to output */
+  char* DepFileName;              /* dependency tracking output file */
+
+  Warnings WarningFlags; /* warning flags */
 } OptionInfo;
 
 #ifdef __cplusplus
@@ -72,20 +71,39 @@ extern "C"
 #endif
 
   /**
-   * Return the options provided on the command line
+   * Return a pointer to the static structure that holds the result of
+   * parsing the command-line options.  This can be called at any time
+   * after vtkParse_Main() has been called.
    */
   VTKWRAPPINGTOOLS_EXPORT
-  OptionInfo* vtkParse_GetCommandLineOptions(void);
+  const OptionInfo* vtkParse_GetCommandLineOptions(void);
 
   /**
-   * The main function, parses the file and returns the result.
+   * Perform any finalization required.
+   *
+   * This includes writing the dependency tracker information and cleaning up
+   * memory.
+   */
+  VTKWRAPPINGTOOLS_EXPORT
+  int vtkParse_Finalize(void);
+
+  /**
+   * The main function, which parses the input file and returns the result.
+   * Before the program exits, the caller must call vtkParse_Free() on the
+   * returned pointer (see vtkParse.h).  This function may call exit() if it
+   * encounters an error loading the input file, parsing the input file, or
+   * while handling the command-line options.
    */
   VTKWRAPPINGTOOLS_EXPORT
   FileInfo* vtkParse_Main(int argc, char* argv[]);
 
   /**
-   * A main function that can take multiple input files.
-   * It does not parse the files.  It will exit on error.
+   * An alternative main function that can take multiple input files.
+   * It does not parse the files itself, but files can be parsed by calling
+   * vtkParse_ParseFile().  The returned StringCache memory must be freed
+   * by a call to vtkParse_FreeStringCache(), followed by a call to free()
+   * on the pointer itself, before the program exits.  Note that this
+   * function will call exit() if it encounters an error.
    */
   VTKWRAPPINGTOOLS_EXPORT
   StringCache* vtkParse_MainMulti(int argc, char* argv[]);
@@ -95,6 +113,7 @@ extern "C"
   /**
    * Converts wmain args to utf8. This function can only be called once.
    * The caller is permitted to modify the returned argument array.
+   * The caller must not attempt to free the returned argument array.
    */
   VTKWRAPPINGTOOLS_EXPORT
   char** vtkParse_WideArgsToUTF8(int argc, wchar_t* wargv[]);

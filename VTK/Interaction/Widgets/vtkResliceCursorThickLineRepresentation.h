@@ -1,22 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorLineRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResliceCursorThickLineRepresentation
  * @brief   represents a thick slab of the reslice cursor widget
  *
- * This class respresents a thick reslice cursor, that can be used to
+ * This class represents a thick reslice cursor, that can be used to
  * perform interactive thick slab MPR's through data. The class internally
  * uses vtkImageSlabReslice to do its reslicing. The slab thickness is set
  * interactively from the widget. The slab resolution (ie the number of
@@ -32,6 +20,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkResliceCursorLineRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKINTERACTIONWIDGETS_EXPORT vtkResliceCursorThickLineRepresentation
   : public vtkResliceCursorLineRepresentation
 {
@@ -74,4 +63,5 @@ private:
   void operator=(const vtkResliceCursorThickLineRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

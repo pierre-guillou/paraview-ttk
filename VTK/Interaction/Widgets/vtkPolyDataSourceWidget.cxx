@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataSourceWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPolyDataSourceWidget.h"
 
@@ -20,6 +8,7 @@
 
 // child classes should call this constructor so that the vtk3DWidget()
 // constructor can set up some pertinent variables (e.g. Input and Prop3D)
+VTK_ABI_NAMESPACE_BEGIN
 vtkPolyDataSourceWidget::vtkPolyDataSourceWidget() = default;
 
 void vtkPolyDataSourceWidget::PlaceWidget()
@@ -56,3 +45,4 @@ void vtkPolyDataSourceWidget::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

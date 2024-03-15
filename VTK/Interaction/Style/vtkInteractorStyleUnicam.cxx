@@ -1,23 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorStyleUnicam.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * This work was produced under a grant from the Department of Energy to Brown
- * University.  Neither Brown University nor the authors assert any copyright
- * with respect to this work and it may be used, reproduced, and distributed
- * without permission.
+ * University.
  */
 
 #include "vtkInteractorStyleUnicam.h"
@@ -36,19 +22,24 @@
 #include "vtkTransform.h"
 #include "vtkWorldPointPicker.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInteractorStyleUnicam);
 
 // define 'TheTime()' function-- returns time in elapsed seconds
 #if defined(_WIN32)
+VTK_ABI_NAMESPACE_END
 #include "vtkWindows.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 static double TheTime()
 {
   return GetTickCount() / 1000.0;
 }
 #else
+VTK_ABI_NAMESPACE_END
 #include <sys/time.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 static double TheTime()
 {
   struct timeval ts;
@@ -376,7 +367,7 @@ void vtkInteractorStyleUnicam::RotateXY(int X, int Y)
   this->ComputeWorldToDisplay(center[0], center[1], center[2], cpt);
   this->NormalizeMouseXY(static_cast<int>(cpt[0]), static_cast<int>(cpt[1]), &cpt[0], &cpt[1]);
 
-  double radsq = pow(1.0 + fabs(cpt[0]), 2.0); // squared rad of virtual cylinder
+  double radsq = (1.0 + fabs(cpt[0])) * (1.0 + fabs(cpt[0])); // squared rad of virtual cylinder
 
   double tp[2], te[2];
   this->NormalizeMouseXY(
@@ -678,3 +669,4 @@ void vtkInteractorStyleUnicam::MyTranslateCamera(double v[3])
     this->CurrentRenderer->ResetCameraClippingRange();
   }
 }
+VTK_ABI_NAMESPACE_END

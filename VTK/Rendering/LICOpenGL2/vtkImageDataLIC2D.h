@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDataLIC2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageDataLIC2D
  *
@@ -39,6 +27,7 @@
 #include "vtkRenderingLICOpenGL2Module.h" // For export macro
 #include "vtkWeakPointer.h"               // needed for vtkWeakPointer.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderWindow;
 class vtkOpenGLRenderWindow;
 class vtkImageNoiseSource;
@@ -146,4 +135,5 @@ private:
   void operator=(const vtkImageDataLIC2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

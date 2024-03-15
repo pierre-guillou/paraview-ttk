@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtTreeModelAdapter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkQtTreeModelAdapter.h"
 
@@ -47,6 +31,7 @@
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkQtTreeModelAdapter::vtkQtTreeModelAdapter(QObject* p, vtkTree* t)
   : vtkQtAbstractModelAdapter(p)
 {
@@ -177,8 +162,7 @@ void vtkQtTreeModelAdapter::treeModified()
 
 // Description:
 // Selection conversion from VTK land to Qt land
-vtkSelection* vtkQtTreeModelAdapter::QModelIndexListToVTKIndexSelection(
-  const QModelIndexList qmil) const
+vtkSelection* vtkQtTreeModelAdapter::QModelIndexListToVTKIndexSelection(QModelIndexList qmil) const
 {
   // Create vtk index selection
   vtkSelection* IndexSelection = vtkSelection::New(); // Caller needs to delete
@@ -572,3 +556,4 @@ Qt::DropActions vtkQtTreeModelAdapter::supportedDragActions() const
 {
   return Qt::CopyAction;
 }
+VTK_ABI_NAMESPACE_END

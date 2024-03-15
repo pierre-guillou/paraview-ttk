@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Included by octree.h
 
 /**\var  template<typename T_, int d_=3, class A_> typedef octree<T_,d_,A_>*
@@ -65,6 +67,7 @@
  * The node will not have an owning octree -- which means that this constructor should never be used
  * except possibly for serialization.
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, int d_, typename A_>
 octree_node<T_, d_, A_>::octree_node()
 {
@@ -232,3 +235,4 @@ octree_node<T_, d_, A_>& octree_node<T_, d_, A_>::operator[](int child)
 /**\fn  template<typename T_, int d_=3, class A_> const_reference octree_node<T_,d_,A_>::operator *
  *() const \brief Provide read-only access to the application-specific data.
  */
+VTK_ABI_NAMESPACE_END

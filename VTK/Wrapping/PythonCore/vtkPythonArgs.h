@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonArgs.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*-----------------------------------------------------------------------
 The vtkPythonArgs class was created in Oct 2010 by David Gobbi for.
 
@@ -31,6 +19,7 @@ resulting in wrapper code that is faster and more compact.
 #include "PyVTKEnum.h"
 #include "PyVTKObject.h"
 #include "PyVTKTemplate.h"
+#include "vtkABINamespace.h"
 #include "vtkPythonUtil.h"
 #include "vtkWrappingPythonCoreModule.h" // For export macro
 
@@ -40,6 +29,7 @@ resulting in wrapper code that is faster and more compact.
 #include <cstring>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObjectBase;
 class vtkSmartPointerBase;
 
@@ -54,7 +44,7 @@ public:
     : Args(args)
     , MethodName(methodname)
   {
-    this->N = PyTuple_GET_SIZE(args);
+    this->N = PyTuple_Size(args);
     this->M = PyType_Check(self);
     this->I = this->M;
   }
@@ -68,7 +58,7 @@ public:
     : Args(args)
     , MethodName(methodname)
   {
-    this->N = PyTuple_GET_SIZE(args);
+    this->N = PyTuple_Size(args);
     this->M = 0;
     this->I = 0;
   }
@@ -607,7 +597,7 @@ public:
   static PyObject* BuildTuple(const long long* a, size_t n);
   static PyObject* BuildTuple(const unsigned long long* a, size_t n);
   static PyObject* BuildTuple(const std::string* a, size_t n);
-  static PyObject* BuildTuple(vtkSmartPointerBase* a, size_t n);
+  static PyObject* BuildTuple(const vtkSmartPointerBase* a, size_t n);
   ///@}
 
   /**
@@ -652,14 +642,14 @@ public:
   /**
    * Get the argument count.
    */
-  static int GetArgCount(PyObject* args) { return static_cast<int>(PyTuple_GET_SIZE(args)); }
+  static int GetArgCount(PyObject* args) { return static_cast<int>(PyTuple_Size(args)); }
 
   /**
    * Get the argument count for a method that might be unbound.
    */
   static int GetArgCount(PyObject* self, PyObject* args)
   {
-    return (static_cast<int>(PyTuple_GET_SIZE(args)) - PyType_Check(self));
+    return (static_cast<int>(PyTuple_Size(args)) - PyType_Check(self));
   }
 
   /**
@@ -822,7 +812,7 @@ inline bool vtkPythonArgs::CheckPrecond(bool c, const char* text)
 {
   if (!c)
   {
-    this->PrecondError(text);
+    vtkPythonArgs::PrecondError(text);
   }
   return c;
 }
@@ -867,7 +857,7 @@ inline PyObject* vtkPythonArgs::BuildValue(const void* a)
   if (a)
   {
     const char* s = vtkPythonUtil::ManglePointer(a, "p_void");
-    return PyString_FromString(s);
+    return PyUnicode_FromString(s);
   }
   Py_INCREF(Py_None);
   return Py_None;
@@ -875,9 +865,6 @@ inline PyObject* vtkPythonArgs::BuildValue(const void* a)
 
 inline PyObject* vtkPythonArgs::BuildValue(const char* a, size_t l)
 {
-#ifndef VTK_PY3K
-  return PyString_FromStringAndSize(a, static_cast<Py_ssize_t>(l));
-#else
   PyObject* o = PyUnicode_FromStringAndSize(a, static_cast<Py_ssize_t>(l));
   if (o == nullptr)
   {
@@ -885,7 +872,6 @@ inline PyObject* vtkPythonArgs::BuildValue(const char* a, size_t l)
     o = PyBytes_FromStringAndSize(a, static_cast<Py_ssize_t>(l));
   }
   return o;
-#endif
 }
 
 inline PyObject* vtkPythonArgs::BuildValue(const char* a)
@@ -908,7 +894,7 @@ inline PyObject* vtkPythonArgs::BuildValue(char a)
   char b[2];
   b[0] = a;
   b[1] = '\0';
-  return PyString_FromString(b);
+  return PyUnicode_FromString(b);
 }
 
 inline PyObject* vtkPythonArgs::BuildValue(double a)
@@ -923,34 +909,24 @@ inline PyObject* vtkPythonArgs::BuildValue(bool a)
 
 inline PyObject* vtkPythonArgs::BuildValue(int a)
 {
-  return PyInt_FromLong(a);
+  return PyLong_FromLong(a);
 }
 
 inline PyObject* vtkPythonArgs::BuildValue(unsigned int a)
 {
-#ifdef VTK_PY3K
   return PyLong_FromUnsignedLong(a);
-#elif defined(_LP64) || defined(__LP64__)
-  return PyInt_FromLong(a);
-#else
-  if (static_cast<long>(a) >= 0)
-  {
-    return PyInt_FromLong(static_cast<long>(a));
-  }
-  return PyLong_FromUnsignedLong(a);
-#endif
 }
 
 inline PyObject* vtkPythonArgs::BuildValue(long a)
 {
-  return PyInt_FromLong(a);
+  return PyLong_FromLong(a);
 }
 
 inline PyObject* vtkPythonArgs::BuildValue(unsigned long a)
 {
   if (static_cast<long>(a) >= 0)
   {
-    return PyInt_FromLong(static_cast<long>(a));
+    return PyLong_FromLong(static_cast<long>(a));
   }
   return PyLong_FromUnsignedLong(a);
 }
@@ -992,6 +968,8 @@ inline PyObject* vtkPythonArgs::BuildBytes(const char* a, size_t n)
 #if defined(VTK_USE_EXTERN_TEMPLATE) && !defined(vtkPythonArgs_cxx)
 vtkPythonArgsTemplateMacro(extern template class VTKWRAPPINGPYTHONCORE_EXPORT vtkPythonArgs::Array);
 #endif
+
+VTK_ABI_NAMESPACE_END
 
 #endif
 // VTK-HeaderTest-Exclude: vtkPythonArgs.h

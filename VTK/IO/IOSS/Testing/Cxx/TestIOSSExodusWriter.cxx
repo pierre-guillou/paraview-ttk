@@ -1,21 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestIOSSExodusWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <vtkCamera.h>
 #include <vtkCompositePolyDataMapper.h>
 #include <vtkDataArraySelection.h>
-#include <vtkDataObject.h>
 #include <vtkDataSetSurfaceFilter.h>
 #include <vtkIOSSReader.h>
 #include <vtkIOSSWriter.h>
@@ -28,7 +15,9 @@
 #include <vtkTestUtilities.h>
 #include <vtkTesting.h>
 
-static std::string GetFileName(int argc, char* argv[], const std::string& fnameC)
+namespace
+{
+std::string GetFileName(int argc, char* argv[], const std::string& fnameC)
 {
   char* fileNameC = vtkTestUtilities::ExpandDataFileName(argc, argv, fnameC.c_str());
   std::string fname(fileNameC);
@@ -36,7 +25,7 @@ static std::string GetFileName(int argc, char* argv[], const std::string& fnameC
   return fname;
 }
 
-static std::string GetOutputFileName(int argc, char* argv[], const std::string& suffix)
+std::string GetOutputFileName(int argc, char* argv[], const std::string& suffix)
 {
   vtkNew<vtkTesting> testing;
   testing->AddArguments(argc, argv);
@@ -48,6 +37,7 @@ static std::string GetOutputFileName(int argc, char* argv[], const std::string& 
   }
 
   return std::string(tempDir) + "/" + suffix;
+}
 }
 
 int TestIOSSExodusWriter(int argc, char* argv[])

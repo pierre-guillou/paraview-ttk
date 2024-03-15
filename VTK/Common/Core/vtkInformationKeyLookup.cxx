@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationKeyLookup.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkInformationKeyLookup.h"
 
 #include "vtkInformationKey.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInformationKeyLookup);
 
 //------------------------------------------------------------------------------
@@ -65,3 +54,4 @@ vtkInformationKeyLookup::KeyMap& vtkInformationKeyLookup::Keys()
   static vtkInformationKeyLookup::KeyMap keys;
   return keys;
 }
+VTK_ABI_NAMESPACE_END

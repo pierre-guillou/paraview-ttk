@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageProbeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageProbeFilter
  * @brief   sample image values at specified point positions
@@ -23,7 +11,7 @@
  *
  * This filter can be used to resample an image onto a set of arbitrarily
  * placed sample points.  For example, if you have a surface data set
- * (i.e. a vtkPolyData that has been tesselated so that its points are
+ * (i.e. a vtkPolyData that has been tessellated so that its points are
  * very closely spaced), you can color the polydata from the image points.
  *
  * In general, this filter is similar to vtkProbeFilter except that the
@@ -39,6 +27,7 @@
 #include "vtkDataSetAlgorithm.h"
 #include "vtkImagingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractImageInterpolator;
 class vtkUnsignedCharArray;
 class vtkImageData;
@@ -114,6 +103,7 @@ private:
 
   class ProbePointsWorklet;
   struct ProbePointsThreadLocal;
+  struct ProbePointsThreadStruct;
 
   /**
    * This method is called from the work threads if SMP is used, or called
@@ -123,4 +113,5 @@ private:
     vtkIdType endId, ProbePointsThreadLocal* threadLocal);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

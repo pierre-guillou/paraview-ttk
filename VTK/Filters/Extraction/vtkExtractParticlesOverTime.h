@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractParticlesOverTime.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractParticlesOverTime
  * @brief   Extract particles that goes through a given volumic data set.
@@ -33,6 +22,7 @@
 #include <memory>                       // For smart pointers
 #include <string>                       // For channel array name
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkExtractParticlesOverTimeInternals;
 
 class VTKFILTERSEXTRACTION_EXPORT vtkExtractParticlesOverTime : public vtkDataSetAlgorithm
@@ -84,4 +74,5 @@ private:
   std::shared_ptr<vtkExtractParticlesOverTimeInternals> Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

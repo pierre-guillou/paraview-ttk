@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPStreamAMR.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "TestVectorFieldSource.h"
 #include "vtkAMRBox.h"
 #include "vtkAMREnzoReader.h"
@@ -106,13 +94,13 @@ protected:
       return 0;
     }
 
-    output->ShallowCopy(input);
+    output->DeepCopy(input);
 
-    for (unsigned int level = 0; level < input->GetNumberOfLevels(); ++level)
+    for (unsigned int level = 0; level < output->GetNumberOfLevels(); ++level)
     {
-      for (unsigned int idx = 0; idx < input->GetNumberOfDataSets(level); ++idx)
+      for (unsigned int idx = 0; idx < output->GetNumberOfDataSets(level); ++idx)
       {
-        vtkUniformGrid* grid = input->GetDataSet(level, idx);
+        vtkUniformGrid* grid = output->GetDataSet(level, idx);
         if (!grid)
         {
           continue;

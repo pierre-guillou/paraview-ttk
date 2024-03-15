@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherRectilinearGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME
 // .SECTION Description
@@ -38,6 +26,13 @@ int TestOID(ostream& strm)
   vtkImageData* id2Dxz = vtkImageData::New();
   vtkImageData* id2Dyz = vtkImageData::New();
   vtkImageData* id3D = vtkImageData::New();
+
+  if (!id0D->SupportsGhostArray(vtkDataObject::POINT) ||
+    !id0D->SupportsGhostArray(vtkDataObject::CELL))
+  {
+    std::cerr << "Unexpected results on SupportsGhostArray\n";
+    return 1;
+  }
 
   id3D->SetDimensions(20, 20, 20);
 

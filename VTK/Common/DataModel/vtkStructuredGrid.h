@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStructuredGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStructuredGrid
  * @brief   topologically regular array of data
@@ -48,6 +36,7 @@
 
 #include "vtkStructuredData.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkEmptyCell;
 class vtkHexahedron;
 class vtkLine;
@@ -101,6 +90,7 @@ public:
   }
   void Initialize() override;
   int GetMaxCellSize() override { return 8; } // hexahedron is the largest
+  int GetMaxSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
   ///@}
@@ -278,7 +268,6 @@ private:
   // Internal method used by DeepCopy and ShallowCopy.
   void InternalStructuredGridCopy(vtkStructuredGrid* src);
 
-private:
   vtkStructuredGrid(const vtkStructuredGrid&) = delete;
   void operator=(const vtkStructuredGrid&) = delete;
 };
@@ -310,4 +299,10 @@ inline int vtkStructuredGrid::GetDataDimension()
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }
 
+inline int vtkStructuredGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLWriterF.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkXMLWriterF_h
 #define vtkXMLWriterF_h
 /*
@@ -37,6 +25,7 @@
 /* Define a static-storage default-zero-initialized table to store
    writer objects for the fortran program.  */
 #define VTK_XMLWRITERF_MAX 256
+VTK_ABI_NAMESPACE_BEGIN
 static vtkXMLWriterC* vtkXMLWriterF_Table[VTK_XMLWRITERF_MAX + 1];
 
 /* Fortran compilers expect certain symbol names for their calls to C
@@ -447,5 +436,6 @@ void VTK_FORTRAN_NAME(vtkxmlwriterf_stop, VTKXMLWRITERF_STOP)(const int* self)
     fprintf(stderr, "vtkXMLWriterF_Stop called with invalid id %d.\n", *self);
   }
 }
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkXMLWriterF.h

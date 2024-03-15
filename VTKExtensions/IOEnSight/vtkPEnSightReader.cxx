@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPEnSightReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPEnSightReader.h"
 
 #include "vtkDataArrayCollection.h"
@@ -2071,8 +2060,8 @@ void vtkPEnSightReader::ReplaceWildcards(char* filename, int num)
   else if (numWildcards == 1)
     strcpy(pattern, "%d");
   else
-    sprintf(pattern, "%%0%dd", numWildcards);
-  sprintf(numStr, pattern, num);
+    snprintf(pattern, sizeof(pattern), "%%0%dd", numWildcards);
+  snprintf(numStr, sizeof(numStr), pattern, num);
   numStrLen = static_cast<int>(strlen(numStr));
   len = static_cast<int>(strlen(filename));
   cnt = 0;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierWedge.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBezierWedge.h"
 
@@ -32,6 +20,7 @@
 #include "vtkVectorOperators.h"
 #include "vtkWedge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierWedge);
 
 vtkBezierWedge::vtkBezierWedge() = default;
@@ -82,7 +71,6 @@ vtkCell* vtkBezierWedge::GetFace(int faceId)
 
   std::function<void(const vtkIdType&)> set_number_of_ids_and_points;
   std::function<void(const vtkIdType&, const vtkIdType&)> set_ids_and_points;
-
   if (faceId < 2)
   {
     vtkBezierTriangle* result = BdyTri;
@@ -112,7 +100,9 @@ vtkCell* vtkBezierWedge::GetFace(int faceId)
         result->PointIds->SetId(face_id, this->PointIds->GetId(vol_id));
       };
     }
-    this->GetTriangularFace(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
+    vtkHigherOrderWedge::GetTriangularFace(
+      faceId, this->Order, set_number_of_ids_and_points, set_ids_and_points);
+    result->Initialize();
     return result;
   }
   else
@@ -144,7 +134,10 @@ vtkCell* vtkBezierWedge::GetFace(int faceId)
         result->PointIds->SetId(face_id, this->PointIds->GetId(vol_id));
       };
     }
-    this->GetQuadrilateralFace(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
+    int faceOrder[2];
+    vtkHigherOrderWedge::GetQuadrilateralFace(
+      faceId, this->Order, set_number_of_ids_and_points, set_ids_and_points, faceOrder);
+    result->SetOrder(faceOrder[0], faceOrder[1]);
     return result;
   }
 }
@@ -154,7 +147,7 @@ void vtkBezierWedge::InterpolateFunctions(const double pcoords[3], double* weigh
   vtkBezierInterpolation::WedgeShapeFunctions(
     this->GetOrder(), this->GetOrder()[3], pcoords, weights);
 
-  // If the unit cell has rational weigths: weights_i = weights_i * rationalWeights / sum( weights_i
+  // If the unit cell has rational weights: weights_i = weights_i * rationalWeights / sum( weights_i
   // * rationalWeights )
   const bool has_rational_weights = RationalWeights->GetNumberOfTuples() > 0;
   if (has_rational_weights)
@@ -180,8 +173,7 @@ void vtkBezierWedge::InterpolateDerivs(const double pcoords[3], double* derivs)
 
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
-void vtkBezierWedge::SetRationalWeightsFromPointData(
-  vtkPointData* point_data, const vtkIdType numPts)
+void vtkBezierWedge::SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts)
 {
   vtkDataArray* v = point_data->GetRationalWeights();
   if (v)
@@ -203,11 +195,11 @@ vtkDoubleArray* vtkBezierWedge::GetRationalWeights()
 vtkHigherOrderQuadrilateral* vtkBezierWedge::GetBoundaryQuad()
 {
   return BdyQuad;
-};
+}
 vtkHigherOrderTriangle* vtkBezierWedge::GetBoundaryTri()
 {
   return BdyTri;
-};
+}
 vtkHigherOrderCurve* vtkBezierWedge::GetEdgeCell()
 {
   return EdgeCell;
@@ -215,4 +207,5 @@ vtkHigherOrderCurve* vtkBezierWedge::GetEdgeCell()
 vtkHigherOrderInterpolation* vtkBezierWedge::GetInterpolation()
 {
   return Interp;
-};
+}
+VTK_ABI_NAMESPACE_END

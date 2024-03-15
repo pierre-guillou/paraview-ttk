@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPNGReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPNGReader
  * @brief   read PNG files
@@ -28,7 +16,13 @@
 
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkImageReader2.h"
+#include "vtkSmartPointer.h" // For vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
+class vtkStringArray;
+VTK_ABI_NAMESPACE_END
+
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOIMAGE_EXPORT vtkPNGReader : public vtkImageReader2
 {
 public:
@@ -59,16 +53,25 @@ public:
    * [begin, end) indexes.
    */
   void GetTextChunks(const char* key, int beginEndIndex[2]);
+
+  ///@{
   /**
    * Returns the text key stored at 'index'.
    */
   const char* GetTextKey(int index);
+  vtkStringArray* GetTextKeys();
+  ///@}
+
+  ///@{
   /**
    * Returns the text value stored at 'index'. A range of indexes
    * that store values for a certain key can be obtained by calling
    * GetTextChunks.
    */
   const char* GetTextValue(int index);
+  vtkStringArray* GetTextValues();
+  ///@}
+
   /**
    * Return the number of text chunks in the PNG file.
    * Note that we don't process compressed or international text entries
@@ -104,4 +107,5 @@ private:
   vtkInternals* Internals;
   bool ReadSpacingFromFile;
 };
+VTK_ABI_NAMESPACE_END
 #endif

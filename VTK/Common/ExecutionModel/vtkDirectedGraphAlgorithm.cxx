@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDirectedGraphAlgorithm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkDirectedGraphAlgorithm.h"
 
 #include "vtkCommand.h"
@@ -26,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDirectedGraphAlgorithm);
 
 //------------------------------------------------------------------------------
@@ -59,6 +44,11 @@ vtkTypeBool vtkDirectedGraphAlgorithm::ProcessRequest(
   if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_EXTENT()))
   {
     return this->RequestUpdateExtent(request, inputVector, outputVector);
+  }
+
+  if (request->Has(vtkStreamingDemandDrivenPipeline::REQUEST_UPDATE_TIME()))
+  {
+    return this->RequestUpdateTime(request, inputVector, outputVector);
   }
 
   // execute information
@@ -123,6 +113,13 @@ int vtkDirectedGraphAlgorithm::RequestUpdateExtent(vtkInformation* vtkNotUsed(re
 }
 
 //------------------------------------------------------------------------------
+int vtkDirectedGraphAlgorithm::RequestUpdateTime(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+{
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 // This is the superclasses style of Execute method.  Convert it into
 // an imaging style Execute method.
 int vtkDirectedGraphAlgorithm::RequestData(vtkInformation* vtkNotUsed(request),
@@ -130,3 +127,4 @@ int vtkDirectedGraphAlgorithm::RequestData(vtkInformation* vtkNotUsed(request),
 {
   return 0;
 }
+VTK_ABI_NAMESPACE_END

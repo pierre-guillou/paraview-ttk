@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqLinksEditor.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // self
 #include "pqLinksEditor.h"
@@ -50,6 +22,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMProxyListDomain.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMProxyProperty.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSelectionLink.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringVectorProperty.h"
@@ -111,8 +84,25 @@ static QString propertyType(vtkSMProperty* p)
 
   return "Unknown";
 }
+
+QString representationTip(vtkSMProxy* proxy)
+{
+  pqServerManagerModel* mgr = pqApplicationCore::instance()->getServerManagerModel();
+  pqDataRepresentation* repr = mgr->findItem<pqDataRepresentation*>(proxy);
+  pqPipelineSource* source = repr ? repr->getInput() : nullptr;
+  pqView* view = repr ? repr->getView() : nullptr;
+  if (source && view)
+  {
+    return QString(QCoreApplication::translate("pqLinksEditor", "Source %1 in View %2"))
+      .arg(QString("<b>%1</b>").arg(source->getSMName()))
+      .arg(QString("<b>%1</b>").arg(view->getSMName()));
+  }
+
+  return QString();
+}
 }
 
+//-----------------------------------------------------------------------------
 class pqLinksEditor::pqLinksEditorProxyModel : public QAbstractItemModel
 {
 public:
@@ -171,7 +161,7 @@ public:
     }
     RowIndex ri(pidx.row(), false, 0);
 
-    if (pidx.internalPointer() != nullptr)
+    if (pidx.internalPointer())
     {
       ri = this->decodeIndex(pidx.internalPointer());
       ri.u.idx.hasIndex = true;
@@ -297,19 +287,9 @@ public:
         if (!ri.u.idx.hasIndex)
         {
           vtkSMProxy* pxy = this->getProxy(idx);
-          pqServerManagerModel* m;
-          m = pqApplicationCore::instance()->getServerManagerModel();
           if (pxy)
           {
-            pqDataRepresentation* repr = m->findItem<pqDataRepresentation*>(pxy);
-            pqPipelineSource* source = repr ? repr->getInput() : nullptr;
-            pqView* view = repr ? repr->getView() : nullptr;
-            if (source && view)
-            {
-              return QString(tr("Source <b>%1</b><br/>View <b>%2</b>"))
-                .arg(source->getSMName())
-                .arg(view->getSMName());
-            }
+            return ::representationTip(pxy);
           }
         }
       }
@@ -412,6 +392,7 @@ public:
   }
 };
 
+//-----------------------------------------------------------------------------
 pqLinksEditor::pqLinksEditor(vtkSMLink* link, QWidget* p)
   : QDialog(p)
   , Ui(new Ui::pqLinksEditor)
@@ -474,6 +455,18 @@ pqLinksEditor::pqLinksEditor(vtkSMLink* link, QWidget* p)
   QObject::connect(this->Ui->comboBox, SIGNAL(currentIndexChanged(const QString&)), this,
     SLOT(updateSelectedProxies()), Qt::QueuedConnection);
 
+  QObject::connect(
+    this->Ui->interactiveViewLinkCheckBox, &QCheckBox::stateChanged, this,
+    [this](
+      int state) { this->Ui->cameraWidgetViewLinkCheckBox->setEnabled(!static_cast<bool>(state)); },
+    Qt::QueuedConnection);
+
+  QObject::connect(
+    this->Ui->cameraWidgetViewLinkCheckBox, &QCheckBox::stateChanged, this,
+    [this](
+      int state) { this->Ui->interactiveViewLinkCheckBox->setEnabled(!static_cast<bool>(state)); },
+    Qt::QueuedConnection);
+
   pqLinksModel* model = pqApplicationCore::instance()->getLinksModel();
 
   if (link)
@@ -491,6 +484,7 @@ pqLinksEditor::pqLinksEditor(vtkSMLink* link, QWidget* p)
       {
         case pqLinksModel::Proxy:
         case pqLinksModel::Camera:
+        case pqLinksModel::CameraWidget:
           this->Ui->comboBox->setCurrentIndex(0);
           break;
         case pqLinksModel::Property:
@@ -559,6 +553,12 @@ pqLinksEditor::pqLinksEditor(vtkSMLink* link, QWidget* p)
             this->Ui->interactiveViewLinkCheckBox->setChecked(true);
           }
           break;
+        case pqLinksModel::CameraWidget:
+          if (model->hasCameraWidgetViewLink(name))
+          {
+            this->Ui->cameraWidgetViewLinkCheckBox->setChecked(true);
+          }
+          break;
         case pqLinksModel::Selection:
           this->Ui->convertToIndicesCheckBox->setChecked(
             vtkSMSelectionLink::SafeDownCast(model->getLink(idx))->GetConvertToIndices());
@@ -587,13 +587,16 @@ pqLinksEditor::pqLinksEditor(vtkSMLink* link, QWidget* p)
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 pqLinksEditor::~pqLinksEditor() = default;
 
+//-----------------------------------------------------------------------------
 QString pqLinksEditor::linkName()
 {
   return this->Ui->lineEdit->text();
 }
 
+//-----------------------------------------------------------------------------
 pqLinksModel::ItemType pqLinksEditor::linkType()
 {
   switch (this->Ui->comboBox->currentIndex())
@@ -609,26 +612,31 @@ pqLinksModel::ItemType pqLinksEditor::linkType()
   }
 }
 
+//-----------------------------------------------------------------------------
 vtkSMProxy* pqLinksEditor::selectedProxy1()
 {
   return this->SelectedProxy1;
 }
 
+//-----------------------------------------------------------------------------
 vtkSMProxy* pqLinksEditor::selectedProxy2()
 {
   return this->SelectedProxy2;
 }
 
+//-----------------------------------------------------------------------------
 QString pqLinksEditor::selectedProperty1()
 {
   return this->SelectedProperty1;
 }
 
+//-----------------------------------------------------------------------------
 QString pqLinksEditor::selectedProperty2()
 {
   return this->SelectedProperty2;
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::currentProxy1Changed(const QModelIndex& cur, const QModelIndex&)
 {
   this->SelectedProxy1 = this->Proxy1Model->getProxy(cur);
@@ -639,6 +647,7 @@ void pqLinksEditor::currentProxy1Changed(const QModelIndex& cur, const QModelInd
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::currentProxy2Changed(const QModelIndex& cur, const QModelIndex&)
 {
   this->SelectedProxy2 = this->Proxy2Model->getProxy(cur);
@@ -649,6 +658,7 @@ void pqLinksEditor::currentProxy2Changed(const QModelIndex& cur, const QModelInd
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::updatePropertyList(QListWidget* tw, vtkSMProxy* proxy)
 {
   tw->clear();
@@ -669,24 +679,28 @@ void pqLinksEditor::updatePropertyList(QListWidget* tw, vtkSMProxy* proxy)
   iter->Delete();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::currentProperty1Changed(QListWidgetItem* item)
 {
   this->SelectedProperty1 = item->data(Qt::UserRole).toString();
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::currentProperty2Changed(QListWidgetItem* item)
 {
   this->SelectedProperty2 = item->data(Qt::UserRole).toString();
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::updateSelectedProxies()
 {
   switch (this->linkType())
   {
     case pqLinksModel::Proxy:
     case pqLinksModel::Camera:
+    case pqLinksModel::CameraWidget:
     {
       this->SelectedProxy1 =
         this->Proxy1Model->getProxy(this->Ui->ObjectTreeProxy1->selectionModel()->currentIndex());
@@ -719,9 +733,16 @@ void pqLinksEditor::updateSelectedProxies()
   this->updateEnabledState();
 }
 
+//-----------------------------------------------------------------------------
 void pqLinksEditor::updateEnabledState()
 {
   bool enabled = true;
+  QString status = "";
+  vtkSMSourceProxy* selectedSourceProxy1 = vtkSMSourceProxy::SafeDownCast(this->SelectedProxy1);
+  vtkSMSourceProxy* selectedSourceProxy2 = vtkSMSourceProxy::SafeDownCast(this->SelectedProxy2);
+  vtkSMViewProxy* selectedViewProxy1 = vtkSMViewProxy::SafeDownCast(this->SelectedProxy1);
+  vtkSMViewProxy* selectedViewProxy2 = vtkSMViewProxy::SafeDownCast(this->SelectedProxy2);
+
   if (!this->SelectedProxy1 || !this->SelectedProxy2 || this->linkName().isEmpty())
   {
     enabled = false;
@@ -751,31 +772,52 @@ void pqLinksEditor::updateEnabledState()
   }
   else if (this->linkType() == pqLinksModel::Selection)
   {
-    if (!vtkSMSourceProxy::SafeDownCast(this->SelectedProxy1) ||
-      !vtkSMSourceProxy::SafeDownCast(this->SelectedProxy2))
+    if (!selectedSourceProxy1 || !selectedSourceProxy2)
     {
       enabled = false;
     }
   }
 
+  // linking view means linking cameras for now
+  if (this->linkType() == pqLinksModel::Proxy && (selectedViewProxy1 || selectedViewProxy2))
+  {
+    status = tr("Linking views will link only cameras.");
+  }
+  // add status helper for representations
+  if (vtkSMRepresentationProxy::SafeDownCast(this->SelectedProxy1) ||
+    vtkSMRepresentationProxy::SafeDownCast(this->SelectedProxy2))
+  {
+    status = QString("%1 - %2")
+               .arg(::representationTip(this->SelectedProxy1))
+               .arg(::representationTip(this->SelectedProxy2));
+  }
+  this->Ui->status->setText(status);
+
   this->Ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(enabled);
 
-  this->Ui->interactiveViewLinkCheckBox->setVisible(
-    vtkSMViewProxy::SafeDownCast(this->SelectedProxy1) != nullptr &&
-    vtkSMViewProxy::SafeDownCast(this->SelectedProxy2) != nullptr &&
-    this->SelectedProxy1 != this->SelectedProxy2 && this->linkType() == pqLinksModel::Proxy);
+  this->Ui->interactiveViewLinkCheckBox->setVisible(this->SelectedProxy1 != this->SelectedProxy2 &&
+    selectedViewProxy1 && selectedViewProxy2 && this->linkType() == pqLinksModel::Proxy);
 
-  this->Ui->convertToIndicesCheckBox->setVisible(
-    vtkSMSourceProxy::SafeDownCast(this->SelectedProxy1) != nullptr &&
-    vtkSMSourceProxy::SafeDownCast(this->SelectedProxy2) != nullptr &&
-    this->SelectedProxy1 != this->SelectedProxy2 && this->linkType() == pqLinksModel::Selection);
+  this->Ui->cameraWidgetViewLinkCheckBox->setVisible(this->SelectedProxy1 != this->SelectedProxy2 &&
+    selectedViewProxy1 && selectedViewProxy2 && this->linkType() == pqLinksModel::Proxy);
+
+  this->Ui->convertToIndicesCheckBox->setVisible(this->SelectedProxy1 != this->SelectedProxy2 &&
+    selectedSourceProxy1 && selectedSourceProxy2 && this->linkType() == pqLinksModel::Selection);
 }
 
+//-----------------------------------------------------------------------------
 bool pqLinksEditor::interactiveViewLinkChecked()
 {
   return this->Ui->interactiveViewLinkCheckBox->isChecked();
 }
 
+//-----------------------------------------------------------------------------
+bool pqLinksEditor::cameraWidgetViewLinkChecked()
+{
+  return this->Ui->cameraWidgetViewLinkCheckBox->isChecked();
+}
+
+//-----------------------------------------------------------------------------
 bool pqLinksEditor::convertToIndicesChecked()
 {
   return this->Ui->convertToIndicesCheckBox->isChecked();

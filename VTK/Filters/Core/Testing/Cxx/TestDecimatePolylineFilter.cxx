@@ -1,31 +1,13 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDecimatePolylineFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*
- * Copyright 2004 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2004 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkRegressionTestImage.h"
 #include <vtkActor.h>
 #include <vtkCellArray.h>
+#include <vtkCellData.h>
 #include <vtkDecimatePolylineFilter.h>
+#include <vtkDoubleArray.h>
 #include <vtkMath.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
@@ -76,9 +58,16 @@ int TestDecimatePolylineFilter(int argc, char* argv[])
   lines->InsertNextCell((numberOfPointsInCircle * 3) / 4, &lineIds[numberOfPointsInCircle + 1]);
   delete[] lineIds;
 
+  // Create cell data for each line.
+  vtkSmartPointer<vtkDoubleArray> cellDoubles = vtkSmartPointer<vtkDoubleArray>::New();
+  cellDoubles->SetName("cellDoubles");
+  cellDoubles->InsertNextValue(1.0);
+  cellDoubles->InsertNextValue(2.0);
+
   vtkSmartPointer<vtkPolyData> circles = vtkSmartPointer<vtkPolyData>::New();
   circles->SetPoints(points);
   circles->SetLines(lines);
+  circles->GetCellData()->AddArray(cellDoubles);
 
   vtkSmartPointer<vtkPolyDataMapper> circleMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
   circleMapper->SetInputData(circles);
@@ -94,6 +83,15 @@ int TestDecimatePolylineFilter(int argc, char* argv[])
   decimatePolylineFilter->Update();
 
   if (decimatePolylineFilter->GetOutput()->GetPoints()->GetDataType() != VTK_FLOAT)
+  {
+    return EXIT_FAILURE;
+  }
+
+  vtkSmartPointer<vtkDoubleArray> decimatedCellDoubles = vtkDoubleArray::SafeDownCast(
+    decimatePolylineFilter->GetOutput()->GetCellData()->GetArray("cellDoubles"));
+
+  if (!decimatedCellDoubles || decimatedCellDoubles->GetValue(0) != 1.0 ||
+    decimatedCellDoubles->GetValue(1) != 2.0)
   {
     return EXIT_FAILURE;
   }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMVectorPropertyTemplate
  *
@@ -353,14 +341,17 @@ public:
   //---------------------------------------------------------------------------
   void ResetToXMLDefaults()
   {
-    if (this->DefaultsValid && this->DefaultValues != this->Values)
+    if (this->DefaultsValid)
     {
-      this->Values = this->DefaultValues;
-      // Make sure to initialize BEFORE Modified() is called. Otherwise,
-      // the value would not be pushed.
-      this->Initialized = true;
-      this->Property->Modified();
-      this->ClearUncheckedElements();
+      if (this->DefaultValues != this->Values || this->DefaultValues != this->UncheckedValues)
+      {
+        this->Values = this->DefaultValues;
+        // Make sure to initialize BEFORE Modified() is called. Otherwise,
+        // the value would not be pushed.
+        this->Initialized = true;
+        this->Property->Modified();
+        this->ClearUncheckedElements();
+      }
     }
     else if (this->Property->GetRepeatable())
     {

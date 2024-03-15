@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVPICReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVPICReader
  * @brief   class for reading VPIC data files
@@ -32,15 +20,16 @@
 #include "vtkIOVPICModule.h" // For export macro
 #include "vtkImageAlgorithm.h"
 
+class VPICDataSet;
+class GridExchange;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArraySelection;
 class vtkFloatArray;
 class vtkStdString;
 class vtkMultiProcessController;
 class vtkInformation;
-
-class VPICDataSet;
-class GridExchange;
 
 class VTKIOVPIC_EXPORT vtkVPICReader : public vtkImageAlgorithm
 {
@@ -174,4 +163,5 @@ private:
   void operator=(const vtkVPICReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

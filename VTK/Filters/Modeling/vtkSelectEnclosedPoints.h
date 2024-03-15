@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectEnclosedPoints.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSelectEnclosedPoints
  * @brief   mark points as to whether they are inside a closed surface
@@ -53,6 +41,7 @@
 #include "vtkFiltersModelingModule.h" // For export macro
 #include "vtkIntersectionCounter.h"   // to count intersections along ray
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnsignedCharArray;
 class vtkAbstractCellLocator;
 class vtkStaticCellLocator;
@@ -191,4 +180,5 @@ private:
   void operator=(const vtkSelectEnclosedPoints&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

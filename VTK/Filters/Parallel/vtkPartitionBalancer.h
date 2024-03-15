@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPartitionBalancer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPartitionBalancer
  * @brief Balances input partitioned data sets so each rank has the same number of data sets.
@@ -65,6 +53,7 @@
 #include "vtkFiltersParallelModule.h" // for export macros
 #include "vtkPartitionedDataSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 
 class VTKFILTERSPARALLEL_EXPORT vtkPartitionBalancer : public vtkPartitionedDataSetAlgorithm
@@ -148,4 +137,5 @@ private:
   void operator=(const vtkPartitionBalancer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

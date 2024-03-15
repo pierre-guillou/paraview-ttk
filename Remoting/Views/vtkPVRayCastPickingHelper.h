@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPVRayCastPickingHelper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVRayCastPickingHelper
  * @brief   helper class that used selection and ray
@@ -46,29 +35,29 @@ public:
    */
   void SetSelection(vtkAlgorithm*);
 
-  //@{
+  ///@{
   /**
    * Set the point 1 that compose the ray
    */
   vtkSetVector3Macro(PointA, double);
   vtkGetVector3Macro(PointA, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the point 2 that compose the ray
    */
   vtkSetVector3Macro(PointB, double);
   vtkGetVector3Macro(PointB, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the flag to use directly selected points on mesh as intersection
    */
   vtkSetMacro(SnapOnMeshPoint, bool);
   vtkGetMacro(SnapOnMeshPoint, bool);
-  //@}
+  ///@}
 
   /**
    * Compute the intersection

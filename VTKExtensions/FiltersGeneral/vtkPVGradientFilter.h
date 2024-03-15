@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGradientFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVGradientFilter
  * @brief Filter to unify gradient implementations for different types.
@@ -32,6 +20,7 @@
 #define vtkPVGradientFilter_h
 
 #include "vtkGradientFilter.h"
+#include "vtkHyperTreeGridGradient.h"               // for the HTG::ComputeMode enum
 #include "vtkPVVTKExtensionsFiltersGeneralModule.h" //needed for exports
 
 class VTKPVVTKEXTENSIONSFILTERSGENERAL_EXPORT vtkPVGradientFilter : public vtkGradientFilter
@@ -59,6 +48,7 @@ public:
    * Get/Set the number of dimensions used to compute the gradient when using SMOOTHED.
    * In two dimensions, the X and Y dimensions are used. The default is set to 3.
    * Used in vtkImageGradient for the vtkImageData type.
+   * The default is set to 3.
    */
   vtkSetClampMacro(Dimensionality, int, 2, 3);
   vtkGetMacro(Dimensionality, int);
@@ -75,12 +65,44 @@ public:
   vtkGetMacro(BoundaryMethod, int);
   ///@}
 
+  ///@{
+  /**
+   * Get/Set the mode used to compute the gradient on a vtkHyperTreeGrid.
+   * Reminder: in the context of HyperTreeGrids, possible values for gradient computation are:
+   * - UNLIMITED - Neighborhood is virtually refined so coarser cells have limited
+   * impact on finer ones.
+   * - UNSTRUCTURED - Coarser cells are processed as is and may have a greater
+   * weight than finer cells.
+   * The default is set to UNLIMITED.
+   */
+  vtkSetClampMacro(
+    HTGMode, int, vtkHyperTreeGridGradient::UNLIMITED, vtkHyperTreeGridGradient::UNSTRUCTURED);
+  vtkGetMacro(HTGMode, int);
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set the extensiveness mode used to compute the gradient on a vtkHyperTreeGrid.
+   * This parameter only work in UNLIMITED mode.
+   * HTGExtensiveComputation is meant to reduce the influence of an attribute
+   * as the corresponding cell is virtually subdivided.
+   * The default is set to false.
+   */
+  vtkSetMacro(HTGExtensiveComputation, bool);
+  vtkGetMacro(HTGExtensiveComputation, bool);
+  vtkBooleanMacro(HTGExtensiveComputation, bool);
+  ///@}
+
 protected:
   vtkPVGradientFilter() = default;
   ~vtkPVGradientFilter() override = default;
 
   int Dimensionality = 3;
   int BoundaryMethod = NON_SMOOTHED;
+
+  int HTGMode = vtkHyperTreeGridGradient::UNLIMITED;
+
+  bool HTGExtensiveComputation = false;
 
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int port, vtkInformation* info) override;

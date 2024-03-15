@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextDevice3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContextDevice3D
@@ -33,10 +21,15 @@
 #include "vtkRenderingContext2DModule.h" // For export macro
 #include "vtkVector.h"                   // For the vector coordinates.
 
+#include <cstdint> // For std::uintptr_t
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkViewport;
 class vtkPen;
 class vtkBrush;
+class vtkPoints;
+class vtkUnsignedCharArray;
 
 class VTKRENDERINGCONTEXT2D_EXPORT vtkContextDevice3D : public vtkObject
 {
@@ -65,11 +58,15 @@ public:
    */
   virtual void DrawPoints(
     const float* verts, int n, const unsigned char* colors = nullptr, int nc = 0) = 0;
+  virtual void DrawPoints(vtkDataArray* positions, vtkUnsignedCharArray* colors,
+    std::uintptr_t vtkNotUsed(cacheIdentifier));
 
   /**
    * Draw triangles to generate the specified mesh.
    */
   virtual void DrawTriangleMesh(const float* mesh, int n, const unsigned char* colors, int nc) = 0;
+  virtual void DrawTriangleMesh(vtkDataArray* positions, vtkUnsignedCharArray* colors,
+    std::uintptr_t vtkNotUsed(cacheIdentifier));
 
   /**
    * Apply the supplied pen which controls the outlines of shapes, as well as
@@ -135,6 +132,13 @@ public:
   virtual void DisableClippingPlane(int i) = 0;
   ///@}
 
+  /**
+   * Concrete graphics implementations maintain a cache of heavy-weight buffer objects
+   * to achieve higher interactive framerates.
+   * This method requests the devices to release the cached objects for a given cache identifier.
+   */
+  virtual void ReleaseCache(std::uintptr_t vtkNotUsed(cacheIdentifier)) {}
+
 protected:
   vtkContextDevice3D();
   ~vtkContextDevice3D() override;
@@ -144,4 +148,5 @@ private:
   void operator=(const vtkContextDevice3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

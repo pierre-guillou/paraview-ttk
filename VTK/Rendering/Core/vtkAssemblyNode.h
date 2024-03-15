@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAssemblyNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAssemblyNode
  * @brief   represent a node in an assembly
@@ -49,6 +37,7 @@
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkProp;
 class vtkMatrix4x4;
 
@@ -97,9 +86,9 @@ private:
   vtkProp* ViewProp;    // reference to vtkProp
   vtkMatrix4x4* Matrix; // associated matrix
 
-private:
   void operator=(const vtkAssemblyNode&) = delete;
   vtkAssemblyNode(const vtkAssemblyNode&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

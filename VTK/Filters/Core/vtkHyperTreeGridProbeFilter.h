@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridProbeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridProbeFilter
  * @brief   Probe a vtkHyperTreeGrid
@@ -29,6 +17,7 @@
 #include "vtkNew.h"               //For init in header
 #include "vtkSmartPointer.h"      //For members
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCharArray;
 class vtkIdList;
 class vtkIdTypeArray;
@@ -122,7 +111,7 @@ public:
   ///@{
   /**
    * Get/Set tolerance used when finding points in the HTG source.
-   * Overriden when ComputeTolerance == true.
+   * Overridden when ComputeTolerance == true.
    *
    * Default is 0.0
    */
@@ -132,7 +121,7 @@ public:
 
   ///@{
   /**
-   * Get/Set wether or not to compute the tolerance automatically for
+   * Get/Set whether or not to compute the tolerance automatically for
    * when finding points in the HTG source. If false use the tolerance
    * from SetTolerance .
    *
@@ -180,7 +169,7 @@ protected:
   bool PassAttributeData(vtkDataSet* input, vtkDataSet* output);
 
   /**
-   * Helper method for perfoming the probing
+   * Helper method for performing the probing
    */
   bool DoProbing(
     vtkDataSet* input, vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds);
@@ -188,7 +177,7 @@ protected:
   /**
    * Helper method for reducing the data after probing
    */
-  bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds);
+  virtual bool Reduce(vtkHyperTreeGrid* source, vtkDataSet* output, vtkIdList* localPointIds);
 
   /**
    * Helper method for filling arrays with default values
@@ -220,4 +209,5 @@ private:
 
 }; // vtkHyperTreeGridProbeFilter
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHyperTreeGridProbeFilter_h

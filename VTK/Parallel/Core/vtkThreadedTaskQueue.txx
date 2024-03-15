@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkThreadedTaskQueue.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLogger.h"
 
 #include "vtkMultiThreader.h"
@@ -23,6 +11,7 @@
 //=============================================================================
 namespace vtkThreadedTaskQueueInternals
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename R>
 class TaskQueue
@@ -169,8 +158,10 @@ private:
   bool StrictOrdering;
 };
 
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 template <typename R, typename... Args>
 vtkThreadedTaskQueue<R, Args...>::vtkThreadedTaskQueue(
@@ -346,3 +337,4 @@ void vtkThreadedTaskQueue<void, Args...>::Flush()
   std::unique_lock<std::mutex> lk(this->NextResultIdMutex);
   this->ResultsCV.wait(lk, [this] { return this->IsEmpty(); });
 }
+VTK_ABI_NAMESPACE_END

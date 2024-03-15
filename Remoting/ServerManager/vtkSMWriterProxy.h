@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   ParaView
-Module:    vtkSMWriterProxy.h
-
-Copyright (c) Kitware, Inc.
-All rights reserved.
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMWriterProxy
  * @brief   proxy for a VTK writer on a server
@@ -50,23 +38,23 @@ public:
    */
   void UpdatePipeline(double time) override;
 
-  //@{
+  ///@{
   /**
    * Flag indicating if the writer supports writing in parallel.
    * Not set by default.
    */
   vtkSetMacro(SupportsParallel, int);
   int GetSupportsParallel() { return this->SupportsParallel || this->ParallelOnly; }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Flag indicating if the writer works only in parallel. If this is set,
    * SupportsParallel is always true.
    */
   vtkGetMacro(ParallelOnly, int);
   vtkSetMacro(ParallelOnly, int);
-  //@}
+  ///@}
 
 protected:
   vtkSMWriterProxy();

@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseHierarchy.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in June 2010
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseHierarchy.h"
 #include "vtkParseExtras.h"
 #include "vtkParseSystem.h"
@@ -142,7 +124,7 @@ static int vtkParseHierarchy_ReadFileIntoInfo(HierarchyInfo* info, const char* f
 /* Find an entry with a binary search */
 HierarchyEntry* vtkParseHierarchy_FindEntry(const HierarchyInfo* info, const char* classname)
 {
-  HierarchyEntry key;
+  HierarchyEntry key = { NULL, NULL, NULL, 0, NULL, NULL, 0, NULL, 0, NULL, NULL, NULL, 0, 0 };
   HierarchyEntry* entry;
   size_t i, n, m, l;
   char name[32];
@@ -1294,7 +1276,7 @@ const char* vtkParseHierarchy_ExpandTypedefsInName(
 
 /* -------------------------------------------------------------------- */
 const char* vtkParseHierarchy_QualifiedEnumName(
-  HierarchyInfo* hinfo, ClassInfo* data, StringCache* cache, const char* name)
+  const HierarchyInfo* hinfo, ClassInfo* data, StringCache* cache, const char* name)
 {
   /* check to see if this is an enum defined in the class */
   if (data)
@@ -1302,13 +1284,13 @@ const char* vtkParseHierarchy_QualifiedEnumName(
     int j;
     for (j = 0; j < data->NumberOfEnums; j++)
     {
-      EnumInfo* info = data->Enums[j];
+      const EnumInfo* info = data->Enums[j];
       if (name && info->Name && strcmp(name, info->Name) == 0)
       {
         char* scoped_name;
         size_t scoped_len = strlen(data->Name) + strlen(info->Name) + 2;
         scoped_name = vtkParse_NewString(cache, scoped_len);
-        snprintf(scoped_name, scoped_len, "%s::%s", data->Name, info->Name);
+        snprintf(scoped_name, scoped_len + 1, "%s::%s", data->Name, info->Name);
         return scoped_name;
       }
     }

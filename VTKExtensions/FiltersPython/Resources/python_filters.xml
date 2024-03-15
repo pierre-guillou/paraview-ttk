@@ -36,11 +36,25 @@
         </DataTypeDomain>
         <Documentation>Set the input of the filter.</Documentation>
       </InputProperty>
+
+      <IntVectorProperty animateable="0"
+                         command="SetUseMultilineExpression"
+                         default_values="0"
+                         name="UseMultilineExpression"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>If this property is set to true, the expression is a multiline script that
+        returns the output array.</Documentation>
+      </IntVectorProperty>
       <StringVectorProperty command="SetExpression"
                             name="Expression"
                             number_of_elements="1">
         <Hints>
-          <Widget type="one_liner_wrapped" syntax="python" />
+          <Widget type="one_liner_wrapped" syntax="python" autocomplete="python_calc"/>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="UseMultilineExpression"
+                                   value="0" />
         </Hints>
         <Documentation>The Python expression evaluated during
         execution. Set of potentially available variables [inputs, points, t_value,
@@ -50,18 +64,38 @@
         are always available, and their default values are 0, and 0 respectively.
         </Documentation>
       </StringVectorProperty>
+      <StringVectorProperty command="SetMultilineExpression"
+                            name="MultilineExpression"
+                            number_of_elements="1"
+                            default_values="outputArray=numpy.ones(1)&#xA;return outputArray">
+        <Hints>
+          <Widget type="multi_line" syntax="python" autocomplete="python_calc"/>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="UseMultilineExpression"
+                                   value="1" />
+        </Hints>
+        <Documentation>The multiline Python expression executed, that should return the output array
+          using the Python "return" keyword. The variables that can be used here are the exact same as the ones available in the
+          single-line expression editor.
+        </Documentation>
+      </StringVectorProperty>
+
       <IntVectorProperty command="SetArrayAssociation"
                          default_values="0"
                          name="ArrayAssociation"
                          number_of_elements="1">
-        <FieldDataDomain name="enum">
+        <FieldDataDomain name="enum" enable_field_data="1">
           <RequiredProperties>
             <Property function="Input"
                       name="Input" />
           </RequiredProperties>
         </FieldDataDomain>
-        <Documentation>This property controls the association of the output
-        array as well as which arrays are defined as variables.</Documentation>
+        <Documentation>
+        This property controls which input arrays are defined as variables.
+        This is also the default for output association.
+        Depending on the operation, output association may vary.
+        </Documentation>
       </IntVectorProperty>
       <StringVectorProperty command="SetArrayName"
                             default_values="result"
@@ -77,6 +111,43 @@
         <BooleanDomain name="bool" />
         <Documentation>If this property is set to true, all the cell and point
         arrays from first input are copied to the output.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetResultArrayType"
+                         default_values="11"
+                         label="Result Array Type"
+                         name="ResultArrayType"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <EnumerationDomain name="enum">
+          <Entry text="Same as Input"
+                 value="-1" />
+          <Entry text="Char"
+                 value="2" />
+          <Entry text="Signed Char"
+                 value="15" />
+          <Entry text="Unsigned Char"
+                 value="3" />
+          <Entry text="Short"
+                 value="4" />
+          <Entry text="Unsigned Short"
+                 value="5" />
+          <Entry text="Int"
+                 value="6" />
+          <Entry text="Unsigned Int"
+                 value="7" />
+          <Entry text="Long"
+                 value="8" />
+          <Entry text="Unsigned Long"
+                 value="9" />
+          <Entry text="Float"
+                 value="10" />
+          <Entry text="Double"
+                 value="11" />
+          <Entry text="Id Type"
+                 value="12" />
+        </EnumerationDomain>
+        <Documentation>This property determines what array type to output.
+        The default is a vtkDoubleArray.</Documentation>
       </IntVectorProperty>
       <!-- End PythonCalculator -->
     </SourceProxy>

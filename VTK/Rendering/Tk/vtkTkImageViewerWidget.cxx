@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTkImageViewerWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTkImageViewerWidget.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkTkInternals.h"
@@ -296,7 +284,7 @@ extern "C"
         self->ImageViewer->GetRenderWindow()->GetInteractor()->GetRenderWindow() ==
           self->ImageViewer->GetRenderWindow())
       {
-        self->ImageViewer->GetRenderWindow()->GetInteractor()->SetRenderWindow(0);
+        self->ImageViewer->GetRenderWindow()->GetInteractor()->SetRenderWindow(nullptr);
       }
       if (self->ImageViewer->GetRenderWindow()->GetReferenceCount() > 1)
       {
@@ -328,15 +316,10 @@ extern "C"
     switch (eventPtr->type)
     {
       case Expose:
-        if (eventPtr->xexpose.count == 0)
-        /* && !self->UpdatePending)*/
-        {
-          // bid this in tcl now
-          // self->ImageViewer->Render();
-        }
+        // let the user handle Expose events
         break;
       case ConfigureNotify:
-        if (1 /*Tk_IsMapped(self->TkWin)*/)
+        // if (Tk_IsMapped(self->TkWin))
         {
           self->Width = Tk_Width(self->TkWin);
           self->Height = Tk_Height(self->TkWin);
@@ -447,6 +430,8 @@ int Vtktkimageviewerwidget_Init(Tcl_Interp* interp)
 // The Xwindows version follows after this
 #ifdef _WIN32
 
+namespace
+{
 LRESULT APIENTRY vtkTkImageViewerWidgetProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
   LRESULT rval;
@@ -541,6 +526,7 @@ LRESULT APIENTRY vtkTkImageViewerWidgetProc(HWND hWnd, UINT message, WPARAM wPar
   vtkSetWindowLong(hWnd, vtkGWL_WNDPROC, (vtkLONG)vtkTkImageViewerWidgetProc);
   return rval;
 }
+}
 
 //------------------------------------------------------------------------------
 // Creates a ImageViewer window and forces Tk to use the window.
@@ -571,9 +557,6 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
   {
     // Make the ImageViewer window.
     self->ImageViewer = imgViewer = vtkImageViewer::New();
-#ifndef VTK_PYTHON_BUILD
-    vtkTclGetObjectFromPointer(self->Interp, self->ImageViewer, "vtkImageViewer");
-#endif
     ckfree(self->IV);
     self->IV = strdup(Tcl_GetStringResult(self->Interp));
     Tcl_ResetResult(self->Interp);
@@ -589,12 +572,7 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
     }
     else
     {
-#ifndef VTK_PYTHON_BUILD
-      imgViewer = (vtkImageViewer*)vtkTclGetPointerFromObject(
-        self->IV, "vtkImageViewer", self->Interp, new_flag);
-#else
-      imgViewer = 0;
-#endif
+      imgViewer = nullptr;
     }
     if (imgViewer != self->ImageViewer)
     {
@@ -735,9 +713,6 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
   {
     // Make the ImageViewer window.
     self->ImageViewer = imgViewer = vtkImageViewer::New();
-#ifndef VTK_PYTHON_BUILD
-    vtkTclGetObjectFromPointer(self->Interp, self->ImageViewer, "vtkImageViewer");
-#endif
     ckfree(self->IV);
     self->IV = strdup(Tcl_GetStringResult(self->Interp));
     Tcl_ResetResult(self->Interp);
@@ -750,14 +725,6 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
       void* tmp;
       sscanf(self->IV + 5, "%p", &tmp);
       imgViewer = reinterpret_cast<vtkImageViewer*>(tmp);
-    }
-    else
-    {
-#ifndef VTK_PYTHON_BUILD
-      int new_flag;
-      imgViewer = static_cast<vtkImageViewer*>(
-        vtkTclGetPointerFromObject(self->IV, "vtkImageViewer", self->Interp, new_flag));
-#endif
     }
     if (imgViewer != self->ImageViewer)
     {
@@ -798,7 +765,7 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
 static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget* self)
 {
   Display* dpy;
-  vtkImageViewer* imgViewer = 0;
+  vtkImageViewer* imgViewer = nullptr;
   vtkXOpenGLRenderWindow* imgWindow;
 
   if (self->ImageViewer)
@@ -817,9 +784,6 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
   {
     // Make the ImageViewer window.
     self->ImageViewer = imgViewer = vtkImageViewer::New();
-#ifndef VTK_PYTHON_BUILD
-    vtkTclGetObjectFromPointer(self->Interp, self->ImageViewer, "vtkImageViewer");
-#endif
     self->IV = strdup(Tcl_GetStringResult(self->Interp));
     Tcl_ResetResult(self->Interp);
   }
@@ -831,14 +795,6 @@ static int vtkTkImageViewerWidget_MakeImageViewer(struct vtkTkImageViewerWidget*
       void* tmp;
       sscanf(self->IV + 5, "%p", &tmp);
       imgViewer = (vtkImageViewer*)tmp;
-    }
-    else
-    {
-#ifndef VTK_PYTHON_BUILD
-      int new_flag;
-      imgViewer = (vtkImageViewer*)vtkTclGetPointerFromObject(
-        self->IV, "vtkImageViewer", self->Interp, new_flag);
-#endif
     }
     if (imgViewer != self->ImageViewer)
     {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenQubeElectronicData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenQubeElectronicData.h"
 
@@ -24,6 +12,7 @@
 #include <openqube/cube.h>
 
 // Internal class to store queue/qube information along with the image
+VTK_ABI_NAMESPACE_BEGIN
 class OQEDImageData : public vtkImageData
 {
 public:
@@ -429,3 +418,4 @@ void vtkOpenQubeElectronicData::FillImageDataFromQube(OpenQube::Cube* qube, vtkI
   vtkDebugMacro(<< "Copied " << qubeSize << " (actual: " << qubeInd + 1
                 << ") points from qube to vtkImageData.");
 }
+VTK_ABI_NAMESPACE_END

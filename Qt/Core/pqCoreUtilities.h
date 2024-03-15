@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCoreUtilities.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqCoreUtilities_h
 #define pqCoreUtilities_h
 
@@ -77,11 +49,12 @@ private:
  * pqCoreUtilities is a collection of arbitrary utility functions that can be
  * used by the application.
  */
-class PQCORE_EXPORT pqCoreUtilities
+class PQCORE_EXPORT pqCoreUtilities : public QObject
 {
+  Q_OBJECT
 public:
   /**
-   * When popuping up dialogs, it's generally better if we set the parent
+   * When popping up dialogs, it's generally better if we set the parent
    * widget for those dialogs to be the QMainWindow so that the dialogs show up
    * centered correctly in the application. For that purpose this convenience
    * method is provided. It locates a QMainWindow and returns it.
@@ -166,10 +139,35 @@ public:
 
   /**
    * Converts a double value to a full precision QString.
-   * Internally uses `vtkNumberToString` for lossless conversion from double to
-   * string.
+   * Internally uses pqDoubleLineEdit with FullConversion, which relies on
+   * `vtkNumberToString` for lossless conversion from double to string.
+   * Set lowExponent and highExponent to control the range of exponents where
+   * a fixed precision should be used instead of scientific notation.
+   * Outside this range, scientific notation is preferred.
+   * Default values of -6 and 20 correspond to the ECMAScript standard.
    */
-  static QString number(double value);
+  static QString number(double value, int lowExponent = -6, int highExponent = 20);
+
+  /**
+   * Convert double value to string according to FullNotation settings, rely on
+   * pqCoreUtilities::number.
+   */
+  static QString formatFullNumber(double value);
+
+  ///@{
+  /**
+   * Convert double value to string, handling formating.
+   */
+  // Format with given precision and notation and shortAccurate flag
+  static QString formatDouble(double value, int notation, bool shortAccurate, int precision,
+    int fullLowExponent = -6, int fullHighExponent = 20);
+
+  // Format with RealNumberDisplayed settings
+  static QString formatNumber(double value);
+
+  // Format with AnimationTime settings
+  static QString formatTime(double value);
+  ///@}
 
   /**
    * Convert a double KiB value to an easily readable QString

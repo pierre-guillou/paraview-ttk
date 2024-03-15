@@ -1,3 +1,4 @@
+
 <ServerManagerConfiguration>
   <ProxyGroup name="settings">
     <!-- ================================================================== -->
@@ -727,6 +728,19 @@
         </Documentation>
       </IntVectorProperty>
 
+      <DoubleVectorProperty command="SetZoomClosestOffsetRatio"
+                            name="ZoomClosestOffsetRatio"
+                            default_values="0.9"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <DoubleRangeDomain name="range" min="0" max="1"/>
+        <Documentation>
+          ZoomClosestOffsetRatio is used to control the camera's zoom level when using Reset Camera Closest and
+          Zoom Closest To Data. If the offset is 0, the zoom level will be identical to Reset/Zoom To Data's level.
+          If the offset is 1, the bounding box of the view/dataset will tightly fit to the boundary of the view.
+        </Documentation>
+      </DoubleVectorProperty>
+
       <PropertyGroup label="Geometry Mapper Options">
         <Property name="ResolveCoincidentTopology" />
         <Property name="PolygonOffsetParameters" />
@@ -798,6 +812,7 @@
         <Property name="ShowAnnotation" />
         <Property name="PointPickingRadius" />
         <Property name="DisableIceT" />
+        <Property name="ZoomClosestOffsetRatio" />
       </PropertyGroup>
       <Hints>
         <UseDocumentationForLabels />
@@ -907,9 +922,8 @@
     </SettingsProxy>
 
     <!-- ================================================================== -->
-    <!-- TODO change this setting organization later -->
     <SettingsProxy name="RepresentedArrayListSettings"
-                   label="Miscellaneous"
+                   label="Represented Attributes"
                    processes="client"
                    class="vtkPVRepresentedArrayListSettings">
       <StringVectorProperty command="SetFilterExpression"
@@ -926,6 +940,83 @@
           <ShowLabel />
         </Hints>
       </StringVectorProperty>
+      <IntVectorProperty name="ComputeArrayMagnitude"
+                        command="SetComputeArrayMagnitude"
+                        number_of_elements="1"
+                        default_values="1"
+                        panel_visibility="advanced">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Controls whether or not ParaView should compute and display the magnitude for
+          multi-components data attributes.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="ArrayMagnitudeExceptions"
+                        command="SetArrayMagnitudeException"
+                        label="Array Magnitude Exceptions"
+                        number_of_elements_per_command="1"
+                        repeat_command="1"
+                        set_number_command="SetNumberOfArrayMagnitudeExceptions"
+                        use_index="1"
+                        panel_visibility="advanced">
+        <Documentation>
+          List of exceptions for the "ComputeArrayMagnitude" setting. If "ComputeArrayMagnitude" is
+          untoggled then the list describes the number of components for which ParaView will
+          still compute the magnitude. Else the list describes the number of components for which
+          ParaView will not compute the magnitude.
+        </Documentation>
+        <Hints>
+          <ShowComponentLabels>
+            <ComponentLabel component="0" label="Exceptions"/>
+          </ShowComponentLabels>
+        </Hints>
+      </IntVectorProperty>
+
+      <StringVectorProperty command="SetChartsDefaultXAxis"
+                            name="ChartsDefaultXAxis"
+                            number_of_elements_per_command="1"
+                            repeat_command="1"
+                            default_values_delimiter=";"
+                            default_values="in_extents;Time;time;arc_length;XArray;x_array;Frequency"
+                            number_of_elements="7"
+                            set_number_command="SetNumberOfChartsDefaultXAxis"
+                            use_index="1">
+        <Documentation>
+          List of array names to use as X axis when displaying it in charts.
+        </Documentation>
+        <Hints>
+          <ShowLabel />
+          <AllowRestoreDefaults />
+        </Hints>
+      </StringVectorProperty>
+
+      <StringVectorProperty command="SetChartsHiddenAttributes"
+                            name="ChartsHiddenAttributes"
+                            number_of_elements_per_command="1"
+                            repeat_command="1"
+                            default_values_delimiter=";"
+                            default_values="^arc_length;^bin_extents;^(GlobalElement|GlobalNode|Object|File)Id;^object_id;^Pedigree;^Points_;^Time;^vtk;^(X|Y|Z|N|ids)( .*|$);^Frequency;^Point Coordinates"
+                            number_of_elements="10"
+                            set_number_command="SetNumberOfChartsHiddenAttributes"
+                            use_index="1">
+        <Documentation>
+          List of regex that describes array to not display by default. Note that "Component" arrays are always hidden by default even it not listed here.
+        </Documentation>
+        <Hints>
+          <ShowLabel />
+          <AllowRestoreDefaults />
+        </Hints>
+      </StringVectorProperty>
+
+      <Hints>
+        <UseDocumentationForLabels />
+      </Hints>
+    </SettingsProxy>
+
+    <SettingsProxy name="IOSettings"
+                   label="IO"
+                   processes="client"
+                   class="vtkPVIOSettings">
       <StringVectorProperty name="ReaderDetails"
                             label="Default reader details"
                             number_of_elements_per_command="3"
@@ -935,8 +1026,56 @@
         </Documentation>
         <Hints>
           <ShowLabel />
+          <ShowComponentLabels>
+            <ComponentLabel component="0" label="File pattern"/>
+            <ComponentLabel component="1" label="Description"/>
+            <ComponentLabel component="2" label="Filter"/>
+          </ShowComponentLabels>
         </Hints>
       </StringVectorProperty>
+      <StringVectorProperty command="SetExcludedNameFilter"
+                            name="ReaderSelection"
+                            number_of_elements_per_command="1"
+                            repeat_command="1"
+                            set_number_command="SetNumberOfExcludedNameFilters"
+                            use_index="1"
+                            panel_widget="reader_selector">
+        <Documentation>
+          List of readers to display or hide in the File .. Open dialog.
+        </Documentation>
+      </StringVectorProperty>
+      <StringVectorProperty
+        name="AllNameFilters"
+        command="GetAllNameFilters"
+        label="Allowed Readers"
+        number_of_elements_per_command="2"
+        element_types="2 0"
+        repeat_command="1"
+        panel_visibility="never">
+        <Documentation>
+          List of all readers, with on/off values paired. Used by the custom widget above, not displayed.
+        </Documentation>
+        <Hints>
+          <ShowLabel />
+        </Hints>
+      </StringVectorProperty>
+      <StringVectorProperty name="LocationEnvironmentVariables"
+                            label="File dialog 'Location' variables"
+                            number_of_elements_per_command="2"
+                            repeat_command="1">
+        <Documentation>
+          List of labels and environment variables to add to the 'Location' list in the File dialog.
+          The value of the environment variable is looked up on the connected server and treated as a directory path.
+        </Documentation>
+        <Hints>
+          <ShowLabel />
+          <ShowComponentLabels>
+            <ComponentLabel component="0" label="Label"/>
+            <ComponentLabel component="1" label="Environment variable"/>
+          </ShowComponentLabels>
+        </Hints>
+      </StringVectorProperty>
+
       <Hints>
         <UseDocumentationForLabels />
       </Hints>
@@ -1027,7 +1166,17 @@
         <DoubleRangeDomain max="1 1 1"
                            min="0 0 0"
                            name="range" />
-        <Documentation>Color used for showing interactive widget.</Documentation>
+        <Documentation>Color used for showing widget handles when interacting.</Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty default_values="1.0 0.0 0.0"
+                            label="Widget"
+                            name="WidgetColor"
+                            number_of_elements="3"
+                            panel_widget="color_selector">
+        <DoubleRangeDomain max="1 1 1"
+                           min="0 0 0"
+                           name="range" />
+        <Documentation>Color used for showing widget handles that are available for interaction.</Documentation>
       </DoubleVectorProperty>
       <IntVectorProperty command="SetBackgroundColorMode"
                          name="BackgroundColorMode"
@@ -1108,27 +1257,6 @@
                            name="PVLookupTable"
                            post_push="Build"
                            processes="dataserver|renderserver|client">
-      <IntVectorProperty default_values="0"
-                         name="AutomaticRescaleRangeMode"
-                         number_of_elements="1">
-        <EnumerationDomain name="enum">
-          <Entry value="-1" text="Never"/>
-          <Entry value="0" text="Grow and update on 'Apply'"/>
-          <Entry value="1" text="Grow and update every timestep"/>
-          <Entry value="2" text="Update on 'Apply'"/>
-          <Entry value="3" text="Clamp and update every timestep"/>
-        </EnumerationDomain>
-        <Documentation>
-          Choose whether and how to automatically rescale the color map range.
-          "Never" means the color map range will never be changed.
-          "Grow and update on 'Apply'" will expand the range to contain the
-          union of the current range and the range of the current data source.
-          "Grow and update every timestep" will expand the range to contain
-          the union of the current range and the range of the current data source
-          when the timestep is changed. "Clamp and update every timestep" will
-          update the color map range to the current source data range.
-        </Documentation>
-      </IntVectorProperty>
       <IntVectorProperty name="IndexedLookup"
                          command="SetIndexedLookup"
                          default_values="0"
@@ -1139,6 +1267,18 @@
           When enabled, the color transfer function switches to indexed-lookup
           (categorical colors) mode.
         </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="Using2DTransferFunction" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="UsingSeparateOpacityArray" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
       </IntVectorProperty>
 
       <IntVectorProperty default_values="0"
@@ -1173,6 +1313,27 @@
         </Documentation>
       </IntVectorProperty>
 
+      <IntVectorProperty default_values="0"
+                         name="AutomaticRescaleRangeMode"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry value="-1" text="Never"/>
+          <Entry value="0" text="Grow and update on 'Apply'"/>
+          <Entry value="1" text="Grow and update every timestep"/>
+          <Entry value="2" text="Update on 'Apply'"/>
+          <Entry value="3" text="Clamp and update every timestep"/>
+        </EnumerationDomain>
+        <Documentation>
+          Choose whether and how to automatically rescale the color map range.
+          "Never" means the color map range will never be changed.
+          "Grow and update on 'Apply'" will expand the range to contain the
+          union of the current range and the range of the current data source.
+          "Grow and update every timestep" will expand the range to contain
+          the union of the current range and the range of the current data source
+          when the timestep is changed. "Clamp and update every timestep" will
+          update the color map range to the current source data range.
+        </Documentation>
+      </IntVectorProperty>
       <IntVectorProperty name="RescaleOnVisibilityChange"
                          default_values="0"
                          number_of_elements="1">
@@ -1180,17 +1341,6 @@
         <Documentation>
           Flag indicating whether the color map data range should be
           updated when a representation's visibility changes.
-        </Documentation>
-      </IntVectorProperty>
-
-      <IntVectorProperty name="EnableOpacityMapping"
-                         command="SetEnableOpacityMapping"
-                         number_of_elements="1"
-                         default_values="0">
-        <BooleanDomain name="bool" />
-        <Documentation>
-          When enabled, the opacity transfer function is used for
-          rendering, if applicable.
         </Documentation>
       </IntVectorProperty>
 
@@ -1220,11 +1370,22 @@
         </Hints>
       </ProxyProperty>
       <IntVectorProperty default_values="0"
-                         name="Use2DTransferFunction"
+                         name="Using2DTransferFunction"
+                         is_internal="1"
                          number_of_elements="1">
         <BooleanDomain name="bool" />
         <Documentation>
           Proxy only property used by the ColorOpacityWidget to know if a 2D transfer function is being used.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty default_values="0"
+                         name="UsingSeparateOpacityArray"
+                         is_internal="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Proxy only property used by the ColorOpacityWidget to know if a separate array is being used to
+          map opacity in volume rendering.
         </Documentation>
       </IntVectorProperty>
       <DoubleVectorProperty clean_command="RemoveAllPoints"
@@ -1299,6 +1460,21 @@
           In Step mode, the color of an interval is the color of the second point
           of the interval.
         </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="IndexedLookup" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="Using2DTransferFunction" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="UsingSeparateOpacityArray" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetUseBelowRangeColor"
                          default_values="0"
@@ -1390,7 +1566,7 @@
           that must be present in the transfer function.
         </Documentation>
         <Hints>
-          <PropertyWidgetDecorator type="EnableWidgetDecorator">
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
             <Property name="Discretize" function="boolean" index="0" />
           </PropertyWidgetDecorator>
         </Hints>
@@ -1486,34 +1662,66 @@
         </Documentation>
       </DoubleVectorProperty>
 
-      <PropertyGroup label="Mapping Data" panel_widget="ColorOpacityEditor">
+      <IntVectorProperty name="EnableOpacityMapping"
+                         command="SetEnableOpacityMapping"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          When enabled, the opacity transfer function is used for
+          rendering, if applicable.
+        </Documentation>
+      </IntVectorProperty>
+
+      <PropertyGroup label="Transfer Functions" panel_widget="ColorOpacityEditor">
         <Property name="EnableOpacityMapping" function="EnableOpacityMapping" />
         <Property name="RGBPoints" function="XRGBPoints" />
         <Property name="ScalarOpacityFunction" function="ScalarOpacityFunction" />
         <Property name="TransferFunction2D" function="TransferFunction2D" />
-        <Property name="Use2DTransferFunction" function="Use2DTransferFunction" />
         <Property name="UseLogScale" function="UseLogScale" />
         <Property name="UseOpacityControlPointsFreehandDrawing" function="UseOpacityControlPointsFreehandDrawing" />
         <Property name="ShowDataHistogram" function="ShowDataHistogram" />
         <Property name="AutomaticDataHistogramComputation" function="AutomaticDataHistogramComputation" />
         <Property name="DataHistogramNumberOfBins" function="DataHistogramNumberOfBins" />
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="IndexedLookup" function="boolean_invert"/>
+          </PropertyWidgetDecorator>
+        </Hints>
       </PropertyGroup>
 
-      <PropertyGroup label="Color Mapping Parameters">
+      <PropertyGroup label="Mapping Parameters">
         <Property name="ColorSpace" />
         <Property name="NanColor" />
         <Property name="NanOpacity" />
       </PropertyGroup>
 
       <PropertyGroup label="Color Discretization">
-        <Property name="NumberOfTableValues" />
         <Property name="Discretize" />
+        <Property name="NumberOfTableValues" />
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="Using2DTransferFunction" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="IndexedLookup" function="boolean_invert"/>
+              </PropertyWidgetDecorator>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
       </PropertyGroup>
 
-      <PropertyGroup label="Annotations" panel_widget="AnnotationsEditor">
+      <PropertyGroup label="Categories" panel_widget="AnnotationsEditor">
         <Property name="Annotations" />
         <Property name="EnableOpacityMapping" function="EnableOpacityMapping" />
         <Property name="IndexedColors" />
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="Using2DTransferFunction" function="boolean_invert"/>
+          </PropertyWidgetDecorator>
+        </Hints>
       </PropertyGroup>
 
       <!-- End of PVLookupTable -->
@@ -2249,6 +2457,7 @@
 
     <!-- ================================================================== -->
     <Proxy name="GridAxes3DActor"
+           label="Grid Axes 3D Actor"
            class="vtkPVGridAxes3DActor"
            processes="client|dataserver|renderserver">
       <Documentation>
@@ -2910,6 +3119,103 @@
     </Proxy>
 
     <!-- ================================================================== -->
+    <Proxy name="LegendGridActor"
+           label="Legend Grid Actor"
+           class="vtkLegendScaleActor"
+           processes="client|dataserver|renderserver">
+      <Documentation>
+        LegendGridActor can be used to render an axes grid in a render view.
+      </Documentation>
+      <IntVectorProperty name="Visibility"
+                         command="SetVisibility"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Show/hide the axes grid.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="RightBorderOffset"
+                        command="SetRightBorderOffset"
+                        number_of_elements="1"
+                        default_values="50"
+                        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="5" max="100" />
+        <Documentation>
+          Set the offset of right axis from the border.  This number is expressed in
+          pixels, and represents the approximate distance of the axes from the sides
+          of the renderer.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="TopBorderOffset"
+                        command="SetTopBorderOffset"
+                        number_of_elements="1"
+                        default_values="30"
+                        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="5" max="100" />
+        <Documentation>
+          Set the offset of top axis from the border. This number is expressed in
+          pixels, and represents the approximate distance of the axes from the sides
+          of the renderer.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="LeftBorderOffset"
+                        command="SetLeftBorderOffset"
+                        number_of_elements="1"
+                        default_values="50"
+                        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="5" max="100" />
+        <Documentation>
+          Set the offset of left axis from the border. This number is expressed in
+          pixels, and represents the approximate distance of the axes from the sides
+          of the renderer.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="BottomBorderOffset"
+                        command="SetBottomBorderOffset"
+                        number_of_elements="1"
+                        default_values="30"
+                        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="5" max="100" />
+        <Documentation>
+          Set the offset of bottom axis from the border. This number is expressed in
+          pixels, and represents the approximate distance of the axes from the sides
+          of the renderer.
+        </Documentation>
+      </IntVectorProperty>
+
+      <SubProxy command="SetAxesTextProperty">
+        <Proxy name="AxesTextProperties" proxygroup="properties" proxyname="TextProperty" />
+        <ExposedProperties>
+          <Property exposed_name="LegendLabelColor" name="Color" />
+          <Property exposed_name="LegendLabelOpacity" name="Opacity" />
+          <Property exposed_name="LegendLabelFontFamily" name="FontFamily" />
+          <Property exposed_name="LegendLabelFontFile" name="FontFile" />
+          <Property exposed_name="LegendLabelBold" name="Bold" />
+          <Property exposed_name="LegendLabelItalic" name="Italic" />
+          <Property exposed_name="LegendLabelShadow" name="Shadow" />
+          <Property exposed_name="LegendLabelFontSize" name="FontSize" default_values="12"/>
+        </ExposedProperties>
+      </SubProxy>
+
+      <PropertyGroup label="Axis Label Font Properties" panel_widget="FontEditor">
+        <Property name="LegendLabelColor" function="Color"/>
+        <Property name="LegendLabelFontFamily" function="Family"/>
+        <Property name="LegendLabelFontFile" function="File"/>
+        <Property name="LegendLabelBold" function="Bold" />
+        <Property name="LegendLabelItalic" function="Italics"/>
+        <Property name="LegendLabelFontSize" function="Size" />
+        <Property name="LegendLabelShadow" function="Shadow" />
+        <Property name="LegendLabelOpacity" function="Opacity" />
+      </PropertyGroup>
+    </Proxy>
+
+    <!-- ================================================================== -->
     <!-- End of ProxyGroup annotations -->
   </ProxyGroup>
 
@@ -3133,18 +3439,34 @@
         </Hints>
       </ProxyProperty>
 
-      <!-- FIXME:: deprecated
-      <IntVectorProperty name="ImageQuality"
-        number_of_elements="1"
-        default_values="100"
-        panel_visibility="advanced">
-        <IntRangeDomain name="range" min="0" max="100" />
+      <IntVectorProperty name="SaveInBackground"
+                         command="SetSaveInBackground"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool"/>
         <Documentation>
-          Specify output image quality (or compression), if applicable.
-          **0** - low quality, **100** - high quality.
+          If turned ON, screenshots are saved in a pool of threads running in the background
+          instead of running serially.
         </Documentation>
       </IntVectorProperty>
-      -->
+
+      <IntVectorProperty name="EmbedParaViewState"
+                         label="Embed ParaView State"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set whether to embed the ParaView state in the image as metadata.
+          This option is only available for PNG.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="Format"
+                                   value="PNG">
+           </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
 
       <PropertyGroup label="Size and Scaling">
         <Property name="SaveAllViews" />
@@ -3165,6 +3487,10 @@
 
       <PropertyGroup label="Image Options">
         <Property name="Format" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Metadata">
+        <Property name="EmbedParaViewState" />
       </PropertyGroup>
     </SaveScreenshotProxy>
 
@@ -3358,4 +3684,12 @@
 
     <!-- end of "screenshot_writers" -->
   </ProxyGroup>
+
+  <!-- ==================================================================== -->
+  <ProxyGroup name="HardwareSelectors">
+    <Proxy name="PVHardwareSelector"
+           class="vtkPVHardwareSelector">
+    </Proxy>
+  </ProxyGroup>
+
 </ServerManagerConfiguration>

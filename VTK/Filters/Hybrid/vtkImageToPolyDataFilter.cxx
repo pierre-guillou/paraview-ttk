@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageToPolyDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageToPolyDataFilter.h"
 
 #include "vtkAppendPolyData.h"
@@ -30,6 +18,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageToPolyDataFilter);
 
 vtkCxxSetObjectMacro(vtkImageToPolyDataFilter, LookupTable, vtkScalarsToColors);
@@ -139,7 +128,7 @@ int vtkImageToPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
       vtkDebugMacro(<< "Processing #" << pieceNum);
       this->UpdateProgress((double)pieceNum / totalPieces);
-      if (this->GetAbortExecute())
+      if (this->CheckAbort())
       {
         abortExecute = 1;
         break;
@@ -1353,3 +1342,4 @@ void vtkImageToPolyDataFilter::DecimateEdges(
     } // if manifold
   }   // for all points
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageActor
  * @brief   draw an image in a rendered 3D scene
@@ -34,6 +22,7 @@
 #include "vtkImageSlice.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithm;
 class vtkPropCollection;
 class vtkRenderer;
@@ -110,7 +99,7 @@ public:
    * identity matrix, this will return the same value as
    * GetBounds.
    */
-  double* GetDisplayBounds();
+  double* GetDisplayBounds() VTK_SIZEHINT(6);
   void GetDisplayBounds(double bounds[6]);
   ///@}
 
@@ -190,4 +179,5 @@ private:
   void operator=(const vtkImageActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

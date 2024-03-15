@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "QVTKOpenGLNativeWidget.h"
 #include "QVTKOpenGLStereoWidget.h"
 #include "QVTKOpenGLWindow.h"
@@ -14,6 +16,7 @@
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 enum class Type
 {
   USE_QVTKRENDERWIDGET = 0,
@@ -34,4 +37,5 @@ void process_events_and_wait(int msec);
 void show(std::shared_ptr<QObject> widgetOrWindow, const QSize& size);
 QImage grab_framebuffer(std::shared_ptr<QObject> widgetOrWindow);
 
+VTK_ABI_NAMESPACE_END
 }

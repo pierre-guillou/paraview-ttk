@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCommandOptions.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCommandOptions
  * @brief   ParaView options storage
@@ -20,6 +8,10 @@
  *
  * These options can be retrieved during run-time, set using configuration file
  * or using Command Line Arguments.
+ *
+ * @deprecated in ParaView 5.12.0. See `vtkCLIOptions` instead.
+ * See https://gitlab.kitware.com/paraview/paraview/-/merge_requests/4951 for
+ * developer guidelines.
  */
 
 #ifndef vtkCommandOptions_h
@@ -27,6 +19,7 @@
 
 #include "vtkObject.h"
 #include "vtkPVVTKExtensionsCoreModule.h" // needed for export macro
+#include "vtkParaViewDeprecation.h"       // for PARAVIEW_DEPRECATED_IN_5_12_0
 
 class vtkCommandOptionsInternal;
 class vtkCommandOptionsXMLParser;
@@ -34,6 +27,7 @@ class vtkCommandOptionsXMLParser;
 class VTKPVVTKEXTENSIONSCORE_EXPORT vtkCommandOptions : public vtkObject
 {
 public:
+  PARAVIEW_DEPRECATED_IN_5_12_0("Use `vtkCLIOptions` instead")
   static vtkCommandOptions* New();
   vtkTypeMacro(vtkCommandOptions, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -49,13 +43,13 @@ public:
 
   const char* GetHelp();
 
-  //@{
+  ///@{
   /**
    * Was help selected?
    */
   vtkGetMacro(HelpSelected, int);
   vtkSetMacro(HelpSelected, int);
-  //@}
+  ///@}
 
   /**
    * Set/Get the type of the process for this set of options.
@@ -64,31 +58,31 @@ public:
   int GetProcessType() { return this->ProcessType; }
   void SetProcessType(int p) { this->ProcessType = p; }
 
-  //@{
+  ///@{
   /**
    * In case of unknown argument, set this variable with the unknown argument.
    */
   vtkGetStringMacro(UnknownArgument);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the error message if Parse returned 0.
    */
   vtkGetStringMacro(ErrorMessage);
-  //@}
+  ///@}
 
   /**
    * Get argv[0]
    */
   const char* GetArgv0();
 
-  //@{
+  ///@{
   /**
    * Get full path of executable (based on Argv0)
    */
   vtkGetStringMacro(ApplicationPath);
-  //@}
+  ///@}
 
   /**
    * Get the index of the last argument parsed.
@@ -117,7 +111,7 @@ protected:
    */
   typedef int (*CallbackType)(const char* argument, const char* value, void* call_data);
 
-  //@{
+  ///@{
   /**
    * Add a command line option.  For each argument added there is a long
    * version --long and a short version -l, a help string, and a variable
@@ -136,7 +130,7 @@ protected:
     const char* longarg, const char* shortarg, int* var, const char* help, int type = EVERYBODY);
   void AddArgument(
     const char* longarg, const char* shortarg, char** var, const char* help, int type = EVERYBODY);
-  //@}
+  ///@}
 
   void AddCallback(const char* longarg, const char* shortarg, CallbackType callback,
     void* call_data, const char* help, int type = EVERYBODY);
@@ -171,7 +165,6 @@ protected:
   int LoadXMLConfigFile(const char*);
 
   vtkSetStringMacro(UnknownArgument);
-
   vtkSetStringMacro(ErrorMessage);
 
   // Options:

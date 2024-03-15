@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSynchronizedRenderers.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSynchronizedRenderers
  * @brief   synchronizes renderers across processes.
@@ -35,6 +23,7 @@
 #include "vtkSmartPointer.h"            // needed for vtkSmartPointer.
 #include "vtkUnsignedCharArray.h"       // needed for vtkUnsignedCharArray.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFXAAOptions;
 class vtkRenderer;
 class vtkMultiProcessController;
@@ -313,4 +302,5 @@ private:
   bool FixBackground;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageCanvasSource2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageCanvasSource2D.h"
 
 #include "vtkImageCast.h"
@@ -30,6 +18,7 @@
 // Special classes for manipulating data
 //
 // For the fill functionality (use connector ??)
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageCanvasSource2DPixel
 { //;prevent man page generation
 public:
@@ -218,7 +207,7 @@ void vtkImageCanvasSource2D::DrawImage(
   {
     z = int(double(z) * this->Ratio[2]);
   }
-  // Clip the data to keep in in bounds
+  // Clip the data to keep in bounds
   extent = this->ImageData->GetExtent();
   min0 = (min0 < extent[0]) ? extent[0] : min0;
   max0 = (max0 < extent[0]) ? extent[0] : max0;
@@ -307,7 +296,7 @@ void vtkImageCanvasSource2D::FillBox(int min0, int max0, int min1, int max1)
     z = int(double(z) * this->Ratio[2]);
   }
 
-  // Clip the data to keep in in bounds
+  // Clip the data to keep in bounds
   extent = this->ImageData->GetExtent();
   min0 = (min0 < extent[0]) ? extent[0] : min0;
   max0 = (max0 < extent[0]) ? extent[0] : max0;
@@ -364,7 +353,7 @@ void vtkImageCanvasSource2DFillTube(
 
   image->GetExtent(min0, max0, min1, max1, min2, max2);
   maxV = image->GetNumberOfScalarComponents() - 1;
-  // Loop trough whole extent.
+  // Loop through whole extent.
   image->GetIncrements(inc0, inc1, inc2);
   ptr1 = ptr;
   for (idx1 = min1; idx1 <= max1; ++idx1)
@@ -1539,3 +1528,4 @@ void vtkImageCanvasSource2D::InitializeCanvasVolume(vtkImageData* volume)
 
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

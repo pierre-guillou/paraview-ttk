@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextScene.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkContextScene.h"
 
@@ -39,6 +27,7 @@
 
 //------------------------------------------------------------------------------
 // Minimal storage class for STL containers etc.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContextScene::Private
 {
 public:
@@ -69,6 +58,8 @@ vtkContextScene::vtkContextScene()
   this->AnnotationLink = nullptr;
   this->Geometry[0] = 0;
   this->Geometry[1] = 0;
+  this->Origin[0] = 0;
+  this->Origin[1] = 0;
   this->BufferId = nullptr;
   this->BufferIdDirty = true;
   this->BufferIdSupportTested = false;
@@ -221,6 +212,18 @@ int vtkContextScene::GetViewHeight()
   {
     return 0;
   }
+}
+
+//------------------------------------------------------------------------------
+int vtkContextScene::GetSceneLeft()
+{
+  return this->Origin[0];
+}
+
+//------------------------------------------------------------------------------
+int vtkContextScene::GetSceneBottom()
+{
+  return this->Origin[1];
 }
 
 //------------------------------------------------------------------------------
@@ -640,7 +643,7 @@ bool vtkContextScene::KeyReleaseEvent(const vtkContextKeyEvent& keyEvent)
 }
 
 //------------------------------------------------------------------------------
-inline bool vtkContextScene::ProcessItem(
+bool vtkContextScene::ProcessItem(
   vtkAbstractContextItem* cur, const vtkContextMouseEvent& event, MouseEvents eventPtr)
 {
   bool res = false;
@@ -661,12 +664,12 @@ inline bool vtkContextScene::ProcessItem(
 }
 
 //------------------------------------------------------------------------------
-inline void vtkContextScene::EventCopy(const vtkContextMouseEvent& e)
+void vtkContextScene::EventCopy(const vtkContextMouseEvent& e)
 {
   vtkContextMouseEvent& event = this->Storage->Event;
+  event.SetScreenPos(e.GetScreenPos());
+  event.SetScenePos(e.GetScenePos());
   event.SetPos(e.GetPos());
-  event.SetScreenPos(vtkVector2i(e.GetPos().Cast<int>().GetData()));
-  event.SetScenePos(e.GetPos());
   event.SetInteractor(e.GetInteractor());
 }
 
@@ -677,3 +680,4 @@ void vtkContextScene::PrintSelf(ostream& os, vtkIndent indent)
   // Print out the chart's geometry if it has been set
   os << indent << "Widthxheight: " << this->Geometry[0] << "\t" << this->Geometry[1] << endl;
 }
+VTK_ABI_NAMESPACE_END

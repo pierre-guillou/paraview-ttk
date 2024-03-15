@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLGlyph3DHelper.h"
 
 #include "vtkOpenGLHelper.h"
@@ -51,6 +40,7 @@
 #include <numeric>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLGlyph3DHelper);
 
 //------------------------------------------------------------------------------
@@ -64,7 +54,7 @@ vtkOpenGLGlyph3DHelper::vtkOpenGLGlyph3DHelper()
   // GCMCMatrix could be modified accordingly but Shift and Scale coefficients are
   // computed with the glyph source and not the point cloud.
   // Disabling it for now.
-  this->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::DISABLE_SHIFT_SCALE);
+  this->SetVBOShiftScaleMethod(ShiftScaleMethodType::DISABLE_SHIFT_SCALE);
 }
 
 //------------------------------------------------------------------------------
@@ -617,3 +607,4 @@ void vtkOpenGLGlyph3DHelper::SetLODColoring(bool val)
 {
   this->InstanceCulling->SetColorLOD(val);
 }
+VTK_ABI_NAMESPACE_END

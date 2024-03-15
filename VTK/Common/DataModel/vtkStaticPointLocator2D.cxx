@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticPointLocator2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStaticPointLocator2D.h"
 
 #include "vtkBoundingBox.h"
@@ -30,11 +18,12 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStaticPointLocator2D);
 
 // There are stack-allocated bucket neighbor lists. This is the initial
 // value. Too small and heap allocation kicks in.
-#define VTK_INITIAL_BUCKET_SIZE 10000
+constexpr size_t VTK_INITIAL_BUCKET_SIZE = 10000;
 
 #define Distance2BetweenPoints2D(p1, p2)                                                           \
   (p1[0] - p2[0]) * (p1[0] - p2[0]) + (p1[1] - p2[1]) * (p1[1] - p2[1])
@@ -1022,7 +1011,7 @@ void BucketList2D<TIds>::FindClosestNPoints(int N, const double x[3], vtkIdList*
           {
             maxDist2 = dist2;
           }
-          sortedPts.emplace_back(IdTuple(ptId, dist2));
+          sortedPts.emplace_back(ptId, dist2);
         }
         // As soon as N points found, jump out.
         if (static_cast<int>(sortedPts.size()) >= N)
@@ -1064,7 +1053,7 @@ FOUND_N:
             dist2 = Distance2BetweenPoints2D(x, pt);
             if (dist2 <= maxDist2)
             {
-              sortedPts.emplace_back(IdTuple(ptId, dist2));
+              sortedPts.emplace_back(ptId, dist2);
             }
           }
           jStart = 0;
@@ -1380,11 +1369,11 @@ double BucketList2D<TIds>::FindCloseNBoundedPoints(int N, const double x[3], vtk
           if (static_cast<int>(sortedPts.size()) < N)
           {
             maxDist2 = (dist2 > maxDist2 ? dist2 : maxDist2);
-            sortedPts.emplace_back(IdTuple(ptId, dist2));
+            sortedPts.emplace_back(ptId, dist2);
           }
           else if (dist2 <= maxDist2)
           {
-            sortedPts.emplace_back(IdTuple(ptId, dist2));
+            sortedPts.emplace_back(ptId, dist2);
           }
         }
       } // if points in bucket
@@ -1420,7 +1409,7 @@ FOUND_N:
           dist2 = Distance2BetweenPoints2D(x, pt);
           if (dist2 <= maxDist2)
           {
-            sortedPts.emplace_back(IdTuple(ptId, dist2));
+            sortedPts.emplace_back(ptId, dist2);
           }
         }
       } // if points in bucket
@@ -2086,3 +2075,4 @@ void vtkStaticPointLocator2D::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Large IDs: " << this->LargeIds << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMassProperties.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMassProperties.h"
 
 #include "vtkCell.h"
@@ -23,25 +11,8 @@
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMassProperties);
-
-//------------------------------------------------------------------------------
-// TODO: replace with std::cbrt() when C++11 is minimum requirement.
-static inline double vtkCubeRoot(double x)
-{
-  if (x > 0.0)
-  {
-    return pow(x, 1.0 / 3.0);
-  }
-  else if (x < 0.0)
-  {
-    return -pow(-x, 1.0 / 3.0);
-  }
-  else
-  {
-    return x;
-  }
-}
 
 //------------------------------------------------------------------------------
 // Constructs with initial 0 values.
@@ -125,8 +96,14 @@ int vtkMassProperties::RequestData(vtkInformation* vtkNotUsed(request),
     kxyz[idx] = 0.0;
   }
 
+  vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
+
   for (cellId = 0; cellId < numCells; cellId++)
   {
+    if (cellId % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     if (input->GetCellType(cellId) != VTK_TRIANGLE)
     {
       vtkWarningMacro(<< "Input data type must be VTK_TRIANGLE not " << input->GetCellType(cellId));
@@ -284,7 +261,7 @@ int vtkMassProperties::RequestData(vtkInformation* vtkNotUsed(request),
   this->Volume = (kxyz[0] * vol[0] + kxyz[1] * vol[1] + kxyz[2] * vol[2]);
   this->Volume = fabs(this->Volume);
   this->VolumeProjected = volumeproj;
-  this->NormalizedShapeIndex = (sqrt(surfacearea) / vtkCubeRoot(this->Volume)) / 2.199085233;
+  this->NormalizedShapeIndex = (sqrt(surfacearea) / std::cbrt(this->Volume)) / 2.199085233;
 
   return 1;
 }
@@ -314,3 +291,4 @@ void vtkMassProperties::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Max Cell Area: " << this->GetMaxCellArea() << "\n";
   os << indent << "Normalized Shape Index: " << this->GetNormalizedShapeIndex() << "\n";
 }
+VTK_ABI_NAMESPACE_END

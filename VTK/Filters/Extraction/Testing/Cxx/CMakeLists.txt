@@ -20,7 +20,6 @@ vtk_add_test_cxx(vtkFiltersExtractionCxxTests tests
   TestExpandMarkedElements.cxx
   TestExtractBlock.cxx,NO_VALID,NO_DATA
   TestExtractBlockUsingDataAssembly.cxx,NO_VALID
-  TestExtractCells.cxx,NO_VALID
   TestExtractDataArraysOverTime.cxx,NO_VALID
   TestExtractExodusGlobalTemporalVariables.cxx,NO_VALID
   TestExtractGridPieces.cxx,NO_VALID
@@ -34,6 +33,7 @@ vtk_add_test_cxx(vtkFiltersExtractionCxxTests tests
   TestExtractSelection.cxx
   TestExtractThresholdsMultiBlock.cxx,NO_VALID
   TestExtractTimeSteps.cxx,NO_VALID
+  TestHyperTreeGridSelection.cxx,NO_VALID,NO_DATA
   ${test_64bit}
   ${test_ioss}
   )

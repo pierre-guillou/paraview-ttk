@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqPresetDialog.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPresetDialog.h"
 #include "ui_pqPresetDialog.h"
 
@@ -38,8 +10,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPresetToPixmap.h"
 #include "pqPropertiesPanel.h"
 #include "pqQVTKWidget.h"
+#include "pqServer.h"
 #include "pqSettings.h"
-#include "vtkNew.h"
+
+#include "vtkSMSessionProxyManager.h"
 #include "vtkSMTransferFunctionPresets.h"
 #include "vtkSMTransferFunctionProxy.h"
 
@@ -52,7 +26,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QMenu>
 #include <QPixmap>
 #include <QPointer>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSize>
 #include <QSortFilterProxyModel>
 #include <QtDebug>
@@ -103,11 +77,13 @@ public:
 
   ~pqPresetDialogTableModel() override = default;
 
-  void importPresets(const QString& filename)
+  void importPresets(
+    const QString& filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/)
   {
     this->beginResetModel();
     std::vector<vtkSMTransferFunctionPresets::ImportedPreset> importedPresets;
-    bool imported = this->Presets->ImportPresets(filename.toStdString().c_str(), &importedPresets);
+    const bool imported =
+      this->Presets->ImportPresets(filename.toStdString().c_str(), &importedPresets, location);
     if (imported)
     {
       for (auto const& importedPreset : importedPresets)
@@ -563,7 +539,10 @@ public:
 
 //-----------------------------------------------------------------------------
 pqPresetDialog::pqPresetDialog(QWidget* parentObject, pqPresetDialog::Modes mode)
-  : Superclass(parentObject)
+  // Set the hints to place in Qt::Tool layer, same as dock widgets, so this doesn't stay behind
+  // docks on MacOs
+  : Superclass(parentObject,
+      Qt::WindowTitleHint | Qt::WindowSystemMenuHint | Qt::WindowCloseButtonHint | Qt::Tool)
   , Internals(new pqPresetDialog::pqInternals(mode, this))
 {
   const Ui::pqPresetDialog& ui = this->Internals->Ui;
@@ -882,17 +861,22 @@ bool pqPresetDialog::usePresetRange() const
 //-----------------------------------------------------------------------------
 void pqPresetDialog::importPresets()
 {
-  pqFileDialog dialog(nullptr, this, tr("Import Presets"), QString(),
-    "Supported Presets/Color Map Files (*.json *.xml);;"
-    "ParaView Color/Opacity Presets (*.json);;Legacy Color Maps (*.xml);;All Files (*)");
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog dialog(server, this, tr("Import Presets"), QString(),
+    tr("Supported Presets/Color Map Files") + QString(" (*.json *.xml *.ct);;") +
+      tr("ParaView Color/Opacity Presets") + QString(" (*.json);;") + tr("Legacy Color Maps") +
+      QString(" (*.xml);;") + tr("VisIt Color Table") + QString(" (*.ct);;") + tr("All Files") +
+      QString(" (*)"),
+    false, false);
   dialog.setObjectName("ImportPresets");
   dialog.setFileMode(pqFileDialog::ExistingFile);
   if (dialog.exec() == QDialog::Accepted && !dialog.getSelectedFiles().empty())
   {
     QString filename = dialog.getSelectedFiles()[0];
+    vtkTypeUInt32 location = dialog.getSelectedLocation();
     const pqInternals& internals = *this->Internals;
     int oldCount = internals.Model->rowCount(QModelIndex());
-    internals.Model->importPresets(filename);
+    internals.Model->importPresets(filename, location);
     int newCount = internals.Model->rowCount(QModelIndex());
 
     // highlight the newly imported presets for the user.
@@ -918,8 +902,11 @@ void pqPresetDialog::importPresets()
 //-----------------------------------------------------------------------------
 void pqPresetDialog::exportPresets()
 {
-  pqFileDialog dialog(nullptr, this, tr("Export Preset(s)"), QString(),
-    "ParaView Color/Opacity Presets (*.json);;All Files (*)");
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog dialog(server, this, tr("Export Preset(s)"), QString(),
+    tr("ParaView Color/Opacity Presets") + QString(" (*.json);;") + tr("All Files") +
+      QString(" (*)"),
+    false, false);
   dialog.setObjectName("ExportPresets");
   dialog.setFileMode(pqFileDialog::AnyFile);
   if (dialog.exec() != QDialog::Accepted || dialog.getSelectedFiles().empty())
@@ -928,6 +915,7 @@ void pqPresetDialog::exportPresets()
   }
 
   QString filename = dialog.getSelectedFiles()[0];
+  vtkTypeUInt32 location = dialog.getSelectedLocation();
   const pqInternals& internals = *this->Internals;
   const Ui::pqPresetDialog& ui = this->Internals->Ui;
 
@@ -942,15 +930,12 @@ void pqPresetDialog::exportPresets()
   }
   assert(presetCollection.size() > 0);
 
-  vtksys::ofstream outfs;
-  outfs.open(filename.toStdString().c_str());
-  if (!outfs.is_open())
+  auto pxm = server->proxyManager();
+  if (!pxm->SaveString(
+        presetCollection.toStyledString().c_str(), filename.toStdString().c_str(), location))
   {
-    qCritical() << "Failed to open file for writing: " << filename;
-    return;
+    qCritical() << tr("Failed to save preset collection to ") << filename;
   }
-  outfs << presetCollection.toStyledString().c_str() << endl;
-  outfs.close();
 }
 
 //-----------------------------------------------------------------------------

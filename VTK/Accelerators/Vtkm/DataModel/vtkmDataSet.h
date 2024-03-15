@@ -1,22 +1,9 @@
-//============================================================================
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2015 Sandia Corporation.
-//  Copyright 2015 UT-Battelle, LLC.
-//  Copyright 2015 Los Alamos National Security.
-//
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//  Under the terms of Contract DE-AC52-06NA25396 with Los Alamos National
-//  Laboratory (LANL), the U.S. Government retains certain rights in
-//  this software.
-//============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2015 Sandia Corporation.
+// SPDX-FileCopyrightText: Copyright 2015 UT-Battelle, LLC.
+// SPDX-FileCopyrightText: Copyright 2015 Los Alamos National Security.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-LANL-USGov
 #ifndef vtkmDataSet_h
 #define vtkmDataSet_h
 
@@ -35,6 +22,8 @@ class DataSet;
 
 }
 } // vtkm::cont
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkPoints;
 class vtkCell;
@@ -195,4 +184,5 @@ private:
   vtkmInitializer Initializer;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkmDataSet_h

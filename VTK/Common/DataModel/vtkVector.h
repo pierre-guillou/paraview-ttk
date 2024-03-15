@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkVector
@@ -33,6 +21,7 @@
 
 #include <cmath> // For math functions
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T, int Size>
 class vtkVector : public vtkTuple<T, Size>
 {
@@ -121,6 +110,36 @@ public:
     for (int i = 0; i < Size; ++i)
     {
       result += this->Data[i] * other[i];
+    }
+    return result;
+  }
+  ///@}
+
+  ///@{
+  /**
+   * Substraction operation of this and the supplied vector.
+   */
+  vtkVector<T, Size> operator-(const vtkVector<T, Size>& other) const
+  {
+    vtkVector<T, Size> result(*this);
+    for (int i = 0; i < Size; ++i)
+    {
+      result[i] = this->Data[i] - other[i];
+    }
+    return result;
+  }
+  ///@}
+
+  ///@{
+  /**
+   * Multiply this vector by a scalar value.
+   */
+  vtkVector<T, Size> operator*(const T& other) const
+  {
+    vtkVector<T, Size> result(*this);
+    for (int i = 0; i < Size; ++i)
+    {
+      result[i] = this->Data[i] * other;
     }
     return result;
   }
@@ -515,9 +534,12 @@ public:
   using Superclass = vtkVector4<double>;
   vtkVector4d() = default;
   vtkVector4d(double x, double y, double z, double w)
-    : vtkVector4<double>(x, y, z, w){};
+    : vtkVector4<double>(x, y, z, w)
+  {
+  }
   vtkVectorDerivedMacro(vtkVector4d, double, 4);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkVector_h
 // VTK-HeaderTest-Exclude: vtkVector.h

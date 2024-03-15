@@ -115,9 +115,9 @@
                      short_help="Read OpenFOAM data files.">The OpenFOAM reader
                      reads OpenFOAM data files and outputs multiblock
                      datasets. Mesh information and time dependent data are
-                     supported. This is a distributed reader. The OpenFOAM format
-                     is described fully at
-                     http://www.openfoam.com/docs/user/basic-file-format.php.
+                     supported. This is a distributed reader. See
+                     https://www.openfoam.com/documentation/user-guide
+                     for a description of the OpenFOAM format.
       </Documentation>
       <StringVectorProperty animateable="0"
                             command="SetFileName"
@@ -293,14 +293,28 @@
       </IntVectorProperty>
       <IntVectorProperty animateable="0"
                          command="SetDecomposePolyhedra"
-                         default_values="1"
+                         default_values="0"
                          label="Decompose polyhedra"
                          name="DecomposePolyhedra"
                          number_of_elements="1"
                          panel_visibility="advanced">
         <BooleanDomain name="bool" />
-        <Documentation>Decompose polyhedra into tetrahedra and
-        pyramids.</Documentation>
+        <Documentation>Decompose polyhedra into tets/pyramids (deprecated)</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty animateable="0"
+                         command="SetSizeAverageCellToPoint"
+                         default_values="0"
+                         name="WeightPointDataByCellSize"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>Use cell size as weight in cell data-to-point data procedure.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="CreateCellToPoint"
+                                   value="1" />
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty animateable="0"
                          command="SetListTimeStepsByControlDict"
@@ -354,6 +368,86 @@
       </Hints>
     </SourceProxy>
     <!-- End of OpenFOAM Reader -->
+
+    <!-- Beginning of Nek5000Reader -->
+    <SourceProxy class="vtkNek5000Reader"
+                 name="Nek5000Reader">
+      <Documentation long_help="Reads Nek5000 data files, producing an unstructured grid dataset."
+                     short_help="Read Nek5000 data files.">The Nek5000 reader
+                     reads Nek5000 data files and outputs an unstructured grid
+                     dataset. This is a distributed reader.
+      </Documentation>
+      <StringVectorProperty animateable="0"
+                            command="SetFileName"
+                            name="FileName"
+                            number_of_elements="1"
+                            panel_visibility="advanced">
+        <FileListDomain name="files" />
+      <Documentation>This property specifies the file name for the
+        reader.</Documentation>
+      </StringVectorProperty>
+      <DoubleVectorProperty information_only="1"
+                            name="TimestepValues"
+                            repeatable="1">
+        <TimeStepsInformationHelper />
+        <Documentation>Available timestep values.</Documentation>
+      </DoubleVectorProperty>
+
+     <StringVectorProperty
+        name="PointArrayInfo"
+        information_only="1">
+        <ArraySelectionInformationHelper attribute_name="Point"/>
+     </StringVectorProperty>
+
+     <StringVectorProperty
+        name="PointArrayStatus"
+        command="SetPointArrayStatus"
+        number_of_elements="0"
+        repeat_command="1"
+        number_of_elements_per_command="2"
+        element_types="2 0"
+        information_property="PointArrayInfo"
+        label="PointArrays">
+       <ArraySelectionDomain name="array_list">
+          <RequiredProperties>
+             <Property name="PointArrayInfo" function="ArrayList"/>
+          </RequiredProperties>
+       </ArraySelectionDomain>
+       <Documentation>
+         This property lists which point-centered arrays to read.
+       </Documentation>
+     </StringVectorProperty>
+
+     <IntVectorProperty
+        name="MergePointsToCleanGrid"
+        command="SetCleanGrid"
+        number_of_elements="1"
+        default_values="0"
+	label="Merge Points to Clean grid" >
+      <BooleanDomain name="bool" />
+      <Documentation>
+            Clean the dataset by merging coincident points. May use a lot of memory.
+      </Documentation>
+     </IntVectorProperty>
+
+     <IntVectorProperty
+        name="AddSpectralElementIds"
+        command="SetSpectralElementIds"
+        number_of_elements="1"
+        default_values="0"
+        label="Add Spectral Element Ids as Cell Data">
+      <BooleanDomain name="bool" />
+      <Documentation>
+            Add Spectral Element Ids as cell-data (optional)
+      </Documentation>
+     </IntVectorProperty>
+
+      <Hints>
+       <ReaderFactory extensions="nek5000"
+                      file_description="Nek5000 Files" />
+      </Hints>
+    </SourceProxy>
+    <!-- End of Nek5000Reader -->
 
     <!-- ================================================================== -->
     <SourceProxy class="vtkMultiBlockPLOT3DReader"

@@ -51,6 +51,11 @@ public:
     this->Structure.SetPointDimensions(dimensions);
   }
 
+  void SetGlobalPointDimensions(SchedulingRangeType dimensions)
+  {
+    this->Structure.SetGlobalPointDimensions(dimensions);
+  }
+
   void SetGlobalPointIndexStart(SchedulingRangeType start)
   {
     this->Structure.SetGlobalPointIndexStart(start);
@@ -58,7 +63,17 @@ public:
 
   SchedulingRangeType GetPointDimensions() const { return this->Structure.GetPointDimensions(); }
 
+  SchedulingRangeType GetGlobalPointDimensions() const
+  {
+    return this->Structure.GetGlobalPointDimensions();
+  }
+
   SchedulingRangeType GetCellDimensions() const { return this->Structure.GetCellDimensions(); }
+
+  SchedulingRangeType GetGlobalCellDimensions() const
+  {
+    return this->Structure.GetGlobalCellDimensions();
+  }
 
   SchedulingRangeType GetGlobalPointIndexStart() const
   {
@@ -111,18 +126,6 @@ public:
   using ExecConnectivityType =
     vtkm::exec::ConnectivityStructured<VisitTopology, IncidentTopology, Dimension>;
 
-  template <typename DeviceAdapter, typename VisitTopology, typename IncidentTopology>
-  struct VTKM_DEPRECATED(
-    1.6,
-    "Replace ExecutionTypes<D, V, I>::ExecObjectType with ExecConnectivityType<V, I>.")
-    ExecutionTypes
-  {
-    VTKM_IS_DEVICE_ADAPTER_TAG(DeviceAdapter);
-    VTKM_IS_TOPOLOGY_ELEMENT_TAG(VisitTopology);
-    VTKM_IS_TOPOLOGY_ELEMENT_TAG(IncidentTopology);
-    using ExecObjectType = ExecConnectivityType<VisitTopology, IncidentTopology>;
-  };
-
   template <typename VisitTopology, typename IncidentTopology>
   ExecConnectivityType<VisitTopology, IncidentTopology> PrepareForInput(vtkm::cont::DeviceAdapterId,
                                                                         VisitTopology,
@@ -130,17 +133,6 @@ public:
                                                                         vtkm::cont::Token&) const
   {
     return ExecConnectivityType<VisitTopology, IncidentTopology>(this->Structure);
-  }
-
-  template <typename VisitTopology, typename IncidentTopology>
-  VTKM_DEPRECATED(1.6, "Provide a vtkm::cont::Token object when calling PrepareForInput.")
-  ExecConnectivityType<VisitTopology, IncidentTopology> PrepareForInput(
-    vtkm::cont::DeviceAdapterId device,
-    VisitTopology visitTopology,
-    IncidentTopology incidentTopology) const
-  {
-    vtkm::cont::Token token;
-    return this->PrepareForInput(device, visitTopology, incidentTopology, token);
   }
 
   void PrintSummary(std::ostream& out) const override
@@ -225,17 +217,20 @@ public:
   static VTKM_CONT void save(BinaryBuffer& bb, const Type& cs)
   {
     vtkmdiy::save(bb, cs.GetPointDimensions());
+    vtkmdiy::save(bb, cs.GetGlobalPointDimensions());
     vtkmdiy::save(bb, cs.GetGlobalPointIndexStart());
   }
 
   static VTKM_CONT void load(BinaryBuffer& bb, Type& cs)
   {
-    typename Type::SchedulingRangeType dims, start;
+    typename Type::SchedulingRangeType dims, gdims, start;
     vtkmdiy::load(bb, dims);
+    vtkmdiy::load(bb, gdims);
     vtkmdiy::load(bb, start);
 
     cs = Type{};
     cs.SetPointDimensions(dims);
+    cs.SetGlobalPointDimensions(gdims);
     cs.SetGlobalPointIndexStart(start);
   }
 };

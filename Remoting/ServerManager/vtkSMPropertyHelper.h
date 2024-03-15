@@ -1,43 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMPropertyHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*
- * Copyright (c) 2007, Sandia Corporation
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the Sandia Corporation nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY Sandia Corporation ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Sandia Corporation BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2007, Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPropertyHelper
  * @brief   helper class to get/set property values.
@@ -89,7 +52,7 @@ class vtkSMVectorProperty;
 class VTKREMOTINGSERVERMANAGER_EXPORT vtkSMPropertyHelper
 {
 public:
-  //@{
+  ///@{
   /**
    * If quiet is true, then no errors or warning are raised if the property is
    * missing or of incorrect type.
@@ -97,7 +60,7 @@ public:
   vtkSMPropertyHelper(vtkSMProxy* proxy, const char* name, bool quiet = false);
   vtkSMPropertyHelper(vtkSMProperty* property, bool quiet = false);
   ~vtkSMPropertyHelper();
-  //@}
+  ///@}
 
   /**
    * Updates the property value by fetching the value from the server. This only
@@ -142,7 +105,7 @@ public:
   template <class T>
   T GetAs(unsigned int index = 0) const;
 
-  //@{
+  ///@{
   /**
    * Set/Get methods with \c int API. Calling these method on
    * vtkSMStringVectorProperty or vtkSMProxyProperty will raise errors.
@@ -154,9 +117,9 @@ public:
   int GetAsInt(unsigned int index = 0) const;
   unsigned int Get(int* values, unsigned int count = 1) const;
   std::vector<int> GetIntArray() const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get methods with \c double API. Calling these method on
    * vtkSMStringVectorProperty or vtkSMProxyProperty will raise errors.
@@ -168,10 +131,10 @@ public:
   double GetAsDouble(unsigned int index = 0) const;
   unsigned int Get(double* values, unsigned int count = 1) const;
   std::vector<double> GetDoubleArray() const;
-  //@}
+  ///@}
 
 #if VTK_SIZEOF_ID_TYPE != VTK_SIZEOF_INT
-  //@{
+  ///@{
   /**
    * Set/Get methods with \c vtkIdType API. Calling these method on
    * vtkSMStringVectorProperty or vtkSMProxyProperty will raise errors.
@@ -184,9 +147,9 @@ public:
 #endif
   vtkIdType GetAsIdType(unsigned int index = 0) const;
   std::vector<vtkIdType> GetIdTypeArray() const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get methods for vtkSMStringVectorProperty. Calling these methods on any
    * other type of property will raise errors.
@@ -197,9 +160,9 @@ public:
   void Set(const char* value) { this->Set(0, value); }
   void Set(unsigned int index, const char* value);
   const char* GetAsString(unsigned int index = 0) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get methods for vtkSMProxyProperty or vtkSMInputProperty.
    * Calling these methods on any other type of property will raise errors.
@@ -213,9 +176,9 @@ public:
   vtkSMProxy* GetAsProxy(unsigned int index = 0) const;
   unsigned int GetOutputPort(unsigned int index = 0) const;
   vtkSMOutputPort* GetAsOutputPort(unsigned int index = 0) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This API is useful for setting values on vtkSMStringVectorProperty that is
    * used for status where the first value is the name of the array (for
@@ -223,9 +186,9 @@ public:
    */
   void SetStatus(const char* key, int value);
   int GetStatus(const char* key, int default_value = 0) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This API is useful for setting values on vtkSMStringVectorProperty that is
    * used for status where the first value is the name of the array (for
@@ -233,9 +196,9 @@ public:
    */
   void SetStatus(const char* key, double* values, int num_values);
   bool GetStatus(const char* key, double* values, int num_values) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This API is useful for setting values on vtkSMIntVectorProperty that is
    * used for status where the first value is the id of the element (for
@@ -243,9 +206,9 @@ public:
    */
   void SetStatus(int key, int* values, int num_values);
   bool GetStatus(int key, int* values, int num_values) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This API is useful for setting values on vtkSMStringVectorProperty that is
    * used for status where the first value is the name of the array (for
@@ -253,7 +216,7 @@ public:
    */
   void SetStatus(const char* key, const char* value);
   const char* GetStatus(const char* key, const char* default_value) const;
-  //@}
+  ///@}
 
   /**
    * Removes the status value specified for the given key, if any. Applicable only to
@@ -262,7 +225,7 @@ public:
    */
   void RemoveStatus(const char* key);
 
-  //@{
+  ///@{
   /**
    * This API is useful for setting values on vtkSMIntVectorProperty that is
    * used for status where the first value is the id of the element (for
@@ -270,9 +233,9 @@ public:
    */
   void SetStatus(int key, int value);
   int GetStatus(int key, int default_value = 0) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * For vtkSMStringVectorProperty that is used to setting input array to
    * process on algorithms, this provides a convenient API to get/set the
@@ -281,7 +244,7 @@ public:
   void SetInputArrayToProcess(int fieldAssociation, const char* arrayName);
   int GetInputArrayAssociation() const;
   const char* GetInputArrayNameToProcess() const;
-  //@}
+  ///@}
 
   /**
    * Get/Set whether to use unchecked properties.

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 // A Test of a very simple app based on pqCore
 
@@ -129,39 +131,39 @@ pqFileDialogTestWidget::pqFileDialogTestWidget()
 
   QPushButton* rec = new QPushButton(this);
   rec->setObjectName("record");
-  rec->setText("record...");
+  rec->setText(tr("record..."));
   QObject::connect(rec, SIGNAL(clicked(bool)), this, SLOT(record()));
   l->addWidget(rec);
 
   this->ConnectionMode = new QComboBox(this);
   this->ConnectionMode->setObjectName("ConnectionMode");
   l->addWidget(this->ConnectionMode);
-  this->ConnectionMode->addItem("Local");
-  this->ConnectionMode->addItem("Remote");
+  this->ConnectionMode->addItem(tr("Local"));
+  this->ConnectionMode->addItem(tr("Remote"));
 
   this->FileMode = new QComboBox(this);
   this->FileMode->setObjectName("FileMode");
   l->addWidget(this->FileMode);
-  this->FileMode->addItem("Any File", pqFileDialog::AnyFile);
-  this->FileMode->addItem("Existing File", pqFileDialog::ExistingFile);
-  this->FileMode->addItem("Existing Files", pqFileDialog::ExistingFiles);
-  this->FileMode->addItem("Directory", pqFileDialog::Directory);
+  this->FileMode->addItem(tr("Any File"), pqFileDialog::AnyFile);
+  this->FileMode->addItem(tr("Existing File"), pqFileDialog::ExistingFile);
+  this->FileMode->addItem(tr("Existing Files"), pqFileDialog::ExistingFiles);
+  this->FileMode->addItem(tr("Directory"), pqFileDialog::Directory);
 
   this->FileFilter = new QLineEdit(this);
   this->FileFilter->setObjectName("FileFilter");
   l->addWidget(this->FileFilter);
 
   this->OpenButton = new QPushButton(this);
-  this->OpenButton->setText("Open File Dialog...");
+  this->OpenButton->setText(tr("Open File Dialog..."));
   this->OpenButton->setObjectName("OpenDialog");
   l->addWidget(this->OpenButton);
   this->EmitLabel = new QLabel(this);
   this->EmitLabel->setObjectName("EmitLabel");
-  this->EmitLabel->setText("(nul)");
+  this->EmitLabel->setText(QString("(%1)").arg(tr("null")));
   l->addWidget(this->EmitLabel);
   this->ReturnLabel = new QLabel(this);
   this->ReturnLabel->setObjectName("ReturnLabel");
-  this->ReturnLabel->setText("(nul)");
+  this->ReturnLabel->setText(QString("(%1)").arg(tr("null")));
   l->addWidget(this->ReturnLabel);
   QObject::connect(this->OpenButton, SIGNAL(clicked(bool)), this, SLOT(openFileDialog()));
 }
@@ -178,13 +180,13 @@ void pqFileDialogTestWidget::openFileDialog()
   }
 
   pqServer* server = this->Server;
-  if (this->ConnectionMode->currentText() == "Local")
+  if (this->ConnectionMode->currentText() == tr("Local"))
   {
     server = nullptr;
   }
 
   pqFileDialog diag(
-    server, this, this->FileMode->currentText(), testDirName, this->FileFilter->text());
+    server, this, this->FileMode->currentText(), testDirName, this->FileFilter->text(), false);
   QVariant mode = this->FileMode->itemData(this->FileMode->currentIndex());
   diag.setFileMode(static_cast<pqFileDialog::FileMode>(mode.toInt()));
   QObject::connect(&diag, SIGNAL(filesSelected(const QList<QStringList>&)), this,
@@ -195,7 +197,7 @@ void pqFileDialogTestWidget::openFileDialog()
   }
   else
   {
-    this->ReturnLabel->setText("cancelled");
+    this->ReturnLabel->setText(tr("cancelled"));
   }
 }
 

@@ -192,14 +192,10 @@ std::vector<vtkm::cont::UnknownCellSet> CellSetSingleType::Read(
   this->IsStatic = false;
   this->ConnectivityArrays = this->ReadSelf(paths, sources, selections);
   this->IsStatic = isStatic;
-  std::vector<vtkm::cont::UnknownCellSet> cellSets;
+
   size_t nArrays = this->ConnectivityArrays.size();
-  cellSets.reserve(nArrays);
-  for (size_t i = 0; i < nArrays; i++)
-  {
-    vtkm::cont::CellSetSingleType<> cellSet;
-    cellSets.push_back(cellSet);
-  }
+  std::vector<vtkm::cont::UnknownCellSet> cellSets(nArrays);
+
   if (this->IsStatic)
   {
     this->CellSetCache = cellSets;
@@ -214,9 +210,18 @@ void CellSetSingleType::PostRead(std::vector<vtkm::cont::DataSet>& partitions,
   for (size_t i = 0; i < nParts; i++)
   {
     auto& pds = partitions[i];
-    vtkm::cont::ArrayHandle<vtkm::Id> connCasted =
-      this->ConnectivityArrays[i].AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>();
-    auto cellSet = pds.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
+    // if the array isn't stored as a signed int, we'll have to do a deep copy
+    // into another UnknownArrayHandle
+    vtkm::cont::UnknownArrayHandle connUnknown = vtkm::cont::ArrayHandle<vtkm::Id>{};
+    connUnknown.CopyShallowIfPossible(this->ConnectivityArrays[i]);
+    auto connCasted = connUnknown.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>();
+
+    vtkm::cont::CellSetSingleType<> cellSet;
+    if (pds.GetCellSet().IsValid())
+    {
+      cellSet = pds.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
+    }
+
     cellSet.Fill(pds.GetNumberOfPoints(),
                  this->CellInformation.first,
                  this->CellInformation.second,
@@ -276,18 +281,14 @@ std::vector<vtkm::cont::UnknownCellSet> CellSetExplicit::Read(
   this->NumberOfVerticesArrays = this->NumberOfVertices->Read(paths, sources, selections);
   this->CellTypesArrays = this->CellTypes->Read(paths, sources, selections);
 
-  std::vector<vtkm::cont::UnknownCellSet> cellSets;
   size_t nArrays = this->ConnectivityArrays.size();
-  cellSets.reserve(nArrays);
-  for (size_t i = 0; i < nArrays; i++)
-  {
-    vtkm::cont::CellSetExplicit<> cellSet;
-    cellSets.push_back(cellSet);
-  }
+  std::vector<vtkm::cont::UnknownCellSet> cellSets(nArrays);
+
   if (this->IsStatic)
   {
     this->CellSetCache = cellSets;
   }
+
   return cellSets;
 }
 
@@ -305,11 +306,23 @@ void CellSetExplicit::PostRead(std::vector<vtkm::cont::DataSet>& partitions,
       vtkm::cont::make_ArrayHandleCast<vtkm::Id, vtkm::cont::ArrayHandle<vtkm::IdComponent>>(
         nVertsCasted),
       offsets);
+
+    vtkm::cont::UnknownArrayHandle connUnknown = vtkm::cont::ArrayHandle<vtkm::Id>{};
+    connUnknown.CopyShallowIfPossible(this->ConnectivityArrays[i]);
     vtkm::cont::ArrayHandle<vtkm::Id> connCasted =
-      this->ConnectivityArrays[i].AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>();
+      connUnknown.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>();
+
+    vtkm::cont::UnknownArrayHandle typesUnknown = vtkm::cont::ArrayHandle<vtkm::UInt8>{};
+    typesUnknown.CopyShallowIfPossible(this->CellTypesArrays[i]);
     vtkm::cont::ArrayHandle<vtkm::UInt8> typesCasted =
-      this->CellTypesArrays[i].AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::UInt8>>();
-    auto cellSet = pds.GetCellSet().AsCellSet<vtkm::cont::CellSetExplicit<>>();
+      typesUnknown.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::UInt8>>();
+
+    vtkm::cont::CellSetExplicit<> cellSet;
+    if (pds.GetCellSet().IsValid())
+    {
+      cellSet = pds.GetCellSet().AsCellSet<vtkm::cont::CellSetExplicit<>>();
+    }
+
     cellSet.Fill(pds.GetNumberOfPoints(), typesCasted, connCasted, offsets);
     pds.SetCellSet(cellSet);
   }
@@ -340,14 +353,8 @@ std::vector<vtkm::cont::UnknownCellSet> CellSetStructured::Read(
   this->DimensionArrays = this->Dimensions->Read(paths, sources, selections);
 
   std::size_t nArrays = this->DimensionArrays.size();
-  std::vector<vtkm::cont::UnknownCellSet> ret;
-  ret.reserve(nArrays);
+  std::vector<vtkm::cont::UnknownCellSet> ret(nArrays);
 
-  for (std::size_t i = 0; i < nArrays; i++)
-  {
-    vtkm::cont::CellSetStructured<3> cellSet;
-    ret.push_back(cellSet);
-  }
   return ret;
 }
 
@@ -359,9 +366,15 @@ void CellSetStructured::PostRead(std::vector<vtkm::cont::DataSet>& partitions,
   for (std::size_t i = 0; i < nParts; i++)
   {
     auto& ds = partitions[i];
-    auto cellSet = ds.GetCellSet().AsCellSet<vtkm::cont::CellSetStructured<3>>();
-    const auto& dimArray =
-      this->DimensionArrays[i].AsArrayHandle<vtkm::cont::ArrayHandle<std::size_t>>();
+
+    vtkm::cont::CellSetStructured<3> cellSet;
+    if (ds.GetCellSet().IsValid())
+    {
+      cellSet = ds.GetCellSet().AsCellSet<vtkm::cont::CellSetStructured<3>>();
+    }
+    vtkm::cont::UnknownArrayHandle dimUnknown = vtkm::cont::ArrayHandle<std::size_t>{};
+    dimUnknown.CopyShallowIfPossible(this->DimensionArrays[i]);
+    const auto& dimArray = dimUnknown.AsArrayHandle<vtkm::cont::ArrayHandle<std::size_t>>();
     auto dimPortal = dimArray.ReadPortal();
 
     vtkm::Id3 dims(static_cast<vtkm::Id>(dimPortal.Get(0)),
@@ -631,7 +644,8 @@ std::vector<vtkm::cont::UnknownCellSet> CellSetGTC::Read(
   DataSourcesType& sources,
   const fides::metadata::MetaData& selections)
 {
-  std::vector<vtkm::cont::UnknownCellSet> cellSets;
+  // The size of the cellSetsGTC is always one
+  std::vector<vtkm::cont::UnknownCellSet> cellSets(1);
 
   if (!this->IsCached)
   {
@@ -652,7 +666,6 @@ std::vector<vtkm::cont::UnknownCellSet> CellSetGTC::Read(
     this->CachedCellSet = cellSet;
   }
 
-  cellSets.push_back(this->CachedCellSet);
   return cellSets;
 }
 
@@ -930,12 +943,12 @@ void CellSetGTC::ComputeCellSet(vtkm::cont::DataSet& dataSet)
     throw std::runtime_error("Unsupported type for GTC coordinates system.");
   }
 
-  if (!dataSet.GetCellSet().IsType<vtkm::cont::CellSetSingleType<>>())
+  vtkm::cont::CellSetSingleType<> cellSet;
+  if (dataSet.GetCellSet().IsValid())
   {
-    throw std::runtime_error("Unsupported cellset type for GTC.");
+    cellSet = dataSet.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
   }
 
-  auto cellSet = dataSet.GetCellSet().AsCellSet<vtkm::cont::CellSetSingleType<>>();
   auto connIdsAH = vtkm::cont::make_ArrayHandle(connIds, vtkm::CopyFlag::On);
   cellSet.Fill(numCoords, vtkm::CELL_SHAPE_WEDGE, 6, connIdsAH);
   dataSet.SetCellSet(cellSet);

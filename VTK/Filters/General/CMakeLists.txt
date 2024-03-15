@@ -14,6 +14,8 @@ set(classes
   vtkBrownianPoints
   vtkCellDerivatives
   vtkCellValidator
+  vtkCleanUnstructuredGrid
+  vtkCleanUnstructuredGridCells
   vtkClipClosedSurface
   vtkClipConvexPolyData
   vtkClipDataSet
@@ -99,6 +101,7 @@ set(classes
   vtkShrinkFilter
   vtkShrinkPolyData
   vtkSpatialRepresentationFilter
+  vtkSpatioTemporalHarmonicsAttribute
   vtkSphericalHarmonics
   vtkSplineFilter
   vtkSplitByCellScalarFilter
@@ -134,3 +137,4 @@ set(templates
 vtk_module_add_module(VTK::FiltersGeneral
   CLASSES ${classes}
   TEMPLATES ${templates})
+vtk_add_test_mangling(VTK::FiltersGeneral)

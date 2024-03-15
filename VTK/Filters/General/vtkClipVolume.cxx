@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClipVolume.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkClipVolume.h"
 
@@ -36,6 +24,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkVoxel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkClipVolume);
 vtkCxxSetObjectMacro(vtkClipVolume, ClipFunction, vtkImplicitFunction);
 
@@ -279,12 +268,12 @@ int vtkClipVolume::RequestData(vtkInformation* vtkNotUsed(request),
   // variable). The flip variable also controls the generation of tetrahedra
   // in boundary voxels in ClipTets() and the ordered Delaunay triangulation
   // used in ClipVoxel().
-  int abort = 0;
+  bool abort = false;
   for (k = 0; k < numKCells && !abort; k++)
   {
     // Check for progress and abort on every z-slice
     this->UpdateProgress(static_cast<double>(k) / numKCells);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
     for (j = 0; j < numJCells; j++)
     {
       for (i = 0; i < numICells; i++)
@@ -693,3 +682,4 @@ void vtkClipVolume::ReportReferences(vtkGarbageCollector* collector)
   // reference loop.
   vtkGarbageCollectorReport(collector, this->ClipFunction, "ClipFunction");
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHDFReaderImplementation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHDFReaderImplementation.h"
 #include <iostream>
@@ -48,8 +36,13 @@
 #include <array>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
+
+const std::map<int, std::string> ARRAY_OFFSET_GROUPS = { { 0, "PointDataOffsets" },
+  { 1, "CellDataOffsets" }, { 2, "FieldDataOffsets" } };
+
 herr_t AddName(hid_t group, const char* name, const H5L_info_t*, void* op_data)
 {
   auto array = static_cast<std::vector<std::string>*>(op_data);
@@ -62,7 +55,7 @@ herr_t AddName(hid_t group, const char* name, const H5L_info_t*, void* op_data)
   }
   return status;
 }
-};
+}
 
 //------------------------------------------------------------------------------
 vtkHDFReader::Implementation::TypeDescription vtkHDFReader::Implementation::GetTypeDescription(
@@ -198,9 +191,14 @@ bool vtkHDFReader::Implementation::Open(const char* fileName)
       return false;
     }
 
+    H5Eset_auto(H5E_DEFAULT, nullptr, nullptr);
+    // get transient information if there is any
+    vtkIdType nSteps = this->GetNumberOfSteps();
+    H5Eset_auto(H5E_DEFAULT, f, client_data);
+
     try
     {
-      if (this->DataSetType == VTK_UNSTRUCTURED_GRID)
+      if (this->DataSetType == VTK_UNSTRUCTURED_GRID || this->DataSetType == VTK_POLY_DATA)
       {
         const char* datasetName = "/VTKHDF/NumberOfPoints";
         std::vector<hsize_t> dims = this->GetDimensions(datasetName);
@@ -208,7 +206,8 @@ bool vtkHDFReader::Implementation::Open(const char* fileName)
         {
           throw std::runtime_error(std::string(datasetName) + " dataset should have 1 dimension");
         }
-        this->NumberOfPieces = dims[0];
+        // Case where the data set has the same number of pieces for  all steps in the dataset
+        this->NumberOfPieces = dims[0] / nSteps;
       }
       else if (this->DataSetType == VTK_IMAGE_DATA || this->DataSetType == VTK_OVERLAPPING_AMR)
       {
@@ -287,6 +286,10 @@ bool vtkHDFReader::Implementation::ReadDataSetType()
     {
       this->DataSetType = VTK_UNSTRUCTURED_GRID;
     }
+    else if (typeName == "PolyData")
+    {
+      this->DataSetType = VTK_POLY_DATA;
+    }
     else
     {
       vtkErrorWithObjectMacro(this->Reader, "Unknown data set type: " << typeName);
@@ -299,6 +302,64 @@ bool vtkHDFReader::Implementation::ReadDataSetType()
     return false;
   }
   return true;
+}
+
+//------------------------------------------------------------------------------
+std::size_t vtkHDFReader::Implementation::GetNumberOfSteps()
+{
+  if (this->File < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Cannot get number of steps if the file is not open");
+    return 0;
+  }
+  return this->GetNumberOfSteps(this->VTKGroup);
+}
+
+//------------------------------------------------------------------------------
+std::size_t vtkHDFReader::Implementation::GetNumberOfSteps(hid_t vtkHDFGroup)
+{
+  if (vtkHDFGroup < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Cannot get number of steps if the group is not open");
+    return 0;
+  }
+
+  if (H5Lexists(vtkHDFGroup, "Steps", H5P_DEFAULT) <= 0)
+  {
+    // Steps group does not exist and so there is only 1 step
+    return 1;
+  }
+
+  // Steps group does exist
+  vtkHDF::ScopedH5GHandle steps = H5Gopen(vtkHDFGroup, "Steps", H5P_DEFAULT);
+  if (steps < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Could not open steps group");
+    return 1;
+  }
+
+  int nSteps = 1;
+  this->GetAttribute(steps, "NSteps", 1, &nSteps);
+  return nSteps > 0 ? static_cast<std::size_t>(nSteps) : 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkHDFReader::Implementation::GetNumberOfPieces(vtkIdType step)
+{
+  if (step < 0 || this->GetNumberOfSteps() == 1 ||
+    H5Lexists(this->VTKGroup, "Steps/NumberOfParts", H5P_DEFAULT) <= 0)
+  {
+    return this->NumberOfPieces;
+  }
+  std::vector<vtkIdType> buffer = this->GetMetadata("Steps/NumberOfParts", 1, step);
+  if (buffer.empty())
+  {
+    vtkErrorWithObjectMacro(
+      nullptr, "Could not read step " << step << " in NumberOfParts data set.");
+    return -1;
+  }
+  this->NumberOfPieces = buffer[0];
+  return this->NumberOfPieces;
 }
 
 //------------------------------------------------------------------------------
@@ -539,8 +600,15 @@ template <typename T>
 bool vtkHDFReader::Implementation::GetAttribute(
   const char* attributeName, size_t numberOfElements, T* value)
 {
+  return this->GetAttribute(this->VTKGroup, attributeName, numberOfElements, value);
+}
 
-  vtkHDF::ScopedH5AHandle attr = H5Aopen_name(this->VTKGroup, attributeName);
+//------------------------------------------------------------------------------
+template <typename T>
+bool vtkHDFReader::Implementation::GetAttribute(
+  hid_t group, const char* attributeName, size_t numberOfElements, T* value)
+{
+  vtkHDF::ScopedH5AHandle attr = H5Aopen_name(group, attributeName);
   if (attr < 0)
   {
     vtkErrorWithObjectMacro(this->Reader, << std::string(attributeName) + " attribute not found");
@@ -562,10 +630,17 @@ bool vtkHDFReader::Implementation::GetAttribute(
     return false;
   }
 
-  if (ndims != 1)
+  if (ndims > 1)
   {
-    vtkErrorWithObjectMacro(
-      this->Reader, << std::string(attributeName) + " attribute should have rank 1");
+    vtkErrorWithObjectMacro(this->Reader,
+      << std::string(attributeName) + " attribute should have rank 1 or 0, it has rank " << ndims);
+    return false;
+  }
+
+  if (ndims == 0 && numberOfElements != 1)
+  {
+    vtkErrorWithObjectMacro(this->Reader,
+      << std::string(attributeName) + " attribute should have rank 1, it has rank " << ndims);
     return false;
   }
 
@@ -577,7 +652,7 @@ bool vtkHDFReader::Implementation::GetAttribute(
     return false;
   }
 
-  if (ne != numberOfElements)
+  if (numberOfElements != 1 && ne != numberOfElements)
   {
     vtkErrorWithObjectMacro(this->Reader,
       << attributeName << " attribute should have " << numberOfElements << " dimensions");
@@ -674,7 +749,7 @@ vtkDataArray* vtkHDFReader::Implementation::NewArray(
 vtkDataArray* vtkHDFReader::Implementation::NewArray(
   int attributeType, const char* name, hsize_t offset, hsize_t size)
 {
-  std::vector<hsize_t> fileExtent = { offset, offset + size - 1 };
+  std::vector<hsize_t> fileExtent = { offset, offset + size };
   return NewArrayForGroup(this->AttributeDataGroup[attributeType], name, fileExtent);
 }
 
@@ -724,7 +799,8 @@ vtkStringArray* vtkHDFReader::Implementation::NewStringArray(hid_t dataset, hsiz
 }
 
 //------------------------------------------------------------------------------
-vtkAbstractArray* vtkHDFReader::Implementation::NewFieldArray(const char* name)
+vtkAbstractArray* vtkHDFReader::Implementation::NewFieldArray(
+  const char* name, vtkIdType offset, vtkIdType size)
 {
   hid_t tempNativeType = -1;
   std::vector<hsize_t> dims;
@@ -756,6 +832,12 @@ vtkAbstractArray* vtkHDFReader::Implementation::NewFieldArray(const char* name)
     // empty fileExtent means read all values from the file
     // field arrays are always 1D
     std::vector<hsize_t> fileExtent;
+    if (offset >= 0 || size > 0)
+    {
+      fileExtent.resize(2, 0);
+      fileExtent[0] = offset;
+      fileExtent[1] = offset + size;
+    }
     return NewArrayForGroup(this->AttributeDataGroup[vtkDataObject::FIELD], name, fileExtent);
   }
 }
@@ -764,22 +846,23 @@ vtkAbstractArray* vtkHDFReader::Implementation::NewFieldArray(const char* name)
 vtkDataArray* vtkHDFReader::Implementation::NewMetadataArray(
   const char* name, hsize_t offset, hsize_t size)
 {
-  std::vector<hsize_t> fileExtent = { offset, offset + size - 1 };
+  std::vector<hsize_t> fileExtent = { offset, offset + size };
   return NewArrayForGroup(this->VTKGroup, name, fileExtent);
 }
 
 //------------------------------------------------------------------------------
-std::vector<vtkIdType> vtkHDFReader::Implementation::GetMetadata(const char* name, hsize_t size)
+std::vector<vtkIdType> vtkHDFReader::Implementation::GetMetadata(
+  const char* name, hsize_t size, hsize_t offset)
 {
   std::vector<vtkIdType> v;
-  std::vector<hsize_t> fileExtent = { 0, size - 1 };
+  std::vector<hsize_t> fileExtent = { offset, offset + size };
   auto a = vtk::TakeSmartPointer(NewArrayForGroup(this->VTKGroup, name, fileExtent));
   if (!a)
   {
     return v;
   }
-  v.resize(a->GetNumberOfTuples());
-  auto range = vtk::DataArrayValueRange<1>(a);
+  v.resize(a->GetNumberOfTuples() * a->GetNumberOfComponents());
+  auto range = vtk::DataArrayValueRange(a);
   std::copy(range.begin(), range.end(), v.begin());
   return v;
 }
@@ -812,7 +895,7 @@ vtkDataArray* vtkHDFReader::Implementation::NewArrayForGroup(hid_t dataset, cons
     if (extent.empty())
     {
       extent.resize(2, 0);
-      extent[1] = dims[0] - 1;
+      extent[1] = dims[0];
       if (dims.size() > 2)
       {
         throw std::runtime_error("Field arrays cannot have more than 2 dimensions.");
@@ -841,8 +924,12 @@ vtkDataArray* vtkHDFReader::Implementation::NewArrayForGroup(hid_t dataset, cons
              << " greater than expected ndims: " << (extent.size() >> 1) << " plus one.";
         throw std::runtime_error(ostr.str());
       }
+      if (numberOfComponents == 1)
+      {
+        extent.resize(dims.size() * 2, 0);
+        extent[extent.size() - 1] = numberOfComponents;
+      }
     }
-
     auto it = this->TypeReaderMap.find(this->GetTypeDescription(nativeType));
     if (it == this->TypeReaderMap.end())
     {
@@ -871,7 +958,7 @@ vtkDataArray* vtkHDFReader::Implementation::NewArray(
   for (size_t i = 0; i < ndims; ++i)
   {
     size_t j = i << 1;
-    numberOfTuples *= (fileExtent[j + 1] - fileExtent[j] + 1);
+    numberOfTuples *= (fileExtent[j + 1] - fileExtent[j]);
   }
   auto array = vtkAOSDataArrayTemplate<T>::SafeDownCast(NewVtkDataArray<T>());
   array->SetNumberOfComponents(numberOfComponents);
@@ -891,16 +978,11 @@ bool vtkHDFReader::Implementation::NewArray(
   hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents, T* data)
 {
   hid_t nativeType = TemplateTypeToHdfNativeType<T>();
-
-  // Create the memory space, reverse axis order for VTK fortran order,
-  // because VTK stores 2D/3D arrays in memory along columns (fortran order) rather
-  // than along rows (C order).
   std::vector<hsize_t> count(fileExtent.size() >> 1), start(fileExtent.size() >> 1);
   for (size_t i = 0; i < count.size(); ++i)
   {
-    size_t j = (count.size() - 1 - i) << 1;
-    count[i] = fileExtent[j + 1] - fileExtent[j] + 1;
-    start[i] = fileExtent[j];
+    count[i] = fileExtent[i * 2 + 1] - fileExtent[i * 2];
+    start[i] = fileExtent[i * 2];
   }
   if (numberOfComponents > 1)
   {
@@ -918,7 +1000,7 @@ bool vtkHDFReader::Implementation::NewArray(
   vtkHDF::ScopedH5SHandle filespace = H5Dget_space(dataset);
   if (filespace < 0)
   {
-    vtkErrorWithObjectMacro(this->Reader, << "Error H5Dget_space for imagedata");
+    vtkErrorWithObjectMacro(this->Reader, << "Error H5Dget_space for array");
     return false;
   }
   if (H5Sselect_hyperslab(filespace, H5S_SELECT_SET, start.data(), nullptr, count.data(), nullptr) <
@@ -1235,7 +1317,7 @@ bool vtkHDFReader::Implementation::ReadLevelData(unsigned int level,
             dataSize = dims[0] / numberOfDatasets;
         }
 
-        std::vector<hsize_t> fileExtent = { dataOffset, dataOffset + dataSize - 1 };
+        std::vector<hsize_t> fileExtent = { dataOffset, dataOffset + dataSize };
 
         vtkSmartPointer<vtkDataArray> array;
         if ((array = vtk::TakeSmartPointer(
@@ -1326,8 +1408,76 @@ bool vtkHDFReader::Implementation::ReadAMRBoxRawValues(
 }
 
 //------------------------------------------------------------------------------
+vtkDataArray* vtkHDFReader::Implementation::GetStepValues()
+{
+  if (this->File < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Cannot get step values if the file is not open");
+  }
+  return this->GetStepValues(this->VTKGroup);
+}
+
+//------------------------------------------------------------------------------
+vtkDataArray* vtkHDFReader::Implementation::GetStepValues(hid_t group)
+{
+  if (group < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Cannot get step values from empty group");
+  }
+
+  if (H5Lexists(group, "Steps", H5P_DEFAULT) <= 0)
+  {
+    // Steps group does not exist
+    return nullptr;
+  }
+
+  // Steps group does exist
+  vtkHDF::ScopedH5GHandle steps = H5Gopen(group, "Steps", H5P_DEFAULT);
+  if (steps < 0)
+  {
+    vtkErrorWithObjectMacro(this->Reader, "Could not open steps group");
+    return nullptr;
+  }
+
+  std::vector<hsize_t> fileExtent;
+  return this->NewArrayForGroup(steps, "Values", fileExtent);
+}
+
+//------------------------------------------------------------------------------
+vtkIdType vtkHDFReader::Implementation::GetArrayOffset(
+  vtkIdType step, int attributeType, std::string name)
+{
+  if (this->VTKGroup < 0)
+  {
+    return -1;
+  }
+  if (H5Lexists(this->VTKGroup, "Steps", H5P_DEFAULT) <= 0)
+  {
+    return -1;
+  }
+  std::string path = "Steps/";
+  path += ::ARRAY_OFFSET_GROUPS.at(attributeType);
+  if (H5Lexists(this->VTKGroup, path.c_str(), H5P_DEFAULT) <= 0)
+  {
+    return -1;
+  }
+  path += "/" + name;
+  if (H5Lexists(this->VTKGroup, path.c_str(), H5P_DEFAULT) <= 0)
+  {
+    return -1;
+  }
+  std::vector<vtkIdType> buffer = this->GetMetadata(path.c_str(), 1, step);
+  if (buffer.empty())
+  {
+    return -1;
+  }
+  return buffer[0];
+}
+
+//------------------------------------------------------------------------------
 // explicit template instantiation
 template bool vtkHDFReader::Implementation::GetAttribute<int>(
   const char* attributeName, size_t dim, int* value);
 template bool vtkHDFReader::Implementation::GetAttribute<double>(
   const char* attributeName, size_t dim, double* value);
+VTK_ABI_NAMESPACE_END

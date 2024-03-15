@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>ImplicitPlanePropertyWidget</class>
  <widget class="QWidget" name="ImplicitPlanePropertyWidget">
@@ -84,7 +86,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Note: Use 'P' to pick 'Origin' on mesh or 'Ctrl+P' to snap to the closest mesh point</string>
+      <string>Note: Use 'P' to pick '%1' on mesh or 'Ctrl+P' to snap to the closest mesh point</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

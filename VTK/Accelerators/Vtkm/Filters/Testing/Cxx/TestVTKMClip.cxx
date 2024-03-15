@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestVTKMClip.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkmClip.h"
 
@@ -74,7 +62,7 @@ int TestVTKMClip(int, char*[])
   sphereClipper->ForceVTKmOn();
   sphereClipper->SetInputData(sphere);
   sphereClipper->SetComputeScalars(true);
-  sphereClipper->SetClipValue(0.);
+  sphereClipper->SetValue(0.);
 
   vtkNew<vtkDataSetSurfaceFilter> sphSurface;
   sphSurface->SetInputConnection(sphereClipper->GetOutputPort());
@@ -113,7 +101,8 @@ int TestVTKMClip(int, char*[])
   tetClipper->ForceVTKmOn();
   tetClipper->SetInputData(tets);
   tetClipper->SetComputeScalars(true);
-  tetClipper->SetClipValue(0.);
+  tetClipper->SetValue(0.);
+  tetClipper->SetOutputPointsPrecision(vtkAlgorithm::SINGLE_PRECISION);
 
   vtkNew<vtkDataSetSurfaceFilter> tetSurface;
   tetSurface->SetInputConnection(tetClipper->GetOutputPort());
@@ -138,7 +127,7 @@ int TestVTKMClip(int, char*[])
   imageClipper->ForceVTKmOn();
   imageClipper->SetInputData(image);
   imageClipper->SetComputeScalars(true);
-  imageClipper->SetClipValue(0.);
+  imageClipper->SetValue(0.);
 
   vtkNew<vtkDataSetSurfaceFilter> imageSurface;
   imageSurface->SetInputConnection(imageClipper->GetOutputPort());

@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationKey.h"
 #include "vtkInformationKeyLookup.h"
 
 #include "vtkDebugLeaks.h"
 #include "vtkInformation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationKeyToInformationFriendship
 {
 public:
@@ -147,3 +136,4 @@ void vtkInformationKey::ReportAsObjectBase(vtkInformation* info, vtkGarbageColle
 
 //------------------------------------------------------------------------------
 void vtkInformationKey::ConstructClass(const char*) {}
+VTK_ABI_NAMESPACE_END

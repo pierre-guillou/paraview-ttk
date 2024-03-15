@@ -1,23 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTDxInteractorStyleCamera.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTDxInteractorStyleCamera
  * @brief   interactive manipulation of the camera with a 3DConnexion device
  *
  *
- * vtkTDxInteractorStyleCamera allows the end-user to manipulate tha camera
+ * vtkTDxInteractorStyleCamera allows the end-user to manipulate the camera
  * with a 3DConnexion device.
  *
  * @sa
@@ -31,6 +19,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkTDxInteractorStyle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransform;
 
 class VTKRENDERINGCORE_EXPORT vtkTDxInteractorStyleCamera : public vtkTDxInteractorStyle
@@ -56,4 +45,5 @@ private:
   vtkTDxInteractorStyleCamera(const vtkTDxInteractorStyleCamera&) = delete;
   void operator=(const vtkTDxInteractorStyleCamera&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

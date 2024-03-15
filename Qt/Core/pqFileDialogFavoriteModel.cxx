@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqFileDialogFavoriteModel.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqFileDialogFavoriteModel.h"
 
@@ -58,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "pqSMAdaptor.h"
 
+// PARAVIEW_DEPRECATED_IN_5_12_0
 bool pqFileDialogFavoriteModel::AddExamplesInFavorites = true;
 
 /////////////////////////////////////////////////////////////////////
@@ -111,10 +84,7 @@ pqFileDialogFavoriteModel::pqFileDialogFavoriteModel(
         fileInfoList[0].toString(), fileInfoList[1].toString(), type });
     }
   }
-  else
-  {
-    this->LoadFavoritesFromSystem();
-  }
+  // else favorites are empty on startup.
   this->SettingsKey = key;
 }
 
@@ -143,7 +113,7 @@ QString pqFileDialogFavoriteModel::filePath(const QModelIndex& index) const
 }
 
 //-----------------------------------------------------------------------------
-bool pqFileDialogFavoriteModel::isDir(const QModelIndex& index) const
+bool pqFileDialogFavoriteModel::isDirectory(const QModelIndex& index) const
 {
   if (index.row() >= this->FavoriteList.size())
   {
@@ -169,7 +139,7 @@ QVariant pqFileDialogFavoriteModel::data(const QModelIndex& idx, int role) const
   {
     // FIXME when the shared resources dir is not found, this is equal to `/examples`. This might be
     // confusing for people without the `Examples` directory (mostly ParaView devs). This directory
-    // can be hidden by setting the `AddExamplesInFavoritesBehavior` to `false`.
+    // can be hidden by setting the `AddExamplesInFileDialogBehavior` to `false`.
     dir = QString::fromStdString(vtkPVFileInformation::GetParaViewExampleFilesDirectory());
   }
 
@@ -268,8 +238,14 @@ void pqFileDialogFavoriteModel::addToFavorites(QString const& dirPath)
 
   int type = this->FileDialogModel->fileType(dirPath);
   this->beginInsertRows(QModelIndex(), favoriteList.size(), favoriteList.size());
-  favoriteList.push_back(
-    pqFileDialogFavoriteModelFileInfo{ QFileInfo(dirPath).baseName(), cleanDirPath, type });
+  // a bare drive in Windows might have an empty baseName()
+  QString label = QFileInfo(dirPath).baseName();
+  if (label.isEmpty())
+  {
+    // cleanPath() switches \ for / on windows.
+    label = this->FileDialogModel->absoluteFilePath(dirPath);
+  }
+  favoriteList.push_back(pqFileDialogFavoriteModelFileInfo{ label, cleanDirPath, type });
   this->endInsertRows();
 }
 
@@ -304,7 +280,7 @@ void pqFileDialogFavoriteModel::removeFromFavorites(QString const& dirPath)
 void pqFileDialogFavoriteModel::resetFavoritesToDefault()
 {
   this->beginResetModel();
-  this->LoadFavoritesFromSystem();
+  this->FavoriteList.clear();
   this->endResetModel();
 }
 
@@ -332,54 +308,4 @@ Qt::ItemFlags pqFileDialogFavoriteModel::flags(const QModelIndex& index) const
   }
 
   return Superclass::flags(index);
-}
-
-//-----------------------------------------------------------------------------
-void pqFileDialogFavoriteModel::LoadFavoritesFromSystem()
-{
-  vtkPVFileInformation* information = vtkPVFileInformation::New();
-
-  if (this->Server)
-  {
-    vtkSMSessionProxyManager* pxm = this->Server->proxyManager();
-
-    vtkSMProxy* helper = pxm->NewProxy("misc", "FileInformationHelper");
-    pqSMAdaptor::setElementProperty(helper->GetProperty("SpecialDirectories"), true);
-    helper->UpdateVTKObjects();
-    helper->GatherInformation(information);
-    helper->Delete();
-  }
-  else
-  {
-    vtkPVFileInformationHelper* helper = vtkPVFileInformationHelper::New();
-    helper->SetSpecialDirectories(1);
-    information->CopyFromObject(helper);
-    helper->Delete();
-  }
-
-  this->FavoriteList.clear();
-  if (pqFileDialogFavoriteModel::AddExamplesInFavorites)
-  {
-    // Adds the Examples entry in the favorites
-    // This is using `_examples_path_` as a placeholder because storing the absolute path to the
-    // `Examples` directory causes issues when switching to another ParaView version, because this
-    // path would still point to the previous version's examples. This entry is added even if the
-    // `Examples` directory is not present.
-    this->FavoriteList.push_back(pqFileDialogFavoriteModelFileInfo{
-      "Examples", "_examples_path_", vtkPVFileInformation::DIRECTORY });
-  }
-  vtkCollectionIterator* iter = information->GetContents()->NewIterator();
-  for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
-  {
-    vtkPVFileInformation* cur_info = vtkPVFileInformation::SafeDownCast(iter->GetCurrentObject());
-    if (!cur_info)
-    {
-      continue;
-    }
-    this->FavoriteList.push_back(pqFileDialogFavoriteModelFileInfo{
-      cur_info->GetName(), QDir::cleanPath(cur_info->GetFullPath()), cur_info->GetType() });
-  }
-
-  iter->Delete();
-  information->Delete();
 }

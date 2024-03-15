@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRToUniformGrid.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMRResampleFilter.h"
 #include "vtkAMRInformation.h"
@@ -43,6 +31,7 @@
 #include <cmath>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRResampleFilter);
 vtkCxxSetObjectMacro(vtkAMRResampleFilter, Controller, vtkMultiProcessController);
 
@@ -286,14 +275,13 @@ void vtkAMRResampleFilter::CopyData(
     {
       double f = srcArray->GetComponent(srcIdx, c);
       targetArray->SetComponent(targetIdx, c, f);
-    } // END for all componenents
+    } // END for all components
 
   } // END for all arrays
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRResampleFilter::ComputeCellCentroid(
-  vtkUniformGrid* g, const vtkIdType cellIdx, double c[3])
+void vtkAMRResampleFilter::ComputeCellCentroid(vtkUniformGrid* g, vtkIdType cellIdx, double c[3])
 {
   assert("pre: uniform grid is nullptr" && (g != nullptr));
   assert("pre: centroid is nullptr" && (c != nullptr));
@@ -712,7 +700,6 @@ void vtkAMRResampleFilter::TransferToGridNodes(vtkUniformGrid* g, vtkOverlapping
   }
 
   // STEP 3: Loop through all the points and find the donors.
-  int numPoints = 0;
   unsigned int donorLevel = 0;
   unsigned int donorGridId = 0;
   double qPoint[3];
@@ -739,7 +726,6 @@ void vtkAMRResampleFilter::TransferToGridNodes(vtkUniformGrid* g, vtkOverlapping
       {
         useCached = false;
         // Point is outside the domain, blank it
-        ++numPoints;
         g->BlankPoint(pIdx);
       }
     } // END for all grid nodes
@@ -766,7 +752,6 @@ void vtkAMRResampleFilter::TransferToGridNodes(vtkUniformGrid* g, vtkOverlapping
       {
         useCached = false;
         // Point is outside the domain, blank it
-        ++numPoints;
         g->BlankPoint(pIdx);
       }
     } // END for all grid nodes
@@ -830,6 +815,10 @@ void vtkAMRResampleFilter::ExtractRegion(
   mbds->SetNumberOfBlocks(this->ROI->GetNumberOfBlocks());
   for (unsigned int block = 0; block < this->ROI->GetNumberOfBlocks(); ++block)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (this->IsRegionMine(block))
     {
       vtkUniformGrid* grid = vtkUniformGrid::New();
@@ -930,7 +919,7 @@ void vtkAMRResampleFilter::SnapBounds(const double* vtkNotUsed(h0[3]), const dou
 
 //------------------------------------------------------------------------------
 void vtkAMRResampleFilter::ComputeLevelOfResolution(
-  const int N[3], const double h0[3], const double L[3], const double rf)
+  const int N[3], const double h0[3], const double L[3], double rf)
 {
   this->LevelOfResolution = 0;
   for (int i = 0; i < 3; ++i)
@@ -1174,7 +1163,7 @@ bool vtkAMRResampleFilter::IsBlockWithinBounds(double* grd)
 }
 
 //------------------------------------------------------------------------------
-int vtkAMRResampleFilter::GetRegionProcessId(const int regionIdx)
+int vtkAMRResampleFilter::GetRegionProcessId(int regionIdx)
 {
   if (!this->IsParallel())
   {
@@ -1186,7 +1175,7 @@ int vtkAMRResampleFilter::GetRegionProcessId(const int regionIdx)
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMRResampleFilter::IsRegionMine(const int regionIdx)
+bool vtkAMRResampleFilter::IsRegionMine(int regionIdx)
 {
   if (!this->IsParallel())
   {
@@ -1230,3 +1219,4 @@ vtkUniformGrid* vtkAMRResampleFilter::GetReferenceGrid(vtkOverlappingAMR* amrds)
   // This process has no grids
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

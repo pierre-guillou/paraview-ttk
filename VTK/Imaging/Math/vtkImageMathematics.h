@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMathematics.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageMathematics
  * @brief   Add, subtract, multiply, divide, invert, sin,
@@ -51,6 +39,7 @@
 #include "vtkImagingMathModule.h" // For export macro
 #include "vtkThreadedImageAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIMAGINGMATH_EXPORT vtkImageMathematics : public vtkThreadedImageAlgorithm
 {
 public:
@@ -212,8 +201,8 @@ public:
    */
   virtual void SetInput1Data(vtkDataObject* in) { this->SetInputData(0, in); }
   virtual void SetInput2Data(vtkDataObject* in) { this->AddInputData(0, in); }
-  virtual void SetInputConnection(int idx, vtkAlgorithmOutput* input) override;
-  virtual void SetInputConnection(vtkAlgorithmOutput* input) override
+  void SetInputConnection(int idx, vtkAlgorithmOutput* input) override;
+  void SetInputConnection(vtkAlgorithmOutput* input) override
   {
     this->SetInputConnection(0, input);
   }
@@ -276,4 +265,5 @@ private:
   void operator=(const vtkImageMathematics&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

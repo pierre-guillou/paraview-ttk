@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLVolumeLookupTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLVolumeLookupTable.h"
 
@@ -25,6 +13,7 @@
 // vtkStandardNewMacro(vtkOpenGLVolumeLookupTable);
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkOpenGLVolumeLookupTable::~vtkOpenGLVolumeLookupTable()
 {
   if (this->TextureObject)
@@ -57,7 +46,7 @@ void vtkOpenGLVolumeLookupTable::Deactivate()
 }
 
 //------------------------------------------------------------------------------
-inline int vtkOpenGLVolumeLookupTable::GetMaximumSupportedTextureWidth(
+int vtkOpenGLVolumeLookupTable::GetMaximumSupportedTextureWidth(
   vtkOpenGLRenderWindow* renWin, int idealWidth)
 {
   if (!this->TextureObject)
@@ -230,3 +219,4 @@ void vtkOpenGLVolumeLookupTable::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Last Range: (" << this->LastRange[0] << ", " << this->LastRange[1] << ")"
      << endl;
 }
+VTK_ABI_NAMESPACE_END

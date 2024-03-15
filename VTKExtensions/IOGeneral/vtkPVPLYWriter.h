@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPLYWriter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVPLYWriter
  * @brief   provides a ParaView friendly API for vtkPLYWriter.
@@ -38,21 +26,21 @@ public:
   vtkTypeMacro(vtkPVPLYWriter, vtkWriter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Enable coloring.
    */
   vtkSetMacro(EnableColoring, bool);
   vtkGetMacro(EnableColoring, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enable alpha channel if coloring is enabled.
    */
   vtkSetMacro(EnableAlpha, bool);
   vtkGetMacro(EnableAlpha, bool);
-  //@}
+  ///@}
 
   /**
    * If the file type is binary, then the user can specify which

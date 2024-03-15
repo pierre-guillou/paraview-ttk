@@ -1,36 +1,19 @@
-/*******************************************************************/
-/*                               XDMF                              */
-/*                   eXtensible Data Model and Format              */
-/*                                                                 */
-/*  Id : Id  */
-/*                                                                 */
-/*  Author:                                                        */
-/*     Jerry A. Clarke                                             */
-/*     clarke@arl.army.mil                                         */
-/*     US Army Research Laboratory                                 */
-/*     Aberdeen Proving Ground, MD                                 */
-/*                                                                 */
-/*     Copyright @ 2002 US Army Research Laboratory                */
-/*     All Rights Reserved                                         */
-/*     See Copyright.txt or http://www.arl.hpc.mil/ice for details */
-/*                                                                 */
-/*     This software is distributed WITHOUT ANY WARRANTY; without  */
-/*     even the implied warranty of MERCHANTABILITY or FITNESS     */
-/*     FOR A PARTICULAR PURPOSE.  See the above copyright notice   */
-/*     for more information.                                       */
-/*                                                                 */
-/*******************************************************************/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright @ 2002 US Army Research Laboratory
+// SPDX-License-Identifier: BSD-3-Clause AND LicenseRef-BSD-4-Clause-Modif
 #ifndef vtkXdmfDataArray_h
 #define vtkXdmfDataArray_h
 
 #include "vtkIOXdmf2Module.h" // For export macro
 #include "vtkObject.h"
 
-class vtkDataArray;
 namespace xdmf2
 {
 class XdmfArray;
 }
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkDataArray;
 
 class VTKIOXDMF2_EXPORT vtkXdmfDataArray : public vtkObject
 {
@@ -66,4 +49,5 @@ private:
   void operator=(const vtkXdmfDataArray&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkXdmfDataArray_h */

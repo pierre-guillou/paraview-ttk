@@ -28,13 +28,24 @@ vtk_add_test_cxx(vtkFiltersSourcesCxxTests tests
   TestRandomHyperTreeGridSource.cxx
   TestRectangularButtonSource.cxx,NO_VALID
   TestRegularPolygonSource.cxx,NO_VALID
+  TestSpatioTemporalHarmonicsSource.cxx
   TestSphereSource.cxx,NO_VALID
   TestSuperquadricSource.cxx,NO_VALID
   TestTessellatedBoxSource.cxx,NO_VALID
   TestTextSource.cxx,NO_VALID
   TestTexturedSphereSource.cxx,NO_VALID
   )
+
 vtk_test_cxx_executable(vtkFiltersSourcesCxxTests tests
   DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )
+
+if(TARGET VTK::ParallelMPI)
+  vtk_add_test_mpi(vtkFiltersSourcesCxxTests-MPI tests_mpi
+    TESTING_DATA
+    TestSpatioTemporalHarmonicsSourceDistributed.cxx
+    )
+
+  vtk_test_cxx_executable(vtkFiltersSourcesCxxTests-MPI tests_mpi)
+endif()

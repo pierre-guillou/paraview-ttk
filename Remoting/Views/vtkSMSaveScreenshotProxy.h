@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSaveScreenshotProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMSaveScreenshotProxy
  * @brief proxy to help with saving screenshots for views
@@ -30,12 +18,14 @@
 #ifndef vtkSMSaveScreenshotProxy_h
 #define vtkSMSaveScreenshotProxy_h
 
+#include "vtkPVSession.h"           // needed for vtkPVSession::ServerFlags
 #include "vtkRemotingViewsModule.h" // needed for exports
 #include "vtkSMProxy.h"
 #include "vtkSmartPointer.h" // needed for vtkSmartPointer.
 #include "vtkVector.h"       // needed for vtkVector2i.
 
 class vtkImageData;
+class vtkPVXMLElement;
 class vtkSMViewLayoutProxy;
 class vtkSMViewProxy;
 
@@ -47,20 +37,16 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Capture image. The properties for this proxy provide all the necessary
-   * information to capture the image.
+   * Capture image. You can specify the location at which to write the image. Currently supported
+   * values are vtkPVSession::CLIENT, vtkPVSession::DATA_SERVER or vtkPVSession::DATA_SERVER_ROOT.
+   * Selecting vtkPVSession::DATA_SERVER is same as vtkPVSession::DATA_SERVER_ROOT since the images
+   * are only written on root node. You can also specify the xml root of a state file to embed in
+   * the image.
+   *
+   * Note: embedding state as metadata is supported only for PNG files.
    */
-  bool WriteImage(const char* filename);
-
-  /**
-   * This is same as `WriteImage(const char*)` except that one can specify the
-   * location at which to write the image. Currently supported values are
-   * vtkPVSession::CLIENT, vtkPVSession::DATA_SERVER or vtkPVSession::DATA_SERVER_ROOT.
-   * Selecting vtkPVSession::DATA_SERVER is same as
-   * vtkPVSession::DATA_SERVER_ROOT since the images are only written on root
-   * node.
-   */
-  bool WriteImage(const char* filename, vtkTypeUInt32 location);
+  bool WriteImage(const char* filename, vtkTypeUInt32 location = vtkPVSession::CLIENT,
+    vtkPVXMLElement* stateXMLRoot = nullptr);
 
   /**
    * Capture the rendered image but doesn't save it out to any file.
@@ -111,13 +97,13 @@ public:
    */
   static int ComputeMagnification(const vtkVector2i& targetSize, vtkVector2i& size);
 
-  //@{
+  ///@{
   /**
    * Convenience method to derive a QFileDialog friendly format string for
    * extensions supported by this proxy.
    */
   std::string GetFileFormatFilters();
-  //@}
+  ///@}
 
 protected:
   vtkSMSaveScreenshotProxy();
@@ -155,12 +141,12 @@ protected:
    */
   std::string GetStereoFileName(const std::string& filename, bool left);
 
-  //@{
+  ///@{
   // vtkSMRecolorableImageExtractWriterProxy uses experimental API
   // SetUseFloatingPointBuffers.
   friend class vtkSMRecolorableImageExtractWriterProxy;
   vtkSetMacro(UseFloatingPointBuffers, bool);
-  //@}
+  ///@}
 
 private:
   vtkSMSaveScreenshotProxy(const vtkSMSaveScreenshotProxy&) = delete;

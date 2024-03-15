@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGreedyTerrainDecimation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGreedyTerrainDecimation.h"
 #include "vtkCellArray.h"
 #include "vtkDoubleArray.h"
@@ -29,6 +17,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGreedyTerrainDecimation);
 
 // Define some constants describing vertices
@@ -93,21 +82,21 @@ vtkGreedyTerrainDecimation::vtkGreedyTerrainDecimation()
 vtkGreedyTerrainDecimation::~vtkGreedyTerrainDecimation() = default;
 
 //------------------------------------------------------------------------------
-inline void vtkGreedyTerrainDecimation::GetTerrainPoint(int i, int j, double x[3])
+void vtkGreedyTerrainDecimation::GetTerrainPoint(int i, int j, double x[3])
 {
   x[0] = this->Origin[0] + i * this->Spacing[0];
   x[1] = this->Origin[1] + j * this->Spacing[1];
 }
 
 //------------------------------------------------------------------------------
-inline void vtkGreedyTerrainDecimation::ComputeImageCoordinates(vtkIdType inputPtId, int ij[2])
+void vtkGreedyTerrainDecimation::ComputeImageCoordinates(vtkIdType inputPtId, int ij[2])
 {
   ij[0] = inputPtId % this->Dimensions[0];
   ij[1] = inputPtId / this->Dimensions[0];
 }
 
 //------------------------------------------------------------------------------
-inline vtkIdType vtkGreedyTerrainDecimation::InsertNextPoint(vtkIdType inputPtId, double x[3])
+vtkIdType vtkGreedyTerrainDecimation::InsertNextPoint(vtkIdType inputPtId, double x[3])
 {
   if ((this->CurrentPointId + 1) >= (vtkIdType)this->PointInfo->size())
   {
@@ -126,13 +115,13 @@ inline vtkIdType vtkGreedyTerrainDecimation::InsertNextPoint(vtkIdType inputPtId
 }
 
 //------------------------------------------------------------------------------
-inline double* vtkGreedyTerrainDecimation::GetPoint(vtkIdType id)
+double* vtkGreedyTerrainDecimation::GetPoint(vtkIdType id)
 {
   return this->Points->GetPointer(3 * id);
 }
 
 //------------------------------------------------------------------------------
-inline void vtkGreedyTerrainDecimation::GetPoint(vtkIdType id, double x[3])
+void vtkGreedyTerrainDecimation::GetPoint(vtkIdType id, double x[3])
 {
   double* ptr = this->Points->GetPointer(3 * id);
   x[0] = *ptr++;
@@ -142,7 +131,7 @@ inline void vtkGreedyTerrainDecimation::GetPoint(vtkIdType id, double x[3])
 
 //------------------------------------------------------------------------------
 void vtkGreedyTerrainDecimation::EstimateOutputSize(
-  const vtkIdType numInputPts, vtkIdType& numPts, vtkIdType& numTris)
+  vtkIdType numInputPts, vtkIdType& numPts, vtkIdType& numTris)
 {
   switch (this->ErrorMeasure)
   {
@@ -884,7 +873,7 @@ int vtkGreedyTerrainDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   // Note that this algorithm can terminate "prematurely" (e.g. compared to
   // the number of triangles) if the maximum error in the queue becomes zero.
   //
-  int abortExecute = 0;
+  bool abortExecute = false;
   vtkIdType numInsertedPoints = 0;
   int tenth = numPts / 10 + 1;
 
@@ -901,7 +890,7 @@ int vtkGreedyTerrainDecimation::RequestData(vtkInformation* vtkNotUsed(request),
       {
         this->UpdateProgress(
           (double)(numInsertedPoints > numPts ? numPts : numInsertedPoints) / numPts);
-        abortExecute = this->GetAbortExecute();
+        abortExecute = this->CheckAbort();
       }
     }
   }
@@ -1312,3 +1301,4 @@ void vtkGreedyTerrainDecimation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BoundaryVertexDeletion: " << (this->BoundaryVertexDeletion ? "On\n" : "Off\n");
   os << indent << "ComputeNormals: " << (this->ComputeNormals ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

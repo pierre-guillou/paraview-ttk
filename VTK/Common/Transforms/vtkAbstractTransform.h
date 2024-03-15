@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractTransform.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAbstractTransform
  * @brief   superclass for all geometric transformations
@@ -42,8 +30,7 @@
 #include "vtkCommonTransformsModule.h" // For export macro
 #include "vtkObject.h"
 
-#include <mutex> // for std::mutex
-
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkMatrix4x4;
 class vtkPoints;
@@ -326,25 +313,10 @@ protected:
   double InternalDoublePoint[3];
 
 private:
-  // We need to record the time of the last update, and we also need
-  // to do mutex locking so updates don't collide.  These are private
-  // because Update() is not virtual.
-  // If DependsOnInverse is set, then this transform object will
-  // check its inverse on every update, and update itself accordingly
-  // if necessary.
+  class vtkInternals;
 
-  vtkTimeStamp UpdateTime;
-  std::mutex UpdateMutex;
-  std::mutex InverseMutex;
-  int DependsOnInverse;
+  vtkInternals* Internals;
 
-  // MyInverse is a transform which is the inverse of this one.
-
-  vtkAbstractTransform* MyInverse;
-
-  int InUnRegister;
-
-private:
   vtkAbstractTransform(const vtkAbstractTransform&) = delete;
   void operator=(const vtkAbstractTransform&) = delete;
 };
@@ -393,8 +365,8 @@ public:
   /**
    * set/get the PreMultiply flag
    */
-  void SetPreMultiplyFlag(int flag) { this->PreMultiplyFlag = flag; }
-  int GetPreMultiplyFlag() { return this->PreMultiplyFlag; }
+  void SetPreMultiplyFlag(vtkTypeBool flag) { this->PreMultiplyFlag = flag; }
+  vtkTypeBool GetPreMultiplyFlag() { return this->PreMultiplyFlag; }
   ///@}
 
   ///@{
@@ -414,7 +386,7 @@ public:
   /**
    * get the inverse flag
    */
-  int GetInverseFlag() { return this->InverseFlag; }
+  vtkTypeBool GetInverseFlag() { return this->InverseFlag; }
 
   /**
    * identity simply clears the transform list
@@ -457,8 +429,8 @@ protected:
   vtkTransformConcatenation();
   ~vtkTransformConcatenation();
 
-  int InverseFlag;
-  int PreMultiplyFlag;
+  vtkTypeBool InverseFlag;
+  vtkTypeBool PreMultiplyFlag;
 
   vtkMatrix4x4* PreMatrix;
   vtkMatrix4x4* PostMatrix;
@@ -512,4 +484,5 @@ private:
   void operator=(const vtkTransformConcatenationStack&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

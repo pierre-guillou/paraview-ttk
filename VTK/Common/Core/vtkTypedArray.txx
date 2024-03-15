@@ -1,27 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTypedArray.txx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkVariantCast.h"
 #include "vtkVariantCreate.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 void vtkTypedArray<T>::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -35,7 +19,7 @@ vtkVariant vtkTypedArray<T>::GetVariantValue(const vtkArrayCoordinates& coordina
 }
 
 template <typename T>
-vtkVariant vtkTypedArray<T>::GetVariantValueN(const SizeT n)
+vtkVariant vtkTypedArray<T>::GetVariantValueN(SizeT n)
 {
   return vtkVariantCreate<T>(this->GetValueN(n));
 }
@@ -48,7 +32,7 @@ void vtkTypedArray<T>::SetVariantValue(
 }
 
 template <typename T>
-void vtkTypedArray<T>::SetVariantValueN(const SizeT n, const vtkVariant& value)
+void vtkTypedArray<T>::SetVariantValueN(SizeT n, const vtkVariant& value)
 {
   this->SetValueN(n, vtkVariantCast<T>(value));
 }
@@ -69,7 +53,7 @@ void vtkTypedArray<T>::CopyValue(vtkArray* source, const vtkArrayCoordinates& so
 
 template <typename T>
 void vtkTypedArray<T>::CopyValue(
-  vtkArray* source, const SizeT source_index, const vtkArrayCoordinates& target_coordinates)
+  vtkArray* source, SizeT source_index, const vtkArrayCoordinates& target_coordinates)
 {
   if (!source->IsA(this->GetClassName()))
   {
@@ -83,7 +67,7 @@ void vtkTypedArray<T>::CopyValue(
 
 template <typename T>
 void vtkTypedArray<T>::CopyValue(
-  vtkArray* source, const vtkArrayCoordinates& source_coordinates, const SizeT target_index)
+  vtkArray* source, const vtkArrayCoordinates& source_coordinates, SizeT target_index)
 {
   if (!source->IsA(this->GetClassName()))
   {
@@ -94,3 +78,4 @@ void vtkTypedArray<T>::CopyValue(
   this->SetValueN(
     target_index, static_cast<vtkTypedArray<T>*>(source)->GetValue(source_coordinates));
 }
+VTK_ABI_NAMESPACE_END

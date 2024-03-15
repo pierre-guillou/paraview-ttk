@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVertex.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVertex.h"
 
 #include "vtkCellArray.h"
@@ -22,6 +10,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVertex);
 
 //------------------------------------------------------------------------------
@@ -183,13 +172,10 @@ int vtkVertex::IntersectWithLine(const double p1[3], const double p2[3], double 
 //------------------------------------------------------------------------------
 // Triangulate the vertex. This method fills pts and ptIds with information
 // from the only point in the vertex.
-int vtkVertex::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkVertex::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-  pts->InsertPoint(0, this->Points->GetPoint(0));
-  ptIds->InsertId(0, this->PointIds->GetId(0));
-
+  ptIds->SetNumberOfIds(1);
+  ptIds->SetId(0, 0);
   return 1;
 }
 
@@ -260,3 +246,4 @@ void vtkVertex::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

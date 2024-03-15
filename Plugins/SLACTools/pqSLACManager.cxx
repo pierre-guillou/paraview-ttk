@@ -1,23 +1,8 @@
-// -*- c++ -*-
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
-  Program:   Visualization Toolkit
-  Module:    pqSLACManager.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
 #include "pqSLACManager.h"
 #include "ui_pqSLACActionHolder.h"
 
@@ -43,7 +28,7 @@
 #include "vtkPVDataInformation.h"
 #include "vtkPVDataSetAttributesInformation.h"
 #include "vtkSMChartSeriesSelectionDomain.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
@@ -431,7 +416,7 @@ void pqSLACManager::showField(const char* name)
   this->CurrentFieldName = name;
 
   // Set the field to color by.
-  vtkSMPVRepresentationProxy::SetScalarColoring(repr->getProxy(), name, vtkDataObject::POINT);
+  vtkSMColorMapEditorHelper::SetScalarColoring(repr->getProxy(), name, vtkDataObject::POINT);
 
   // Adjust the color map to be rainbow.
   pqScalarsToColors* lut = repr->getLookupTable();
@@ -741,7 +726,7 @@ void pqSLACManager::createPlotOverZ()
   if (!meshReader)
     return;
 
-  BEGIN_UNDO_SET("Plot Over Z");
+  BEGIN_UNDO_SET(tr("Plot Over Z"));
 
   // Determine view.  Do this before deleting existing pipeline objects.
   pqView* plotView = this->getPlotView();

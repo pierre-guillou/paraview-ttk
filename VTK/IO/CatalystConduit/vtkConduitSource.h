@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkConduitSource
  * @brief data source for Conduit Mesh Blueprint.
@@ -38,6 +26,7 @@
 
 #include <memory> // for std::unique_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOCATALYSTCONDUIT_EXPORT vtkConduitSource : public vtkDataObjectAlgorithm
 {
 public:
@@ -47,7 +36,19 @@ public:
 
   ///@{
   /**
-   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh') protocols.
+   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh')
+   * as well as AMR mesh (aka 'amrmesh') protocols.
+   * Set this to true if the source is handling amrmesh (default is false).
+   */
+  vtkSetMacro(UseAMRMeshProtocol, bool);
+  vtkGetMacro(UseAMRMeshProtocol, bool);
+  vtkBooleanMacro(UseAMRMeshProtocol, bool);
+  ///@}
+
+  ///@{
+  /**
+   * vtkConduitSource supports single 'mesh' and multiple 'mesh' (aka 'multimesh')
+   * as well as AMR mesh (aka 'amrmesh') protocols.
    * Set this to true if the source is handling multimesh (default is false).
    */
   vtkSetMacro(UseMultiMeshProtocol, bool);
@@ -101,14 +102,26 @@ protected:
   int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
+  ///@{
+  /**
+   * Generate actual output and fill the given data object with it.
+   * Return true if data is correctly generated.
+   */
+  bool GenerateAMR(vtkDataObject* output);
+  bool GeneratePartitionedDataSet(vtkDataObject* output);
+  bool GeneratePartitionedDataSetCollection(vtkDataObject* output);
+  ///@}
+
 private:
   vtkConduitSource(const vtkConduitSource&) = delete;
   void operator=(const vtkConduitSource&) = delete;
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;
+  bool UseAMRMeshProtocol;
   bool UseMultiMeshProtocol;
   bool OutputMultiBlock;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeTimeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMergeTimeFilter.h"
 
@@ -27,6 +15,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMergeTimeFilter);
 
 //------------------------------------------------------------------------------
@@ -246,10 +235,12 @@ int vtkMergeTimeFilter::RequestData(vtkInformation* vtkNotUsed(request),
     vtkDataObject* input = inInfo->Get(vtkDataObject::DATA_OBJECT());
     groupInputs->AddInputData(input);
   }
+  groupInputs->SetContainerAlgorithm(this);
   groupInputs->Update();
-  output->ShallowCopy(groupInputs->GetOutput());
+  output->CompositeShallowCopy(groupInputs->GetOutput());
 
   output->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(), this->RequestedTimeValue);
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

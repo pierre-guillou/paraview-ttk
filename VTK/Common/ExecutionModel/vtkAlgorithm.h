@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAlgorithm
  * @brief   Superclass for all sources, filters, and sinks in VTK.
@@ -35,6 +23,7 @@
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkAlgorithmInternals;
 class vtkAlgorithmOutput;
@@ -88,7 +77,7 @@ public:
    * Check whether this algorithm has an assigned executive.  This
    * will NOT create a default executive.
    */
-  int HasExecutive();
+  vtkTypeBool HasExecutive();
 
   /**
    * Get this algorithm's executive.  If it has none, a default
@@ -237,13 +226,13 @@ public:
   void SetContainerAlgorithm(vtkAlgorithm* containerAlg)
   {
     this->ContainerAlgorithm = containerAlg;
-  };
-  vtkAlgorithm* GetContainerAlgorithm() { return this->ContainerAlgorithm; };
+  }
+  vtkAlgorithm* GetContainerAlgorithm() { return this->ContainerAlgorithm; }
   ///@}
 
   ///@{
   /**
-   * Set/Get an internal variable used to comunicate between the algorithm and
+   * Set/Get an internal variable used to communicate between the algorithm and
    * executive. If the executive sees this value is set, it will initialize
    * the output data and pass the ABORTED flag downstream.
    *
@@ -667,8 +656,8 @@ public:
   /**
    * Turn release data flag on or off for all output ports.
    */
-  virtual void SetReleaseDataFlag(int);
-  virtual int GetReleaseDataFlag();
+  virtual void SetReleaseDataFlag(vtkTypeBool);
+  virtual vtkTypeBool GetReleaseDataFlag();
   void ReleaseDataFlagOn();
   void ReleaseDataFlagOff();
   ///@}
@@ -737,12 +726,33 @@ public:
   vtkGetObjectMacro(ProgressObserver, vtkProgressObserver);
   ///@}
 
+  ///@{
+  /**
+   * Set to all output ports of this algorithm the information key
+   * `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS()`. This should
+   * be set on sources of pipelines for which all timesteps are not necessarily
+   * all available at once. This is typically the case for visualization in situ.
+   *
+   * @note Default value in `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_RESET`.
+   * `vtkStreamingDemandDrivenPipeline` will set it to `NO_PRIOR_TEMPORAL_ACCESS_CONTINUE' after
+   * execution of the first time step.
+   */
+  void SetNoPriorTemporalAccessInformationKey(int key);
+  void SetNoPriorTemporalAccessInformationKey();
+  ///@}
+
+  /**
+   * Removes any information key `vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS()`
+   * to all output ports of this `vtkAlgorithm`.
+   */
+  void RemoveNoPriorTemporalAccessInformationKey();
+
 protected:
   vtkAlgorithm();
   ~vtkAlgorithm() override;
 
   // Time stamp to store the last time any filter was aborted.
-  static vtkTimeStamp* LastAbortTime;
+  static vtkTimeStamp LastAbortTime;
 
   // Time stamp to store the last time this filter checked for an
   // abort.
@@ -757,7 +767,7 @@ protected:
 
   /**
    * Checks to see if an upstream filter has been aborted. If an abort
-   * has occured, return true.
+   * has occurred, return true.
    */
   bool CheckUpstreamAbort();
 
@@ -943,7 +953,6 @@ private:
   static void ConnectionRemoveAllInput(vtkAlgorithm* consumer, int port);
   static void ConnectionRemoveAllOutput(vtkAlgorithm* producer, int port);
 
-private:
   vtkAlgorithm(const vtkAlgorithm&) = delete;
   void operator=(const vtkAlgorithm&) = delete;
 
@@ -953,4 +962,5 @@ private:
   bool AbortOutput;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

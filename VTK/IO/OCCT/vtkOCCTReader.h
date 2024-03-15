@@ -1,29 +1,7 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*=========================================================================
-
-F3D project
-BSD 3-Clause License
-See LICENSE
-
-Copyright 2019-2021 Kitware SAS
-Copyright 2021-2022 Michael Migliore, Mathieu Westphal
-All rights reserved.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2019-2021 Kitware SAS
+// SPDX-FileCopyrightText: Copyright 2021-2022 Michael Migliore, Mathieu Westphal
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOCCTReader
  * @brief   VTK Reader for STEP and IGES files using OpenCASCADE
@@ -42,9 +20,12 @@ All rights reserved.
 
 #include <vtkMultiBlockDataSetAlgorithm.h>
 
+#include "vtkDeprecation.h"  // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkIOOCCTModule.h" // For export macro
 
 #include <memory> // For std::unique_ptr
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkInformationDoubleVectorKey;
 
@@ -55,32 +36,34 @@ public:
   vtkTypeMacro(vtkOCCTReader, vtkMultiBlockDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  enum class Format : unsigned int
+  enum Format : unsigned int
   {
     STEP,
     IGES
   };
 
-  //@{
+  ///@{
   /**
    * Set the file format to read.
    * It can be either STEP or IGES.
    * Default is FILE_FORMAT::STEP
    */
+  VTK_DEPRECATED_IN_9_3_0("Use SetFormat with unsigned int instead.")
   vtkSetEnumMacro(FileFormat, Format);
-  //@}
+  vtkSetClampMacro(FileFormat, unsigned int, Format::STEP, Format::IGES);
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the linear deflection.
-   * This value limits the distance between a curve and the resulting tesselation.
+   * This value limits the distance between a curve and the resulting tessellation.
    * Default is 0.1
    */
   vtkGetMacro(LinearDeflection, double);
   vtkSetMacro(LinearDeflection, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the angular deflection.
    * This value limits the angle between two subsequent segments.
@@ -88,9 +71,9 @@ public:
    */
   vtkGetMacro(AngularDeflection, double);
   vtkSetMacro(AngularDeflection, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get relative deflection.
    * Determine if the deflection values are relative to object size.
@@ -99,9 +82,9 @@ public:
   vtkGetMacro(RelativeDeflection, bool);
   vtkSetMacro(RelativeDeflection, bool);
   vtkBooleanMacro(RelativeDeflection, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enable/Disable 1D cells read. If enabled, surface boundaries are read.
    * Default is false
@@ -109,15 +92,15 @@ public:
   vtkGetMacro(ReadWire, bool);
   vtkSetMacro(ReadWire, bool);
   vtkBooleanMacro(ReadWire, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the file name.
    */
   vtkSetFilePathMacro(FileName);
   vtkGetFilePathMacro(FileName);
-  //@}
+  ///@}
 
 protected:
   vtkOCCTReader();
@@ -136,8 +119,9 @@ private:
   double AngularDeflection = 0.5;
   bool RelativeDeflection = false;
   bool ReadWire = false;
-  Format FileFormat = Format::STEP;
+  unsigned int FileFormat = Format::STEP;
   char* FileName = nullptr;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLSDynaPartCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkLSDynaPartCollection_h
 #define vtkLSDynaPartCollection_h
@@ -19,6 +8,7 @@
 #include "vtkIOLSDynaModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkUnstructuredGrid;
 class vtkPoints;
@@ -145,7 +135,7 @@ protected:
     const bool& isRoadPoints);
   template <typename T>
   void FillPointProperty(const vtkIdType& numTuples, const vtkIdType& numComps,
-    vtkLSDynaPart** parts, const vtkIdType numParts);
+    vtkLSDynaPart** parts, vtkIdType numParts);
 
 private:
   vtkLSDynaPartCollection(const vtkLSDynaPartCollection&) = delete;
@@ -157,4 +147,5 @@ private:
   LSDynaPartStorage* Storage;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkLSDynaPartCollection_h

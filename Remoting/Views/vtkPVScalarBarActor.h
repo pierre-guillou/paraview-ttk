@@ -1,23 +1,7 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPVScalarBarActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 /**
  * @class   vtkPVScalarBarActor
@@ -51,16 +35,16 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPVScalarBarActor* New();
 
-  //@{
+  ///@{
   /**
    * The bar aspect ratio (length/width).  Defaults to 20.  Note that this
    * the aspect ratio of the color bar only, not including labels.
    */
   vtkGetMacro(AspectRatio, double);
   vtkSetMacro(AspectRatio, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If true (the default), the printf format used for the labels will be
    * automatically generated to make the numbers best fit within the widget.  If
@@ -69,27 +53,27 @@ public:
   vtkGetMacro(AutomaticLabelFormat, int);
   vtkSetMacro(AutomaticLabelFormat, int);
   vtkBooleanMacro(AutomaticLabelFormat, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If true (the default), tick marks will be drawn.
    */
   vtkGetMacro(DrawTickMarks, int);
   vtkSetMacro(DrawTickMarks, int);
   vtkBooleanMacro(DrawTickMarks, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If true (the default), sub-tick marks will be drawn.
    */
   vtkGetMacro(DrawSubTickMarks, int);
   vtkSetMacro(DrawSubTickMarks, int);
   vtkBooleanMacro(DrawSubTickMarks, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether the range endpoints (minimum and maximum) are added
    * as labels alongside other value labels.
@@ -97,9 +81,9 @@ public:
   vtkGetMacro(AddRangeLabels, int);
   vtkSetMacro(AddRangeLabels, int);
   vtkBooleanMacro(AddRangeLabels, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether annotions are automatically created according the number
    * of discrete colors. Default is FALSE;
@@ -107,31 +91,31 @@ public:
   vtkSetMacro(AutomaticAnnotations, int);
   vtkGetMacro(AutomaticAnnotations, int);
   vtkBooleanMacro(AutomaticAnnotations, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the C-style format string for the range labels.
    */
   vtkGetStringMacro(RangeLabelFormat);
   vtkSetStringMacro(RangeLabelFormat);
-  //@}
+  ///@}
 
   /**
    * Add value as annotation label on scalar bar at the given position
    */
   virtual void AddValueLabelIfUnoccluded(double value, double pos, double diff);
 
-  //@{
+  ///@{
   /**
    * Set the title justification. Valid values are VTK_TEXT_LEFT,
    * VTK_TEXT_CENTERED, and VTK_TEXT_RIGHT.
    */
   vtkGetMacro(TitleJustification, int);
   vtkSetClampMacro(TitleJustification, int, VTK_TEXT_LEFT, VTK_TEXT_RIGHT);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether the scalar data range endpoints (minimum and maximum)
    * are added as annotations.
@@ -139,7 +123,7 @@ public:
   vtkGetMacro(AddRangeAnnotations, int);
   vtkSetMacro(AddRangeAnnotations, int);
   vtkBooleanMacro(AddRangeAnnotations, int);
-  //@}
+  ///@}
 
   /**
    * Release any graphics resources that are being consumed by this actor.
@@ -162,7 +146,7 @@ protected:
   vtkPVScalarBarActor();
   ~vtkPVScalarBarActor() override;
 
-  //@{
+  ///@{
   /**
    * These methods override the subclass implementation.
    */
@@ -174,7 +158,7 @@ protected:
   void ConfigureAnnotations() override;
   void ConfigureTitle() override;
   void ConfigureTicks() override;
-  //@}
+  ///@}
 
   /**
    * Annotate the min/max values on the scalar bar (in interval/ratio mode).
@@ -220,13 +204,13 @@ protected:
   vtkPolyDataMapper2D* TickMarksMapper;
   vtkActor2D* TickMarksActor;
 
-  //@{
+  ///@{
   /**
    * These are used to calculate the tick spacing.
    */
   vtkNew<vtkAxis> TickLayoutHelper;
   vtkNew<vtkContextScene> TickLayoutHelperScene;
-  //@}
+  ///@}
 
   /**
    * Space, in pixels, between the labels and the bar itself.  Currently set in

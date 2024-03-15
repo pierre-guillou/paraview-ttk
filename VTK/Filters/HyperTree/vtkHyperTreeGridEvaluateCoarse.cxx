@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridEvaluateCoarse.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridEvaluateCoarse.h"
 #include "vtkBitArray.h"
 #include "vtkCellData.h"
@@ -27,6 +15,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridEvaluateCoarse);
 
 //------------------------------------------------------------------------------
@@ -97,6 +86,10 @@ int vtkHyperTreeGridEvaluateCoarse::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
   vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
   while (in.GetNextTree(index))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new cursor at root of current output tree
     output->InitializeNonOrientedCursor(outCursor, index);
     // Recursively
@@ -123,6 +116,10 @@ void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCurs
     // Coarse
     for (int ichild = 0; ichild < this->NbChilds; ++ichild)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       outCursor->ToChild(ichild);
       // We go through the children's cells
       ProcessNode(outCursor);
@@ -137,6 +134,10 @@ void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCurs
   // Coarse
   for (int ichild = 0; ichild < this->NbChilds; ++ichild)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     outCursor->ToChild(ichild);
     // Iterate children
     ProcessNode(outCursor);
@@ -161,6 +162,10 @@ void vtkHyperTreeGridEvaluateCoarse::ProcessNode(vtkHyperTreeGridNonOrientedCurs
   // Reduction operation
   for (int i = 0; i < nbArray; ++i)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* arr = this->OutData->GetArray(i);
     int nbC = arr->GetNumberOfComponents();
     for (int iC = 0; iC < nbC; ++iC)
@@ -308,3 +313,4 @@ double vtkHyperTreeGridEvaluateCoarse::SplattingAverage(const std::vector<double
   }
   return sum / this->SplattingFactor;
 }
+VTK_ABI_NAMESPACE_END

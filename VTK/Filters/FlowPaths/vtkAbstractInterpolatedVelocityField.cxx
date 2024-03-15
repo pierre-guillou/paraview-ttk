@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractInterpolatedVelocityField.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAbstractInterpolatedVelocityField.h"
 
 #include "vtkAbstractCellLocator.h"
@@ -31,6 +19,7 @@
 #include "vtkUnstructuredGrid.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkAbstractInterpolatedVelocityField, FindCellStrategy, vtkFindCellStrategy);
 
 //------------------------------------------------------------------------------
@@ -412,7 +401,7 @@ bool vtkAbstractInterpolatedVelocityField::FindAndUpdateCell(
     else
     {
       this->CacheMiss++;
-      if (this->SurfaceDataset)
+      if (this->SurfaceDataset && strategy)
       {
         // if we are on a surface dataset, we can use the strategy to find the closest point
         closestPointFound = strategy->FindClosestPointWithinRadius(x, tol, this->LastClosestPoint,
@@ -605,3 +594,4 @@ void vtkAbstractInterpolatedVelocityField::PrintSelf(ostream& os, vtkIndent inde
   os << indent << "FindCell Strategy: " << endl;
   this->FindCellStrategy->PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

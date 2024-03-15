@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtk3DWidgetRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtk3DWidgetRepresentation
  *
@@ -38,23 +26,23 @@ public:
   vtkTypeMacro(vtk3DWidgetRepresentation, vtkDataRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the widget.
    */
   void SetWidget(vtkAbstractWidget*);
   vtkGetObjectMacro(Widget, vtkAbstractWidget);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the representation.
    */
   void SetRepresentation(vtkWidgetRepresentation*);
   vtkGetObjectMacro(Representation, vtkWidgetRepresentation);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set to true to add the vtkWidgetRepresentation to the non-composited
    * renderer. false by default.
@@ -62,18 +50,18 @@ public:
   vtkSetMacro(UseNonCompositedRenderer, bool);
   vtkGetMacro(UseNonCompositedRenderer, bool);
   vtkBooleanMacro(UseNonCompositedRenderer, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether the widget is enabled.
    */
   void SetEnabled(bool);
   vtkGetMacro(Enabled, bool);
   vtkBooleanMacro(Enabled, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * These are needed to support BoxWidget use-case where we want to support
    * specification of the box using global transform or relative to some
@@ -86,7 +74,7 @@ public:
   void SetReferenceBounds(const double bds[6]);
   void PlaceWidget(const double bds[6]);
   void SetUseReferenceBounds(bool);
-  //@}
+  ///@}
 
 protected:
   vtk3DWidgetRepresentation();

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDecimatePolylineFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDecimatePolylineFilter.h"
 
 #include "vtkCellArray.h"
@@ -28,6 +16,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDecimatePolylineFilter);
 
 //------------------------------------------------------------------------------
@@ -177,12 +166,19 @@ int vtkDecimatePolylineFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
   vtkIdType polylineSize = 0;
   const vtkIdType* polyLineVerts;
+  vtkIdType checkAbortInterval = std::min(inputLines->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
+  vtkIdType progessInterval = 0;
 
   std::map<vtkIdType, vtkIdType> pointIdMap;
   // Decimate each polyline (represented as a single cell) in series
   for (lineIter->GoToFirstCell(); !lineIter->IsDoneWithTraversal();
        lineIter->GoToNextCell(), firstVertexIndex += polylineSize)
   {
+    if (progessInterval % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
+    progessInterval++;
     lineIter->GetCurrentCell(polylineSize, polyLineVerts);
 
     // construct a polyline as a doubly linked list
@@ -245,7 +241,7 @@ int vtkDecimatePolylineFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
     // What's left over is now spit out as a new polyline
     vtkIdType newId = newLines->InsertNextCell(currentNumPts);
-    outCD->CopyData(inCD, firstVertexIndex, newId);
+    outCD->CopyData(inCD, lineIter->GetCurrentCellId(), newId);
 
     std::map<vtkIdType, vtkIdType>::iterator it;
 
@@ -292,3 +288,4 @@ void vtkDecimatePolylineFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Maximum Error: " << this->MaximumError << "\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

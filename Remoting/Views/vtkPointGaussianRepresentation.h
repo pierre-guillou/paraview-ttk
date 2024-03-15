@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPointGaussianRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointGaussianRepresentation
  *
@@ -165,7 +153,7 @@ public:
    */
   void SelectOpacityArrayComponent(int component);
 
-  //@{
+  ///@{
   /**
    * Enables or disables setting opacity by an array.  Set which array
    * should be used for opacity with SelectOpacityArray, and set an
@@ -174,9 +162,9 @@ public:
   void SetOpacityByArray(bool newVal);
   vtkGetMacro(OpacityByArray, bool);
   vtkBooleanMacro(OpacityByArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enables or disables scaling by a data array vs. a constant factor.  Set
    * which data array with SelectScaleArray and SetSplatSize.
@@ -184,7 +172,7 @@ public:
   void SetScaleByArray(bool newVal);
   vtkGetMacro(ScaleByArray, bool);
   vtkBooleanMacro(ScaleByArray, bool);
-  //@}
+  ///@}
 
 protected:
   vtkPointGaussianRepresentation();

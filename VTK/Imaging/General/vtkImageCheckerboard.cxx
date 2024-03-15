@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageCheckerboard.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageCheckerboard.h"
 
 #include "vtkImageData.h"
@@ -20,6 +8,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageCheckerboard);
 
 //------------------------------------------------------------------------------
@@ -214,3 +203,4 @@ void vtkImageCheckerboard::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfDivisions: (" << this->NumberOfDivisions[0] << ", "
      << this->NumberOfDivisions[1] << ", " << this->NumberOfDivisions[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

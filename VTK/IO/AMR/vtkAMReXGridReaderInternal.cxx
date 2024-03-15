@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMReXGridReaderInternal.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMReXGridReaderInternal.h"
 #include "vtkByteSwap.h"
@@ -27,6 +15,7 @@
 #include <vector>
 #include <vtksys/FStream.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 std::string ReadFile(const std::string& filename)
@@ -228,7 +217,7 @@ void vtkAMReXGridHeader::SetVectorNamePrefix(const std::string& prefix)
   this->vectorNamePrefix = prefix;
 }
 
-void vtkAMReXGridHeader::SetNameDelimiter(const char delim)
+void vtkAMReXGridHeader::SetNameDelimiter(char delim)
 {
   this->nameDelim = delim;
 }
@@ -900,7 +889,7 @@ int vtkAMReXGridReaderInternal::GetNumberOfLevels()
   return this->headersAreRead ? this->Header->finestLevel : -1;
 }
 
-int vtkAMReXGridReaderInternal::GetBlockLevel(const int blockIdx)
+int vtkAMReXGridReaderInternal::GetBlockLevel(int blockIdx)
 {
   if (this->headersAreRead)
   {
@@ -1488,3 +1477,4 @@ void vtkAMReXGridReaderInternal::PermuteOrder(
       pout[outord[i]] = pin[inord[i]];
   }
 }
+VTK_ABI_NAMESPACE_END

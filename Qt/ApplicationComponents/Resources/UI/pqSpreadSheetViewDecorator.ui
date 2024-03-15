@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>pqSpreadSheetViewDecorator</class>
  <widget class="QWidget" name="pqSpreadSheetViewDecorator">
@@ -88,9 +90,6 @@
      <property name="statusTip">
       <string>Toggle fixed-point representation (always show #Precision digits)</string>
      </property>
-     <property name="whatsThis">
-      <string>Toggle fixed-point representation (always show #Precision digits)</string>
-     </property>
      <property name="text">
       <string>FixedRep</string>
      </property>
@@ -109,9 +108,6 @@
       <string>Show only selected elements.</string>
      </property>
      <property name="statusTip">
-      <string>Show only selected elements.</string>
-     </property>
-     <property name="whatsThis">
       <string>Show only selected elements.</string>
      </property>
      <property name="text">
@@ -137,9 +133,6 @@
      <property name="statusTip">
       <string>Toggle column visibility</string>
      </property>
-     <property name="whatsThis">
-      <string>Toggle column visibility</string>
-     </property>
      <property name="text">
       <string>Toggle column visibility</string>
      </property>
@@ -163,6 +156,23 @@
      <property name="icon">
       <iconset>
        <normaloff>:/pqWidgets/Icons/pqProgrammableFilter.svg</normaloff>:/pqWidgets/Icons/pqProgrammableFilter.svg</iconset>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QToolButton" name="ToggleFieldData">
+     <property name="toolTip">
+      <string>Toggle field data visibility</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>:/pqWidgets/Icons/pqGlobalData.svg</normaloff>:/pqWidgets/Icons/pqGlobalData.svg</iconset>
      </property>
      <property name="checkable">
       <bool>true</bool>

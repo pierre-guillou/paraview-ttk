@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyLineRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyLineRepresentation
  * @brief   vtkWidgetRepresentation for a poly line.
@@ -32,6 +20,7 @@
 #include "vtkCurveRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyLineSource;
 class vtkPointHandleSource;
 
@@ -120,7 +109,7 @@ protected:
   // Specialized methods to access handles
   vtkActor* GetHandleActor(int index) override;
   vtkHandleSource* GetHandleSource(int index) override;
-  virtual int GetHandleIndex(vtkProp* prop) override;
+  int GetHandleIndex(vtkProp* prop) override;
 
 private:
   vtkPolyLineRepresentation(const vtkPolyLineRepresentation&) = delete;
@@ -131,4 +120,5 @@ private:
   std::vector<vtkSmartPointer<vtkActor>> HandleActors;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    $RCSfile$
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMaterialInterfacePieceLoading
  *
@@ -45,7 +34,7 @@ public:
     this->Data[ID] = id;
     this->Data[LOADING] = loading;
   }
-  //@{
+  ///@{
   /**
    * Place into a buffer (id, loading)
    */
@@ -54,8 +43,8 @@ public:
     buf[ID] = this->Data[ID];
     buf[LOADING] = this->Data[LOADING];
   }
-  //@}
-  //@{
+  ///@}
+  ///@{
   /**
    * Initialize from a buffer (id, loading)
    */
@@ -64,14 +53,14 @@ public:
     this->Data[ID] = buf[ID];
     this->Data[LOADING] = buf[LOADING];
   }
-  //@}
+  ///@}
   /**
    * Set/Get
    */
   vtkIdType GetId() const { return this->Data[ID]; }
   vtkIdType GetLoading() const { return this->Data[LOADING]; }
   void SetLoading(vtkIdType loading) { this->Data[LOADING] = loading; }
-  //@{
+  ///@{
   /**
    * Adds to loading and returns the updated loading.
    */
@@ -80,8 +69,8 @@ public:
     assert("Update would make loading negative." && (this->Data[LOADING] + update) >= 0);
     return this->Data[LOADING] += update;
   }
-  //@}
-  //@{
+  ///@}
+  ///@{
   /**
    * Comparison are made by id.
    */

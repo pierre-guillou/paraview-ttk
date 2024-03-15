@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVoronoi2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVoronoi2D.h"
 
 #include "vtkAbstractTransform.h"
@@ -36,6 +24,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVoronoi2D);
 vtkCxxSetObjectMacro(vtkVoronoi2D, Transform, vtkAbstractTransform);
 
@@ -156,19 +145,19 @@ struct VTile
     double v[2], *bds = this->PaddedBounds;
     v[0] = bds[1];
     v[1] = bds[3];
-    this->Verts.emplace_back(VVertex((-1), this->TileX, v));
+    this->Verts.emplace_back((-1), this->TileX, v);
 
     v[0] = bds[0];
     v[1] = bds[3];
-    this->Verts.emplace_back(VVertex((-1), this->TileX, v));
+    this->Verts.emplace_back((-1), this->TileX, v);
 
     v[0] = bds[0];
     v[1] = bds[2];
-    this->Verts.emplace_back(VVertex((-1), this->TileX, v));
+    this->Verts.emplace_back((-1), this->TileX, v);
 
     v[0] = bds[1];
     v[1] = bds[2];
-    this->Verts.emplace_back(VVertex((-1), this->TileX, v));
+    this->Verts.emplace_back((-1), this->TileX, v);
   }
 
   // Initialize with a convex polygon. The points are in counterclockwise order
@@ -191,7 +180,7 @@ struct VTile
     for (vtkIdType i = 0; i < nPts; ++i)
     {
       pts->GetPoint(p[i], v);
-      this->Verts.emplace_back(VVertex((-1), this->TileX, v));
+      this->Verts.emplace_back((-1), this->TileX, v);
     }
   }
 
@@ -394,8 +383,11 @@ struct VTile
       numToDelete++;
       tPtr->Theta = VTK_FLOAT_MAX;
     }
-    this->Verts.emplace_back(VVertex(ptId, this->TileX, xR));
-    this->Verts.emplace_back(VVertex(tLeft->PointId, this->TileX, xL));
+
+    auto newVert1 = VVertex(ptId, this->TileX, xR);
+    auto newVert2 = VVertex(tLeft->PointId, this->TileX, xL);
+    this->Verts.emplace_back(newVert1);
+    this->Verts.emplace_back(newVert2);
     std::sort(this->Verts.begin(), this->Verts.end(), VVertexCompare);
     for (i = 0; i < numToDelete; ++i)
     {
@@ -616,6 +608,7 @@ struct VoronoiTiles
   vtkIdTypeArray* Scalars;
   vtkIdType MaxClips;
   int NumThreadsUsed;
+  vtkVoronoi2D* Filter;
 
   // Storage local to each thread. We don't want to allocate working arrays
   // on every thread invocation. Thread local storage saves lots of
@@ -624,7 +617,7 @@ struct VoronoiTiles
   vtkSMPThreadLocal<LocalDataType> LocalData;
 
   VoronoiTiles(vtkIdType npts, double* points, vtkStaticPointLocator2D* loc, double padding,
-    double tol, vtkPolyData* output, int scalarMode, vtkIdType maxClips)
+    double tol, vtkPolyData* output, int scalarMode, vtkIdType maxClips, vtkVoronoi2D* filter)
     : Points(points)
     , NPts(npts)
     , Locator(loc)
@@ -632,6 +625,7 @@ struct VoronoiTiles
     , ScalarMode(scalarMode)
     , MaxClips(maxClips)
     , NumThreadsUsed(0)
+    , Filter(filter)
   {
     // Tiles and associated points are filled in later in Reduce()
     this->NewPoints = output->GetPoints();
@@ -692,9 +686,23 @@ struct VoronoiTiles
     std::vector<vtkIdType>& lScalars = localData.LocalScalars;
     VTile& tile = localData.Tile;
     const double* x = this->Points + 3 * ptId;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
     for (; ptId < endPtId; ++ptId, x += 3)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       // Initialize the Voronoi tile
       tile.Initialize(ptId, x);
 
@@ -709,7 +717,7 @@ struct VoronoiTiles
         {
           lTiles.push_back((i + numPoints));
           VVertex& tileVertex = tile.Verts.at(i);
-          lPoints.emplace_back(TileVertex(tileVertex.X[0], tileVertex.X[1]));
+          lPoints.emplace_back(tileVertex.X[0], tileVertex.X[1]);
         }
 
         // Accumulate scalars if requested
@@ -805,9 +813,10 @@ struct VoronoiTiles
 
   // A little factory method to conveniently instantiate the tiles etc.
   static int Execute(vtkStaticPointLocator2D* loc, vtkIdType numPts, double* points, double padding,
-    double tol, vtkPolyData* output, int sMode, vtkIdType pointOfInterest, vtkIdType maxClips)
+    double tol, vtkPolyData* output, int sMode, vtkIdType pointOfInterest, vtkIdType maxClips,
+    vtkVoronoi2D* filter)
   {
-    VoronoiTiles vt(numPts, points, loc, padding, tol, output, sMode, maxClips);
+    VoronoiTiles vt(numPts, points, loc, padding, tol, output, sMode, maxClips, filter);
     if (pointOfInterest < 0 || pointOfInterest >= numPts)
     {
       vtkSMPTools::For(0, numPts, vt);
@@ -951,14 +960,15 @@ int vtkVoronoi2D::RequestData(vtkInformation* vtkNotUsed(request),
   // Process the points to generate Voronoi tiles
   double* inPtr = static_cast<double*>(tPoints->GetVoidPointer(0));
   this->NumberOfThreadsUsed = VoronoiTiles::Execute(this->Locator, numPts, inPtr, padding, tol,
-    output, this->GenerateScalars, this->PointOfInterest, this->MaximumNumberOfTileClips);
+    output, this->GenerateScalars, this->PointOfInterest, this->MaximumNumberOfTileClips, this);
 
   vtkDebugMacro(<< "Produced " << output->GetNumberOfCells() << " tiles and "
                 << output->GetNumberOfPoints() << " points");
 
   // If requested, generate in the second output a representation of the
   // Voronoi flower error metric for the PointOfInterest.
-  if (this->GenerateVoronoiFlower && this->PointOfInterest >= 0 && this->PointOfInterest < numPts)
+  if (!this->CheckAbort() && this->GenerateVoronoiFlower && this->PointOfInterest >= 0 &&
+    this->PointOfInterest < numPts)
   {
     // Get the second and third outputs
     vtkInformation* outInfo2 = outputVector->GetInformationObject(1);
@@ -1074,3 +1084,4 @@ void vtkVoronoi2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Maximum Number Of Tile Clips: " << this->MaximumNumberOfTileClips << "\n";
   os << indent << "Generate Voronoi Flower: " << (this->GenerateVoronoiFlower ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

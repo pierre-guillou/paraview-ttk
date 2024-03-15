@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartWarning.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChartWarning.h"
 
@@ -110,7 +99,7 @@ bool vtkChartWarning::Paint(vtkContext2D* painter)
   // float x = cbds.GetX() + dims[0] - lbds[0] + 0.5 * lbds[2];
   float x = cbds.GetX() + dims[0] - lbds[0] + 0.5 * (cbds.GetWidth() - dims[2] - dims[0]);
   float y = cbds.GetY() + dims[1] - lbds[1] + 0.5 * (cbds.GetHeight() - dims[3] - dims[1]);
-  if (this->Label)
+  if (!this->Label.empty())
   {
     painter->DrawString(x, y, this->Label);
   }

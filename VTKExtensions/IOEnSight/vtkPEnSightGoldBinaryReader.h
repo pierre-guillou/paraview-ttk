@@ -1,17 +1,7 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPEnSightGoldBinaryReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) CEA
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPEnSightGoldBinaryReader
  *
@@ -25,7 +15,6 @@
  * supervision of CEA (http://www.cea.fr) and EDF (http://www.edf.fr) by
  * Oxalya (http://www.oxalya.com)
  *
- *  Copyright (c) CEA
  * \endverbatim
  */
 
@@ -149,14 +138,14 @@ protected:
    */
   int ReadLine(char result[80]);
 
-  //@{
+  ///@{
   /**
    * Internal function to read in a single integer.
    * Returns zero if there was an error.
    */
   int ReadInt(int* result);
   int ReadPartId(int* result);
-  //@}
+  ///@}
 
   /**
    * Internal function to read in an integer array.
@@ -189,7 +178,7 @@ protected:
    */
   int CountTimeSteps();
 
-  //@{
+  ///@{
   /**
    * Read to the next time step in the geometry file.
    */
@@ -198,7 +187,7 @@ protected:
   int SkipUnstructuredGrid(char line[256]);
   int SkipRectilinearGrid(char line[256]);
   int SkipImageData(char line[256]);
-  //@}
+  ///@}
 
   int NodeIdsListed;
   int ElementIdsListed;

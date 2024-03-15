@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSMTooltipSelectionPipeline.h"
 
@@ -201,10 +189,10 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
 
   std::ostringstream tooltipTextStream;
 
-  // composite name
+  // Composite dataset name
   if (compositeFound)
   {
-    tooltipTextStream << "\nBlock: " << compositeName;
+    tooltipTextStream << "\n<b>  Block: " << compositeName << "</b>";
   }
 
   vtkFieldData* fieldData = nullptr;
@@ -218,12 +206,12 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
     originalIds = pointData->GetArray("vtkOriginalPointIds");
     if (originalIds)
     {
-      tooltipTextStream << "\nId: " << originalIds->GetTuple1(0);
+      tooltipTextStream << "\n  Id: " << originalIds->GetTuple1(0);
     }
 
     // point coords
     ds->GetPoint(0, point);
-    tooltipTextStream << "\nCoords: (" << point[0] << ", " << point[1] << ", " << point[2] << ")";
+    tooltipTextStream << "\n  Coords: (" << point[0] << ", " << point[1] << ", " << point[2] << ")";
   }
   else if (association == vtkDataObject::FIELD_ASSOCIATION_CELLS)
   {
@@ -233,13 +221,13 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
     originalIds = cellData->GetArray("vtkOriginalCellIds");
     if (originalIds)
     {
-      tooltipTextStream << "\nId: " << originalIds->GetTuple1(0);
+      tooltipTextStream << "\n  Id: " << originalIds->GetTuple1(0);
     }
     // cell type? cell points?
     if (ds->GetNumberOfCells() > 0)
     {
       vtkCell* cell = ds->GetCell(0);
-      tooltipTextStream << "\nType: "
+      tooltipTextStream << "\n  Type: "
                         << vtkSMCoreUtilities::GetStringForCellType(cell->GetCellType());
     }
   }
@@ -255,7 +243,7 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
       {
         continue;
       }
-      tooltipTextStream << "\n" << array->GetName() << ": ";
+      tooltipTextStream << "\n  " << array->GetName() << ": ";
       vtkIdType nbComps = array->GetNumberOfComponents();
 
       if (nbComps > 1)
@@ -282,6 +270,12 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
 
   if (fieldData)
   {
+    // Add separation line if needed
+    if (fieldData->GetNumberOfArrays() > 0)
+    {
+      tooltipTextStream << "<hr>";
+    }
+
     for (vtkIdType i_arr = 0; i_arr < fieldData->GetNumberOfArrays(); i_arr++)
     {
       vtkAbstractArray* array = fieldData->GetAbstractArray(i_arr);
@@ -290,7 +284,7 @@ bool vtkSMTooltipSelectionPipeline::GetTooltipInfo(
         continue;
       }
 
-      tooltipTextStream << "\n" << array->GetName() << ": ";
+      tooltipTextStream << "\n  " << array->GetName() << ": ";
 
       // String arrays are not data arrays
       vtkStringArray* strArray = vtkStringArray::SafeDownCast(array);

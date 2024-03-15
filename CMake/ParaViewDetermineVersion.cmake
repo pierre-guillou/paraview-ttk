@@ -1,16 +1,5 @@
-#=========================================================================
-#
-#  Program:   ParaView
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY; without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-#=========================================================================
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-License-Identifier: BSD-3-Clause
 
 # Used to determine the version for ParaView source using "git describe", if git
 # is found. On success sets following variables in caller's scope:
@@ -61,6 +50,10 @@ function(determine_version source_dir git_command var_prefix)
     if (NOT "${tmp_VERSION}" STREQUAL "${${var_prefix}_VERSION}")
       message(WARNING
         "Version from git (${tmp_VERSION}) disagrees with hard coded version (${${var_prefix}_VERSION}). Either update the git tags or version.txt.")
+      if (NOT "$ENV{CI}" STREQUAL "")
+        message(WARNING
+          "Please update your fork tags, using this command: `git fetch origin --tags && git push gitlab --tags`.")
+      endif ()
     endif()
     foreach(suffix BRANCH VERSION VERSION_MAJOR VERSION_MINOR VERSION_PATCH
                    VERSION_PATCH_EXTRA VERSION_FULL VERSION_IS_RELEASE)

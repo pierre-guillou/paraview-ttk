@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeometryFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGeometryFilter
  * @brief   extract boundary geometry from dataset (or convert data to polygonal type)
@@ -92,6 +80,7 @@
 
 #include <array> // For std::array
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIncrementalPointLocator;
 class vtkStructuredGrid;
 class vtkUnstructuredGridBase;
@@ -318,14 +307,25 @@ public:
 
   ///@{
   /**
-   * If on, the output polygonal dataset will have a celldata array that
-   * holds the cell index of the original 3D cell that produced each output
-   * cell. This is useful for cell picking. The default is off to conserve
-   * memory.
+   * This parameter drives the generation or not of a CellData array for the output
+   * polygonal dataset that holds the cell index of the original 3D cell that produced
+   * each output cell. This is useful for cell picking. The default is off to conserve memory.
+   *
+   * Note: Use SetOriginalCellIdsName() to set the name of the CellData array.
    */
   vtkSetMacro(PassThroughCellIds, vtkTypeBool);
   vtkGetMacro(PassThroughCellIds, vtkTypeBool);
   vtkBooleanMacro(PassThroughCellIds, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * This parameter drives the generation or not of a PointData array for the output
+   * polygonal dataset that holds the cell/point index of the original point that produced
+   * each output point. This is useful for point picking. The default is off to conserve memory.
+   *
+   * Note: Use SetOriginalPointIdsName() to set the name of the PointData array.
+   */
   vtkSetMacro(PassThroughPointIds, vtkTypeBool);
   vtkGetMacro(PassThroughPointIds, vtkTypeBool);
   vtkBooleanMacro(PassThroughPointIds, vtkTypeBool);
@@ -381,6 +381,17 @@ public:
    */
   vtkSetMacro(NonlinearSubdivisionLevel, int);
   vtkGetMacro(NonlinearSubdivisionLevel, int);
+  ///@}
+
+  ///@{
+  /**
+   * When two volumetric cells of different order are connected by their corners (for instance, a
+   * quadratic hexahedron next to a linear hexahedron ), the internal face is rendered and is not
+   * considered as a ghost cell. To remove these faces, switch MatchBoundariesIgnoringCellOrder to 1
+   * (default is 0).
+   */
+  vtkSetMacro(MatchBoundariesIgnoringCellOrder, int);
+  vtkGetMacro(MatchBoundariesIgnoringCellOrder, int);
   ///@}
 
   ///@{
@@ -472,6 +483,7 @@ protected:
   char* OriginalPointIdsName;
 
   int NonlinearSubdivisionLevel;
+  int MatchBoundariesIgnoringCellOrder;
 
   vtkTypeBool Delegation;
 
@@ -480,4 +492,5 @@ private:
   void operator=(const vtkGeometryFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

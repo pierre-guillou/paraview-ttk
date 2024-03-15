@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractCellsByType.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractCellsByType.h"
 
 #include "vtkCellArray.h"
@@ -31,13 +19,16 @@
 #include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractCellsByType);
 
+VTK_ABI_NAMESPACE_END
 #include <set>
 
 // Special token marks any cell type
 #define VTK_ANY_CELL_TYPE 1000000
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkCellTypeSet : public std::set<unsigned int>
 {
 };
@@ -184,11 +175,18 @@ void vtkExtractCellsByType::ExtractPolyDataCells(
   vtkIdType npts;
   const vtkIdType* pts;
   vtkCellArray* inVerts = input->GetVerts();
+  vtkIdType progressCounter = 0;
+  vtkIdType checkAbortInterval = std::min(inVerts->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
   if (this->ExtractCellType(VTK_VERTEX) || this->ExtractCellType(VTK_POLY_VERTEX))
   {
     vtkCellArray* verts = vtkCellArray::New();
     for (inVerts->InitTraversal(); inVerts->GetNextCell(npts, pts); ++currentCellId)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       if (this->ExtractCellType(input->GetCellType(currentCellId)))
       {
         ptIds->Reset();
@@ -217,8 +215,15 @@ void vtkExtractCellsByType::ExtractPolyDataCells(
   if (this->ExtractCellType(VTK_LINE) || this->ExtractCellType(VTK_POLY_LINE))
   {
     vtkCellArray* lines = vtkCellArray::New();
+    progressCounter = 0;
+    checkAbortInterval = std::min(inLines->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts); ++currentCellId)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       if (this->ExtractCellType(input->GetCellType(currentCellId)))
       {
         ptIds->Reset();
@@ -248,8 +253,15 @@ void vtkExtractCellsByType::ExtractPolyDataCells(
     this->ExtractCellType(VTK_POLYGON))
   {
     vtkCellArray* polys = vtkCellArray::New();
+    progressCounter = 0;
+    checkAbortInterval = std::min(inPolys->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inPolys->InitTraversal(); inPolys->GetNextCell(npts, pts); ++currentCellId)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       if (this->ExtractCellType(input->GetCellType(currentCellId)))
       {
         ptIds->Reset();
@@ -278,9 +290,16 @@ void vtkExtractCellsByType::ExtractPolyDataCells(
   if (this->ExtractCellType(VTK_TRIANGLE_STRIP))
   {
     vtkCellArray* strips = vtkCellArray::New();
+    checkAbortInterval = std::min(inStrips->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
+    progressCounter++;
     // All cells are of type VTK_TRIANGLE_STRIP
     for (inStrips->InitTraversal(); inStrips->GetNextCell(npts, pts); ++currentCellId)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       ptIds->Reset();
       for (i = 0; i < npts; ++i)
       {
@@ -335,24 +354,56 @@ void vtkExtractCellsByType::ExtractUnstructuredGridCells(
   output->Allocate(numCells);
   outCD->CopyAllocate(inCD);
 
+  vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
+
   for (cellId = 0; cellId < numCells; ++cellId)
   {
+    if (cellId % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     cellType = input->GetCellType(cellId);
     if (this->ExtractCellType(cellType))
     {
-      input->GetCellPoints(cellId, ptIds);
-      npts = ptIds->GetNumberOfIds();
-      for (i = 0; i < npts; ++i)
+      if (cellType == VTK_POLYHEDRON)
       {
-        ptId = ptIds->GetId(i);
-        if (ptMap[ptId] < 0)
+        vtkIdType nfaces;
+        const vtkIdType* facePtIds;
+        input->GetFaceStream(cellId, nfaces, facePtIds);
+        for (vtkIdType id = 0; id < nfaces; ++id)
         {
-          ptMap[ptId] = numNewPts++;
+          vtkIdType nPoints = facePtIds[0];
+          ptIds->InsertNextId(nPoints);
+          for (vtkIdType j = 1; j <= nPoints; ++j)
+          {
+            ptId = facePtIds[j];
+            if (ptMap[ptId] < 0)
+            {
+              ptMap[ptId] = numNewPts++;
+            }
+            ptIds->InsertNextId(ptMap[ptId]);
+          }
+          facePtIds += nPoints + 1;
         }
-        ptIds->InsertId(i, ptMap[ptId]);
+        newCellId = output->InsertNextCell(VTK_POLYHEDRON, nfaces, ptIds->GetPointer(0));
       }
-      newCellId = output->InsertNextCell(cellType, ptIds);
+      else
+      {
+        input->GetCellPoints(cellId, ptIds);
+        npts = ptIds->GetNumberOfIds();
+        for (i = 0; i < npts; ++i)
+        {
+          ptId = ptIds->GetId(i);
+          if (ptMap[ptId] < 0)
+          {
+            ptMap[ptId] = numNewPts++;
+          }
+          ptIds->InsertId(i, ptMap[ptId]);
+        }
+        newCellId = output->InsertNextCell(cellType, ptIds);
+      }
       outCD->CopyData(inCD, cellId, newCellId);
+      ptIds->Reset();
     }
   }
 
@@ -413,6 +464,8 @@ int vtkExtractCellsByType::RequestData(vtkInformation* vtkNotUsed(request),
     output->Initialize(); // output is empty
   }
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -431,3 +484,4 @@ void vtkExtractCellsByType::PrintSelf(ostream& os, vtkIndent indent)
   // Output the number of types specified
   os << indent << "Number of types specified: " << this->CellTypes->size() << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRBox.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRBox.h"
 
 #include "vtkCellData.h"
@@ -28,6 +16,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkAMRBox::vtkAMRBox()
 {
   this->Initialize();
@@ -73,8 +62,7 @@ vtkAMRBox::vtkAMRBox(const int* dims)
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRBox::BuildAMRBox(
-  const int ilo, const int jlo, const int klo, const int ihi, const int jhi, const int khi)
+void vtkAMRBox::BuildAMRBox(int ilo, int jlo, int klo, int ihi, int jhi, int khi)
 {
   this->Initialize();
   this->SetDimensions(ilo, jlo, klo, ihi, jhi, khi);
@@ -89,8 +77,6 @@ vtkAMRBox::vtkAMRBox(const vtkAMRBox& other)
 //------------------------------------------------------------------------------
 vtkAMRBox& vtkAMRBox::operator=(const vtkAMRBox& other)
 {
-  assert("pre: AMR Box instance is invalid" && !other.IsInvalid());
-
   if (this == &other)
     return *this;
   for (int i = 0; i < 3; i++)
@@ -287,7 +273,7 @@ void vtkAMRBox::Deserialize(unsigned char* buffer, const vtkIdType& vtkNotUsed(b
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMRBox::IntersectBoxAlongDimension(const vtkAMRBox& other, const int q)
+bool vtkAMRBox::IntersectBoxAlongDimension(const vtkAMRBox& other, int q)
 {
   assert("pre: dimension is out-of-bounds!" && (q >= 0) && (q <= 2));
   bool e1 = this->EmptyDimension(q);
@@ -321,8 +307,7 @@ bool vtkAMRBox::Intersect(const vtkAMRBox& other)
     this->IntersectBoxAlongDimension(other, 2);
 }
 
-int vtkAMRBox::GetCellLinearIndex(
-  const vtkAMRBox& box, const int i, const int j, const int k, int dim[3])
+int vtkAMRBox::GetCellLinearIndex(const vtkAMRBox& box, int i, int j, int k, int dim[3])
 {
   // Convert to local numbering
   int I[3] = { i - box.GetLoCorner()[0], j - box.GetLoCorner()[1], k - box.GetLoCorner()[2] };
@@ -406,7 +391,7 @@ void vtkAMRBox::Refine(int r)
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMRBox::DoesBoxIntersectAlongDimension(const vtkAMRBox& other, const int q) const
+bool vtkAMRBox::DoesBoxIntersectAlongDimension(const vtkAMRBox& other, int q) const
 {
   if (this->EmptyDimension(q) && other.EmptyDimension(q))
   {
@@ -742,3 +727,4 @@ void vtkAMRBox::Shrink(int byN)
   }
   assert("post: Grown AMR Box instance is invalid" && !this->IsInvalid());
 }
+VTK_ABI_NAMESPACE_END

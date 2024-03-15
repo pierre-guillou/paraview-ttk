@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyListDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyListDomain
  * @brief   union of proxies.
@@ -162,13 +150,13 @@ public:
    */
   int SetDefaultValues(vtkSMProperty* prop, bool use_unchecked_values) override;
 
-  //@{
+  ///@{
   /**
    * Set and Get the default proxy index.
    */
   vtkSetMacro(DefaultIndex, unsigned int);
   vtkGetMacro(DefaultIndex, unsigned int);
-  //@}
+  ///@}
 
   /**
    * Sets log name for each of the proxy in the domain using the prefix

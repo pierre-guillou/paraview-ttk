@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGridNonOrientedSuperCursorLight.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridNonOrientedSuperCursorLight.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
@@ -24,9 +12,10 @@ PURPOSE.  See the above copyright Nonice for more information.
 #include "vtkHyperTreeGridTools.h"
 
 #include <cassert>
-#include <climits>
+#include <limits>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkHyperTreeGridNonOrientedSuperCursorLight* vtkHyperTreeGridNonOrientedSuperCursorLight::Clone()
 {
   vtkHyperTreeGridNonOrientedSuperCursorLight* clone = this->NewInstance();
@@ -326,7 +315,7 @@ void vtkHyperTreeGridNonOrientedSuperCursorLight::ToChild(unsigned char ichild)
       unsigned int j = pTab[i];
 
       // If neighnoring cell is further subdivided, then descend into it
-      unsigned int reference = UINT_MAX;
+      unsigned int reference = std::numeric_limits<unsigned int>::max();
       if (j == this->IndiceCentralCursor)
       {
         reference = this->FirstNonValidEntryByLevel[this->CurrentFirstNonValidEntryByLevel];
@@ -462,3 +451,4 @@ vtkHyperTreeGridNonOrientedSuperCursorLight::~vtkHyperTreeGridNonOrientedSuperCu
   default;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

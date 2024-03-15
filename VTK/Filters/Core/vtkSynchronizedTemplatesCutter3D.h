@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSynchronizedTemplatesCutter3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSynchronizedTemplatesCutter3D
  * @brief   generate cut surface from structured points
@@ -31,6 +19,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkSynchronizedTemplates3D.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImplicitFunction;
 
 class VTKFILTERSCORE_EXPORT vtkSynchronizedTemplatesCutter3D : public vtkSynchronizedTemplates3D
@@ -78,4 +67,5 @@ private:
   void operator=(const vtkSynchronizedTemplatesCutter3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

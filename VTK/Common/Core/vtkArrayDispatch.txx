@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayDispatch.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkArrayDispatch_txx
 #define vtkArrayDispatch_txx
@@ -23,12 +11,15 @@
 
 #include <utility> // For std::forward
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
+VTK_ABI_NAMESPACE_END
 
 namespace vtkArrayDispatch
 {
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Implementation of the single-array dispatch mechanism.
@@ -390,8 +381,10 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace impl
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // FilterArraysByValueType implementation:
 //------------------------------------------------------------------------------
@@ -464,13 +457,14 @@ public:
 // DispatchByValueType implementation:
 //------------------------------------------------------------------------------
 // Preprocess and pass off to impl::Dispatch
-template <typename ValueTypeHead, typename ValueTypeTail>
-struct DispatchByValueType<vtkTypeList::TypeList<ValueTypeHead, ValueTypeTail>>
+template <typename ArrayList, typename ValueTypeHead, typename ValueTypeTail>
+struct DispatchByValueTypeUsingArrays<ArrayList,
+  vtkTypeList::TypeList<ValueTypeHead, ValueTypeTail>>
 {
 private:
   typedef vtkTypeList::TypeList<ValueTypeHead, ValueTypeTail> ValueTypeList;
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList>::Result ArrayList;
-  typedef typename vtkTypeList::Unique<ArrayList>::Result UniqueArrays;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList>::Result FilteredArrayList;
+  typedef typename vtkTypeList::Unique<FilteredArrayList>::Result UniqueArrays;
   typedef typename vtkTypeList::DerivedToFront<UniqueArrays>::Result SortedUniqueArrays;
   typedef impl::Dispatch<SortedUniqueArrays> ArrayDispatcher;
 
@@ -481,6 +475,10 @@ public:
     return ArrayDispatcher::Execute(
       inArray, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
+};
+template <typename ValueTypeList>
+struct DispatchByValueType : public DispatchByValueTypeUsingArrays<Arrays, ValueTypeList>
+{
 };
 
 //------------------------------------------------------------------------------
@@ -513,7 +511,7 @@ public:
 struct Dispatch2
 {
 private:
-  typedef Dispatch2ByArray<vtkArrayDispatch::Arrays, vtkArrayDispatch::Arrays> Dispatcher;
+  typedef Dispatch2ByArray<Arrays, Arrays> Dispatcher;
 
 public:
   template <typename Worker, typename... Params>
@@ -529,14 +527,14 @@ public:
 // Dispatch2ByValueType implementation:
 //------------------------------------------------------------------------------
 // Preprocess and pass off to impl::Dispatch2
-template <typename ValueTypeList1, typename ValueTypeList2>
-struct Dispatch2ByValueType
+template <typename ArrayList, typename ValueTypeList1, typename ValueTypeList2>
+struct Dispatch2ByValueTypeUsingArrays
 {
 private:
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList1>::Result ArrayList1;
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList2>::Result ArrayList2;
-  typedef typename vtkTypeList::Unique<ArrayList1>::Result UniqueArray1;
-  typedef typename vtkTypeList::Unique<ArrayList2>::Result UniqueArray2;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList1>::Result FilteredArrayList1;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList2>::Result FilteredArrayList2;
+  typedef typename vtkTypeList::Unique<FilteredArrayList1>::Result UniqueArray1;
+  typedef typename vtkTypeList::Unique<FilteredArrayList2>::Result UniqueArray2;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray1>::Result SortedUniqueArray1;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray2>::Result SortedUniqueArray2;
   typedef impl::Dispatch2<SortedUniqueArray1, SortedUniqueArray2> ArrayDispatcher;
@@ -550,17 +548,22 @@ public:
       array1, array2, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
 };
+template <typename ValueTypeList1, typename ValueTypeList2>
+struct Dispatch2ByValueType
+  : Dispatch2ByValueTypeUsingArrays<Arrays, ValueTypeList1, ValueTypeList2>
+{
+};
 
 //------------------------------------------------------------------------------
 // Dispatch2BySameValueType implementation:
 //------------------------------------------------------------------------------
 // Preprocess and pass off to impl::Dispatch2Same
-template <typename ValueTypeList>
-struct Dispatch2BySameValueType
+template <typename ArrayList, typename ValueTypeList>
+struct Dispatch2BySameValueTypeUsingArrays
 {
 private:
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList>::Result ArrayList;
-  typedef typename vtkTypeList::Unique<ArrayList>::Result UniqueArray;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList>::Result FilteredArrayList;
+  typedef typename vtkTypeList::Unique<FilteredArrayList>::Result UniqueArray;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray>::Result SortedUniqueArray;
   typedef impl::Dispatch2Same<SortedUniqueArray, SortedUniqueArray> Dispatcher;
 
@@ -572,6 +575,10 @@ public:
     return Dispatcher::Execute(
       array1, array2, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
+};
+template <typename ValueTypeList>
+struct Dispatch2BySameValueType : Dispatch2BySameValueTypeUsingArrays<Arrays, ValueTypeList>
+{
 };
 
 //------------------------------------------------------------------------------
@@ -601,11 +608,11 @@ public:
 //------------------------------------------------------------------------------
 // Dispatch2SameValueType implementation:
 //------------------------------------------------------------------------------
-struct Dispatch2SameValueType
+template <typename ArrayList>
+struct Dispatch2SameValueTypeUsingArrays
 {
 private:
-  typedef Dispatch2ByArrayWithSameValueType<vtkArrayDispatch::Arrays, vtkArrayDispatch::Arrays>
-    Dispatcher;
+  typedef Dispatch2ByArrayWithSameValueType<ArrayList, ArrayList> Dispatcher;
 
 public:
   template <typename Worker, typename... Params>
@@ -615,6 +622,9 @@ public:
     return Dispatcher::Execute(
       array1, array2, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
+};
+struct Dispatch2SameValueType : public Dispatch2SameValueTypeUsingArrays<Arrays>
+{
 };
 
 //------------------------------------------------------------------------------
@@ -650,9 +660,7 @@ public:
 struct Dispatch3
 {
 private:
-  typedef Dispatch3ByArray<vtkArrayDispatch::Arrays, vtkArrayDispatch::Arrays,
-    vtkArrayDispatch::Arrays>
-    Dispatcher;
+  typedef Dispatch3ByArray<Arrays, Arrays, Arrays> Dispatcher;
 
 public:
   template <typename Worker, typename... Params>
@@ -668,16 +676,17 @@ public:
 // Dispatch3ByValueType implementation:
 //------------------------------------------------------------------------------
 // Preprocess and pass off to impl::Dispatch3
-template <typename ValueTypeList1, typename ValueTypeList2, typename ValueTypeList3>
-struct Dispatch3ByValueType
+template <typename ArrayList, typename ValueTypeList1, typename ValueTypeList2,
+  typename ValueTypeList3>
+struct Dispatch3ByValueTypeUsingArrays
 {
 private:
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList1>::Result ArrayList1;
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList2>::Result ArrayList2;
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList3>::Result ArrayList3;
-  typedef typename vtkTypeList::Unique<ArrayList1>::Result UniqueArray1;
-  typedef typename vtkTypeList::Unique<ArrayList2>::Result UniqueArray2;
-  typedef typename vtkTypeList::Unique<ArrayList3>::Result UniqueArray3;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList1>::Result FilteredArrayList1;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList2>::Result FilteredArrayList2;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList3>::Result FilteredArrayList3;
+  typedef typename vtkTypeList::Unique<FilteredArrayList1>::Result UniqueArray1;
+  typedef typename vtkTypeList::Unique<FilteredArrayList2>::Result UniqueArray2;
+  typedef typename vtkTypeList::Unique<FilteredArrayList3>::Result UniqueArray3;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray1>::Result SortedUniqueArray1;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray2>::Result SortedUniqueArray2;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray3>::Result SortedUniqueArray3;
@@ -693,17 +702,22 @@ public:
       array1, array2, array3, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
 };
+template <typename ValueTypeList1, typename ValueTypeList2, typename ValueTypeList3>
+struct Dispatch3ByValueType
+  : public Dispatch3ByValueTypeUsingArrays<Arrays, ValueTypeList1, ValueTypeList2, ValueTypeList3>
+{
+};
 
 //------------------------------------------------------------------------------
 // Dispatch3BySameValueType implementation:
 //------------------------------------------------------------------------------
 // Preprocess and pass off to impl::Dispatch3Same
-template <typename ValueTypeList>
-struct Dispatch3BySameValueType
+template <typename ArrayList, typename ValueTypeList>
+struct Dispatch3BySameValueTypeUsingArrays
 {
 private:
-  typedef typename FilterArraysByValueType<Arrays, ValueTypeList>::Result ArrayList;
-  typedef typename vtkTypeList::Unique<ArrayList>::Result UniqueArray;
+  typedef typename FilterArraysByValueType<ArrayList, ValueTypeList>::Result FilteredArrayList;
+  typedef typename vtkTypeList::Unique<FilteredArrayList>::Result UniqueArray;
   typedef typename vtkTypeList::DerivedToFront<UniqueArray>::Result SortedUniqueArray;
   typedef impl::Dispatch3Same<SortedUniqueArray, SortedUniqueArray, SortedUniqueArray> Dispatcher;
 
@@ -715,6 +729,10 @@ public:
     return Dispatcher::Execute(
       array1, array2, array3, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
+};
+template <typename ValueTypeList>
+struct Dispatch3BySameValueType : public Dispatch3BySameValueTypeUsingArrays<Arrays, ValueTypeList>
+{
 };
 
 //------------------------------------------------------------------------------
@@ -747,12 +765,11 @@ public:
 //------------------------------------------------------------------------------
 // Dispatch3SameValueType implementation:
 //------------------------------------------------------------------------------
-struct Dispatch3SameValueType
+template <typename ArrayList>
+struct Dispatch3SameValueTypeUsingArrays
 {
 private:
-  typedef Dispatch3ByArrayWithSameValueType<vtkArrayDispatch::Arrays, vtkArrayDispatch::Arrays,
-    vtkArrayDispatch::Arrays>
-    Dispatcher;
+  typedef Dispatch3ByArrayWithSameValueType<ArrayList, ArrayList, ArrayList> Dispatcher;
 
 public:
   template <typename Worker, typename... Params>
@@ -763,7 +780,11 @@ public:
       array1, array2, array3, std::forward<Worker>(worker), std::forward<Params>(params)...);
   }
 };
+struct Dispatch3SameValueType : Dispatch3SameValueTypeUsingArrays<Arrays>
+{
+};
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtkArrayDispatch
 
 #endif // vtkArrayDispatch_txx

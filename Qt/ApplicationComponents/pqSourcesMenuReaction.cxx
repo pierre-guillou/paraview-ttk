@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSourcesMenuReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSourcesMenuReaction.h"
 
 #include "pqActiveObjects.h"
@@ -38,11 +10,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqProxyGroupMenuManager.h"
 #include "pqServer.h"
 #include "pqUndoStack.h"
+#include "vtkPVDataInformation.h"
+#include "vtkPVMemoryUseInformation.h"
 #include "vtkPVServerInformation.h"
+#include "vtkPVSystemConfigInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMCollaborationManager.h"
+#include "vtkSMDataTypeDomain.h"
 #include "vtkSMProxy.h"
+#include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
+
+#include <QCoreApplication>
 
 //-----------------------------------------------------------------------------
 pqSourcesMenuReaction::pqSourcesMenuReaction(pqProxyGroupMenuManager* menuManager)
@@ -98,15 +77,106 @@ bool pqSourcesMenuReaction::warnOnCreate(
         ? prototype->GetHints()->FindNestedElementByName("WarnOnCreate")
         : nullptr)
     {
-      const char* title = hints->GetAttributeOrDefault("title", "Are you sure?");
-      QString txt = hints->GetCharacterData();
-      if (txt.isEmpty())
+      bool shouldWarn = true;
+
+      // Recover active output port data type and check against the provided dataset type names
+      pqOutputPort* port = pqActiveObjects::instance().activePort();
+      if (port)
       {
-        txt = QString("Creating '%1'. Do you want to continue?").arg(prototype->GetXMLLabel());
+        // Look for a DataTypeDomain condition on the warn
+        vtkPVXMLElement* dataTypeDomain = hints->FindNestedElementByName("DataTypeDomain");
+        if (dataTypeDomain)
+        {
+          vtkNew<vtkSMDataTypeDomain> smDomain;
+          smDomain->ParseXMLAttributes(dataTypeDomain);
+          if (!smDomain->IsInDomain(port->getSourceProxy(), port->getPortNumber()))
+          {
+            shouldWarn = false;
+          }
+        }
+
+        // Recover memory usage condition
+        vtkPVXMLElement* memoryUsage = hints->FindNestedElementByName("MemoryUsage");
+        if (shouldWarn && memoryUsage)
+        {
+          // Recover memory information
+          vtkNew<vtkPVMemoryUseInformation> infos;
+          vtkNew<vtkPVSystemConfigInformation> serverInfos;
+
+          auto session = server->session();
+          session->GatherInformation(vtkPVSession::SERVERS, infos, 0);
+          session->GatherInformation(vtkPVSession::SERVERS, serverInfos, 0);
+
+          long long worstRemainingMemory = std::numeric_limits<long long>::max();
+          for (size_t rank = 0; rank < infos->GetSize(); ++rank)
+          {
+            long long hostMemoryUse = infos->GetHostMemoryUse(rank);
+            long long hostMemoryAvailable = serverInfos->GetHostMemoryAvailable(rank);
+            if (hostMemoryAvailable <= 0)
+            {
+              continue;
+            }
+            long long remainingMemory = hostMemoryAvailable - hostMemoryUse;
+            if (remainingMemory < worstRemainingMemory)
+            {
+              worstRemainingMemory = remainingMemory;
+            }
+          }
+
+          // Compare with the input size
+          vtkTypeInt64 inputSize = port->getDataInformation()->GetMemorySize();
+          double relative = std::stod(memoryUsage->GetAttributeOrDefault("relative", "1"));
+          if (inputSize * relative < worstRemainingMemory)
+          {
+            shouldWarn = false;
+          }
+        }
       }
-      return pqCoreUtilities::promptUser(QString("WarnOnCreate/%1/%2").arg(xmlgroup).arg(xmlname),
-        QMessageBox::Information, QString::fromStdString(pqProxy::rstToHtml(title)),
-        pqProxy::rstToHtml(txt), QMessageBox::Yes | QMessageBox::No | QMessageBox::Save);
+
+      if (shouldWarn)
+      {
+        // Recover Text and Title
+        QString title;
+        QString text;
+
+        // PARAVIEW_DEPRECATED_IN_5_12_0
+#if !defined(VTK_LEGACY_REMOVE)
+        title = hints->GetAttributeOrEmpty("title");
+        text = hints->GetCharacterData();
+#if !defined(VTK_LEGACY_SILENT)
+        if (!title.isEmpty())
+        {
+          qWarning("WarnOnCreate title property has been deprecated in ParaView 5.12, "
+                   "add a Text element with a title property instead");
+        }
+        if (!text.trimmed().isEmpty())
+        {
+          qWarning("WarnOnCreate character data has been deprecated in ParaView 5.12, "
+                   "add a Text element with character data instead.");
+        }
+#endif
+#endif
+        vtkPVXMLElement* textElement = hints->FindNestedElementByName("Text");
+        if (textElement)
+        {
+          title = textElement->GetAttributeOrEmpty("title");
+          text = textElement->GetCharacterData();
+        }
+
+        if (title.isEmpty())
+        {
+          title = tr("Are you sure?");
+        }
+        if (text.isEmpty())
+        {
+          text = tr("Creating '%1'. Do you want to continue?")
+                   .arg(QCoreApplication::translate("ServerManagerXML", prototype->GetXMLLabel()));
+        }
+
+        return pqCoreUtilities::promptUser(QString("WarnOnCreate/%1/%2").arg(xmlgroup).arg(xmlname),
+          QMessageBox::Information, pqProxy::rstToHtml(title), pqProxy::rstToHtml(text),
+          QMessageBox::Yes | QMessageBox::No | QMessageBox::Save);
+      }
     }
   }
   return true;
@@ -119,7 +189,7 @@ pqPipelineSource* pqSourcesMenuReaction::createSource(const QString& group, cons
   {
     pqApplicationCore* core = pqApplicationCore::instance();
     pqObjectBuilder* builder = core->getObjectBuilder();
-    BEGIN_UNDO_SET(QString("Create '%1'").arg(name));
+    BEGIN_UNDO_SET(tr("Create '%1'").arg(name));
     pqPipelineSource* source =
       builder->createSource(group, name, pqActiveObjects::instance().activeServer());
     END_UNDO_SET();

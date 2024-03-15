@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataSet.h"
 
 #include "vtkBoundingBox.h"
+#include "vtkCellGrid.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSetRange.h"
 #include "vtkDataSet.h"
@@ -22,9 +11,11 @@
 #include "vtkInformationIntegerKey.h"
 #include "vtkInformationStringKey.h"
 #include "vtkInformationVector.h"
+#include "vtkLegacy.h"
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationKeyMacro(vtkCompositeDataSet, NAME, String);
 vtkInformationKeyMacro(vtkCompositeDataSet, CURRENT_PROCESS_CAN_LOAD_BLOCK, Integer);
 
@@ -49,36 +40,22 @@ vtkCompositeDataSet* vtkCompositeDataSet::GetData(vtkInformationVector* v, int i
 //------------------------------------------------------------------------------
 void vtkCompositeDataSet::CopyStructure(vtkCompositeDataSet* input)
 {
-  if (input != this)
-  {
-    // copy data-information and other common stuff by calling
-    // superclass' ShallowCopy.
-    this->Superclass::ShallowCopy(input);
-  }
+  // copy data-information and other common stuff by calling
+  // superclass' ShallowCopy.
+  this->Superclass::ShallowCopy(input);
 }
 
 //------------------------------------------------------------------------------
-void vtkCompositeDataSet::ShallowCopy(vtkDataObject* src)
+void vtkCompositeDataSet::CompositeShallowCopy(vtkCompositeDataSet* src)
 {
-  if (src == this)
-  {
-    return;
-  }
-
   this->Superclass::ShallowCopy(src);
-  this->Modified();
 }
 
 //------------------------------------------------------------------------------
-void vtkCompositeDataSet::DeepCopy(vtkDataObject* src)
+void vtkCompositeDataSet::RecursiveShallowCopy(vtkDataObject* src)
 {
-  if (src == this)
-  {
-    return;
-  }
-
-  this->Superclass::DeepCopy(src);
-  this->Modified();
+  VTK_LEGACY_REPLACED_BODY(RecursiveShallowCopy, "VTK 9.3", ShallowCopy);
+  this->ShallowCopy(src);
 }
 
 //------------------------------------------------------------------------------
@@ -141,9 +118,14 @@ void vtkCompositeDataSet::GetBounds(double bounds[6])
   vtkBoundingBox bbox;
   for (vtkDataObject* dobj : vtk::Range(this, Opts::SkipEmptyNodes))
   {
-    if (auto ds = vtkDataSet::SafeDownCast(dobj))
+    if (auto* ds = vtkDataSet::SafeDownCast(dobj))
     {
       ds->GetBounds(bds);
+      bbox.AddBounds(bds);
+    }
+    else if (auto* cg = vtkCellGrid::SafeDownCast(dobj))
+    {
+      cg->GetBounds(bds);
       bbox.AddBounds(bds);
     }
   }
@@ -166,7 +148,18 @@ vtkDataObject* vtkCompositeDataSet::GetDataSet(unsigned int flatIndex)
 }
 
 //------------------------------------------------------------------------------
+bool vtkCompositeDataSet::SupportsGhostArray(int type)
+{
+  if (type == POINT || type == CELL)
+  {
+    return true;
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
 void vtkCompositeDataSet::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

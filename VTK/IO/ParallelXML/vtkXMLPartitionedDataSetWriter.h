@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPartitionedDataSetWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkXMLPartitionedDataSetWriter
  * @brief XML writer for vtkPartitionedDataSet
@@ -31,6 +19,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPartitionedDataSet;
 
 class VTKIOPARALLELXML_EXPORT vtkXMLPartitionedDataSetWriter : public vtkXMLWriter2
@@ -75,4 +64,5 @@ private:
   bool WriteSummaryXML(vtkPartitionedDataSet* input, const std::vector<std::string>& allFilenames);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

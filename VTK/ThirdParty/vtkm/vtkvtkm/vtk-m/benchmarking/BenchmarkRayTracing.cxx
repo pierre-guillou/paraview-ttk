@@ -13,19 +13,16 @@
 #include <vtkm/TypeTraits.h>
 
 #include <vtkm/cont/ArrayHandle.h>
-#include <vtkm/cont/DeviceAdapterAlgorithm.h>
 #include <vtkm/cont/Initialize.h>
 #include <vtkm/cont/Timer.h>
 
 #include <vtkm/source/Tangle.h>
 
 #include <vtkm/rendering/Camera.h>
+#include <vtkm/rendering/CanvasRayTracer.h>
 #include <vtkm/rendering/raytracing/Ray.h>
 #include <vtkm/rendering/raytracing/RayTracer.h>
-#include <vtkm/rendering/raytracing/SphereIntersector.h>
 #include <vtkm/rendering/raytracing/TriangleExtractor.h>
-
-#include <vtkm/exec/FunctorBase.h>
 
 #include <sstream>
 #include <string>
@@ -39,9 +36,8 @@ vtkm::cont::InitializeResult Config;
 
 void BenchRayTracing(::benchmark::State& state)
 {
-  const vtkm::Id3 dims(128, 128, 128);
-
-  vtkm::source::Tangle maker(dims);
+  vtkm::source::Tangle maker;
+  maker.SetPointDimensions({ 128, 128, 128 });
   vtkm::cont::DataSet dataset = maker.Execute();
   vtkm::cont::CoordinateSystem coords = dataset.GetCoordinateSystem();
 

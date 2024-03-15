@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeometrySliceRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGeometrySliceRepresentation
  * @brief   extends vtkGeometryRepresentation to
@@ -47,13 +35,13 @@ public:
   vtkSetClampMacro(Mode, int, X_SLICE_ONLY, ALL_SLICES);
   vtkGetMacro(Mode, int);
 
-  //@{
+  ///@{
   /**
    * Get/Set whether original data outline should be shown in the view.
    */
   vtkSetMacro(ShowOutline, bool);
   vtkGetMacro(ShowOutline, bool);
-  //@}
+  ///@}
 
 protected:
   vtkGeometrySliceRepresentation();

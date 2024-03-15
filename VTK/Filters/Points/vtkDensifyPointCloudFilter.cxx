@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDensifyPointCloudFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkDensifyPointCloudFilter.h"
 
 #include "vtkArrayListTemplate.h" // For processing attribute data
@@ -28,6 +16,7 @@
 #include "vtkSMPTools.h"
 #include "vtkStaticPointLocator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDensifyPointCloudFilter);
 
 //------------------------------------------------------------------------------
@@ -378,3 +367,4 @@ void vtkDensifyPointCloudFilter::PrintSelf(ostream& os, vtkIndent indent)
      << "Interpolate Attribute Data: " << (this->InterpolateAttributeData ? "On\n" : "Off\n");
   os << indent << "Maximum Number Of Points: " << this->MaximumNumberOfPoints << "\n";
 }
+VTK_ABI_NAMESPACE_END

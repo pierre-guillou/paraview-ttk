@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProperty.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMProperty.h"
 
 #include "vtkClientServerStream.h"
@@ -320,51 +308,11 @@ vtkSMProperty* vtkSMProperty::NewProperty(const char* name)
 }
 
 //---------------------------------------------------------------------------
-void vtkSMProperty::CreateAndSetPrettyLabel(const char* xmlname)
-{
-  const char* label = vtkSMProperty::CreateNewPrettyLabel(xmlname);
-  this->SetXMLLabel(label);
-  delete[] label;
-}
-
-//---------------------------------------------------------------------------
 const char* vtkSMProperty::CreateNewPrettyLabel(const char* xmlname)
 {
-
-  // Add space before every capital letter not preceded by a capital letter
-  // or space hence:
-  // "MySpace" ==> "My Space"
-  // "MySPACE" ==> "My SPACE"
-  // "My Space" ==> "My Space"
-
-  int max = static_cast<int>(strlen(xmlname));
-  char* label = new char[2 * max + 10];
-  char* ptr = label;
-
-  bool previous_capital = false;
-  *ptr = xmlname[0];
-  ptr++;
-
-  for (int cc = 1; cc < max; ++cc)
-  {
-    if (xmlname[cc] >= 'A' && xmlname[cc] <= 'Z')
-    {
-      if (!previous_capital && *(ptr - 1) != ' ')
-      {
-        *ptr = ' ';
-        ptr++;
-      }
-      previous_capital = true;
-    }
-    else
-    {
-      previous_capital = false;
-    }
-    *ptr = xmlname[cc];
-    ptr++;
-  }
-  *ptr = 0;
-  return label;
+  std::string label = vtkSMObject::CreatePrettyLabel(std::string(xmlname));
+  char* clabel = strcpy(new char[label.length() + 1], label.c_str());
+  return clabel;
 }
 
 //---------------------------------------------------------------------------
@@ -386,7 +334,7 @@ int vtkSMProperty::ReadXMLAttributes(vtkSMProxy* proxy, vtkPVXMLElement* element
   }
   else
   {
-    this->CreateAndSetPrettyLabel(xmlname);
+    this->SetXMLLabel(vtkSMObject::CreatePrettyLabel(xmlname).c_str());
   }
 
   const char* command = element->GetAttribute("command");
@@ -562,8 +510,10 @@ int vtkSMProperty::ReadXMLAttributes(vtkSMProxy* proxy, vtkPVXMLElement* element
     }
     else
     {
-      vtkErrorMacro("Could not create object of type: " << name.str().c_str()
-                                                        << ". Did you specify wrong xml element?");
+      vtkWarningMacro("Could not create object of type: "
+        << name.str().c_str()
+        << ". Make sure that this xml domain is correct.\nIf this error occurred when loading a "
+           "plugin in client/server mode, first load the client plugin.");
     }
   }
 

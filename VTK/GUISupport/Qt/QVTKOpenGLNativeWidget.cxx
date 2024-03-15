@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKOpenGLNativeWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "QVTKOpenGLNativeWidget.h"
 
 #include <QApplication>
@@ -34,6 +22,7 @@
 #include "vtkOpenGLState.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 QVTKOpenGLNativeWidget::QVTKOpenGLNativeWidget(QWidget* parentWdg, Qt::WindowFlags f)
   : QVTKOpenGLNativeWidget(
       vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New().GetPointer(), parentWdg, f)
@@ -56,6 +45,10 @@ QVTKOpenGLNativeWidget::QVTKOpenGLNativeWidget(
   this->setFocusPolicy(Qt::StrongFocus);
   this->setUpdateBehavior(QOpenGLWidget::NoPartialUpdate);
   this->setMouseTracking(true);
+
+  // See https://gitlab.kitware.com/paraview/paraview/-/issues/18285
+  // This ensure that kde will not grab the window
+  this->setProperty("_kde_no_window_grab", true);
 
   // we use `QOpenGLWidget::resized` instead of `resizeEvent` or `resizeGL` as
   // an indicator to resize our internal buffer size. This is done, since in
@@ -216,6 +209,8 @@ void QVTKOpenGLNativeWidget::initializeGL()
     ostate->Reset();
     // By default, Qt sets the depth function to GL_LESS but VTK expects GL_LEQUAL
     ostate->vtkglDepthFunc(GL_LEQUAL);
+    // By default, Qt disables the depth test but VTK expects it to be enabled.
+    ostate->vtkglEnable(GL_DEPTH_TEST);
 
     // When a QOpenGLWidget is told to use a QSurfaceFormat with samples > 0,
     // QOpenGLWidget doesn't actually create a context with multi-samples and
@@ -293,3 +288,4 @@ bool QVTKOpenGLNativeWidget::event(QEvent* evt)
   }
   return this->Superclass::event(evt);
 }
+VTK_ABI_NAMESPACE_END

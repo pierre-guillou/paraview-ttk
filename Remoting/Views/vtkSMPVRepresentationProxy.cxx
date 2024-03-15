@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMPVRepresentationProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMPVRepresentationProxy.h"
 
 #include "vtkCommand.h"
@@ -22,9 +10,11 @@
 #include "vtkPVArrayInformation.h"
 #include "vtkPVDataInformation.h"
 #include "vtkPVProminentValuesInformation.h"
+#include "vtkPVRepresentedArrayListSettings.h"
 #include "vtkPVTemporalDataInformation.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMArrayListDomain.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMCoreUtilities.h"
 #include "vtkSMOutputPort.h"
 #include "vtkSMProperty.h"
@@ -50,6 +40,8 @@ class vtkSMPVRepresentationProxy::vtkStringSet : public std::set<std::string>
 {
 };
 
+vtkCxxSetSmartPointerMacro(vtkSMPVRepresentationProxy, LastLUTProxy, vtkSMProxy);
+
 vtkStandardNewMacro(vtkSMPVRepresentationProxy);
 //----------------------------------------------------------------------------
 vtkSMPVRepresentationProxy::vtkSMPVRepresentationProxy()
@@ -64,6 +56,12 @@ vtkSMPVRepresentationProxy::vtkSMPVRepresentationProxy()
 vtkSMPVRepresentationProxy::~vtkSMPVRepresentationProxy()
 {
   delete this->RepresentationSubProxies;
+}
+
+//----------------------------------------------------------------------------
+vtkSMProxy* vtkSMPVRepresentationProxy::GetLastLUTProxy()
+{
+  return this->LastLUTProxy;
 }
 
 //----------------------------------------------------------------------------
@@ -185,98 +183,41 @@ int vtkSMPVRepresentationProxy::ReadXMLAttributes(
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::GetUsingScalarColoring()
 {
-  if (this->GetProperty("ColorArrayName"))
-  {
-    vtkSMPropertyHelper helper(this->GetProperty("ColorArrayName"));
-    return (helper.GetNumberOfElements() == 5 && helper.GetAsString(4) != nullptr &&
-      strcmp(helper.GetAsString(4), "") != 0);
-  }
-  else
-  {
-    vtkWarningMacro("Missing 'ColorArrayName' property.");
-  }
-  return false;
+  return vtkSMColorMapEditorHelper::GetUsingScalarColoring(this);
+}
+
+//----------------------------------------------------------------------------
+void vtkSMPVRepresentationProxy::SetupLookupTable(vtkSMProxy* proxy)
+{
+  vtkSMColorMapEditorHelper::SetupLookupTable(proxy);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(bool extend, bool force)
 {
-  if (!this->GetUsingScalarColoring())
-  {
-    // we are not using scalar coloring, nothing to do.
-    return false;
-  }
-
-  SM_SCOPED_TRACE(CallMethod)
-    .arg(this)
-    .arg("RescaleTransferFunctionToDataRange")
-    .arg(extend)
-    .arg(force)
-    .arg("comment",
-      (extend ? "rescale color and/or opacity maps used to include current data range"
-              : "rescale color and/or opacity maps used to exactly fit the current data range"));
-  return this->RescaleTransferFunctionToDataRange(
-    this->GetArrayInformationForColorArray(), extend, force);
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(this, extend, force);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(
   const char* arrayname, int attribute_type, bool extend, bool force)
 {
-  vtkSMPropertyHelper inputHelper(this->GetProperty("Input"));
-  vtkSMSourceProxy* inputProxy = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy());
-  int port = inputHelper.GetOutputPort();
-  if (!inputProxy)
-  {
-    // no input.
-    vtkWarningMacro("No input present. Cannot determine data ranges.");
-    return false;
-  }
-
-  vtkPVDataInformation* dataInfo = inputProxy->GetDataInformation(port);
-  vtkPVArrayInformation* info = dataInfo->GetArrayInformation(arrayname, attribute_type);
-  if (!info)
-  {
-    vtkPVDataInformation* representedDataInfo = this->GetRepresentedDataInformation();
-    info = representedDataInfo->GetArrayInformation(arrayname, attribute_type);
-  }
-
-  return this->RescaleTransferFunctionToDataRange(info, extend, force);
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(
+    this, arrayname, attribute_type, extend, force);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRangeOverTime()
 {
-  if (!this->GetUsingScalarColoring())
-  {
-    // we are not using scalar coloring, nothing to do.
-    return false;
-  }
-
-  vtkSMPropertyHelper helper(this->GetProperty("ColorArrayName"));
-
-  return this->RescaleTransferFunctionToDataRangeOverTime(
-    helper.GetAsString(4), helper.GetAsInt(3));
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRangeOverTime(this);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRangeOverTime(
   const char* arrayname, int attribute_type)
 {
-  vtkSMPropertyHelper inputHelper(this->GetProperty("Input"));
-  vtkSMSourceProxy* inputProxy = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy());
-  int port = inputHelper.GetOutputPort();
-  if (!inputProxy || !inputProxy->GetOutputPort(port))
-  {
-    // no input.
-    vtkWarningMacro("No input present. Cannot determine data ranges.");
-    return false;
-  }
-
-  vtkPVTemporalDataInformation* dataInfo =
-    inputProxy->GetOutputPort(port)->GetTemporalDataInformation();
-  vtkPVArrayInformation* info = dataInfo->GetArrayInformation(arrayname, attribute_type);
-  return info ? this->RescaleTransferFunctionToDataRange(info) : false;
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRangeOverTime(
+    this, arrayname, attribute_type);
 }
 
 //----------------------------------------------------------------------------
@@ -323,7 +264,7 @@ bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(
     if (indexedLookup)
     {
       vtkPVProminentValuesInformation* prominentValues =
-        vtkSMPVRepresentationProxy::GetProminentValuesInformationForColorArray(this);
+        vtkSMColorMapEditorHelper::GetProminentValuesInformationForColorArray(this);
       vtkSmartPointer<vtkStringList> activeAnnotations = vtkSmartPointer<vtkStringList>::New();
       vtkSmartPointer<vtkDoubleArray> activeIndexedColors = vtkSmartPointer<vtkDoubleArray>::New();
       vtkSmartPointer<vtkAbstractArray> uniqueValues;
@@ -450,123 +391,28 @@ bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToVisibleRange(vtkSMProxy* view)
 {
-  if (!this->GetUsingScalarColoring())
-  {
-    // we are not using scalar coloring, nothing to do.
-    return false;
-  }
-
-  vtkSMPropertyHelper helper(this->GetProperty("ColorArrayName"));
-  return this->RescaleTransferFunctionToVisibleRange(
-    view, helper.GetAsString(4), helper.GetAsInt(3));
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToVisibleRange(this, view);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::RescaleTransferFunctionToVisibleRange(
   vtkSMProxy* view, const char* arrayname, int attribute_type)
 {
-  vtkSMRenderViewProxy* rview = vtkSMRenderViewProxy::SafeDownCast(view);
-  if (!rview || !arrayname || arrayname[0] == 0)
-  {
-    return false;
-  }
-
-  vtkSMPropertyHelper inputHelper(this->GetProperty("Input"));
-  vtkSMSourceProxy* inputProxy = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy());
-  int port = inputHelper.GetOutputPort();
-  if (!inputProxy || !inputProxy->GetOutputPort(port))
-  {
-    // no input.
-    vtkWarningMacro("No input present. Cannot determine data ranges.");
-    return false;
-  }
-
-  vtkPVDataInformation* dataInfo = inputProxy->GetOutputPort(port)->GetDataInformation();
-  vtkPVArrayInformation* info = dataInfo->GetArrayInformation(arrayname, attribute_type);
-  if (!info)
-  {
-    return false;
-  }
-
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  vtkSMProperty* sofProperty = this->GetProperty("ScalarOpacityFunction");
-  vtkSMProperty* useTransfer2DProperty = this->GetProperty("UseTransfer2D");
-  vtkSMProperty* transfer2DProperty = this->GetProperty("TransferFunction2D");
-  if ((!lutProperty && !sofProperty) && (!useTransfer2DProperty && !transfer2DProperty))
-  {
-    // No LookupTable and ScalarOpacityFunction found.
-    // No UseTransfer2D and TransferFunction2D found.
-    return false;
-  }
-
-  vtkSMProxy* lut = lutProperty ? vtkSMPropertyHelper(lutProperty).GetAsProxy() : nullptr;
-  vtkSMProxy* sof = sofProperty ? vtkSMPropertyHelper(sofProperty).GetAsProxy() : nullptr;
-  bool useTransfer2D =
-    useTransfer2DProperty ? vtkSMPropertyHelper(useTransfer2DProperty).GetAsInt() == 1 : false;
-  vtkSMProxy* tf2d = (useTransfer2D && transfer2DProperty)
-    ? vtkSMPropertyHelper(transfer2DProperty).GetAsProxy()
-    : nullptr;
-
-  // We need to determine the component number to use from the lut.
-  int component = -1;
-  if (lut && vtkSMPropertyHelper(lut, "VectorMode").GetAsInt() != 0)
-  {
-    component = vtkSMPropertyHelper(lut, "VectorComponent").GetAsInt();
-  }
-  if (component >= info->GetNumberOfComponents())
-  {
-    // something amiss, the component request is not present in the dataset.
-    // give up.
-    return false;
-  }
-
-  double range[2];
-  if (!rview->ComputeVisibleScalarRange(attribute_type, arrayname, component, range))
-  {
-    return false;
-  }
-
-  if (!useTransfer2D)
-  {
-    if (lut)
-    {
-      vtkSMTransferFunctionProxy::RescaleTransferFunction(lut, range, false);
-      vtkSMProxy* sof_lut = vtkSMPropertyHelper(lut, "ScalarOpacityFunction", true).GetAsProxy();
-      if (sof_lut && sof != sof_lut)
-      {
-        vtkSMTransferFunctionProxy::RescaleTransferFunction(sof_lut, range, false);
-      }
-    }
-    if (sof)
-    {
-      vtkSMTransferFunctionProxy::RescaleTransferFunction(sof, range, false);
-    }
-  }
-  else
-  {
-    if (tf2d)
-    {
-      double r[4];
-      vtkSMTransferFunction2DProxy::GetRange(tf2d, r);
-      r[0] = range[0];
-      r[1] = range[1];
-      vtkSMTransferFunction2DProxy::RescaleTransferFunction(tf2d, r, false);
-    }
-  }
-  return true;
+  return vtkSMColorMapEditorHelper::RescaleTransferFunctionToVisibleRange(
+    this, view, arrayname, attribute_type);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::SetScalarColoring(const char* arrayname, int attribute_type)
 {
-  return this->SetScalarColoringInternal(arrayname, attribute_type, false, -1);
+  return vtkSMColorMapEditorHelper::SetScalarColoring(this, arrayname, attribute_type);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::SetScalarColoring(
   const char* arrayname, int attribute_type, int component)
 {
-  return this->SetScalarColoringInternal(arrayname, attribute_type, true, component);
+  return vtkSMColorMapEditorHelper::SetScalarColoring(this, arrayname, attribute_type, component);
 }
 
 //----------------------------------------------------------------------------
@@ -601,18 +447,28 @@ bool vtkSMPVRepresentationProxy::SetScalarColoringInternal(
     return true;
   }
 
+  auto* arraySettings = vtkPVRepresentedArrayListSettings::GetInstance();
+  auto* arrayInfo = this->GetArrayInformationForColorArray(false);
+  const bool forceComponentMode = (arrayInfo && arraySettings &&
+    !arraySettings->ShouldUseMagnitudeMode(arrayInfo->GetNumberOfComponents()));
+  if (forceComponentMode && (!useComponent || component < 0))
+  {
+    component = 0;
+  }
+
   // Now, setup transfer functions.
   bool haveComponent = useComponent;
   bool separate = (vtkSMPropertyHelper(this, "UseSeparateColorMap", true).GetAsInt() != 0);
   bool useTransfer2D = (vtkSMPropertyHelper(this, "UseTransfer2D", true).GetAsInt() != 0);
-  std::string decoratedArrayName = this->GetDecoratedArrayName(arrayname);
+  std::string decoratedArrayName =
+    vtkSMColorMapEditorHelper::GetDecoratedArrayName(this, arrayname);
   vtkNew<vtkSMTransferFunctionManager> mgr;
   vtkSMProxy* lutProxy = nullptr;
   if (vtkSMProperty* lutProperty = this->GetProperty("LookupTable"))
   {
     lutProxy =
       mgr->GetColorTransferFunction(decoratedArrayName.c_str(), this->GetSessionProxyManager());
-    if (useComponent)
+    if (useComponent || forceComponentMode)
     {
       if (component >= 0)
       {
@@ -697,7 +553,7 @@ bool vtkSMPVRepresentationProxy::SetScalarColoringInternal(
     this->UpdateProperty("TransferFunction2D");
     if (lutProxy && useTransfer2D)
     {
-      vtkSMPropertyHelper(lutProxy, "Use2DTransferFunction").Set(useTransfer2D);
+      vtkSMPropertyHelper(lutProxy, "Using2DTransferFunction").Set(useTransfer2D);
       lutProxy->UpdateVTKObjects();
     }
   }
@@ -743,343 +599,44 @@ std::string vtkSMPVRepresentationProxy::GetDecoratedArrayName(const std::string&
 //----------------------------------------------------------------------------
 int vtkSMPVRepresentationProxy::IsScalarBarStickyVisible(vtkSMProxy* view)
 {
-  if (!view)
-  {
-    return -1;
-  }
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    vtkWarningMacro("Missing 'LookupTable' property.");
-    return -1;
-  }
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  if (lutPropertyHelper.GetNumberOfElements() == 0 || lutPropertyHelper.GetAsProxy(0) == nullptr)
-  {
-    vtkWarningMacro("Failed to determine the LookupTable being used.");
-    return -1;
-  }
-  vtkSMProxy* lutProxy = lutPropertyHelper.GetAsProxy(0);
-  vtkSMScalarBarWidgetRepresentationProxy* sbProxy =
-    vtkSMScalarBarWidgetRepresentationProxy::SafeDownCast(
-      vtkSMTransferFunctionProxy::FindScalarBarRepresentation(lutProxy, view));
-  if (sbProxy)
-  {
-    vtkSMPropertyHelper sbsvPropertyHelper(sbProxy->GetProperty("StickyVisible"));
-    return sbsvPropertyHelper.GetNumberOfElements()
-      ? vtkSMPropertyHelper(sbProxy, "StickyVisible").GetAsInt()
-      : -1;
-  }
-  return -1;
+  return vtkSMColorMapEditorHelper::IsScalarBarStickyVisible(this, view);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::UpdateScalarBarRange(vtkSMProxy* view, bool deleteRange)
 {
-  bool usingScalarBarColoring = this->GetUsingScalarColoring();
-
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    vtkWarningMacro("Missing 'LookupTable' property");
-    return false;
-  }
-
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  vtkSMProxy* lutProxy =
-    usingScalarBarColoring ? lutPropertyHelper.GetAsProxy(0) : this->LastLUTProxy.GetPointer();
-
-  if (!lutProxy)
-  {
-    return false;
-  }
-
-  vtkSMScalarBarWidgetRepresentationProxy* sbProxy =
-    vtkSMScalarBarWidgetRepresentationProxy::SafeDownCast(
-      vtkSMTransferFunctionProxy::FindScalarBarRepresentation(lutProxy, view));
-
-  if (!sbProxy)
-  {
-    return false;
-  }
-
-  vtkNew<vtkSMTransferFunctionManager> mgr;
-  vtkSMProxy* sbSMProxy = mgr->GetScalarBarRepresentation(lutProxy, view);
-
-  vtkSMProperty* maxRangeProp = sbSMProxy->GetProperty("DataRangeMax");
-  vtkSMProperty* minRangeProp = sbSMProxy->GetProperty("DataRangeMin");
-
-  if (minRangeProp && maxRangeProp)
-  {
-    vtkSMPropertyHelper minRangePropHelper(minRangeProp);
-    vtkSMPropertyHelper maxRangePropHelper(maxRangeProp);
-
-    // We remove the range that was potentially previously stored
-    sbProxy->RemoveRange(this);
-
-    // If we do not want to delete this range, then we update it with its potential new value.
-    if (!deleteRange)
-    {
-      sbProxy->AddRange(this);
-    }
-
-    double updatedRange[2];
-    sbProxy->GetRange(updatedRange);
-    minRangePropHelper.Set(updatedRange[0]);
-    maxRangePropHelper.Set(updatedRange[1]);
-  }
-  sbSMProxy->UpdateVTKObjects();
-
-  this->LastLUTProxy = usingScalarBarColoring ? lutProxy : nullptr;
-  return true;
+  return vtkSMColorMapEditorHelper::UpdateScalarBarRange(this, view, deleteRange);
 }
 
 //----------------------------------------------------------------------------
 vtkSMProxy* vtkSMPVRepresentationProxy::GetLUTProxy(vtkSMProxy* view)
 {
-  if (!view)
-  {
-    return nullptr;
-  }
-
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    vtkWarningMacro("Missing 'LookupTable' property.");
-    return nullptr;
-  }
-
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  if (lutPropertyHelper.GetNumberOfElements() == 0 || lutPropertyHelper.GetAsProxy(0) == nullptr)
-  {
-    return nullptr;
-  }
-
-  return lutPropertyHelper.GetAsProxy(0);
+  return vtkSMColorMapEditorHelper::GetLUTProxy(this, view);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::SetScalarBarVisibility(vtkSMProxy* view, bool visible)
 {
-  if (!view)
-  {
-    return false;
-  }
-
-  vtkSMProxy* lutProxy = this->GetLUTProxy(view);
-  if (!lutProxy)
-  {
-    vtkWarningMacro("Failed to determine the LookupTable being used.");
-    return false;
-  }
-
-  SM_SCOPED_TRACE(CallMethod)
-    .arg(this)
-    .arg("SetScalarBarVisibility")
-    .arg(view)
-    .arg(visible)
-    .arg("comment", visible ? "show color bar/color legend" : "hide color bar/color legend");
-
-  // If the lut proxy changed, we need to remove ourself (representation proxy)
-  // from the scalar bar widget that we used to be linked to.
-  if (this->LastLUTProxy && lutProxy != this->LastLUTProxy)
-  {
-    if (auto lastSBProxy = vtkSMScalarBarWidgetRepresentationProxy::SafeDownCast(
-          vtkSMTransferFunctionProxy::FindScalarBarRepresentation(this->LastLUTProxy, view)))
-    {
-      lastSBProxy->RemoveRange(this);
-    }
-  }
-
-  vtkSMScalarBarWidgetRepresentationProxy* sbProxy =
-    vtkSMScalarBarWidgetRepresentationProxy::SafeDownCast(
-      vtkSMTransferFunctionProxy::FindScalarBarRepresentation(lutProxy, view));
-
-  if (sbProxy)
-  {
-    int legacyVisible = vtkSMPropertyHelper(sbProxy, "Visibility").GetAsInt();
-    // If scalar bar is set to not be visible but was previously visible,
-    // then the user has pressed the scalar bar button hiding the scalar bar.
-    // We keep this information well preserved in the scalar bar representation.
-    // This method is not called when hiding the whole representation, so we are safe
-    // on scalar bar disappearance occuring on such event, it won't mess with this engine.
-    if (legacyVisible && !visible)
-    {
-      vtkSMPropertyHelper(sbProxy, "StickyVisible").Set(0);
-    }
-    // If the scalar bar is set to be visible, we are in the case where we automatically
-    // show the scalarbar, whether or not it was previously hidden.
-    else if (visible)
-    {
-      vtkSMPropertyHelper(sbProxy, "StickyVisible").Set(1);
-    }
-  }
-
-  // if hiding the Scalar Bar, just look if there's a LUT and then hide the
-  // corresponding scalar bar. We won't worry too much about whether scalar
-  // coloring is currently enabled for this.
-  if (!visible)
-  {
-    if (sbProxy)
-    {
-      vtkSMPropertyHelper(sbProxy, "Visibility").Set(0);
-      vtkSMPropertyHelper(sbProxy, "Enabled").Set(0);
-      sbProxy->UpdateVTKObjects();
-    }
-    return true;
-  }
-
-  if (!this->GetUsingScalarColoring())
-  {
-    return false;
-  }
-
-  vtkNew<vtkSMTransferFunctionManager> mgr;
-  vtkSMProxy* sbSMProxy = mgr->GetScalarBarRepresentation(lutProxy, view);
-  if (!sbSMProxy)
-  {
-    vtkWarningMacro("Failed to locate/create ScalarBar representation.");
-    return false;
-  }
-
-  vtkSMPropertyHelper(sbSMProxy, "Enabled").Set(1);
-  vtkSMPropertyHelper(sbSMProxy, "Visibility").Set(1);
-
-  vtkSMProperty* titleProp = sbSMProxy->GetProperty("Title");
-  vtkSMProperty* compProp = sbSMProxy->GetProperty("ComponentTitle");
-
-  if (titleProp && compProp && titleProp->IsValueDefault() && compProp->IsValueDefault())
-  {
-    vtkSMSettings* settings = vtkSMSettings::GetInstance();
-
-    vtkSMPropertyHelper colorArrayHelper(this, "ColorArrayName");
-    std::string arrayName(colorArrayHelper.GetInputArrayNameToProcess());
-
-    // Look up array-specific title for scalar bar
-    std::ostringstream prefix;
-    prefix << ".array_lookup_tables"
-           << "." << arrayName << ".Title";
-
-    std::string arrayTitle = settings->GetSettingAsString(prefix.str().c_str(), arrayName);
-
-    vtkSMPropertyHelper titlePropHelper(titleProp);
-
-    if (sbProxy && strcmp(titlePropHelper.GetAsString(), arrayTitle.c_str()) != 0)
-    {
-      sbProxy->ClearRange();
-    }
-
-    titlePropHelper.Set(arrayTitle.c_str());
-
-    // now, determine a name for it if possible.
-    vtkPVArrayInformation* arrayInfo = this->GetArrayInformationForColorArray();
-    vtkSMScalarBarWidgetRepresentationProxy::UpdateComponentTitle(sbSMProxy, arrayInfo);
-  }
-  vtkSMScalarBarWidgetRepresentationProxy::PlaceInView(sbSMProxy, view);
-  sbSMProxy->UpdateVTKObjects();
-  return true;
+  return vtkSMColorMapEditorHelper::SetScalarBarVisibility(this, view, visible);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::HideScalarBarIfNotNeeded(vtkSMProxy* view)
 {
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    return false;
-  }
-
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  if (lutPropertyHelper.GetNumberOfElements() == 0 || lutPropertyHelper.GetAsProxy(0) == nullptr)
-  {
-    return false;
-  }
-
-  SM_SCOPED_TRACE(CallMethod)
-    .arg(this)
-    .arg("HideScalarBarIfNotNeeded")
-    .arg(view)
-    .arg("comment", "hide scalars not actively used");
-
-  vtkSMProxy* lutProxy = lutPropertyHelper.GetAsProxy(0);
-  vtkNew<vtkSMTransferFunctionManager> tmgr;
-  return tmgr->HideScalarBarIfNotNeeded(lutProxy, view);
+  return vtkSMColorMapEditorHelper::HideScalarBarIfNotNeeded(this, view);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMPVRepresentationProxy::IsScalarBarVisible(vtkSMProxy* view)
 {
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    return false;
-  }
-
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  if (lutPropertyHelper.GetNumberOfElements() == 0 || lutPropertyHelper.GetAsProxy(0) == nullptr)
-  {
-    return false;
-  }
-
-  vtkSMProxy* lutProxy = lutPropertyHelper.GetAsProxy(0);
-  return vtkSMTransferFunctionProxy::IsScalarBarVisible(lutProxy, view);
+  return vtkSMColorMapEditorHelper::IsScalarBarVisible(this, view);
 }
 
 //----------------------------------------------------------------------------
 vtkPVArrayInformation* vtkSMPVRepresentationProxy::GetArrayInformationForColorArray(
   bool checkRepresentedData)
 {
-  if (!this->GetUsingScalarColoring())
-  {
-    return nullptr;
-  }
-
-  // now, determine a name for it if possible.
-  vtkSMPropertyHelper colorArrayHelper(this, "ColorArrayName");
-  vtkSMPropertyHelper inputHelper(this, "Input");
-  vtkSMSourceProxy* input = vtkSMSourceProxy::SafeDownCast(inputHelper.GetAsProxy());
-  unsigned int port = inputHelper.GetOutputPort();
-  if (input)
-  {
-    vtkPVArrayInformation* arrayInfoFromData = nullptr;
-    arrayInfoFromData = input->GetDataInformation(port)->GetArrayInformation(
-      colorArrayHelper.GetInputArrayNameToProcess(), colorArrayHelper.GetInputArrayAssociation());
-    if (arrayInfoFromData)
-    {
-      return arrayInfoFromData;
-    }
-
-    if (colorArrayHelper.GetInputArrayAssociation() == vtkDataObject::POINT_THEN_CELL)
-    {
-      // Try points...
-      arrayInfoFromData = input->GetDataInformation(port)->GetArrayInformation(
-        colorArrayHelper.GetInputArrayNameToProcess(), vtkDataObject::POINT);
-      if (arrayInfoFromData)
-      {
-        return arrayInfoFromData;
-      }
-
-      // ... then cells
-      arrayInfoFromData = input->GetDataInformation(port)->GetArrayInformation(
-        colorArrayHelper.GetInputArrayNameToProcess(), vtkDataObject::CELL);
-      if (arrayInfoFromData)
-      {
-        return arrayInfoFromData;
-      }
-    }
-  }
-
-  if (checkRepresentedData)
-  {
-    vtkPVArrayInformation* arrayInfo = this->GetRepresentedDataInformation()->GetArrayInformation(
-      colorArrayHelper.GetInputArrayNameToProcess(), colorArrayHelper.GetInputArrayAssociation());
-    if (arrayInfo)
-    {
-      return arrayInfo;
-    }
-  }
-
-  return nullptr;
+  return vtkSMColorMapEditorHelper::GetArrayInformationForColorArray(this, checkRepresentedData);
 }
 
 //----------------------------------------------------------------------------
@@ -1087,21 +644,8 @@ vtkPVProminentValuesInformation*
 vtkSMPVRepresentationProxy::GetProminentValuesInformationForColorArray(
   double uncertaintyAllowed, double fraction, bool force)
 {
-  if (!this->GetUsingScalarColoring())
-  {
-    return nullptr;
-  }
-
-  vtkPVArrayInformation* arrayInfo = this->GetArrayInformationForColorArray();
-  if (!arrayInfo)
-  {
-    return nullptr;
-  }
-
-  vtkSMPropertyHelper colorArrayHelper(this, "ColorArrayName");
-  return this->GetProminentValuesInformation(arrayInfo->GetName(),
-    colorArrayHelper.GetInputArrayAssociation(), arrayInfo->GetNumberOfComponents(),
-    uncertaintyAllowed, fraction, force);
+  return vtkSMColorMapEditorHelper::GetProminentValuesInformationForColorArray(
+    this, uncertaintyAllowed, fraction, force);
 }
 
 //----------------------------------------------------------------------------
@@ -1177,41 +721,7 @@ void vtkSMPVRepresentationProxy::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 int vtkSMPVRepresentationProxy::GetEstimatedNumberOfAnnotationsOnScalarBar(vtkSMProxy* view)
 {
-  if (!view)
-  {
-    return -1;
-  }
-
-  if (!this->GetUsingScalarColoring())
-  {
-    return 0;
-  }
-
-  vtkSMProperty* lutProperty = this->GetProperty("LookupTable");
-  if (!lutProperty)
-  {
-    vtkWarningMacro("Missing 'LookupTable' property.");
-    return -1;
-  }
-
-  vtkSMPropertyHelper lutPropertyHelper(lutProperty);
-  if (lutPropertyHelper.GetNumberOfElements() == 0 || lutPropertyHelper.GetAsProxy(0) == nullptr)
-  {
-    vtkWarningMacro("Failed to determine the LookupTable being used.");
-    return -1;
-  }
-
-  vtkSMProxy* lutProxy = lutPropertyHelper.GetAsProxy(0);
-  vtkNew<vtkSMTransferFunctionManager> mgr;
-  vtkSMProxy* sbProxy = mgr->GetScalarBarRepresentation(lutProxy, view);
-  if (!sbProxy)
-  {
-    vtkWarningMacro("Failed to locate/create ScalarBar representation.");
-    return -1;
-  }
-
-  sbProxy->UpdatePropertyInformation();
-  return vtkSMPropertyHelper(sbProxy, "EstimatedNumberOfAnnotations").GetAsInt();
+  return vtkSMColorMapEditorHelper::GetEstimatedNumberOfAnnotationsOnScalarBar(this, view);
 }
 
 //----------------------------------------------------------------------------
@@ -1219,7 +729,7 @@ bool vtkSMPVRepresentationProxy::GetVolumeIndependentRanges()
 {
   // the representation is Volume
   vtkSMProperty* repProperty = this->GetProperty("Representation");
-  if (strcmp(vtkSMPropertyHelper(repProperty).GetAsString(), "Volume") != 0)
+  if (!repProperty || strcmp(vtkSMPropertyHelper(repProperty).GetAsString(), "Volume") != 0)
   {
     return false;
   }

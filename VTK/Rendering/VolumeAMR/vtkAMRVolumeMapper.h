@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRVolumeMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRVolumeMapper
  * @brief   AMR class for a volume mapper
@@ -30,6 +18,7 @@
 #include "vtkRenderingVolumeAMRModule.h" // For export macro
 #include "vtkVolumeMapper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAMRResampleFilter;
 class vtkCamera;
 class vtkImageData;
@@ -88,7 +77,7 @@ public:
    * their opacity mapping value.
    */
   void SetBlendMode(int mode) override;
-  int GetBlendMode() override;
+  int GetBlendMode() VTK_FUTURE_CONST override;
   ///@}
 
   ///@{
@@ -121,7 +110,7 @@ public:
    * perpendicular to the coordinate axes.)
    */
   void SetCropping(vtkTypeBool) override;
-  vtkTypeBool GetCropping() override;
+  vtkTypeBool GetCropping() VTK_FUTURE_CONST override;
   ///@}
 
   ///@{
@@ -152,7 +141,7 @@ public:
    * clip plane pairs) and inverted cross.
    */
   void SetCroppingRegionFlags(int mode) override;
-  int GetCroppingRegionFlags() override;
+  int GetCroppingRegionFlags() VTK_FUTURE_CONST override;
   ///@}
 
   // The possible values for the default and current render mode ivars
@@ -346,4 +335,5 @@ private:
   void operator=(const vtkAMRVolumeMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

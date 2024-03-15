@@ -1,31 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTecplotReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*****************************************************************************
- *
- * Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
- * Produced at the Lawrence Livermore National Laboratory
- * LLNL-CODE-400124
- * All rights reserved.
- *
- * This file was adapted from the ASCII Tecplot reader of VisIt. For  details,
- * see https://visit.llnl.gov/.  The full copyright notice is contained in the
- * file COPYRIGHT located at the root of the VisIt distribution or at
- * http://www.llnl.gov/visit/copyright.html.
- *
- *****************************************************************************/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTecplotReader.h"
 
@@ -52,6 +27,7 @@
 
 #include <cctype> // for isspace(), isalnum()
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTecplotReader);
 
 // ============================================================================
@@ -2193,3 +2169,4 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
 
   this->Internal->Completed = 1;
 }
+VTK_ABI_NAMESPACE_END

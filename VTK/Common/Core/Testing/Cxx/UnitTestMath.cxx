@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestMath.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 //
 // Note if you fix this test to fill in all the empty tests
@@ -3991,7 +3979,7 @@ int TestMetaMultiplyMatrixWithVector()
     status = 1;
   }
 
-  // Testing with the tranpose
+  // Testing with the transpose
   vtkMath::MultiplyMatrixWithVector<3, 3, vtkMatrixUtilities::Layout::Transpose>(M, x, y);
 
   if (y[0] != 6300 || y[1] != 7410 || y[2] != 8520)

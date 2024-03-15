@@ -10,7 +10,6 @@
 #ifndef vtk_m_cont_ArrayHandleConcatenate_h
 #define vtk_m_cont_ArrayHandleConcatenate_h
 
-#include <vtkm/Deprecated.h>
 #include <vtkm/StaticAssert.h>
 
 #include <vtkm/cont/ArrayHandle.h>
@@ -117,68 +116,35 @@ class VTKM_ALWAYS_EXPORT StorageTagConcatenate
 namespace internal
 {
 
-namespace detail
-{
-
-template <typename T, typename ArrayOrStorage, bool IsArrayType>
-struct ConcatinateTypeArgImpl;
-
-template <typename T, typename StorageTag_>
-struct ConcatinateTypeArgImpl<T, StorageTag_, false>
-{
-  using StorageTag = StorageTag_;
-  using Storage = vtkm::cont::internal::Storage<T, StorageTag>;
-  using ArrayHandle = vtkm::cont::ArrayHandle<T, StorageTag>;
-};
-
-template <typename T, typename Array>
-struct ConcatinateTypeArgImpl<T, Array, true>
-{
-  VTKM_STATIC_ASSERT_MSG((std::is_same<T, typename Array::ValueType>::value),
-                         "Used array with wrong type in ArrayHandleConcatinate.");
-  using StorageTag VTKM_DEPRECATED(
-    1.6,
-    "Use storage tags instead of array handles in StorageTagConcatenate.") =
-    typename Array::StorageTag;
-  using Storage VTKM_DEPRECATED(
-    1.6,
-    "Use storage tags instead of array handles in StorageTagConcatenate.") =
-    vtkm::cont::internal::Storage<T, typename Array::StorageTag>;
-  using ArrayHandle VTKM_DEPRECATED(
-    1.6,
-    "Use storage tags instead of array handles in StorageTagConcatenate.") =
-    vtkm::cont::ArrayHandle<T, typename Array::StorageTag>;
-};
-
-template <typename T, typename ArrayOrStorage>
-struct ConcatinateTypeArg
-  : ConcatinateTypeArgImpl<T,
-                           ArrayOrStorage,
-                           vtkm::cont::internal::ArrayHandleCheck<ArrayOrStorage>::type::value>
-{
-};
-
-} // namespace detail
-
 template <typename T, typename ST1, typename ST2>
 class Storage<T, StorageTagConcatenate<ST1, ST2>>
 {
-  using SourceStorage1 = typename detail::ConcatinateTypeArg<T, ST1>::Storage;
-  using SourceStorage2 = typename detail::ConcatinateTypeArg<T, ST2>::Storage;
+  using SourceStorage1 = vtkm::cont::internal::Storage<T, ST1>;
+  using SourceStorage2 = vtkm::cont::internal::Storage<T, ST2>;
 
-  using ArrayHandleType1 = typename detail::ConcatinateTypeArg<T, ST1>::ArrayHandle;
-  using ArrayHandleType2 = typename detail::ConcatinateTypeArg<T, ST2>::ArrayHandle;
+  using ArrayHandleType1 = vtkm::cont::ArrayHandle<T, ST1>;
+  using ArrayHandleType2 = vtkm::cont::ArrayHandle<T, ST2>;
 
-  template <typename Buff>
-  VTKM_CONT static Buff* Buffers1(Buff* buffers)
+  struct Info
   {
-    return buffers;
+    std::size_t NumBuffers1;
+    std::size_t NumBuffers2;
+  };
+
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> Buffers1(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
+  {
+    Info info = buffers[0].GetMetaData<Info>();
+    return std::vector<vtkm::cont::internal::Buffer>(buffers.begin() + 1,
+                                                     buffers.begin() + 1 + info.NumBuffers1);
   }
 
-  template <typename Buff>
-  VTKM_CONT static Buff* Buffers2(Buff* buffers)
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> Buffers2(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    return buffers + SourceStorage1::GetNumberOfBuffers();
+    Info info = buffers[0].GetMetaData<Info>();
+    return std::vector<vtkm::cont::internal::Buffer>(buffers.begin() + 1 + info.NumBuffers1,
+                                                     buffers.end());
   }
 
 public:
@@ -191,18 +157,14 @@ public:
     vtkm::internal::ArrayPortalConcatenate<typename SourceStorage1::WritePortalType,
                                            typename SourceStorage2::WritePortalType>;
 
-  VTKM_CONT static constexpr vtkm::IdComponent GetNumberOfBuffers()
-  {
-    return (SourceStorage1::GetNumberOfBuffers() + SourceStorage2::GetNumberOfBuffers());
-  }
-
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return (SourceStorage1::GetNumberOfValues(Buffers1(buffers)) +
             SourceStorage2::GetNumberOfValues(Buffers2(buffers)));
   }
 
-  VTKM_CONT static void Fill(vtkm::cont::internal::Buffer* buffers,
+  VTKM_CONT static void Fill(const std::vector<vtkm::cont::internal::Buffer>& buffers,
                              const T& fillValue,
                              vtkm::Id startIndex,
                              vtkm::Id endIndex,
@@ -225,35 +187,42 @@ public:
     }
   }
 
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId device,
-                                                   vtkm::cont::Token& token)
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return ReadPortalType(SourceStorage1::CreateReadPortal(Buffers1(buffers), device, token),
                           SourceStorage2::CreateReadPortal(Buffers2(buffers), device, token));
   }
 
-  VTKM_CONT static WritePortalType CreateWritePortal(vtkm::cont::internal::Buffer* buffers,
-                                                     vtkm::cont::DeviceAdapterId device,
-                                                     vtkm::cont::Token& token)
+  VTKM_CONT static WritePortalType CreateWritePortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
     return WritePortalType(SourceStorage1::CreateWritePortal(Buffers1(buffers), device, token),
                            SourceStorage2::CreateWritePortal(Buffers2(buffers), device, token));
   }
 
-  VTKM_CONT static auto CreateBuffers(const ArrayHandleType1& array1,
-                                      const ArrayHandleType2& array2)
+  VTKM_CONT static auto CreateBuffers(const ArrayHandleType1& array1 = ArrayHandleType1{},
+                                      const ArrayHandleType2& array2 = ArrayHandleType2{})
     -> decltype(vtkm::cont::internal::CreateBuffers())
   {
-    return vtkm::cont::internal::CreateBuffers(array1, array2);
+    Info info;
+    info.NumBuffers1 = array1.GetBuffers().size();
+    info.NumBuffers2 = array2.GetBuffers().size();
+    return vtkm::cont::internal::CreateBuffers(info, array1, array2);
   }
 
-  VTKM_CONT static const ArrayHandleType1 GetArray1(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static const ArrayHandleType1 GetArray1(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return ArrayHandleType1(Buffers1(buffers));
   }
 
-  VTKM_CONT static const ArrayHandleType2 GetArray2(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static const ArrayHandleType2 GetArray2(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return ArrayHandleType2(Buffers2(buffers));
   }
@@ -282,10 +251,6 @@ public:
                              StorageTagConcatenate<typename ArrayHandleType1::StorageTag,
                                                    typename ArrayHandleType2::StorageTag>>));
 
-protected:
-  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
-
-public:
   VTKM_CONT
   ArrayHandleConcatenate(const ArrayHandleType1& array1, const ArrayHandleType2& array2)
     : Superclass(StorageType::CreateBuffers(array1, array2))
@@ -325,9 +290,8 @@ struct SerializableTypeString<vtkm::cont::ArrayHandleConcatenate<AH1, AH2>>
 template <typename T, typename ST1, typename ST2>
 struct SerializableTypeString<
   vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagConcatenate<ST1, ST2>>>
-  : SerializableTypeString<vtkm::cont::ArrayHandleConcatenate<
-      typename internal::detail::ConcatinateTypeArg<T, ST1>::ArrayHandle,
-      typename internal::detail::ConcatinateTypeArg<T, ST2>::ArrayHandle>>
+  : SerializableTypeString<vtkm::cont::ArrayHandleConcatenate<vtkm::cont::ArrayHandle<T, ST1>,
+                                                              vtkm::cont::ArrayHandle<T, ST2>>>
 {
 };
 }
@@ -365,11 +329,11 @@ public:
 
 template <typename T, typename ST1, typename ST2>
 struct Serialization<vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagConcatenate<ST1, ST2>>>
-  : Serialization<vtkm::cont::ArrayHandleConcatenate<
-      typename vtkm::cont::internal::detail::ConcatinateTypeArg<T, ST1>::ArrayHandle,
-      typename vtkm::cont::internal::detail::ConcatinateTypeArg<T, ST2>::ArrayHandle>>
+  : Serialization<vtkm::cont::ArrayHandleConcatenate<vtkm::cont::ArrayHandle<T, ST1>,
+                                                     vtkm::cont::ArrayHandle<T, ST2>>>
 {
 };
+
 } // diy
 /// @endcond SERIALIZATION
 

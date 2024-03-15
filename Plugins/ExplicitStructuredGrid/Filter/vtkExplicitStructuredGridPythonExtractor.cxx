@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExplicitStructuredGridPythonExtractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExplicitStructuredGridPythonExtractor.h"
 
 #include <vtkAlgorithmOutput.h>
@@ -245,6 +234,6 @@ bool vtkExplicitStructuredGridPythonExtractor::EvaluatePythonExpression(vtkIdTyp
   PyObject* main_module = PyImport_ImportModule("__main__");
   PyObject* global_dict = PyModule_GetDict(main_module);
   PyObject* iobj = PyDict_GetItemString(global_dict, "ret");
-  ret = PyInt_AsLong(iobj) != 0;
+  ret = PyLong_AsLong(iobj) != 0;
   return ret;
 }

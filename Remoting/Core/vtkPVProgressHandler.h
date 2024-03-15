@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVProgressHandler.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVProgressHandler
  * @brief   progress handler.
@@ -56,13 +44,13 @@ public:
   vtkTypeMacro(vtkPVProgressHandler, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the session. This is not reference-counted to avoid cycles.
    */
   void SetSession(vtkPVSession* conn);
   vtkGetObjectMacro(Session, vtkPVSession);
-  //@}
+  ///@}
 
   /**
    * Listen to progress events from the object.
@@ -98,7 +86,7 @@ public:
    */
   void LocalCleanupPendingProgress();
 
-  //@{
+  ///@{
   /**
    * Get/Set the progress interval in seconds. Progress events
    * occurring more frequently than this interval are skipped.
@@ -106,15 +94,15 @@ public:
    */
   vtkSetClampMacro(ProgressInterval, double, 0.01, 30.0);
   vtkGetMacro(ProgressInterval, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * These are only valid in handler for the vtkCommand::ProgressEvent.
    */
   vtkGetStringMacro(LastProgressText);
   vtkGetMacro(LastProgress, int);
-  //@}
+  ///@}
 
 protected:
   vtkPVProgressHandler();

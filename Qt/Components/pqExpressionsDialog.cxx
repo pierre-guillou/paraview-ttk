@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqExpressionsDialog.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqExpressionsDialog.h"
 #include "ui_pqExpressionsDialog.h"
@@ -37,6 +9,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqExpressionsManager.h"
 #include "pqExpressionsTableModel.h"
 #include "pqFileDialog.h"
+#include "pqServer.h"
 #include "pqSettings.h"
 
 #include <QKeyEvent>
@@ -45,7 +18,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QStyledItemDelegate>
 #include <QtDebug>
 
-#include "vtksys/FStream.hxx"
+#include "vtkSMSessionProxyManager.h"
+
+#include <sstream>
 
 #include "vtk_nlohmannjson.h"
 #include VTK_NLOHMANN_JSON(json.hpp)
@@ -54,7 +29,6 @@ using json = nlohmann::json;
 
 constexpr const char* DEFAULT_GROUP_NAME = pqExpressionsManager::EXPRESSION_GROUP();
 constexpr const char* ALL_GROUP_NAME = "All";
-constexpr const char* BROWSE_FILE_FILTER = "ParaView Expressions (*.json);;All Files (*)";
 
 constexpr const char* JSON_FILE_VERSION = "1.0";
 constexpr const char* JSON_FILE_VERSION_KEY = "version";
@@ -317,6 +291,7 @@ pqExpressionsManagerDialog::pqExpressionsManagerDialog(QWidget* parent, const QS
   , Internals(new pqInternals(this, group))
 {
   Ui::pqExpressionsManagerDialog& ui = this->Internals->Ui;
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 
   QHeaderView* header = ui.expressions->horizontalHeader();
   header->setSortIndicatorShown(true);
@@ -402,7 +377,7 @@ void pqExpressionsManagerDialog::filterGroup()
 void pqExpressionsManagerDialog::removeAllExpressions()
 {
   QMessageBox dialog;
-  dialog.setText("Remove all expressions ?");
+  dialog.setText(tr("Remove all expressions ?"));
   dialog.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
   dialog.setDefaultButton(QMessageBox::Cancel);
   if (dialog.exec() == QMessageBox::Ok)
@@ -481,7 +456,10 @@ void pqExpressionsManagerDialog::onClose()
 //----------------------------------------------------------------------------
 void pqExpressionsManagerDialog::exportToFile()
 {
-  pqFileDialog dialog(nullptr, this, tr("Export Expressions(s)"), QString(), BROWSE_FILE_FILTER);
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog dialog(server, this, tr("Export Expressions(s)"), QString(),
+    tr("ParaView Expressions") + QString(" (*.json);;") + tr("All Files") + QString(" (*)"), false,
+    false);
   dialog.setObjectName("ExportExpressions");
   dialog.setFileMode(pqFileDialog::AnyFile);
   if (dialog.exec() != QDialog::Accepted || dialog.getSelectedFiles().empty())
@@ -489,14 +467,8 @@ void pqExpressionsManagerDialog::exportToFile()
     return;
   }
 
-  vtksys::ofstream outfs;
-  QString filename = dialog.getSelectedFiles()[0];
-  outfs.open(filename.toUtf8());
-  if (!outfs.is_open())
-  {
-    qCritical() << "Failed to open file for writing: " << filename;
-    return;
-  }
+  const QString filename = dialog.getSelectedFiles()[0];
+  const vtkTypeUInt32 location = dialog.getSelectedLocation();
 
   json root;
   root[JSON_FILE_VERSION_KEY] = JSON_FILE_VERSION;
@@ -514,14 +486,20 @@ void pqExpressionsManagerDialog::exportToFile()
   }
   root[JSON_EXPRESSIONS_LIST_KEY] = list;
 
-  outfs << root.dump(2) << endl;
-  outfs.close();
+  auto pxm = server->proxyManager();
+  if (!pxm->SaveString(root.dump(2).c_str(), filename.toStdString().c_str(), location))
+  {
+    qCritical() << tr("Failed to save expressions to ") << filename;
+  }
 }
 
 //----------------------------------------------------------------------------
 bool pqExpressionsManagerDialog::importFromFile()
 {
-  pqFileDialog dialog(nullptr, this, tr("Import Expressions(s)"), QString(), BROWSE_FILE_FILTER);
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog dialog(server, this, tr("Import Expressions(s)"), QString(),
+    tr("ParaView Expressions") + QString(" (*.json);;") + tr("All Files") + QString(" (*)"), false,
+    false);
   dialog.setObjectName("ImportExpressions");
   dialog.setFileMode(pqFileDialog::ExistingFile);
   if (dialog.exec() != QDialog::Accepted || dialog.getSelectedFiles().empty())
@@ -529,21 +507,18 @@ bool pqExpressionsManagerDialog::importFromFile()
     return false;
   }
 
-  QString filename = dialog.getSelectedFiles()[0];
-  vtksys::ifstream file;
-  file.open(filename.toUtf8());
-  if (!file)
-  {
-    qWarning() << "Failed to open file: " << filename;
-    return false;
-  }
+  const QString filename = dialog.getSelectedFiles()[0];
+  const vtkTypeUInt32 location = dialog.getSelectedLocation();
+  auto pxm = server->proxyManager();
+  const std::string contents = pxm->LoadString(filename.toStdString().c_str(), location);
+  std::istringstream inputStream(contents);
   json root;
-  file >> root;
+  inputStream >> root;
 
   QList<pqExpressionsManager::pqExpression> expressionsList;
   try
   {
-    std::string fileVersion = root.at(JSON_FILE_VERSION_KEY);
+    const std::string fileVersion = root.at(JSON_FILE_VERSION_KEY);
     if (fileVersion != JSON_FILE_VERSION)
     {
       qWarning() << "File version is " << fileVersion.c_str() << " but reader is "
@@ -552,9 +527,9 @@ bool pqExpressionsManagerDialog::importFromFile()
 
     for (auto expression : root[JSON_EXPRESSIONS_LIST_KEY])
     {
-      std::string exprValue = expression.at(JSON_EXPRESSION_KEY);
-      std::string exprName = expression.at(JSON_EXPRESSION_NAME_KEY);
-      std::string exprGroup = expression.at(JSON_EXPRESSION_GROUP_KEY);
+      const std::string exprValue = expression.at(JSON_EXPRESSION_KEY);
+      const std::string exprName = expression.at(JSON_EXPRESSION_NAME_KEY);
+      const std::string exprGroup = expression.at(JSON_EXPRESSION_GROUP_KEY);
       expressionsList.push_back({ exprGroup.c_str(), exprName.c_str(), exprValue.c_str() });
     }
   }

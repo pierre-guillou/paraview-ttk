@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageSincInterpolator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageSincInterpolator
  * @brief   perform sinc interpolation on images
@@ -47,6 +35,7 @@
 #define VTK_BLACKMAN_NUTTALL4 10
 #define VTK_SINC_KERNEL_SIZE_MAX 32
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 struct vtkInterpolationInfo;
 
@@ -109,7 +98,7 @@ public:
    * increases the sharpness and ringing, while using an alpha greater
    * than n increases the blurring.
    */
-  void SetWindowParameter(double parm);
+  void SetWindowParameter(double param);
   double GetWindowParameter() { return this->WindowParameter; }
 
   /**
@@ -255,4 +244,5 @@ private:
   void operator=(const vtkImageSincInterpolator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

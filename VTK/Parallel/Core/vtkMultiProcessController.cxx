@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiProcessController.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // This will be the default.
 #include "vtkMultiProcessController.h"
 
@@ -39,6 +27,7 @@
 //------------------------------------------------------------------------------
 // Stores internal members that cannot or should not be exposed in the header
 // file (for example, because they use templated types).
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController::vtkInternal
 {
 public:
@@ -931,3 +920,4 @@ void vtkMultiProcessController::SetGlobalController(vtkMultiProcessController* c
 {
   VTK_GLOBAL_MULTI_PROCESS_CONTROLLER = controller;
 }
+VTK_ABI_NAMESPACE_END

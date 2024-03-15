@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkUniformGridAMRAlgorithm.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformGridAMRAlgorithm
  *  vtkUniformGridAMR as output.
@@ -27,6 +15,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkCommonExecutionModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUniformGridAMR;
 class vtkInformation;
 class vtkInformationVector;
@@ -101,6 +90,11 @@ protected:
     return 1;
   }
 
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
+
   /**
    * Create a default executive
    */
@@ -121,4 +115,5 @@ private:
   void operator=(const vtkUniformGridAMRAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* VTKUNIFORMGRIDAMRALGORITHM_H_ */

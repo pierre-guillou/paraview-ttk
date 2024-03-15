@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkExtractHistogram2D.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkExtractHistogram2D.h"
 //------------------------------------------------------------------------------
 #include "vtkArrayData.h"
@@ -36,6 +20,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkTimerLog.h"
 #include "vtkUnsignedIntArray.h"
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractHistogram2D);
 vtkCxxSetObjectMacro(vtkExtractHistogram2D, RowMask, vtkDataArray);
 //------------------------------------------------------------------------------
@@ -175,6 +160,10 @@ void vtkExtractHistogram2D::Learn(
   this->MaximumBinCount = 0;
   for (int i = 0; i < numValues; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     v1 = col1->GetComponent(i, this->ComponentsToProcess[0]);
     v2 = col2->GetComponent(i, this->ComponentsToProcess[1]);
 
@@ -371,3 +360,4 @@ int vtkExtractHistogram2D::ComputeBinExtents(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

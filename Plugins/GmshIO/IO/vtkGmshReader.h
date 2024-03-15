@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGmshReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGmshReader
@@ -34,6 +22,7 @@ struct PhysicalGroup;
 class vtkUnstructuredGrid;
 class vtkInformation;
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKGMSHIO_EXPORT vtkGmshReader : public vtkMultiBlockDataSetAlgorithm
 {
 public:
@@ -41,51 +30,60 @@ public:
   vtkTypeMacro(vtkGmshReader, vtkMultiBlockDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Specify file name of Gmsh geometry file to read.
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if we create a cell data array containing Gmsh cell IDs.
    * Default is false.
    */
   vtkSetMacro(CreateGmshCellIDArray, bool);
   vtkGetMacro(CreateGmshCellIDArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if we create a point data array containing Gmsh node IDs.
    * Default is false.
    */
   vtkSetMacro(CreateGmshNodeIDArray, bool);
   vtkGetMacro(CreateGmshNodeIDArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if we create a cell data array containing Gmsh entity IDs.
    * Default is false.
    */
   vtkSetMacro(CreateGmshEntityIDArray, bool);
   vtkGetMacro(CreateGmshEntityIDArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if we create a field data array containing the dimension for a dataset.
    * Default is false.
    */
   vtkSetMacro(CreateGmshDimensionArray, bool);
   vtkGetMacro(CreateGmshDimensionArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Specify if we create a cell data array containing the physical tag number of the group.
+   * Default is false.
+   */
+  vtkSetMacro(CreateGmshPhysicalIDArray, bool);
+  vtkGetMacro(CreateGmshPhysicalIDArray, bool);
+  ///@}
+
+  ///@{
   /**
    * If true physical groups will be grouped by dimensions with a vtkMultiBlockDataSet
    * for each dimension. Else every physical group will be directly under the root node.
@@ -93,7 +91,7 @@ public:
    */
   vtkSetMacro(GroupByDimension, bool);
   vtkGetMacro(GroupByDimension, bool);
-  //@}
+  ///@}
 
 protected:
   vtkGmshReader();
@@ -122,11 +120,13 @@ private:
   bool CreateGmshNodeIDArray = false;
   bool CreateGmshEntityIDArray = false;
   bool CreateGmshDimensionArray = false;
+  bool CreateGmshPhysicalIDArray = false;
   bool GroupByDimension = true;
   GmshReaderInternal* Internal = nullptr;
 
   vtkGmshReader(const vtkGmshReader&) = delete;
   void operator=(const vtkGmshReader&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkGmshReader_h

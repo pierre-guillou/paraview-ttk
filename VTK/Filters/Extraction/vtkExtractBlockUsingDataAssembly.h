@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractBlockUsingDataAssembly.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkExtractBlockUsingDataAssembly
  * @brief extract blocks from certain composite datasets
@@ -44,6 +32,7 @@
 #include "vtkCompositeDataSetAlgorithm.h"
 #include "vtkFiltersExtractionModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataAssembly;
 class vtkPartitionedDataSetCollection;
 
@@ -137,4 +126,5 @@ private:
   char* AssemblyName;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

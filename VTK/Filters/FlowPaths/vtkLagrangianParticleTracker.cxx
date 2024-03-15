@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianParticleTracker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangianParticleTracker.h"
 
 #include "vtkAppendPolyData.h"
@@ -50,6 +38,7 @@
 #include <limits>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkLagrangianParticleTracker);
 vtkCxxSetSmartPointerMacro(vtkLagrangianParticleTracker, Integrator, vtkInitialValueProblemSolver);
 
@@ -108,8 +97,17 @@ struct IntegratingFunctor
 
   void operator()(vtkIdType partId, vtkIdType endPartId)
   {
+    bool isFirst = vtkSMPTools::GetSingleThread();
     for (vtkIdType id = partId; id < endPartId; id++)
     {
+      if (isFirst)
+      {
+        this->Tracker->CheckAbort();
+      }
+      if (this->Tracker->GetAbortOutput())
+      {
+        break;
+      }
       vtkLagrangianParticle* particle = this->ParticlesVec[id];
       vtkLagrangianThreadedData* localData = this->LocalData.Local();
 
@@ -441,7 +439,7 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
     }
   }
 
-  // give the model a chance to setup prior to particle initalization
+  // give the model a chance to setup prior to particle initialization
   this->IntegrationModel->PreParticleInitalization();
 
   // Recover seeds
@@ -534,7 +532,7 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
   this->IntegrationModel->PreIntegrate(particlesQueue);
 
   std::vector<vtkLagrangianParticle*> particlesVec;
-  while (!this->GetAbortExecute())
+  while (!this->CheckAbort())
   {
     // Check for particle feed
     this->GetParticleFeed(particlesQueue);
@@ -564,7 +562,7 @@ int vtkLagrangianParticleTracker::RequestData(vtkInformation* vtkNotUsed(request
   this->IntegrationModel->FinalizeThreadedData(this->SerialThreadedData);
 
   // Abort if necessary
-  if (this->GetAbortExecute())
+  if (this->CheckAbort())
   {
     // delete all remaining particle
     while (!particlesQueue.empty())
@@ -1384,3 +1382,4 @@ void vtkLagrangianParticleTracker::DeleteParticle(vtkLagrangianParticle* particl
   this->IntegrationModel->ParticleAboutToBeDeleted(particle);
   delete particle;
 }
+VTK_ABI_NAMESPACE_END

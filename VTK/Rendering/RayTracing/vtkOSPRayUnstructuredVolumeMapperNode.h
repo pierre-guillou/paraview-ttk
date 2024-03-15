@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayUnstructuredVolumeMapperNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOSPRayUnstructuredVolumeMapperNode
  * @brief   Unstructured grid volume renderer.
@@ -30,6 +18,7 @@
 
 #include "RTWrapper/RTWrapper.h" // for handle types
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGRAYTRACING_EXPORT vtkOSPRayUnstructuredVolumeMapperNode
   : public vtkVolumeMapperNode
 
@@ -67,4 +56,5 @@ private:
   void operator=(const vtkOSPRayUnstructuredVolumeMapperNode&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

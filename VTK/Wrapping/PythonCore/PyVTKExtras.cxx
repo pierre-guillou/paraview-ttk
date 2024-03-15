@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    PyVTKExtras.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "PyVTKExtras.h"
 #include "PyVTKReference.h"
+#include "vtkABINamespace.h"
 #include "vtkPythonCompatibility.h"
 
 // Silence warning like
@@ -33,7 +22,7 @@ static void* buffer_pointer_and_size(PyObject* o, Py_ssize_t* size)
   void* ptr = nullptr;
 
   // New buffer protocol
-  Py_buffer view = VTK_PYBUFFER_INITIALIZER;
+  Py_buffer view = { nullptr, nullptr, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr, nullptr };
   if (PyObject_CheckBuffer(o))
   {
     // Check for a simple buffer
@@ -57,27 +46,6 @@ static void* buffer_pointer_and_size(PyObject* o, Py_ssize_t* size)
       return ptr;
     }
   }
-
-#ifndef VTK_PY3K
-  // Old buffer protocol
-  PyBufferProcs* b = Py_TYPE(o)->tp_as_buffer;
-  if (b && b->bf_getreadbuffer && b->bf_getsegcount)
-  {
-    if (b->bf_getsegcount(o, nullptr) == 1)
-    {
-      *size = b->bf_getreadbuffer(o, 0, &ptr);
-      if (ptr)
-      {
-        return ptr;
-      }
-    }
-    else
-    {
-      PyErr_SetString(PyExc_TypeError, "buffer must be single-segment");
-      return nullptr;
-    }
-  }
-#endif
 
   PyErr_SetString(PyExc_TypeError, "object does not have a readable buffer");
 

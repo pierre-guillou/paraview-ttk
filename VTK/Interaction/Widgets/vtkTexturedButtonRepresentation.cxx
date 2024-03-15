@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTexturedButtonRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTexturedButtonRepresentation.h"
 #include "vtkActor.h"
 #include "vtkAssemblyPath.h"
@@ -34,6 +22,7 @@
 #include "vtkTexture.h"
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTexturedButtonRepresentation);
 
 vtkCxxSetObjectMacro(vtkTexturedButtonRepresentation, Property, vtkProperty);
@@ -431,14 +420,18 @@ double* vtkTexturedButtonRepresentation::GetBounds()
 //------------------------------------------------------------------------------
 void vtkTexturedButtonRepresentation::GetActors(vtkPropCollection* pc)
 {
-  if (this->FollowCamera)
+  if (pc != nullptr && this->GetVisibility())
   {
-    this->Follower->GetActors(pc);
+    if (this->FollowCamera)
+    {
+      this->Follower->GetActors(pc);
+    }
+    else
+    {
+      this->Actor->GetActors(pc);
+    }
   }
-  else
-  {
-    this->Actor->GetActors(pc);
-  }
+  this->Superclass::GetActors(pc);
 }
 
 //------------------------------------------------------------------------------
@@ -478,3 +471,4 @@ void vtkTexturedButtonRepresentation::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Selecting Property: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataAssemblyUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDataAssemblyUtilities
  * @brief collections of utilities for vtkDataAssembly
@@ -30,6 +18,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataSet;
 class vtkDataAssembly;
 class vtkDataObject;
@@ -117,6 +106,10 @@ public:
   static std::string GetSelectorForCompositeId(unsigned int id, vtkDataAssembly* hierarchy);
   static std::vector<std::string> GetSelectorsForCompositeIds(
     const std::vector<unsigned int>& ids, vtkDataAssembly* hierarchy);
+  static std::vector<std::string> GetSelectorsForCompositeIds(
+    const std::vector<unsigned int>& ids, vtkDataAssembly* hierarchy, vtkDataAssembly* assembly);
+  static std::vector<unsigned int> GetSelectorsCompositeIdsForCompositeIds(
+    const std::vector<unsigned int>& ids, vtkDataAssembly* hierarchy);
   ///@}
 
 protected:
@@ -135,4 +128,5 @@ private:
   void operator=(const vtkDataAssemblyUtilities&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3SILBuilder.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXdmf3SILBuilder
  * @brief   helper to allow block selection
@@ -32,6 +19,7 @@
 #include "vtkIOXdmf3Module.h" // For export macro
 #include "vtkType.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMutableDirectedGraph;
 class vtkStringArray;
 class vtkUnsignedCharArray;
@@ -77,5 +65,6 @@ public:
   vtkXdmf3SILBuilder(const vtkXdmf3SILBuilder&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkXdmf3SILBuilder_h
 // VTK-HeaderTest-Exclude: vtkXdmf3SILBuilder.h

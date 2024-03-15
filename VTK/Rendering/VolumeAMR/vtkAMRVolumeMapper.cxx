@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRVolumeMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRVolumeMapper.h"
 
 #include "vtkAMRResampleFilter.h"
@@ -36,6 +24,7 @@
 #include "vtkNew.h"
 #include "vtkTimerLog.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRVolumeMapper);
 
 // Construct a vtkAMRVolumeMapper
@@ -200,7 +189,7 @@ void vtkAMRVolumeMapper::SetBlendMode(int mode)
   this->InternalMapper->SetBlendMode(mode);
 }
 //------------------------------------------------------------------------------
-int vtkAMRVolumeMapper::GetBlendMode()
+int vtkAMRVolumeMapper::GetBlendMode() VTK_FUTURE_CONST
 {
   return this->InternalMapper->GetBlendMode();
 }
@@ -210,7 +199,7 @@ void vtkAMRVolumeMapper::SetCropping(vtkTypeBool mode)
   this->InternalMapper->SetCropping(mode);
 }
 //------------------------------------------------------------------------------
-vtkTypeBool vtkAMRVolumeMapper::GetCropping()
+vtkTypeBool vtkAMRVolumeMapper::GetCropping() VTK_FUTURE_CONST
 {
   return this->InternalMapper->GetCropping();
 }
@@ -220,7 +209,7 @@ void vtkAMRVolumeMapper::SetCroppingRegionFlags(int mode)
   this->InternalMapper->SetCroppingRegionFlags(mode);
 }
 //------------------------------------------------------------------------------
-int vtkAMRVolumeMapper::GetCroppingRegionFlags()
+int vtkAMRVolumeMapper::GetCroppingRegionFlags() VTK_FUTURE_CONST
 {
   return this->InternalMapper->GetCroppingRegionFlags();
 }
@@ -630,3 +619,4 @@ void vtkAMRVolumeMapper::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FreezeFocalPoint: " << this->FreezeFocalPoint << "\n";
 }
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

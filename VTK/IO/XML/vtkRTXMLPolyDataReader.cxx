@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRTXMLPolyDataReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRTXMLPolyDataReader.h"
 #include "vtkDirectory.h"
 #include "vtkObjectFactory.h"
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRTXMLPolyDataReader);
 
 class vtkRTXMLPolyDataReaderInternals
@@ -172,8 +161,8 @@ int vtkRTXMLPolyDataReader::IsProcessed(const char* fname)
   int size = static_cast<int>(this->Internal->ProcessedFileList.size());
   for (int i = 0; i < size; i++)
   {
-    const char* aFile = this->Internal->ProcessedFileList[i].c_str();
-    if (strcmp(fname, aFile) == 0)
+    const char* file = this->Internal->ProcessedFileList[i].c_str();
+    if (strcmp(fname, file) == 0)
     {
       return 1;
     }
@@ -210,3 +199,4 @@ void vtkRTXMLPolyDataReader::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "DataLocation: " << (this->DataLocation ? this->DataLocation : "(none)") << "\n";
 }
+VTK_ABI_NAMESPACE_END

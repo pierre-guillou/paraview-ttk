@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKOpenGLWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "QVTKOpenGLWindow.h"
 
 #include <QApplication>
@@ -34,6 +22,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLState.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 QVTKOpenGLWindow::QVTKOpenGLWindow(QOpenGLWindow::UpdateBehavior ub, QWindow* p)
   : QVTKOpenGLWindow(vtkSmartPointer<vtkGenericOpenGLRenderWindow>::New(), nullptr, ub, p)
 {
@@ -308,3 +297,4 @@ bool QVTKOpenGLWindow::event(QEvent* evt)
 
   return this->Superclass::event(evt);
 }
+VTK_ABI_NAMESPACE_END

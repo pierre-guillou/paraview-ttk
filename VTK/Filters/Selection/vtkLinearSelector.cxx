@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLinearSelector.h"
 
 #include "vtkCell.h"
@@ -19,6 +21,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLinearSelector);
 vtkCxxSetObjectMacro(vtkLinearSelector, Points, vtkPoints);
 
@@ -234,3 +237,4 @@ void vtkLinearSelector::SeekIntersectingCells(vtkDataSet* input, vtkIdTypeArray*
   delete[] startPoints;
   delete[] endPoints;
 }
+VTK_ABI_NAMESPACE_END

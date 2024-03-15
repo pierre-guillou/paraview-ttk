@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGlyphSource2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkGlyphSource2D.h>
 #include <vtkMinimalStandardRandomSequence.h>
@@ -82,6 +70,73 @@ int TestGlyphSource2D(int vtkNotUsed(argc), char* vtkNotUsed(argv)[])
 
   if (points->GetDataType() != VTK_DOUBLE)
   {
+    return EXIT_FAILURE;
+  }
+
+  // Test VTK_ARROW_GLYPH
+  glyphSource->SetGlyphTypeToArrow();
+  glyphSource->FilledOff();
+  center[0] = 0.0;
+  center[1] = 0.0;
+  center[2] = 0.0;
+  glyphSource->SetCenter(center);
+  glyphSource->SetRotationAngle(0.0);
+  glyphSource->SetScale(1.0);
+
+  // Test tip length
+  glyphSource->SetTipLength(0.2);
+  glyphSource->Update();
+  polyData = glyphSource->GetOutput();
+  points = polyData->GetPoints();
+
+  if (points->GetNumberOfPoints() != 5)
+  {
+    std::cerr << "Wrong number of points. Expected 5 but got " << points->GetNumberOfPoints() << '.'
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  double coords[3] = { 0.0, 0.0, 0.0 };
+  points->GetPoint(2, coords);
+  if (coords[0] != 0.3 || coords[1] != -0.1 || coords[2] != 0.0)
+  {
+    std::cerr << "Wrong coordinate for point 2. Expected (0.3, -0.1, 0.0) but got (" << coords[0]
+              << ", " << coords[1] << ", " << coords[2] << ')' << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  // Test double tip
+  glyphSource->SetDoublePointed(true);
+  glyphSource->Update();
+  polyData = glyphSource->GetOutput();
+  points = polyData->GetPoints();
+
+  if (points->GetNumberOfPoints() != 8)
+  {
+    std::cerr << "Wrong number of points. Expected 8 but got " << points->GetNumberOfPoints() << '.'
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  points->GetPoint(7, coords);
+  if (coords[0] != -0.3 || coords[1] != 0.1 || coords[2] != 0.0)
+  {
+    std::cerr << "Wrong coordinate for point 7. Expected (-0.3, 0.1, 0.0) but got (" << coords[0]
+              << ", " << coords[1] << ", " << coords[2] << ')' << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  // Test tips pointing inwards
+  glyphSource->SetPointInwards(true);
+  glyphSource->Update();
+  polyData = glyphSource->GetOutput();
+  points = polyData->GetPoints();
+
+  points->GetPoint(0, coords);
+  if (coords[0] != -0.3 || coords[1] != 0.0 || coords[2] != 0.0)
+  {
+    std::cerr << "Wrong coordinate for point 0. Expected (-0.3, 0.0, 0.0) but got (" << coords[0]
+              << ", " << coords[1] << ", " << coords[2] << ')' << std::endl;
     return EXIT_FAILURE;
   }
 

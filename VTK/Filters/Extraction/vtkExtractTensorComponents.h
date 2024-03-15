@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractTensorComponents.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractTensorComponents
  * @brief   extract parts of tensor and create a scalar, vector, normal, or texture coordinates.
@@ -61,6 +49,7 @@
 #define VTK_EXTRACT_NONNEGATIVE_DETERMINANT 3
 #define VTK_EXTRACT_TRACE 4
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSEXTRACTION_EXPORT vtkExtractTensorComponents : public vtkDataSetAlgorithm
 {
 public:
@@ -249,4 +238,5 @@ private:
   void operator=(const vtkExtractTensorComponents&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

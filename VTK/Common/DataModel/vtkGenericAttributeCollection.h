@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericAttributeCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGenericAttributeCollection
  * @brief   a collection of attributes
@@ -26,6 +14,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGenericAttributeInternalVector;
 class vtkIntInternalVector;
 class vtkGenericAttribute;
@@ -220,7 +209,7 @@ public:
    * \pre positive_size: size>=0
    * \pre valid_attributes: size>0 implies attributes!=0
    */
-  int HasAttribute(int size, int* attributes, int attribute) VTK_SIZEHINT(attributes, size);
+  vtkTypeBool HasAttribute(int size, int* attributes, int attribute) VTK_SIZEHINT(attributes, size);
 
   ///@{
   /**
@@ -278,4 +267,5 @@ private:
   vtkGenericAttributeCollection(const vtkGenericAttributeCollection&) = delete;
   void operator=(const vtkGenericAttributeCollection&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

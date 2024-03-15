@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageQuantizeRGBToIndex.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageQuantizeRGBToIndex
  * @brief   generalized histograms up to 4 dimensions
@@ -46,6 +34,7 @@
 #include "vtkImageAlgorithm.h"
 #include "vtkImagingColorModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLookupTable;
 
 class VTKIMAGINGCOLOR_EXPORT vtkImageQuantizeRGBToIndex : public vtkImageAlgorithm
@@ -123,4 +112,5 @@ private:
   void operator=(const vtkImageQuantizeRGBToIndex&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

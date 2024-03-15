@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeRepresentationPreprocessor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVolumeRepresentationPreprocessor
  * @brief   prepare data object for volume rendering
@@ -46,16 +35,16 @@ public:
   vtkTypeMacro(vtkVolumeRepresentationPreprocessor, vtkUnstructuredGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * When On, the internal triangle filter will cull all 1D and 2D cells from the output.
    * The default is Off.
    */
   vtkSetMacro(TetrahedraOnly, int);
   vtkGetMacro(TetrahedraOnly, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to internal vtkExtractBlockUsingDataAssembly to subset the input
    * composite dataset. This has no effect if input is not a composite dataset.
@@ -64,7 +53,7 @@ public:
   void SetSelector(const char* selector);
   void ClearSelectors();
   void SetAssemblyName(const char*);
-  //@}
+  ///@}
 
 protected:
   vtkVolumeRepresentationPreprocessor();

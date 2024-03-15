@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOrderIndependentTranslucentPass.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOrderIndependentTranslucentPass.h"
 #include "vtkInformation.h"
@@ -39,6 +27,7 @@ PURPOSE.  See the above copyright notice for more information.
 // the 2D blending shaders we use
 #include "vtkOrderIndependentTranslucentPassFinalFS.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOrderIndependentTranslucentPass);
 vtkCxxSetObjectMacro(vtkOrderIndependentTranslucentPass, TranslucentPass, vtkRenderPass);
 
@@ -298,19 +287,29 @@ void vtkOrderIndependentTranslucentPass::Render(const vtkRenderState* s)
   this->State->vtkglDepthMask(GL_TRUE);
   this->State->vtkglClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+  bool blitDepthBuffer = true; // by default, attempt to blit the depth buffer.
 #if defined(__APPLE__)
-  this->State->vtkglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   // apple fails if not the upper left corenr of the window
   // blit on apple is fubar, so rerender opaque
   // to get a good depth buffer
-  r->DeviceRenderOpaqueGeometry();
-  this->State->vtkglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-#else
-  // blit read buffer depth to FO depth texture
-  this->State->vtkglBlitFramebuffer(this->ViewportX, this->ViewportY,
-    this->ViewportX + this->ViewportWidth, this->ViewportY + this->ViewportHeight, 0, 0,
-    this->ViewportWidth, this->ViewportHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+  blitDepthBuffer = false;
+#elif (defined(GL_ES_VERSION_3_0) || defined(GL_ES_VERSION_2_0))
+  // in OpenGL ES, depth buffer blits from a multisampled read framebuffer don't work.
+  blitDepthBuffer = !s->GetRenderer()->GetRenderWindow()->GetMultiSamples();
 #endif
+  if (blitDepthBuffer)
+  {
+    // blit read buffer depth to FO depth texture
+    this->State->vtkglBlitFramebuffer(this->ViewportX, this->ViewportY,
+      this->ViewportX + this->ViewportWidth, this->ViewportY + this->ViewportHeight, 0, 0,
+      this->ViewportWidth, this->ViewportHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+  }
+  else
+  {
+    this->State->vtkglColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    r->DeviceRenderOpaqueGeometry();
+    this->State->vtkglColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  }
 
   // now bind both read and draw
   this->Framebuffer->Bind();
@@ -336,8 +335,9 @@ void vtkOrderIndependentTranslucentPass::Render(const vtkRenderState* s)
   // back to the original FO
   this->State->PopFramebufferBindings();
 
+  // Restore blending parameters:
   this->State->vtkglBlendFuncSeparate(
-    GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_SRC_ALPHA);
+    GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
   // Restore the original viewport and scissor test settings
   this->State->vtkglViewport(
@@ -370,10 +370,6 @@ void vtkOrderIndependentTranslucentPass::Render(const vtkRenderState* s)
   }
 #endif
 
-  // Restore blending parameters:
-  this->State->vtkglBlendFuncSeparate(
-    GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
   this->PostRender(s);
 
   this->NumberOfRenderedProps = this->TranslucentPass->GetNumberOfRenderedProps();
@@ -391,3 +387,4 @@ bool vtkOrderIndependentTranslucentPass::PostReplaceShaderValues(
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCustomFilterManager.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /// \file pqCustomFilterManager.cxx
 /// \date 6/23/2006
@@ -63,6 +35,9 @@ pqCustomFilterManager::pqCustomFilterManager(
   this->Model = model;
   this->Form = new pqCustomFilterManagerForm();
   this->Form->setupUi(this);
+
+  // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 
   // Initialize the form.
   this->Form->ExportButton->setEnabled(false);
@@ -226,8 +201,10 @@ void pqCustomFilterManager::exportSelected(const QStringList& files)
 void pqCustomFilterManager::importFiles()
 {
   // Let the user select a file.
-  pqFileDialog* fileDialog = new pqFileDialog(nullptr, this, tr("Open Custom Filter File"),
-    QString(), "Custom Filter Files (*.cpd *.xml);;All Files (*)");
+  pqFileDialog* fileDialog =
+    new pqFileDialog(nullptr, this, tr("Open Custom Filter File"), QString(),
+      tr("Custom Filter Files") + QString(" (*.cpd *.xml);;") + tr("All Files") + QString(" (*)"),
+      false);
   fileDialog->setAttribute(Qt::WA_DeleteOnClose);
   fileDialog->setObjectName("FileOpenDialog");
   fileDialog->setFileMode(pqFileDialog::ExistingFile);
@@ -243,8 +220,10 @@ void pqCustomFilterManager::importFiles()
 void pqCustomFilterManager::exportSelected()
 {
   // Let the user select a file to save.
-  pqFileDialog* fileDialog = new pqFileDialog(nullptr, this, tr("Save Custom Filter File"),
-    QString(), "Custom Filter Files (*.cpd *.xml);;All Files (*)");
+  pqFileDialog* fileDialog =
+    new pqFileDialog(nullptr, this, tr("Save Custom Filter File"), QString(),
+      tr("Custom Filter Files") + QString(" (*.cpd *.xml);;") + tr("All Files") + QString(" (*)"),
+      false);
   fileDialog->setAttribute(Qt::WA_DeleteOnClose);
   fileDialog->setObjectName("FileSaveDialog");
   fileDialog->setFileMode(pqFileDialog::AnyFile);

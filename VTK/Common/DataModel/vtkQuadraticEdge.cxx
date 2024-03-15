@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraticEdge.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQuadraticEdge.h"
 
 #include "vtkDoubleArray.h"
@@ -20,6 +8,10 @@
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 
+#include <algorithm> //std::copy
+#include <array>
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadraticEdge);
 
 //------------------------------------------------------------------------------
@@ -54,6 +46,15 @@ int vtkQuadraticEdge::EvaluatePosition(const double x[3], double closestPoint[3]
   int ignoreId, i, returnStatus, status;
   double lineWeights[2];
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   pcoords[1] = pcoords[2] = 0.0;
 
   returnStatus = -1;
@@ -62,13 +63,13 @@ int vtkQuadraticEdge::EvaluatePosition(const double x[3], double closestPoint[3]
   {
     if (i == 0)
     {
-      this->Line->Points->SetPoint(0, this->Points->GetPoint(0));
-      this->Line->Points->SetPoint(1, this->Points->GetPoint(2));
+      this->Line->Points->SetPoint(0, pts + 3 * 0);
+      this->Line->Points->SetPoint(1, pts + 3 * 2);
     }
     else
     {
-      this->Line->Points->SetPoint(0, this->Points->GetPoint(2));
-      this->Line->Points->SetPoint(1, this->Points->GetPoint(1));
+      this->Line->Points->SetPoint(0, pts + 3 * 2);
+      this->Line->Points->SetPoint(1, pts + 3 * 1);
     }
 
     status = this->Line->EvaluatePosition(x, closest, ignoreId, pc, dist2, lineWeights);
@@ -112,10 +113,19 @@ void vtkQuadraticEdge::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i;
-  double a0[3], a1[3], a2[3];
-  this->Points->GetPoint(0, a0);
-  this->Points->GetPoint(1, a1);
-  this->Points->GetPoint(2, a2); // midside node
+  const double *a0, *a1, *a2;
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+  a0 = pts;
+  a1 = pts + 3;
+  a2 = pts + 6; // midside node
 
   vtkQuadraticEdge::InterpolationFunctions(pcoords, weights);
 
@@ -187,25 +197,11 @@ int vtkQuadraticEdge::IntersectWithLine(const double p1[3], const double p2[3], 
 }
 
 //------------------------------------------------------------------------------
-int vtkQuadraticEdge::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkQuadraticEdge::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  pts->Reset();
-  ptIds->Reset();
-
-  // The first line
-  ptIds->InsertId(0, this->PointIds->GetId(0));
-  pts->InsertPoint(0, this->Points->GetPoint(0));
-
-  ptIds->InsertId(1, this->PointIds->GetId(2));
-  pts->InsertPoint(1, this->Points->GetPoint(2));
-
-  // The second line
-  ptIds->InsertId(2, this->PointIds->GetId(2));
-  pts->InsertPoint(2, this->Points->GetPoint(2));
-
-  ptIds->InsertId(3, this->PointIds->GetId(1));
-  pts->InsertPoint(3, this->Points->GetPoint(1));
-
+  ptIds->SetNumberOfIds(4);
+  constexpr std::array<vtkIdType, 4> localPtIds{ 0, 2, 2, 1 };
+  std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   return 1;
 }
 
@@ -275,3 +271,4 @@ void vtkQuadraticEdge::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Line:\n";
   this->Line->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPProcessor.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCPProcessor.h"
 
 #include "vtkCPCxxHelper.h"
@@ -37,6 +25,7 @@
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSmartPointer.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkTemporalDataSetCache.h"
 
@@ -428,6 +417,7 @@ void vtkCPProcessor::MakeTemporalCache(const char* name)
     vtkTemporalDataSetCache::SafeDownCast(producer->GetClientSideObject());
   tc->SetCacheSize(this->TemporalCacheSize);
   tc->CacheInMemkindOn();
+  tc->SetNoPriorTemporalAccessInformationKey();
   this->Internal->TemporalCaches[name] = producer;
 }
 

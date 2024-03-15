@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlaneWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPlaneWidget
  * @brief   3D widget for manipulating a finite plane
@@ -78,6 +66,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkPolyDataSourceWidget.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCellPicker;
 class vtkConeSource;
@@ -248,7 +237,7 @@ public:
    * Satisfies superclass API.  This will change the state of the widget to
    * match changes that have been made to the underlying PolyDataSource
    */
-  void UpdatePlacement(void) override;
+  void UpdatePlacement() override;
 
   ///@{
   /**
@@ -392,4 +381,5 @@ private:
   void operator=(const vtkPlaneWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

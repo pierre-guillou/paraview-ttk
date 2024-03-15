@@ -1,4 +1,6 @@
 set(classes
+  vtk3DCursorRepresentation
+  vtk3DCursorWidget
   vtk3DWidget
   vtkAbstractPolygonalHandleRepresentation3D
   vtkAbstractSplineRepresentation
@@ -27,6 +29,8 @@ set(classes
   vtkBrokenLineWidget
   vtkButtonRepresentation
   vtkButtonWidget
+  vtkCamera3DRepresentation
+  vtkCamera3DWidget
   vtkCameraHandleSource
   vtkCameraOrientationWidget
   vtkCameraOrientationRepresentation
@@ -42,6 +46,8 @@ set(classes
   vtkCheckerboardRepresentation
   vtkCheckerboardWidget
   vtkClosedSurfacePointPlacer
+  vtkCompassRepresentation
+  vtkCompassWidget
   vtkConstrainedPointHandleRepresentation
   vtkContinuousValueWidget
   vtkContinuousValueWidgetRepresentation
@@ -92,6 +98,8 @@ set(classes
   vtkMagnifierWidget
   vtkMeasurementCubeHandleRepresentation3D
   vtkOrientationMarkerWidget
+  vtkOrientationRepresentation
+  vtkOrientationWidget
   vtkOrientedGlyphContourRepresentation
   vtkOrientedGlyphFocalPlaneContourRepresentation
   vtkOrientedPolygonalHandleRepresentation3D
@@ -162,3 +170,4 @@ set(classes
 
 vtk_module_add_module(VTK::InteractionWidgets
   CLASSES ${classes})
+vtk_add_test_mangling(VTK::InteractionWidgets)

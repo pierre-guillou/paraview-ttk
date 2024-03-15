@@ -78,6 +78,9 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "note: see declaration of"
   "note: see previous definition of"
 
+  # Ignore macro expansion lines from GCC
+  "note: in expansion of macro"
+
   # function cast in vtkLogger/loguru
   "vtkLogger.cxx.*: warning: cast between incompatible function types"
 
@@ -133,6 +136,9 @@ if (NOT cdash_show_third_party_warnings)
     # Suppress ThirdParty source code from displaying warnings.
     "[Tt]hird[Pp]arty"
 
+    # Suppress MetaIO warnings.
+    "MetaIO/vtkmetaio"
+
     # clang will often give multiline warnings from macro expansions,
     # where the first part has "warning:" and subsequent parts have "note:"
     # and those will sometimes expand into systems headers. When this occurs
@@ -183,7 +189,7 @@ if (NOT cdash_show_third_party_warnings)
     # vtkm uses deprecated TBB headers
     "TBB Warning: tbb/task.h is deprecated"
 
-    # vtkm related warnings, someone working on vtkm shoudl fix these and once fixed
+    # vtkm related warnings, someone working on vtkm should fix these and once fixed
     # remove these suppressions
     "struct VTKM_DEPRECATED"
     "vtkm::filter"
@@ -214,6 +220,28 @@ if (NOT cdash_show_third_party_warnings)
     # Timeout errors of SCCACHE are common cases for long builds such as VTK+VTKm+CUDA
     "sccache: warning: The server looks like it shut down unexpectedly, compiling locally instead"
   )
+endif ()
+
+# CI-specific warning suppressions.
+#
+# Some of our CI ends up generating warnings that don't really matter. Of
+# particular interest are warnings which have different behavior in older
+# compilers than modern ones. It's not really all that important to cater to
+# old, broken warning implementations when newer compilers tell us when we
+# aren't doing things properly.
+if (NOT "$ENV{CI}" STREQUAL "")
+  # Warning exclusions for old compilers and dependencies.
+  if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "mindeps")
+    # GCC 4.8.5
+    if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "el7")
+      list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
+        # Deprecated classes trigger "usage" warnings in methods marked with
+        # either `= default` or `= delete` generated implementations. This is not
+        # helpful, so just ignore them all.
+        "Wdeprecated-declarations"
+      )
+    endif ()
+  endif ()
 endif ()
 
 list(APPEND CTEST_CUSTOM_COVERAGE_EXCLUDE

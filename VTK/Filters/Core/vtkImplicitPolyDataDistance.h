@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitPolyDataDistance.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImplicitPolyDataDistance
  * @brief   Implicit function that computes the distance from a point x to the nearest point p on an
@@ -41,8 +29,11 @@
 #define vtkImplicitPolyDataDistance_h
 
 #include "vtkFiltersCoreModule.h" // For export macro
+#include "vtkGenericCell.h"       // For thread local storage
 #include "vtkImplicitFunction.h"
+#include "vtkSMPThreadLocalObject.h" // For thread local storage
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellLocator;
 class vtkPolyData;
 
@@ -136,10 +127,13 @@ protected:
 
   vtkPolyData* Input;
   vtkCellLocator* Locator;
+  vtkSMPThreadLocalObject<vtkGenericCell> TLCell;
+  vtkSMPThreadLocalObject<vtkIdList> TLCellIds;
 
 private:
   vtkImplicitPolyDataDistance(const vtkImplicitPolyDataDistance&) = delete;
   void operator=(const vtkImplicitPolyDataDistance&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

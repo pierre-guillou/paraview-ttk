@@ -33,7 +33,7 @@ set(sources
   ParaViewMainWindow.h
   ParaViewMainWindow.ui)
 
-find_package(Qt5 REQUIRED QUIET COMPONENTS Core Widgets)
+find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" REQUIRED QUIET COMPONENTS Core Widgets)
 
 if (APPLE)
   # Enable high resolution when using Qt5
@@ -59,6 +59,13 @@ if (default_style)
     DEFAULT_STYLE "${default_style}")
 endif ()
 
+set(_paraview_client_add_translation_args)
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  list(APPEND _paraview_client_add_translation_args
+    TRANSLATIONS_DIRECTORY "${PARAVIEW_TRANSLATIONS_DIRECTORY}"
+    TRANSLATION_TARGET "ParaViewClient.ts"
+    TRANSLATE_XML "ON")
+endif ()
 paraview_client_add(
   NAME              paraview
   NAMESPACE         "ParaView"
@@ -74,15 +81,20 @@ paraview_client_add(
   APPLICATION_ICON  "${CMAKE_CURRENT_SOURCE_DIR}/pvIcon.ico"
   SOURCES           ${sources}
   PLUGINS_TARGETS   ParaView::paraview_plugins
-  APPLICATION_XMLS  ${xmls})
+  APPLICATION_XMLS  ${xmls}
+  ${_paraview_client_add_translation_args})
 
-find_package(Qt5 REQUIRED QUIET COMPONENTS Widgets)
+if (PARAVIEW_BUILD_TRANSLATIONS AND TARGET "localization")
+  add_dependencies(localization "ParaViewClient.ts")
+endif()
+
+find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" REQUIRED QUIET COMPONENTS Widgets)
 
 target_link_libraries(paraview
   PRIVATE
     ParaView::RemotingSettings
-    Qt5::Core
-    Qt5::Widgets)
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Core"
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Widgets")
 
 target_compile_definitions(paraview
   PRIVATE
@@ -93,6 +105,13 @@ if (PARAVIEW_ENABLE_EMBEDDED_DOCUMENTATION)
       vtkParaViewDocumentation)
 endif ()
 
+if(PARAVIEW_QT_MAJOR_VERSION GREATER "5")
+  find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" REQUIRED COMPONENTS Core5Compat)
+  target_link_libraries(paraview
+    PRIVATE
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Core5Compat")
+endif()
+
 target_compile_definitions(paraview
   PRIVATE
     "PARAVIEW_USE_PYTHON=$<BOOL:${PARAVIEW_USE_PYTHON}>")
@@ -100,6 +119,7 @@ if (PARAVIEW_USE_PYTHON)
   target_link_libraries(paraview
     PRIVATE
       ParaView::pvpythonmodules
+      ParaView::pvincubatorpythonmodules
       ParaView::pqPython
       ParaView::PythonInitializer)
 endif ()

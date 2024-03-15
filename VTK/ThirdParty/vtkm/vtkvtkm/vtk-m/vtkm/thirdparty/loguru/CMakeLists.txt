@@ -20,11 +20,4 @@ target_include_directories(vtkm_loguru INTERFACE
 
 target_link_libraries(vtkm_loguru INTERFACE ${CMAKE_DL_LIBS} Threads::Threads)
 
-install(TARGETS vtkm_loguru
-  EXPORT ${VTKm_EXPORT_NAME})
-
-## Install headers
-if(NOT VTKm_INSTALL_ONLY_LIBRARIES)
-  install(DIRECTORY vtkmloguru
-    DESTINATION ${VTKm_INSTALL_INCLUDE_DIR}/${kit_dir}/)
-endif()
+vtkm_install_targets(TARGETS vtkm_loguru)

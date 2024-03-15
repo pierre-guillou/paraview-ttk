@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKMeansDistanceFunctor.h"
 
 #include "vtkDoubleArray.h"
@@ -7,6 +9,7 @@
 #include "vtkTable.h"
 #include "vtkVariantArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkKMeansDistanceFunctor);
 
 //------------------------------------------------------------------------------
@@ -198,3 +201,4 @@ int vtkKMeansDistanceFunctor::GetDataType()
 {
   return VTK_DOUBLE;
 }
+VTK_ABI_NAMESPACE_END

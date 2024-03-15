@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSampleFunction.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSampleFunction.h"
 
 #include "vtkDoubleArray.h"
@@ -27,6 +15,7 @@
 #include "vtkSMPTools.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSampleFunction);
 vtkCxxSetObjectMacro(vtkSampleFunction, ImplicitFunction, vtkImplicitFunction);
 
@@ -87,7 +76,7 @@ public:
     }
   };
 
-  // Interface implicit function graadient computation to SMP tools.
+  // Interface implicit function gradient computation to SMP tools.
   template <class TT>
   class FunctionGradientOp
   {
@@ -527,3 +516,4 @@ void vtkSampleFunction::ReportReferences(vtkGarbageCollector* collector)
   this->Superclass::ReportReferences(collector);
   vtkGarbageCollectorReport(collector, this->ImplicitFunction, "ImplicitFunction");
 }
+VTK_ABI_NAMESPACE_END

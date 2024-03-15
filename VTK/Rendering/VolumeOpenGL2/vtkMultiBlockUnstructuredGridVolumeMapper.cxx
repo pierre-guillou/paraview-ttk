@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockUnstructuredGridVolumeMapper.cxx
-
-  copyright (c) ken martin, will schroeder, bill lorensen
-  all rights reserved.
-  see copyright.txt or http://www.kitware.com/copyright.htm for details.
-
-  this software is distributed without any warranty; without even
-  the implied warranty of merchantability or fitness for a particular
-  purpose.  see the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <algorithm>
 
 // uncomment the following line to add a lot of debugging
@@ -35,13 +23,16 @@
 
 namespace vtkBlockSortHelper
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <>
 inline void GetBounds(vtkProjectedTetrahedraMapper* first, double bds[6])
 {
   first->GetInput()->GetBounds(bds);
 }
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkMultiBlockUnstructuredGridVolumeMapper);
 
@@ -345,3 +336,4 @@ void vtkMultiBlockUnstructuredGridVolumeMapper::SetBlendMode(int mode)
   }
   this->Superclass::SetBlendMode(mode);
 }
+VTK_ABI_NAMESPACE_END

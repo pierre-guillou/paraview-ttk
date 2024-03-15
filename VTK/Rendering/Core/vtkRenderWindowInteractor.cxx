@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderWindowInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRenderWindowInteractor.h"
 
 #include "vtkCamera.h"
@@ -34,6 +22,7 @@
 
 // PIMPL'd class to keep track of timers. It maps the ids returned by CreateTimer()
 // to the platform-specific representation for timer ids.
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkTimerStruct
 {
   int Id;
@@ -65,6 +54,8 @@ static int vtkTimerId = 1;
 //------------------------------------------------------------------------------
 vtkCxxSetObjectMacro(vtkRenderWindowInteractor, Picker, vtkAbstractPicker);
 vtkCxxSetObjectMacro(vtkRenderWindowInteractor, HardwareWindow, vtkHardwareWindow);
+
+bool vtkRenderWindowInteractor::InteractorManagesTheEventLoop = true;
 
 //------------------------------------------------------------------------------
 // Construct object so that light follows camera motion.
@@ -1420,3 +1411,4 @@ void vtkRenderWindowInteractor::SwipeEvent()
   }
   this->InvokeEvent(vtkCommand::SwipeEvent, nullptr);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRCutPlane.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRCutPlane.h"
 
 #include "vtkCell.h"
@@ -36,6 +24,7 @@
 #include <algorithm>
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRCutPlane);
 
 vtkCxxSetObjectMacro(vtkAMRCutPlane, Controller, vtkMultiProcessController);
@@ -166,11 +155,17 @@ int vtkAMRCutPlane::RequestData(vtkInformation* vtkNotUsed(rqst),
 
   unsigned int blockIdx = 0;
   unsigned int level = 0;
-  for (; level < inputAMR->GetNumberOfLevels(); ++level)
+  bool abort = false;
+  for (; level < inputAMR->GetNumberOfLevels() && !abort; ++level)
   {
     unsigned int dataIdx = 0;
     for (; dataIdx < inputAMR->GetNumberOfDataSets(level); ++dataIdx)
     {
+      if (this->CheckAbort())
+      {
+        abort = true;
+        break;
+      }
       vtkUniformGrid* grid = inputAMR->GetDataSet(level, dataIdx);
       if (this->UseNativeCutter == 1)
       {
@@ -179,6 +174,7 @@ int vtkAMRCutPlane::RequestData(vtkInformation* vtkNotUsed(rqst),
           vtkNew<vtkCutter> myCutter;
           myCutter->SetInputData(grid);
           myCutter->SetCutFunction(cutPlane);
+          myCutter->SetContainerAlgorithm(this);
           myCutter->Update();
           mbds->SetBlock(blockIdx, myCutter->GetOutput());
           ++blockIdx;
@@ -532,3 +528,4 @@ bool vtkAMRCutPlane::IsAMRData2D(vtkOverlappingAMR* input)
 
   return input->GetGridDescription() != VTK_XYZ_GRID;
 }
+VTK_ABI_NAMESPACE_END

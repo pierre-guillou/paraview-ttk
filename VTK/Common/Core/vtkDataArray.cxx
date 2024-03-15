@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataArray.h"
 #include "vtkAOSDataArrayTemplate.h" // For fast paths
@@ -48,6 +36,7 @@
 #include "vtkUnsignedShortArray.h"
 
 #include <algorithm> // for min(), max()
+#include <vector>
 
 namespace
 {
@@ -123,6 +112,7 @@ struct DeepCopyWorker
     dst->SetScale(src->GetScale());
   }
 #endif
+
 // Undo warning suppression.
 #if defined(__clang__) && defined(__has_warning)
 #if __has_warning("-Wunused-template")
@@ -433,6 +423,8 @@ bool hasValidKey(InfoType info, KeyType key, ComponentKeyType ckey, double range
 }
 
 } // end anon namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkInformationKeyRestrictedMacro(vtkDataArray, COMPONENT_RANGE, DoubleVector, 2);
 vtkInformationKeyRestrictedMacro(vtkDataArray, L2_NORM_RANGE, DoubleVector, 2);
@@ -1480,6 +1472,7 @@ void vtkDataArray::Fill(double value)
     this->FillComponent(i, value);
   }
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -1512,6 +1505,7 @@ struct CopyComponentWorker
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkDataArray::CopyComponent(int dstComponent, vtkDataArray* src, int srcComponent)
 {
@@ -1564,7 +1558,7 @@ double vtkDataArray::GetMaxNorm()
 }
 
 //------------------------------------------------------------------------------
-int vtkDataArray::CopyInformation(vtkInformation* infoFrom, int deep)
+int vtkDataArray::CopyInformation(vtkInformation* infoFrom, vtkTypeBool deep)
 {
   // Copy everything + give base classes a chance to
   // Exclude keys which they don't want copied.
@@ -1626,9 +1620,14 @@ void vtkDataArray::ComputeFiniteRange(
   }
   else
   {
+    std::vector<double> allCompRanges(this->NumberOfComponents * 2);
     if (ghosts)
     {
-      this->ComputeFiniteScalarRange(range, ghosts, ghostsToSkip);
+      if (this->ComputeFiniteScalarRange(allCompRanges.data(), ghosts, ghostsToSkip))
+      {
+        range[0] = allCompRanges[comp * 2];
+        range[1] = allCompRanges[(comp * 2) + 1];
+      }
       return;
     }
     rkey = COMPONENT_RANGE();
@@ -1636,8 +1635,7 @@ void vtkDataArray::ComputeFiniteRange(
     // hasValidKey will update range to the cached value if it exists.
     if (!hasValidKey(info, PER_FINITE_COMPONENT(), rkey, range, comp))
     {
-      double* allCompRanges = new double[this->NumberOfComponents * 2];
-      const bool computed = this->ComputeFiniteScalarRange(allCompRanges);
+      const bool computed = this->ComputeFiniteScalarRange(allCompRanges.data());
       if (computed)
       {
         // construct the keys and add them to the info object
@@ -1647,7 +1645,7 @@ void vtkDataArray::ComputeFiniteRange(
         infoVec->SetNumberOfInformationObjects(this->NumberOfComponents);
         for (int i = 0; i < this->NumberOfComponents; ++i)
         {
-          infoVec->GetInformationObject(i)->Set(rkey, allCompRanges + (i * 2), 2);
+          infoVec->GetInformationObject(i)->Set(rkey, allCompRanges.data() + (i * 2), 2);
         }
         infoVec->FastDelete();
 
@@ -1655,7 +1653,6 @@ void vtkDataArray::ComputeFiniteRange(
         range[0] = allCompRanges[comp * 2];
         range[1] = allCompRanges[(comp * 2) + 1];
       }
-      delete[] allCompRanges;
     }
   }
 }
@@ -1705,9 +1702,14 @@ void vtkDataArray::ComputeRange(
   }
   else
   {
+    std::vector<double> allCompRanges(this->NumberOfComponents * 2);
     if (ghosts)
     {
-      this->ComputeScalarRange(range, ghosts, ghostsToSkip);
+      if (this->ComputeScalarRange(allCompRanges.data(), ghosts, ghostsToSkip))
+      {
+        range[0] = allCompRanges[comp * 2];
+        range[1] = allCompRanges[(comp * 2) + 1];
+      }
       return;
     }
     rkey = COMPONENT_RANGE();
@@ -1715,8 +1717,7 @@ void vtkDataArray::ComputeRange(
     // hasValidKey will update range to the cached value if it exists.
     if (!hasValidKey(info, PER_COMPONENT(), rkey, range, comp))
     {
-      double* allCompRanges = new double[this->NumberOfComponents * 2];
-      const bool computed = this->ComputeScalarRange(allCompRanges);
+      const bool computed = this->ComputeScalarRange(allCompRanges.data());
       if (computed)
       {
         // construct the keys and add them to the info object
@@ -1726,7 +1727,7 @@ void vtkDataArray::ComputeRange(
         infoVec->SetNumberOfInformationObjects(this->NumberOfComponents);
         for (int i = 0; i < this->NumberOfComponents; ++i)
         {
-          infoVec->GetInformationObject(i)->Set(rkey, allCompRanges + (i * 2), 2);
+          infoVec->GetInformationObject(i)->Set(rkey, allCompRanges.data() + (i * 2), 2);
         }
         infoVec->FastDelete();
 
@@ -1734,7 +1735,6 @@ void vtkDataArray::ComputeRange(
         range[0] = allCompRanges[comp * 2];
         range[1] = allCompRanges[(comp * 2) + 1];
       }
-      delete[] allCompRanges;
     }
   }
 }
@@ -1752,6 +1752,7 @@ void vtkDataArray::Modified()
   }
   this->Superclass::Modified();
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -1856,6 +1857,7 @@ struct FiniteVectorRangeDispatchWrapper
 
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool vtkDataArray::ComputeScalarRange(double* ranges)
 {
@@ -2070,3 +2072,4 @@ void vtkDataArray::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "LookupTable: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

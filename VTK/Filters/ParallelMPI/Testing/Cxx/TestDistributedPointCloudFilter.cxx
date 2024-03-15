@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestDistributedPointCloudFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBoundingBox.h"
 #include "vtkDistributedPointCloudFilter.h"
 #include "vtkDoubleArray.h"
+#include "vtkGenerateProcessIds.h"
 #include "vtkIdFilter.h"
 #include "vtkMPICommunicator.h"
 #include "vtkMPIController.h"
@@ -24,10 +13,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
-#include "vtkProcessIdScalars.h"
 #include "vtkStringArray.h"
-
-//#define DEBUG_ON
 
 #ifdef DEBUG_ON
 #include "vtkXMLPPolyDataWriter.h"
@@ -94,17 +80,19 @@ int TestDistributedPointCloudFilter(int argc, char* argv[])
   idFilter->SetInputData(inputPoly);
   idFilter->SetPointIdsArrayName("OriginalId");
   idFilter->SetCellIdsArrayName("OriginalId");
-  vtkNew<vtkProcessIdScalars> procIdScalars;
+  vtkNew<vtkGenerateProcessIds> procIdScalars;
   procIdScalars->SetInputConnection(idFilter->GetOutputPort());
   procIdScalars->Update();
-  procIdScalars->GetOutput()->GetPointData()->GetArray("ProcessId")->SetName("OriginalProcessId");
+  procIdScalars->GetOutput()->GetPointData()->GetProcessIds()->SetName("OriginalProcessIds");
+  procIdScalars->GetOutput()->GetPointData()->SetActiveAttribute(
+    -1, vtkDataSetAttributes::PROCESSIDS);
 
   // distribute the points over the processors
   vtkNew<vtkDistributedPointCloudFilter> filter;
   filter->SetInputConnection(procIdScalars->GetOutputPort());
 
   // attach new process ids
-  vtkNew<vtkProcessIdScalars> outProcIdScalars;
+  vtkNew<vtkGenerateProcessIds> outProcIdScalars;
   outProcIdScalars->SetInputConnection(filter->GetOutputPort());
   outProcIdScalars->Update();
   vtkPolyData* outputPoly = vtkPolyData::SafeDownCast(outProcIdScalars->GetOutput());
@@ -156,19 +144,6 @@ int TestDistributedPointCloudFilter(int argc, char* argv[])
     cerr << endl;
     error = true;
   }
-
-#ifdef DEBUG_ON
-  vtkNew<vtkXMLPPolyDataWriter> writer;
-  std::stringstream ss;
-  ss << "TestDistributedPointCloudFilter-" << numberOfProcessors << "ranks.pvtp";
-  writer->SetFileName(ss.str().c_str());
-  writer->SetInputData(inputPoly);
-  writer->SetNumberOfPieces(numberOfProcessors);
-  writer->SetStartPiece(rank);
-  writer->SetEndPiece(rank);
-  writer->SetWriteSummaryFile(1);
-  writer->Update();
-#endif
 
   controller->Finalize();
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectPolyData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSelectPolyData
  * @brief   select portion of polygonal mesh; generate selection scalars
@@ -99,6 +87,7 @@
 #define VTK_GREEDY_EDGE_SEARCH 0
 #define VTK_DIJKSTRA_EDGE_SEARCH 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCharArray;
 class vtkPoints;
 class vtkIdList;
@@ -268,7 +257,6 @@ private:
   // edgePointIds (as direct neighbors).
   static bool IsBoundaryEdge(vtkIdType pointId1, vtkIdType pointId2, vtkIdList* edgePointIds);
 
-private:
   vtkSelectPolyData(const vtkSelectPolyData&) = delete;
   void operator=(const vtkSelectPolyData&) = delete;
 };
@@ -312,4 +300,5 @@ inline const char* vtkSelectPolyData::GetEdgeSearchModeAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

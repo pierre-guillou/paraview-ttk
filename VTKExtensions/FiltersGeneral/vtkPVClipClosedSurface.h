@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkPVClipClosedSurface.cxx,v $
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVClipClosedSurface
  * @brief   Clipper for generating closed surfaces
@@ -35,15 +24,6 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPVClipClosedSurface* New();
 
-  //@{
-  /**
-   * Set/Get the InsideOut flag (off by default)
-   */
-  vtkSetMacro(InsideOut, int);
-  vtkGetMacro(InsideOut, int);
-  vtkBooleanMacro(InsideOut, int);
-  //@}
-
   /**
    * Set the clipping plane.
    */
@@ -56,7 +36,6 @@ protected:
   int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
-  int InsideOut;
   vtkPlane* ClippingPlane;
 
 private:

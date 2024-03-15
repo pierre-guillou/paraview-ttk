@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherRectilinearGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME
 // .SECTION Description
@@ -37,6 +25,13 @@ int test_rg3d(ostream& strm)
   // actual test
   strm << "Testing vtkRectilinearGrid 3D" << endl;
   vtkNew<vtkRectilinearGrid> rg3D;
+
+  if (!rg3D->SupportsGhostArray(vtkDataObject::POINT) ||
+    !rg3D->SupportsGhostArray(vtkDataObject::CELL))
+  {
+    std::cerr << "Unexpected results on SupportsGhostArray\n";
+    return 1;
+  }
 
   vtkNew<vtkDoubleArray> xdata;
   vtkNew<vtkDoubleArray> ydata;

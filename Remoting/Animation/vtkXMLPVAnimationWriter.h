@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLPVAnimationWriter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLPVAnimationWriter
  * @brief   Data writer for ParaView
@@ -35,13 +23,13 @@ public:
   vtkTypeMacro(vtkXMLPVAnimationWriter, vtkXMLPVDWriter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add/Remove representations.
    */
   void AddRepresentation(vtkAlgorithm*, const char* groupname);
   void RemoveAllRepresentations();
-  //@}
+  ///@}
 
   /**
    * Start a new animation with the current set of inputs.

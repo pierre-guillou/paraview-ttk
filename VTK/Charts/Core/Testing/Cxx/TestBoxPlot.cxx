@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestBoxPlot.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAxis.h"
 #include "vtkChartBox.h"
@@ -88,7 +76,7 @@ int TestBoxPlot(int, char*[])
   labels->SetValue(4, "Param 4");
   chart->GetPlot(0)->SetLabels(labels);
 
-  // Manually change the color of one serie
+  // Manually change the color of one series
   double rgb[3] = { 0.5, 0.5, 0.5 };
   vtkPlotBox::SafeDownCast(chart->GetPlot(0))->SetColumnColor("P1", rgb);
 

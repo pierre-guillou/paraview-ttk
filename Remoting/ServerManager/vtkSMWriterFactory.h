@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMWriterFactory.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMWriterFactory
  * @brief   is a factory or creating a writer based on the
@@ -107,7 +95,7 @@ public:
    */
   void UpdateAvailableWriters();
 
-  //@{
+  ///@{
   /**
    * Add/remove a group name to look for writers in. By default
    * "writers" is included.
@@ -115,7 +103,7 @@ public:
   void AddGroup(const char* groupName);
   void RemoveGroup(const char* groupName);
   void GetGroups(vtkStringList* groups);
-  //@}
+  ///@}
 
   /**
    * This function is for ParaView based applications that only wish to expose

@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtknvindex_affinity_h
 #define vtknvindex_affinity_h
@@ -37,17 +39,9 @@
 #include <mi/math/bbox.h>
 #include <mi/neuraylib/iserializer.h>
 
-#include <nv/index/version.h>
-
-#if (NVIDIA_INDEX_LIBRARY_REVISION_MAJOR <= 327600)
-#include <mi/neuraylib/istring.h>
-#endif
-
 #include <nv/index/iaffinity_information.h>
 
-#if (NVIDIA_INDEX_LIBRARY_REVISION_MAJOR > 327600)
 #define VTKNVINDEX_USE_KDTREE
-#endif
 
 class vtknvindex_host_properties;
 

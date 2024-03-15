@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointsProjectedHull.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPointsProjectedHull
@@ -35,6 +20,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkPointsProjectedHull : public vtkPoints
 {
   vtkTypeMacro(vtkPointsProjectedHull, vtkPoints);
@@ -184,4 +170,5 @@ private:
   vtkPointsProjectedHull(const vtkPointsProjectedHull&) = delete;
   void operator=(const vtkPointsProjectedHull&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

@@ -8,18 +8,19 @@
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
 
+#include <vtkm/Particle.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/Initialize.h>
-#include <vtkm/filter/Streamline.h>
+#include <vtkm/filter/flow/Streamline.h>
 #include <vtkm/io/VTKDataSetReader.h>
 #include <vtkm/io/VTKDataSetWriter.h>
 
 // Example computing streamlines.
-// An example vector field is available in the vtk-m data directory: magField.vtk
+// An example vector field is available in the vtk-m data directory: rotate-vectors.vtk
 // Example usage:
-//   this will advect 200 particles 50 steps using a step size of 0.01
+//   this will advect 200 particles 50 steps using a step size of 0.05
 //
-// Particle_Advection <path-to-data-dir>/magField.vtk vec 200 50 0.01 output.vtk
+// Particle_Advection <path-to-data-dir>/rotate-vectors.vtk rotate 200 50 0.05 output.vtk
 //
 
 int main(int argc, char** argv)
@@ -27,10 +28,10 @@ int main(int argc, char** argv)
   auto opts = vtkm::cont::InitializeOptions::DefaultAnyDevice;
   auto config = vtkm::cont::Initialize(argc, argv, opts);
 
-  if (argc < 8)
+  if (argc < 7)
   {
     std::cerr << "Usage: " << argv[0]
-              << "dataFile varName numSeeds numSteps stepSize outputFile [options]" << std::endl;
+              << " dataFile varName numSeeds numSteps stepSize outputFile [options]" << std::endl;
     std::cerr << "where options are: " << std::endl << config.Usage << std::endl;
     return -1;
   }
@@ -65,16 +66,16 @@ int main(int argc, char** argv)
     vtkm::FloatDefault rx = (vtkm::FloatDefault)rand() / (vtkm::FloatDefault)RAND_MAX;
     vtkm::FloatDefault ry = (vtkm::FloatDefault)rand() / (vtkm::FloatDefault)RAND_MAX;
     vtkm::FloatDefault rz = (vtkm::FloatDefault)rand() / (vtkm::FloatDefault)RAND_MAX;
-    p.Pos[0] = static_cast<vtkm::FloatDefault>(bounds.X.Min + rx * bounds.X.Length());
-    p.Pos[1] = static_cast<vtkm::FloatDefault>(bounds.Y.Min + ry * bounds.Y.Length());
-    p.Pos[2] = static_cast<vtkm::FloatDefault>(bounds.Z.Min + rz * bounds.Z.Length());
-    p.ID = i;
+    p.SetPosition({ static_cast<vtkm::FloatDefault>(bounds.X.Min + rx * bounds.X.Length()),
+                    static_cast<vtkm::FloatDefault>(bounds.Y.Min + ry * bounds.Y.Length()),
+                    static_cast<vtkm::FloatDefault>(bounds.Z.Min + rz * bounds.Z.Length()) });
+    p.SetID(i);
     seeds.push_back(p);
   }
   auto seedArray = vtkm::cont::make_ArrayHandle(seeds, vtkm::CopyFlag::Off);
 
   //compute streamlines
-  vtkm::filter::Streamline streamline;
+  vtkm::filter::flow::Streamline streamline;
 
   streamline.SetStepSize(stepSize);
   streamline.SetNumberOfSteps(numSteps);

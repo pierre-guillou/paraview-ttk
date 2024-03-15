@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPPythonScriptV2Pipeline.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkCPPythonScriptV2Pipeline
  * @brief vtkCPPipeline for Catalyst Python script / package version 2.0
@@ -53,14 +41,14 @@ public:
    */
   bool Initialize(const char* filename);
 
-  //@{
+  ///@{
   /**
    * Implementation for vtkCPPipeline API
    */
   int RequestDataDescription(vtkCPDataDescription* dataDescription) override;
   int CoProcess(vtkCPDataDescription* dataDescription) override;
   int Finalize() override;
-  //@}
+  ///@}
 
 protected:
   vtkCPPythonScriptV2Pipeline();

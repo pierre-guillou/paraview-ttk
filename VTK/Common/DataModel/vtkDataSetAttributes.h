@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetAttributes.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetAttributes
  * @brief   represent and manipulate attribute data in a dataset
@@ -55,6 +43,7 @@
 #include "vtkDataSetAttributesFieldList.h" // for vtkDataSetAttributesFieldList
 #include "vtkFieldData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLookupTable;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkDataSetAttributes : public vtkFieldData
@@ -112,6 +101,7 @@ public:
     TANGENTS = 8,
     RATIONALWEIGHTS = 9,
     HIGHERORDERDEGREES = 10,
+    PROCESSIDS = 11,
     NUM_ATTRIBUTES
   };
 
@@ -243,9 +233,19 @@ public:
 
   ///@{
   /**
-   * This will first look for an array with the correct name.
-   * If one exists, it is returned. Otherwise, the name argument
-   * is ignored, and the active attribute is returned.
+   * Set/Get the process id data.
+   */
+  int SetProcessIds(vtkDataArray* da);
+  int SetActiveProcessIds(const char* name);
+  vtkDataArray* GetProcessIds();
+  ///@}
+
+  ///@{
+  /**
+   * If the string is nullptr or empty, calls the alternate method
+   * of the same name (that takes no parameters).
+   * Otherwise, it will look for an array with the correct name.
+   * If one exists, it is returned. Otherwise, nullptr is returned.
    */
   vtkDataArray* GetScalars(const char* name);
   vtkDataArray* GetVectors(const char* name);
@@ -257,6 +257,7 @@ public:
   vtkAbstractArray* GetPedigreeIds(const char* name);
   vtkDataArray* GetRationalWeights(const char* name);
   vtkDataArray* GetHigherOrderDegrees(const char* name);
+  vtkDataArray* GetProcessIds(const char* name);
   ///@}
 
   /**
@@ -271,6 +272,9 @@ public:
    * vtkDataSetAttributes::PEDIGREEIDS = 6
    * vtkDataSetAttributes::EDGEFLAG = 7
    * vtkDataSetAttributes::TANGENTS = 8
+   * vtkDataSetAttributes::RATIONALWEIGHTS = 9
+   * vtkDataSetAttributes::HIGHERORDERDEGREES = 10
+   * vtkDataSetAttributes::PROCESSIDS = 11
    * Returns the index of the array if successful, -1 if the array
    * is not in the list of arrays.
    */
@@ -278,12 +282,15 @@ public:
 
   /**
    * Make the array with the given index the active attribute.
+   * Returns the index of the array if successful, -1 if the array
+   * is not in the list of arrays.
    */
   int SetActiveAttribute(int index, int attributeType);
 
   /**
    * Get the field data array indices corresponding to scalars,
-   * vectors, tensors, etc.
+   * vectors, tensors, etc.  The given buffer must be at least
+   * NUM_ATTRIBUTES elements big.
    */
   void GetAttributeIndices(int* indexArray);
 
@@ -338,7 +345,8 @@ public:
 
   ///@{
   /**
-   * Remove an array (with the given name) from the list of arrays.
+   * Remove an array (with the given index) from the list of arrays.
+   * Does nothing if the index is out of range.
    */
   using vtkFieldData::RemoveArray;
   void RemoveArray(int index) override;
@@ -443,6 +451,11 @@ public:
   vtkBooleanMacro(CopyHigherOrderDegrees, vtkTypeBool);
 
   /// @copydoc vtkDataSetAttributes::SetCopyAttribute()
+  void SetCopyProcessIds(vtkTypeBool i, int ctype = ALLCOPY);
+  vtkTypeBool GetCopyProcessIds(int ctype = ALLCOPY);
+  vtkBooleanMacro(CopyProcessIds, vtkTypeBool);
+
+  /// @copydoc vtkDataSetAttributes::SetCopyAttribute()
   void CopyAllOn(int ctype = ALLCOPY) override;
 
   /// @copydoc vtkDataSetAttributes::SetCopyAttribute()
@@ -452,7 +465,7 @@ public:
 
   /**
    * Pass entire arrays of input data through to output. Obey the "copy"
-   * flags. When passing a field,  the following copying rules are
+   * flags. When passing a field, the following copying rules are
    * followed: 1) Check if a field is an attribute, if yes and if there
    * is a PASSDATA copy flag for that attribute (on or off), obey the flag
    * for that attribute, ignore (2) and (3), 2) if there is a copy field for
@@ -667,11 +680,11 @@ private:
 
   vtkFieldData::BasicIterator ComputeRequiredArrays(vtkDataSetAttributes* pd, int ctype);
 
-private:
   vtkDataSetAttributes(const vtkDataSetAttributes&) = delete;
   void operator=(const vtkDataSetAttributes&) = delete;
 
   friend class vtkDataSetAttributesFieldList;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

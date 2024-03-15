@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDataTypeDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMDataTypeDomain
  * @brief   restricts the input proxies to one or more data types
@@ -84,6 +72,12 @@ public:
    * An experimental API to provide a user-friendly text describing this domain.
    */
   std::string GetDomainDescription() const;
+
+  /**
+   * Parse XML attributes and store in the appropriate ivars
+   * Used by ReadXMLAttributes but can be used independently.
+   */
+  int ParseXMLAttributes(vtkPVXMLElement* element);
 
 protected:
   vtkSMDataTypeDomain();

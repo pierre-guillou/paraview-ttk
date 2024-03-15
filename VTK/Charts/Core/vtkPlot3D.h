@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlot3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlot3D
@@ -34,9 +22,11 @@
 #include "vtkVector.h"       // For Points ivar
 #include <vector>            // For ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChartXYZ;
 class vtkDataArray;
 class vtkIdTypeArray;
+class vtkPoints;
 class vtkTable;
 class vtkUnsignedCharArray;
 class vtkPen;
@@ -85,6 +75,12 @@ public:
 
   /**
    * Get all the data points within this plot.
+   */
+  vtkPoints* GetVTKPoints() { return this->Points; }
+
+  /**
+   * Get a copy of all the data points.
+   * TODO: Maybe deprecate this function, remove it and rename GetVTKPoints -> GetPoints.
    */
   std::vector<vtkVector3f> GetPoints();
 
@@ -172,7 +168,7 @@ protected:
   /**
    * The data points read in during SetInputData().
    */
-  std::vector<vtkVector3f> Points;
+  vtkNew<vtkPoints> Points;
 
   /**
    * When the points were last built.
@@ -199,4 +195,5 @@ private:
   void operator=(const vtkPlot3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlot3D_h

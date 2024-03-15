@@ -1,25 +1,6 @@
-/*******************************************************************/
-/*                               XDMF                              */
-/*                   eXtensible Data Model and Format              */
-/*                                                                 */
-/*  Id : Id  */
-/*                                                                 */
-/*  Author:                                                        */
-/*     Jerry A. Clarke                                             */
-/*     clarke@arl.army.mil                                         */
-/*     US Army Research Laboratory                                 */
-/*     Aberdeen Proving Ground, MD                                 */
-/*                                                                 */
-/*     Copyright @ 2002 US Army Research Laboratory                */
-/*     All Rights Reserved                                         */
-/*     See Copyright.txt or http://www.arl.hpc.mil/ice for details */
-/*                                                                 */
-/*     This software is distributed WITHOUT ANY WARRANTY; without  */
-/*     even the implied warranty of MERCHANTABILITY or FITNESS     */
-/*     FOR A PARTICULAR PURPOSE.  See the above copyright notice   */
-/*     for more information.                                       */
-/*                                                                 */
-/*******************************************************************/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright @ 2002 US Army Research Laboratory
+// SPDX-License-Identifier: BSD-3-Clause AND LicenseRef-BSD-4-Clause-Modif
 #include "vtkXdmfDataArray.h"
 
 #include "vtkCommand.h"
@@ -41,6 +22,7 @@
 using namespace xdmf2;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXdmfDataArray);
 
 //------------------------------------------------------------------------------
@@ -463,3 +445,4 @@ void vtkXdmfDataArray::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

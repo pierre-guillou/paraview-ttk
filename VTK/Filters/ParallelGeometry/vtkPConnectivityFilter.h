@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPConnectivityFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPConnectivityFilter
  * @brief   Parallel version of vtkConnectivityFilter
@@ -139,6 +127,7 @@
 #include "vtkConnectivityFilter.h"
 #include "vtkFiltersParallelGeometryModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSPARALLELGEOMETRY_EXPORT vtkPConnectivityFilter : public vtkConnectivityFilter
 {
 public:
@@ -158,4 +147,5 @@ private:
   void operator=(const vtkPConnectivityFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

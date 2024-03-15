@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkProcessModule.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProcessModule
  * @brief   process initialization and management core for
@@ -23,10 +11,10 @@
 #ifndef vtkProcessModule_h
 #define vtkProcessModule_h
 
+#include "vtkNew.h" // needed for vtkNew
 #include "vtkObject.h"
-#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_10_0
-#include "vtkRemotingCoreModule.h"  //needed for exports
-#include "vtkSmartPointer.h"        // needed for vtkSmartPointer.
+#include "vtkRemotingCoreModule.h" //needed for exports
+#include "vtkSmartPointer.h"       // needed for vtkSmartPointer.
 
 #include <string> // for std::string
 
@@ -34,9 +22,9 @@ class vtkInformation;
 class vtkMultiProcessController;
 class vtkNetworkAccessManager;
 class vtkProcessModuleInternals;
-class vtkPVOptions;
 class vtkSession;
 class vtkSessionIterator;
+class vtkThreadedCallbackQueue;
 
 class VTKREMOTINGCORE_EXPORT vtkProcessModule : public vtkObject
 {
@@ -118,7 +106,7 @@ public:
    */
   vtkIdType RegisterSession(vtkSession*);
 
-  //@{
+  ///@{
   /**
    * Unregister a session given its ID. This is the same ID that is returned
    * when the session was registered. Returns true is the session was
@@ -131,9 +119,9 @@ public:
    */
   bool UnRegisterSession(vtkIdType sessionID);
   bool UnRegisterSession(vtkSession* session);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * RegisterSession and UnRegisterSession fire events with SessionID in
    * calldata. To provide access to that in Python, we have this method. The
@@ -141,7 +129,7 @@ public:
    * vtkCommand::ConnectionClosedEvent callbacks and is set to 0 at other times.
    */
   vtkGetMacro(EventCallDataSessionId, vtkIdType);
-  //@}
+  ///@}
 
   /**
    * Returns the session associated with a given ID.
@@ -174,7 +162,7 @@ public:
    */
   vtkSession* GetSession();
 
-  //@{
+  ///@{
   /**
    * Return true, if multiple sessions can be used simultanuously.
    * We set the default to be FALSE.
@@ -182,7 +170,7 @@ public:
   vtkGetMacro(MultipleSessionsSupport, bool);
   vtkSetMacro(MultipleSessionsSupport, bool);
   vtkBooleanMacro(MultipleSessionsSupport, bool);
-  //@}
+  ///@}
 
   //********** ACCESSORS FOR VARIOUS HELPERS *****************************
 
@@ -192,21 +180,9 @@ public:
    */
   static vtkProcessModule* GetProcessModule();
 
-  //@{
-  /**
-   * @deprecated in ParaView 5.10. vtkPVOptions is now replaced by
-   * vtkCLIOptions for command line parsing and various configuration e.g
-   * vtkProcessModuleConfiguration, vtkRemotingCoreConfiguration, etc.
-   */
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  vtkPVOptions* GetOptions();
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  void SetOptions(vtkPVOptions*);
-  //@}
-
   //********** ACCESSORS FOR VARIOUS HELPERS *****************************
 
-  //@{
+  ///@{
   /**
    * Get/Set the network access manager. vtkNetworkAccessManager encapsulates
    * the setup of interprocess communication channels. By default a
@@ -217,7 +193,7 @@ public:
    */
   vtkGetObjectMacro(NetworkAccessManager, vtkNetworkAccessManager);
   void SetNetworkAccessManager(vtkNetworkAccessManager*);
-  //@}
+  ///@}
 
   /**
    * Provides access to the global MPI controller, if any. Same can be obtained
@@ -240,18 +216,18 @@ public:
    */
   bool IsMPIInitialized();
 
-  //@{
+  ///@{
   /**
    * Set/Get whether to report errors from the Interpreter.
    */
   vtkGetMacro(ReportInterpreterErrors, bool);
   vtkSetMacro(ReportInterpreterErrors, bool);
   vtkBooleanMacro(ReportInterpreterErrors, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   static bool GetSymmetricMPIMode();
-  //@}
+  ///@}
 
   /**
    * The full path to the current executable that is running (or empty if unknown).
@@ -262,7 +238,7 @@ public:
    */
   const std::string& GetSelfDir() const { return this->SelfDir; }
 
-  //@{
+  ///@{
   /**
    * This is temporary approach to control the number of ghost-levels to request
    * by default for data pipelines. Currently, change in ghost level
@@ -282,7 +258,7 @@ public:
   static int GetDefaultMinimumGhostLevelsToRequestForStructuredPipelines();
   static void SetDefaultMinimumGhostLevelsToRequestForUnstructuredPipelines(int);
   static int GetDefaultMinimumGhostLevelsToRequestForUnstructuredPipelines();
-  //@}
+  ///@}
 
   /**
    * This returns number of ghost level to request based on characteristics of
@@ -290,17 +266,22 @@ public:
    */
   static int GetNumberOfGhostLevelsToRequest(vtkInformation* outInfo);
 
+  /**
+   * Returns a callback queue in which one can defer tasks that can run asynchronously.
+   */
+  vtkThreadedCallbackQueue* GetCallbackQueue();
+
 protected:
   vtkProcessModule();
   ~vtkProcessModule() override;
 
-  //@{
+  ///@{
   /**
    * Push/Pop the active session.
    */
   void PushActiveSession(vtkSession*);
   void PopActiveSession(vtkSession*);
-  //@}
+  ///@}
 
   /**
    * Marking vtkSession as friend since it needs access to
@@ -362,8 +343,6 @@ private:
 
   static int DefaultMinimumGhostLevelsToRequestForStructuredPipelines;
   static int DefaultMinimumGhostLevelsToRequestForUnstructuredPipelines;
-
-  vtkPVOptions* Options;
 };
 
 #endif // vtkProcessModule_h

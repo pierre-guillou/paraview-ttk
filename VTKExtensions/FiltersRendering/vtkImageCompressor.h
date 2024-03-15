@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageCompressor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageCompressor
  * @brief   Superclass for image compressor/decompressor
@@ -41,30 +30,30 @@ public:
   vtkTypeMacro(vtkImageCompressor, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the input to this compressor.
    */
   void SetInput(vtkUnsignedCharArray* input);
   vtkGetObjectMacro(Input, vtkUnsignedCharArray);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the output of the compressor.
    */
   vtkGetObjectMacro(Output, vtkUnsignedCharArray);
   void SetOutput(vtkUnsignedCharArray*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set the implementation must use loss-less compression, otherwise
    * implemnetation should user provided settings.
    */
   vtkSetMacro(LossLessMode, int);
   vtkGetMacro(LossLessMode, int);
-  //@}
+  ///@}
 
   /**
    * Call this method to compress the input and generate the compressed
@@ -109,13 +98,13 @@ public:
   virtual const char* RestoreConfiguration(const char* stream);
 
 protected:
-  //@{
+  ///@{
   /**
    * Construct with nullptr input array and empty but allocated output array.
    */
   vtkImageCompressor();
   ~vtkImageCompressor() override;
-  //@}
+  ///@}
 
   // This is the array which contains the compressed data.
   vtkUnsignedCharArray* Output;

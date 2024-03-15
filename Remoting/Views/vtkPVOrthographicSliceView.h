@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVOrthographicSliceView.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVOrthographicSliceView
  * @brief view with 3 orthographic slice views and 1 3D view.
@@ -68,28 +56,28 @@ public:
   void SetInteractionMode(int mode) override;
   void SetupInteractor(vtkRenderWindowInteractor*) override;
 
-  //@{
+  ///@{
   /**
    * Set the slice position.
    */
   void SetSlicePosition(double x, double y, double z);
   vtkGetVector3Macro(SlicePosition, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set slice increments.
    */
   vtkSetVector3Macro(SliceIncrements, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether to show slice annotations.
    */
   vtkSetMacro(SliceAnnotationsVisibility, bool);
   vtkGetMacro(SliceAnnotationsVisibility, bool);
-  //@}
+  ///@}
 
   /**
    * To avoid confusion, we don't show the center axes at all in this view.

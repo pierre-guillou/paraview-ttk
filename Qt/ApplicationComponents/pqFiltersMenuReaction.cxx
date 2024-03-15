@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqFiltersMenuReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqFiltersMenuReaction.h"
 
 #include "pqActiveObjects.h"
@@ -57,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSourceProxy.h"
 #include "vtkSmartPointer.h"
 
+#include <QCoreApplication>
 #include <QDebug>
 #include <QMap>
 #include <string>
@@ -198,7 +171,7 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
       {
         action->setVisible(false);
       }
-      action->setStatusTip("Requires an input");
+      action->setStatusTip(tr("Requires an input"));
       continue;
     }
 
@@ -217,11 +190,11 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
       }
       if (numProcs > 1)
       {
-        action->setStatusTip("Not supported in parallel");
+        action->setStatusTip(tr("Not supported in parallel"));
       }
       else
       {
-        action->setStatusTip("Supported only in parallel");
+        action->setStatusTip(tr("Supported only in parallel"));
       }
       continue;
     }
@@ -237,7 +210,7 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
         {
           action->setVisible(false);
         }
-        action->setStatusTip("Multiple inputs not support");
+        action->setStatusTip(tr("Multiple inputs not support"));
         continue;
       }
 
@@ -255,7 +228,7 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
         action->setVisible(true);
         some_enabled = true;
         const char* help = prototype->GetDocumentation()->GetShortHelp();
-        action->setStatusTip(help ? help : "");
+        action->setStatusTip(help ? QCoreApplication::translate("ServerManagerXML", help) : "");
       }
       else
       {
@@ -387,7 +360,7 @@ pqPipelineSource* pqFiltersMenuReaction::createFilter(
     namedInputs = dialog.selectedInputs();
   }
 
-  BEGIN_UNDO_SET(QString("Create '%1'").arg(xmlname));
+  BEGIN_UNDO_SET(tr("Create '%1'").arg(xmlname));
   pqPipelineSource* filter = builder->createFilter("filters", xmlname, namedInputs, server);
   END_UNDO_SET();
   return filter;

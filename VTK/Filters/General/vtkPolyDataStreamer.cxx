@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataStreamer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPolyDataStreamer.h"
 
 #include "vtkAppendPolyData.h"
@@ -23,6 +11,7 @@
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyDataStreamer);
 
 //------------------------------------------------------------------------------
@@ -35,6 +24,8 @@ vtkPolyDataStreamer::vtkPolyDataStreamer()
   this->ColorByPiece = 0;
 
   this->Append = vtkAppendPolyData::New();
+
+  this->Append->SetContainerAlgorithm(this);
 }
 
 //------------------------------------------------------------------------------
@@ -98,6 +89,10 @@ int vtkPolyDataStreamer::ExecutePass(
     pieceColors->SetNumberOfTuples(numCells);
     for (vtkIdType j = 0; j < numCells; ++j)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       pieceColors->SetValue(j, inPiece);
     }
     int idx = copy->GetCellData()->AddArray(pieceColors);
@@ -149,3 +144,4 @@ int vtkPolyDataStreamer::FillInputPortInformation(int vtkNotUsed(port), vtkInfor
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPolyData");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

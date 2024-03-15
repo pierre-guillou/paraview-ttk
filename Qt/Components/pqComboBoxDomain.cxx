@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqComboBoxDomain.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // self include
 #include "pqComboBoxDomain.h"
@@ -53,6 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // ParaView includes
 #include <pqSMAdaptor.h>
 
+#include <QCoreApplication>
 #include <cassert>
 
 namespace
@@ -229,8 +202,8 @@ void pqComboBoxDomain::internalDomainChanged()
           (vtkSMFieldDataDomain::SafeDownCast(this->Internal->Domain) != nullptr);
         for (unsigned int i = 0; i < ed->GetNumberOfEntries(); i++)
         {
-          texts.append(ed->GetEntryText(i));
-          data.append(ed->GetEntryText(i));
+          texts.append(QCoreApplication::translate("ServerManagerXML", ed->GetEntryText(i)));
+          data.append(QCoreApplication::translate("ServerManagerXML", ed->GetEntryText(i)));
           if (const char* info = ed->GetInfoText(i))
           {
             infos.append(info);
@@ -264,15 +237,16 @@ void pqComboBoxDomain::internalDomainChanged()
     QList<pqSMProxy> proxies = pqSMAdaptor::getProxyPropertyDomain(this->Internal->Property);
     Q_FOREACH (vtkSMProxy* pxy, proxies)
     {
-      texts.append(pxy->GetXMLLabel());
-      data.append(pxy->GetXMLLabel());
+      texts.append(QCoreApplication::translate("ServerManagerXML", pxy->GetXMLLabel()));
+      data.append(QCoreApplication::translate("ServerManagerXML", pxy->GetXMLLabel()));
       infos.append(QString());
       icons.append(QIcon());
     }
     pqSMProxy cur_value = pqSMAdaptor::getProxyProperty(this->Internal->Property);
     if (cur_value)
     {
-      cur_property_value = cur_value->GetXMLLabel();
+      cur_property_value =
+        QCoreApplication::translate("ServerManagerXML", cur_value->GetXMLLabel());
     }
   }
 
@@ -350,7 +324,8 @@ void pqComboBoxDomain::internalDomainChanged()
           pqSMProxy cur_value = pqSMAdaptor::getProxyProperty(this->Internal->Property);
           if (cur_value)
           {
-            cur_property_value = cur_value->GetXMLLabel();
+            cur_property_value =
+              QCoreApplication::translate("ServerManagerXML", cur_value->GetXMLLabel());
           }
         }
         break;

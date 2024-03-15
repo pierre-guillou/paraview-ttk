@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCaptionRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCaptionRepresentation.h"
 #include "vtkCaptionActor2D.h"
 #include "vtkConeSource.h"
@@ -26,6 +14,7 @@
 #include "vtkTextProperty.h"
 #include "vtkTextRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCaptionRepresentation);
 
 //------------------------------------------------------------------------------
@@ -228,7 +217,10 @@ void vtkCaptionRepresentation::AdjustCaptionBoundary()
 //------------------------------------------------------------------------------
 void vtkCaptionRepresentation::GetActors2D(vtkPropCollection* pc)
 {
-  pc->AddItem(this->CaptionActor2D);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    pc->AddItem(this->CaptionActor2D);
+  }
   this->Superclass::GetActors2D(pc);
 }
 
@@ -288,3 +280,4 @@ void vtkCaptionRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Anchor Representation:\n";
   this->AnchorRepresentation->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkChartRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkChartRepresentation
  *
@@ -36,7 +24,7 @@
 #include <set> //needed for ivars
 
 class vtkChartSelectionRepresentation;
-class vtkCSVExporter;
+class vtkAbstractChartExporter;
 class vtkMultiBlockDataSet;
 class vtkPVContextView;
 class vtkSelectionDeliveryFilter;
@@ -70,14 +58,14 @@ public:
 
   // *************************************************************************
 
-  //@{
+  ///@{
   /**
    * Set the field association for arrays to use. When changed, this will call
    * MarkModified().
    */
   void SetFieldAssociation(int);
   vtkGetMacro(FieldAssociation, int);
-  //@}
+  ///@}
 
   // methods to control block selection.
   // When changed, this will call MarkModified().
@@ -111,14 +99,14 @@ public:
   virtual std::string GetDefaultSeriesLabel(
     const std::string& tableName, const std::string& columnName);
 
-  //@{
+  ///@{
   /**
    * Flatten the table, i.e. split any multicomponent columns into separate
    * components.
    */
   vtkSetMacro(FlattenTable, int);
   vtkGetMacro(FlattenTable, int);
-  //@}
+  ///@}
 
   /**
    * This method is called on the client-side by the vtkPVContextView whenever a
@@ -152,7 +140,7 @@ public:
    * a CSV file. Return false on failure which will call the exporting process
    * to abort and raise an error. Default implementation simply returns false.
    */
-  virtual bool Export(vtkCSVExporter* vtkNotUsed(exporter)) { return false; }
+  virtual bool Export(vtkAbstractChartExporter* vtkNotUsed(exporter)) { return false; }
 
 protected:
   vtkChartRepresentation();

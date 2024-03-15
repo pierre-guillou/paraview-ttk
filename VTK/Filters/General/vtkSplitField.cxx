@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSplitField.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSplitField.h"
 
 #include "vtkArrayDispatch.h"
@@ -26,6 +14,7 @@
 #include "vtkPointData.h"
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSplitField);
 
 char vtkSplitField::FieldLocationNames[3][12] = { "DATA_OBJECT", "POINT_DATA", "CELL_DATA" };
@@ -254,6 +243,10 @@ int vtkSplitField::RequestData(vtkInformation* vtkNotUsed(request),
   // generate them
   do
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     before = cur;
     cur = cur->Next;
     if (before->FieldName)
@@ -418,3 +411,4 @@ void vtkSplitField::PrintAllComponents(ostream& os, vtkIndent indent)
     this->PrintComponent(before, os, indent);
   } while (cur);
 }
+VTK_ABI_NAMESPACE_END

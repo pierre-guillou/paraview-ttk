@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLPVAnimationWriter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLPVAnimationWriter.h"
 
 #include "vtkCompleteArrays.h"
@@ -326,11 +314,12 @@ std::string vtkXMLPVAnimationWriterInternals::CreateFileName(
   char pt[100];
   if (this->GroupMap[this->InputGroupNames[index]] > 1)
   {
-    sprintf(pt, "P%02dT%04d", this->InputPartNumbers[index], this->InputChangeCounts[index] - 1);
+    snprintf(pt, sizeof(pt), "P%02dT%04d", this->InputPartNumbers[index],
+      this->InputChangeCounts[index] - 1);
   }
   else
   {
-    sprintf(pt, "T%04d", this->InputChangeCounts[index] - 1);
+    snprintf(pt, sizeof(pt), "T%04d", this->InputChangeCounts[index] - 1);
   }
   fn_with_warning_C4701 << pt;
 

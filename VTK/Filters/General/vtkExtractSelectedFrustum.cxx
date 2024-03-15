@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedFrustum.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkExtractSelectedFrustum.h"
 
@@ -37,6 +25,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkVoxel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedFrustum);
 vtkCxxSetObjectMacro(vtkExtractSelectedFrustum, Frustum, vtkPlanes);
 
@@ -423,6 +412,10 @@ int vtkExtractSelectedFrustum::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(cellId % updateInterval)) // manage progress reports
       {
         this->UpdateProgress(static_cast<double>(cellId) / numCells);
+        if (this->CheckAbort())
+        {
+          break;
+        }
       }
 
       input->GetCellBounds(cellId, bounds);
@@ -544,6 +537,10 @@ int vtkExtractSelectedFrustum::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(ptId % updateInterval)) // manage progress reports
       {
         this->UpdateProgress(static_cast<double>(ptId) / numPts);
+        if (this->CheckAbort())
+        {
+          break;
+        }
       }
 
       input->GetPoint(ptId, x);
@@ -1124,3 +1121,4 @@ void vtkExtractSelectedFrustum::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "InsideOut: " << (this->InsideOut ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

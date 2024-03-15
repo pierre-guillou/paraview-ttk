@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAnimateModes.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAnimateModes.h"
 
 #include "vtkArrayDispatch.h"
@@ -32,6 +20,7 @@
 #include "vtkSMPTools.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkAnimateModesWorker
 {
   template <typename PointsArray, typename DisplacementsArray>
@@ -55,8 +44,17 @@ struct vtkAnimateModesWorker
     }
 
     vtkSMPTools::For(0, numTuples, [&](vtkIdType start, vtkIdType end) {
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (vtkIdType cc = start; cc < end; ++cc)
       {
+        if (isFirst)
+        {
+          self->CheckAbort();
+        }
+        if (self->GetAbortOutput())
+        {
+          break;
+        }
         for (int comp = 0; comp < numComps; ++comp)
         {
           opts.Set(cc, comp, ipts.Get(cc, comp) + disp.Get(cc, comp) * scale);
@@ -185,7 +183,7 @@ int vtkAnimateModes::RequestData(
     auto outputDT = vtkDataObjectTree::SafeDownCast(outputDO);
     assert(outputDT);
 
-    outputDT->RecursiveShallowCopy(inputDT);
+    outputDT->ShallowCopy(inputDT);
     for (auto block : vtkCompositeDataSet::GetDataSets<vtkPointSet>(outputDT))
     {
       executeBlock(block);
@@ -232,3 +230,4 @@ void vtkAnimateModes::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "DisplacementPreapplied: " << this->DisplacementPreapplied << endl;
   os << indent << "TimeRange: " << this->TimeRange[0] << ", " << this->TimeRange[1] << endl;
 }
+VTK_ABI_NAMESPACE_END

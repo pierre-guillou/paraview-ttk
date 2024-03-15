@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCutter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCutter.h"
 
 #include "vtk3DLinearGridPlaneCutter.h"
+#include "vtkAppendDataSets.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
@@ -50,7 +39,8 @@
 #include <algorithm>
 #include <cmath>
 
-vtkStandardNewMacro(vtkCutter);
+VTK_ABI_NAMESPACE_BEGIN
+vtkObjectFactoryNewMacro(vtkCutter);
 vtkCxxSetObjectMacro(vtkCutter, CutFunction, vtkImplicitFunction);
 vtkCxxSetObjectMacro(vtkCutter, Locator, vtkIncrementalPointLocator);
 
@@ -59,7 +49,6 @@ vtkCxxSetObjectMacro(vtkCutter, Locator, vtkIncrementalPointLocator);
 // generating cut scalars turned off.
 vtkCutter::vtkCutter(vtkImplicitFunction* cf)
 {
-  this->ContourValues = vtkContourValues::New();
   this->SortBy = VTK_SORT_BY_VALUE;
   this->CutFunction = cf;
   this->GenerateCutScalars = 0;
@@ -67,23 +56,18 @@ vtkCutter::vtkCutter(vtkImplicitFunction* cf)
   this->GenerateTriangles = 1;
   this->OutputPointsPrecision = DEFAULT_PRECISION;
 
-  this->SynchronizedTemplates3D = vtkSynchronizedTemplates3D::New();
-  this->SynchronizedTemplatesCutter3D = vtkSynchronizedTemplatesCutter3D::New();
-  this->GridSynchronizedTemplates = vtkGridSynchronizedTemplates3D::New();
-  this->RectilinearSynchronizedTemplates = vtkRectilinearSynchronizedTemplates::New();
+  this->PlaneCutter->SetContainerAlgorithm(this);
+  this->SynchronizedTemplates3D->SetContainerAlgorithm(this);
+  this->SynchronizedTemplatesCutter3D->SetContainerAlgorithm(this);
+  this->GridSynchronizedTemplates->SetContainerAlgorithm(this);
+  this->RectilinearSynchronizedTemplates->SetContainerAlgorithm(this);
 }
 
 //------------------------------------------------------------------------------
 vtkCutter::~vtkCutter()
 {
-  this->ContourValues->Delete();
   this->SetCutFunction(nullptr);
   this->SetLocator(nullptr);
-
-  this->SynchronizedTemplates3D->Delete();
-  this->SynchronizedTemplatesCutter3D->Delete();
-  this->GridSynchronizedTemplates->Delete();
-  this->RectilinearSynchronizedTemplates->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -332,35 +316,48 @@ int vtkCutter::RequestData(
     {
       this->CreateDefaultLocator();
     }
-    // Create a copy of vtkPlane and nudge it by the single contour
-    vtkNew<vtkPlane> newPlane;
-    newPlane->SetNormal(plane->GetNormal());
-    newPlane->SetOrigin(plane->GetOrigin());
 
-    // Evaluate the distance the origin is from the original plane. This accommodates
-    // subclasses of vtkPlane that may have an additional offset parameter not
-    // accessible through the vtkPlane interface. Use this distance to adjust the origin
-    // in newPlane.
-    double d = plane->EvaluateFunction(plane->GetOrigin());
-    // In addition. We'll need to shift by the contour value.
-    newPlane->Push(-d + this->GetValue(0));
+    vtkNew<vtkAppendDataSets> append;
+    append->SetContainerAlgorithm(this);
+    append->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+    append->MergePointsOff();
+    append->SetOutputDataSetType(VTK_POLY_DATA);
+    for (vtkIdType i = 0; i < this->GetNumberOfContours(); ++i)
+    {
+      // Create a copy of vtkPlane and nudge it by the single contour
+      vtkNew<vtkPlane> newPlane;
+      newPlane->SetNormal(plane->GetNormal());
+      newPlane->SetOrigin(plane->GetOrigin());
+      // Evaluate the distance the origin is from the original plane. This accommodates
+      // subclasses of vtkPlane that may have an additional offset parameter not
+      // accessible through the vtkPlane interface. Use this distance to adjust the origin
+      // in newPlane.
+      double d = plane->EvaluateFunction(plane->GetOrigin());
+      // In addition. We'll need to shift by the contour value.
+      newPlane->Push(-d + this->GetValue(i));
 
-    this->PlaneCutter->SetInputData(input);
-    this->PlaneCutter->SetPlane(newPlane);
-    bool mergePoints = this->GetLocator() && !this->GetLocator()->IsA("vtkNonMergingPointLocator");
-    this->PlaneCutter->SetMergePoints(mergePoints);
-    this->PlaneCutter->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
-    this->PlaneCutter->SetGeneratePolygons(!this->GetGenerateTriangles());
-    this->PlaneCutter->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
-    this->PlaneCutter->BuildTreeOff();
-    this->PlaneCutter->ComputeNormalsOff();
-    this->PlaneCutter->Update();
-    output->ShallowCopy(this->PlaneCutter->GetOutput());
+      this->PlaneCutter->SetInputData(input);
+      this->PlaneCutter->SetPlane(newPlane);
+      bool mergePoints =
+        this->GetLocator() && !this->GetLocator()->IsA("vtkNonMergingPointLocator");
+      this->PlaneCutter->SetMergePoints(mergePoints);
+      this->PlaneCutter->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+      this->PlaneCutter->SetGeneratePolygons(!this->GetGenerateTriangles());
+      this->PlaneCutter->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+      this->PlaneCutter->BuildTreeOff();
+      this->PlaneCutter->ComputeNormalsOff();
+      this->PlaneCutter->Update();
+      vtkNew<vtkPolyData> pd;
+      pd->ShallowCopy(this->PlaneCutter->GetOutput());
+      append->AddInputData(pd);
+    }
+    append->Update();
+    output->ShallowCopy(append->GetOutput());
   };
   if (vtkImageData::SafeDownCast(input) &&
     static_cast<vtkImageData*>(input)->GetDataDimension() == 3)
   {
-    if (plane && this->GetNumberOfContours() == 1 && this->GetGenerateCutScalars() == 0)
+    if (plane && this->GetGenerateCutScalars() == 0)
     {
       executePlaneCutter();
     }
@@ -379,7 +376,7 @@ int vtkCutter::RequestData(
   else if (vtkStructuredGrid::SafeDownCast(input) &&
     static_cast<vtkStructuredGrid*>(input)->GetDataDimension() == 3)
   {
-    if (plane && this->GetNumberOfContours() == 1 && this->GetGenerateCutScalars() == 0)
+    if (plane && this->GetGenerateCutScalars() == 0)
     {
       executePlaneCutter();
     }
@@ -391,7 +388,7 @@ int vtkCutter::RequestData(
   else if (vtkRectilinearGrid::SafeDownCast(input) &&
     static_cast<vtkRectilinearGrid*>(input)->GetDataDimension() == 3)
   {
-    if (plane && this->GetNumberOfContours() == 1 && this->GetGenerateCutScalars() == 0)
+    if (plane && this->GetGenerateCutScalars() == 0)
     {
       executePlaneCutter();
     }
@@ -402,8 +399,7 @@ int vtkCutter::RequestData(
   }
   else if (vtkUnstructuredGridBase::SafeDownCast(input))
   {
-    if (plane && this->GetNumberOfContours() == 1 && this->GetGenerateCutScalars() == 0 &&
-      this->GetGenerateTriangles() == 1)
+    if (plane && this->GetGenerateCutScalars() == 0 && this->GetGenerateTriangles() == 1)
     {
       executePlaneCutter();
     }
@@ -414,8 +410,7 @@ int vtkCutter::RequestData(
   }
   else if (vtkPolyData::SafeDownCast(input))
   {
-    if (plane && this->GetNumberOfContours() == 1 && this->GetGenerateCutScalars() == 0 &&
-      this->GetGenerateTriangles() == 1)
+    if (plane && this->GetGenerateCutScalars() == 0 && this->GetGenerateTriangles() == 1)
     {
       executePlaneCutter();
     }
@@ -488,7 +483,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
   vtkCellData *inCD = input->GetCellData(), *outCD = output->GetCellData();
   vtkIdList* cellIds;
   vtkIdType numContours = this->ContourValues->GetNumberOfContours();
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   cellScalars = vtkDoubleArray::New();
 
@@ -593,7 +588,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cut);
           this->UpdateProgress(static_cast<double>(cut) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         input->GetCell(cellId, cell);
@@ -649,7 +644,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cellId);
           this->UpdateProgress(static_cast<double>(cellId) / numCells);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         // I assume that "GetCellType" is fast.
@@ -744,7 +739,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
   double* contourValuesEnd = contourValues + numContours;
   double* contourIter;
 
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   double range[2];
 
@@ -854,7 +849,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cut);
           this->UpdateProgress(static_cast<double>(cut) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         pointIdList = cellIter->GetPointIds();
@@ -935,7 +930,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         {
           vtkDebugMacro(<< "Cutting #" << cellId);
           this->UpdateProgress(static_cast<double>(cellId) / numCuts);
-          abortExecute = this->GetAbortExecute();
+          abortExecute = this->CheckAbort();
         }
 
         // Just fetch the cell type -- least expensive.
@@ -1084,3 +1079,4 @@ void vtkCutter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Precision of the output points: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

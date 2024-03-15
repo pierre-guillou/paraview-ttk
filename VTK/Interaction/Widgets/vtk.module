@@ -6,6 +6,17 @@ KIT
   VTK::Interaction
 GROUPS
   Rendering
+SPDX_LICENSE_IDENTIFIER
+  LicenseRef-BSD-3-Clause-Sandia-USGov
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright Sandia Corporation
+SPDX_CUSTOM_LICENSE_FILE
+  LICENSE
+SPDX_CUSTOM_LICENSE_NAME
+  BSD-3-Clause-Sandia-USGov
+LICENSE_FILES
+  LICENSE
 DEPENDS
   VTK::CommonCore
   VTK::CommonExecutionModel
@@ -31,6 +42,8 @@ PRIVATE_DEPENDS
   VTK::RenderingAnnotation
   VTK::RenderingFreeType
   VTK::RenderingVolume
+  VTK::RenderingOpenGL2
+
 TEST_DEPENDS
   VTK::CommonComputationalGeometry
   VTK::CommonSystem

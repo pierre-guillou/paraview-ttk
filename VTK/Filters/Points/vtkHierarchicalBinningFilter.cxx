@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHierarchicalBinningFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkHierarchicalBinningFilter.h"
 
 #include "vtkDoubleArray.h"
@@ -27,6 +15,7 @@
 #include "vtkPoints.h"
 #include "vtkSMPTools.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHierarchicalBinningFilter);
 
 namespace
@@ -898,3 +887,4 @@ void vtkHierarchicalBinningFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Divisions: (" << this->Divisions[0] << "," << this->Divisions[1] << ","
      << this->Divisions[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

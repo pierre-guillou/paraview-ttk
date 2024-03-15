@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPipelineSize.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPipelineSize
  * @brief   compute the memory required by a pipeline
@@ -22,6 +10,7 @@
 
 #include "vtkFiltersParallelModule.h" // For export macro
 #include "vtkObject.h"
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithm;
 
 class VTKFILTERSPARALLEL_EXPORT vtkPipelineSize : public vtkObject
@@ -32,7 +21,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Compute an estimate of how much memory a pipline will require in
+   * Compute an estimate of how much memory a pipeline will require in
    * kibibytes (1024 bytes) This is only an estimate and the
    * calculations in here do not take into account the specifics of many
    * sources and filters.
@@ -62,4 +51,5 @@ private:
   void operator=(const vtkPipelineSize&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

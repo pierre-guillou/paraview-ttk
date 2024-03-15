@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContourWidget.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCommand.h"
@@ -27,6 +15,7 @@
 #include "vtkWidgetCallbackMapper.h"
 #include "vtkWidgetEvent.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContourWidget);
 
 //------------------------------------------------------------------------------
@@ -658,3 +647,4 @@ void vtkContourWidget::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FollowCursor: " << (this->FollowCursor ? "On" : "Off") << endl;
   os << indent << "ContinuousDraw: " << (this->ContinuousDraw ? "On" : "Off") << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataObject
  * @brief   general representation of visualization data
@@ -37,6 +25,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataSetAttributes;
 class vtkFieldData;
@@ -94,7 +83,7 @@ public:
   /**
    * Get the flag indicating the data has been released.
    */
-  vtkGetMacro(DataReleased, int);
+  vtkGetMacro(DataReleased, vtkTypeBool);
   ///@}
 
   ///@{
@@ -102,10 +91,10 @@ public:
    * Turn on/off flag to control whether every object releases its data
    * after being used by a filter.
    */
-  static void SetGlobalReleaseDataFlag(int val);
-  void GlobalReleaseDataFlagOn() { this->SetGlobalReleaseDataFlag(1); }
-  void GlobalReleaseDataFlagOff() { this->SetGlobalReleaseDataFlag(0); }
-  static int GetGlobalReleaseDataFlag();
+  static void SetGlobalReleaseDataFlag(vtkTypeBool val);
+  void GlobalReleaseDataFlagOn() { vtkDataObject::SetGlobalReleaseDataFlag(1); }
+  void GlobalReleaseDataFlagOff() { vtkDataObject::SetGlobalReleaseDataFlag(0); }
+  static vtkTypeBool GetGlobalReleaseDataFlag();
   ///@}
 
   ///@{
@@ -216,14 +205,23 @@ public:
    */
   virtual void PrepareForNewData() { this->Initialize(); }
 
-  ///@{
   /**
-   * Shallow and Deep copy.  These copy the data, but not any of the
-   * pipeline connections.
+   * The goal of the method is to copy the data up to the array pointers only.
+   * The implementation is delegated to the differenent subclasses.
+   * If you want to copy the actual data, @see DeepCopy.
+   *
+   * This method shallow copy the field data and copy the internal structure.
    */
   virtual void ShallowCopy(vtkDataObject* src);
+
+  /**
+   * The goal of the method is to copy the complete data from src into this object.
+   * The implementation is delegated to the differenent subclasses.
+   * If you want to copy the data up to the array pointers only, @see ShallowCopy.
+   *
+   * This method deep copy the field data and copy the internal structure.
+   */
   virtual void DeepCopy(vtkDataObject* src);
-  ///@}
 
   /**
    * The ExtentType will be left as VTK_PIECES_EXTENT for data objects
@@ -305,6 +303,20 @@ public:
    * point or cell.
    */
   virtual vtkUnsignedCharArray* GetGhostArray(int type);
+
+  /**
+   * Returns if this type of data object support ghost array for specified type.
+   * The type may be:
+   * <ul>
+   * <li>POINT    - Defined in vtkDataSet subclasses
+   * <li>CELL   - Defined in vtkDataSet subclasses.
+   * </ul>
+   * The other attribute types, will return false since
+   * ghosts arrays are not defined for now outside of point or cell.
+   * for vtkDataObject, this always return false but subclasses may override
+   * this method and implement their own logic.
+   */
+  virtual bool SupportsGhostArray(int type);
 
   /**
    * Returns the attributes of the data object as a vtkFieldData.
@@ -424,7 +436,7 @@ protected:
   vtkFieldData* FieldData;
 
   // Keep track of data release during network execution
-  int DataReleased;
+  vtkTypeBool DataReleased;
 
   // When was this data last generated?
   vtkTimeStamp UpdateTime;
@@ -436,9 +448,9 @@ private:
   // Helper method for the ShallowCopy and DeepCopy methods.
   void InternalDataObjectCopy(vtkDataObject* src);
 
-private:
   vtkDataObject(const vtkDataObject&) = delete;
   void operator=(const vtkDataObject&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

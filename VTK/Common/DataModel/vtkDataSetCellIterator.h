@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetCellIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetCellIterator
  * @brief   Implementation of vtkCellIterator using
@@ -25,6 +13,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkSmartPointer.h"          // For vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkDataSetCellIterator : public vtkCellIterator
@@ -58,4 +47,5 @@ private:
   void operator=(const vtkDataSetCellIterator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkDataSetCellIterator_h

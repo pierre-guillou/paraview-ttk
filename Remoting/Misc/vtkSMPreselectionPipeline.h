@@ -1,17 +1,6 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkSMPreselectionPipeline.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPreselectionPipeline
  *
@@ -44,14 +33,19 @@ public:
   vtkTypeMacro(vtkSMPreselectionPipeline, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Create the interactive selection representation
    */
   virtual vtkSMProxy* GetSelectionRepresentation() const;
   virtual vtkSMProxy* GetOrCreateSelectionRepresentation();
-  virtual vtkSMProxy* CreateSelectionRepresentation(vtkSMSourceProxy* extract);
-  //@}
+  virtual vtkSMProxy* CreateSelectionRepresentation(
+    vtkSMSourceProxy* extract, vtkSMRenderViewProxy* view);
+  virtual vtkSMProxy* CreateSelectionRepresentation(vtkSMSourceProxy* extract)
+  {
+    return this->CreateSelectionRepresentation(extract, nullptr);
+  }
+  ///@}
 
   /**
    * Shows the interactive selection for 'selection' and 'sourceRepresentation'.

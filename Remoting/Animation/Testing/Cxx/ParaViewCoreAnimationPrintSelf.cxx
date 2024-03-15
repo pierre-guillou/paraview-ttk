@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #define PRINT_SELF(classname)                                                                      \
   c = classname::New();                                                                            \
   c->Print(cout);                                                                                  \
@@ -16,7 +18,6 @@
 #include "vtkPVRampKeyFrame.h"
 #include "vtkPVRepresentationAnimationHelper.h"
 #include "vtkPVSinusoidKeyFrame.h"
-#include "vtkRealtimeAnimationPlayer.h"
 #include "vtkSIXMLAnimationWriterRepresentationProperty.h"
 #include "vtkSMAnimationScene.h"
 #include "vtkSMAnimationSceneGeometryWriter.h"
@@ -41,7 +42,6 @@ int ParaViewCoreAnimationPrintSelf(int, char*[])
   PRINT_SELF(vtkPVRampKeyFrame);
   PRINT_SELF(vtkPVRepresentationAnimationHelper);
   PRINT_SELF(vtkPVSinusoidKeyFrame);
-  PRINT_SELF(vtkRealtimeAnimationPlayer);
   PRINT_SELF(vtkSequenceAnimationPlayer);
   PRINT_SELF(vtkSIXMLAnimationWriterRepresentationProperty);
   PRINT_SELF(vtkSMAnimationScene);

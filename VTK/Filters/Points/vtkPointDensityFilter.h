@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointDensityFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointDensityFilter
  * @brief   produce density field from input point cloud
@@ -86,6 +74,7 @@
 #define VTK_DENSITY_FORM_VOLUME_NORM 0
 #define VTK_DENSITY_FORM_NPTS 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 
 class VTKFILTERSPOINTS_EXPORT vtkPointDensityFilter : public vtkImageAlgorithm
@@ -262,4 +251,5 @@ private:
   void operator=(const vtkPointDensityFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

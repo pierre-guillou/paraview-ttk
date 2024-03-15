@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResourceFileLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkResourceFileLocator
  * @brief utility to locate resource files.
@@ -38,6 +26,7 @@
 #include <string> // needed for std::string
 #include <vector> // needed for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONMISC_EXPORT vtkResourceFileLocator : public vtkObject
 {
 public:
@@ -110,4 +99,5 @@ private:
   vtkResourceFileLocator::GetLibraryPathForSymbolUnix(#function)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

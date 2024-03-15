@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVServerManagerPluginInterface.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVServerManagerPluginInterface
  *
@@ -38,7 +26,7 @@ public:
    */
   virtual void GetXMLs(std::vector<std::string>& vtkNotUsed(xmls)) = 0;
 
-  //@{
+  ///@{
   /**
    * Returns the callback function to call to initialize the interpretor for the
    * new vtk/server-manager classes added by this plugin. Returning nullptr is

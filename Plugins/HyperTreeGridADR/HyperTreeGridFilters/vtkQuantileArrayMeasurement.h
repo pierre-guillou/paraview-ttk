@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuantileArrayMeasurement.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkQuantileArrayMeasurement
@@ -94,7 +83,7 @@ public:
   bool Measure(vtkAbstractAccumulator** accumulators, vtkIdType numberOfAccumulatedData,
     double totalWeight, double& value) override;
 
-  //@{
+  ///@{
   /**
    * See the vtkAbstractArrayMeasurement API for description of this method.
    */
@@ -102,7 +91,7 @@ public:
   std::vector<vtkAbstractAccumulator*> NewAccumulatorInstances() const override;
   vtkIdType GetMinimumNumberOfAccumulatedData() const override;
   vtkIdType GetNumberOfAccumulators() const override;
-  //@}
+  ///@}
 
   /**
    * ShallowCopy implementation.
@@ -114,7 +103,7 @@ public:
    */
   void DeepCopy(vtkObject* o) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get macros to Percentile to measure. Note that it does not need to be an integer.
    *
@@ -122,16 +111,16 @@ public:
    */
   double GetPercentile() const;
   void SetPercentile(double percentile);
-  //@}
+  ///@}
 
 protected:
-  //@{
+  ///@{
   /**
    * Default constructors and destructors
    */
   vtkQuantileArrayMeasurement();
   ~vtkQuantileArrayMeasurement() override = default;
-  //@}
+  ///@}
 
 private:
   vtkQuantileArrayMeasurement(const vtkQuantileArrayMeasurement&) = delete;

@@ -69,6 +69,7 @@ import paraview.servermanager as sm
 import paraview.simple as simple
 import sys
 from paraview.vtk import vtkTimeStamp
+from paraview.modules.vtkRemotingCore import vtkPVSession
 
 if sys.version_info >= (3,):
     xrange = range
@@ -196,7 +197,7 @@ class Trace(object):
 
         if isinstance(obj, sm.SourceProxy):
             # handle pipeline source/filter proxy.
-            pname = obj.SMProxy.GetSessionProxyManager().GetProxyName("sources", obj.SMProxy)
+            pname = cls.get_registered_name(obj, "sources")
             if pname:
                 if obj == simple.GetActiveSource():
                     accessor = ProxyAccessor(cls.get_varname(pname), obj)
@@ -267,7 +268,7 @@ class Trace(object):
                 ctor_args="%s, %s" % (lutAccessor, viewAccessor)))
             cls.Output.append_separated(trace.raw_data())
             return True
-        if cls.get_registered_name(obj, "animation"):
+        if not skip_rendering and cls.get_registered_name(obj, "animation"):
             return cls._create_accessor_for_animation_proxies(obj)
         if obj.SMProxy.GetXMLName() == "RepresentationAnimationHelper":
             sourceAccessor = cls.get_accessor(obj.Source)
@@ -699,16 +700,23 @@ class PropertyTraceHelper(object):
                     ports = [myobject.GetOutputPortForConnection(x) for x in range(len(data))]
                     data = [src if port==0 else "OutputPort(%s,%d)" % (src,port) \
                             for src,port in zip(data, ports)]
-            try:
-                if len(data) > 1:
-                  return "[%s]" % (", ".join(data))
+
+            if len(data) > 1:
+                return "[%s]" % (", ".join(data))
+            elif len(data) == 0:
+                # Special case for repeatable, should return [] rather than None
+                if myobject.SMProperty.GetRepeatable():
+                    return "[]"
                 else:
-                  return data[0]
-            except IndexError:
-                return "None"
-        elif myobject.SMProperty.IsA("vtkSMStringVectorProperty") and not (fileListDomain and fileListDomain.GetIsOptional() == 0):
+                    return "None"
+            else:
+                return data[0]
+        elif (myobject.SMProperty.IsA("vtkSMStringVectorProperty") and not
+                (fileListDomain and fileListDomain.GetIsOptional() == 0
+                 or myobject.Proxy.GetVTKClassName() == "vtkPythonAnnotationFilter")):
             # handle multiline properties (see #18480)
             # but, not if the property is a list of files (see #21100)
+            # nor if the filter is a PythonAnnotation (see #21654)
             return self.create_multiline_string(repr(myobject))
         else:
             return repr(myobject)
@@ -822,8 +830,15 @@ class ExodusIIReaderFilter(PipelineProxyFilter):
             "FilePrefix", "XMLFileName", "FilePattern", "FileRange"]
 
 class ExtractSelectionFilter(PipelineProxyFilter):
+    def __init__(self, trace_all_in_ctor=False, save_selection=False):
+        super().__init__(trace_all_in_ctor)
+        self.save_selection = save_selection
+
     def should_never_trace(self, prop):
         if PipelineProxyFilter.should_never_trace(self, prop): return True
+
+        # When saving state, Selection property should not be ignored
+        if self.save_selection: return False
 
         # Selections are not registered with the proxy manager, so we will not try to trace them.
         return prop.get_property_name() in ["Selection"]
@@ -855,11 +870,18 @@ class ViewProxyFilter(ProxyFilter):
             "ViewTime", "CacheKey", "Representations"]: return True
         return ProxyFilter.should_never_trace(self, prop, hide_gui_hidden=False)
 
+class TimeKeeperProxyFilter(ProxyFilter):
+    def should_never_trace(self, prop):
+        if ProxyFilter.should_never_trace(self, prop): return True
+        if prop.get_property_name() in ["Views", "TimeSources", "Time"]:
+            return True
+        return False
+
 class AnimationProxyFilter(ProxyFilter):
     def should_never_trace(self, prop):
         if ProxyFilter.should_never_trace(self, prop): return True
         if prop.get_property_name() in ["AnimatedProxy", "AnimatedPropertyName",
-            "AnimatedElement", "AnimatedDomainName"]:
+            "AnimatedElement", "AnimatedDomainName", "TimeKeeper"]:
             return True
         return False
 
@@ -964,9 +986,10 @@ class RegisterPipelineProxy(TraceItem):
     """This traces the creation of a Pipeline Proxy such as
     sources/filters/readers etc."""
 
-    def __init__(self, proxy):
+    def __init__(self, proxy, saving_state=False):
         TraceItem.__init__(self)
         self.Proxy = sm._getPyProxy(proxy)
+        self.saving_state = saving_state
 
     def finalize(self):
         pname = Trace.get_registered_name(self.Proxy, "sources")
@@ -978,12 +1001,34 @@ class RegisterPipelineProxy(TraceItem):
         trace.append("# create a new '%s'" % self.Proxy.GetXMLLabel())
         if isinstance(self.Proxy, sm.ExodusIIReaderProxy):
             filter_type = ExodusIIReaderFilter()
-        elif self.Proxy.GetXMLLabel() == "Extract Selection":
-            filter_type = ExtractSelectionFilter()
+        elif self.Proxy.GetXMLName() == "ExtractSelection":
+            filter_type = ExtractSelectionFilter(save_selection=self.saving_state)
         else:
             filter_type = PipelineProxyFilter()
         ctor_args = "registrationName='%s'" % pname
         trace.append(accessor.trace_ctor(ctor, filter_type, ctor_args=ctor_args))
+        Trace.Output.append_separated(trace.raw_data())
+        TraceItem.finalize(self)
+
+class RegisterSelectionProxy(TraceItem):
+    """This traces the creation of a Proxy for selection.
+    This is used only when saving state for now."""
+
+    def __init__(self, proxy):
+        TraceItem.__init__(self)
+        self.Proxy = sm._getPyProxy(proxy)
+
+    def finalize(self):
+        pname = Trace.get_registered_name(self.Proxy, "selection_sources")
+        varname = Trace.get_varname(pname)
+        accessor = ProxyAccessor(varname, self.Proxy)
+
+        xmlname = self.Proxy.GetXMLName()
+        trace = TraceOutput()
+        trace.append("# create a new '%s'" % self.Proxy.GetXMLLabel())
+        filter_type = ProxyFilter(trace_all_in_ctor=True)
+        ctor_args = "proxyname='%s', registrationname='%s'" % (xmlname, pname)
+        trace.append(accessor.trace_ctor("CreateSelection", filter_type, ctor_args=ctor_args))
         Trace.Output.append_separated(trace.raw_data())
         TraceItem.finalize(self)
 
@@ -1276,6 +1321,51 @@ class RegisterLightProxy(RenderingMixin, TraceItem):
         Trace.Output.append_separated(trace.raw_data())
         TraceItem.finalize(self)
 
+class TraceAnimationProxy(RenderingMixin, TraceItem):
+    """Traces all changes in an animation proxy."""
+    def __init__(self, proxy):
+        TraceItem.__init__(self)
+        self.Proxy = sm._getPyProxy(proxy)
+        assert not self.Proxy is None
+
+    def finalize(self):
+        # trace timekeeper
+        if hasattr(self.Proxy, "TimeKeeper"):
+          tkTrace = TraceProxy(self.Proxy.TimeKeeper, TimeKeeperProxyFilter(), "# initialize the timekeeper")
+          tkTrace.finalize()
+
+        # create dynamic animation cues as needed.
+        if hasattr(self.Proxy, "Cues"):
+            for cue in self.Proxy.Cues:
+              cueTrace = TraceProxy(cue, AnimationProxyFilter(), "# initialize the animation track")
+              cueTrace.finalize()
+
+        animTrace = TraceProxy(self.Proxy, AnimationProxyFilter(), "# initialize the animation scene")
+        animTrace.finalize()
+        TraceItem.finalize(self)
+
+class TraceProxy(TraceItem):
+    """Traces all changes in a provided proxy."""
+    def __init__(self, proxy, filter, description):
+        TraceItem.__init__(self)
+        self.Proxy = sm._getPyProxy(proxy)
+        self.Filter = filter
+        self.Description = description
+        assert not self.Proxy is None
+
+    def finalize(self):
+        TraceItem.finalize(self)
+
+        # We let Trace create an accessor for the proxy. We will then simply log the
+        # default property values.
+        accessor = Trace.get_accessor(self.Proxy) # type: RealProxyAccessor
+
+        # Now trace properties on the proxy.
+        trace = TraceOutput()
+        trace.append_separated(self.Description)
+        trace.append(accessor.trace_ctor(None, self.Filter))
+        Trace.Output.append_separated(trace.raw_data())
+
 class ExportView(RenderingMixin, TraceItem):
     def __init__(self, view, exporter, filename):
         TraceItem.__init__(self)
@@ -1322,7 +1412,7 @@ class SaveData(TraceItem):
         Trace.Output.append_separated(trace.raw_data())
 
 class SaveScreenshotOrAnimation(RenderingMixin, TraceItem):
-    def __init__(self, helper, filename, view, layout, mode_screenshot=False):
+    def __init__(self, helper, filename, view, layout, mode_screenshot=False, location=vtkPVSession.CLIENT):
         TraceItem.__init__(self)
         assert(view != None or layout != None)
 
@@ -1356,7 +1446,7 @@ class SaveScreenshotOrAnimation(RenderingMixin, TraceItem):
                 helperAccessor.trace_ctor(\
                 "SaveScreenshot" if mode_screenshot else "SaveAnimation",
                     ScreenShotHelperProxyFilter(),
-                    ctor_args="'%s', %s" % (filename, ctor_args_1),
+                    ctor_args="filename='%s', viewOrLayout=%s, location=%s" % (filename, ctor_args_1, location),
                     ctor_extra_args=format_txt,
                     skip_assignment=True))
         helperAccessor.finalize()
@@ -1482,25 +1572,11 @@ class LoadPlugin(TraceItem):
                 "# load plugin",
                 "LoadPlugin('%s', remote=%s, ns=globals())" % (filename, remote)])
 
-class CreateAnimationTrack(TraceItem):
+class CreateAnimationTrack(TraceProxy):
     # FIXME: animation tracing support in general needs to be revamped after moving
     # animation control logic to the server manager from Qt layer.
     def __init__(self, cue):
-        TraceItem.__init__(self)
-        self.Cue = sm._getPyProxy(cue)
-
-    def finalize(self):
-        TraceItem.finalize(self)
-
-        # We let Trace create an accessor for the cue. We will then simply log the
-        # default property values.
-        accessor = Trace.get_accessor(self.Cue) # type: RealProxyAccessor
-
-        # Now trace properties on the cue.
-        trace = TraceOutput()
-        trace.append_separated("# initialize the animation track")
-        trace.append(accessor.trace_ctor(None, AnimationProxyFilter()))
-        Trace.Output.append_separated(trace.raw_data())
+        TraceProxy.__init__(self, cue, AnimationProxyFilter(), "# initialize the animation track")
 
 class RenameProxy(TraceItem):
     "Trace renaming of a source proxy."
@@ -1842,12 +1918,7 @@ def _stop_trace_internal():
                 "#-----------------------------------",
                 "# saving camera placements for views"])
             Trace.Output.append_separated(camera_trace)
-        Trace.Output.append_separated([\
-            "#--------------------------------------------",
-            "# uncomment the following to render all views",
-            "# RenderAllViews()",
-            "# alternatively, if you want to write images, you can use SaveScreenshot(...)."
-            ])
+        Trace.Output.append_separated(_get_standard_postamble_comment())
     trace = str(Trace.Output)
     Trace.reset()
 
@@ -1858,6 +1929,34 @@ def _stop_trace_internal():
     gc.collect()
     gc.collect()
     return trace
+
+def _get_standard_postamble_comment():
+    """**internal** get a standard postamble comment."""
+    return """
+##--------------------------------------------
+## You may need to add some code at the end of this python script depending on your usage, eg:
+#
+## Render all views to see them appears
+# RenderAllViews()
+#
+## Interact with the view, usefull when running from pvpython
+# Interact()
+#
+## Save a screenshot of the active view
+# SaveScreenshot("path/to/screenshot.png")
+#
+## Save a screenshot of a layout (multiple splitted view)
+# SaveScreenshot("path/to/screenshot.png", GetLayout())
+#
+## Save all "Extractors" from the pipeline browser
+# SaveExtracts()
+#
+## Save a animation of the current active view
+# SaveAnimation()
+#
+## Please refer to the documentation of paraview.simple
+## https://kitware.github.io/paraview-docs/latest/python/paraview.simple.html
+##--------------------------------------------"""
 
 #------------------------------------------------------------------------------
 # Public methods

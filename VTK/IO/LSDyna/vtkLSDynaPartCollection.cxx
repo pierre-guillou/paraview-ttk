@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLSDynaReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkLSDynaPartCollection.h"
 #include "LSDynaMetaData.h"
@@ -34,6 +23,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLSDynaPartCollection::LSDynaPartStorage
 {
 protected:
@@ -877,8 +867,8 @@ bool sortPartsOnGlobalIds(const vtkLSDynaPart* p1, const vtkLSDynaPart* p2)
 
 //------------------------------------------------------------------------------
 template <typename T>
-void vtkLSDynaPartCollection::FillPointProperty(const vtkIdType& numTuples,
-  const vtkIdType& numComps, vtkLSDynaPart** parts, const vtkIdType numParts)
+void vtkLSDynaPartCollection::FillPointProperty(
+  const vtkIdType& numTuples, const vtkIdType& numComps, vtkLSDynaPart** parts, vtkIdType numParts)
 {
   LSDynaMetaData* p = this->MetaData;
 
@@ -943,3 +933,4 @@ void vtkLSDynaPartCollection::FillPointProperty(const vtkIdType& numTuples,
   }
   p->Fam.SkipWords(numPointsToSkipEnd * numComps);
 }
+VTK_ABI_NAMESPACE_END

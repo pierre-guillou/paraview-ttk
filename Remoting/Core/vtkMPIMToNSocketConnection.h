@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkMPIMToNSocketConnection.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMPIMToNSocketConnection
  * @brief   class to create socket connections between two servers
@@ -55,37 +43,37 @@ public:
    */
   void ConnectMtoN();
 
-  //@{
+  ///@{
   /**
    * Set the number of connections to be made.
    */
   void SetNumberOfConnections(int);
   vtkGetMacro(NumberOfConnections, int);
-  //@}
+  ///@}
 
   /**
    * Set up information about the remote connection.
    */
   void SetPortInformation(unsigned int processNumber, int portNumber, const char* hostName);
 
-  //@{
+  ///@{
   /**
    * Return the socket communicator for this process.
    */
   vtkGetObjectMacro(SocketCommunicator, vtkSocketCommunicator);
-  //@}
+  ///@}
 
   /**
    * Fill the port information values into the port information object.
    */
   void GetPortInformation(vtkMPIMToNSocketConnectionPortInformation*);
 
-  //@{
+  ///@{
   /**
    * Set port to use, if the value is 0, then the system will pick the port.
    */
   vtkGetMacro(PortNumber, int);
-  //@}
+  ///@}
 
 protected:
   vtkSetMacro(PortNumber, int);

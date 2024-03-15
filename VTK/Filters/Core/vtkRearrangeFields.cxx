@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRearrangeFields.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRearrangeFields.h"
 
 #include "vtkCellData.h"
@@ -25,6 +13,7 @@
 #include "vtkPointData.h"
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRearrangeFields);
 
 typedef vtkRearrangeFields::Operation Operation;
@@ -83,6 +72,10 @@ int vtkRearrangeFields::RequestData(vtkInformation* vtkNotUsed(request),
     Operation* before;
     do
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       before = cur;
       cur = cur->Next;
       this->ApplyOperation(before, input, output);
@@ -719,3 +712,4 @@ void vtkRearrangeFields::PrintOperation(Operation* op, ostream& os, vtkIndent in
   os << indent << "Next operation: " << op->Next << endl;
   os << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -40,21 +40,12 @@ class VTKM_FILTER_DENSITY_ESTIMATE_EXPORT ParticleDensityCloudInCell : public Pa
 public:
   using Superclass = ParticleDensityBase;
 
-  ParticleDensityCloudInCell(const vtkm::Id3& dimension,
-                             const vtkm::Vec3f& origin,
-                             const vtkm::Vec3f& spacing);
-
-  ParticleDensityCloudInCell(const Id3& dimension, const vtkm::Bounds& bounds);
+  ParticleDensityCloudInCell() = default;
 
 private:
   VTKM_CONT vtkm::cont::DataSet DoExecute(const vtkm::cont::DataSet& input) override;
 };
 } // namespace density_estimate
-class VTKM_DEPRECATED(1.8, "Use vtkm::filter::density_estimate::ParticleDensityCloudInCell.")
-  ParticleDensityCloudInCell : public vtkm::filter::density_estimate::ParticleDensityCloudInCell
-{
-  using density_estimate::ParticleDensityCloudInCell::ParticleDensityCloudInCell;
-};
 } // namespace filter
 } // namespace vtkm
 

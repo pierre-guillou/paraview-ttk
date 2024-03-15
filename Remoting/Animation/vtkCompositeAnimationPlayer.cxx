@@ -1,21 +1,8 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCompositeAnimationPlayer.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeAnimationPlayer.h"
 
 #include "vtkObjectFactory.h"
-#include "vtkRealtimeAnimationPlayer.h"
 #include "vtkSequenceAnimationPlayer.h"
 #include "vtkSmartPointer.h"
 #include "vtkTimestepsAnimationPlayer.h"
@@ -27,7 +14,6 @@ vtkCompositeAnimationPlayer::vtkCompositeAnimationPlayer()
   this->PlayMode = SEQUENCE;
   this->SequenceAnimationPlayer = vtkSequenceAnimationPlayer::New();
   this->TimestepsAnimationPlayer = vtkTimestepsAnimationPlayer::New();
-  this->RealtimeAnimationPlayer = vtkRealtimeAnimationPlayer::New();
 }
 
 //----------------------------------------------------------------------------
@@ -35,7 +21,6 @@ vtkCompositeAnimationPlayer::~vtkCompositeAnimationPlayer()
 {
   this->SequenceAnimationPlayer->Delete();
   this->TimestepsAnimationPlayer->Delete();
-  this->RealtimeAnimationPlayer->Delete();
 }
 
 //----------------------------------------------------------------------------
@@ -45,9 +30,6 @@ vtkAnimationPlayer* vtkCompositeAnimationPlayer::GetActivePlayer()
   {
     case SEQUENCE:
       return this->SequenceAnimationPlayer;
-
-    case REAL_TIME:
-      return this->RealtimeAnimationPlayer;
 
     case SNAP_TO_TIMESTEPS:
       return this->TimestepsAnimationPlayer;
@@ -138,11 +120,10 @@ void vtkCompositeAnimationPlayer::SetNumberOfFrames(int val)
   this->SequenceAnimationPlayer->SetNumberOfFrames(val);
 }
 
-// Forwarded to vtkRealtimeAnimationPlayer.
 //----------------------------------------------------------------------------
 void vtkCompositeAnimationPlayer::SetDuration(int val)
 {
-  this->RealtimeAnimationPlayer->SetDuration(val);
+  (void)val;
 }
 
 // Forwarded to vtkTimestepsAnimationPlayer.

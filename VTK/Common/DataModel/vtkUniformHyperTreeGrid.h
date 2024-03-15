@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUniformHyperTreeGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformHyperTreeGrid
  * @brief   A specifalized type of vtkHyperTreeGrid for the case
@@ -30,15 +18,15 @@
 #ifndef vtkUniformHyperTreeGrid_h
 #define vtkUniformHyperTreeGrid_h
 
-#include "limits.h" // UINT_MAX
-
 #include <algorithm> // std::min/std::max
 #include <cmath>     // std::round
+#include <limits>    // std::numeric_limits
 #include <memory>    // std::shared_ptr
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkHyperTreeGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkHyperTreeGridScales;
 
@@ -146,12 +134,12 @@ public:
   ///@}
 
   /**
-   * Convert the global index of a root to its Spacial coordinates origin and size.
+   * Convert the global index of a root to its Spatial coordinates origin and size.
    */
   void GetLevelZeroOriginAndSizeFromIndex(vtkIdType, double*, double*) override;
 
   /**
-   * Convert the global index of a root to its Spacial coordinates origin and size.
+   * Convert the global index of a root to its Spatial coordinates origin and size.
    */
   void GetLevelZeroOriginFromIndex(vtkIdType, double*) override;
 
@@ -212,7 +200,7 @@ protected:
     if (value < (this->Origin[dim] - tol) ||
       value > (this->Origin[dim] + tol + this->GridScale[dim] * maxIdx))
     {
-      return UINT_MAX;
+      return std::numeric_limits<unsigned int>::max();
     }
 
     long idx = std::round((value - this->Origin[dim]) / this->GridScale[dim]);
@@ -242,4 +230,5 @@ private:
   void operator=(const vtkUniformHyperTreeGrid&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

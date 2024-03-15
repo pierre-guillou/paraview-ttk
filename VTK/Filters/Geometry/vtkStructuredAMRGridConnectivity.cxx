@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkStructuredAMRGridConnectivity.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStructuredAMRGridConnectivity.h"
 
 // VTK Includes
@@ -34,6 +22,7 @@
 
 namespace AMRBlockFace
 {
+VTK_ABI_NAMESPACE_BEGIN
 enum
 {
   FRONT = 0,  // (+k diretion)
@@ -44,8 +33,10 @@ enum
   BOTTOM = 5, // (-j direction)
   NOT_ON_BLOCK_FACE = 6
 };
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStructuredAMRGridConnectivity);
 
 //------------------------------------------------------------------------------
@@ -194,8 +185,7 @@ void vtkStructuredAMRGridConnectivity::PrintSelf(std::ostream& os, vtkIndent ind
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::Initialize(
-  const unsigned int NumLevels, const unsigned int N, const int rr)
+void vtkStructuredAMRGridConnectivity::Initialize(unsigned int NumLevels, unsigned int N, int rr)
 {
   this->NumberOfLevels = NumLevels;
   this->RefinementRatio = rr;
@@ -203,7 +193,7 @@ void vtkStructuredAMRGridConnectivity::Initialize(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::SetNumberOfGrids(const unsigned int N)
+void vtkStructuredAMRGridConnectivity::SetNumberOfGrids(unsigned int N)
 {
   if (N == 0)
   {
@@ -225,7 +215,7 @@ void vtkStructuredAMRGridConnectivity::SetNumberOfGrids(const unsigned int N)
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::SetBlockTopology(const int gridID)
+void vtkStructuredAMRGridConnectivity::SetBlockTopology(int gridID)
 {
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -292,7 +282,7 @@ void vtkStructuredAMRGridConnectivity::ComputeNeighbors()
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::GetGhostedExtent(const int gridID, int ext[6])
+void vtkStructuredAMRGridConnectivity::GetGhostedExtent(int gridID, int ext[6])
 {
   assert("pre: grid ID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -307,7 +297,7 @@ void vtkStructuredAMRGridConnectivity::GetGhostedExtent(const int gridID, int ex
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::SetGhostedExtent(const int gridID, int ext[6])
+void vtkStructuredAMRGridConnectivity::SetGhostedExtent(int gridID, int ext[6])
 {
   assert("pre: grid ID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -322,7 +312,7 @@ void vtkStructuredAMRGridConnectivity::SetGhostedExtent(const int gridID, int ex
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::CreateGhostLayers(const int N)
+void vtkStructuredAMRGridConnectivity::CreateGhostLayers(int N)
 {
   if (N == 0)
   {
@@ -346,7 +336,7 @@ void vtkStructuredAMRGridConnectivity::CreateGhostLayers(const int N)
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::InitializeGhostData(const int gridID)
+void vtkStructuredAMRGridConnectivity::InitializeGhostData(int gridID)
 {
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -411,7 +401,7 @@ void vtkStructuredAMRGridConnectivity::InitializeGhostData(const int gridID)
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::TransferRegisteredDataToGhostedData(const int gridID)
+void vtkStructuredAMRGridConnectivity::TransferRegisteredDataToGhostedData(int gridID)
 {
   assert("pre: grid ID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -487,14 +477,14 @@ void vtkStructuredAMRGridConnectivity::TransferRegisteredDataToGhostedData(const
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::TransferLocalNodeCenteredNeighborData(
-  const int vtkNotUsed(gridID), vtkStructuredAMRNeighbor& vtkNotUsed(nei))
+  int vtkNotUsed(gridID), vtkStructuredAMRNeighbor& vtkNotUsed(nei))
 {
   vtkErrorMacro("Node-centered AMR datasets are currently not supported!");
 }
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetLocalCellCentersAtSameLevel(
-  const int gridID, vtkStructuredAMRNeighbor& nei)
+  int gridID, vtkStructuredAMRNeighbor& nei)
 {
   // STEP 0: Get the grid's extent and cell extent
   int RegisteredGridExtent[6];
@@ -567,7 +557,7 @@ void vtkStructuredAMRGridConnectivity::GetLocalCellCentersAtSameLevel(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetLocalCellCentersFromCoarserLevel(
-  const int gridID, vtkStructuredAMRNeighbor& nei)
+  int gridID, vtkStructuredAMRNeighbor& nei)
 {
   assert("pre: Expected a coarser neighbor" && (nei.NeighborLevel < nei.GridLevel));
 
@@ -671,7 +661,7 @@ void vtkStructuredAMRGridConnectivity::GetLocalCellCentersFromCoarserLevel(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetLocalCellCentersFromFinerLevel(
-  const int gridID, vtkStructuredAMRNeighbor& nei)
+  int gridID, vtkStructuredAMRNeighbor& nei)
 {
   assert("pre: Expected a finer neighbor" && (nei.NeighborLevel > nei.GridLevel));
 
@@ -785,7 +775,7 @@ void vtkStructuredAMRGridConnectivity::GetLocalCellCentersFromFinerLevel(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::TransferLocalCellCenteredNeighborData(
-  const int gridID, vtkStructuredAMRNeighbor& nei)
+  int gridID, vtkStructuredAMRNeighbor& nei)
 {
   int gridLevel = this->GetGridLevel(gridID);
   assert("pre: grid level mismatch!" && (gridLevel == nei.GridLevel));
@@ -825,7 +815,7 @@ void vtkStructuredAMRGridConnectivity::TransferLocalCellCenteredNeighborData(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::TransferLocalNeighborData(
-  const int gridID, vtkStructuredAMRNeighbor& nei)
+  int gridID, vtkStructuredAMRNeighbor& nei)
 {
   if (this->GetNodeCentered())
   {
@@ -839,7 +829,7 @@ void vtkStructuredAMRGridConnectivity::TransferLocalNeighborData(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::TransferGhostDataFromNeighbors(const int gridID)
+void vtkStructuredAMRGridConnectivity::TransferGhostDataFromNeighbors(int gridID)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -856,8 +846,8 @@ void vtkStructuredAMRGridConnectivity::TransferGhostDataFromNeighbors(const int 
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::AverageFieldData(vtkFieldData* source, vtkIdType* sourceIds,
-  const int N, vtkFieldData* target, vtkIdType targetIdx)
+void vtkStructuredAMRGridConnectivity::AverageFieldData(
+  vtkFieldData* source, vtkIdType* sourceIds, int N, vtkFieldData* target, vtkIdType targetIdx)
 {
   assert("pre: source field data is nullptr!" && (source != nullptr));
   assert("pre: target field data is nullptr!" && (target != nullptr));
@@ -942,8 +932,7 @@ void vtkStructuredAMRGridConnectivity::CopyFieldData(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::ComputeNeighborSendAndRcvExtent(
-  const int gridID, const int N)
+void vtkStructuredAMRGridConnectivity::ComputeNeighborSendAndRcvExtent(int gridID, int N)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -970,7 +959,7 @@ void vtkStructuredAMRGridConnectivity::ComputeNeighborSendAndRcvExtent(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::CreateGhostedMaskArrays(const int gridID)
+void vtkStructuredAMRGridConnectivity::CreateGhostedMaskArrays(int gridID)
 {
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -1106,7 +1095,7 @@ void vtkStructuredAMRGridConnectivity::CreateGhostedMaskArrays(const int gridID)
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::CreateGhostedExtent(const int gridId, const int N)
+void vtkStructuredAMRGridConnectivity::CreateGhostedExtent(int gridId, int N)
 {
   assert("pre: gridId is out-of-bounds!" && (gridId >= 0) &&
     (gridId < static_cast<int>(this->NumberOfGrids)));
@@ -1169,7 +1158,7 @@ void vtkStructuredAMRGridConnectivity::CreateGhostedExtent(const int gridId, con
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::FillCellsGhostArray(
-  const int gridId, vtkUnsignedCharArray* cellsArray)
+  int gridId, vtkUnsignedCharArray* cellsArray)
 {
   assert("pre: grid index is out-of-bounds" && (gridId >= 0) &&
     (gridId < static_cast<int>(this->NumberOfGrids)));
@@ -1253,8 +1242,8 @@ void vtkStructuredAMRGridConnectivity::FillCellsGhostArray(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::MarkNodeProperty(const int gridId, const int i, const int j,
-  const int k, int gridExt[6], int wholeExt[6], unsigned char& p)
+void vtkStructuredAMRGridConnectivity::MarkNodeProperty(
+  int gridId, int i, int j, int k, int gridExt[6], int wholeExt[6], unsigned char& p)
 {
   p = 0;
 
@@ -1276,7 +1265,7 @@ void vtkStructuredAMRGridConnectivity::MarkNodeProperty(const int gridId, const 
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::FillNodesGhostArray(
-  const int gridId, vtkUnsignedCharArray* nodesArray)
+  int gridId, vtkUnsignedCharArray* nodesArray)
 {
   assert("pre: grid index is out-of-bounds" && (gridId >= 0) &&
     (gridId < static_cast<int>(this->NumberOfGrids)));
@@ -1321,7 +1310,7 @@ void vtkStructuredAMRGridConnectivity::FillNodesGhostArray(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetNodeOrientation(
-  const int i, const int j, const int k, int ext[6], int orientation[3])
+  int i, int j, int k, int ext[6], int orientation[3])
 {
   orientation[0] = orientation[1] = orientation[2] = AMRBlockFace::NOT_ON_BLOCK_FACE;
   switch (this->DataDescription)
@@ -1372,8 +1361,7 @@ void vtkStructuredAMRGridConnectivity::GetNodeOrientation(
 }
 
 //------------------------------------------------------------------------------
-bool vtkStructuredAMRGridConnectivity::IsNodeWithinExtent(
-  const int i, const int j, const int k, int GridExtent[6])
+bool vtkStructuredAMRGridConnectivity::IsNodeWithinExtent(int i, int j, int k, int GridExtent[6])
 {
   bool status = false;
   switch (this->DataDescription)
@@ -1434,7 +1422,7 @@ bool vtkStructuredAMRGridConnectivity::IsNodeWithinExtent(
 
 //------------------------------------------------------------------------------
 bool vtkStructuredAMRGridConnectivity::IsNodeOnSharedBoundary(
-  const int i, const int j, const int k, const int gridId, int gridExt[6])
+  int i, int j, int k, int gridId, int gridExt[6])
 {
   bool status = false;
 
@@ -1458,8 +1446,7 @@ bool vtkStructuredAMRGridConnectivity::IsNodeOnSharedBoundary(
 }
 
 //------------------------------------------------------------------------------
-bool vtkStructuredAMRGridConnectivity::IsNodeOnBoundaryOfExtent(
-  const int i, const int j, const int k, int ext[6])
+bool vtkStructuredAMRGridConnectivity::IsNodeOnBoundaryOfExtent(int i, int j, int k, int ext[6])
 {
   bool status = false;
   switch (this->DataDescription)
@@ -1516,8 +1503,7 @@ bool vtkStructuredAMRGridConnectivity::IsNodeOnBoundaryOfExtent(
 }
 
 //------------------------------------------------------------------------------
-bool vtkStructuredAMRGridConnectivity::IsNodeInterior(
-  const int i, const int j, const int k, int GridExtent[6])
+bool vtkStructuredAMRGridConnectivity::IsNodeInterior(int i, int j, int k, int GridExtent[6])
 {
   bool status = false;
   switch (this->DataDescription)
@@ -1575,15 +1561,15 @@ bool vtkStructuredAMRGridConnectivity::IsNodeInterior(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::FillGhostArrays(
-  const int gridId, vtkUnsignedCharArray* nodesArray, vtkUnsignedCharArray* cellsArray)
+  int gridId, vtkUnsignedCharArray* nodesArray, vtkUnsignedCharArray* cellsArray)
 {
   this->FillNodesGhostArray(gridId, nodesArray);
   this->FillCellsGhostArray(gridId, cellsArray);
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::RegisterGrid(const int gridIdx, const int level,
-  int extents[6], vtkUnsignedCharArray* nodesGhostArray, vtkUnsignedCharArray* cellGhostArray,
+void vtkStructuredAMRGridConnectivity::RegisterGrid(int gridIdx, int level, int extents[6],
+  vtkUnsignedCharArray* nodesGhostArray, vtkUnsignedCharArray* cellGhostArray,
   vtkPointData* pointData, vtkCellData* cellData, vtkPoints* gridNodes)
 {
   assert("pre: level should be >= 0" && (level >= 0));
@@ -1609,10 +1595,9 @@ void vtkStructuredAMRGridConnectivity::RegisterGrid(const int gridIdx, const int
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::RegisterGrid(const int gridIdx, const int level,
-  const int refinementRatio, int extents[6], vtkUnsignedCharArray* nodesGhostArray,
-  vtkUnsignedCharArray* cellGhostArray, vtkPointData* pointData, vtkCellData* cellData,
-  vtkPoints* gridNodes)
+void vtkStructuredAMRGridConnectivity::RegisterGrid(int gridIdx, int level, int refinementRatio,
+  int extents[6], vtkUnsignedCharArray* nodesGhostArray, vtkUnsignedCharArray* cellGhostArray,
+  vtkPointData* pointData, vtkCellData* cellData, vtkPoints* gridNodes)
 {
   assert("pre: This method should only be called if there is varying ref. ratio!" &&
     !this->HasConstantRefinementRatio());
@@ -1626,7 +1611,7 @@ void vtkStructuredAMRGridConnectivity::RegisterGrid(const int gridIdx, const int
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::EstablishNeighbors(const int i, const int j)
+void vtkStructuredAMRGridConnectivity::EstablishNeighbors(int i, int j)
 {
   int ext1[6]; /* extent for grid i */
   int ext2[6]; /* extent for grid j */
@@ -1709,9 +1694,9 @@ void vtkStructuredAMRGridConnectivity::EstablishNeighbors(const int i, const int
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::ComputeAMRNeighborOverlapExtents(const int iLevel,
-  const int jLevel, const int normalizedLevel, const vtkStructuredNeighbor& nei, int orient[3],
-  int ndim, int gridOverlapExtent[6], int neiOverlapExtent[6])
+void vtkStructuredAMRGridConnectivity::ComputeAMRNeighborOverlapExtents(int iLevel, int jLevel,
+  int normalizedLevel, const vtkStructuredNeighbor& nei, int orient[3], int ndim,
+  int gridOverlapExtent[6], int neiOverlapExtent[6])
 {
   for (int i = 0; i < 6; ++i)
   {
@@ -1754,9 +1739,9 @@ void vtkStructuredAMRGridConnectivity::ComputeAMRNeighborOverlapExtents(const in
 }
 
 //------------------------------------------------------------------------------
-vtkStructuredAMRNeighbor vtkStructuredAMRGridConnectivity::GetAMRNeighbor(const int vtkNotUsed(i),
-  const int iLevel, int next1[6], const int j, const int jLevel, int next2[6],
-  const int normalizedLevel, const int levelDiff, vtkStructuredNeighbor& nei)
+vtkStructuredAMRNeighbor vtkStructuredAMRGridConnectivity::GetAMRNeighbor(int vtkNotUsed(i),
+  int iLevel, int next1[6], int j, int jLevel, int next2[6], int normalizedLevel, int levelDiff,
+  vtkStructuredNeighbor& nei)
 {
   // STEP 0: Get the overlap extent data-description & dimension
   int overlapDim = vtkStructuredData::GetDataDimension(nei.OverlapExtent);
@@ -1848,7 +1833,7 @@ vtkStructuredAMRNeighbor vtkStructuredAMRGridConnectivity::GetAMRNeighbor(const 
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetOrientationVector(
-  const int dataDescription, int orient[3], int& ndim)
+  int dataDescription, int orient[3], int& ndim)
 {
   switch (dataDescription)
   {
@@ -1901,7 +1886,7 @@ void vtkStructuredAMRGridConnectivity::GetOrientationVector(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetCoarsenedExtent(
-  const int gridIdx, int fromLevel, int toLevel, int ext[6])
+  int gridIdx, int fromLevel, int toLevel, int ext[6])
 {
   assert("pre: grid index is out-of-bounds!" && (gridIdx >= 0) &&
     (gridIdx < static_cast<int>(this->NumberOfGrids)));
@@ -1963,7 +1948,7 @@ void vtkStructuredAMRGridConnectivity::CoarsenExtent(
 
 //------------------------------------------------------------------------------
 void vtkStructuredAMRGridConnectivity::GetRefinedExtent(
-  const int gridIdx, int fromLevel, int toLevel, int ext[6])
+  int gridIdx, int fromLevel, int toLevel, int ext[6])
 {
   assert("pre: grid index is out-of-bounds!" && (gridIdx >= 0) &&
     (gridIdx < static_cast<int>(this->NumberOfGrids)));
@@ -2024,8 +2009,8 @@ void vtkStructuredAMRGridConnectivity::RefineExtent(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::GetCellRefinedExtent(int orient[3], int ndim, const int i,
-  const int j, const int k, const int fromLevel, const int toLevel, int ext[6])
+void vtkStructuredAMRGridConnectivity::GetCellRefinedExtent(
+  int orient[3], int ndim, int i, int j, int k, int fromLevel, int toLevel, int ext[6])
 {
   // STEP 0: Initialize ext
   IMIN(ext) = IMAX(ext) = i;
@@ -2061,7 +2046,7 @@ void vtkStructuredAMRGridConnectivity::GetCellRefinedExtent(int orient[3], int n
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredAMRGridConnectivity::GetWholeExtentAtLevel(const int level, int ext[6])
+void vtkStructuredAMRGridConnectivity::GetWholeExtentAtLevel(int level, int ext[6])
 {
   assert("pre: level index is out-of-bounds!" && (level >= 0) && (level <= this->MaxLevel));
 
@@ -2128,3 +2113,4 @@ void vtkStructuredAMRGridConnectivity::ComputeWholeExtent()
   this->DataDescription = vtkStructuredData::GetDataDescriptionFromExtent(this->WholeExtent);
   this->DataDimension = vtkStructuredData::GetDataDimension(this->DataDescription);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,39 +1,13 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqIntVectorPropertyWidget.cxx
-
-   Copyright (c) 2005-2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqIntVectorPropertyWidget.h"
 
+#include "vtkCollection.h"
 #include "vtkDataObject.h"
 #include "vtkPVLogger.h"
+#include "vtkPVXMLElement.h"
 #include "vtkSMBooleanDomain.h"
 #include "vtkSMCompositeTreeDomain.h"
 #include "vtkSMDomain.h"
@@ -61,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QIntValidator>
 
@@ -78,6 +53,14 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
   }
 
   bool useDocumentationForLabels = pqProxyWidget::useDocumentationForLabels(smProxy);
+  bool showLabel = false;
+  vtkPVXMLElement* showComponentLabels = nullptr;
+  vtkPVXMLElement* hints = ivp->GetHints();
+  if (hints)
+  {
+    showLabel = (hints->FindNestedElementByName("ShowLabel") != nullptr);
+    showComponentLabels = hints->FindNestedElementByName("ShowComponentLabels");
+  }
 
   // find the domain
   vtkSmartPointer<vtkSMDomain> domain;
@@ -94,13 +77,15 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
   }
 
   QHBoxLayout* layoutLocal = new QHBoxLayout;
-  layoutLocal->setMargin(0);
+  layoutLocal->setContentsMargins(0, 0, 0, 0);
 
   if (vtkSMBooleanDomain::SafeDownCast(domain))
   {
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use checkbox for boolean property.");
-    QCheckBox* checkBox =
-      new QCheckBox(useDocumentationForLabels ? "" : smproperty->GetXMLLabel(), this);
+    QCheckBox* checkBox = new QCheckBox(useDocumentationForLabels
+        ? ""
+        : QCoreApplication::translate("ServerManagerXML", smproperty->GetXMLLabel()),
+      this);
     checkBox->setObjectName("CheckBox");
     this->addPropertyLink(checkBox, "checked", SIGNAL(toggled(bool)), ivp);
     this->setChangeAvailableAsChangeFinished(true);
@@ -108,9 +93,10 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
 
     if (useDocumentationForLabels)
     {
-      pqLabel* label = new pqLabel(QString("<p><b>%1</b>: %2</p>")
-                                     .arg(smproperty->GetXMLLabel())
-                                     .arg(pqProxyWidget::documentationText(smproperty)));
+      pqLabel* label = new pqLabel(
+        QString("<p><b>%1</b>: %2</p>")
+          .arg(QCoreApplication::translate("ServerManagerXML", smproperty->GetXMLLabel()))
+          .arg(pqProxyWidget::documentationText(smproperty)));
       label->setObjectName("CheckBoxLabel");
       label->setWordWrap(true);
       label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
@@ -135,7 +121,8 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
       treeWidget->setMaximumRowCountBeforeScrolling(smproperty);
 
       QTreeWidgetItem* header = new QTreeWidgetItem();
-      header->setData(0, Qt::DisplayRole, smproperty->GetXMLLabel());
+      header->setData(0, Qt::DisplayRole,
+        QCoreApplication::translate("ServerManagerXML", smproperty->GetXMLLabel()));
       treeWidget->setHeaderItem(header);
 
       // helper makes it easier to select multiple entries.
@@ -182,11 +169,17 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
         new pqScalarValueListPropertyWidget(smproperty, smProxy, this);
       widget->setObjectName("ScalarValueList");
       widget->setRangeDomain(range);
+      widget->setShowLabels(showComponentLabels);
+      if (showComponentLabels)
+      {
+        widget->setLabels(
+          pqPropertyWidget::parseComponentLabels(showComponentLabels, elementCount));
+      }
       this->addPropertyLink(widget, "scalars", SIGNAL(scalarsChanged()), smproperty);
 
       this->setChangeAvailableAsChangeFinished(true);
       layoutLocal->addWidget(widget);
-      this->setShowLabel(false);
+      this->setShowLabel(showLabel);
     }
     else if (elementCount == 1 && range->GetMinimumExists(0) && range->GetMaximumExists(0))
     {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMMultiplexerSourceProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMMultiplexerSourceProxy
  * @brief a multiplexer proxy
@@ -109,7 +97,7 @@
  * If multiple proxies succeed at this test, current implementation
  * only selects the first one.
  *
- * @section Caveats Caveats and TODOs
+ * @section vtkSMMultiplexerSourceProxy_caveats Caveats
  *
  * While the implementation has some initial plumbing to support multiple
  * multiplexed proxies, currently we only support exactly one. In future, the
@@ -120,7 +108,7 @@
  * properties with same names between the chosen proxies since we cannot expose
  * a property with same name multiple times.
  *
- * @section PythonSupport Python Support
+ * @section python_support Python Support
  *
  * vtkSMMultiplexerSourceProxy currently suffers from lack of Python support.
  * ParaView's Python infrastructure is not capable of supporting different
@@ -148,7 +136,7 @@ public:
   vtkTypeMacro(vtkSMMultiplexerSourceProxy, vtkSMSourceProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Overridden to add/load meta-data about the chosen subproxy to ensure that when
    * the state is loaded, correct proxy is chosen.
@@ -157,7 +145,7 @@ public:
   vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root, vtkSMPropertyIterator* iter) override;
   int LoadXMLState(vtkPVXMLElement* element, vtkSMProxyLocator* locator) override;
   void LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locator) override;
-  //@}
+  ///@}
 
 protected:
   vtkSMMultiplexerSourceProxy();

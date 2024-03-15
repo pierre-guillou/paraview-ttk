@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLHierarchicalBoxDataReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLHierarchicalBoxDataReader
  * @brief   Reader for hierarchical datasets
@@ -32,6 +21,7 @@
 
 #include "vtkXMLUniformGridAMRReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOXML_EXPORT vtkXMLHierarchicalBoxDataReader : public vtkXMLUniformGridAMRReader
 {
 public:
@@ -48,4 +38,5 @@ private:
   void operator=(const vtkXMLHierarchicalBoxDataReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

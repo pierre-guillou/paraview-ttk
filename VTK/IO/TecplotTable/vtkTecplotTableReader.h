@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTecplotTableReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2016 Menno Deij - van Rijswijk (MARIN)
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2016 Menno Deij - van Rijswijk (MARIN)
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTecplotTableReader
  * @brief   reads in Tecplot tabular data
@@ -37,6 +22,7 @@
 #include "vtkStdString.h"            // Needed for vtkStdString
 #include "vtkTableAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOTECPLOTTABLE_EXPORT vtkTecplotTableReader : public vtkTableAlgorithm
 {
 public:
@@ -141,4 +127,5 @@ private:
   void operator=(const vtkTecplotTableReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

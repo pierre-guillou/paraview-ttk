@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMappedDataArray.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMappedDataArray
  * @brief   Map non-contiguous data structures into the
@@ -37,6 +25,7 @@
 
 #include "vtkTypedDataArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class Scalar>
 class vtkMappedDataArray : public vtkTypedDataArray<Scalar>
 {
@@ -143,6 +132,7 @@ private:
 // Declare vtkArrayDownCast implementations for mapped containers:
 vtkArrayDownCast_TemplateFastCastMacro(vtkMappedDataArray);
 
+VTK_ABI_NAMESPACE_END
 #include "vtkMappedDataArray.txx"
 
 // Adds an implementation of NewInstanceInternal() that returns an AoS

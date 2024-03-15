@@ -110,8 +110,6 @@ public:
     {
       tableOffset = tables.FaceLookUp(3, 0);
     }
-    else
-      printf("Error shape not recognized %d\n", (int)shapeType);
 
     return tableOffset;
   }
@@ -282,7 +280,6 @@ public:
     vtkm::Int32 shapesFaceOffset = tables.FaceLookUp(tables.CellTypeLookUp(shapeId), 0);
     if (shapesFaceOffset == -1)
     {
-      printf("Unsupported Shape Type %d\n", shapeId);
       return;
     }
 
@@ -403,10 +400,6 @@ public:
     for (segment = 0; index >= Segments[segment + 1]; ++segment)
       ;
 
-    if (segment >= 6)
-    {
-      printf("OUT OF BOUDNS %d", (int)index);
-    }
     vtkm::Int32 cellFace = SegmentToFace[segment];
 
     // Face relative directions of the
@@ -437,7 +430,7 @@ public:
 
     cellIndex[dir1] = cellIndex[dir1] + dir1Offset;
     cellIndex[dir2] = cellIndex[dir2] + dir2Offset;
-    vtkm::Id cellId = Connectivity.LogicalToFlatToIndex(cellIndex);
+    vtkm::Id cellId = Connectivity.LogicalToFlatVisitIndex(cellIndex);
     vtkm::VecVariable<vtkm::Id, 8> cellIndices = Connectivity.GetIndices(cellId);
 
     // Look up the offset into the face list for each cell type

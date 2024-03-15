@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Included by octree.h
 
 /**\typedef template<typename T_,typename R_,typename P_,typename O_,typename OP_,int d_> \
@@ -58,10 +60,9 @@
 
 /**\brief Default constructor. Not very useful since there's no way to indicate the octree.
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, typename R_, typename P_, typename O_, typename OP_, int d_>
-octree_cursor<T_, R_, P_, O_, OP_, d_>::octree_cursor()
-{
-}
+octree_cursor<T_, R_, P_, O_, OP_, d_>::octree_cursor() = default;
 
 /**\brief Constructor you should generally use.
  *
@@ -229,7 +230,7 @@ bool octree_cursor<T_, R_, P_, O_, OP_, d_>::axis_bit(int axis) const
     throw std::logic_error("The root node has no axis partner.");
   }
 
-  return (bitcode & (1 << axis)) ? 1 : 0;
+  return (bitcode & (1 << axis)) ? true : false;
 }
 
 /**\brief Visit a specified octree node if it exists.
@@ -280,3 +281,4 @@ octree_path<T_, R_, P_, O_, OP_, d_>& octree_cursor<T_, R_, P_, O_, OP_, d_>::op
 {
   return this->octree_path<T_, R_, P_, O_, OP_, d_>::operator=(it);
 }
+VTK_ABI_NAMESPACE_END

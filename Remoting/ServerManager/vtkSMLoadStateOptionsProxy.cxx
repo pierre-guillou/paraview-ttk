@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMLoadStateOptionsProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMLoadStateOptionsProxy.h"
 
 #include "vtkClientServerStream.h"
@@ -22,27 +10,25 @@
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
 #include "vtkSMCoreUtilities.h"
-#include "vtkSMDomainIterator.h"
 #include "vtkSMFileListDomain.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyGroup.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxyManager.h"
+#include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
+#include "vtkSMSourceProxy.h"
+#include "vtkSMStringVectorProperty.h"
 #include "vtkSMTrace.h"
 
 #include <vtk_pugixml.h>
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 
-using namespace vtksys;
-
 #include <algorithm>
-#include <fstream>
 #include <set>
 #include <sstream>
-#include <streambuf>
 
 //---------------------------------------------------------------------------
 class vtkSMLoadStateOptionsProxy::vtkInternals
@@ -433,18 +419,6 @@ vtkPVXMLElement* ConvertXML(vtkPVXMLParser* parser, pugi::xml_node& node)
   return parser->GetRootElement();
 }
 
-// Read contents of a file.
-std::string GetContents(std::ifstream& ifp)
-{
-  std::string str;
-  ifp.seekg(0, std::ios::end);
-  str.reserve(ifp.tellg());
-  ifp.seekg(0, std::ios::beg);
-
-  str.assign((std::istreambuf_iterator<char>(ifp)), std::istreambuf_iterator<char>());
-  return str;
-}
-
 // Replace all "$FOO" with environment variable values, if present. Otherwise
 // they are left unchanged.
 void ReplaceEnvironmentVariables(std::string& contents)
@@ -470,17 +444,70 @@ void ReplaceEnvironmentVariables(std::string& contents)
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMLoadStateOptionsProxy::PrepareToLoad(const char* statefilename)
+bool vtkSMLoadStateOptionsProxy::PNGHasStateFile(
+  const char* statefilename, std::string& contents, vtkTypeUInt32 location)
 {
-  this->SetStateFileName(statefilename);
-  std::ifstream xmlfile(statefilename);
-  if (!xmlfile.is_open())
+  const auto pxm = vtkSMProxyManager::GetProxyManager();
+  auto proxy = vtkSMSourceProxy::SafeDownCast(pxm->NewProxy("sources", "PNGSeriesReader"));
+  if (!proxy)
   {
-    vtkErrorMacro("Failed to open state file '" << statefilename << "'.");
+    vtkErrorWithObjectMacro(nullptr, "Failed to create png proxy reader");
     return false;
   }
+  proxy->SetLocation(location);
+  vtkSMPropertyHelper(proxy, "FileNames").Set(statefilename);
+  proxy->UpdateVTKObjects();
+  proxy->UpdatePipeline();
 
-  auto contents = ::GetContents(xmlfile);
+  auto textKeysProp = vtkSMStringVectorProperty::SafeDownCast(proxy->GetProperty("TextKeys"));
+  auto textValuesProp = vtkSMStringVectorProperty::SafeDownCast(proxy->GetProperty("TextValues"));
+  proxy->UpdatePropertyInformation(textKeysProp);
+  proxy->UpdatePropertyInformation(textValuesProp);
+
+  auto pngTextChunks = textKeysProp->GetNumberOfElements();
+  bool stateFound = false;
+  for (unsigned int i = 0; i < pngTextChunks; ++i)
+  {
+    if (strcmp(textKeysProp->GetElement(i), "ParaViewState") == 0)
+    {
+      contents = textValuesProp->GetElement(i);
+      stateFound = true;
+      break;
+    }
+  }
+  proxy->Delete();
+  return stateFound;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMLoadStateOptionsProxy::PrepareToLoad(const char* statefilename, vtkTypeUInt32 location)
+{
+  const auto pxm = this->GetSession()->GetSessionProxyManager();
+  if (!pxm)
+  {
+    vtkErrorWithObjectMacro(nullptr, "Proxy manager is invalid");
+    return false;
+  }
+  this->SetStateFileName(statefilename);
+  std::string contents;
+  const auto fileNameExt = vtksys::SystemTools::GetFilenameLastExtension(statefilename);
+  if (fileNameExt == ".png")
+  {
+    if (!vtkSMLoadStateOptionsProxy::PNGHasStateFile(statefilename, contents, location))
+    {
+      vtkErrorMacro("Failed to find state in png file '" << statefilename << "'.");
+      return false;
+    }
+  }
+  else
+  {
+    contents = pxm->LoadString(statefilename, location);
+    if (contents.empty())
+    {
+      vtkErrorMacro("Failed to load state file '" << statefilename << "'.");
+      return false;
+    }
+  }
   ::ReplaceEnvironmentVariables(contents);
 
   auto& internals = (*this->Internals);
@@ -534,8 +561,8 @@ bool vtkSMLoadStateOptionsProxy::LocateFilesInDirectory(
       if (!locatedPath.empty())
       {
         *fIter = locatedPath;
-        if (SystemTools::GetParentDirectory(locatedPath) ==
-          SystemTools::GetParentDirectory(lastLocatedPath))
+        if (vtksys::SystemTools::GetParentDirectory(locatedPath) ==
+          vtksys::SystemTools::GetParentDirectory(lastLocatedPath))
         {
           numOfPathMatches++;
         }
@@ -558,10 +585,10 @@ bool vtkSMLoadStateOptionsProxy::LocateFilesInDirectory(
     else
     {
       std::vector<std::string> directoryPathComponents;
-      SystemTools::SplitPath(
-        SystemTools::GetParentDirectory(lastLocatedPath), directoryPathComponents);
-      directoryPathComponents.push_back(SystemTools::GetFilenameName(*fIter));
-      *fIter = SystemTools::JoinPath(directoryPathComponents);
+      vtksys::SystemTools::SplitPath(
+        vtksys::SystemTools::GetParentDirectory(lastLocatedPath), directoryPathComponents);
+      directoryPathComponents.push_back(vtksys::SystemTools::GetFilenameName(*fIter));
+      *fIter = vtksys::SystemTools::JoinPath(directoryPathComponents);
     }
   }
   return true;

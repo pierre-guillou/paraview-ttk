@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContourGrid.h"
 
 #include "vtkCell.h"
@@ -44,6 +32,7 @@
 #include <cmath>
 #include <limits>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContourGrid);
 
 //------------------------------------------------------------------------------
@@ -110,7 +99,7 @@ vtkMTimeType vtkContourGrid::GetMTime()
 
 //------------------------------------------------------------------------------
 void vtkContourGridExecute(vtkContourGrid* self, vtkDataSet* input, vtkPolyData* output,
-  vtkDataArray* inScalars, vtkIdType numContours, double* values, int computeScalars,
+  vtkDataArray* inScalars, vtkIdType numContours, double* values, vtkTypeBool computeScalars,
   int useScalarTree, vtkScalarTree* scalarTree, bool generateTriangles)
 {
   vtkIdType i;
@@ -208,7 +197,6 @@ void vtkContourGridExecute(vtkContourGrid* self, vtkDataSet* input, vtkPolyData*
     estimatedSize, generateTriangles);
   // If enabled, build a scalar tree to accelerate search
   //
-  vtkIdType numCellsContoured = 0;
   if (!useScalarTree)
   {
     // Three passes over the cells to process lower dimensional cells first.
@@ -326,19 +314,19 @@ void vtkContourGridExecute(vtkContourGrid* self, vtkDataSet* input, vtkPolyData*
     vtkCell* tmpCell;
     vtkIdList* dummyIdList = nullptr;
     vtkIdType cellId = cellIter->GetCellId();
+    vtkIdType numCellsContoured = 0;
+    vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
     for (i = 0; i < numContours && !abortExecute; i++)
     {
       for (scalarTree->InitTraversal(values[i]);
            (tmpCell = scalarTree->GetNextCell(cellId, dummyIdList, cellScalars));)
       {
-        if (self->CheckAbort())
+        if (numCellsContoured % checkAbortInterval == 0 && self->CheckAbort())
         {
           abortExecute = true;
           break;
         }
         helper.Contour(tmpCell, values[i], cellScalars, cellId);
-        numCellsContoured++;
-
         // don't want to call Contour any more than necessary
       } // for all cells
     }   // for all contour values
@@ -392,7 +380,7 @@ int vtkContourGrid::RequestData(vtkInformation* vtkNotUsed(request),
   vtkIdType numCells;
   vtkIdType numContours = this->ContourValues->GetNumberOfContours();
   double* values = this->ContourValues->GetValues();
-  int computeScalars = this->ComputeScalars;
+  vtkTypeBool computeScalars = this->ComputeScalars;
 
   vtkDebugMacro(<< "Executing contour filter");
 
@@ -549,3 +537,4 @@ void vtkContourGrid::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Precision of the output points: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

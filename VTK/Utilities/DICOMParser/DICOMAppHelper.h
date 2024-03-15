@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMAppHelper.h
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifndef __DICOM_APP_HELPER_H_
 #define __DICOM_APP_HELPER_H_
 
@@ -34,6 +20,7 @@
 #pragma warning(default : 4018)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class DICOMParser;
 
 // Function object for sorting strings
@@ -95,7 +82,7 @@ class DICOMAppHelperImplementation;
  * DICOMAppHelper for the resolution, pixel size, and pixel data.
  *
  * If a DICOMParser scans more than one file, the DICOMAppHelper will
- * group filesnames by SeriesUID.  This allows an application to pass
+ * group filenames by SeriesUID.  This allows an application to pass
  * a series of DICOM files to the DICOMParser (which via the callback
  * mechanism allows the DICOMAppHelper to cache information) and then
  * query the DICOMAppHelper for the files that are from the same
@@ -413,4 +400,5 @@ private:
 #pragma warning(pop)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

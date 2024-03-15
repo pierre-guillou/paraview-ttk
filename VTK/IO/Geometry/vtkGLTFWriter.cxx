@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGLTFWriter.h"
 #include "vtkDataArray.h"
 #include "vtkGLTFWriterUtils.h"
@@ -27,6 +15,7 @@
 #include "vtkArrayDispatch.h"
 #include "vtkAssemblyPath.h"
 #include "vtkBase64OutputStream.h"
+#include "vtkByteSwap.h"
 #include "vtkCamera.h"
 #include "vtkCollectionRange.h"
 #include "vtkCompositeDataIterator.h"
@@ -52,6 +41,8 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkTexture.h"
+#include "vtkTransform.h"
+#include "vtkTransformFilter.h"
 #include "vtkTriangleFilter.h"
 #include "vtkTrivialProducer.h"
 #include "vtkUnsignedCharArray.h"
@@ -62,8 +53,13 @@
 
 namespace
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct FileHeader
 {
+  FileHeader(uint32_t l)
+    : Length(l)
+  {
+  }
   uint32_t Magic = 0x46546C67; // glTF
   uint32_t Version = 2;
   uint32_t Length;
@@ -71,12 +67,12 @@ struct FileHeader
 
 struct ChunkHeader
 {
-  void SetBin(uint32_t length)
+  void SetTypeBIN(uint32_t length)
   {
     this->Length = length;
     this->Type = 0x004E4942; // BIN
   }
-  void SetJSON(uint32_t length)
+  void SetTypeJSON(uint32_t length)
   {
     this->Length = length;
     this->Type = 0x4E4F534A; // JSON
@@ -85,19 +81,31 @@ struct ChunkHeader
   uint32_t Type;
 };
 
+// pad at 4 bytes
+inline size_t GetPaddingAt4Bytes(size_t size)
+{
+  return (4 - size % 4) % 4;
 }
 
+VTK_ABI_NAMESPACE_END
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGLTFWriter);
 
 vtkGLTFWriter::vtkGLTFWriter()
 {
   this->FileName = nullptr;
   this->TextureBaseDirectory = nullptr;
+  this->PropertyTextureFile = nullptr;
   this->InlineData = false;
   this->SaveNormal = false;
   this->SaveBatchId = false;
   this->SaveTextures = true;
+  this->RelativeCoordinates = false;
+  this->CopyTextures = false;
   this->SaveActivePointColor = false;
+  this->Binary = false;
 }
 
 vtkGLTFWriter::~vtkGLTFWriter()
@@ -148,21 +156,6 @@ void FlipYTCoords(vtkDataArray* inOutArray)
   }
 }
 
-std::string GetFieldAsString(vtkDataObject* obj, const char* name)
-{
-  vtkFieldData* fd = obj->GetFieldData();
-  if (!fd)
-  {
-    return std::string();
-  }
-  vtkStringArray* sa = vtkStringArray::SafeDownCast(fd->GetAbstractArray(name));
-  if (!sa)
-  {
-    return std::string();
-  }
-  return sa->GetValue(0);
-}
-
 std::vector<float> GetFieldAsFloat(
   vtkDataObject* obj, const char* name, const std::vector<float>& d)
 {
@@ -202,7 +195,7 @@ vtkSmartPointer<vtkImageReader2> SetupTextureReader(const std::string& texturePa
   return reader;
 }
 
-std::string GetMimeType(const char* textureFileName)
+std::string GetMimeType(const std::string& textureFileName)
 {
   std::string ext = vtksys::SystemTools::GetFilenameLastExtension(textureFileName);
   if (ext == ".png")
@@ -220,9 +213,26 @@ std::string GetMimeType(const char* textureFileName)
   }
 }
 
-std::string WriteTextureBufferAndView(const char* gltfRelativeTexturePath, const char* texturePath,
-  bool inlineData, nlohmann::json& buffers, nlohmann::json& bufferViews)
+std::map<int, int> vtkToGLType = { { VTK_UNSIGNED_CHAR, GL_UNSIGNED_BYTE },
+  { VTK_UNSIGNED_SHORT, GL_UNSIGNED_SHORT }, { VTK_FLOAT, GL_FLOAT } };
+
+int GetGLType(vtkDataArray* da)
 {
+  int vtkType = da->GetDataType();
+  if (vtkToGLType.find(vtkType) == vtkToGLType.end())
+  {
+    vtkLog(WARNING, "No GL type mapping for VTK type: " << vtkType);
+    return GL_UNSIGNED_BYTE;
+  }
+  return vtkToGLType[vtkType];
+}
+
+std::string WriteTextureBufferAndView(const std::string& gltfFullDir,
+  const std::string& textureFullPath, bool inlineData, bool copyTextures, nlohmann::json& buffers,
+  nlohmann::json& bufferViews)
+{
+  std::string gltfRelativeTexturePath =
+    vtksys::SystemTools::RelativePath(gltfFullDir, textureFullPath);
   // if inline then base64 encode the data. In this case we need to read the texture
   std::string result;
   std::string mimeType;
@@ -232,7 +242,7 @@ std::string WriteTextureBufferAndView(const char* gltfRelativeTexturePath, const
     vtkSmartPointer<vtkTexture> t;
     vtkSmartPointer<vtkImageData> id;
 
-    auto textureReader = SetupTextureReader(texturePath);
+    auto textureReader = SetupTextureReader(textureFullPath);
     vtkNew<vtkTexture> texture;
     texture->SetInputConnection(textureReader->GetOutputPort());
     texture->Update();
@@ -276,10 +286,20 @@ std::string WriteTextureBufferAndView(const char* gltfRelativeTexturePath, const
   }
   else
   {
-    // otherwise we only refer to the image file.
-    result = gltfRelativeTexturePath;
+    if (copyTextures)
+    {
+      std::vector<std::string> paths = vtksys::SystemTools::SplitString(textureFullPath);
+      vtksys::SystemTools::CopyFileAlways(
+        textureFullPath, gltfFullDir + "/" + paths[paths.size() - 1]);
+      result = paths[paths.size() - 1];
+    }
+    else
+    {
+      // otherwise we only refer to the image file.
+      result = gltfRelativeTexturePath;
+    }
     // byte length
-    vtksys::ifstream textureStream(texturePath, ios::binary);
+    vtksys::ifstream textureStream(textureFullPath.c_str(), ios::binary);
     if (textureStream.fail())
     {
       return mimeType; /* empty mimeType signals error*/
@@ -287,7 +307,7 @@ std::string WriteTextureBufferAndView(const char* gltfRelativeTexturePath, const
     textureStream.seekg(0, ios::end);
     byteLength = textureStream.tellg();
     // mimeType from extension
-    mimeType = GetMimeType(texturePath);
+    mimeType = GetMimeType(textureFullPath);
   }
 
   nlohmann::json buffer;
@@ -306,23 +326,138 @@ std::string WriteTextureBufferAndView(const char* gltfRelativeTexturePath, const
   return mimeType;
 }
 
-std::map<int, int> vtkToGLType = { { VTK_UNSIGNED_CHAR, GL_UNSIGNED_BYTE },
-  { VTK_UNSIGNED_SHORT, GL_UNSIGNED_SHORT }, { VTK_FLOAT, GL_FLOAT } };
-
-int GetGLType(vtkDataArray* da)
+int CopyStream(std::istream& in, std::ostream& out)
 {
-  int vtkType = da->GetDataType();
-  if (vtkToGLType.find(vtkType) == vtkToGLType.end())
+  const int BUF_SIZE = 4096;
+  char buf[BUF_SIZE];
+  int streamSize = 0;
+  do
   {
-    vtkLog(WARNING, "No GL type mapping for VTK type: " << vtkType);
-    return GL_UNSIGNED_BYTE;
+    in.read(&buf[0], BUF_SIZE);
+    out.write(&buf[0], in.gcount());
+    streamSize += in.gcount();
+  } while (in.gcount() == BUF_SIZE);
+  return streamSize;
+}
+
+std::string WriteTextureBufferAndView(const std::string& textureFullPath,
+  nlohmann::json& bufferViews, ostream& out, size_t* currentBufferOffset)
+{
+  std::string result;
+  std::string mimeType;
+  int byteLength = 0;
+
+  // otherwise we only refer to the image file.
+  result = textureFullPath;
+  vtksys::ifstream textureStream(textureFullPath.c_str(), ios::binary);
+  if (textureStream.fail())
+  {
+    return mimeType; /* empty mimeType signals error*/
   }
-  return vtkToGLType[vtkType];
+  // copy texture to the output
+  byteLength = CopyStream(textureStream, out);
+  // mimeType from extension
+  mimeType = GetMimeType(textureFullPath);
+
+  nlohmann::json view;
+
+  // write the buffer views
+  view["buffer"] = 0;
+  view["byteOffset"] = *currentBufferOffset;
+  view["byteLength"] = byteLength;
+  bufferViews.emplace_back(view);
+  *currentBufferOffset += byteLength;
+  return mimeType;
+}
+
+void WriteBufferAndView(vtkDataArray* inda, nlohmann::json& bufferViews, ostream& out,
+  size_t* currentBufferOffset, int bufferViewTarget)
+{
+  vtkDataArray* da = inda;
+
+  // gltf does not support doubles so handle that
+  if (inda->GetDataType() == VTK_DOUBLE)
+  {
+    da = vtkFloatArray::New();
+    da->DeepCopy(inda);
+  }
+
+  std::string result;
+
+  vtkGLTFWriterUtils::WriteValues(da, out);
+
+  nlohmann::json buffer;
+  nlohmann::json view;
+
+  unsigned int count = da->GetNumberOfTuples() * da->GetNumberOfComponents();
+  unsigned int byteLength = da->GetElementComponentSize() * count;
+
+  // write the buffer views
+  view["buffer"] = 0;
+  view["byteOffset"] = *currentBufferOffset;
+  view["byteLength"] = byteLength;
+  view["target"] = bufferViewTarget;
+  bufferViews.emplace_back(view);
+
+  // delete double to float conversion array
+  if (da != inda)
+  {
+    da->Delete();
+  }
+  *currentBufferOffset += byteLength;
+}
+
+void WriteBufferAndView(vtkDataArray* da, const char* fileName, bool inlineData,
+  nlohmann::json& buffers, nlohmann::json& bufferViews, bool binary, ostream& out,
+  size_t* currentBufferOffset)
+{
+  if (binary)
+  {
+    WriteBufferAndView(da, bufferViews, out, currentBufferOffset, GLTF_ARRAY_BUFFER);
+  }
+  else
+  {
+    vtkGLTFWriterUtils::WriteBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, GLTF_ARRAY_BUFFER);
+  }
+}
+
+void WriteCellBufferAndView(
+  vtkCellArray* ca, nlohmann::json& bufferViews, ostream& out, size_t* currentBufferOffset)
+{
+  vtkNew<vtkUnsignedIntArray> ia;
+  vtkIdType npts;
+  const vtkIdType* indx;
+  for (ca->InitTraversal(); ca->GetNextCell(npts, indx);)
+  {
+    for (int j = 0; j < npts; ++j)
+    {
+      unsigned int value = static_cast<unsigned int>(indx[j]);
+      ia->InsertNextValue(value);
+    }
+  }
+
+  WriteBufferAndView(ia, bufferViews, out, currentBufferOffset, GLTF_ELEMENT_ARRAY_BUFFER);
+}
+
+void WriteCellBufferAndView(vtkCellArray* ca, const char* fileName, bool inlineData,
+  nlohmann::json& buffers, nlohmann::json& bufferViews, bool binary, ostream& out,
+  size_t* currentBufferOffset)
+{
+  if (binary)
+  {
+    WriteCellBufferAndView(ca, bufferViews, out, currentBufferOffset);
+  }
+  else
+  {
+    vtkGLTFWriterUtils::WriteCellBufferAndView(ca, fileName, inlineData, buffers, bufferViews);
+  }
 }
 
 void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::json& bufferViews,
   nlohmann::json& meshes, nlohmann::json& nodes, vtkPolyData* pd, const char* fileName,
-  bool inlineData, bool saveNormal, bool saveBatchId, bool saveActivePointColor)
+  bool inlineData, bool saveNormal, bool saveBatchId, bool saveActivePointColor,
+  bool structuralMetadataExtension, ostream& output, bool binary, size_t* currentBufferOffset)
 {
   vtkNew<vtkTriangleFilter> trif;
   trif->SetInputData(pd);
@@ -333,8 +468,8 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
   size_t pointAccessor = 0;
   {
     vtkDataArray* da = tris->GetPoints()->GetData();
-    vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
-
+    WriteBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
     // write the accessor
     nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
@@ -419,7 +554,8 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
   for (size_t i = 0; i < arraysToSave.size(); ++i)
   {
     vtkDataArray* da = arraysToSave[i];
-    vtkGLTFWriterUtils::WriteBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    WriteBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
 
     // write the accessor
     nlohmann::json acc;
@@ -443,8 +579,8 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
     auto flipY = vtk::TakeSmartPointer(tcoords->NewInstance());
     flipY->DeepCopy(tcoords);
     FlipYTCoords(flipY);
-    vtkGLTFWriterUtils::WriteBufferAndView(flipY, fileName, inlineData, buffers, bufferViews);
-
+    WriteBufferAndView(
+      flipY, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
     // write the accessor
     nlohmann::json acc;
     acc["bufferView"] = bufferViews.size() - 1;
@@ -468,7 +604,8 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
     nlohmann::json attribs;
 
     vtkCellArray* da = tris->GetVerts();
-    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    WriteCellBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
 
     // write the accessor
     nlohmann::json acc;
@@ -502,7 +639,8 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
     nlohmann::json attribs;
 
     vtkCellArray* da = tris->GetLines();
-    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    WriteCellBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
 
     // write the accessor
     nlohmann::json acc;
@@ -535,8 +673,14 @@ void WriteMesh(nlohmann::json& accessors, nlohmann::json& buffers, nlohmann::jso
     aprim["mode"] = 4;
     nlohmann::json attribs;
 
+    if (structuralMetadataExtension)
+    {
+      aprim["extensions"] = { { "EXT_structural_metadata", { { "propertyTextures", { 0 } } } } };
+    }
+
     vtkCellArray* da = tris->GetPolys();
-    vtkGLTFWriterUtils::WriteCellBufferAndView(da, fileName, inlineData, buffers, bufferViews);
+    WriteCellBufferAndView(
+      da, fileName, inlineData, buffers, bufferViews, binary, output, currentBufferOffset);
 
     // write the accessor
     nlohmann::json acc;
@@ -600,9 +744,10 @@ void WriteCamera(nlohmann::json& cameras, vtkRenderer* ren)
 }
 
 void WriteTexture(nlohmann::json& buffers, nlohmann::json& bufferViews, nlohmann::json& textures,
-  nlohmann::json& samplers, nlohmann::json& images, bool inlineData,
+  nlohmann::json& samplers, nlohmann::json& images, bool inlineData, bool copyTextures,
   std::map<std::string, size_t>& textureMap, const char* textureBaseDirectory,
-  const char* textureFileName, const char* gltfFileName)
+  const std::string& textureFileName, const char* gltfFileName, bool binary, ostream& out,
+  size_t* currentBufferOffset)
 {
   size_t textureSource = 0;
   if (textureMap.find(textureFileName) == textureMap.end())
@@ -618,10 +763,10 @@ void WriteTexture(nlohmann::json& buffers, nlohmann::json& bufferViews, nlohmann
       vtkLog(WARNING, "Invalid texture file: " << textureFullPath);
       return;
     }
-    std::string gltfRelativeTexturePath =
-      vtksys::SystemTools::RelativePath(gltfFullDir, textureFullPath);
-    std::string mimeType = WriteTextureBufferAndView(
-      gltfRelativeTexturePath.c_str(), texturePath.c_str(), inlineData, buffers, bufferViews);
+    std::string mimeType = binary
+      ? WriteTextureBufferAndView(textureFullPath, bufferViews, out, currentBufferOffset)
+      : WriteTextureBufferAndView(
+          gltfFullDir, textureFullPath, inlineData, copyTextures, buffers, bufferViews);
     if (mimeType.empty())
     {
       return;
@@ -689,6 +834,24 @@ void WriteMaterial(
 }
 }
 
+std::vector<std::string> vtkGLTFWriter::GetFieldAsStringVector(vtkDataObject* obj, const char* name)
+{
+  vtkFieldData* fd = obj->GetFieldData();
+  std::vector<std::string> result;
+  if (!fd)
+  {
+    return result;
+  }
+  vtkStringArray* sa = vtkStringArray::SafeDownCast(fd->GetAbstractArray(name));
+  if (!sa)
+  {
+    return result;
+  }
+  for (int i = 0; i < sa->GetNumberOfTuples(); ++i)
+    result.push_back(sa->GetValue(i));
+  return result;
+}
+
 std::string vtkGLTFWriter::WriteToString()
 {
   std::ostringstream result;
@@ -707,8 +870,14 @@ void vtkGLTFWriter::WriteData()
     return;
   }
 
+  std::string extension = vtksys::SystemTools::GetFilenameLastExtension(this->FileName);
+  if (extension == ".glb")
+  {
+    this->Binary = true;
+  }
+
   // try opening the files
-  output.open(this->FileName);
+  output.open(this->FileName, ios::binary);
   if (!output.is_open())
   {
     vtkErrorMacro("Unable to open file for gltf output.");
@@ -770,12 +939,44 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
   nlohmann::json rendererNode;
   rendererNode["name"] = "Renderer Node";
 
+  nlohmann::json extensions;
+  if (this->PropertyTextureFile)
+  {
+    vtksys::ifstream propertyTextureStream(this->PropertyTextureFile, ios::binary);
+    if (propertyTextureStream.good())
+    {
+      try
+      {
+        extensions = nlohmann::json::parse(propertyTextureStream);
+      }
+      catch (nlohmann::json::parse_error& ex)
+      {
+        vtkLog(ERROR, << "Parse error " << this->PropertyTextureFile << "at byte " << ex.byte);
+      }
+    }
+    else
+    {
+      vtkLog(WARNING, "Error: Cannot open property texture file: " << this->PropertyTextureFile);
+    }
+  }
+
   auto buildingIt = vtk::TakeSmartPointer(mb->NewTreeIterator());
   buildingIt->VisitOnlyLeavesOff();
   buildingIt->TraverseSubTreeOff();
 
   bool foundVisibleProp = false;
+  if (this->RelativeCoordinates)
+  {
+    rendererNode["translation"] = { bounds[0], bounds[2], bounds[4] };
+  }
+  size_t binChunkOffset = 0;
   // all buildings
+  std::string binChunkPath = vtksys::SystemTools::GetFilenamePath(this->FileName) + "/binChunk.bin";
+  vtksys::ofstream binChunkOut;
+  if (this->Binary)
+  {
+    binChunkOut.open(binChunkPath.c_str(), ios::binary);
+  }
   for (buildingIt->InitTraversal(); !buildingIt->IsDoneWithTraversal(); buildingIt->GoToNextItem())
   {
     auto building = vtkMultiBlockDataSet::SafeDownCast(buildingIt->GetCurrentDataObject());
@@ -783,21 +984,49 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
     auto it = vtk::TakeSmartPointer(building->NewIterator());
     for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextItem())
     {
-      auto pd = vtkPolyData::SafeDownCast(it->GetCurrentDataObject());
+      vtkSmartPointer<vtkPolyData> pd = vtkPolyData::SafeDownCast(it->GetCurrentDataObject());
       if (pd)
       {
         if (pd->GetNumberOfCells() > 0)
         {
+          if (this->RelativeCoordinates)
+          {
+            vtkNew<vtkTransform> transform;
+            transform->Translate(-bounds[0], -bounds[2], -bounds[4]);
+            vtkNew<vtkTransformFilter> transformFilter;
+            transformFilter->SetTransform(transform);
+            transformFilter->SetInputDataObject(pd);
+            transformFilter->Update();
+            pd = vtkPolyData::SafeDownCast(transformFilter->GetOutput());
+          }
           foundVisibleProp = true;
           WriteMesh(accessors, buffers, bufferViews, meshes, nodes, pd, this->FileName,
-            this->InlineData, this->SaveNormal, this->SaveBatchId, this->SaveActivePointColor);
+            this->InlineData, this->SaveNormal, this->SaveBatchId, this->SaveActivePointColor,
+            !extensions.empty(), binChunkOut, this->Binary, &binChunkOffset);
           rendererNode["children"].emplace_back(nodes.size() - 1);
           size_t oldTextureCount = textures.size();
-          std::string textureFileName = GetFieldAsString(pd, "texture_uri");
-          if (this->SaveTextures && !textureFileName.empty())
+          std::vector<std::string> textureFileNames = GetFieldAsStringVector(pd, "texture_uri");
+          if (this->SaveTextures)
           {
-            WriteTexture(buffers, bufferViews, textures, samplers, images, this->InlineData,
-              textureMap, this->TextureBaseDirectory, textureFileName.c_str(), this->FileName);
+            for (size_t i = 0; i < textureFileNames.size(); ++i)
+            {
+              std::string textureFileName = textureFileNames[i];
+              WriteTexture(buffers, bufferViews, textures, samplers, images, this->InlineData,
+                this->CopyTextures, textureMap, this->TextureBaseDirectory, textureFileName,
+                this->FileName, this->Binary, binChunkOut, &binChunkOffset);
+            }
+          }
+          if (this->Binary)
+          {
+            // pad at 4 bytes for the next mesh
+            // accessor total byteOffset has to be a multiple of componentType length
+            size_t paddingSizeNextMesh = GetPaddingAt4Bytes(binChunkOffset);
+            if (paddingSizeNextMesh)
+            {
+              char paddingBIN[3] = { 0, 0, 0 };
+              binChunkOut.write(paddingBIN, paddingSizeNextMesh);
+              binChunkOffset += paddingSizeNextMesh;
+            }
           }
           meshes[meshes.size() - 1]["primitives"][0]["material"] = materials.size();
           WriteMaterial(pd, materials, oldTextureCount, oldTextureCount != textures.size());
@@ -817,6 +1046,8 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
       }
     }
   }
+  binChunkOut.close();
+
   // only write the camera if we had visible nodes
   if (foundVisibleProp)
   {
@@ -827,12 +1058,24 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
     topNodes.push_back(nodes.size() - 1);
   }
 
+  if (this->Binary)
+  {
+    // in this case there is only one buffer
+    nlohmann::json buffer;
+    buffer["byteLength"] = binChunkOffset;
+    buffers.emplace_back(buffer);
+  }
+
   nlohmann::json root;
   nlohmann::json asset;
   asset["generator"] = "VTK";
   asset["version"] = "2.0";
+  if (!extensions.empty())
+  {
+    root["extensions"] = extensions;
+    root["extensionsUsed"].push_back("EXT_structural_metadata");
+  }
   root["asset"] = asset;
-
   root["scene"] = 0;
   root["cameras"] = cameras;
   root["nodes"] = nodes;
@@ -860,7 +1103,37 @@ void vtkGLTFWriter::WriteToStreamMultiBlock(ostream& output, vtkMultiBlockDataSe
   scenes.emplace_back(ascene);
   root["scenes"] = scenes;
 
-  output << std::setw(4) << root;
+  if (this->Binary)
+  {
+    // header
+    std::string rootString = root.dump();
+    size_t paddingSizeJSON = GetPaddingAt4Bytes(rootString.size());
+    size_t paddingSizeBIN = GetPaddingAt4Bytes(binChunkOffset);
+    FileHeader header(static_cast<uint32_t>(
+      12 + 8 + rootString.size() + paddingSizeJSON + 8 + binChunkOffset + paddingSizeBIN));
+    vtkByteSwap::SwapWrite4LERange(&header, 3, &output);
+    // JSON
+    ChunkHeader jsonChunkHeader;
+    jsonChunkHeader.SetTypeJSON(static_cast<uint32_t>(rootString.size() + paddingSizeJSON));
+    vtkByteSwap::SwapWrite4LERange(&jsonChunkHeader, 2, &output);
+    output.write(rootString.c_str(), rootString.size());
+    std::string paddingJSON = "   "; // max possible padding = 3 space characters
+    output.write(paddingJSON.c_str(), paddingSizeJSON);
+    // BIN
+    ChunkHeader binChunkHeader;
+    binChunkHeader.SetTypeBIN(static_cast<uint32_t>(binChunkOffset + paddingSizeBIN));
+    vtkByteSwap::SwapWrite4LERange(&binChunkHeader, 2, &output);
+    vtksys::ifstream binChunkIn(binChunkPath.c_str(), ios::binary);
+    CopyStream(binChunkIn, output);
+    char paddingBIN[3] = { 0, 0, 0 };
+    output.write(paddingBIN, paddingSizeBIN);
+    binChunkIn.close();
+    vtksys::SystemTools::RemoveFile(binChunkPath);
+  }
+  else
+  {
+    output << std::setw(4) << root;
+  }
 }
 
 void vtkGLTFWriter::PrintSelf(ostream& os, vtkIndent indent)
@@ -883,3 +1156,4 @@ int vtkGLTFWriter::FillInputPortInformation(int, vtkInformation* info)
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkMultiBlockDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

@@ -13,9 +13,10 @@
 #include <vtkm/cont/ArrayExtractComponent.h>
 #include <vtkm/cont/ArrayHandleMultiplexer.h>
 #include <vtkm/cont/ArrayHandleStride.h>
+#include <vtkm/cont/ArrayHandleTransform.h>
 #include <vtkm/cont/DeviceAdapterTag.h>
 
-#include <vtkm/VecVariable.h>
+#include <vtkm/cont/internal/ArrayRangeComputeUtils.h>
 
 #include <vtkm/internal/ArrayPortalValueReference.h>
 
@@ -24,11 +25,17 @@ namespace vtkm
 namespace internal
 {
 
+// Forward declaration
+template <typename SourcePortalType>
+class ArrayPortalRecombineVec;
+
 template <typename PortalType>
 class RecombineVec
 {
   vtkm::VecCConst<PortalType> Portals;
   vtkm::Id Index;
+
+  friend vtkm::internal::ArrayPortalRecombineVec<PortalType>;
 
 public:
   using ComponentType = typename std::remove_const<typename PortalType::ValueType>::type;
@@ -72,11 +79,18 @@ public:
 
   VTKM_EXEC_CONT RecombineVec& operator=(const RecombineVec& src)
   {
-    this->DoCopy(src);
+    if ((&this->Portals[0] != &src.Portals[0]) || (this->Index != src.Index))
+    {
+      this->DoCopy(src);
+    }
+    else
+    {
+      // Copying to myself. Do not need to do anything.
+    }
     return *this;
   }
 
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator=(const T& src)
   {
     this->DoCopy(src);
@@ -93,7 +107,7 @@ public:
     return result;
   }
 
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator+=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -104,7 +118,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator-=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -115,7 +129,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator*=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -126,7 +140,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator/=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -137,7 +151,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator%=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -148,7 +162,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator&=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -159,7 +173,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator|=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -170,7 +184,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator^=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -181,7 +195,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator>>=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -192,7 +206,7 @@ public:
     }
     return *this;
   }
-  template <typename T, typename = typename std::enable_if<vtkm::HasVecTraits<T>::value>::type>
+  template <typename T>
   VTKM_EXEC_CONT RecombineVec& operator<<=(const T& src)
   {
     using VTraits = vtkm::VecTraits<T>;
@@ -320,13 +334,26 @@ public:
 
   VTKM_EXEC_CONT void Set(vtkm::Id index, const ValueType& value) const
   {
-    // The ValueType is actually a reference back to the portals, and sets to it should
-    // already be set in the portal. Thus, we don't really need to do anything.
-    VTKM_ASSERT(value.GetIndex() == index);
+    if ((value.GetIndex() == index) && (value.Portals.GetPointer() == this->Portals))
+    {
+      // The ValueType is actually a reference back to the portals. If this reference is
+      // actually pointing back to the same index, we don't need to do anything.
+    }
+    else
+    {
+      this->DoCopy(index, value);
+    }
   }
 
   template <typename T>
   VTKM_EXEC_CONT void Set(vtkm::Id index, const T& value) const
+  {
+    this->DoCopy(index, value);
+  }
+
+private:
+  template <typename T>
+  VTKM_EXEC_CONT void DoCopy(vtkm::Id index, const T& value) const
   {
     using Traits = vtkm::VecTraits<T>;
     VTKM_ASSERT(Traits::GetNumberOfComponents(value) == this->NumberOfComponents);
@@ -355,18 +382,10 @@ struct StorageTagRecombineVec
 namespace detail
 {
 
-// Note: Normally a decorating ArrayHandle holds the buffers of the arrays it is decorating
-// in its list of arrays. However, the numbers of buffers is expected to be compile-time static
-// and ArrayHandleRecombineVec needs to set the number of buffers at runtime. We cheat around
-// this by stuffing the decorated buffers in the metadata. To make sure deep copies work
-// right, a copy of the metadata results in a deep copy of the contained buffers. The
-// vtkm::cont::internal::Buffer holding the metadata is not supposed to copy the metadata
-// except for a deep copy (and when it is first set). If this behavior changes, there could
-// be a performance degredation.
 struct RecombineVecMetaData
 {
   mutable std::vector<vtkm::cont::internal::Buffer> PortalBuffers;
-  std::vector<std::vector<vtkm::cont::internal::Buffer>> ArrayBuffers;
+  std::vector<std::size_t> ArrayBufferOffsets;
 
   RecombineVecMetaData() = default;
 
@@ -374,17 +393,7 @@ struct RecombineVecMetaData
 
   RecombineVecMetaData& operator=(const RecombineVecMetaData& src)
   {
-    this->ArrayBuffers.resize(src.ArrayBuffers.size());
-    for (std::size_t arrayIndex = 0; arrayIndex < src.ArrayBuffers.size(); ++arrayIndex)
-    {
-      this->ArrayBuffers[arrayIndex].resize(src.ArrayBuffers[arrayIndex].size());
-      for (std::size_t bufferIndex = 0; bufferIndex < src.ArrayBuffers[arrayIndex].size();
-           ++bufferIndex)
-      {
-        this->ArrayBuffers[arrayIndex][bufferIndex].DeepCopyFrom(
-          src.ArrayBuffers[arrayIndex][bufferIndex]);
-      }
-    }
+    this->ArrayBufferOffsets = src.ArrayBufferOffsets;
 
     this->PortalBuffers.clear();
     // Intentionally not copying portals. Portals will be recreated from proper array when requsted.
@@ -414,35 +423,48 @@ class Storage<vtkm::internal::RecombineVec<ReadWritePortal>,
   VTKM_STATIC_ASSERT(
     (std::is_same<ReadWritePortal, detail::RecombinedPortalType<ComponentType>>::value));
 
-  template <typename Buff>
-  VTKM_CONT static Buff* BuffersForComponent(Buff* buffers, vtkm::IdComponent componentIndex)
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> BuffersForComponent(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::IdComponent componentIndex)
   {
-    return buffers[0]
-      .template GetMetaData<detail::RecombineVecMetaData>()
-      .ArrayBuffers[componentIndex]
-      .data();
+    auto& metaData = buffers[0].GetMetaData<detail::RecombineVecMetaData>();
+    std::size_t index = static_cast<std::size_t>(componentIndex);
+    return std::vector<vtkm::cont::internal::Buffer>(
+      buffers.begin() + metaData.ArrayBufferOffsets[index],
+      buffers.begin() + metaData.ArrayBufferOffsets[index + 1]);
   }
 
 public:
-  VTKM_STORAGE_NO_RESIZE;
-
   using ReadPortalType = vtkm::internal::ArrayPortalRecombineVec<ReadWritePortal>;
   using WritePortalType = vtkm::internal::ArrayPortalRecombineVec<ReadWritePortal>;
 
-  VTKM_CONT static vtkm::IdComponent NumberOfComponents(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::IdComponent GetNumberOfComponents(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return static_cast<vtkm::IdComponent>(
-      buffers[0].GetMetaData<detail::RecombineVecMetaData>().ArrayBuffers.size());
+      buffers[0].GetMetaData<detail::RecombineVecMetaData>().ArrayBufferOffsets.size() - 1);
   }
 
-  VTKM_CONT static vtkm::IdComponent GetNumberOfBuffers() { return 1; }
-
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
     return SourceStorage::GetNumberOfValues(BuffersForComponent(buffers, 0));
   }
 
-  VTKM_CONT static void Fill(vtkm::cont::internal::Buffer*,
+  VTKM_CONT static void ResizeBuffers(vtkm::Id numValues,
+                                      const std::vector<vtkm::cont::internal::Buffer>& buffers,
+                                      vtkm::CopyFlag preserve,
+                                      vtkm::cont::Token& token)
+  {
+    vtkm::IdComponent numComponents = GetNumberOfComponents(buffers);
+    for (vtkm::IdComponent component = 0; component < numComponents; ++component)
+    {
+      SourceStorage::ResizeBuffers(
+        numValues, BuffersForComponent(buffers, component), preserve, token);
+    }
+  }
+
+  VTKM_CONT static void Fill(const std::vector<vtkm::cont::internal::Buffer>&,
                              const vtkm::internal::RecombineVec<ReadWritePortal>&,
                              vtkm::Id,
                              vtkm::Id,
@@ -451,11 +473,12 @@ public:
     throw vtkm::cont::ErrorBadType("Fill not supported for ArrayHandleRecombineVec.");
   }
 
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId device,
-                                                   vtkm::cont::Token& token)
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
-    vtkm::IdComponent numComponents = NumberOfComponents(buffers);
+    vtkm::IdComponent numComponents = GetNumberOfComponents(buffers);
 
     // The array portal needs a runtime-allocated array of portals for each component.
     // We use the vtkm::cont::internal::Buffer object to allow us to allocate memory on the
@@ -488,11 +511,12 @@ public:
       numComponents);
   }
 
-  VTKM_CONT static WritePortalType CreateWritePortal(vtkm::cont::internal::Buffer* buffers,
-                                                     vtkm::cont::DeviceAdapterId device,
-                                                     vtkm::cont::Token& token)
+  VTKM_CONT static WritePortalType CreateWritePortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
-    vtkm::IdComponent numComponents = NumberOfComponents(buffers);
+    vtkm::IdComponent numComponents = GetNumberOfComponents(buffers);
 
     // The array portal needs a runtime-allocated array of portals for each component.
     // We use the vtkm::cont::internal::Buffer object to allow us to allocate memory on the
@@ -525,19 +549,28 @@ public:
       numComponents);
   }
 
-  VTKM_CONT static ArrayType ArrayForComponent(const vtkm::cont::internal::Buffer* buffers,
-                                               vtkm::IdComponent componentIndex)
+  VTKM_CONT static ArrayType ArrayForComponent(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::IdComponent componentIndex)
   {
     return ArrayType(BuffersForComponent(buffers, componentIndex));
   }
 
-  VTKM_CONT static void AppendComponent(vtkm::cont::internal::Buffer* buffers,
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> CreateBuffers()
+  {
+    detail::RecombineVecMetaData metaData;
+    metaData.ArrayBufferOffsets.push_back(1);
+    return vtkm::cont::internal::CreateBuffers(metaData);
+  }
+
+  VTKM_CONT static void AppendComponent(std::vector<vtkm::cont::internal::Buffer>& buffers,
                                         const ArrayType& array)
   {
-    std::vector<vtkm::cont::internal::Buffer> arrayBuffers(
-      array.GetBuffers(), array.GetBuffers() + SourceStorage::GetNumberOfBuffers());
-    buffers[0].GetMetaData<detail::RecombineVecMetaData>().ArrayBuffers.push_back(
-      std::move(arrayBuffers));
+    // Add buffers of new array to our list of buffers.
+    buffers.insert(buffers.end(), array.GetBuffers().begin(), array.GetBuffers().end());
+    // Update metadata for new offset to end.
+    buffers[0].GetMetaData<detail::RecombineVecMetaData>().ArrayBufferOffsets.push_back(
+      buffers.size());
   }
 };
 
@@ -554,9 +587,13 @@ public:
 ///
 /// Note that caution should be used with `ArrayHandleRecombineVec` because the
 /// size of the `Vec` values is not known at compile time. Thus, the value
-/// type of this array is forced to a `VecVariable`, which can cause surprises
-/// if treated as a `Vec`. In particular, the static `NUM_COMPONENTS` expression
-/// does not exist.
+/// type of this array is forced to a special `RecombineVec` class that can cause
+/// surprises if treated as a `Vec`. In particular, the static `NUM_COMPONENTS`
+/// expression does not exist. Furthermore, new variables of type `RecombineVec`
+/// cannot be created. This means that simple operators like `+` will not work
+/// because they require an intermediate object to be created. (Equal operators
+/// like `+=` do work because they are given an existing variable to place the
+/// output.)
 ///
 template <typename ComponentType>
 class ArrayHandleRecombineVec
@@ -570,13 +607,9 @@ public:
     (vtkm::cont::ArrayHandle<internal::detail::RecombinedValueType<ComponentType>,
                              vtkm::cont::internal::StorageTagRecombineVec>));
 
-private:
-  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
-
-public:
   vtkm::IdComponent GetNumberOfComponents() const
   {
-    return StorageType::NumberOfComponents(this->GetBuffers());
+    return StorageType::GetNumberOfComponents(this->GetBuffers());
   }
 
   vtkm::cont::ArrayHandleStride<ComponentType> GetComponentArray(
@@ -588,7 +621,9 @@ public:
   void AppendComponentArray(
     const vtkm::cont::ArrayHandle<ComponentType, vtkm::cont::StorageTagStride>& array)
   {
-    StorageType::AppendComponent(this->GetBuffers(), array);
+    std::vector<vtkm::cont::internal::Buffer> buffers = this->GetBuffers();
+    StorageType::AppendComponent(buffers, array);
+    this->SetBuffers(std::move(buffers));
   }
 };
 
@@ -616,13 +651,113 @@ struct ArrayExtractComponentImpl<vtkm::cont::internal::StorageTagRecombineVec>
   }
 };
 
+//-------------------------------------------------------------------------------------------------
+template <typename S>
+struct ArrayRangeComputeImpl;
+
+template <typename S>
+struct ArrayRangeComputeMagnitudeImpl;
+
+template <typename T, typename S>
+inline vtkm::cont::ArrayHandle<vtkm::Range> ArrayRangeComputeImplCaller(
+  const vtkm::cont::ArrayHandle<T, S>& input,
+  const vtkm::cont::ArrayHandle<vtkm::UInt8>& maskArray,
+  bool computeFiniteRange,
+  vtkm::cont::DeviceAdapterId device)
+{
+  return vtkm::cont::internal::ArrayRangeComputeImpl<S>{}(
+    input, maskArray, computeFiniteRange, device);
+}
+
+template <typename T, typename S>
+inline vtkm::Range ArrayRangeComputeMagnitudeImplCaller(
+  const vtkm::cont::ArrayHandle<T, S>& input,
+  const vtkm::cont::ArrayHandle<vtkm::UInt8>& maskArray,
+  bool computeFiniteRange,
+  vtkm::cont::DeviceAdapterId device)
+{
+  return vtkm::cont::internal::ArrayRangeComputeMagnitudeImpl<S>{}(
+    input, maskArray, computeFiniteRange, device);
+}
+
+template <>
+struct VTKM_CONT_EXPORT ArrayRangeComputeImpl<vtkm::cont::internal::StorageTagRecombineVec>
+{
+  template <typename RecombineVecType>
+  VTKM_CONT vtkm::cont::ArrayHandle<vtkm::Range> operator()(
+    const vtkm::cont::ArrayHandle<RecombineVecType, vtkm::cont::internal::StorageTagRecombineVec>&
+      input_,
+    const vtkm::cont::ArrayHandle<vtkm::UInt8>& maskArray,
+    bool computeFiniteRange,
+    vtkm::cont::DeviceAdapterId device) const
+  {
+    auto input =
+      static_cast<vtkm::cont::ArrayHandleRecombineVec<typename RecombineVecType::ComponentType>>(
+        input_);
+
+    vtkm::cont::ArrayHandle<vtkm::Range> result;
+    result.Allocate(input.GetNumberOfComponents());
+
+    if (input.GetNumberOfValues() < 1)
+    {
+      result.Fill(vtkm::Range{});
+      return result;
+    }
+
+    auto resultPortal = result.WritePortal();
+    for (vtkm::IdComponent i = 0; i < input.GetNumberOfComponents(); ++i)
+    {
+      auto rangeAH = ArrayRangeComputeImplCaller(
+        input.GetComponentArray(i), maskArray, computeFiniteRange, device);
+      resultPortal.Set(i, rangeAH.ReadPortal().Get(0));
+    }
+
+    return result;
+  }
+};
+
+template <typename ArrayHandleType>
+struct ArrayValueIsNested;
+
+template <typename RecombineVecType>
+struct ArrayValueIsNested<
+  vtkm::cont::ArrayHandle<RecombineVecType, vtkm::cont::internal::StorageTagRecombineVec>>
+{
+  static constexpr bool Value = false;
+};
+
+template <>
+struct VTKM_CONT_EXPORT ArrayRangeComputeMagnitudeImpl<vtkm::cont::internal::StorageTagRecombineVec>
+{
+  template <typename RecombineVecType>
+  VTKM_CONT vtkm::Range operator()(
+    const vtkm::cont::ArrayHandle<RecombineVecType, vtkm::cont::internal::StorageTagRecombineVec>&
+      input_,
+    const vtkm::cont::ArrayHandle<vtkm::UInt8>& maskArray,
+    bool computeFiniteRange,
+    vtkm::cont::DeviceAdapterId device) const
+  {
+    auto input =
+      static_cast<vtkm::cont::ArrayHandleRecombineVec<typename RecombineVecType::ComponentType>>(
+        input_);
+
+    if (input.GetNumberOfValues() < 1)
+    {
+      return vtkm::Range{};
+    }
+    if (input.GetNumberOfComponents() == 1)
+    {
+      return ArrayRangeComputeMagnitudeImplCaller(
+        input.GetComponentArray(0), maskArray, computeFiniteRange, device);
+    }
+
+    return ArrayRangeComputeMagnitudeGeneric(input_, maskArray, computeFiniteRange, device);
+  }
+};
+
 } // namespace internal
 
 }
 } // namespace vtkm::cont
-
-//=============================================================================
-// Specializations of worklet arguments using ArrayHandleGropuVecVariable
-#include <vtkm/exec/arg/FetchTagArrayDirectOutArrayHandleRecombineVec.h>
 
 #endif //vtk_m_cont_ArrayHandleRecombineVec_h

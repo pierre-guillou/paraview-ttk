@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVAlgorithmPortsInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVAlgorithmPortsInformation
  * @brief   Holds number of outputs
@@ -34,19 +22,19 @@ public:
   vtkTypeMacro(vtkPVAlgorithmPortsInformation, vtkPVInformation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get number of outputs for a particular source.
    */
   vtkGetMacro(NumberOfOutputs, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the number of required inputs for a particular algorithm.
    */
   vtkGetMacro(NumberOfRequiredInputs, int);
-  //@}
+  ///@}
 
   /**
    * Transfer information about a single object into this object.
@@ -58,13 +46,13 @@ public:
    */
   void AddInformation(vtkPVInformation*) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
 protected:
   vtkPVAlgorithmPortsInformation();

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellCenters.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCellCenters.h"
 
 #include "vtkCell.h"
@@ -37,6 +25,7 @@
 
 #include <atomic>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellCenters);
 
 namespace
@@ -227,7 +216,7 @@ int vtkCellCenters::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkDebugMacro(<< "Processing #" << cellId);
       this->UpdateProgress((0.5 * cellId / numCells) + 0.5);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     if (input->GetCellType(cellId) != VTK_EMPTY_CELL)
@@ -245,7 +234,7 @@ int vtkCellCenters::RequestData(vtkInformation* vtkNotUsed(request),
 
   if (abort)
   {
-    return 0;
+    return 1;
   }
 
   newPts->Resize(numPoints);
@@ -319,3 +308,4 @@ void vtkCellCenters::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Vertex Cells: " << (this->VertexCells ? "On\n" : "Off\n");
   os << indent << "CopyArrays: " << (this->CopyArrays ? "On" : "Off") << endl;
 }
+VTK_ABI_NAMESPACE_END

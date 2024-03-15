@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalPathLineFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTemporalPathLineFilter
  * @brief   Generate a Polydata Pointset from any Dataset.
@@ -36,16 +24,25 @@
 #ifndef vtkTemporalPathLineFilter_h
 #define vtkTemporalPathLineFilter_h
 
+#include "vtkDeprecation.h"          // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
+#include "vtkTemporalAlgorithm.h" // For temporal algorithm
 
+#ifndef __VTK_WRAP__
+#define vtkPolyDataAlgorithm vtkTemporalAlgorithm<vtkPolyDataAlgorithm>
+#endif
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkCellArray;
 class vtkMergePoints;
 class vtkFloatArray;
 
+VTK_ABI_NAMESPACE_END
 #include "vtkSmartPointer.h" // for memory safety
 #include <set>               // Because we want to use it
+VTK_ABI_NAMESPACE_BEGIN
 class ParticleTrail;
 class vtkTemporalPathLineFilterInternals;
 typedef vtkSmartPointer<ParticleTrail> TrailPointer;
@@ -57,10 +54,17 @@ public:
   /**
    * Standard Type-Macro
    */
-  static vtkTemporalPathLineFilter* New();
   vtkTypeMacro(vtkTemporalPathLineFilter, vtkPolyDataAlgorithm);
+#ifndef __VTK_WRAP__
+#undef vtkPassInputTypeAlgorithm
+#endif
+  static vtkTemporalPathLineFilter* New();
   void PrintSelf(ostream& os, vtkIndent indent) override;
   ///@}
+
+#if defined(__VTK_WRAP__) || defined(__WRAP_GCCXML)
+  vtkCreateWrappedTemporalAlgorithmInterface();
+#endif
 
   ///@{
   /**
@@ -131,7 +135,9 @@ public:
    * from the previous call. Time going backward means that the current time
    * step is smaller than the previous one.
    */
+  VTK_DEPRECATED_IN_9_3_0("Running backward will not be supported anymore.")
   virtual void SetBackwardTime(bool backward);
+  VTK_DEPRECATED_IN_9_3_0("Running backward will not be supported anymore.")
   vtkGetMacro(BackwardTime, bool);
   ///@}
 
@@ -165,30 +171,28 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
-  ///@{
-  /**
-   * The necessary parts of the standard pipeline update mechanism
-   */
-  int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
-  //
-  int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
+  int Initialize(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
-  ///@}
+  int Execute(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+  int Finalize(vtkInformation* request, vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override;
+  void IncrementTrail(TrailPointer trail, vtkDataSet* input, vtkIdType i);
 
   TrailPointer GetTrail(vtkIdType i);
-  void IncrementTrail(TrailPointer trail, vtkDataSet* input, vtkIdType i);
+
+  // void Initialize(vtkDataSet* input, vtkDataSet* selection,
+  //  vtkPolyData* pathLines, vtkPolyData* particles);
 
   // internal data variables
   int NumberOfTimeSteps = 0;
   int MaskPoints = 200;
   unsigned int MaxTrackLength = 10;
   unsigned int LastTrackLength = 10;
-  int FirstTime = 1;
   char* IdChannelArray = nullptr;
   double MaxStepDistance[3] = { 1, 1, 1 };
   double LatestTime;
   bool KeepDeadTrails = false;
-  bool UsingSelection = false;
   bool BackwardTime = false;
   //
 
@@ -198,12 +202,18 @@ protected:
   vtkSmartPointer<vtkPoints> VertexCoordinates;
   vtkSmartPointer<vtkFloatArray> TrailId;
   vtkSmartPointer<vtkTemporalPathLineFilterInternals> Internals;
-  std::set<vtkIdType> SelectionIds;
+
+  int CurrentTimeIndex = 0;
 
   //
 private:
+  void AccumulateTrails(vtkDataSet* input, vtkDataSet* selection);
+  void PostExecute(vtkDataSet* input, vtkPolyData* pathLines, vtkPolyData* particles);
+  void InitializeExecute(vtkDataSet* input, vtkPolyData* pathLines);
+
   vtkTemporalPathLineFilter(const vtkTemporalPathLineFilter&) = delete;
   void operator=(const vtkTemporalPathLineFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMotionFXCFGReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMotionFXCFGReader.h"
 
 #include "vtkArrayDispatch.h"
@@ -50,6 +38,7 @@
 //=============================================================================
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct Motion;
 
 using MapOfVectorOfMotions =
@@ -130,7 +119,7 @@ void set(Value& ref, const char* pname, const MapType& params, const Value& defa
 
 //------------------------------------------------------------------------------
 // Superclass for all motions
-// The member variable names match the keyworks in the cfg file and hence are
+// The member variable names match the keywords in the cfg file and hence are
 // left lower-case.
 struct Motion
 {
@@ -935,6 +924,7 @@ std::shared_ptr<const Motion> CreateMotion(const MapType& params)
 
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END
 }
 
 //=============================================================================
@@ -947,6 +937,7 @@ using namespace tao::pegtl;
 // OrientationsPositionFile::Grammar
 namespace PositionFile
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename Rule>
 struct action : nothing<Rule>
 {
@@ -1001,12 +992,14 @@ struct action<MotionFX::OrientationsPositionFile::Row>
     active_numbers.clear();
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace PositionFile
 
 //-----------------------------------------------------------------------------
 // actions when parsing UniversalTransformRow::Grammar
 namespace UniversalTransformFile
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename Rule>
 struct action : nothing<Rule>
 {
@@ -1041,12 +1034,14 @@ struct action<MotionFX::UniversalTransformRow::Row>
     active_numbers.clear();
   }
 };
+VTK_ABI_NAMESPACE_END
 } // namespace UniversalTransformSpace
 
 //-----------------------------------------------------------------------------
 // actions when parsing CFG::Grammar
 namespace CFG
 {
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // When parsing CFG, we need to accumulate values and keep track of them.
 // Value and ActiveState help us do that.
@@ -1187,12 +1182,14 @@ struct action<MotionFX::CFG::Grammar>
   }
 };
 
+VTK_ABI_NAMESPACE_END
 } // namespace CFG
 
 } // namespace Actions
 
 namespace impl
 {
+VTK_ABI_NAMESPACE_BEGIN
 bool PositionFileMotion::read_position_file(const std::string& rootDir) const
 {
   // read positionFile.
@@ -1239,8 +1236,10 @@ bool UniversalTransformMotion::read_universaltransform_file(const std::string& r
   }
   return false;
 }
+VTK_ABI_NAMESPACE_END
 } // impl
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMotionFXCFGReader::vtkInternals
 {
 public:
@@ -1488,14 +1487,14 @@ bool vtkMotionFXCFGReader::ReadMetaData()
   if (vtksys::SystemTools::TestFileAccess(
         this->FileName, vtksys::TEST_FILE_OK | vtksys::TEST_FILE_READ))
   {
-    auto* interals = new vtkInternals();
-    if (interals->Parse(this->FileName))
+    auto* internals = new vtkInternals();
+    if (internals->Parse(this->FileName))
     {
-      this->Internals = interals;
+      this->Internals = internals;
       this->MetaDataMTime.Modified();
       return true;
     }
-    delete interals;
+    delete internals;
   }
   else
   {
@@ -1511,3 +1510,4 @@ void vtkMotionFXCFGReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FileName: " << this->FileName << endl;
   os << indent << "TimeResolution: " << this->TimeResolution << endl;
 }
+VTK_ABI_NAMESPACE_END

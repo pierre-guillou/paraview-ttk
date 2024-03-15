@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHDFReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHDFReader
  * @brief   VTKHDF format reader.
@@ -23,8 +11,11 @@
 
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkIOHDFModule.h" // For export macro
+#include <array>            // For storing the time range
+#include <memory>           // For std::unique_ptr
 #include <vector>           // For storing list of values
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkCallbackCommand;
 class vtkCommand;
@@ -35,6 +26,8 @@ class vtkImageData;
 class vtkInformationVector;
 class vtkInformation;
 class vtkOverlappingAMR;
+class vtkPartitionedDataSet;
+class vtkPolyData;
 class vtkUnstructuredGrid;
 
 /**
@@ -42,9 +35,16 @@ class vtkUnstructuredGrid;
  * @brief  Read VTK HDF files.
  *
  * Reads data saved using the VTK HDF format which supports all
- * vtkDataSet types (image data and unstructured grid are currently
- * implemented) and serial as well as parallel processing.
+ * vtkDataSet types (image data, poly data, unstructured grid and
+ * overlapping AMR are currently implemented) and serial as well
+ * as parallel processing.
  *
+ * Can also read transient data with directions and offsets present
+ * in a supplemental 'VTKHDF/Steps' group for vtkUnstructuredGrid
+ * vtkPolyData, and vtkImageData.
+ *
+ * @note vtkHDF file format is defined here :
+ * https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#hdf-file-formats
  */
 class VTKIOHDF_EXPORT vtkHDFReader : public vtkDataObjectAlgorithm
 {
@@ -105,6 +105,52 @@ public:
   const char* GetCellArrayName(int index);
   ///@}
 
+  ///@{
+  /**
+   * Getters and setters for transient data
+   * - HasTransientData is a boolean that flags whether the file has temporal data
+   * - NumberOfSteps is the number of time steps contained in the file
+   * - Step is the time step to be read or last read by the reader
+   * - TimeValue is the value corresponding to the Step property
+   * - TimeRange is an array with the {min, max} values of time for the data
+   */
+  vtkGetMacro(HasTransientData, bool);
+  vtkGetMacro(NumberOfSteps, vtkIdType);
+  vtkGetMacro(Step, vtkIdType);
+  vtkSetMacro(Step, vtkIdType);
+  vtkGetMacro(TimeValue, double);
+  const std::array<double, 2>& GetTimeRange() const { return this->TimeRange; }
+  ///@}
+
+  ///@{
+  /**
+   * Boolean property determining whether to use the internal cache or not (default is false).
+   *
+   * Internal cache is useful when reading transient data to never re-read something that has
+   * already been cached.
+   */
+  vtkGetMacro(UseCache, bool);
+  vtkSetMacro(UseCache, bool);
+  vtkBooleanMacro(UseCache, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Boolean property determining whether to merge partitions when reading unstructured data.
+   *
+   * Merging partitions (true) allows the reader to return either `vtkUnstructuredGrid` or
+   * `vtkPolyData` directly while not merging (false) them returns a `vtkPartitionedDataSet`. It is
+   * advised to set this value to false when using the internal cache (UseCache == true) since the
+   * partitions are what are stored in the cache and merging them before outputting would
+   * effectively double the memory constraints.
+   *
+   * Default is true
+   */
+  vtkGetMacro(MergeParts, bool);
+  vtkSetMacro(MergeParts, bool);
+  vtkBooleanMacro(MergeParts, bool);
+  ///@}
+
   vtkSetMacro(MaximumLevelsToReadByDefaultForAMR, unsigned int);
   vtkGetMacro(MaximumLevelsToReadByDefaultForAMR, unsigned int);
 
@@ -129,7 +175,8 @@ protected:
    * pieces). Returns 1 if successful, 0 otherwise.
    */
   int Read(vtkInformation* outInfo, vtkImageData* data);
-  int Read(vtkInformation* outInfo, vtkUnstructuredGrid* data);
+  int Read(vtkInformation* outInfo, vtkUnstructuredGrid* data, vtkPartitionedDataSet* pData);
+  int Read(vtkInformation* outInfo, vtkPolyData* data, vtkPartitionedDataSet* pData);
   int Read(vtkInformation* outInfo, vtkOverlappingAMR* data);
   ///@}
   /**
@@ -139,8 +186,9 @@ protected:
    */
   int Read(const std::vector<vtkIdType>& numberOfPoints,
     const std::vector<vtkIdType>& numberOfCells,
-    const std::vector<vtkIdType>& numberOfConnectivityIds, int filePiece,
-    vtkUnstructuredGrid* pieceData);
+    const std::vector<vtkIdType>& numberOfConnectivityIds, vtkIdType partOffset,
+    vtkIdType startingPointOffset, vtkIdType startingCellOffset,
+    vtkIdType startingConnectctivityIdOffset, int filePiece, vtkUnstructuredGrid* pieceData);
   /**
    * Read the field arrays from the file and add them to the dataset.
    */
@@ -200,10 +248,31 @@ protected:
   double Spacing[3];
   ///@}
 
+  ///@{
+  /**
+   * Transient data properties
+   */
+  bool HasTransientData = false;
+  vtkIdType Step = 0;
+  vtkIdType NumberOfSteps = 1;
+  double TimeValue = 0.0;
+  std::array<double, 2> TimeRange;
+  ///@}
+
+  /**
+   * Determine whether to merge the partitions (true) or return a vtkPartitionedDataSet (false)
+   */
+  bool MergeParts = true;
+
   unsigned int MaximumLevelsToReadByDefaultForAMR = 0;
 
   class Implementation;
   Implementation* Impl;
+
+  bool UseCache = false;
+  struct DataCache;
+  std::shared_ptr<DataCache> Cache;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

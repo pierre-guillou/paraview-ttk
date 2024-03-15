@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellDerivatives.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellDerivatives
  * @brief   compute derivatives of scalars and vectors
@@ -60,6 +48,7 @@
 #define VTK_TENSOR_MODE_COMPUTE_STRAIN 2
 #define VTK_TENSOR_MODE_COMPUTE_GREEN_LAGRANGE_STRAIN 3
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkCellDerivatives : public vtkDataSetAlgorithm
 {
 public:
@@ -126,4 +115,5 @@ private:
   void operator=(const vtkCellDerivatives&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

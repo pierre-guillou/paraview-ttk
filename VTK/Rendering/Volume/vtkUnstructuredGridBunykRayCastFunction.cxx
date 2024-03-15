@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridBunykRayCastFunction.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUnstructuredGridBunykRayCastFunction.h"
 
 #include "vtkArrayDispatch.h"
@@ -41,6 +29,7 @@
 #include <cassert>
 #include <cstdlib>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUnstructuredGridBunykRayCastFunction);
 
 #define VTK_BUNYKRCF_NUMLISTS 100000
@@ -1191,3 +1180,4 @@ void vtkUnstructuredGridBunykRayCastFunction::PrintSelf(ostream& os, vtkIndent i
   // this->ScalarOpacityUnitDistance , or this->ImageOrigin - these are
   // internal ivar and not part of the public API for this class
 }
+VTK_ABI_NAMESPACE_END

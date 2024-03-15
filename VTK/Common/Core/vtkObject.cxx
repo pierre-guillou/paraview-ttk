@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkObject.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkObject.h"
 
 #include "vtkCommand.h"
@@ -25,8 +13,9 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 // Initialize static member that controls warning display
-static int vtkObjectGlobalWarningDisplay = 1;
+static vtkTypeBool vtkObjectGlobalWarningDisplay = 1;
 
 //------------------------------------------------------------------------------
 // avoid dll boundary problems
@@ -45,13 +34,13 @@ void vtkObject::operator delete(void* p)
 #endif
 
 //------------------------------------------------------------------------------
-void vtkObject::SetGlobalWarningDisplay(int val)
+void vtkObject::SetGlobalWarningDisplay(vtkTypeBool val)
 {
   vtkObjectGlobalWarningDisplay = val;
 }
 
 //------------------------------------------------------------------------------
-int vtkObject::GetGlobalWarningDisplay()
+vtkTypeBool vtkObject::GetGlobalWarningDisplay()
 {
   return vtkObjectGlobalWarningDisplay;
 }
@@ -116,7 +105,7 @@ public:
   void RemoveObservers(unsigned long event);
   void RemoveObservers(unsigned long event, vtkCommand* cmd);
   void RemoveAllObservers();
-  int InvokeEvent(unsigned long event, void* callData, vtkObject* self);
+  vtkTypeBool InvokeEvent(unsigned long event, void* callData, vtkObject* self);
   vtkCommand* GetCommand(unsigned long tag);
   unsigned long GetTag(vtkCommand*);
   vtkTypeBool HasObserver(unsigned long event);
@@ -495,9 +484,9 @@ vtkTypeBool vtkSubjectHelper::HasObserver(unsigned long event, vtkCommand* cmd)
 }
 
 //------------------------------------------------------------------------------
-int vtkSubjectHelper::InvokeEvent(unsigned long event, void* callData, vtkObject* self)
+vtkTypeBool vtkSubjectHelper::InvokeEvent(unsigned long event, void* callData, vtkObject* self)
 {
-  int focusHandled = 0;
+  bool focusHandled = false;
 
   // When we invoke an event, the observer may add or remove observers.  To make
   // sure that the iteration over the observers goes smoothly, we capture any
@@ -592,7 +581,7 @@ int vtkSubjectHelper::InvokeEvent(unsigned long event, void* callData, vtkObject
         if (vIter == visited.end() || *vIter != elem->Tag)
         {
           // Don't execute the remainder loop
-          focusHandled = 1;
+          focusHandled = true;
           // Sorted insertion by tag to speed-up future searches at limited
           // insertion cost because it reuses the search iterator already at the
           // correct location
@@ -811,7 +800,7 @@ void vtkObject::RemoveAllObservers()
 }
 
 //------------------------------------------------------------------------------
-int vtkObject::InvokeEvent(unsigned long event, void* callData)
+vtkTypeBool vtkObject::InvokeEvent(unsigned long event, void* callData)
 {
   if (this->SubjectHelper)
   {
@@ -821,7 +810,7 @@ int vtkObject::InvokeEvent(unsigned long event, void* callData)
 }
 
 //------------------------------------------------------------------------------
-int vtkObject::InvokeEvent(const char* event, void* callData)
+vtkTypeBool vtkObject::InvokeEvent(const char* event, void* callData)
 {
   return this->InvokeEvent(vtkCommand::GetEventIdFromString(event), callData);
 }
@@ -1008,3 +997,4 @@ std::string vtkObject::GetObjectDescription() const
   }
   return s.str();
 }
+VTK_ABI_NAMESPACE_END

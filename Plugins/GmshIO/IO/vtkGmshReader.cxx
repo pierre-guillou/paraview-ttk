@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGmshReader.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGmshReader.h"
 #include "gmshCommon.h"
 
@@ -143,6 +131,7 @@ void GetElements(gmsh::vectorpair& elemTypes, Array2D<std::size_t>& elemTags,
 }
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGmshReader);
 
@@ -557,6 +546,15 @@ void vtkGmshReader::FillGrid(vtkUnstructuredGrid* grid, int groupIdx, double tim
   {
     grid->GetCellData()->AddArray(group.EntityIds);
   }
+  if (this->CreateGmshPhysicalIDArray)
+  {
+    vtkNew<vtkIntArray> physicalTags;
+    physicalTags->SetName("gmshPhysicalID");
+    physicalTags->SetNumberOfComponents(1);
+    physicalTags->SetNumberOfTuples(nbCells);
+    physicalTags->Fill(group.Tag);
+    grid->GetCellData()->AddArray(physicalTags);
+  }
 
   for (const DataArray& data : group.Data)
   {
@@ -713,3 +711,4 @@ void vtkGmshReader::PrintSelf(std::ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Filename:" << this->FileName << std::endl;
 }
+VTK_ABI_NAMESPACE_END

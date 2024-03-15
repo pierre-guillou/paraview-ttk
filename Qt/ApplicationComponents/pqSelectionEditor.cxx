@@ -1,54 +1,31 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqSelectionEditor.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqSelectionEditor.h"
 #include "ui_pqSelectionEditor.h"
 
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
+#include "pqColorChooserButton.h"
 #include "pqCoreUtilities.h"
+#include "pqDataRepresentation.h"
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
 #include "pqSelectionManager.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
 #include "pqUndoStack.h"
+#include "pqView.h"
 
 #include "vtkDataObject.h"
+#include "vtkInformation.h"
 #include "vtkPVDataInformation.h"
 #include "vtkSMFieldDataDomain.h"
 #include "vtkSMInputProperty.h"
 #include "vtkSMInteractiveSelectionPipeline.h"
 #include "vtkSMPropertyHelper.h"
+#include "vtkSMProxyDefinitionManager.h"
 #include "vtkSMRenderViewProxy.h"
 #include "vtkSMSelectionHelper.h"
 #include "vtkSMSessionProxyManager.h"
@@ -56,10 +33,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMStringVectorProperty.h"
 #include "vtkSelectionNode.h"
 #include "vtkSmartPointer.h"
+#include "vtkVector.h"
 
 #include <QAbstractTableModel>
 #include <QMessageBox>
+#include <QMetaProperty>
+#include <QPainter>
 #include <QPointer>
+#include <QStyledItemDelegate>
 #include <QtDebug>
 
 #include <vector>
@@ -122,7 +103,88 @@ QString getTypeFromProxyXMLName(const char* proxyXMLName)
     return QString("Unknown");
   }
 }
-}
+
+//=============================================================================
+class pqSelectionEditorDeleguate : public QStyledItemDelegate
+{
+public:
+  pqSelectionEditorDeleguate(QObject* parent)
+    : QStyledItemDelegate(parent)
+  {
+  }
+
+  ~pqSelectionEditorDeleguate() override = default;
+
+  void paint(
+    QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override
+  {
+    QStyleOptionViewItem modOption = option;
+
+    QColor color = index.model()->data(index, Qt::DisplayRole).value<QColor>();
+    // swatch
+    int margin = static_cast<int>(0.3 * option.rect.height());
+    QRect swatchRect = option.rect.marginsRemoved(QMargins(margin, margin, margin, margin));
+    swatchRect.setWidth(swatchRect.height());
+
+    painter->save();
+    painter->setRenderHint(QPainter::Antialiasing, true);
+    painter->setPen(Qt::black);
+    painter->setBrush(QBrush(color));
+    painter->drawEllipse(swatchRect);
+    painter->restore();
+
+    modOption.rect.setLeft(swatchRect.right() + 4);
+    modOption.text = QString("(%1, %2, %3)").arg(color.red()).arg(color.green()).arg(color.blue());
+
+    QStyledItemDelegate::paint(painter, modOption, index);
+  }
+
+  void closeCurrentEditor()
+  {
+    QWidget* editor = qobject_cast<QWidget*>(this->sender());
+    Q_EMIT this->commitData(editor);
+    Q_EMIT this->closeEditor(editor);
+  }
+
+  QWidget* createEditor(
+    QWidget* parent, const QStyleOptionViewItem&, const QModelIndex& index) const override
+  {
+    QColor color = index.model()->data(index, Qt::DisplayRole).value<QColor>();
+
+    pqColorChooserButton* buttonColor = new pqColorChooserButton(parent);
+    buttonColor->setChosenColor(color);
+    buttonColor->setText(
+      QString("%1, %2, %3").arg(color.red()).arg(color.green()).arg(color.blue()));
+
+    QObject::connect(buttonColor, &pqColorChooserButton::chosenColorChanged, this,
+      &pqSelectionEditorDeleguate::closeCurrentEditor);
+
+    return buttonColor;
+  }
+
+  void setEditorData(QWidget* editor, const QModelIndex& index) const override
+  {
+    pqColorChooserButton* colorButton = static_cast<pqColorChooserButton*>(editor);
+    QString textColor = index.model()->data(index, Qt::EditRole).toString();
+    colorButton->setText(textColor);
+    colorButton->update();
+  };
+
+  void setModelData(
+    QWidget* editor, QAbstractItemModel* model, const QModelIndex& index) const override
+  {
+    pqColorChooserButton* buttonColor = static_cast<pqColorChooserButton*>(editor);
+    QColor color = buttonColor->chosenColor();
+    model->setData(index, color, Qt::EditRole);
+  }
+
+  void updateEditorGeometry(
+    QWidget* editor, const QStyleOptionViewItem& option, const QModelIndex&) const override
+  {
+    editor->setGeometry(option.rect);
+  }
+};
+} // namespace
 
 /**
  * The Qt model associated with the 2D array representation of the selection properties
@@ -143,6 +205,22 @@ public:
    */
   ~pqSelectionProxyModel() override = default;
 
+  Qt::ItemFlags flags(const QModelIndex& idx) const override
+  {
+    // Color column should be editable to changes the color of the selected selection
+    if (idx.column() == 2)
+    {
+      // Color the selection isn't supported on macos arm, for more details:
+      // https://gitlab.kitware.com/paraview/paraview/-/issues/21786
+#if defined(__APPLE__) && defined(__arm64__)
+      return Qt::NoItemFlags;
+#else
+      return QAbstractTableModel::flags(idx) | Qt::ItemFlag::ItemIsEditable;
+#endif
+    }
+    return QAbstractTableModel::flags(idx);
+  }
+
   /**
    * Sets the selection information.
    */
@@ -155,13 +233,16 @@ public:
     {
       return;
     }
+
     this->beginInsertRows(QModelIndex(), 0, selectionInputs->GetNumberOfProxies() - 1);
     this->SavedSelections.resize(selectionInputs->GetNumberOfProxies());
+    this->SavedColors.resize(selectionInputs->GetNumberOfProxies(), this->DefaultSelectionColor);
+
     for (unsigned int i = 0; i < selectionInputs->GetNumberOfProxies(); ++i)
     {
-      this->SavedSelections[i].Name = selectionNames->GetElement(i);
       this->SavedSelections[i].Type =
         getTypeFromProxyXMLName(selectionInputs->GetProxy(i)->GetXMLName());
+      this->SavedSelections[i].Name = selectionNames->GetElement(i);
     }
     this->endInsertRows();
   }
@@ -176,6 +257,59 @@ public:
     this->endResetModel();
   }
 
+  /**
+   * Resets the colors saved
+   */
+  void resetColorsInfo()
+  {
+    this->beginResetModel();
+    this->SavedColors.clear();
+    this->endResetModel();
+  }
+
+  /**
+   * Set the default color used for the selection color
+   */
+  void SetDefaultColor(double* color)
+  {
+    if (!color)
+    {
+      return;
+    }
+    this->DefaultSelectionColor = QColor(color[0] * 255, color[1] * 255, color[2] * 255);
+  }
+
+  /**
+   * Return the color saved at the given index to fit with vtkAppendSelection.
+   */
+  std::vector<double> GetColor(unsigned int idx)
+  {
+    std::vector<double> color;
+    color.resize(3);
+    if (idx >= this->SavedColors.size())
+    {
+      return color;
+    }
+
+    QColor qColor = this->SavedColors[idx];
+    color[0] = qColor.redF();
+    color[1] = qColor.greenF();
+    color[2] = qColor.blueF();
+
+    return color;
+  }
+
+  void RemoveColorAt(unsigned int idx)
+  {
+    if (idx >= this->SavedColors.size())
+    {
+      return;
+    }
+
+    this->SavedColors.erase(
+      std::remove(this->SavedColors.begin(), this->SavedColors.end(), this->SavedColors[idx]),
+      this->SavedColors.end());
+  }
   //-----------------------------------------------------------------------------
   // Qt functions overrides
   //-----------------------------------------------------------------------------
@@ -193,6 +327,8 @@ public:
           return "Name";
         case 1:
           return "Type";
+        case 2:
+          return "Color";
       }
     }
     return QAbstractTableModel::headerData(section, orientation, role);
@@ -208,9 +344,9 @@ public:
   }
 
   /**
-   * Returns the number of columns (two in our case).
+   * Returns the number of columns (three in our case).
    */
-  int columnCount(const QModelIndex&) const override { return 2; }
+  int columnCount(const QModelIndex&) const override { return 3; }
 
   /**
    * Returns the data at index with role.
@@ -239,7 +375,48 @@ public:
       }
       return QVariant();
     }
+    else if (col == 2)
+    {
+      if (role == Qt::DisplayRole || role == Qt::EditRole)
+      {
+        return this->SavedColors[row];
+      }
+      return QVariant();
+    }
     return QVariant();
+  }
+
+  bool setData(const QModelIndex& index, const QVariant& variant, int role) override
+  {
+    if (!index.isValid())
+    {
+      return false;
+    }
+
+    const int colorColumn = 2;
+    if (index.column() == colorColumn && index.row() < this->SavedColors.size())
+    {
+      QColor c = variant.value<QColor>();
+      SavedColors[index.row()] = c;
+    }
+
+    return QAbstractTableModel::setData(index, variant, role);
+  }
+
+  /**
+   * Return true if there is at least one frustrum selection saved in the model.
+   */
+  bool hasFrustrumSelection()
+  {
+    for (std::size_t i = 0; i < this->SavedSelections.size(); i++)
+    {
+      if (this->SavedSelections[i].Type == "Frustum Selection")
+      {
+        return true;
+      }
+    }
+
+    return false;
   }
 
 private:
@@ -249,6 +426,8 @@ private:
     QString Type;
   };
   std::vector<SelectionInfo> SavedSelections;
+  std::vector<QColor> SavedColors;
+  QColor DefaultSelectionColor;
 };
 
 //-----------------------------------------------------------------------------
@@ -264,11 +443,12 @@ public:
     this->PropertiesView->horizontalHeader()->setStretchLastSection(true);
     this->PropertiesView->setSelectionBehavior(QAbstractItemView::SelectRows);
     this->PropertiesView->setSelectionMode(QAbstractItemView::SingleSelection);
+    this->PropertiesView->setItemDelegateForColumn(2, new pqSelectionEditorDeleguate(self));
     this->PropertiesView->show();
 
     // source
     this->SourceInfo->setEnabled(false);
-    this->SourceInfo->setText("(none)");
+    this->SourceInfo->setText(QString("(%1)").arg(tr("none")));
 
     // element type
     this->ElementTypeInfo->setEnabled(false);
@@ -418,6 +598,13 @@ void pqSelectionEditor::onActiveServerChanged(pqServer* server)
     return;
   }
 
+  // From the server, find the default selection color in paraview settings
+  double color[3] = { 0, 0, 0 };
+  vtkSMProxy* colorPalette =
+    this->Internal->Server->proxyManager()->GetProxy("settings", "ColorPalette");
+  vtkSMPropertyHelper(colorPalette, "SelectionColor").Get(color, 3);
+  this->Internal->SelectionModel.SetDefaultColor(color);
+
   // initialize saved append selections
   auto pxm = server->proxyManager();
   this->Internal->SavedAppendSelections.TakeReference(
@@ -454,7 +641,7 @@ void pqSelectionEditor::onAboutToRemoveSource(pqPipelineSource* source)
     if (this->Internal->SourceInfo->isEnabled())
     {
       this->Internal->SourceInfo->setEnabled(false);
-      this->Internal->SourceInfo->setText("(none)");
+      this->Internal->SourceInfo->setText(QString("(%1)").arg(tr("none")));
       this->removeAllSelections(vtkDataObject::POINT);
     }
   }
@@ -702,6 +889,8 @@ void pqSelectionEditor::onRemoveSelectedSelection()
     savedSelectionNames.SetNumberOfElements(savedSelectionNames.GetNumberOfElements() - 1);
     this->Internal->SavedAppendSelections->UpdateVTKObjects();
 
+    this->Internal->SelectionModel.RemoveColorAt(selectedRow);
+
     if (savedSelectionInputs.GetNumberOfElements() == 0)
     {
       this->removeAllSelections(this->Internal->getSelectionInputElementType());
@@ -732,6 +921,7 @@ void pqSelectionEditor::removeAllSelections(int elementType)
   // update table information
   this->Internal->SavedAppendSelections->ResetPropertiesToDefault(vtkSMProxy::ONLY_XML);
   this->Internal->SelectionModel.resetSelectionInfo();
+  this->Internal->SelectionModel.resetColorsInfo();
   // update the GUI
   this->Internal->ElementTypeInfo->setEnabled(false);
   this->Internal->setElementType(elementType);
@@ -762,6 +952,9 @@ void pqSelectionEditor::onActivateCombinedSelections()
     vtkSMSourceProxy::SafeDownCast(pxm->NewProxy("filters", "AppendSelections")));
   unsigned int numInputs =
     vtkSMPropertyHelper(savedAppendSelections, "Input").GetNumberOfElements();
+
+  std::vector<vtkVector3d> colors;
+  colors.resize(numInputs);
   for (unsigned int i = 0; i < numInputs; ++i)
   {
     auto selectionSource = vtkSMPropertyHelper(savedAppendSelections, "Input").GetAsProxy(i);
@@ -772,18 +965,27 @@ void pqSelectionEditor::onActivateCombinedSelections()
     selectionSourceCopy->UpdateVTKObjects();
     vtkSMPropertyHelper(savedAppendSelectionsCopy, "Input").Add(selectionSourceCopy);
 
+    auto color = this->Internal->SelectionModel.GetColor(i);
+    colors[i][0] = color[0];
+    colors[i][1] = color[1];
+    colors[i][2] = color[2];
     vtkSMPropertyHelper(savedAppendSelectionsCopy, "SelectionNames")
       .Set(i, vtkSMPropertyHelper(savedAppendSelections, "SelectionNames").GetAsString(i));
   }
+
+  // Frustrum Selection doesn't support the color selection
+  if (!this->Internal->SelectionModel.hasFrustrumSelection())
+  {
+    vtkSMPropertyHelper(savedAppendSelectionsCopy, "SelectionColors")
+      .Set(&colors[0][0], numInputs * 3);
+  }
+
   vtkSMPropertyHelper(savedAppendSelectionsCopy, "Expression")
     .Set(vtkSMPropertyHelper(savedAppendSelections, "Expression").GetAsString());
   vtkSMPropertyHelper(savedAppendSelectionsCopy, "InsideOut")
     .Copy(vtkSMPropertyHelper(savedAppendSelections, "InsideOut"));
   savedAppendSelectionsCopy->UpdateVTKObjects();
-
-  // set activeAppendSelections
-  this->clearInteractiveSelection();
-  this->Internal->SavedPort->setSelectionInput(savedAppendSelectionsCopy, 0);
+  savedAppendSelectionsCopy->UpdatePipeline();
 
   // ugliness with selection manager -- need a better way of doing this!
   auto selectionManager =
@@ -797,4 +999,8 @@ void pqSelectionEditor::onActivateCombinedSelections()
     selectionManager->select(
       pipelineProxy->getOutputPort(this->Internal->SavedPort->getPortNumber()));
   }
+
+  // set activeAppendSelections
+  this->clearInteractiveSelection();
+  this->Internal->SavedPort->setSelectionInput(savedAppendSelectionsCopy, 0);
 }

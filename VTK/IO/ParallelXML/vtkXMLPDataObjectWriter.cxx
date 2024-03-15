@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPDataObjectWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLPDataObjectWriter.h"
 
 #include "vtkCallbackCommand.h"
@@ -25,6 +13,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkXMLPDataObjectWriter, Controller, vtkMultiProcessController);
 //------------------------------------------------------------------------------
 vtkXMLPDataObjectWriter::vtkXMLPDataObjectWriter()
@@ -380,3 +369,4 @@ void vtkXMLPDataObjectWriter::SetupPieceFileNameExtension()
 {
   delete[] this->PieceFileNameExtension;
 }
+VTK_ABI_NAMESPACE_END

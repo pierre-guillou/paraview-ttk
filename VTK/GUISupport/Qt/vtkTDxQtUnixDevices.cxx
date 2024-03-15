@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkDepthPeelingPass.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTDxQtUnixDevices.h"
 #include "vtkSmartPointer.h"
@@ -20,6 +8,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <X11/Xlib.h> // Needed for X types used in the public interface
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLessThanWindowId
 {
 public:
@@ -110,3 +99,4 @@ void vtkTDxQtUnixDevices::ProcessEvent(vtkTDxUnixDeviceXEvent* e)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

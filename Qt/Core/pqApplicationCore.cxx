@@ -1,37 +1,6 @@
-/*=========================================================================
-
-   Program:   ParaView
-   Module:    pqApplicationCore.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqApplicationCore.h"
 
@@ -41,11 +10,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Qt includes.
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QFile>
 #include <QMainWindow>
 #include <QMap>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QSize>
 #include <QTemporaryFile>
 #include <QtDebug>
@@ -62,7 +33,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqLinksModel.h"
 #include "pqMainWindowEventManager.h"
 #include "pqObjectBuilder.h"
-#include "pqOptions.h"
 #include "pqPipelineFilter.h"
 #include "pqPluginManager.h"
 #include "pqProgressManager.h"
@@ -80,7 +50,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkCLIOptions.h"
 #include "vtkCommand.h"
 #include "vtkInitializationHelper.h"
-#include "vtkLegacy.h"
+#include "vtkPVFileInformation.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkPVLogger.h"
 #include "vtkPVPluginTracker.h"
@@ -99,6 +69,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMWriterFactory.h"
 #include "vtkSmartPointer.h"
+
+#include <QLibraryInfo>
+#include <QProcessEnvironment>
 
 #include <cassert>
 
@@ -120,21 +93,6 @@ pqApplicationCore* pqApplicationCore::Instance = nullptr;
 pqApplicationCore* pqApplicationCore::instance()
 {
   return pqApplicationCore::Instance;
-}
-
-//-----------------------------------------------------------------------------
-pqApplicationCore::pqApplicationCore(
-  int& argc, char** argv, pqOptions* options, QObject* parentObject)
-  : pqApplicationCore(argc, argv, static_cast<vtkCLIOptions*>(nullptr), true, parentObject)
-{
-  this->setOptions(options);
-}
-
-//-----------------------------------------------------------------------------
-void pqApplicationCore::setOptions(pqOptions* options)
-{
-  this->Options = options;
-  vtkProcessModule::GetProcessModule()->SetOptions(this->Options);
 }
 
 //-----------------------------------------------------------------------------
@@ -163,9 +121,6 @@ pqApplicationCore::pqApplicationCore(int& argc, char** argv, vtkCLIOptions* opti
     // initialization short-circuited. throw exception to exit the application.
     throw pqApplicationCoreExitCode(vtkInitializationHelper::GetExitCode());
   }
-
-  this->Options = vtk::TakeSmartPointer(pqOptions::New());
-  vtkProcessModule::GetProcessModule()->SetOptions(this->Options);
 
   this->constructor();
 }
@@ -306,13 +261,6 @@ pqApplicationCore::~pqApplicationCore()
 }
 
 //-----------------------------------------------------------------------------
-pqOptions* pqApplicationCore::getOptions() const
-{
-  VTK_LEGACY_BODY(pqApplicationCore::getOptions, "ParaView 5.10");
-  return this->Options;
-}
-
-//-----------------------------------------------------------------------------
 void pqApplicationCore::setUndoStack(pqUndoStack* stack)
 {
   if (stack != this->UndoStack)
@@ -356,13 +304,15 @@ QObject* pqApplicationCore::manager(const QString& function)
 }
 
 //-----------------------------------------------------------------------------
-bool pqApplicationCore::saveState(const QString& filename)
+bool pqApplicationCore::saveState(const QString& filename, vtkTypeUInt32 location)
 {
   // * Save the Proxy Manager state.
   vtkSMSessionProxyManager* pxm =
     vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
 
-  return pxm->SaveXMLState(filename.toUtf8().data());
+  Q_EMIT this->aboutToWriteState(filename);
+
+  return pxm->SaveXMLState(filename.toUtf8().data(), location);
 }
 
 //-----------------------------------------------------------------------------
@@ -384,6 +334,8 @@ void pqApplicationCore::loadState(const char* filename, pqServer* server, vtkSMS
   {
     return;
   }
+
+  Q_EMIT this->aboutToReadState(filename);
 
   QFile qfile(filename);
   if (qfile.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -462,6 +414,9 @@ void pqApplicationCore::loadStateIncremental(
   {
     return;
   }
+
+  Q_EMIT aboutToReadState(filename);
+
   vtkPVXMLParser* parser = vtkPVXMLParser::New();
   parser->SetFileName(filename.toUtf8().data());
   parser->Parse();
@@ -506,7 +461,7 @@ void pqApplicationCore::onStateSaved(vtkPVXMLElement* root)
   if (!QApplication::applicationName().isEmpty())
   {
     // Change root element to match the application name.
-    QString valid_name = QApplication::applicationName().replace(QRegExp("\\W"), "_");
+    QString valid_name = QApplication::applicationName().replace(QRegularExpression("\\W"), "_");
     root->SetName(valid_name.toUtf8().data());
   }
   Q_EMIT this->stateSaved(root);
@@ -762,9 +717,13 @@ void pqApplicationCore::generalSettingsChanged()
 {
   if (auto pvsettings = vtkPVGeneralSettings::GetInstance())
   {
-    pqDoubleLineEdit::setGlobalPrecisionAndNotation(pvsettings->GetRealNumberDisplayedPrecision(),
+    pqDoubleLineEdit::RealNumberNotation realNotation =
       static_cast<pqDoubleLineEdit::RealNumberNotation>(
-        pvsettings->GetRealNumberDisplayedNotation()));
+        pvsettings->GetRealNumberDisplayedNotation());
+    int realPrecision = pvsettings->GetRealNumberDisplayedShortestAccuratePrecision()
+      ? QLocale::FloatingPointShortest
+      : pvsettings->GetRealNumberDisplayedPrecision();
+    pqDoubleLineEdit::setGlobalPrecisionAndNotation(realPrecision, realNotation);
   }
 }
 
@@ -780,4 +739,78 @@ void pqApplicationCore::_paraview_client_environment_complete()
   Initialized = true;
   vtkVLogScopeF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "clientEnvironmentDone");
   Q_EMIT this->clientEnvironmentDone();
+}
+
+//-----------------------------------------------------------------------------
+QString pqApplicationCore::getInterfaceLanguage()
+{
+  QProcessEnvironment options = QProcessEnvironment::systemEnvironment();
+  if (options.contains("PV_TRANSLATIONS_LOCALE"))
+  {
+    return options.value("PV_TRANSLATIONS_LOCALE");
+  }
+  else if (this->settings()->contains("GeneralSettings.InterfaceLanguage"))
+  {
+    return this->settings()->value("GeneralSettings.InterfaceLanguage").toString();
+  }
+  return QString("en");
+}
+
+//-----------------------------------------------------------------------------
+QString pqApplicationCore::getTranslationsPathFromInterfaceLanguage(QString prefix, QString locale)
+{
+  if (locale.isEmpty())
+  {
+    return QString();
+  }
+  QList<QDir> paths;
+  QProcessEnvironment options = QProcessEnvironment::systemEnvironment();
+  if (options.contains("PV_TRANSLATIONS_DIR"))
+  {
+    for (QString path : options.value("PV_TRANSLATIONS_DIR").split(":"))
+    {
+      paths.append(QDir(path));
+    }
+  }
+  QString translationsPath(vtkPVFileInformation::GetParaViewTranslationsDirectory().c_str());
+  /* PV_TRANSLATIONS_DIR `override` translationsPath's qm files,
+    thus translationsPath has to be added lastly */
+  paths.append(translationsPath);
+  for (QDir directory : paths)
+  {
+    for (QFileInfo fileInfo : directory.entryInfoList(QDir::Files))
+    {
+      if (fileInfo.suffix() == "qm")
+      {
+        QLocale fileLocale(
+          fileInfo.completeBaseName().mid(fileInfo.completeBaseName().indexOf("_") + 1));
+        if (fileInfo.completeBaseName().startsWith(prefix + "_") && fileLocale == QLocale(locale))
+        {
+          return fileInfo.absoluteDir().absolutePath();
+        }
+      }
+    }
+  }
+  return QString();
+}
+
+//-----------------------------------------------------------------------------
+QTranslator* pqApplicationCore::getQtTranslations(QString prefix, QString locale)
+{
+  QTranslator* translator = new QTranslator(this);
+  QString qtQmPath(QLibraryInfo::location(QLibraryInfo::TranslationsPath));
+  bool qtLoaded = translator->load(QLocale(locale), prefix, "_", qtQmPath);
+  if (qtLoaded)
+  {
+    return translator;
+  }
+  qtQmPath = this->getTranslationsPathFromInterfaceLanguage(prefix, locale);
+  qtLoaded = translator->load(QLocale(locale), prefix, "_", qtQmPath);
+  if (qtLoaded)
+  {
+    return translator;
+  }
+  qWarning() << QString("Could not load a %1 translation file with associated locale %2")
+                  .arg(prefix, locale);
+  return nullptr;
 }

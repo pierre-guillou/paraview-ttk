@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAutoCorrelativeStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAutoCorrelativeStatistics.h"
 #include "vtkStatisticsAlgorithmPrivate.h"
@@ -33,6 +21,7 @@
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAutoCorrelativeStatistics);
 
 //------------------------------------------------------------------------------
@@ -175,7 +164,7 @@ void vtkAutoCorrelativeStatistics::Aggregate(
         double M2Xt_c = currentTab->GetValueByName(r, "M2 Xt").ToDouble();
         double MXsXt_c = currentTab->GetValueByName(r, "M XsXt").ToDouble();
 
-        // Update global statics
+        // Update global statistics
         int N = n + n_c;
 
         double invN = 1. / static_cast<double>(N);
@@ -277,7 +266,7 @@ void vtkAutoCorrelativeStatistics::Learn(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    std::string varName = *it;
+    std::string const& varName = *it;
     if (!inData->GetColumnByName(varName.c_str()))
     {
       vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
@@ -637,3 +626,4 @@ void vtkAutoCorrelativeStatistics::SelectAssessFunctor(
 
   // If arrived here it means that the variable of interest was not found in the parameter table
 }
+VTK_ABI_NAMESPACE_END

@@ -715,7 +715,7 @@
   <ProxyGroup name="sources">
 
 #ifndef WIN32
-    <SourceProxy name="VisItClawReader" class="vtkVisItClawReader"
+    <SourceProxy name="VisItClawReader" class="vtkVisItClawReader" label="VisIt Claw Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="A material-ordered format very similar to IOUT=1.">
@@ -729,7 +729,7 @@
     </SourceProxy>
 #endif
 
-    <SourceProxy name="VisItGGCMReader" class="vtkVisItGGCMReader"
+    <SourceProxy name="VisItGGCMReader" class="vtkVisItGGCMReader" label="VisIt GGCM Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
      <Documentation
        long_help="Reads Geospace General Circulation Model files">
@@ -742,7 +742,7 @@
      </Hints>
      </SourceProxy>
 
-    <SourceProxy name="VisItGULPReader" class="vtkVisItGULPReader"
+    <SourceProxy name="VisItGULPReader" class="vtkVisItGULPReader" label="VisIt GULP Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
      <Documentation
        long_help="GULP trajectory file reader">
@@ -755,7 +755,7 @@
      </Hints>
      </SourceProxy>
 
-    <SourceProxy name="VisItH5NimrodReader" class="vtkVisItH5NimrodReader"
+    <SourceProxy name="VisItH5NimrodReader" class="vtkVisItH5NimrodReader" label="VisIt H5Nimrod Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
      <Documentation
        long_help="NIMROD HDF5 data model reader">
@@ -768,7 +768,7 @@
      </Hints>
      </SourceProxy>
 
-    <SourceProxy name="VisItLAMMPSStructureReader" class="vtkVisItLAMMPSStructureReader"
+    <SourceProxy name="VisItLAMMPSStructureReader" class="vtkVisItLAMMPSStructureReader" label="VisIt LAMMPS Structure Reader"
     base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="LAMMPS Molecular Dynamics Simulator reader">
@@ -781,7 +781,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItLAMMPSDumpReader" class="vtkVisItLAMMPSDumpReader"
+    <SourceProxy name="VisItLAMMPSDumpReader" class="vtkVisItLAMMPSDumpReader" label="VisIt LAMMPS Dump Reader"
     base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="LAMMPS Molecular Dynamics Simulator dump reader">
@@ -794,7 +794,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItM3DReader" class="vtkVisItM3DReader"
+    <SourceProxy name="VisItM3DReader" class="vtkVisItM3DReader" label="VisIt M3D Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="M3D fusion code reader">
@@ -808,7 +808,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItM3DC1Reader" class="vtkVisItM3DC1Reader"
+    <SourceProxy name="VisItM3DC1Reader" class="vtkVisItM3DC1Reader" label="VisIt M3DC1 Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="M3DC1 fusion code reader">
@@ -821,7 +821,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItMFIXReader" class="vtkVisItMFIXReader"
+    <SourceProxy name="VisItMFIXReader" class="vtkVisItMFIXReader" label="VisIt MFIX Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Multiphase Flow with Interphase eXchanges(MFiX) reader for result files.">
@@ -835,7 +835,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItMFIXCDFReader" class="vtkVisItMFIXCDFReader"
+    <SourceProxy name="VisItMFIXCDFReader" class="vtkVisItMFIXCDFReader" label="VisIt MFIXCDF Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Multiphase Flow with Interphase eXchanges(MFiX) reader for new netcdf based format.">
@@ -849,7 +849,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItMirandaReader" class="vtkVisItMirandaReader"
+    <SourceProxy name="VisItMirandaReader" class="vtkVisItMirandaReader" label="VisIt Miranda Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Readers the raw output format of LLNL's Miranda simulation.">
@@ -863,7 +863,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItMM5Reader" class="vtkVisItMM5Reader"
+    <SourceProxy name="VisItMM5Reader" class="vtkVisItMM5Reader" label="VisIt MM5 Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Reads PSU/NCAR mesoscale model simulation files.">
@@ -876,7 +876,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFLODIReader" class="vtkVisItLODIReader"
+    <SourceProxy name="VisItNetCDFLODIReader" class="vtkVisItLODIReader" label="VisIt NetCDF LODI Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads NetCDF LODI files">
@@ -889,7 +889,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFLODIParticleReader" class="vtkVisItLODIParticleReader"
+    <SourceProxy name="VisItNetCDFLODIParticleReader" class="vtkVisItLODIParticleReader" label="VisIt NetCDF LODI Particle Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads NetCDF LODI particle files">
@@ -902,7 +902,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFFVCOM_MTMDReader" class="vtkVisItFVCOM_MTMDReader"
+    <SourceProxy name="VisItNetCDFFVCOM_MTMDReader" class="vtkVisItFVCOM_MTMDReader" label="VisIt NetCDF FVCOM_MTMD Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads FVCOM  primitive equations ocean models">
@@ -915,7 +915,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFFVCOM_MTSDReader" class="vtkVisItFVCOM_MTSDReader"
+    <SourceProxy name="VisItNetCDFFVCOM_MTSDReader" class="vtkVisItFVCOM_MTSDReader" label="VisIt NetCDF FVCOM_MTSD Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads FVCOM  primitive equations ocean models">
@@ -928,7 +928,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFFVCOMParticleReader" class="vtkVisItFVCOMParticleReader"
+    <SourceProxy name="VisItNetCDFFVCOMParticleReader" class="vtkVisItFVCOMParticleReader" label="VisIt NetCDF FVCOM Particle Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads FVCOM primitive equations ocean model particle files">
@@ -941,7 +941,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNetCDFCCSM_MTSDReader" class="vtkVisItCCSM_MTSD_Reader"
+    <SourceProxy name="VisItNetCDFCCSM_MTSDReader" class="vtkVisItCCSM_MTSD_Reader" label="VisIt NetCDF CCSM_MTSD Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
     <Documentation
        long_help="Reads CCSM climate data files">
@@ -954,7 +954,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItNek5000Reader" class="vtkVisItNek5000Reader"
+    <SourceProxy name="VisItNek5000Reader" class="vtkVisItNek5000Reader" label="VisIt Nek5000 Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Reads simulation results from Nek5000 which is a DNS/LES computational fluid dynamics solver">
@@ -967,7 +967,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItOpenFOAMReader" class="vtkVisItOpenFOAMReader"
+    <SourceProxy name="VisItOpenFOAMReader" class="vtkVisItOpenFOAMReader" label="VisIt OpenFOAM Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
        long_help="Reads simulation results from OpenFOAM (Open Field Operation and Manipulation) CFD Toolbox">
@@ -980,7 +980,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItPFLOTRANReader" class="vtkVisItPFLOTRANReader"
+    <SourceProxy name="VisItPFLOTRANReader" class="vtkVisItPFLOTRANReader" label="VisIt PFLOTRAN Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
      <Documentation>
        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
@@ -992,7 +992,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItPixieReader" class="vtkVisItPixieReader"
+    <SourceProxy name="VisItPixieReader" class="vtkVisItPixieReader" label="VisIt Pixie Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads 2D and 3D simulation data saved in Pixie HDF5 format.">
@@ -1005,7 +1005,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItPLOT2DReader" class="vtkVisItPLOT3DReader"
+    <SourceProxy name="VisItPLOT2DReader" class="vtkVisItPLOT3DReader" label="VisIt PLOT2D Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads structured simulation data from Plot2D.">
@@ -1019,7 +1019,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItSAMRAIReader" class="vtkVisItSAMRAIReader"
+    <SourceProxy name="VisItSAMRAIReader" class="vtkVisItSAMRAIReader" label="VisIt SAMRAI Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads Structured AMR data stored in HDF5 file formats.">
@@ -1032,7 +1032,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItSASReader" class="vtkVisItSASReader"
+    <SourceProxy name="VisItSASReader" class="vtkVisItSASReader" label="VisIt SAS Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads SAS files.">
@@ -1045,7 +1045,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItTetradReader" class="vtkVisItTetradReader"
+    <SourceProxy name="VisItTetradReader" class="vtkVisItTetradReader" label="VisIt Tetrad Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads tetrahedral meshes and variables stored in HDF5 file format.">
@@ -1057,7 +1057,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItVASPOUTCARReader" class="vtkVisItOUTCARReader"
+    <SourceProxy name="VisItVASPOUTCARReader" class="vtkVisItOUTCARReader" label="VisIt VASP OUTCAR Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads VASP simulation result files.">
@@ -1071,7 +1071,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItVASPCHGCARReader" class="vtkVisItCHGCARReader"
+    <SourceProxy name="VisItVASPCHGCARReader" class="vtkVisItCHGCARReader" label="VisIt VASP CHGCAR Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
         long_help="Reads VASP simulation result files.">
@@ -1085,7 +1085,7 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItXYZReader" class="vtkVisItXYZReader"
+    <SourceProxy name="VisItXYZReader" class="vtkVisItXYZReader" label="VisIt XYZ Reader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
      <Documentation>
        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
@@ -1102,6 +1102,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItNetCDFADAPTReader"
+                 label="VisIt NetCDF ADAPT Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1136,6 +1137,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItANSYSReader"
+                 label="VisIt ANSYS Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1168,6 +1170,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItAUXFileReader"
+                 label="VisIt AUXFile Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1200,6 +1203,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItBOVReader"
+                 label="VisIt BOV Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1232,6 +1236,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItNetCDFCCSM_STSDReader"
+                 label="VisIt NetCDF CCSM_STSD Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1264,6 +1269,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItCEAucdReader"
+                 label="VisIt CEA ucd Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1296,6 +1302,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItCMATReader"
+                 label="VisIt CMAT Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1328,6 +1335,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItCTRLReader"
+                 label="VisIt CTRL Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1360,6 +1368,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItChomboReader"
+                 label="VisIt Chombo Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1394,6 +1403,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItCurve2DReader"
+                 label="VisIt Curve2D Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1428,6 +1438,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItDDCMDReader"
+                 label="VisIt DDCMD Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1462,6 +1473,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItDyna3DReader"
+                 label="VisIt Dyna3D Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1496,6 +1508,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItExtrudedVolReader"
+                 label="VisIt Extruded Vol Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1529,6 +1542,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItFLASHReader"
+                 label="VisIt FLASH Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1563,6 +1577,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItNetCDFFVCOM_STSDReader"
+                 label="VisIt NetCDF FVCOM_STSD Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1597,6 +1612,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItFluentReader"
+                 label="VisIt Fluent Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1631,6 +1647,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItGTCReader"
+                 label="VisIt GTC Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1664,6 +1681,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItGadgetReader"
+                 label="VisIt Gadget Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1698,6 +1716,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItImageReader"
+                 label="VisIt Image Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1732,6 +1751,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItLinesReader"
+                 label="VisIt Lines Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1765,6 +1785,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItNASTRANReader"
+                 label="VisIt NASTRAN Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1799,6 +1820,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItOVERFLOWReader"
+                 label="VisIt OVERFLOW Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1833,6 +1855,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItPATRANReader"
+                 label="VisIt PATRAN Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1867,6 +1890,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItPLOT2DReader"
+                 label="VisIt PLOT2D Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1902,6 +1926,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItPLOT3DReader"
+                 label="VisIt PLOT3D Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1936,6 +1961,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItVASPPOSCARReader"
+                 label="VisIt VASP POSCAR Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -1971,6 +1997,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItParaDisReader"
+                 label="VisIt ParaDis Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2005,6 +2032,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItParaDisTecplotReader"
+                 label="VisIt ParaDiS Tecplot Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2039,6 +2067,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItPoint3DReader"
+                 label="VisIt Point3D Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2073,6 +2102,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItProteinDataBankReader"
+                 label="VisIt Protein Data Bank Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2107,6 +2137,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItRAWReader"
+                 label="VisIt RAW Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2142,6 +2173,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItSAMRAIReader"
+                 label="VisIt SAMRAI Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2176,6 +2208,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItSARReader"
+                 label="VisIt SAR Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2210,6 +2243,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItSpheralReader"
+                 label="VisIt Spheral Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2244,6 +2278,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItTFTReader"
+                 label="VisIt TFT Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2278,6 +2313,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItTSurfReader"
+                 label="VisIt TSurf Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2311,6 +2347,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItTecplotBinaryReader"
+                 label="VisIt Tecplot Binary Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2345,6 +2382,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItTecplotReader"
+                 label="VisIt Tecplot Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2379,6 +2417,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItUNICReader"
+                 label="VisIt UNIC Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2413,6 +2452,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItVelodyneReader"
+                 label="VisIt Velodyne Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2420,7 +2460,7 @@
                  si_class="vtkSIMetaReaderProxy">
 
       <Documentation
-        long_help="Reads Velodyne structural mechainces simulation result files.">
+        long_help="Reads Velodyne structural mechanics simulation result files.">
         Velodyne as an advanced structural mechanics code written by Corvid Technologies.
         Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
         The default file extensions are .vld, and .rst
@@ -2448,6 +2488,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItVsReader"
+                 label="VisIt Vs Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"
@@ -2483,6 +2524,7 @@
     <!-- ================================================================= -->
 
     <SourceProxy name="VisItXmdvReader"
+                 label="VisIt Xmdv Reader"
                  base_proxygroup="internal_readers"
                  base_proxyname="VisItSeriesReaderBase"
                  class="vtkFileSeriesReader"

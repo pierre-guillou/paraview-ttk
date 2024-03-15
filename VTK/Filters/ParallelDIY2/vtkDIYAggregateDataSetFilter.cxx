@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYAggregateDataSetFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDIYAggregateDataSetFilter.h"
 
 #include "vtkCellData.h"
@@ -56,6 +44,7 @@
 #include VTK_DIY2(diy/decomposition.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDIYAggregateDataSetFilter);
 
 namespace
@@ -659,12 +648,32 @@ void vtkDIYAggregateDataSetFilter::ExtractDataSetInformation(vtkDataSet* source,
   }
   target->GetPointData()->CopyStructuredData(
     source->GetPointData(), sourceExtent, targetExtent, !this->OutputInitialized);
-  sourceExtent[1]--;
-  sourceExtent[3]--;
-  sourceExtent[5]--;
-  targetExtent[1]--;
-  targetExtent[3]--;
-  targetExtent[5]--;
+  // keep in mind that for 1D or 2D structured grids that we still have cell data
+  // but the extent in that topological direction is already 0 so we can't decrement it
+  if (sourceExtent[1] > sourceExtent[0])
+  {
+    sourceExtent[1]--;
+  }
+  if (sourceExtent[3] > sourceExtent[2])
+  {
+    sourceExtent[3]--;
+  }
+  if (sourceExtent[5] > sourceExtent[4])
+  {
+    sourceExtent[5]--;
+  }
+  if (targetExtent[1] > targetExtent[0])
+  {
+    targetExtent[1]--;
+  }
+  if (targetExtent[3] > targetExtent[2])
+  {
+    targetExtent[3]--;
+  }
+  if (targetExtent[5] > targetExtent[4])
+  {
+    targetExtent[5]--;
+  }
   target->GetCellData()->CopyStructuredData(
     source->GetCellData(), sourceExtent, targetExtent, !this->OutputInitialized);
 
@@ -691,3 +700,4 @@ void vtkDIYAggregateDataSetFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "OutputInitialized: " << this->OutputInitialized << endl;
 }
+VTK_ABI_NAMESPACE_END

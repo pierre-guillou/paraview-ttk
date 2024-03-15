@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVectorNorm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVectorNorm.h"
 
 #include "vtkArrayDispatch.h"
@@ -27,6 +15,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVectorNorm);
 
 namespace
@@ -45,9 +34,11 @@ struct NormOp
 {
   vtkVectorNormAlgorithm<T>* Algo;
   vtkSMPThreadLocal<double> Max;
-  NormOp(vtkVectorNormAlgorithm<T>* algo)
+  vtkVectorNorm* Filter;
+  NormOp(vtkVectorNormAlgorithm<T>* algo, vtkVectorNorm* filter)
     : Algo(algo)
     , Max(VTK_DOUBLE_MIN)
+    , Filter(filter)
   {
   }
   void operator()(vtkIdType k, vtkIdType end)
@@ -57,8 +48,22 @@ struct NormOp
     double& max = this->Max.Local();
     auto vectorRange = vtk::DataArrayTupleRange<3>(this->Algo->Vectors, k, end);
     float* s = this->Algo->Scalars + k;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((end - k) / 10 + 1, (vtkIdType)1000);
     for (auto v : vectorRange)
     {
+      if (k % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+      k++;
       const ValueType mag = v[0] * v[0] + v[1] * v[1] + v[2] * v[2];
       *s = static_cast<float>(sqrt(static_cast<double>(mag)));
       max = (*s > max ? *s : max);
@@ -70,7 +75,8 @@ struct NormOp
 struct vtkVectorNormDispatch // Interface between VTK and templated functions.
 {
   template <typename ArrayT>
-  void operator()(ArrayT* vectors, bool normalize, vtkIdType num, float* scalars) const
+  void operator()(
+    ArrayT* vectors, bool normalize, vtkIdType num, float* scalars, vtkVectorNorm* filter) const
   {
 
     // Populate data into local storage
@@ -80,7 +86,7 @@ struct vtkVectorNormDispatch // Interface between VTK and templated functions.
     algo.Scalars = scalars;
 
     // Okay now generate samples using SMP tools
-    NormOp<ArrayT> norm(&algo);
+    NormOp<ArrayT> norm(&algo, filter);
     vtkSMPTools::For(0, num, norm);
 
     // Have to roll up the thread local storage and get the overall range
@@ -172,9 +178,9 @@ int vtkVectorNorm::RequestData(vtkInformation* vtkNotUsed(request),
     newScalars->SetNumberOfTuples(numVectors);
 
     if (!vtkArrayDispatch::Dispatch::Execute(
-          ptVectors, normDispatch, normalize, numVectors, newScalars->GetPointer(0)))
+          ptVectors, normDispatch, normalize, numVectors, newScalars->GetPointer(0), this))
     {
-      normDispatch(ptVectors, normalize, numVectors, newScalars->GetPointer(0));
+      normDispatch(ptVectors, normalize, numVectors, newScalars->GetPointer(0), this);
     }
 
     int idx = outPD->AddArray(newScalars);
@@ -193,9 +199,9 @@ int vtkVectorNorm::RequestData(vtkInformation* vtkNotUsed(request),
     newScalars->SetNumberOfTuples(numVectors);
 
     if (!vtkArrayDispatch::Dispatch::Execute(
-          cellVectors, normDispatch, normalize, numVectors, newScalars->GetPointer(0)))
+          cellVectors, normDispatch, normalize, numVectors, newScalars->GetPointer(0), this))
     {
-      normDispatch(cellVectors, normalize, numVectors, newScalars->GetPointer(0));
+      normDispatch(cellVectors, normalize, numVectors, newScalars->GetPointer(0), this);
     }
 
     int idx = outCD->AddArray(newScalars);
@@ -237,3 +243,4 @@ void vtkVectorNorm::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Normalize: " << (this->Normalize ? "On\n" : "Off\n");
   os << indent << "Attribute Mode: " << this->GetAttributeModeAsString() << endl;
 }
+VTK_ABI_NAMESPACE_END

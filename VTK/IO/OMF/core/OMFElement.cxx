@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFElement.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "OMFElement.h"
 #include "OMFFile.h"
@@ -131,6 +118,7 @@ bool setFieldDataArray(vtkAbstractArray* array, vtkPartitionedDataSet* output,
 }
 
 } // end anon namespace
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 ProjectElement::ProjectElement(const std::string& uid, double globalOrigin[3])
@@ -616,4 +604,5 @@ void VolumeElement::ProcessGeometry(
   output->SetPartition(0, sgrid);
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace omf

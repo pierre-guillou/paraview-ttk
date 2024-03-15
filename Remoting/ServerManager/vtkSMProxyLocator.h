@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyLocator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyLocator
  * @brief   is used to locate proxies referred to in state xmls
@@ -47,22 +35,22 @@ public:
    */
   virtual vtkSMProxy* LocateProxy(vtkTypeUInt32 globalID);
 
-  //@{
+  ///@{
   /**
    * Get/Set the de-serializer to used to locate XMLs/Protobuf for unknown proxies
    * requested to be located using LocateProxy().
    */
   void SetDeserializer(vtkSMDeserializer*);
   vtkGetObjectMacro(Deserializer, vtkSMDeserializer);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the session.
    */
   virtual vtkSMSession* GetSession();
   virtual void SetSession(vtkSMSession* s);
-  //@}
+  ///@}
 
   /**
    * Clear the locator.

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridOrientedCursor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridOrientedCursor
  * @brief   Objects for traversal a HyperTreeGrid.
@@ -22,6 +10,9 @@
  * the compact hyper tree cursor implemented in vtkHyperTree can.
  * This is an abstract class.
  * Cursors are created by the HyperTreeGrid implementation.
+ *
+ * oriented cursors are used for simple recursive DFS. A cursor has no
+ * knowledge of its parent, only its children.
  *
  * @sa
  * vtkHyperTreeCursor vtkHyperTree vtkHyperTreeGrid
@@ -42,6 +33,7 @@
 #include "vtkHyperTreeGridEntry.h"    // Used internally
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTree;
 class vtkHyperTreeGrid;
 
@@ -201,4 +193,5 @@ private:
   vtkHyperTreeGridOrientedCursor(const vtkHyperTreeGridOrientedCursor&) = delete;
   void operator=(const vtkHyperTreeGridOrientedCursor&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

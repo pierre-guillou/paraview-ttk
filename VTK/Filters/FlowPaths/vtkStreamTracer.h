@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStreamTracer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamTracer
  * @brief   Streamline generator
@@ -97,6 +85,7 @@
 #include "vtkDataSetAttributesFieldList.h" // Needed to identify common data arrays
 #include "vtkInitialValueProblemSolver.h"  // Needed for constants
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractInterpolatedVelocityField;
 class vtkCompositeDataSet;
 class vtkDataArray;
@@ -108,9 +97,11 @@ class vtkIdList;
 class vtkIntArray;
 class vtkPoints;
 
+VTK_ABI_NAMESPACE_END
 #include <vector> // for std::vector
 
 // Helper struct to convert between different length scales.
+VTK_ABI_NAMESPACE_BEGIN
 struct VTKFILTERSFLOWPATHS_EXPORT vtkIntervalInformation
 {
   double Interval;
@@ -565,4 +556,5 @@ private:
   void operator=(const vtkStreamTracer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

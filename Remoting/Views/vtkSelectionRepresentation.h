@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSelectionRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSelectionRepresentation
  *
@@ -48,7 +36,7 @@ public:
    */
   void SetLabelRepresentation(vtkDataLabelRepresentation*);
 
-  //@{
+  ///@{
   /**
    * Overridden to simply pass the input to the internal representations. We
    * won't need this if vtkPVDataRepresentation correctly respected in the
@@ -60,7 +48,7 @@ public:
   void AddInputConnection(vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, int idx) override;
-  //@}
+  ///@}
 
   /**
    * This needs to be called on all instances of vtkSelectionRepresentation when
@@ -70,14 +58,14 @@ public:
    */
   void MarkModified() override;
 
-  //@{
+  ///@{
   /**
    * Passed on to internal representations as well.
    */
   void SetUpdateTime(double time) override;
   void SetForceUseCache(bool val) override;
   void SetForcedCacheKey(double val) override;
-  //@}
+  ///@}
 
   /**
    * Get/Set the visibility for this representation. When the visibility of
@@ -86,7 +74,7 @@ public:
    */
   void SetVisibility(bool val) override;
 
-  //@{
+  ///@{
   /**
    * Forwarded to GeometryRepresentation.
    */
@@ -98,9 +86,9 @@ public:
   void SetUseOutline(int);
   void SetRenderPointsAsSpheres(bool);
   void SetRenderLinesAsTubes(bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to GeometryRepresentation and LabelRepresentation
    */
@@ -109,15 +97,15 @@ public:
   void SetPosition(double, double, double);
   void SetScale(double, double, double);
   void SetUserTransform(const double[16]);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkDataLabelRepresentation.
    */
   virtual void SetPointFieldDataArrayName(const char* val);
   virtual void SetCellFieldDataArrayName(const char* val);
-  //@}
+  ///@}
 
   /**
    * Override because of internal composite representations that need to be
@@ -153,7 +141,7 @@ protected:
   /**
    * Fires UpdateDataEvent
    */
-  void TriggerUpdateDataEvent();
+  virtual void TriggerUpdateDataEvent();
 
   vtkGeometryRepresentation* GeometryRepresentation;
   vtkDataLabelRepresentation* LabelRepresentation;

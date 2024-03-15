@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellPicker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellPicker.h"
 #include "vtkObjectFactory.h"
@@ -49,6 +37,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellPicker);
 
 //------------------------------------------------------------------------------
@@ -184,7 +173,7 @@ void vtkCellPicker::ResetCellPickerInfo()
 //------------------------------------------------------------------------------
 void vtkCellPicker::AddLocator(vtkAbstractCellLocator* locator)
 {
-  if (!this->Locators->IsItemPresent(locator))
+  if (this->Locators->IndexOfFirstOccurence(locator) < 0)
   {
     this->Locators->AddItem(locator);
   }
@@ -689,7 +678,7 @@ bool vtkCellPicker::IntersectDataSetWithLine(vtkDataSet* dataSet, const double p
 
       // If it is a strip, we need to iterate over the subIds
       int cellType = dataSet->GetCellType(cellId);
-      int useSubCells = vtkCellPicker::HasSubCells(cellType);
+      vtkTypeBool useSubCells = vtkCellPicker::HasSubCells(cellType);
       if (useSubCells)
       {
         // Get the pointIds for the strip and the length of the strip
@@ -1633,7 +1622,7 @@ void vtkCellPicker::SubCellFromCell(vtkGenericCell* cell, int subId)
 }
 
 //------------------------------------------------------------------------------
-int vtkCellPicker::HasSubCells(int cellType)
+vtkTypeBool vtkCellPicker::HasSubCells(int cellType)
 {
   switch (cellType)
   {
@@ -1861,3 +1850,4 @@ double vtkCellPicker::ComputeVolumeOpacity(const int xi[3], const double pcoords
 
   return opacity;
 }
+VTK_ABI_NAMESPACE_END

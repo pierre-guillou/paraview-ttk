@@ -17,6 +17,7 @@
 
 #include <vtkm/rendering/raytracing/Camera.h>
 #include <vtkm/rendering/raytracing/TriangleIntersector.h>
+
 namespace vtkm
 {
 namespace rendering
@@ -26,40 +27,43 @@ namespace raytracing
 
 class VTKM_RENDERING_EXPORT ScalarRenderer
 {
+private:
+  vtkm::cont::Invoker Invoke;
+
 protected:
-  std::shared_ptr<ShapeIntersector> Intersector;
+  std::unique_ptr<ShapeIntersector> Intersector;
   std::vector<vtkm::cont::Field> Fields;
-  bool IntersectorValid;
 
   template <typename Precision>
-  void RenderOnDevice(Ray<Precision>& rays, Precision missScalar);
+  void RenderOnDevice(Ray<Precision>& rays,
+                      Precision missScalar,
+                      vtkm::rendering::raytracing::Camera& cam);
 
   template <typename Precision>
-  void AddBuffer(Ray<Precision>& rays, Precision missScalar, const std::string name);
+  void AddBuffer(Ray<Precision>& rays, Precision missScalar, const std::string& name);
 
   template <typename Precision>
   void AddDepthBuffer(Ray<Precision>& rays);
 
 public:
   VTKM_CONT
-  ScalarRenderer();
-  VTKM_CONT
-  ~ScalarRenderer();
-
-  VTKM_CONT
-  void SetShapeIntersector(std::shared_ptr<ShapeIntersector> intersector);
+  void SetShapeIntersector(std::unique_ptr<ShapeIntersector>&& intersector);
 
   VTKM_CONT
   void AddField(const vtkm::cont::Field& scalarField);
 
   VTKM_CONT
-  void Render(vtkm::rendering::raytracing::Ray<vtkm::Float32>& rays, vtkm::Float32 missScalar);
+  void Render(vtkm::rendering::raytracing::Ray<vtkm::Float32>& rays,
+              vtkm::Float32 missScalar,
+              vtkm::rendering::raytracing::Camera& cam);
 
   VTKM_CONT
-  void Render(vtkm::rendering::raytracing::Ray<vtkm::Float64>& rays, vtkm::Float64 missScalar);
+  void Render(vtkm::rendering::raytracing::Ray<vtkm::Float64>& rays,
+              vtkm::Float64 missScalar,
+              vtkm::rendering::raytracing::Camera& cam);
 
 }; //class RayTracer
 }
 }
 } // namespace vtkm::rendering::raytracing
-#endif //vtk_m_rendering_raytracing_RayTracer_h
+#endif //vtk_m_rendering_raytracing_ScalarRenderer_h

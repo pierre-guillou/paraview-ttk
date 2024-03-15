@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMIntVectorProperty.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMIntVectorProperty
  * @brief   property representing a vector of integers
@@ -55,7 +43,7 @@ public:
    */
   int SetElement(unsigned int idx, int value);
 
-  //@{
+  ///@{
   /**
    * Set the values of all elements. The size of the values array
    * has to be equal or larger to the size of the vector.
@@ -66,16 +54,16 @@ public:
   int SetElements(const int* values);
   int SetElements(const int* values, unsigned int numElems);
   int* GetElements();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the values of all the unchecked elements.
    */
   int SetUncheckedElements(const int* values);
   int SetUncheckedElements(const int* values, unsigned int numValues);
   int* GetUnCheckedElements();
-  //@}
+  ///@}
 
   /**
    * Set the value of 1st element. The vector is resized as necessary.
@@ -138,7 +126,7 @@ public:
    */
   unsigned int GetNumberOfUncheckedElements() override;
 
-  //@{
+  ///@{
   /**
    * If ArgumentIsArray is true, multiple elements are passed in as
    * array arguments. For example, For example, if
@@ -154,7 +142,7 @@ public:
   vtkGetMacro(ArgumentIsArray, int);
   vtkSetMacro(ArgumentIsArray, int);
   vtkBooleanMacro(ArgumentIsArray, int);
-  //@}
+  ///@}
 
   /**
    * Copy all property values.

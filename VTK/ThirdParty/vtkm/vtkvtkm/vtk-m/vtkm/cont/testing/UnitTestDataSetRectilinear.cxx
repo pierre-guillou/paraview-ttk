@@ -42,7 +42,7 @@ static void TwoDimRectilinearTest()
   vtkm::cont::CellSetStructured<2> cellSet;
   dataSet.GetCellSet().AsCellSet(cellSet);
 
-  VTKM_TEST_ASSERT(dataSet.GetNumberOfFields() == 2, "Incorrect number of fields");
+  VTKM_TEST_ASSERT(dataSet.GetNumberOfFields() == 3, "Incorrect number of fields");
   VTKM_TEST_ASSERT(dataSet.GetNumberOfCoordinateSystems() == 1,
                    "Incorrect number of coordinate systems");
   VTKM_TEST_ASSERT(cellSet.GetNumberOfPoints() == 6, "Incorrect number of points");
@@ -92,7 +92,7 @@ static void TwoDimRectilinearTest()
   vtkm::Id cells[2][4] = { { 0, 1, 4, 3 }, { 1, 2, 5, 4 } };
   for (vtkm::Id cellIndex = 0; cellIndex < 2; cellIndex++)
   {
-    vtkm::Id4 pointIds = pointToCell.GetIndices(pointToCell.FlatToLogicalToIndex(cellIndex));
+    vtkm::Id4 pointIds = pointToCell.GetIndices(pointToCell.FlatToLogicalVisitIndex(cellIndex));
     for (vtkm::IdComponent localPointIndex = 0; localPointIndex < 4; localPointIndex++)
     {
       VTKM_TEST_ASSERT(pointIds[localPointIndex] == cells[cellIndex][localPointIndex],
@@ -106,7 +106,7 @@ static void TwoDimRectilinearTest()
   for (vtkm::Id pointIndex = 0; pointIndex < 6; pointIndex++)
   {
     vtkm::VecVariable<vtkm::Id, 4> retrievedCellIds =
-      cellToPoint.GetIndices(cellToPoint.FlatToLogicalToIndex(pointIndex));
+      cellToPoint.GetIndices(cellToPoint.FlatToLogicalVisitIndex(pointIndex));
     VTKM_TEST_ASSERT(retrievedCellIds.GetNumberOfComponents() <= 4,
                      "Got wrong number of cell ids.");
     for (vtkm::IdComponent cellIndex = 0; cellIndex < retrievedCellIds.GetNumberOfComponents();
@@ -128,7 +128,7 @@ static void ThreeDimRectilinearTest()
   vtkm::cont::CellSetStructured<3> cellSet;
   dataSet.GetCellSet().AsCellSet(cellSet);
 
-  VTKM_TEST_ASSERT(dataSet.GetNumberOfFields() == 2, "Incorrect number of fields");
+  VTKM_TEST_ASSERT(dataSet.GetNumberOfFields() == 3, "Incorrect number of fields");
 
   VTKM_TEST_ASSERT(dataSet.GetNumberOfCoordinateSystems() == 1,
                    "Incorrect number of coordinate systems");

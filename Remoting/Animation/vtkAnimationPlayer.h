@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAnimationPlayer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAnimationPlayer
  *
@@ -32,14 +20,14 @@ public:
   vtkTypeMacro(vtkAnimationPlayer, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the animation scene that is to be played by this player.
    * Note that the animation scene is not reference counted to avoid loops.
    */
   virtual void SetAnimationScene(vtkSMAnimationScene*);
   vtkSMAnimationScene* GetAnimationScene();
-  //@}
+  ///@}
 
   /**
    * Start playing the animation.
@@ -47,7 +35,7 @@ public:
    * If dir = 0, play the animation in reverse back to the beginning,
    * else play it in the forward direction.
    */
-  void Play(const int dir = 1);
+  void Play(int dir = 1);
 
   /**
    * Stop playing the animation.
@@ -60,13 +48,13 @@ public:
   int IsInPlay() { return this->InPlay ? 1 : 0; }
   vtkGetMacro(InPlay, bool);
 
-  //@{
+  ///@{
   /**
    * Set to true to play the animation in a loop.
    */
   vtkSetMacro(Loop, bool);
   vtkGetMacro(Loop, bool);
-  //@}
+  ///@}
 
   /**
    * Take the animation scene to next frame.
@@ -88,7 +76,7 @@ public:
    */
   void GoToLast();
 
-  //@{
+  ///@{
   /**
    * Get/Set the stride value fot the animation player. This will cause the player to skip
    * (n - 1) when GetNextTime, GoToNext and GoToPrevious are previous are called.
@@ -97,7 +85,7 @@ public:
    */
   vtkGetMacro(Stride, int);
   vtkSetClampMacro(Stride, int, 1, VTK_INT_MAX);
-  //@}
+  ///@}
 
 protected:
   vtkAnimationPlayer();
@@ -105,22 +93,28 @@ protected:
 
   friend class vtkCompositeAnimationPlayer;
 
+  ///@{
+  /**
+   * Manage loop inside playbackwindow.
+   */
+  // initialize inner variables. Call it before any GetNextTime/GetPreviousTime call.
   virtual void StartLoop(
     double starttime, double endtime, double curtime, double* playbackWindow) = 0;
+  // finalize loop
   virtual void EndLoop() = 0;
-
-  /**
-   * Return the next time given the current time.
-   */
+  // Return the next time in the loop given the current time.
   virtual double GetNextTime(double currentime) = 0;
-
-  /**
-   * Return the previous time given the current time.
-   */
+  // Return the previous time in the loop given the current time.
   virtual double GetPreviousTime(double currenttime) = 0;
+  ///@}
 
+  ///@{
+  /**
+   * Return next/previous time knowing start, end and current.
+   */
   virtual double GoToNext(double start, double end, double currenttime) = 0;
   virtual double GoToPrevious(double start, double end, double currenttime) = 0;
+  ///@}
 
 private:
   vtkAnimationPlayer(const vtkAnimationPlayer&) = delete;

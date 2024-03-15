@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCenterOfMass.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCenterOfMass.h"
 
 #include "vtkDoubleArray.h"
@@ -25,6 +13,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCenterOfMass);
 
 vtkCenterOfMass::vtkCenterOfMass()
@@ -115,6 +104,8 @@ int vtkCenterOfMass::RequestData(vtkInformation* vtkNotUsed(request),
 
   this->ComputeCenterOfMass(points, scalars, this->Center);
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -125,3 +116,4 @@ void vtkCenterOfMass::PrintSelf(ostream& os, vtkIndent indent)
      << endl;
   os << indent << "UseScalarsAsWeights: " << this->UseScalarsAsWeights << endl;
 }
+VTK_ABI_NAMESPACE_END

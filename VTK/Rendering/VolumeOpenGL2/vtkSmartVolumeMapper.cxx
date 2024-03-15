@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSmartVolumeMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <cassert>
 
 #include "vtkCellData.h"
@@ -38,6 +26,7 @@
 #include "vtkVolume.h"
 #include "vtkVolumeProperty.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSmartVolumeMapper);
 
 //------------------------------------------------------------------------------
@@ -59,6 +48,8 @@ vtkSmartVolumeMapper::vtkSmartVolumeMapper()
   this->RayCastSupported = 0;
   this->LowResGPUNecessary = 0;
   this->InterpolationMode = VTK_RESLICE_CUBIC;
+
+  this->UseJittering = 0;
 
   // If the render window has a desired update greater than or equal to the
   // interactive update rate, we apply certain optimizations to ensure that the
@@ -466,6 +457,7 @@ void vtkSmartVolumeMapper::ComputeRenderMode(vtkRenderer* ren, vtkVolume* vol)
       this->GPUMapper->SetBlendMode(this->GetBlendMode());
       this->GPUMapper->SetFinalColorWindow(this->FinalColorWindow);
       this->GPUMapper->SetFinalColorLevel(this->FinalColorLevel);
+      this->GPUMapper->SetUseJittering(this->UseJittering);
       this->GPUMapper->SetSampleDistance(this->SampleDistance);
       this->GPUMapper->SetTransfer2DYAxisArray(this->Transfer2DYAxisArray);
       this->GPUMapper->SetComputeNormalFromOpacity(this->ComputeNormalFromOpacity);
@@ -503,6 +495,7 @@ void vtkSmartVolumeMapper::ComputeRenderMode(vtkRenderer* ren, vtkVolume* vol)
         this->GPULowResMapper->SetBlendMode(this->GetBlendMode());
         this->GPULowResMapper->SetFinalColorWindow(this->FinalColorWindow);
         this->GPULowResMapper->SetFinalColorLevel(this->FinalColorLevel);
+        this->GPULowResMapper->SetUseJittering(this->UseJittering);
         this->GPULowResMapper->SetSampleDistance(this->SampleDistance);
       }
       else
@@ -931,3 +924,4 @@ void vtkSmartVolumeMapper::SetVectorMode(int mode)
     this->Modified();
   }
 }
+VTK_ABI_NAMESPACE_END

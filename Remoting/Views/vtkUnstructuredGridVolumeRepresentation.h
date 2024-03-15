@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkUnstructuredGridVolumeRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUnstructuredGridVolumeRepresentation
  * @brief   representation for showing
@@ -54,13 +42,13 @@ public:
    */
   void AddVolumeMapper(const char* name, vtkAbstractVolumeMapper*);
 
-  //@{
+  ///@{
   /**
    * Set the active volume mapper to use.
    */
   virtual void SetActiveVolumeMapper(const char*);
   vtkAbstractVolumeMapper* GetActiveVolumeMapper();
-  //@}
+  ///@}
 
   /**
    * vtkAlgorithm::ProcessRequest() equivalent for rendering passes. This is
@@ -72,7 +60,7 @@ public:
     vtkInformation* outInfo) override;
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    * Forwarded to vtkVolumeRepresentationPreprocessor. Controls which blocks in
    * a composite dataset are rendered.
@@ -80,7 +68,7 @@ public:
   void SetActiveAssembly(const char*);
   void AddBlockSelector(const char*);
   void RemoveAllBlockSelectors();
-  //@}
+  ///@}
 
   //***************************************************************************
   // Forwarded to vtkResampleToImage
@@ -90,7 +78,7 @@ public:
   }
   void SetSamplingDimensions(int xdim, int ydim, int zdim);
 
-  //@{
+  ///@{
   /**
    * Specify whether or not to redistribute the data. The default is false
    * since that is the only way in general to guarantee correct rendering.
@@ -99,7 +87,7 @@ public:
    */
   virtual void SetUseDataPartitions(bool);
   vtkGetMacro(UseDataPartitions, bool);
-  //@}
+  ///@}
 
 protected:
   vtkUnstructuredGridVolumeRepresentation();

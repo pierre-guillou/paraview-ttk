@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStructuredGridAppend.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStructuredGridAppend.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -29,6 +17,7 @@
 #include "vtkUnsignedCharArray.h"
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStructuredGridAppend);
 
 //------------------------------------------------------------------------------
@@ -156,20 +145,27 @@ struct AppendWorker
   template <typename InArrayT, typename OutArrayT>
   void operator()(InArrayT* inArray, OutArrayT* outArray, int inExt[6], int outExt[6],
     vtkStructuredGrid* inData, std::vector<int>& validValues, vtkUnsignedCharArray* ghosts,
-    bool forCells)
+    bool forCells, vtkStructuredGridAppend* self)
   {
     const auto inTuples = vtk::DataArrayTupleRange(inArray);
     auto outTuples = vtk::DataArrayTupleRange(outArray);
 
     const int forPoints = forCells ? 0 : 1;
     vtkIdType inCounter = 0;
+    bool abort = false;
+    int checkAbortInterval = std::min((inExt[1] + forPoints - inExt[0]) / 10 + 1, 1000);
 
-    for (int k = inExt[4]; k < inExt[5] + forPoints; k++)
+    for (int k = inExt[4]; k < inExt[5] + forPoints && !abort; k++)
     {
-      for (int j = inExt[2]; j < inExt[3] + forPoints; j++)
+      for (int j = inExt[2]; j < inExt[3] + forPoints && !abort; j++)
       {
         for (int i = inExt[0]; i < inExt[1] + forPoints; i++)
         {
+          if (i % checkAbortInterval == 0 && self->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           const int ijk[3] = { i, j, k };
           bool skipValue =
             forCells ? !inData->IsCellVisible(inCounter) : !inData->IsPointVisible(inCounter);
@@ -234,8 +230,14 @@ int vtkStructuredGridAppend::RequestData(
   using Dispatcher = vtkArrayDispatch::Dispatch2SameValueType;
   AppendWorker worker;
 
+  int checkAbortInterval = std::min(this->GetNumberOfInputConnections(0) / 10 + 1, 1000);
+
   for (int idx1 = 0; idx1 < this->GetNumberOfInputConnections(0); ++idx1)
   {
+    if (idx1 % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     vtkStructuredGrid* input = vtkStructuredGrid::GetData(inputVector[0], idx1);
     if (input != nullptr)
     {
@@ -300,9 +302,9 @@ int vtkStructuredGridAppend::RequestData(
           }
 
           if (!Dispatcher::Execute(
-                inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, false))
+                inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, false, this))
           { // Fallback for unknown array types:
-            worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, false);
+            worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, false, this);
           }
         }
 
@@ -318,9 +320,9 @@ int vtkStructuredGridAppend::RequestData(
         outArray = output->GetPoints()->GetData();
 
         if (!Dispatcher::Execute(
-              inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, false))
+              inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, false, this))
         { // Fallback for unknown array types:
-          worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, false);
+          worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, false, this);
         }
 
         // note that we are still using validValues but only for the
@@ -372,9 +374,9 @@ int vtkStructuredGridAppend::RequestData(
           }
 
           if (!Dispatcher::Execute(
-                inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, true))
+                inArray, outArray, worker, inExt, outExt, input, validValues, ghosts, true, this))
           { // Fallback for unknown array types:
-            worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, true);
+            worker(inArray, outArray, inExt, outExt, input, validValues, ghosts, true, this);
           }
         }
       }
@@ -396,3 +398,4 @@ void vtkStructuredGridAppend::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

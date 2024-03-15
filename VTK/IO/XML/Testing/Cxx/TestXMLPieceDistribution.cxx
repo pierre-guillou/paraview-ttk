@@ -1,10 +1,12 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * Reads a partitioned exodus file in parallel
  */
 #include <vtkArrayCalculator.h>
 #include <vtkBoundingBox.h>
 #include <vtkCamera.h>
-#include <vtkCompositePolyDataMapper2.h>
+#include <vtkCompositePolyDataMapper.h>
 #include <vtkDataObject.h>
 #include <vtkLogger.h>
 #include <vtkMultiBlockDataSet.h>
@@ -46,7 +48,7 @@ vtkSmartPointer<vtkActor> GetActor(
     mb->SetBlock(idx, calculator->GetOutputDataObject(0));
   }
 
-  vtkNew<vtkCompositePolyDataMapper2> mapper;
+  vtkNew<vtkCompositePolyDataMapper> mapper;
   mapper->SetInputDataObject(mb);
   mapper->SetScalarModeToUseCellFieldData();
   mapper->SetColorModeToMapScalars();

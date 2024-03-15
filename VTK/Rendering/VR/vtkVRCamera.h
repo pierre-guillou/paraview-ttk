@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRCamera
  * @brief   VR camera
@@ -27,6 +16,7 @@
 #include "vtkOpenGLCamera.h"
 #include "vtkRenderingVRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkVRRenderWindow;
 
@@ -87,15 +77,29 @@ public:
   void SetCameraFromWorldToDeviceMatrix(vtkMatrix4x4* mat, double distance);
   void SetCameraFromDeviceToWorldMatrix(vtkMatrix4x4* mat, double distance);
 
+  ///@{
+  /**
+   * When enabled the camera will track the HMD position.
+   * On is the default.
+   *
+   * \sa vtkOpenVRRenderWindow::UpdateHMDMatrixPose, vtkOpenXRRenderWindow::UpdateHMDMatrixPose
+   */
+  vtkSetMacro(TrackHMD, bool);
+  vtkGetMacro(TrackHMD, bool);
+  ///@}
+
 protected:
   vtkVRCamera();
   ~vtkVRCamera() override;
 
   vtkNew<vtkMatrix4x4> TempMatrix4x4;
+  bool TrackHMD = true;
 
 private:
   vtkVRCamera(const vtkVRCamera&) = delete;
   void operator=(const vtkVRCamera&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
+/* VTK-HeaderTest-Exclude: vtkVRCamera.h */

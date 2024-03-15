@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadratureSchemeDictionaryGenerator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkQuadratureSchemeDictionaryGenerator.h"
 #include "vtkQuadratureSchemeDefinition.h"
@@ -44,6 +32,7 @@ using std::string;
 // Here are some default shape functions weights which
 // we will use to create dictionaries in a gvien data set.
 // Unused weights are commented out to avoid compiler warnings.
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // double W_T_11_A[]={
@@ -118,7 +107,7 @@ double W_QE_42_A[] = { 1.56250000000000e-01, -9.37500000000000e-02, -9.375000000
   1.56250000000000e-02, 3.12500000000000e-02, 3.75000000000000e-01, 1.87500000000000e-01,
   1.87500000000000e-01 };
 
-};
+}
 
 vtkStandardNewMacro(vtkQuadratureSchemeDictionaryGenerator);
 
@@ -208,6 +197,10 @@ int vtkQuadratureSchemeDictionaryGenerator::Generate(vtkUnstructuredGrid* usgOut
   int i = 0;
   while (data != nullptr)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     interpolatedName << basename << i;
     data = usgOut->GetCellData()->GetArray(interpolatedName.str().c_str());
     finalname = interpolatedName.str();
@@ -220,6 +213,10 @@ int vtkQuadratureSchemeDictionaryGenerator::Generate(vtkUnstructuredGrid* usgOut
 
   for (int typeId = 0; typeId < nCellTypes; ++typeId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     int cellType = cellTypes->GetValue(typeId);
     // Initiaze a definition for this particular cell type.
     vtkSmartPointer<vtkQuadratureSchemeDefinition> def =
@@ -264,6 +261,10 @@ int vtkQuadratureSchemeDictionaryGenerator::Generate(vtkUnstructuredGrid* usgOut
   vtkIdType offset = 0;
   for (vtkIdType cellid = 0; cellid < usgOut->GetNumberOfCells(); cellid++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     offsets->SetValue(cellid, offset);
     vtkCell* cell = usgOut->GetCell(cellid);
     int cellType = cell->GetCellType();
@@ -282,3 +283,4 @@ void vtkQuadratureSchemeDictionaryGenerator::PrintSelf(ostream& os, vtkIndent in
 
   os << indent << "No state." << endl;
 }
+VTK_ABI_NAMESPACE_END

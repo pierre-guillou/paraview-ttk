@@ -1,49 +1,21 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqApplicationCore.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqApplicationCore_h
 #define pqApplicationCore_h
 
 #include "pqCoreModule.h"
-#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_10_0
-#include "vtkSmartPointer.h"        // for vtkSmartPointer
+#include "vtkSmartPointer.h" // for vtkSmartPointer
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
+#include <QTranslator>
 #include <exception> // for std::exception
 
 class pqInterfaceTracker;
 class pqLinksModel;
 class pqMainWindowEventManager;
 class pqObjectBuilder;
-class pqOptions;
 class pqPipelineSource;
 class pqPluginManager;
 class pqProgressManager;
@@ -58,7 +30,6 @@ class pqTestUtility;
 class pqUndoStack;
 class QApplication;
 class QHelpEngine;
-class QStringList;
 class vtkPVXMLElement;
 class vtkSMProxyLocator;
 class vtkSMStateLoader;
@@ -111,17 +82,6 @@ public:
    */
   pqApplicationCore(int& argc, char** argv, vtkCLIOptions* options = nullptr,
     bool addStandardArgs = true, QObject* parent = nullptr);
-
-  ///@{
-  /**
-   * @deprecated in ParaView 5.10. pqOptions has been replaced by vtkCLIOptions
-   * based command line parsing.
-   */
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  pqApplicationCore(int& argc, char** argv, pqOptions* options, QObject* parent = nullptr);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  pqOptions* getOptions() const;
-  ///@}
 
   /**
    * Get the Object Builder. Object Buider must be used
@@ -264,7 +224,7 @@ public:
    * Save the ServerManager state to a file.
    * Return true if the operation succeeded otherwise return false.
    */
-  bool saveState(const QString& filename);
+  bool saveState(const QString& filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
 
   /**
    * Loads the ServerManager state. Emits the signal
@@ -314,6 +274,34 @@ public:
   pqServer* getActiveServer() const;
 
   /**
+   * returns a path to a directory containing a translation binary file located
+   * in a path specified by the PV_TRANSLATIONS_DIR environment variable or in
+   * the resources directory.
+   * The binary file returned is the first one to have a name matching the locale
+   * given in the user settings.
+   * @param prefix: The prefix the filename should contain.
+   * @param locale: The locale the filename suffix should contain.
+   */
+  QString getTranslationsPathFromInterfaceLanguage(QString prefix, QString locale);
+
+  /**
+   * returns a QTranslator with a loaded qm file. The qm file can come either
+   * from the Qt's translation directory or from the ParaView's shared
+   * directory.
+   * @param prefix: The prefix the filename should contain.
+   * @param locale: The locale the filename suffix should contain.
+   */
+  QTranslator* getQtTranslations(QString prefix, QString locale);
+
+  /**
+   * returns interface language in use in a locale code form.
+   * It is first read from PV_INTERFACE_LANGUAGE environment
+   * variable if defined, then recovered from user settings.
+   * If not set, return `en`.
+   */
+  QString getInterfaceLanguage();
+
+  /**
    * Destructor.
    */
   ~pqApplicationCore() override;
@@ -357,6 +345,18 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   void render();
 
 Q_SIGNALS:
+  /**
+   * Fired before a state file, either python or XML, is written. Note that writing
+   * can still fail at this point.
+   */
+  void aboutToWriteState(QString filename);
+
+  /**
+   * Fired before a state file, either python or XML, is read. Note that loading can
+   * still fail at this point.
+   */
+  void aboutToReadState(QString filename);
+
   /**
    * Fired before a state xml is being loaded. One can add slots for this signal
    * and modify the fired xml-element as part of pre-processing before
@@ -422,10 +422,6 @@ private Q_SLOTS:
 protected:
   bool LoadingState;
 
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  vtkSmartPointer<pqOptions> Options;
-  PARAVIEW_DEPRECATED_IN_5_10_0("Replaced by `vtkCLIOptions` APIs")
-  void setOptions(pqOptions* options);
   pqLinksModel* LinksModel;
   pqObjectBuilder* ObjectBuilder;
   pqInterfaceTracker* InterfaceTracker;

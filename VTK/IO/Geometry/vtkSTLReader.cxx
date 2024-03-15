@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSTLReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSTLReader.h"
 
 #include "vtkByteSwap.h"
@@ -36,6 +24,7 @@
 #include <string>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSTLReader);
 
 #define VTK_ASCII 0
@@ -524,11 +513,14 @@ bool vtkSTLReader::ReadASCIISTL(
           {
             header += "\n";
           }
-          header += arg;
-          // strip end-of-line character from the end
-          while (!header.empty() && (header.back() == '\r' || header.back() == '\n'))
+          if (*arg)
           {
-            header.pop_back();
+            header += arg;
+            // strip end-of-line character from the end
+            while (!header.empty() && (header.back() == '\r' || header.back() == '\n'))
+            {
+              header.pop_back();
+            }
           }
         }
         else
@@ -706,3 +698,4 @@ void vtkSTLReader::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

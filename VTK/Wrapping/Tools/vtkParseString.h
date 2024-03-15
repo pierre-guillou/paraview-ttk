@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseString.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2012 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in April 2012
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2012 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 /**
   This file provides string handling routines.
 
@@ -245,6 +227,13 @@ extern "C"
    */
   VTKWRAPPINGTOOLS_EXPORT
   const char* vtkParse_CacheString(StringCache* cache, const char* cp, size_t n);
+
+  /**
+   * Merge the second cache into the first cache, leaving the second
+   * cache empty.
+   */
+  VTKWRAPPINGTOOLS_EXPORT
+  void vtkParse_MergeStringCache(StringCache* cache, StringCache* other);
 
   /**
    * Free all strings that were created with vtkParse_NewString() or

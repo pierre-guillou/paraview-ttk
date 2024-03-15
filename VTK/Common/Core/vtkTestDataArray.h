@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTestDataArray.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTestDataArray
  * @brief   An implementation of vtkGenericDataArray for testing
@@ -33,6 +21,7 @@
 #include "vtkGenericDataArray.h"
 #include "vtkObjectFactory.h" // For VTK_STANDARD_NEW_BODY
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class ArrayT>
 class vtkTestDataArray
   : public vtkGenericDataArray<vtkTestDataArray<ArrayT>, typename ArrayT::ValueType>
@@ -94,5 +83,6 @@ private:
   void operator=(const vtkTestDataArray&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkTestDataArray.h

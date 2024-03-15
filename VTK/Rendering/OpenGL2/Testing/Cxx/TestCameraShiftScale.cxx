@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkCallbackCommand.h"
@@ -82,21 +71,23 @@ void keypressFunc(vtkObject* caller, unsigned long vtkNotUsed(eventId), void* cl
   if (iren->GetKeyCode() == ' ')
   {
     auto currMethod = mapper->GetVBOShiftScaleMethod();
-    if (currMethod == vtkOpenGLVertexBufferObject::DISABLE_SHIFT_SCALE)
+    if (currMethod == vtkPolyDataMapper::ShiftScaleMethodType::DISABLE_SHIFT_SCALE)
     {
-      mapper->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::ALWAYS_AUTO_SHIFT_SCALE);
+      mapper->SetVBOShiftScaleMethod(
+        vtkPolyDataMapper::ShiftScaleMethodType::ALWAYS_AUTO_SHIFT_SCALE);
     }
-    else if (currMethod == vtkOpenGLVertexBufferObject::ALWAYS_AUTO_SHIFT_SCALE)
+    else if (currMethod == vtkPolyDataMapper::ShiftScaleMethodType::ALWAYS_AUTO_SHIFT_SCALE)
     {
-      mapper->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::AUTO_SHIFT);
+      mapper->SetVBOShiftScaleMethod(vtkPolyDataMapper::ShiftScaleMethodType::AUTO_SHIFT);
     }
-    else if (currMethod == vtkOpenGLVertexBufferObject::AUTO_SHIFT)
+    else if (currMethod == vtkPolyDataMapper::ShiftScaleMethodType::AUTO_SHIFT)
     {
-      mapper->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::FOCAL_POINT_SHIFT_SCALE);
+      mapper->SetVBOShiftScaleMethod(
+        vtkPolyDataMapper::ShiftScaleMethodType::FOCAL_POINT_SHIFT_SCALE);
     }
-    else if (currMethod == vtkOpenGLVertexBufferObject::FOCAL_POINT_SHIFT_SCALE)
+    else if (currMethod == vtkPolyDataMapper::ShiftScaleMethodType::FOCAL_POINT_SHIFT_SCALE)
     {
-      mapper->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::DISABLE_SHIFT_SCALE);
+      mapper->SetVBOShiftScaleMethod(vtkPolyDataMapper::ShiftScaleMethodType::DISABLE_SHIFT_SCALE);
     }
 
     createData(mapper->GetInput());
@@ -125,7 +116,7 @@ int TestCameraShiftScale(int argc, char* argv[])
 
   mapper->SetInputData(poly);
 
-  mapper->SetVBOShiftScaleMethod(vtkOpenGLVertexBufferObject::FOCAL_POINT_SHIFT_SCALE);
+  mapper->SetVBOShiftScaleMethod(vtkPolyDataMapper::ShiftScaleMethodType::FOCAL_POINT_SHIFT_SCALE);
 
   actor->SetMapper(mapper);
   actor->GetProperty()->SetDiffuse(0.0);
@@ -140,6 +131,7 @@ int TestCameraShiftScale(int argc, char* argv[])
 
   renderer->ResetCameraClippingRange();
   renderWindow->Render();
+  vtkRegressionTestPassForMesaLessThan(renderWindow, 21, 2, 0);
   renderWindow->Render();
 
   vtkNew<vtkCallbackCommand> keypressCallback;

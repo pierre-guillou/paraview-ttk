@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    ParaViewCoreVTKExtensionsPrintSelf.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMRDualClip.h"
 #include "vtkAMRDualContour.h"
@@ -109,7 +97,6 @@
 #include "vtkPVPlane.h"
 #include "vtkPVPostFilter.h"
 #include "vtkPVPostFilterExecutive.h"
-#include "vtkPVRecoverGeometryWireframe.h"
 #include "vtkPVScalarBarActor.h"
 #include "vtkPVSelectionSource.h"
 #include "vtkPVTextSource.h"
@@ -287,7 +274,6 @@ int ParaViewCoreVTKExtensionsPrintSelf(int, char*[])
   PRINT_SELF(vtkPVPlane);
   PRINT_SELF(vtkPVPostFilter);
   PRINT_SELF(vtkPVPostFilterExecutive);
-  PRINT_SELF(vtkPVRecoverGeometryWireframe);
   PRINT_SELF(vtkPVScalarBarActor);
   PRINT_SELF(vtkPVSelectionSource);
   PRINT_SELF(vtkPVTextSource);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGDALRasterReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGDALRasterReader
  * @brief   Read raster file formats using GDAL.
@@ -41,6 +29,7 @@
 #include <string> // string is required
 #include <vector> // vector is required
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOGDAL_EXPORT vtkGDALRasterReader : public vtkImageReader2
 {
 public:
@@ -149,7 +138,6 @@ protected:
 
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
-protected:
   int TargetDimensions[2];
   std::string Projection;
   std::string ProjectionWKT;
@@ -168,4 +156,5 @@ private:
   void operator=(const vtkGDALRasterReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkGDALRasterReader_h

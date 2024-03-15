@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMTransferFunctionPresets.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMTransferFunctionPresets
  * @brief   manages presets for color, opacity,
@@ -86,7 +74,7 @@ public:
    */
   bool RemovePreset(unsigned int index);
 
-  //@{
+  ///@{
   /**
    * Returns a preset JSON given the name. Since multiple presets can have the
    * same name, this returns the 'first' preset with the specified name.
@@ -94,7 +82,7 @@ public:
    */
   const Json::Value& GetFirstPresetWithName(const char* name, int& idx);
   const Json::Value& GetFirstPresetWithName(const char* name);
-  //@}
+  ///@}
 
   /**
    * Returns a preset at a given index.
@@ -166,18 +154,19 @@ public:
    */
   bool RenamePreset(unsigned int index, const char* newname);
 
-  //@{
+  ///@{
   /**
    * Load presets from a file. All presets are added to "custom" presets list
    * and are considered as non-builtin.
    * If the filename ends with a .xml, it's assumed to be a legacy color map XML
    * and will be converted to the new format before processing.
    */
-  bool ImportPresets(const char* filename);
-  bool ImportPresets(const char* filename, std::vector<ImportedPreset>* importedPresets);
+  bool ImportPresets(const char* filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
+  bool ImportPresets(const char* filename, std::vector<ImportedPreset>* importedPresets,
+    vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
   bool ImportPresets(const Json::Value& presets);
   bool ImportPresets(const Json::Value& presets, std::vector<ImportedPreset>* importedPresets);
-  //@}
+  ///@}
 
   /**
    * Reload the presets from the configuration file.

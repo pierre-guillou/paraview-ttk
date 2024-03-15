@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRangeHandlesItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkRangeHandlesItem
@@ -39,6 +27,7 @@
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkPlotRangeHandlesItem.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkColorTransferFunction;
 
 class VTKCHARTSCORE_EXPORT vtkRangeHandlesItem : public vtkPlotRangeHandlesItem
@@ -104,7 +93,7 @@ protected:
   ~vtkRangeHandlesItem() override;
 
   /**
-   * Overridden to clamp the handle position in the color tranfer function
+   * Overridden to clamp the handle position in the color transfer function
    * range.
    */
   void SetActiveHandlePosition(double position) override;
@@ -116,4 +105,5 @@ private:
   vtkColorTransferFunction* ColorTransferFunction = nullptr;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkRangeHandlesItem_h

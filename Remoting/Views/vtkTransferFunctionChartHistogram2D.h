@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkTransferFunctionChartHistogram2D.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkTransferFunctionChartHistogram2D_h
 #define vtkTransferFunctionChartHistogram2D_h
 
@@ -116,8 +104,7 @@ protected:
   /**
    * Update individual item bounds based on the chart range.
    */
-  void UpdateItemsBounds(
-    const double xMin, const double xMax, const double yMin, const double yMax);
+  void UpdateItemsBounds(double xMin, double xMax, double yMin, double yMax);
 
   /**
    * Generate the 2D transfer function from the box items.

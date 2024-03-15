@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkSDL2OpenGL2RenderWindow.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSDL2OpenGL2RenderWindow
  * @brief   OpenGL rendering window
@@ -26,9 +14,25 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
-#include <SDL2/SDL.h>                  // for ivars
-#include <stack>                       // for ivar
+// Ignore reserved-identifier warnings from
+// 1. SDL2/SDL_stdinc.h: warning: identifier '_SDL_size_mul_overflow_builtin'
+// 2. SDL2/SDL_stdinc.h: warning: identifier '_SDL_size_add_overflow_builtin'
+// 3. SDL2/SDL_audio.h: warning: identifier '_SDL_AudioStream'
+// 4. SDL2/SDL_joystick.h: warning: identifier '_SDL_Joystick'
+// 5. SDL2/SDL_sensor.h: warning: identifier '_SDL_Sensor'
+// 6. SDL2/SDL_gamecontroller.h: warning: identifier '_SDL_GameController'
+// 7. SDL2/SDL_haptic.h: warning: identifier '_SDL_Haptic'
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreserved-identifier"
+#endif
+#include "SDL.h" // for ivar
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+#include <stack> // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGOPENGL2_EXPORT vtkSDL2OpenGLRenderWindow : public vtkOpenGLRenderWindow
 {
 public:
@@ -42,14 +46,14 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  void Initialize(void) override;
+  void Initialize() override;
 
   /**
    * Finalize the rendering window.  This will shutdown all system-specific
    * resources.  After having called this, it should be possible to destroy
    * a window that was used for a SetWindowId() call without any ill effects.
    */
-  void Finalize(void) override;
+  void Finalize() override;
 
   /**
    * Change the window to fill the entire screen.
@@ -174,7 +178,6 @@ protected:
   SDL_GLContext ContextId;
   std::stack<SDL_GLContext> ContextStack;
   std::stack<SDL_Window*> WindowStack;
-  int ScreenSize[2];
   static const std::string DEFAULT_BASE_WINDOW_NAME;
 
   void CleanUpRenderers();
@@ -186,4 +189,5 @@ private:
   void operator=(const vtkSDL2OpenGLRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

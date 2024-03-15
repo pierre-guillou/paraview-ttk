@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqEditColorMapReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqEditColorMapReaction.h"
 
 #include "pqActiveObjects.h"
@@ -36,12 +8,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqCoreUtilities.h"
 #include "pqPipelineRepresentation.h"
 #include "pqUndoStack.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
 #include "vtkSMTrace.h"
 
 #include <QColorDialog>
+#include <QCoreApplication>
 #include <QDebug>
 #include <QDockWidget>
 
@@ -91,11 +64,13 @@ void pqEditColorMapReaction::editColorMap(pqPipelineRepresentation* repr)
     }
   }
 
-  if (!vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr->getProxy()))
+  if (!vtkSMColorMapEditorHelper::GetUsingScalarColoring(repr->getProxy()))
   {
     // Get the color property.
     vtkSMProxy* proxy = repr->getProxy();
-    SM_SCOPED_TRACE(PropertiesModified).arg(proxy).arg("comment", " change solid color");
+    SM_SCOPED_TRACE(PropertiesModified)
+      .arg(proxy)
+      .arg("comment", qPrintable(tr(" change solid color")));
 
     vtkSMProperty* diffuse = proxy->GetProperty("DiffuseColor");
     vtkSMProperty* ambient = proxy->GetProperty("AmbientColor");
@@ -112,14 +87,14 @@ void pqEditColorMapReaction::editColorMap(pqPipelineRepresentation* repr)
 
       // Let the user pick a new color.
       auto color = QColorDialog::getColor(QColor::fromRgbF(rgb[0], rgb[1], rgb[2]),
-        pqCoreUtilities::mainWidget(), "Pick Solid Color", QColorDialog::DontUseNativeDialog);
+        pqCoreUtilities::mainWidget(), tr("Pick Solid Color"), QColorDialog::DontUseNativeDialog);
       if (color.isValid())
       {
         // Set the properties to the new color.
         rgb[0] = color.redF();
         rgb[1] = color.greenF();
         rgb[2] = color.blueF();
-        BEGIN_UNDO_SET("Changed Solid Color");
+        BEGIN_UNDO_SET(tr("Changed Solid Color"));
         vtkSMPropertyHelper(diffuse, /*quiet=*/true).Set(rgb, 3);
         vtkSMPropertyHelper(ambient, /*quiet=*/true).Set(rgb, 3);
         proxy->UpdateVTKObjects();

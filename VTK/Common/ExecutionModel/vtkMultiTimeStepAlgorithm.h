@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiTimeStepAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkMultiTimeStepAlgorithm
  * @brief Superclass for algorithms that would like to make multiple time requests
@@ -45,6 +33,7 @@
 #include "vtkDataObject.h" // needed for the smart pointer
 #include <vector>          //needed for a private variable
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationDoubleVectorKey;
 class vtkMultiBlockDataSet;
 class VTKCOMMONEXECUTIONMODEL_EXPORT vtkMultiTimeStepAlgorithm : public vtkAlgorithm
@@ -135,4 +124,5 @@ private:
   std::vector<TimeCache> Cache;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

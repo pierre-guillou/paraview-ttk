@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporterFIWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen, Kristian Sons
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kristian Sons
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkX3DExporterFIWriter.h"
 
 #include "vtkCellArray.h"
@@ -32,6 +21,7 @@
 using namespace vtkX3D;
 
 /*======================================================================== */
+VTK_ABI_NAMESPACE_BEGIN
 struct NodeInfo
 {
   NodeInfo(int _nodeId)
@@ -240,9 +230,11 @@ void vtkX3DExporterFIByteWriter::PutBits(const std::string& bitstring)
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #include "vtkX3DExporterFIWriterHelper.h"
 
 /* ------------------------------------------------------------------------- */
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkX3DExporterFIWriter);
 //------------------------------------------------------------------------------
 vtkX3DExporterFIWriter::~vtkX3DExporterFIWriter()
@@ -697,3 +689,4 @@ void vtkX3DExporterFIWriter::SetField(int attributeID, const char* value, bool v
 
 //------------------------------------------------------------------------------
 void vtkX3DExporterFIWriter::Flush() {}
+VTK_ABI_NAMESPACE_END

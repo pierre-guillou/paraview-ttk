@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrowSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkArrowSource.h"
 
 #include "vtkAppendPolyData.h"
@@ -25,6 +13,7 @@
 #include "vtkTransform.h"
 #include "vtkTransformFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkArrowSource);
 
 //------------------------------------------------------------------------------
@@ -182,3 +171,4 @@ void vtkArrowSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Invert: " << this->Invert << "\n";
   os << indent << "Arrow Origin: " << this->GetArrowOriginAsString() << endl;
 }
+VTK_ABI_NAMESPACE_END

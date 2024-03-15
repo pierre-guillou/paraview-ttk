@@ -12,11 +12,12 @@ set(unit_tests
   UnitTestBOVDataSetReader.cxx
   UnitTestFileUtils.cxx
   UnitTestPixelTypes.cxx
+  UnitTestVisItFileDataSetReader.cxx
   UnitTestVTKDataSetReader.cxx
   UnitTestVTKDataSetWriter.cxx
 )
 
-set(unit_test_libraries vtkm_lodepng vtkm_io)
+set(unit_test_libraries vtkm_io)
 
 if(VTKm_ENABLE_RENDERING)
   list(APPEND unit_tests

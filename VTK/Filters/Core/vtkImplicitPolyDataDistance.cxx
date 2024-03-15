@@ -1,22 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitPolyDataDistance.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitPolyDataDistance.h"
 
 #include "vtkCellData.h"
 #include "vtkCellLocator.h"
-#include "vtkGenericCell.h"
+#include "vtkCleanPolyData.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPolyData.h"
@@ -24,6 +12,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkTriangleFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitPolyDataDistance);
 
 //------------------------------------------------------------------------------
@@ -49,14 +38,21 @@ void vtkImplicitPolyDataDistance::SetInput(vtkPolyData* input)
 {
   if (this->Input != input)
   {
+    // Fix issue #18307: Use vtkCleanPolyData to merge duplicate points in the input PolyData.
+    // This is required, e.g, for the correct detection of cells sharing the same edge
+    // (GetCellEdgeNeighbors requires unique points to function correctly).
+    vtkSmartPointer<vtkCleanPolyData> cleanPolyData = vtkSmartPointer<vtkCleanPolyData>::New();
+    cleanPolyData->SetInputData(input);
+    cleanPolyData->Update();
+
     // Use a vtkTriangleFilter on the polydata input.
     // This is done to filter out lines and vertices to leave only
     // polygons which are required by this algorithm for cell normals.
-    vtkSmartPointer<vtkTriangleFilter> triangleFilter = vtkSmartPointer<vtkTriangleFilter>::New();
+    vtkNew<vtkTriangleFilter> triangleFilter;
     triangleFilter->PassVertsOff();
     triangleFilter->PassLinesOff();
 
-    triangleFilter->SetInputData(input);
+    triangleFilter->SetInputConnection(cleanPolyData->GetOutputPort());
     triangleFilter->Update();
 
     this->Input = triangleFilter->GetOutput();
@@ -169,13 +165,13 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
   }
 
   // Get point id of closest point in data set.
-  vtkSmartPointer<vtkGenericCell> cell = vtkSmartPointer<vtkGenericCell>::New();
+  auto cell = this->TLCell.Local();
   this->Locator->FindClosestPoint(x, p, cell, cellId, subId, vlen2);
 
   if (cellId != -1) // point located
   {
     // dist = | point - x |
-    ret = sqrt(vlen2);
+    ret = std::sqrt(vlen2);
     // grad = (point - x) / dist
     for (int i = 0; i < 3; i++)
     {
@@ -185,11 +181,11 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
     double dist2, weights[3], pcoords[3], awnorm[3] = { 0, 0, 0 };
     cell->EvaluatePosition(p, closestPoint, subId, pcoords, dist2, weights);
 
-    vtkIdList* idList = vtkIdList::New();
+    auto idList = this->TLCellIds.Local();
     int count = 0;
     for (int i = 0; i < 3; i++)
     {
-      count += (fabs(weights[i]) < this->Tolerance ? 1 : 0);
+      count += (std::abs(weights[i]) < this->Tolerance ? 1 : 0);
     }
     // Face case - weights contains no 0s
     if (count == 0)
@@ -211,7 +207,7 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
       int a = -1, b = -1;
       for (int edge = 0; edge < 3; edge++)
       {
-        if (fabs(weights[edge]) < this->Tolerance)
+        if (std::abs(weights[edge]) < this->Tolerance)
         {
           a = cell->PointIds->GetId((edge + 1) % 3);
           b = cell->PointIds->GetId((edge + 2) % 3);
@@ -238,7 +234,8 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
         }
         else
         {
-          vtkPolygon::ComputeNormal(this->Input->GetCell(idList->GetId(i))->GetPoints(), norm);
+          this->Input->GetCell(idList->GetId(i), cell);
+          vtkPolygon::ComputeNormal(cell->GetPoints(), norm);
         }
         awnorm[0] += norm[0];
         awnorm[1] += norm[1];
@@ -256,7 +253,7 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
       int a = -1;
       for (int i = 0; i < 3; i++)
       {
-        if (fabs(weights[i]) > this->Tolerance)
+        if (std::abs(weights[i]) > this->Tolerance)
         {
           a = cell->PointIds->GetId(i);
         }
@@ -273,25 +270,26 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
       for (int i = 0; i < idList->GetNumberOfIds(); i++)
       {
         double norm[3];
+        this->Input->GetCell(idList->GetId(i), cell);
         if (cnorms)
         {
           cnorms->GetTuple(idList->GetId(i), norm);
         }
         else
         {
-          vtkPolygon::ComputeNormal(this->Input->GetCell(idList->GetId(i))->GetPoints(), norm);
+          vtkPolygon::ComputeNormal(cell->GetPoints(), norm);
         }
 
         // Compute angle at point a
-        int b = this->Input->GetCell(idList->GetId(i))->GetPointId(0);
-        int c = this->Input->GetCell(idList->GetId(i))->GetPointId(1);
+        int b = cell->GetPointId(0);
+        int c = cell->GetPointId(1);
         if (a == b)
         {
-          b = this->Input->GetCell(idList->GetId(i))->GetPointId(2);
+          b = cell->GetPointId(2);
         }
         else if (a == c)
         {
-          c = this->Input->GetCell(idList->GetId(i))->GetPointId(2);
+          c = cell->GetPointId(2);
         }
         double pa[3], pb[3], pc[3];
         this->Input->GetPoint(a, pa);
@@ -304,14 +302,13 @@ double vtkImplicitPolyDataDistance::SharedEvaluate(double x[3], double g[3], dou
         }
         vtkMath::Normalize(pb);
         vtkMath::Normalize(pc);
-        double alpha = acos(vtkMath::Dot(pb, pc));
+        double alpha = std::acos(vtkMath::Dot(pb, pc));
         awnorm[0] += alpha * norm[0];
         awnorm[1] += alpha * norm[1];
         awnorm[2] += alpha * norm[2];
       }
       vtkMath::Normalize(awnorm);
     }
-    idList->Delete();
 
     // sign(dist) = dot(grad, cell normal)
     if (ret == 0)
@@ -354,3 +351,4 @@ void vtkImplicitPolyDataDistance::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Input : (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

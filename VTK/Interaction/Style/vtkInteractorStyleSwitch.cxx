@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorStyleSwitch.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInteractorStyleSwitch.h"
 
 #include "vtkCallbackCommand.h"
@@ -24,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindowInteractor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInteractorStyleSwitch);
 
 //------------------------------------------------------------------------------
@@ -67,12 +56,14 @@ void vtkInteractorStyleSwitch::SetAutoAdjustCameraClippingRange(vtkTypeBool valu
     return;
   }
 
+#if !VTK_USE_FUTURE_BOOL
   if (value < 0 || value > 1)
   {
-    vtkErrorMacro("Value must be between 0 and 1 for"
+    vtkErrorMacro("Value must be 0 or 1 for"
       << " SetAutoAdjustCameraClippingRange");
     return;
   }
+#endif
 
   this->AutoAdjustCameraClippingRange = value;
   this->JoystickActor->SetAutoAdjustCameraClippingRange(value);
@@ -296,3 +287,4 @@ void vtkInteractorStyleSwitch::SetCurrentRenderer(vtkRenderer* renderer)
   this->TrackballActor->SetCurrentRenderer(renderer);
   this->TrackballCamera->SetCurrentRenderer(renderer);
 }
+VTK_ABI_NAMESPACE_END

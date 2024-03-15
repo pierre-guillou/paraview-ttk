@@ -1,40 +1,16 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqFileDialog.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqFileDialog_h
 #define pqFileDialog_h
 
 #include "pqCoreModule.h"
+
+#include "vtkType.h" // needed for vtkTypeUInt32
+
 #include <QDialog>
+#include <QMap>
 #include <QStringList>
 
 class QModelIndex;
@@ -117,26 +93,39 @@ public:
 
   /**
    * Creates a file dialog with the specified server
-   * if the server is nullptr, files are browsed locally
+   * if the server is nullptr, files are browsed locally. else remotely and optionally locally.
    * the title, and start directory may be specified
    * the filter is a string of semi-colon separated filters
-   * if groupFiles is true, then file sequences are grouped into a file name where the sequence
-   * numbers are replaced by `..`
+   * if supportGroupFiles is true, then file sequences will support being grouped into a file name
+   * where the sequence numbers are replaced by `..`
+   *
+   * if onlyBrowseRemotely is false,
+   *    and server == nullptr, then you can only browse locally, and defaults to local.
+   *    and server != nullptr, then you can browse locally and remotely, and defaults to local.
+   * if onlyBrowseRemotely is true,
+   *    and server == nullptr, then you can only browse locally, and defaults to local.
+   *    and server != nullptr, then you can browse locally and remotely, and defaults to remote.
    */
   pqFileDialog(pqServer* server, QWidget* parent, const QString& title = QString(),
     const QString& directory = QString(), const QString& filter = QString(),
-    bool groupFiles = true);
+    bool supportGroupFiles = true, bool onlyBrowseRemotely = true);
   ~pqFileDialog() override;
 
+  ///@{
   /**
    * set the file mode
    */
+  void setFileMode(FileMode, vtkTypeUInt32);
   void setFileMode(FileMode);
+  ///@}
 
+  ///@{
   /**
    * set the most recently used file extension
    */
+  void setRecentlyUsedExtension(const QString& fileExtension, vtkTypeUInt32 location);
   void setRecentlyUsedExtension(const QString& fileExtension);
+  ///@}
 
   /**
    * Returns the group of files for the given index
@@ -174,12 +163,29 @@ public:
   bool getShowHidden();
 
   /**
+   * Get the location that the selected files/directories belong to.
+   * The only return values (as of now) are vtkPVSession::CLIENT, vtkPVSession::DATA_SERVER.
+   */
+  vtkTypeUInt32 getSelectedLocation() const { return this->SelectedLocation; }
+
+  ///@{
+  /**
    * static method similar to QFileDialog::getSaveFileName(...) to make it
    * easier to get a file name to save a file as.
    */
   static QString getSaveFileName(pqServer* server, QWidget* parentWdg,
     const QString& title = QString(), const QString& directory = QString(),
-    const QString& filter = QString());
+    const QString& filter = QString())
+  {
+    const QPair<QString, vtkTypeUInt32> result =
+      pqFileDialog::getSaveFileNameAndLocation(server, parentWdg, title, directory, filter);
+    return result.first;
+  }
+  static QPair<QString, vtkTypeUInt32> getSaveFileNameAndLocation(pqServer* server,
+    QWidget* parentWdg, const QString& title = QString(), const QString& directory = QString(),
+    const QString& filter = QString(), bool supportGroupFiles = false,
+    bool onlyBrowseRemotely = true);
+  ///@}
 Q_SIGNALS:
   /**
    * Signal emitted when the user has chosen a set of files
@@ -211,6 +217,7 @@ protected:
   void showEvent(QShowEvent* showEvent) override;
 
 private Q_SLOTS:
+  void onLocationChanged(int fs);
   void onModelReset();
   void onNavigate(const QString& = QString());
   void onNavigateUp();
@@ -224,6 +231,7 @@ private Q_SLOTS:
   void onClickedFile(const QModelIndex&);
 
   void onActivateFavorite(const QModelIndex&);
+  void onActivateLocation(const QModelIndex&);
   void onActivateRecent(const QModelIndex&);
   void onDoubleClickFile(const QModelIndex&);
 
@@ -232,6 +240,8 @@ private Q_SLOTS:
   void onShowHiddenFiles(const bool& hide);
 
   void onShowDetailToggled(bool show);
+
+  void onGroupFilesToggled(bool group);
 
   // Called when the user changes the file selection.
   void fileSelectionChanged();
@@ -268,28 +278,35 @@ private Q_SLOTS:
    * we update the visibility and enabled state of the `OK` and `Navigate`
    * buttons.
    */
-  void updateButtonStates();
+  void updateButtonStates(vtkTypeUInt32 fileSystem);
 
 private: // NOLINT(readability-redundant-access-specifiers)
   pqFileDialog(const pqFileDialog&);
   pqFileDialog& operator=(const pqFileDialog&);
 
   class pqImplementation;
-  pqImplementation* const Implementation;
+  QMap<vtkTypeUInt32, pqImplementation*> Implementations;
+  vtkTypeUInt32 SelectedLocation;
 
   // returns if true if files are loaded
   bool acceptInternal(const QStringList& selected_files);
   QString fixFileExtension(const QString& filename, const QString& filter);
 
+  ///@{
   /**
    * save current state of dialog(size, position, splitters and position of files header)
    */
+  void saveState(vtkTypeUInt32 fileSystem);
   void saveState();
+  ///@}
 
+  ///@{
   /**
    * restore state of dialog
    */
+  void restoreState(vtkTypeUInt32 fileSystem);
   void restoreState();
+  ///@}
 };
 
-#endif // !pqFileDialog_h
+#endif // pqFileDialog_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3Writer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmf3Writer.h"
 
@@ -41,6 +29,7 @@
 #include <stack>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkXdmf3Writer);
 
 //=============================================================================
@@ -71,7 +60,7 @@ public:
   {
     shared_ptr<XdmfGridCollection> dest = XdmfGridCollection::New();
     dest->setType(XdmfGridCollectionType::Temporal());
-    this->DestinationGroups.push(dest);
+    this->DestinationGroups.emplace(dest);
     this->Destination = this->DestinationGroups.top();
     this->Domain->insert(dest);
   }
@@ -88,7 +77,7 @@ public:
       {
         shared_ptr<XdmfGridCollection> group = XdmfGridCollection::New();
         this->Destination->insert(group);
-        this->DestinationGroups.push(group);
+        this->DestinationGroups.emplace(group);
         this->Destination = this->DestinationGroups.top();
         vtkMultiBlockDataSet* mbds = vtkMultiBlockDataSet::SafeDownCast(dataSet);
         for (unsigned int i = 0; i < mbds->GetNumberOfBlocks(); i++)
@@ -507,3 +496,4 @@ int vtkXdmf3Writer::CheckParameters()
 {
   return this->CheckParametersInternal(1, 0);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLinearTransformCellLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLinearTransformCellLocator.h"
 
 #include "vtkArrayDispatch.h"
@@ -36,6 +24,7 @@
 
 static constexpr vtkIdType VTK_MAX_SAMPLE_POINTS = 100;
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkLinearTransformCellLocator);
 
@@ -425,7 +414,7 @@ int vtkLinearTransformCellLocator::IntersectWithLine(const double p1[3], const d
 
 //------------------------------------------------------------------------------
 int vtkLinearTransformCellLocator::IntersectWithLine(const double p1[3], const double p2[3],
-  const double tol, vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell)
+  double tol, vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell)
 {
   if (!this->CellLocator)
   {
@@ -536,3 +525,4 @@ bool vtkLinearTransformCellLocator::InsideCellBounds(double x[3], vtkIdType cell
   this->InverseTransform->InternalTransformPoint(x, xTransform);
   return this->CellLocator->InsideCellBounds(xTransform, cellId);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataPointPlacer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataPointPlacer
  * @brief   Base class to place points given constraints on polygonal data
@@ -37,6 +25,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkPointPlacer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkPropCollection;
 class vtkProp;
@@ -64,7 +53,7 @@ public:
   virtual void AddProp(vtkProp*);
   virtual void RemoveViewProp(vtkProp* prop);
   virtual void RemoveAllProps();
-  int HasProp(vtkProp*);
+  vtkTypeBool HasProp(vtkProp*);
   int GetNumberOfProps();
 
   /**
@@ -125,4 +114,5 @@ private:
   void operator=(const vtkPolyDataPointPlacer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

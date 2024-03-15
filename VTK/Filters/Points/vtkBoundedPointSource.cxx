@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoundedPointSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBoundedPointSource.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBoundedPointSource);
 
 //------------------------------------------------------------------------------
@@ -143,3 +132,4 @@ void vtkBoundedPointSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Produce Random Scalars: " << (this->ProduceRandomScalars ? "On\n" : "Off\n");
   os << indent << "Scalar Range (" << this->ScalarRange[0] << "," << this->ScalarRange[1] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

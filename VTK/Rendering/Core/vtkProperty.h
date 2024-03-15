@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProperty.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProperty
  * @brief   represent surface properties of a geometric object
@@ -47,6 +35,7 @@
 #define VTK_WIREFRAME 1
 #define VTK_SURFACE 2
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkInformation;
 class vtkRenderer;
@@ -369,6 +358,15 @@ public:
    */
   vtkSetClampMacro(Opacity, double, 0.0, 1.0);
   vtkGetMacro(Opacity, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the line opacity. 1.0 is totally opaque and 0.0 is completely
+   * transparent.
+   */
+  vtkSetClampMacro(EdgeOpacity, double, 0.0, 1.0);
+  vtkGetMacro(EdgeOpacity, double);
   ///@}
 
   ///@{
@@ -779,6 +777,7 @@ protected:
   double Specular;
   double SpecularPower;
   double Opacity;
+  double EdgeOpacity = 1.0;
   double EdgeTint[3];
   float PointSize;
   float LineWidth;
@@ -854,4 +853,5 @@ inline const char* vtkProperty::GetRepresentationAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

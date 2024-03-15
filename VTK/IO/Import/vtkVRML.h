@@ -1,24 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVRML.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (C) 1996 Silicon Graphics, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /* ======================================================================
 
    Importer based on BNF Yacc and Lex parser definition from:
 
     **************************************************
         * VRML 2.0 Parser
-        * Copyright (C) 1996 Silicon Graphics, Inc.
         *
         * Author(s) :    Gavin Bell
         *                Daniel Woods (first port)
@@ -39,6 +27,7 @@
 #include <new>
 
 // Use a user-managed heap to remove memory leaks
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkVRMLAllocator
 {
   static void Initialize()
@@ -75,7 +64,7 @@ public:
     this->Init();
   }
 
-  ~vtkVRMLVectorType(void)
+  ~vtkVRMLVectorType()
   {
     if (this->UseNew)
     {
@@ -89,6 +78,7 @@ public:
     if (!this->UseNew)
     {
       vtkVRMLAllocator::Initialize();
+      // NOLINTNEXTLINE(bugprone-sizeof-expression)
       void* mem = vtkVRMLAllocator::AllocateMemory(this->Allocated * sizeof(T));
       this->Data = new (mem) T[this->Allocated];
     }
@@ -108,6 +98,7 @@ public:
       T* temp = this->Data;
       if (!this->UseNew)
       {
+        // NOLINTNEXTLINE(bugprone-sizeof-expression)
         void* mem = vtkVRMLAllocator::AllocateMemory(this->Allocated * sizeof(T));
         this->Data = new (mem) T[this->Allocated];
       }
@@ -119,6 +110,7 @@ public:
       {
         return;
       }
+      // NOLINTNEXTLINE(bugprone-sizeof-expression)
       memcpy((void*)this->Data, (void*)temp, oldSize * sizeof(T));
       if (this->UseNew)
       {
@@ -133,7 +125,7 @@ public:
     this->Used = newSize;
   }
 
-  int Count(void) const { return this->Used; }
+  int Count() const { return this->Used; }
 
   T& Get(int index) const
   {
@@ -664,5 +656,6 @@ PROTO WorldInfo [ \n\
 ] { }",
   "" };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkVRML.h

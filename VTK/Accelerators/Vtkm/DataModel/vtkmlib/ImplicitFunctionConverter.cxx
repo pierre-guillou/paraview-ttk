@@ -1,31 +1,21 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "ImplicitFunctionConverter.h"
-
-#include "vtkmFilterPolicy.h"
 
 #include "vtkBox.h"
 #include "vtkCylinder.h"
 #include "vtkPlane.h"
 #include "vtkSphere.h"
 
+#include <vtkm/cont/ErrorBadType.h>
+
 #include <vtkm/ImplicitFunction.h>
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 inline vtkm::Vec<vtkm::FloatDefault, 3> MakeFVec3(const double x[3])
 {
@@ -45,6 +35,12 @@ void ImplicitFunctionConverter::Set(vtkImplicitFunction* function)
   vtkCylinder* cylinder = nullptr;
   vtkPlane* plane = nullptr;
   vtkSphere* sphere = nullptr;
+
+  if (function->GetTransform())
+  {
+    throw vtkm::cont::ErrorBadType(
+      "Vtk-m's implicit functions currently do not support transformations.");
+  }
 
   if ((box = vtkBox::SafeDownCast(function)))
   {
@@ -82,9 +78,9 @@ void ImplicitFunctionConverter::Set(vtkImplicitFunction* function)
   }
   else
   {
-    vtkGenericWarningMacro(<< "The implicit functions " << function->GetClassName()
-                           << " is not supported by vtk-m.");
-    return;
+    std::string message = std::string("The implicit functions ") + function->GetClassName() +
+      std::string(" is not supported by vtk-m.");
+    throw vtkm::cont::ErrorBadType(message);
   }
 
   this->MTime = function->GetMTime();
@@ -141,4 +137,5 @@ const vtkm::ImplicitFunctionGeneral& ImplicitFunctionConverter::Get()
   return this->OutFunction;
 }
 
+VTK_ABI_NAMESPACE_END
 } // tovtkm

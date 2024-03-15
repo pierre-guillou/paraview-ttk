@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSimple3DCirclesStrategy.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSimple3DCirclesStrategy.h"
 
 #include "vtkAbstractArray.h"
@@ -31,6 +19,7 @@
 #include <algorithm> // For min, max, swap, etc.
 #include <list>      // For internal store
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 bool IsZero(T value)
 {
@@ -45,23 +34,23 @@ public:
   {
     if (&from != this)
       this->store = from.store;
-  };
+  }
   vtkSimple3DCirclesStrategyInternal& operator=(const vtkSimple3DCirclesStrategyInternal& from)
   {
     if (&from != this)
       this->store = from.store;
     return *this;
-  };
+  }
   vtkSimple3DCirclesStrategyInternal& operator=(const std::list<vtkIdType>& from)
   {
     this->store = from;
     return *this;
-  };
-  vtkIdType front() { return this->store.front(); };
-  void pop_front() { this->store.pop_front(); };
-  std::size_t size() { return this->store.size(); };
-  void push_back(const vtkIdType& value) { this->store.push_back(value); };
-  ~vtkSimple3DCirclesStrategyInternal() { this->store.clear(); };
+  }
+  vtkIdType front() { return this->store.front(); }
+  void pop_front() { this->store.pop_front(); }
+  std::size_t size() { return this->store.size(); }
+  void push_back(const vtkIdType& value) { this->store.push_back(value); }
+  ~vtkSimple3DCirclesStrategyInternal() { this->store.clear(); }
 
 private:
   std::list<vtkIdType> store;
@@ -663,3 +652,4 @@ void vtkSimple3DCirclesStrategy::Transform(double Local[], double Global[])
   Global[1] = this->Origin[1] + Global[1];
   Global[2] = this->Origin[2] + Global[2];
 }
+VTK_ABI_NAMESPACE_END

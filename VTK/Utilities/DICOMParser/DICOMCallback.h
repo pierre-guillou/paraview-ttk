@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMCallback.h
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifndef __DICOM_CALLBACK_H_
 #define __DICOM_CALLBACK_H_
 
@@ -40,10 +26,11 @@
 // the group, element, type, data, and data length.
 //
 
+VTK_ABI_NAMESPACE_BEGIN
 class DICOM_EXPORT DICOMCallback
 {
 public:
-  virtual ~DICOMCallback() {}
+  virtual ~DICOMCallback() = default;
   virtual void Execute(DICOMParser* parser, doublebyte group, doublebyte element,
     DICOMParser::VRTypes type, unsigned char* val, quadbyte len) = 0;
 };
@@ -90,4 +77,5 @@ protected:
 #pragma warning(pop)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

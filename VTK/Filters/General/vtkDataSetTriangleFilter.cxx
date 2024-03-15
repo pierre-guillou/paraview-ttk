@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetTriangleFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetTriangleFilter.h"
 
 #include "vtkCellData.h"
@@ -30,6 +18,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDataSetTriangleFilter);
 
 vtkDataSetTriangleFilter::vtkDataSetTriangleFilter()
@@ -79,7 +68,6 @@ void vtkDataSetTriangleFilter::StructuredExecute(vtkDataSet* input, vtkUnstructu
   vtkIdType newCellId, inId;
   vtkCellData* inCD = input->GetCellData();
   vtkCellData* outCD = output->GetCellData();
-  vtkPoints* cellPts = vtkPoints::New();
   vtkPoints* newPoints = vtkPoints::New();
   vtkIdList* cellPtIds = vtkIdList::New();
   int numSimplices, numPts, dim, type;
@@ -129,11 +117,11 @@ void vtkDataSetTriangleFilter::StructuredExecute(vtkDataSet* input, vtkUnstructu
   dimensions[2] = dimensions[2] - 1;
 
   vtkIdType numSlices = (dimensions[2] > 0 ? dimensions[2] : 1);
-  int abort = 0;
+  bool abort = false;
   for (k = 0; k < numSlices && !abort; k++)
   {
     this->UpdateProgress(static_cast<double>(k) / numSlices);
-    abort = this->GetAbortExecute();
+    abort = this->CheckAbort();
 
     for (j = 0; j < dimensions[1]; j++)
     {
@@ -143,11 +131,11 @@ void vtkDataSetTriangleFilter::StructuredExecute(vtkDataSet* input, vtkUnstructu
         vtkCell* cell = input->GetCell(i, j, k);
         if ((i + j + k) % 2 == 0)
         {
-          cell->Triangulate(0, cellPtIds, cellPts);
+          cell->TriangulateIds(0, cellPtIds);
         }
         else
         {
-          cell->Triangulate(1, cellPtIds, cellPts);
+          cell->TriangulateIds(1, cellPtIds);
         }
 
         dim = cell->GetCellDimension() + 1;
@@ -193,7 +181,6 @@ void vtkDataSetTriangleFilter::StructuredExecute(vtkDataSet* input, vtkUnstructu
   output->Squeeze();
 
   newPoints->Delete();
-  cellPts->Delete();
   cellPtIds->Delete();
 }
 
@@ -211,7 +198,6 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
   int k;
   vtkCellData* inCD = input->GetCellData();
   vtkCellData* outCD = output->GetCellData();
-  vtkPoints* cellPts;
   vtkIdList* cellPtIds;
   vtkIdType ptId, numTets, ncells;
   int numPts, type;
@@ -245,7 +231,7 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
           case VTK_TRIANGLE:
             if (this->TetrahedraOnly)
             {
-              allsimplices = 0; // don't shallowcopy need to stip non tets
+              allsimplices = 0; // don't shallowcopy need to strip non tets
             }
             break;
           default:
@@ -262,7 +248,6 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
   }
 
   cell = vtkGenericCell::New();
-  cellPts = vtkPoints::New();
   cellPtIds = vtkIdList::New();
 
   // Create an array of points
@@ -284,7 +269,7 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     input->GetCell(cellId, cell);
@@ -293,7 +278,7 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
     if (cell->GetCellType() == VTK_POLYHEDRON) // polyhedron
     {
       dim = 4;
-      cell->Triangulate(0, cellPtIds, cellPts);
+      cell->TriangulateIds(0, cellPtIds);
       numPts = cellPtIds->GetNumberOfIds();
 
       numSimplices = numPts / dim;
@@ -359,7 +344,7 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
     else if (!this->TetrahedraOnly) // 2D or lower dimension
     {
       dim++;
-      cell->Triangulate(0, cellPtIds, cellPts);
+      cell->TriangulateIds(0, cellPtIds);
       numPts = cellPtIds->GetNumberOfIds();
 
       numSimplices = numPts / dim;
@@ -395,7 +380,6 @@ void vtkDataSetTriangleFilter::UnstructuredExecute(
 
   tempCD->Delete();
 
-  cellPts->Delete();
   cellPtIds->Delete();
   cell->Delete();
 }
@@ -411,3 +395,4 @@ void vtkDataSetTriangleFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "TetrahedraOnly: " << (this->TetrahedraOnly ? "On" : "Off") << "\n";
 }
+VTK_ABI_NAMESPACE_END

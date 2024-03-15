@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitPlaneWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitPlaneWidget.h"
 
 #include "vtkActor.h"
@@ -39,6 +27,7 @@
 #include "vtkTransform.h"
 #include "vtkTubeFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitPlaneWidget);
 
 //------------------------------------------------------------------------------
@@ -1279,3 +1268,4 @@ void vtkImplicitPlaneWidget::SizeHandles()
 
   this->EdgesTuber->SetRadius(0.25 * radius);
 }
+VTK_ABI_NAMESPACE_END

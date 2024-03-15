@@ -72,7 +72,9 @@ vtk_module_test_data(
   Data/cellsnd.bin.inp
   Data/flow.tec
   Data/flow.tec.gz
+  Data/malformed.obj
   Data/obj_double_sphere.obj
+  Data/obj_multiline.obj
   Data/obj_multitexture.obj
   Data/obj_multitexture_notexture.obj
   Data/obj_singletexture.obj
@@ -100,7 +102,9 @@ if (VTK_USE_LARGE_DATA)
   endif ()
 endif ()
 
-add_subdirectory(Cxx)
+if (NOT vtk_testing_cxx_disabled)
+  add_subdirectory(Cxx)
+endif ()
 
 if (VTK_WRAP_PYTHON)
   vtk_module_test_data(
@@ -130,7 +134,11 @@ if (VTK_WRAP_PYTHON)
     Data/test.p3d
     Data/texThres2.vtk
     Data/vwgt.coords
-    Data/vwgt.graph)
+    Data/vwgt.graph
+    Data/room.dat.h5
+    Data/room.cas.h5
+    Data/mesh_3ddp.dat.h5
+    Data/mesh_3ddp.cas.h5)
 
   add_subdirectory(Python)
 endif ()

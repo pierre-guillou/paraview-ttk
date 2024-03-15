@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPipelineBrowserWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPipelineBrowserWidget.h"
 
 #include "pqActiveObjects.h"
@@ -48,10 +20,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqView.h"
 #include "vtkNew.h"
 #include "vtkPVGeneralSettings.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMScalarBarWidgetRepresentationProxy.h"
+#include "vtkSMSourceProxy.h"
 #include "vtkSMTransferFunctionManager.h"
 #include "vtkSMViewProxy.h"
 
@@ -278,11 +251,12 @@ void pqPipelineBrowserWidget::setVisibility(bool visible, const QModelIndexList&
         if (indexes.size() == 1)
         {
           source = port->getSource();
-          BEGIN_UNDO_SET(QString("%1 %2").arg(visible ? "Show" : "Hide").arg(source->getSMName()));
+          BEGIN_UNDO_SET((visible ? tr("Show %1").arg(source->getSMName())
+                                  : tr("Hide %1").arg(source->getSMName())));
         }
         else
         {
-          BEGIN_UNDO_SET(QString("%1 Selected").arg(visible ? "Show" : "Hide"));
+          BEGIN_UNDO_SET((visible ? tr("Show Selected") : tr("Hide Selected")));
         }
       }
       pqPipelineBrowserWidget::setVisibility(visible, port);
@@ -347,14 +321,14 @@ void pqPipelineBrowserWidget::setVisibility(bool visible, pqOutputPort* port)
       auto activeLayout = activeObjects.activeLayout();
       const auto location = activeObjects.activeLayoutLocation();
 
-      vtkSMProxy* repr = controller->SetVisibility(
+      vtkSMProxy* reprProxy = controller->SetVisibility(
         port->getSourceProxy(), port->getPortNumber(), viewProxy, visible);
-      if (visible && viewProxy == nullptr && repr)
+      if (visible && viewProxy == nullptr && reprProxy)
       {
         // this implies that the controller would have created a new view.
         // let's get that view so we toggle scalar bar visibility in that view
         // and also add it to layout.
-        viewProxy = vtkSMViewProxy::FindView(repr);
+        viewProxy = vtkSMViewProxy::FindView(reprProxy);
         controller->AssignViewToLayout(viewProxy, activeLayout, location);
         activeView =
           pqApplicationCore::instance()->getServerManagerModel()->findItem<pqView*>(viewProxy);
@@ -368,21 +342,21 @@ void pqPipelineBrowserWidget::setVisibility(bool visible, pqOutputPort* port)
       {
         // This gets executed if scalar bar mode is
         // AUTOMATICALLY_HIDE_SCALAR_BARS or AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS
-        vtkSMPVRepresentationProxy* PVRepr = vtkSMPVRepresentationProxy::SafeDownCast(repr);
-        if (visible && PVRepr && vtkSMPVRepresentationProxy::GetUsingScalarColoring(repr))
+        if (visible && vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
         {
-          int stickyVisible = PVRepr->IsScalarBarStickyVisible(viewProxy);
+          int stickyVisible =
+            vtkSMColorMapEditorHelper::IsScalarBarStickyVisible(reprProxy, viewProxy);
           if (stickyVisible != -1)
           {
-            PVRepr->SetScalarBarVisibility(viewProxy, stickyVisible);
+            vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, viewProxy, stickyVisible);
           }
           else if (scalarBarMode == vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
           {
-            PVRepr->SetScalarBarVisibility(viewProxy, true);
+            vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, viewProxy, true);
           }
           else if (scalarBarMode == vtkPVGeneralSettings::AUTOMATICALLY_HIDE_SCALAR_BARS)
           {
-            PVRepr->SetScalarBarVisibility(viewProxy, false);
+            vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, viewProxy, false);
           }
           else
           {

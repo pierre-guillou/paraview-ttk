@@ -1,17 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkYoungsMaterialInterface.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 1993-2007 NVIDIA Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-NVIDIA-USGov
 // .SECTION Thanks
 // This file is part of the generalized Youngs material interface reconstruction algorithm
 // contributed by CEA/DIF - Commissariat a l'Energie Atomique, Centre DAM Ile-De-France <br> BP12,
@@ -58,6 +47,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <cassert>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkYoungsMaterialInterfaceCellCut
 {
 public:
@@ -593,6 +583,10 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
   while (!inputIterator->IsDoneWithTraversal())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataSet* input = vtkDataSet::SafeDownCast(inputIterator->GetCurrentDataObject());
     // Composite indices begin at 1 (0 is the root)
     int composite_index = inputIterator->GetCurrentFlatIndex();
@@ -618,7 +612,10 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   // Perform parallel aggregation when needed (nothing in serial)
-  this->Aggregate(nmat, inputsPerMaterial);
+  if (!this->CheckAbort())
+  {
+    this->Aggregate(nmat, inputsPerMaterial);
+  }
 
   // map containing output blocks
   std::map<int, vtkSmartPointer<vtkUnstructuredGrid>> outputBlocks;
@@ -628,6 +625,10 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   inputIterator->GoToFirstItem();
   while (inputIterator->IsDoneWithTraversal() == 0)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataSet* input = vtkDataSet::SafeDownCast(inputIterator->GetCurrentDataObject());
 
     // Composite indices begin at 1 (0 is the root)
@@ -790,7 +791,6 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
     // --------------------------- core computation --------------------------
     vtkIdList* ptIds = vtkIdList::New();
-    vtkPoints* pts = vtkPoints::New();
     vtkConvexPointSet* cpsCell = vtkConvexPointSet::New();
 
     double* interpolatedValues = new double[MAX_CELL_POINTS * pointDataComponents];
@@ -802,6 +802,10 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
     for (vtkIdType ci = 0; ci < nCells; ci++)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       int interfaceEdges[MAX_CELL_POINTS * 2];
       double interfaceWeights[MAX_CELL_POINTS];
       int nInterfaceEdges;
@@ -859,7 +863,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
          IMPORTANT NOTE: triangulation is given with mesh point ids (not local cell ids)
          and are translated to cell local point ids. */
       cell.needTriangulation = false;
-      cell.triangulationOk = (vtkcell->Triangulate(ci, ptIds, pts) != 0);
+      cell.triangulationOk = (vtkcell->TriangulateIds(ci, ptIds) != 0);
       cell.ntri = 0;
       if (cell.triangulationOk)
       {
@@ -1113,7 +1117,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
                 tetras[i][j] = cell.triangulation[i * 4 + j];
               }
 
-            // compute innterface polygon
+            // compute interface polygon
             vtkYoungsMaterialInterfaceCellCut::cellInterface3D(cell.np, cell.points, cell.nEdges,
               cell.edges, cell.ntri, tetras, fraction, normal, this->UseFractionAsDistance != 0,
               nInterfaceEdges, interfaceEdges, interfaceWeights, nInsidePoints, insidePointIds,
@@ -1317,6 +1321,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
               Mats[m].cells.push_back(nptId);
               Mats[m].cellArrayCount++;
             }
+            (void)prevMatInterfToBeAdded;
 
             Mats[m].pointCount += nInterfaceEdges + pointsCopied + prevMatInterfAdded;
 
@@ -1368,7 +1373,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
                   DBG_ASSERT(nextCell.edges[i][1] >= 0 && nextCell.edges[i][1] < nextCell.np);
                 }
               }
-              nextCell.triangulationOk = (vtkcell->Triangulate(ci, ptIds, pts) != 0);
+              nextCell.triangulationOk = (vtkcell->TriangulateIds(ci, ptIds) != 0);
               nextCell.ntri = 0;
               if (nextCell.triangulationOk)
               {
@@ -1420,7 +1425,6 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
     delete[] inCellArrays;
 
     ptIds->Delete();
-    pts->Delete();
     cpsCell->Delete();
     delete[] interpolatedValues;
     delete[] matOrdering;
@@ -1541,14 +1545,13 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
   {
     vtkDebugMacro(<< "NoInterfaceFound " << debugStats_NoInterfaceFound << "\n");
   }
-
   // Build final composite output. also tagging blocks with their associated Id
   vtkDebugMacro(<< this->NumberOfDomains << " Domains, " << nmat << " Materials\n");
 
   output->SetNumberOfBlocks(0);
   output->SetNumberOfBlocks(nmat);
 
-  for (int m = 0; m < nmat; ++m)
+  for (int m = 0; m < nmat && !this->CheckAbort(); ++m)
   {
     vtkMultiBlockDataSet* matBlock = vtkMultiBlockDataSet::New();
     matBlock->SetNumberOfBlocks(this->NumberOfDomains);
@@ -1558,7 +1561,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
   int blockIndex = 0;
   for (std::map<int, vtkSmartPointer<vtkUnstructuredGrid>>::iterator it = outputBlocks.begin();
-       it != outputBlocks.end(); ++it, ++blockIndex)
+       it != outputBlocks.end() && !this->CheckAbort(); ++it, ++blockIndex)
   {
     if (it->second->GetNumberOfCells() > 0)
     {
@@ -1574,6 +1577,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 
 #undef GET_POINT_DATA
 
+VTK_ABI_NAMESPACE_END
 /* ------------------------------------------------------------------------------------------
    --- Low level computations including interface placement and intersection line/polygon ---
    ------------------------------------------------------------------------------------------ */
@@ -1582,6 +1586,7 @@ int vtkYoungsMaterialInterface::RequestData(vtkInformation* vtkNotUsed(request),
 // and a set of simplices
 namespace vtkYoungsMaterialInterfaceCellCutInternals
 {
+VTK_ABI_NAMESPACE_BEGIN
 #define REAL_PRECISION 64 // use double precision
 #define REAL_COORD REAL3
 
@@ -1675,47 +1680,8 @@ namespace vtkYoungsMaterialInterfaceCellCutInternals
 
 #endif /* __CUDACC__ */
 
-/*
-  Some of the vector functions where found in the file vector_operators.h from the NVIDIA's CUDA
-  Toolkit. Please read the above notice.
-*/
-
-/*
- * Copyright 1993-2007 NVIDIA Corporation.  All rights reserved.
- *
- * NOTICE TO USER:
- *
- * This source code is subject to NVIDIA ownership rights under U.S. and
- * international Copyright laws.  Users and possessors of this source code
- * are hereby granted a nonexclusive, royalty-free license to use this code
- * in individual and commercial software.
- *
- * NVIDIA MAKES NO REPRESENTATION ABOUT THE SUITABILITY OF THIS SOURCE
- * CODE FOR ANY PURPOSE.  IT IS PROVIDED "AS IS" WITHOUT EXPRESS OR
- * IMPLIED WARRANTY OF ANY KIND.  NVIDIA DISCLAIMS ALL WARRANTIES WITH
- * REGARD TO THIS SOURCE CODE, INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE.
- * IN NO EVENT SHALL NVIDIA BE LIABLE FOR ANY SPECIAL, INDIRECT, INCIDENTAL,
- * OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
- * OF USE, DATA OR PROFITS,  WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
- * OR OTHER TORTIOUS ACTION,  ARISING OUT OF OR IN CONNECTION WITH THE USE
- * OR PERFORMANCE OF THIS SOURCE CODE.
- *
- * U.S. Government End Users.   This source code is a "commercial item" as
- * that term is defined at  48 C.F.R. 2.101 (OCT 1995), consisting  of
- * "commercial computer  software"  and "commercial computer software
- * documentation" as such terms are  used in 48 C.F.R. 12.212 (SEPT 1995)
- * and is provided to the U.S. Government only as a commercial end item.
- * Consistent with 48 C.F.R.12.212 and 48 C.F.R. 227.7202-1 through
- * 227.7202-4 (JUNE 1995), all U.S. Government End Users acquire the
- * source code with only those rights set forth herein.
- *
- * Any use of this source code in individual and commercial software must
- * include, in the user documentation and internal comments to the code,
- * the above Disclaimer and U.S. Government End Users Notice.
- */
-
 // define base vector types and operators or use those provided by CUDA
+
 #ifndef __CUDACC__
 struct float2
 {
@@ -2279,7 +2245,7 @@ REAL evalPolynomialFunc(const REAL4 F, const REAL x)
 }
 
 /*****************************************
- *** Intergal of a polynomial function ***
+ *** Integral of a polynomial function ***
  *****************************************/
 FUNC_DECL
 REAL3 integratePolynomialFunc(REAL2 linearFunc)
@@ -3075,9 +3041,10 @@ struct CWVertex
   int eid[2];
   inline bool operator<(const CWVertex& v) const { return angle < v.angle; }
 };
-
+VTK_ABI_NAMESPACE_END
 } /* namespace vtkYoungsMaterialInterfaceCellCutInternals */
 
+VTK_ABI_NAMESPACE_BEGIN
 // ------------------------------------
 //         ####     ####
 //             #    #   #
@@ -3450,3 +3417,4 @@ double vtkYoungsMaterialInterfaceCellCut::findTriangleSetCuttingPlane(const doub
 
   return -d;
 }
+VTK_ABI_NAMESPACE_END

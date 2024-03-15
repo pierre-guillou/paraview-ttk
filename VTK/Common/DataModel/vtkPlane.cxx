@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlane.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPlane.h"
 
 #include <vtkPoints.h>
@@ -26,6 +14,7 @@
 #include <algorithm>
 #include <array>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlane);
 
 //------------------------------------------------------------------------------
@@ -628,3 +617,4 @@ void vtkPlane::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Origin: (" << this->Origin[0] << ", " << this->Origin[1] << ", "
      << this->Origin[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayListTemplate.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkArrayListTemplate
  * @brief   thread-safe and efficient data attribute processing
@@ -55,6 +44,7 @@
 
 // Create a generic class supporting virtual dispatch to type-specific
 // subclasses.
+VTK_ABI_NAMESPACE_BEGIN
 struct BaseArrayPair
 {
   vtkIdType Num;
@@ -79,6 +69,30 @@ struct BaseArrayPair
     int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) = 0;
   virtual void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) = 0;
   virtual void AssignNullValue(vtkIdType outId) = 0;
+#ifdef VTK_USE_64BIT_IDS
+  virtual void Copy(unsigned int inId, unsigned int outId) = 0;
+  virtual void Interpolate(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) = 0;
+  virtual void InterpolateOutput(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) = 0;
+  virtual void Average(int numPts, const unsigned int* ids, unsigned int outId) = 0;
+  virtual void WeightedAverage(
+    int numPts, const unsigned int* ids, const double* weights, unsigned int outId) = 0;
+  virtual void InterpolateEdge(unsigned int v0, unsigned int v1, double t, unsigned int outId) = 0;
+  virtual void AssignNullValue(unsigned int outId) = 0;
+#endif
+  virtual void Copy(unsigned short inId, unsigned short outId) = 0;
+  virtual void Interpolate(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) = 0;
+  virtual void InterpolateOutput(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) = 0;
+  virtual void Average(int numPts, const unsigned short* ids, unsigned short outId) = 0;
+  virtual void WeightedAverage(
+    int numPts, const unsigned short* ids, const double* weights, unsigned short outId) = 0;
+  virtual void InterpolateEdge(
+    unsigned short v0, unsigned short v1, double t, unsigned short outId) = 0;
+  virtual void AssignNullValue(unsigned short outId) = 0;
+
   virtual void Realloc(vtkIdType sze) = 0;
 };
 
@@ -98,22 +112,24 @@ struct ArrayPair : public BaseArrayPair
   {
   }
   ~ArrayPair() override = default; // calm down some finicky compilers
-
-  void Copy(vtkIdType inId, vtkIdType outId) override
+protected:
+  template <typename IdTypeT>
+  void Copy(IdTypeT inId, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
-      this->Output[outId * this->NumComp + j] = this->Input[inId * this->NumComp + j];
+      this->Output[outId * this->NumComp + j] =
+        static_cast<T>(this->Input[inId * this->NumComp + j]);
     }
   }
 
-  void Interpolate(
-    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void Interpolate(int numWeights, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numWeights; ++i)
+      for (int i = 0; i < numWeights; ++i)
       {
         v += weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
@@ -121,13 +137,13 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
-  void InterpolateOutput(
-    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void InterpolateOutput(int numWeights, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numWeights; ++i)
+      for (int i = 0; i < numWeights; ++i)
       {
         v += weights[i] * static_cast<double>(this->Output[ids[i] * this->NumComp + j]);
       }
@@ -135,12 +151,13 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
-  void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
+  template <typename IdTypeT>
+  void Average(int numPts, const IdTypeT* ids, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numPts; ++i)
+      for (int i = 0; i < numPts; ++i)
       {
         v += static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
@@ -149,13 +166,13 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
-  void WeightedAverage(
-    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void WeightedAverage(int numPts, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numPts; ++i)
+      for (int i = 0; i < numPts; ++i)
       {
         v += (weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]));
       }
@@ -163,19 +180,20 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
-  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) override
+  template <typename IdTypeT>
+  void InterpolateEdge(IdTypeT v0, IdTypeT v1, double t, IdTypeT outId)
   {
     double v;
-    vtkIdType numComp = this->NumComp;
-    for (int j = 0; j < numComp; ++j)
+    for (int j = 0; j < this->NumComp; ++j)
     {
-      v = this->Input[v0 * numComp + j] +
-        t * (this->Input[v1 * numComp + j] - this->Input[v0 * numComp + j]);
-      this->Output[outId * numComp + j] = static_cast<T>(v);
+      v = this->Input[v0 * this->NumComp + j] +
+        t * (this->Input[v1 * this->NumComp + j] - this->Input[v0 * this->NumComp + j]);
+      this->Output[outId * this->NumComp + j] = static_cast<T>(v);
     }
   }
 
-  void AssignNullValue(vtkIdType outId) override
+  template <typename IdTypeT>
+  void AssignNullValue(IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
@@ -183,11 +201,275 @@ struct ArrayPair : public BaseArrayPair
     }
   }
 
+public:
+  void Copy(vtkIdType inId, vtkIdType outId) override { this->Copy<vtkIdType>(inId, outId); }
+  void Interpolate(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->Interpolate<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->InterpolateOutput<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
+  {
+    this->Average<vtkIdType>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->WeightedAverage<vtkIdType>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) override
+  {
+    this->InterpolateEdge<vtkIdType>(v0, v1, t, outId);
+  }
+  void AssignNullValue(vtkIdType outId) override { this->AssignNullValue<vtkIdType>(outId); }
+#ifdef VTK_USE_64BIT_IDS
+  void Copy(unsigned int inId, unsigned int outId) override
+  {
+    this->Copy<unsigned int>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->Interpolate<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->InterpolateOutput<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned int* ids, unsigned int outId) override
+  {
+    this->Average<unsigned int>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->WeightedAverage<unsigned int>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(unsigned int v0, unsigned int v1, double t, unsigned int outId) override
+  {
+    this->InterpolateEdge<unsigned int>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned int outId) override { this->AssignNullValue<unsigned int>(outId); }
+#endif
+  void Copy(unsigned short inId, unsigned short outId) override
+  {
+    this->Copy<unsigned short>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->Interpolate<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->InterpolateOutput<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned short* ids, unsigned short outId) override
+  {
+    this->Average<unsigned short>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->WeightedAverage<unsigned short>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(
+    unsigned short v0, unsigned short v1, double t, unsigned short outId) override
+  {
+    this->InterpolateEdge<unsigned short>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned short outId) override
+  {
+    this->AssignNullValue<unsigned short>(outId);
+  }
+
   void Realloc(vtkIdType sze) override
   {
     this->OutputArray->Resize(sze);
     this->OutputArray->SetNumberOfTuples(sze);
     this->Output = static_cast<T*>(this->OutputArray->GetVoidPointer(0));
+  }
+};
+
+template <>
+struct ArrayPair<vtkStdString> : public BaseArrayPair
+{
+  vtkStdString* Input;
+  vtkStdString* Output;
+  double NullValue;
+
+  ArrayPair(vtkStdString* in, vtkStdString* out, vtkIdType num, int numComp,
+    vtkAbstractArray* outArray, double null)
+    : BaseArrayPair(num, numComp, outArray)
+    , Input(in)
+    , Output(out)
+    , NullValue(null)
+  {
+  }
+  ~ArrayPair() override = default; // calm down some finicky compilers
+protected:
+  template <typename IdTypeT>
+  void Copy(IdTypeT inId, IdTypeT outId)
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      this->Output[outId * this->NumComp + j] =
+        static_cast<vtkStdString>(this->Input[inId * this->NumComp + j]);
+    }
+  }
+  template <typename IdTypeT>
+  void Interpolate(
+    int numWeights, const IdTypeT* ids, const double* vtkNotUsed(weights), IdTypeT outId)
+  {
+    for (int i = 0; i < numWeights; ++i)
+    {
+      this->Copy(ids[i], outId);
+    }
+  }
+  template <typename IdTypeT>
+  void InterpolateOutput(int vtkNotUsed(numWeights), const IdTypeT* vtkNotUsed(ids),
+    const double* vtkNotUsed(weights), IdTypeT vtkNotUsed(outId))
+  {
+  }
+  template <typename IdTypeT>
+  void Average(int numPts, const IdTypeT* ids, IdTypeT outId)
+  {
+    for (int i = 0; i < numPts; ++i)
+    {
+      this->Copy(ids[i], outId);
+    }
+  }
+  template <typename IdTypeT>
+  void WeightedAverage(
+    int numPts, const IdTypeT* ids, const double* vtkNotUsed(weights), IdTypeT outId)
+  {
+    for (int i = 0; i < numPts; ++i)
+    {
+      this->Copy(ids[i], outId);
+    }
+  }
+  template <typename IdTypeT>
+  void InterpolateEdge(IdTypeT v0, IdTypeT v1, double vtkNotUsed(t), IdTypeT outId)
+  {
+    vtkStdString s;
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      s = std::string(this->Input[v0 * this->NumComp + j]) +
+        std::string(this->Input[v1 * this->NumComp + j]);
+      this->Output[outId * this->NumComp + j] = s;
+    }
+  }
+
+  template <typename IdTypeT>
+  void AssignNullValue(IdTypeT outId)
+  {
+    for (int j = 0; j < this->NumComp; ++j)
+    {
+      this->Output[outId * this->NumComp + j] = std::to_string(this->NullValue);
+    }
+  }
+
+public:
+  void Copy(vtkIdType inId, vtkIdType outId) override { this->Copy<vtkIdType>(inId, outId); }
+  void Interpolate(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->Interpolate<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->InterpolateOutput<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
+  {
+    this->Average<vtkIdType>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->WeightedAverage<vtkIdType>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) override
+  {
+    this->InterpolateEdge<vtkIdType>(v0, v1, t, outId);
+  }
+  void AssignNullValue(vtkIdType outId) override { this->AssignNullValue<vtkIdType>(outId); }
+#ifdef VTK_USE_64BIT_IDS
+  void Copy(unsigned int inId, unsigned int outId) override
+  {
+    this->Copy<unsigned int>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->Interpolate<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->InterpolateOutput<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned int* ids, unsigned int outId) override
+  {
+    this->Average<unsigned int>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->WeightedAverage<unsigned int>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(unsigned int v0, unsigned int v1, double t, unsigned int outId) override
+  {
+    this->InterpolateEdge<unsigned int>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned int outId) override { this->AssignNullValue<unsigned int>(outId); }
+#endif
+  void Copy(unsigned short inId, unsigned short outId) override
+  {
+    this->Copy<unsigned short>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->Interpolate<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->InterpolateOutput<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned short* ids, unsigned short outId) override
+  {
+    this->Average<unsigned short>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->WeightedAverage<unsigned short>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(
+    unsigned short v0, unsigned short v1, double t, unsigned short outId) override
+  {
+    this->InterpolateEdge<unsigned short>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned short outId) override
+  {
+    this->AssignNullValue<unsigned short>(outId);
+  }
+
+  void Realloc(vtkIdType sze) override
+  {
+    this->OutputArray->Resize(sze);
+    this->OutputArray->SetNumberOfTuples(sze);
+    this->Output = static_cast<vtkStdString*>(this->OutputArray->GetVoidPointer(0));
   }
 };
 
@@ -209,8 +491,9 @@ struct RealArrayPair : public BaseArrayPair
   {
   }
   ~RealArrayPair() override = default; // calm down some finicky compilers
-
-  void Copy(vtkIdType inId, vtkIdType outId) override
+protected:
+  template <typename IdTypeT>
+  void Copy(IdTypeT inId, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
@@ -219,13 +502,13 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
-  void Interpolate(
-    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void Interpolate(int numWeights, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numWeights; ++i)
+      for (int i = 0; i < numWeights; ++i)
       {
         v += weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
@@ -233,13 +516,13 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
-  void InterpolateOutput(
-    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void InterpolateOutput(int numWeights, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numWeights; ++i)
+      for (int i = 0; i < numWeights; ++i)
       {
         v += weights[i] * static_cast<double>(this->Output[ids[i] * this->NumComp + j]);
       }
@@ -247,12 +530,13 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
-  void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
+  template <typename IdTypeT>
+  void Average(int numPts, const IdTypeT* ids, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numPts; ++i)
+      for (int i = 0; i < numPts; ++i)
       {
         v += static_cast<double>(this->Input[ids[i] * this->NumComp + j]);
       }
@@ -261,13 +545,13 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
-  void WeightedAverage(
-    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  template <typename IdTypeT>
+  void WeightedAverage(int numPts, const IdTypeT* ids, const double* weights, IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       double v = 0.0;
-      for (vtkIdType i = 0; i < numPts; ++i)
+      for (int i = 0; i < numPts; ++i)
       {
         v += (weights[i] * static_cast<double>(this->Input[ids[i] * this->NumComp + j]));
       }
@@ -275,24 +559,114 @@ struct RealArrayPair : public BaseArrayPair
     }
   }
 
-  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) override
+  template <typename IdTypeT>
+  void InterpolateEdge(IdTypeT v0, IdTypeT v1, double t, IdTypeT outId)
   {
     double v;
-    vtkIdType numComp = this->NumComp;
-    for (int j = 0; j < numComp; ++j)
+    for (int j = 0; j < this->NumComp; ++j)
     {
-      v = this->Input[v0 * numComp + j] +
-        t * (this->Input[v1 * numComp + j] - this->Input[v0 * numComp + j]);
-      this->Output[outId * numComp + j] = static_cast<TOutput>(v);
+      v = this->Input[v0 * this->NumComp + j] +
+        t * (this->Input[v1 * this->NumComp + j] - this->Input[v0 * this->NumComp + j]);
+      this->Output[outId * this->NumComp + j] = static_cast<TOutput>(v);
     }
   }
 
-  void AssignNullValue(vtkIdType outId) override
+  template <typename IdTypeT>
+  void AssignNullValue(IdTypeT outId)
   {
     for (int j = 0; j < this->NumComp; ++j)
     {
       this->Output[outId * this->NumComp + j] = this->NullValue;
     }
+  }
+
+public:
+  void Copy(vtkIdType inId, vtkIdType outId) override { this->Copy<vtkIdType>(inId, outId); }
+  void Interpolate(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->Interpolate<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->InterpolateOutput<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const vtkIdType* ids, vtkIdType outId) override
+  {
+    this->Average<vtkIdType>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId) override
+  {
+    this->WeightedAverage<vtkIdType>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId) override
+  {
+    this->InterpolateEdge<vtkIdType>(v0, v1, t, outId);
+  }
+  void AssignNullValue(vtkIdType outId) override { this->AssignNullValue<vtkIdType>(outId); }
+#ifdef VTK_USE_64BIT_IDS
+  void Copy(unsigned int inId, unsigned int outId) override
+  {
+    this->Copy<unsigned int>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->Interpolate<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->InterpolateOutput<unsigned int>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned int* ids, unsigned int outId) override
+  {
+    this->Average<unsigned int>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned int* ids, const double* weights, unsigned int outId) override
+  {
+    this->WeightedAverage<unsigned int>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(unsigned int v0, unsigned int v1, double t, unsigned int outId) override
+  {
+    this->InterpolateEdge<unsigned int>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned int outId) override { this->AssignNullValue<unsigned int>(outId); }
+#endif
+  void Copy(unsigned short inId, unsigned short outId) override
+  {
+    this->Copy<unsigned short>(inId, outId);
+  }
+  void Interpolate(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->Interpolate<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void InterpolateOutput(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->InterpolateOutput<unsigned short>(numWeights, ids, weights, outId);
+  }
+  void Average(int numPts, const unsigned short* ids, unsigned short outId) override
+  {
+    this->Average<unsigned short>(numPts, ids, outId);
+  }
+  void WeightedAverage(
+    int numPts, const unsigned short* ids, const double* weights, unsigned short outId) override
+  {
+    this->WeightedAverage<unsigned short>(numPts, ids, weights, outId);
+  }
+  void InterpolateEdge(
+    unsigned short v0, unsigned short v1, double t, unsigned short outId) override
+  {
+    this->InterpolateEdge<unsigned short>(v0, v1, t, outId);
+  }
+  void AssignNullValue(unsigned short outId) override
+  {
+    this->AssignNullValue<unsigned short>(outId);
   }
 
   void Realloc(vtkIdType sze) override
@@ -337,93 +711,240 @@ struct ArrayList
   void ExcludeArray(vtkAbstractArray* da);
   vtkTypeBool IsExcluded(vtkAbstractArray* da);
 
-  // Loop over the array pairs and copy data from one to another. This (and the following methods)
-  // can be used within threads.
-  void Copy(vtkIdType inId, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->Copy(inId, outId);
-    }
-  }
-
-  // Loop over the arrays and have them interpolate themselves
-  void Interpolate(int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->Interpolate(numWeights, ids, weights, outId);
-    }
-  }
-
-  // Loop over the arrays and have them interpolate themselves based on the output arrays
-  void InterpolateOutput(
-    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->InterpolateOutput(numWeights, ids, weights, outId);
-    }
-  }
-
-  // Loop over the arrays and have them averaged
-  void Average(int numPts, const vtkIdType* ids, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->Average(numPts, ids, outId);
-    }
-  }
-
-  // Loop over the arrays and weighted average the attributes. The weights should sum to 1.0.
-  void WeightedAverage(int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->WeightedAverage(numPts, ids, weights, outId);
-    }
-  }
-
-  // Loop over the arrays perform edge interpolation
-  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->InterpolateEdge(v0, v1, t, outId);
-    }
-  }
-
-  // Loop over the arrays and assign the null value
-  void AssignNullValue(vtkIdType outId)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->AssignNullValue(outId);
-    }
-  }
-
-  // Extend (realloc) the arrays
-  void Realloc(vtkIdType sze)
-  {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
-    {
-      (*it)->Realloc(sze);
-    }
-  }
-
   // Only you can prevent memory leaks!
   ~ArrayList()
   {
-    for (std::vector<BaseArrayPair*>::iterator it = Arrays.begin(); it != Arrays.end(); ++it)
+    for (auto& array : this->Arrays)
     {
-      delete (*it);
+      delete array;
     }
   }
 
-  // Return the number of arrays
-  vtkIdType GetNumberOfArrays() { return static_cast<vtkIdType>(Arrays.size()); }
+protected:
+  template <typename TIdType>
+  void Copy(TIdType inId, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->Copy(inId, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void Interpolate(int numWeights, const TIdType* ids, const double* weights, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->Interpolate(numWeights, ids, weights, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void InterpolateOutput(int numWeights, const TIdType* ids, const double* weights, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->InterpolateOutput(numWeights, ids, weights, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void Average(int numPts, const TIdType* ids, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->Average(numPts, ids, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void WeightedAverage(int numPts, const TIdType* ids, const double* weights, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->WeightedAverage(numPts, ids, weights, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void InterpolateEdge(TIdType v0, TIdType v1, double t, TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->InterpolateEdge(v0, v1, t, outId);
+    }
+  }
+
+  template <typename TIdType>
+  void AssignNullValue(TIdType outId)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->AssignNullValue(outId);
+    }
+  }
+
+public:
+  /**
+   * Loop over the array pairs and copy data from one to another. This (and the following methods)
+   * can be used within threads.
+   */
+  void Copy(vtkIdType inId, vtkIdType outId) { this->Copy<vtkIdType>(inId, outId); }
+  /**
+   * Loop over the arrays and have them interpolate themselves
+   */
+  void Interpolate(int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId)
+  {
+    this->Interpolate<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them interpolate themselves based on the output arrays
+   */
+  void InterpolateOutput(
+    int numWeights, const vtkIdType* ids, const double* weights, vtkIdType outId)
+  {
+    this->InterpolateOutput<vtkIdType>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them averaged.
+   */
+  void Average(int numPts, const vtkIdType* ids, vtkIdType outId)
+  {
+    this->Average<vtkIdType>(numPts, ids, outId);
+  }
+  /**
+   * Loop over the arrays and weighted average the attributes. The weights should sum to 1.0.
+   */
+  void WeightedAverage(int numPts, const vtkIdType* ids, const double* weights, vtkIdType outId)
+  {
+    this->WeightedAverage<vtkIdType>(numPts, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays perform edge interpolation.
+   */
+  void InterpolateEdge(vtkIdType v0, vtkIdType v1, double t, vtkIdType outId)
+  {
+    this->InterpolateEdge<vtkIdType>(v0, v1, t, outId);
+  }
+  /**
+   * Loop over the arrays and assign the null value.
+   */
+  void AssignNullValue(vtkIdType outId) { this->AssignNullValue<vtkIdType>(outId); }
+#ifdef VTK_USE_64BIT_IDS
+  /**
+   * Loop over the array pairs and copy data from one to another. This (and the following methods)
+   * can be used within threads.
+   */
+  void Copy(unsigned int inId, unsigned int outId) { this->Copy<unsigned int>(inId, outId); }
+  /**
+   * Loop over the arrays and have them interpolate themselves
+   */
+  void Interpolate(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId)
+  {
+    this->Interpolate<unsigned int>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them interpolate themselves based on the output arrays
+   */
+  void InterpolateOutput(
+    int numWeights, const unsigned int* ids, const double* weights, unsigned int outId)
+  {
+    this->InterpolateOutput<unsigned int>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them averaged.
+   */
+  void Average(int numPts, const unsigned int* ids, unsigned int outId)
+  {
+    this->Average<unsigned int>(numPts, ids, outId);
+  }
+  /**
+   * Loop over the arrays and weighted average the attributes. The weights should sum to 1.0.
+   */
+  void WeightedAverage(
+    int numPts, const unsigned int* ids, const double* weights, unsigned int outId)
+  {
+    this->WeightedAverage<unsigned int>(numPts, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays perform edge interpolation.
+   */
+  void InterpolateEdge(unsigned int v0, unsigned int v1, double t, unsigned int outId)
+  {
+    this->InterpolateEdge<unsigned int>(v0, v1, t, outId);
+  }
+  /**
+   * Loop over the arrays and assign the null value.
+   */
+  void AssignNullValue(unsigned int outId) { this->AssignNullValue<unsigned int>(outId); }
+#endif
+  /**
+   * Loop over the array pairs and copy data from one to another. This (and the following methods)
+   * can be used within threads.
+   */
+  void Copy(unsigned short inId, unsigned short outId) { this->Copy<unsigned short>(inId, outId); }
+  /**
+   * Loop over the arrays and have them interpolate themselves
+   */
+  void Interpolate(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId)
+  {
+    this->Interpolate<unsigned short>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them interpolate themselves based on the output arrays
+   */
+  void InterpolateOutput(
+    int numWeights, const unsigned short* ids, const double* weights, unsigned short outId)
+  {
+    this->InterpolateOutput<unsigned short>(numWeights, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays and have them averaged.
+   */
+  void Average(int numPts, const unsigned short* ids, unsigned short outId)
+  {
+    this->Average<unsigned short>(numPts, ids, outId);
+  }
+  /**
+   * Loop over the arrays and weighted average the attributes. The weights should sum to 1.0.
+   */
+  void WeightedAverage(
+    int numPts, const unsigned short* ids, const double* weights, unsigned short outId)
+  {
+    this->WeightedAverage<unsigned short>(numPts, ids, weights, outId);
+  }
+  /**
+   * Loop over the arrays perform edge interpolation.
+   */
+  void InterpolateEdge(unsigned short v0, unsigned short v1, double t, unsigned short outId)
+  {
+    this->InterpolateEdge<unsigned short>(v0, v1, t, outId);
+  }
+  /**
+   * Loop over the arrays and assign the null value.
+   */
+  void AssignNullValue(unsigned short outId) { this->AssignNullValue<unsigned short>(outId); }
+
+  /**
+   * Extend (realloc) the arrays.
+   */
+  void Realloc(vtkIdType sze)
+  {
+    for (auto& array : this->Arrays)
+    {
+      array->Realloc(sze);
+    }
+  }
+
+  /**
+   * Return the number of arrays.
+   */
+  vtkIdType GetNumberOfArrays() { return static_cast<vtkIdType>(this->Arrays.size()); }
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkArrayListTemplate.txx"
 
 #endif

@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFFile.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef OMFFile_h
 #define OMFFile_h
 
@@ -24,11 +11,14 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkImageData;
+VTK_ABI_NAMESPACE_END
 
 namespace omf
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct OMFFile
 {
@@ -56,5 +46,6 @@ private:
   std::unique_ptr<FileImpl> Impl;
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace omf
 #endif

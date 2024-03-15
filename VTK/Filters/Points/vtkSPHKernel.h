@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSPHKernel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSPHKernel
  * @brief   a family of SPH interpolation kernels
@@ -58,6 +46,7 @@
 #include "vtkFiltersPointsModule.h" // For export macro
 #include "vtkInterpolationKernel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkDoubleArray;
 class vtkDataArray;
@@ -160,13 +149,13 @@ public:
   /**
    * Compute weighting factor given a normalized distance from a sample point.
    */
-  virtual double ComputeFunctionWeight(const double d) = 0;
+  virtual double ComputeFunctionWeight(double d) = 0;
 
   /**
    * Compute weighting factor for derivative quantities given a normalized
    * distance from a sample point.
    */
-  virtual double ComputeDerivWeight(const double d) = 0;
+  virtual double ComputeDerivWeight(double d) = 0;
 
   ///@{
   /**
@@ -207,4 +196,5 @@ private:
   void operator=(const vtkSPHKernel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

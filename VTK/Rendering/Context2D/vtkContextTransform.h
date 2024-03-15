@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContextTransform
@@ -31,6 +19,7 @@
 #include "vtkSmartPointer.h"             // Needed for SP ivars.
 #include "vtkVector.h"                   // Needed for ivars.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransform2D;
 
 class VTKRENDERINGCONTEXT2D_EXPORT vtkContextTransform : public vtkAbstractContextItem
@@ -228,4 +217,5 @@ private:
   void operator=(const vtkContextTransform&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkContextTransform_h

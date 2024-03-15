@@ -59,9 +59,16 @@ public:
   /// \param params a map of ADIOS engine parameters to be
   /// used for each data source. Optional
   /// \sa DataModelInput
-  DataSetReader(const std::string dataModel,
+  DataSetReader(const std::string& dataModel,
                 DataModelInput inputType = DataModelInput::JSONFile,
-                const Params& params = Params());
+                const Params& params = Params(),
+                bool createSharedPoints = false);
+
+  DataSetReader(const std::string& dataModel,
+                DataModelInput inputType,
+                bool streamSteps,
+                const Params& params = Params(),
+                bool createSharedPoints = false);
 
   ~DataSetReader();
 
@@ -81,27 +88,29 @@ public:
   /// \param source name of the \c DataSource, which should match a data_sources
   /// name given in the data model JSON.
   /// \param params a map of parameters and their values
-  void SetDataSourceParameters(const std::string source, const DataSourceParams& params);
+  void SetDataSourceParameters(const std::string& source, const DataSourceParams& params);
 
   /// Set the IO for a given \c source. This call should only be used when
   /// using the inline engine and must be called before attempting to read data or metadata.
   /// \param source name of the \c DataSource, which should match a data_sources
   /// name given in the data model JSON.
   /// \param io pointer to the ADIOS IO object
-  void SetDataSourceIO(const std::string source, void* io);
+  void SetDataSourceIO(const std::string& source, void* io);
 
   /// Set the IO for a given \c source. This call should only be used when
   /// using the inline engine and must be called before attempting to read data or metadata.
   /// \param source name of the \c DataSource, which should match a data_sources
   /// name given in the data model JSON.
   /// \param io the address to an ADIOS IO object, stored in a string
-  void SetDataSourceIO(const std::string source, const std::string& io);
+  void SetDataSourceIO(const std::string& source, const std::string& io);
 
   /// Read and return meta-data. This includes information such as the
   /// number of blocks, available fields etc.
   /// \param paths a map that provides
   /// the paths (filenames usually) corresponding to each data source.
-  fides::metadata::MetaData ReadMetaData(const std::unordered_map<std::string, std::string>& paths);
+  /// \param groupName looks for metadata on variables inside the given group.
+  fides::metadata::MetaData ReadMetaData(const std::unordered_map<std::string, std::string>& paths,
+                                         const std::string& groupName = "");
 
   /// Read and return heavy-data.
   /// \param paths a map that provides
@@ -143,6 +152,8 @@ public:
 
   /// Get std::vector of DataSource names.
   std::vector<std::string> GetDataSourceNames();
+  /// Get all available group names.
+  std::set<std::string> GetGroupNames(const std::unordered_map<std::string, std::string>& paths);
 
 private:
   class DataSetReaderImpl;

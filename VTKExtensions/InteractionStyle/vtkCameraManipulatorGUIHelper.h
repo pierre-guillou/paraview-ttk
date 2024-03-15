@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCameraManipulatorGUIHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCameraManipulatorGUIHelper
  * @brief   Helper class for Camera
@@ -53,7 +41,7 @@ public:
    */
   virtual int GetActiveSourceBounds(double bounds[6]) = 0;
 
-  //@{
+  ///@{
   /**
    * Called to get/set the translation for the actor for the active
    * source in the active view. If applicable returns 1, otherwise
@@ -61,9 +49,9 @@ public:
    */
   virtual int GetActiveActorTranslate(double translate[3]) = 0;
   virtual int SetActiveActorTranslate(double translate[3]) = 0;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the center of rotation. Returns 0 if not applicable.
    */
@@ -72,7 +60,7 @@ public:
 protected:
   vtkCameraManipulatorGUIHelper();
   ~vtkCameraManipulatorGUIHelper() override;
-  //@}
+  ///@}
 
 private:
   vtkCameraManipulatorGUIHelper(const vtkCameraManipulatorGUIHelper&) = delete;

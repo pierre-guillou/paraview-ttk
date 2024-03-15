@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellArrayIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkCellArrayIterator
@@ -75,6 +63,7 @@
 #include <cassert>     // for assert
 #include <type_traits> // for std::enable_if
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkCellArrayIterator : public vtkObject
 {
 public:
@@ -255,4 +244,5 @@ private:
   void operator=(const vtkCellArrayIterator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkCellArrayIterator_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program: ParaView
-  Module:  pqSelectionManager.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSelectionManager.h"
 
 #include "pqActiveObjects.h"
@@ -182,7 +170,9 @@ void pqSelectionManager::clearSelection(pqOutputPort* outputPort)
       // Clear the selectedPorts set
       this->Implementation->SelectedPorts.clear();
 
-      SM_SCOPED_TRACE(CallFunction).arg("ClearSelection").arg("comment", "clear all selections");
+      SM_SCOPED_TRACE(CallFunction)
+        .arg("ClearSelection")
+        .arg("comment", qPrintable(tr("clear all selections")));
 
       // inform selection have changed
       Q_EMIT this->selectionChanged(static_cast<pqOutputPort*>(nullptr));
@@ -200,7 +190,7 @@ void pqSelectionManager::clearSelection(pqOutputPort* outputPort)
     SM_SCOPED_TRACE(CallFunction)
       .arg("ClearSelection")
       .arg("Source", outputPort->getSourceProxy())
-      .arg("comment", "clear selection for source");
+      .arg("comment", qPrintable(tr("clear selection for source")));
 
     // Render cleaned output port
     outputPort->renderAllViews(false);

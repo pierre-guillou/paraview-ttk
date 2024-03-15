@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkHyperTreeGridRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridRepresentation
  * @brief   representation for showing vtkHyperTreeGrid as
@@ -68,7 +56,7 @@ public:
    */
   void SetVisibility(bool val) override;
 
-  //@{
+  ///@{
   /**
    * Use adaptive decimation to only render the part inside the camera frustum.
    * Default to false, only works for 2D HTG with parallel projection.
@@ -76,9 +64,9 @@ public:
   vtkGetMacro(AdaptiveDecimation, bool);
   vtkSetMacro(AdaptiveDecimation, bool);
   vtkBooleanMacro(AdaptiveDecimation, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the lighting properties of the object. vtkHyperTreeGridRepresentation
    * overrides these based of the following conditions:
@@ -95,7 +83,7 @@ public:
   vtkGetMacro(Ambient, double);
   vtkGetMacro(Diffuse, double);
   vtkGetMacro(Specular, double);
-  //@}
+  ///@}
 
   enum RepresentationTypes
   {
@@ -104,14 +92,14 @@ public:
     SURFACE_WITH_EDGES
   };
 
-  //@{
+  ///@{
   /**
    * Set the representation type: WIREFRAME SURFACE SURFACE_WITH_EDGES.
    * Default is SURFACE.
    */
   vtkSetClampMacro(Representation, int, WIREFRAME, SURFACE_WITH_EDGES);
   vtkGetMacro(Representation, int);
-  //@}
+  ///@}
 
   /**
    * Overload to set representation type using string. Accepted strings are:
@@ -130,7 +118,7 @@ public:
   void SetUseOutline(int);
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    *  Forwarded to vtkProperty.
    */
@@ -164,10 +152,10 @@ public:
   virtual void SetRoughness(double val);
   virtual void SetSpecularColor(double r, double g, double b);
   virtual void SetSpecularPower(double val);
-  //@}
+  ///@}
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    * Forwarded to Actor.
    */
@@ -179,10 +167,10 @@ public:
   virtual void SetScale(double, double, double);
   virtual void SetTexture(vtkTexture*);
   virtual void SetUserTransform(const double[16]);
-  //@}
+  ///@}
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    * Forwarded to OSPray (via the Actor)
    */
@@ -191,10 +179,10 @@ public:
   virtual void SetScalingFunction(vtkPiecewiseFunction* pwf);
   virtual void SetMaterial(const char* val);
   virtual void SetLuminosity(double val);
-  //@}
+  ///@}
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    * Forwarded to all textures (and stored for later re-use)
    */
@@ -204,16 +192,16 @@ public:
   vtkGetMacro(InterpolateTextures, bool);
   virtual void SetUseMipmapTextures(bool);
   vtkGetMacro(UseMipmapTextures, bool);
-  //@}
+  ///@}
 
   //***************************************************************************
-  //@{
+  ///@{
   /**
    * Forwarded to Mapper and LODMapper.
    */
   virtual void SetInterpolateScalarsBeforeMapping(int val);
   virtual void SetLookupTable(vtkScalarsToColors* val);
-  //@}
+  ///@}
 
   /**
    * Sets if scalars are mapped through a color-map or are used
@@ -251,13 +239,13 @@ public:
    */
   const char* GetColorArrayName();
 
-  //@{
+  ///@{
   /**
    * Specify whether or not to shader replacements string must be used.
    */
   virtual void SetUseShaderReplacements(bool);
   vtkGetMacro(UseShaderReplacements, bool);
-  //@}
+  ///@}
 
   /**
    * Specify shader replacements using a Json string.

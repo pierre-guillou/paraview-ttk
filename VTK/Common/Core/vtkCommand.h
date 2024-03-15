@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCommand.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCommand
  * @brief   superclass for callback/observer methods
@@ -391,6 +379,7 @@
   }
 
 // The superclass that all commands should be subclasses of
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkCommand : public vtkObjectBase
 {
 public:
@@ -436,8 +425,8 @@ public:
    * Set/Get the abort flag. If this is set to true no further
    * commands are executed.
    */
-  void SetAbortFlag(int f) { this->AbortFlag = f; }
-  int GetAbortFlag() { return this->AbortFlag; }
+  void SetAbortFlag(vtkTypeBool f) { this->AbortFlag = f; }
+  vtkTypeBool GetAbortFlag() { return this->AbortFlag; }
   void AbortFlagOn() { this->SetAbortFlag(1); }
   void AbortFlagOff() { this->SetAbortFlag(0); }
 
@@ -447,8 +436,8 @@ public:
    * system in any way. Passive observers are processed first, and
    * are not called even when another command has focus.
    */
-  void SetPassiveObserver(int f) { this->PassiveObserver = f; }
-  int GetPassiveObserver() { return this->PassiveObserver; }
+  void SetPassiveObserver(vtkTypeBool f) { this->PassiveObserver = f; }
+  vtkTypeBool GetPassiveObserver() { return this->PassiveObserver; }
   void PassiveObserverOn() { this->SetPassiveObserver(1); }
   void PassiveObserverOff() { this->SetPassiveObserver(0); }
 
@@ -463,8 +452,8 @@ public:
 #undef _vtk_add_event
 
 protected:
-  int AbortFlag;
-  int PassiveObserver;
+  vtkTypeBool AbortFlag;
+  vtkTypeBool PassiveObserver;
 
   vtkCommand();
   ~vtkCommand() override = default;
@@ -481,6 +470,7 @@ private:
   const char* GetDebugClassName() const final;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkCommand_h */
 
 // VTK-HeaderTest-Exclude: vtkCommand.h

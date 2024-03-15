@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPTableReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLPTableReader.h"
 
 #include "vtkCallbackCommand.h"
@@ -30,6 +18,7 @@
 #include <cassert>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLPTableReader);
 
 //------------------------------------------------------------------------------
@@ -600,3 +589,4 @@ void vtkXMLPTableReader::SetColumnArrayStatus(const char* name, int status)
     this->ColumnSelection->DisableArray(name);
   }
 }
+VTK_ABI_NAMESPACE_END

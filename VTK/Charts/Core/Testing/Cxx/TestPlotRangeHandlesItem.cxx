@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPlotRangeHandlesItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAxis.h"
 #include "vtkChartXY.h"
@@ -106,7 +94,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeV[0] != 0 || rangeV[1] != 10)
   {
-    std::cerr << "Initialization: Unexepected range in vertical range handle : [" << rangeV[0]
+    std::cerr << "Initialization: Unexpected range in vertical range handle : [" << rangeV[0]
               << ", " << rangeV[1] << "]. Expecting : [0, 10]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -116,7 +104,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeH[0] != 0 || rangeH[1] != 20)
   {
-    std::cerr << "Initialization: Unexepected range in horizontal range handle : [" << rangeH[0]
+    std::cerr << "Initialization: Unexpected range in horizontal range handle : [" << rangeH[0]
               << ", " << rangeH[1] << "]. Expecting : [0, 20]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -147,7 +135,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeV[0] != 0 || rangeV[1] != 20.25)
   {
-    std::cerr << "1. Unexepected range in vertical range handle : [" << rangeV[0] << ", "
+    std::cerr << "1. Unexpected range in vertical range handle : [" << rangeV[0] << ", "
               << rangeV[1] << "]. Expecting : [0, 20.25]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -179,7 +167,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeV[0] != 9.75 || rangeV[1] != 30)
   {
-    std::cerr << "2. Unexepected range in vertical range handle : [" << rangeV[0] << ", "
+    std::cerr << "2. Unexpected range in vertical range handle : [" << rangeV[0] << ", "
               << rangeV[1] << "]. Expecting : [9.75, 30]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -212,7 +200,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeV[0] != 19.75 || rangeV[1] != 30)
   {
-    std::cerr << "3. Unexepected range in vertical range handle : [" << rangeV[0] << ", "
+    std::cerr << "3. Unexpected range in vertical range handle : [" << rangeV[0] << ", "
               << rangeV[1] << "]. Expecting : [19.75, 30]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -243,7 +231,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeH[0] != 0 || rangeH[1] != 30.25)
   {
-    std::cerr << "4. Unexepected range in top range handle : [" << rangeH[0] << ", " << rangeH[1]
+    std::cerr << "4. Unexpected range in top range handle : [" << rangeH[0] << ", " << rangeH[1]
               << "]. Expecting : [0, 30.25]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -275,7 +263,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeH[0] != 29.75 || rangeH[1] != 60)
   {
-    std::cerr << "5. Unexepected range in vertical range handle : [" << rangeH[0] << ", "
+    std::cerr << "5. Unexpected range in vertical range handle : [" << rangeH[0] << ", "
               << rangeH[1] << "]. Expecting : [29.75, 60]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -308,7 +296,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeH[0] != 19.75 || rangeH[1] != 60)
   {
-    std::cerr << "6. Unexepected range in vertical range handle : [" << rangeH[0] << ", "
+    std::cerr << "6. Unexpected range in vertical range handle : [" << rangeH[0] << ", "
               << rangeH[1] << "]. Expecting : [19.75, 60]." << std::endl;
     return EXIT_FAILURE;
   }
@@ -341,7 +329,7 @@ int TestPlotRangeHandlesItem(int, char*[])
 
   if (rangeV[0] != 9.75 || rangeV[1] != 30)
   {
-    std::cerr << "3. Unexepected range in vertical range handle : [" << rangeV[0] << ", "
+    std::cerr << "3. Unexpected range in vertical range handle : [" << rangeV[0] << ", "
               << rangeV[1] << "]. Expecting : [9.75, 30]." << std::endl;
     return EXIT_FAILURE;
   }

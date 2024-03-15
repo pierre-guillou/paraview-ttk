@@ -4,6 +4,16 @@ DESCRIPTION
   Filters that are needed for rendering.
 LIBRARY_NAME
   vtkPVVTKExtensionsFiltersRendering
+SPDX_LICENSE_IDENTIFIER
+  LicenseRef-BSD-3-Clause-Sandia-USGov
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
+SPDX_CUSTOM_LICENSE_FILE
+  LICENSE
+SPDX_CUSTOM_LICENSE_NAME
+  BSD-3-Clause-Sandia-USGov
+LICENSE_FILES
+  LICENSE
 GROUPS
   PARAVIEW_CORE
 CONDITION
@@ -11,14 +21,13 @@ CONDITION
 KIT
   ParaView::CoreKit
 DEPENDS
-  # public due to deprecation header; was private before
-  # PARAVIEW_DEPRECATED_IN_5_11_0
-  ParaView::RemotingCore
+  ParaView::Versioning
   VTK::CommonCore
   VTK::CommonDataModel
   VTK::CommonExecutionModel
   VTK::FiltersGeneral
 PRIVATE_DEPENDS
+  ParaView::RemotingCore
   ParaView::VTKExtensionsMisc
   VTK::CommonSystem
   VTK::FiltersGeneric
@@ -30,6 +39,8 @@ PRIVATE_DEPENDS
   VTK::ParallelCore
   VTK::RenderingVolume
   VTK::zlib
+  VTK::nlohmannjson
+  VTK::ChartsCore
 OPTIONAL_DEPENDS
   VTK::FiltersParallelMPI
   VTK::IOImage
@@ -38,5 +49,7 @@ TEST_DEPENDS
   VTK::IOImage
   VTK::TestingCore
   VTK::TestingRendering
+  ParaView::RemotingCore
+  ParaView::RemotingServerManager
 TEST_LABELS
   ParaView

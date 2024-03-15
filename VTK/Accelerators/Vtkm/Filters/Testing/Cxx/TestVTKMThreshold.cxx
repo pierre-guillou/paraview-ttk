@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkActor.h"
 #include "vtkDataSetSurfaceFilter.h"
@@ -66,7 +55,6 @@ int RunVTKPipeline(vtkImageData* grid, int argc, char* argv[])
   vtkNew<vtkmThreshold> threshold;
   threshold->ForceVTKmOn();
   threshold->SetInputConnection(producer->GetOutputPort());
-  threshold->SetPointsDataTypeToFloat();
   threshold->AllScalarsOn();
   threshold->SetThresholdFunction(vtkThreshold::THRESHOLD_BETWEEN);
   threshold->SetLowerThreshold(0.0);

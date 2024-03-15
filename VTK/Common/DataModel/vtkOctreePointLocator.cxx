@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOctreePointLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOctreePointLocator.h"
 
@@ -36,6 +21,7 @@
 #include <stack>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOctreePointLocator);
 
 // helper class for ordering the points in
@@ -1016,7 +1002,7 @@ void vtkOctreePointLocator::FreeSearchStructure()
 }
 
 //------------------------------------------------------------------------------
-// build PolyData representation of all spacial regions------------
+// build PolyData representation of all spatial regions------------
 //
 void vtkOctreePointLocator::GenerateRepresentation(int level, vtkPolyData* pd)
 {
@@ -1029,7 +1015,7 @@ void vtkOctreePointLocator::GenerateRepresentation(int level, vtkPolyData* pd)
   std::list<vtkOctreePointLocatorNode*> nodesAtLevel;
   // queue of nodes to be examined and what level each one is at
   std::queue<std::pair<vtkOctreePointLocatorNode*, int>> testNodes;
-  testNodes.push(std::make_pair(this->Top, 0));
+  testNodes.emplace(this->Top, 0);
   while (!testNodes.empty())
   {
     vtkOctreePointLocatorNode* node = testNodes.front().first;
@@ -1043,7 +1029,7 @@ void vtkOctreePointLocator::GenerateRepresentation(int level, vtkPolyData* pd)
     {
       for (int i = 0; i < 8; i++)
       {
-        testNodes.push(std::make_pair(node->GetChild(i), nodeLevel + 1));
+        testNodes.emplace(node->GetChild(i), nodeLevel + 1);
       }
     }
   }
@@ -1300,3 +1286,4 @@ void vtkOctreePointLocator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MaxWidth: " << this->MaxWidth << endl;
   os << indent << "CreateCubicOctants: " << this->CreateCubicOctants << endl;
 }
+VTK_ABI_NAMESPACE_END

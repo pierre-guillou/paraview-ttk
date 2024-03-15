@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAxis.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAxis.h"
 
@@ -41,6 +29,7 @@
 #include <limits>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAxis);
 
 //------------------------------------------------------------------------------
@@ -1863,7 +1852,7 @@ void vtkAxis::CalculateTitlePosition(vtkVector2f& out)
 }
 
 //------------------------------------------------------------------------------
-inline bool vtkAxis::InRange(double value)
+bool vtkAxis::InRange(double value)
 {
   // Figure out which way around the axes are, then see if the value is inside.
   double min(this->Minimum);
@@ -1952,3 +1941,4 @@ void vtkAxis::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ScalingFactor: " << this->ScalingFactor << "\n";
   os << indent << "Shift: " << this->Shift << "\n";
 }
+VTK_ABI_NAMESPACE_END

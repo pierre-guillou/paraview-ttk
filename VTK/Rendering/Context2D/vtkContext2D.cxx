@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContext2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkContext2D.h"
 
@@ -32,6 +20,7 @@
 #include <cassert>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContext2D);
 
 //------------------------------------------------------------------------------
@@ -253,6 +242,18 @@ void vtkContext2D::DrawPoints(vtkPoints2D* points)
 }
 
 //------------------------------------------------------------------------------
+void vtkContext2D::DrawPoints(
+  vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier)
+{
+  if (!this->Device)
+  {
+    vtkErrorMacro(<< "Attempted to paint with no active vtkContextDevice2D.");
+    return;
+  }
+  this->Device->DrawPoints(positions, colors, cacheIdentifier);
+}
+
+//------------------------------------------------------------------------------
 void vtkContext2D::DrawPoints(float* points, int n)
 {
   if (!this->Device)
@@ -290,6 +291,18 @@ void vtkContext2D::DrawPointSprites(
   float* f = vtkArrayDownCast<vtkFloatArray>(points->GetData())->GetPointer(0);
   unsigned char* c = colors->GetPointer(0);
   this->DrawPointSprites(sprite, f, n, c, nc_comps);
+}
+
+//------------------------------------------------------------------------------
+void vtkContext2D::DrawPointSprites(vtkImageData* sprite, vtkDataArray* positions,
+  vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier)
+{
+  if (!this->Device)
+  {
+    vtkErrorMacro(<< "Attempted to paint with no active vtkContextDevice2D.");
+    return;
+  }
+  this->Device->DrawPointSprites(sprite, positions, colors, cacheIdentifier);
 }
 
 //------------------------------------------------------------------------------
@@ -358,6 +371,18 @@ void vtkContext2D::DrawMarkers(
   float* f = vtkArrayDownCast<vtkFloatArray>(points->GetData())->GetPointer(0);
   unsigned char* c = colors->GetPointer(0);
   this->DrawMarkers(shape, highlight, f, n, c, nc_comps);
+}
+
+//------------------------------------------------------------------------------
+void vtkContext2D::DrawMarkers(int shape, bool highlight, vtkDataArray* positions,
+  vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier)
+{
+  if (!this->Device)
+  {
+    vtkErrorMacro(<< "Attempted to paint with no active vtkContextDevice2D.");
+    return;
+  }
+  this->Device->DrawMarkers(shape, highlight, positions, colors, cacheIdentifier);
 }
 
 //------------------------------------------------------------------------------
@@ -1044,3 +1069,4 @@ void vtkContext2D::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)" << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

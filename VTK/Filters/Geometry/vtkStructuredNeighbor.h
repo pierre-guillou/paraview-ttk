@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkStructuredNeighbor.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStructuredNeighbor
  * @brief   An internal, light-weight class used to store neighbor information.
@@ -23,6 +11,7 @@
 #include "vtkFiltersGeometryModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGEOMETRY_EXPORT vtkStructuredNeighbor
 {
 public:
@@ -71,13 +60,13 @@ public:
    * Custom constructor. Constructs a neighbor with the prescribed neighbor
    * grid/block ID and overlap.
    */
-  vtkStructuredNeighbor(const int NeiID, int overlap[6]);
+  vtkStructuredNeighbor(int NeiID, int overlap[6]);
 
   /**
-   * Custom constructor. Constructs a neighbor with the prescribed neigbhor
+   * Custom constructor. Constructs a neighbor with the prescribed neighbor
    * grid/block ID, overlap extent, and orientation
    */
-  vtkStructuredNeighbor(const int NeiID, int overlap[6], int orient[3]);
+  vtkStructuredNeighbor(int NeiID, int overlap[6], int orient[3]);
 
   /**
    * Copy constructor
@@ -120,9 +109,10 @@ public:
    * Send and Rcv Extents for this neighbor instance.
    */
   virtual void ComputeSendAndReceiveExtent(int gridRealExtent[6], int gridGhostedExtent[6],
-    int neiRealExtent[6], int WholeExtent[6], const int N);
+    int neiRealExtent[6], int WholeExtent[6], int N);
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkStructuredNeighbor_h */
 // VTK-HeaderTest-Exclude: vtkStructuredNeighbor.h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTextRendererStringToImage.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTextRendererStringToImage
@@ -25,6 +13,7 @@
 #include "vtkRenderingFreeTypeModule.h" // For export macro
 #include "vtkStringToImage.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGFREETYPE_EXPORT vtkTextRendererStringToImage : public vtkStringToImage
 {
 public:
@@ -85,4 +74,5 @@ private:
   void operator=(const vtkTextRendererStringToImage&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkTextRendererStringToImage_h

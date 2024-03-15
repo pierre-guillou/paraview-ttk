@@ -1,21 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCurveRepresentation
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCurveRepresentation
- * @brief   vtkWidgetRepresentation
- * base class for a widget that represents an curve that connects control
+ * @brief   base class for a widget that represents a curve that connects control
  * points.
  *
  * Base class for widgets used to define curves from points, such as
@@ -23,15 +10,20 @@
  * uses handles, the number of which can be changed, to represent the
  * points that define the curve. The handles can be picked can be
  * picked on the curve itself to translate or rotate it in the scene.
+ *
+ * @sa
+ * vtkPolyLineRepresentation vtkSplineRepresentation
  */
 
 #ifndef vtkCurveRepresentation_h
 #define vtkCurveRepresentation_h
 
 #include "vtkInteractionWidgetsModule.h" // For export macro
+#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkPolyDataAlgorithm.h"        // needed for vtkPolyDataAlgorithm
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCellPicker;
 class vtkDoubleArray;
@@ -240,6 +232,16 @@ public:
    */
   void SetLineColor(double r, double g, double b);
 
+  ///@{
+  /**
+   * Set the color when unselected and selected.
+   */
+  void SetInteractionColor(double, double, double);
+  void SetInteractionColor(double c[3]) { this->SetInteractionColor(c[0], c[1], c[2]); }
+  void SetForegroundColor(double, double, double);
+  void SetForegroundColor(double c[3]) { this->SetForegroundColor(c[0], c[1], c[2]); }
+  ///@}
+
   /*
    * Register internal Pickers within PickingManager
    */
@@ -372,4 +374,5 @@ private:
   vtkCurveRepresentation(const vtkCurveRepresentation&) = delete;
   void operator=(const vtkCurveRepresentation&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

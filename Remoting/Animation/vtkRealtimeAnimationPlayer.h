@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkRealtimeAnimationPlayer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRealtimeAnimationPlayer
  *
@@ -24,23 +12,28 @@
 #include "vtkAnimationPlayer.h"
 #include "vtkRemotingAnimationModule.h" // needed for export macro
 
+#include "vtkParaViewDeprecation.h"
+
 class vtkTimerLog;
-class VTKREMOTINGANIMATION_EXPORT vtkRealtimeAnimationPlayer : public vtkAnimationPlayer
+
+class PARAVIEW_DEPRECATED_IN_5_12_0(
+  "Use `vtkSequenceAnimationPlayer` instead") VTKREMOTINGANIMATION_EXPORT vtkRealtimeAnimationPlayer
+  : public vtkAnimationPlayer
 {
 public:
   static vtkRealtimeAnimationPlayer* New();
   vtkTypeMacro(vtkRealtimeAnimationPlayer, vtkAnimationPlayer);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the duration for playing the animation in seconds.
    */
   vtkGetMacro(Duration, unsigned long);
   vtkSetMacro(Duration, unsigned long);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Setter is noop, getter return 1.
    *
@@ -48,7 +41,7 @@ public:
    */
   void SetStride(int) final {}
   int GetStride() final { return 1; }
-  //@}
+  ///@}
 
 protected:
   vtkRealtimeAnimationPlayer();

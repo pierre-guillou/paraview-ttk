@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellArray.h"
 
@@ -533,9 +521,16 @@ struct AppendImpl
 
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCellArray::vtkCellArray() = default;
 vtkCellArray::~vtkCellArray() = default;
 vtkStandardNewMacro(vtkCellArray);
+
+#ifdef VTK_USE_64BIT_IDS
+bool vtkCellArray::DefaultStorageIs64Bit = true;
+#else
+bool vtkCellArray::DefaultStorageIs64Bit = false;
+#endif
 
 //=================== Begin Legacy Methods ===================================
 // These should be deprecated at some point as they are confusing or very slow
@@ -867,6 +862,8 @@ void vtkCellArray::SetData(
 #endif
 }
 
+VTK_ABI_NAMESPACE_END
+
 namespace
 {
 
@@ -909,6 +906,7 @@ struct GenerateOffsetsImpl
 
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool vtkCellArray::SetData(vtkDataArray* offsets, vtkDataArray* connectivity)
 {
@@ -1231,3 +1229,4 @@ vtkIdType vtkCellArray::IsHomogeneous()
 {
   return this->Visit(IsHomogeneousImpl{});
 }
+VTK_ABI_NAMESPACE_END

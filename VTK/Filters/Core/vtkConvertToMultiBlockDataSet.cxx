@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvertToMultiBlockDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConvertToMultiBlockDataSet.h"
 
 #include "vtkCompositeDataIterator.h"
@@ -21,6 +9,7 @@
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkConvertToMultiBlockDataSet);
 //----------------------------------------------------------------------------
 vtkConvertToMultiBlockDataSet::vtkConvertToMultiBlockDataSet() = default;
@@ -57,6 +46,10 @@ bool vtkConvertToMultiBlockDataSet::Execute(vtkDataObject* input, vtkMultiBlockD
     auto iter = vtk::TakeSmartPointer(inputCD->NewIterator());
     for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       output->SetDataSet(iter, iter->GetCurrentDataObject());
       if (iter->HasCurrentMetaData())
       {
@@ -66,6 +59,7 @@ bool vtkConvertToMultiBlockDataSet::Execute(vtkDataObject* input, vtkMultiBlockD
   }
   else
   {
+    this->CheckAbort();
     output->SetNumberOfBlocks(1);
     output->SetBlock(0, input);
   }
@@ -77,3 +71,4 @@ void vtkConvertToMultiBlockDataSet::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

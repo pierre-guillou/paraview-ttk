@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLineIntegralConvolution2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPLineIntegralConvolution2D
  * @brief   parallel part of GPU-based
@@ -31,6 +19,7 @@
 #include "vtkRenderingParallelLICModule.h" // for export macro
 #include <string>                          // for string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPainterCommunicator;
 class vtkPPainterCommunicator;
 
@@ -87,9 +76,9 @@ protected:
 private:
   std::string LogFileName;
 
-private:
   vtkPLineIntegralConvolution2D(const vtkPLineIntegralConvolution2D&) = delete;
   void operator=(const vtkPLineIntegralConvolution2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

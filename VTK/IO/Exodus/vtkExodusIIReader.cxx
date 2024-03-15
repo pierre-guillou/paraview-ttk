@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExodusIIReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExodusIIReader.h"
 #include "vtkExodusIICache.h"
 
@@ -86,6 +71,7 @@
   } while (false)
 
 // ------------------------------------------------------------------- CONSTANTS
+VTK_ABI_NAMESPACE_BEGIN
 static int obj_types[] = { EX_EDGE_BLOCK, EX_FACE_BLOCK, EX_ELEM_BLOCK, EX_NODE_SET, EX_EDGE_SET,
   EX_FACE_SET, EX_SIDE_SET, EX_ELEM_SET, EX_NODE_MAP, EX_EDGE_MAP, EX_FACE_MAP, EX_ELEM_MAP,
   EX_NODAL };
@@ -139,10 +125,12 @@ extern "C"
 }
 
 // --------------------------------------------------- PRIVATE CLASS DECLARATION
+VTK_ABI_NAMESPACE_END
 #include "vtkExodusIIReaderPrivate.h"
 #include "vtkExodusIIReaderVariableCheck.h"
 
 // --------------------------------------------------- PRIVATE CLASS Implementations
+VTK_ABI_NAMESPACE_BEGIN
 vtkExodusIIReaderPrivate::BlockSetInfoType::BlockSetInfoType(
   const vtkExodusIIReaderPrivate::BlockSetInfoType& block)
   : vtkExodusIIReaderPrivate::ObjectInfoType(block)
@@ -4636,7 +4624,6 @@ int vtkExodusIIReaderPrivate::SetUpEmptyGrid(vtkMultiBlockDataSet* output)
   // Iterate over all block and set types, creating a
   // multiblock dataset to hold objects of each type.
   int conntypidx;
-  int nbl = 0;
   output->SetNumberOfBlocks(num_conn_types);
   for (conntypidx = 0; conntypidx < num_conn_types; ++conntypidx)
   {
@@ -4667,7 +4654,6 @@ int vtkExodusIIReaderPrivate::SetUpEmptyGrid(vtkMultiBlockDataSet* output)
       vtkUnstructuredGrid* ug = vtkUnstructuredGrid::New();
       mbds->SetBlock(sortIdx, ug);
       ug->FastDelete();
-      ++nbl;
     }
   }
 #if 0
@@ -5528,7 +5514,7 @@ int vtkExodusIIReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
   this->AdvertiseTimeSteps(outInfo);
 
-  // Advertize the SIL.
+  // Advertise the SIL.
   outInfo->Set(vtkDataObject::SIL(), this->Metadata->GetSIL());
 
   if (newMetadata)
@@ -6762,3 +6748,4 @@ void vtkExodusIIReader::ResetCache()
 {
   this->Metadata->ResetCache();
 }
+VTK_ABI_NAMESPACE_END

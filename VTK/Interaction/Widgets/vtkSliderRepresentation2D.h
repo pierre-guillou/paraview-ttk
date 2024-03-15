@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSliderRepresentation2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSliderRepresentation2D
  * @brief   provide the representation for a vtkSliderWidget with a 3D skin
@@ -33,6 +21,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkSliderRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkCellArray;
 class vtkPolyData;
@@ -143,10 +132,10 @@ public:
   /**
    * Methods supporting the rendering process.
    */
-  void GetActors2D(vtkPropCollection*) override;
-  void ReleaseGraphicsResources(vtkWindow*) override;
-  int RenderOverlay(vtkViewport*) override;
-  int RenderOpaqueGeometry(vtkViewport*) override;
+  void GetActors2D(vtkPropCollection* propCollection) override;
+  void ReleaseGraphicsResources(vtkWindow* window) override;
+  int RenderOverlay(vtkViewport* viewport) override;
+  int RenderOpaqueGeometry(vtkViewport* viewport) override;
   ///@}
 
 protected:
@@ -204,4 +193,5 @@ private:
   void operator=(const vtkSliderRepresentation2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMREnzoReader.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMREnzoReader
  *
@@ -29,6 +17,7 @@
 #include <map>    // For STL map
 #include <string> // For std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOverlappingAMR;
 class vtkEnzoReaderInternal;
 
@@ -107,7 +96,7 @@ protected:
   /**
    * See vtkAMRBaseReader::GetBlockLevel
    */
-  int GetBlockLevel(const int blockIdx) override;
+  int GetBlockLevel(int blockIdx) override;
 
   void ComputeStats(
     vtkEnzoReaderInternal* internal, std::vector<int>& blocksPerLevel, double min[3]);
@@ -120,17 +109,17 @@ protected:
   /**
    * See vtkAMRBaseReader::GetAMRGrid
    */
-  vtkUniformGrid* GetAMRGrid(const int blockIdx) override;
+  vtkUniformGrid* GetAMRGrid(int blockIdx) override;
 
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
-  void GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field) override;
+  void GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field) override;
 
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
-  void GetAMRGridPointData(const int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
+  void GetAMRGridPointData(int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
     const char* vtkNotUsed(field)) override
   {
   }
@@ -153,4 +142,5 @@ private:
   std::map<int, double> conversionFactors;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMREnzoReader_h */

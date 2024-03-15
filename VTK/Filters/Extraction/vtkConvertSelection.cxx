@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvertSelection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConvertSelection.h"
 
 #include "vtkCellData.h"
@@ -52,6 +37,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkConvertSelection, ArrayNames, vtkStringArray);
 vtkCxxSetObjectMacro(vtkConvertSelection, SelectionExtractor, vtkExtractSelection);
 
@@ -279,10 +265,22 @@ int vtkConvertSelection::ConvertToBlockSelection(
   outputNode->SetFieldType(fieldType);
   if (this->OutputType == vtkSelectionNode::BLOCKS)
   {
+    std::vector<unsigned int> vIndices(indices.size());
+    std::copy(indices.begin(), indices.end(), vIndices.begin());
+
+    // get the composite ids from the selectors that correspond to the indices.
+    // this is done to avoid selecting pieces/datasets from a partitioned/multi-piece dataset
+    // and selecting only partitioned/multi-piece datasets, except if the parent of the index is
+    // a multiblock
+    auto hierarchy =
+      vtkDataAssemblyUtilities::GetDataAssembly(vtkDataAssemblyUtilities::HierarchyName(), data);
+    const auto selectorsCompositeIds =
+      vtkDataAssemblyUtilities::GetSelectorsCompositeIdsForCompositeIds(vIndices, hierarchy);
+
     vtkNew<vtkUnsignedIntArray> selectionList;
-    selectionList->SetNumberOfTuples(static_cast<vtkIdType>(indices.size()));
+    selectionList->SetNumberOfTuples(static_cast<vtkIdType>(selectorsCompositeIds.size()));
     vtkIdType cc = 0;
-    for (const auto& id : indices)
+    for (const auto& id : selectorsCompositeIds)
     {
       selectionList->SetValue(cc++, id);
     }
@@ -512,8 +510,14 @@ int vtkConvertSelection::ConvertFromQueryAndBlockSelectionNodeCompositeDataSet(
 //------------------------------------------------------------------------------
 int vtkConvertSelection::Convert(vtkSelection* input, vtkDataObject* data, vtkSelection* output)
 {
+  unsigned int checkAbortInterval =
+    std::min(input->GetNumberOfNodes() / 10 + 1, (unsigned int)1000);
   for (unsigned int n = 0; n < input->GetNumberOfNodes(); ++n)
   {
+    if (n % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     vtkSelectionNode* inputNode = input->GetNode(n);
     vtkNew<vtkSelectionNode> outputNode;
 
@@ -1202,3 +1206,4 @@ void vtkConvertSelection::PrintSelf(ostream& os, vtkIndent indent)
     this->ArrayNames->PrintSelf(os, indent.GetNextIndent());
   }
 }
+VTK_ABI_NAMESPACE_END

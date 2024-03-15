@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkADIOS2CoreImageReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkADIOS2CoreImageReader
  * @brief   Read ADIOS2 bp files.
@@ -41,6 +29,7 @@
 
 #include "vtkIOADIOS2Module.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
 class vtkDataObject;
@@ -64,7 +53,7 @@ public:
   };
   using Params = std::map<std::string, std::string>;
   using StringToParams = std::map<std::string, Params>;
-  using InquireVariablesType = std::vector<std::pair<std::string, VarType>>;
+  using InquireVariablesType = std::map<std::string, VarType>;
   static vtkADIOS2CoreImageReader* New();
   vtkTypeMacro(vtkADIOS2CoreImageReader, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
@@ -158,6 +147,11 @@ public:
   int GetArrayStatus(const char* name);
   ///@}
 
+  /**
+   * Overridden to take into account mtimes for vtkDataArraySelection instances.
+   */
+  vtkMTimeType GetMTime() override;
+
   ///@{
   /**
    * Enable/Disable the assumption that the order of input data is column major.
@@ -203,8 +197,7 @@ public:
   /**
    * The main interface which triggers the reader to start
    */
-  virtual int ProcessRequest(
-    vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  int ProcessRequest(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
 protected:
   vtkADIOS2CoreImageReader();
@@ -212,9 +205,9 @@ protected:
 
   int RequestDataObjectInternal(vtkInformationVector*);
 
-  virtual int RequestInformation(
+  int RequestInformation(
     vtkInformation* request, vtkInformationVector** input, vtkInformationVector* output) override;
-  virtual int RequestData(
+  int RequestData(
     vtkInformation* request, vtkInformationVector** input, vtkInformationVector* output) override;
 
   std::string FetchTypeStringFromVarName(const std::string& name);
@@ -271,4 +264,5 @@ private:
   vtkADIOS2CoreImageReader(const vtkADIOS2CoreImageReader&) = delete;
   void operator=(const vtkADIOS2CoreImageReader&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

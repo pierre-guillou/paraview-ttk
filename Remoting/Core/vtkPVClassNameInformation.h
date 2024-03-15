@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVClassNameInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVClassNameInformation
  * @brief   Holds class name
@@ -34,7 +22,7 @@ public:
   vtkTypeMacro(vtkPVClassNameInformation, vtkPVInformation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Port number controls which output port the information is gathered from.
    * This is only applicable when the vtkObject from which the information being
@@ -44,14 +32,14 @@ public:
    * gathering the information.
    */
   vtkSetMacro(PortNumber, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get class name of VTK object.
    */
   vtkGetStringMacro(VTKClassName);
-  //@}
+  ///@}
 
   /**
    * Transfer information about a single object into this object.
@@ -63,15 +51,15 @@ public:
    */
   void AddInformation(vtkPVInformation*) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Serialize/Deserialize the parameters that control how/what information is
    * gathered. This are different from the ivars that constitute the gathered
@@ -80,7 +68,7 @@ public:
    */
   void CopyParametersToStream(vtkMultiProcessStream&) override;
   void CopyParametersFromStream(vtkMultiProcessStream&) override;
-  //@}
+  ///@}
 
 protected:
   vtkPVClassNameInformation();

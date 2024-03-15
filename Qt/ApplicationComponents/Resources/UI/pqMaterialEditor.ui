@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>MaterialEditor</class>
  <widget class="QWidget" name="MaterialEditor">
@@ -20,6 +22,67 @@
    <string>Form</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QCheckBox" name="ShowShaderBall">
+     <property name="toolTip">
+      <string>Show / Hide the Shader Ball.</string>
+     </property>
+     <property name="text">
+      <string>Show Shader Ball</string>
+     </property>
+    </widget>
+   </item>
+  <item>
+   <layout class="QHBoxLayout" name="NumberOfSamplesLayout">
+     <item>
+      <widget class="QLabel" name="TypeLabel1">
+       <property name="font">
+        <font>
+         <weight>50</weight>
+        </font>
+       </property>
+       <property name="text">
+        <string>Number of samples per pixels</string>
+       </property>
+       <property name="textFormat">
+        <enum>Qt::AutoText</enum>
+       </property>
+      </widget>
+    </item>
+     <item>
+      <widget class="QSpinBox" name="ShaderBallNumberOfSamples">
+       <property name="toolTip">
+        <string>Set the number of samples for the Shader Ball Scene.</string>
+       </property>
+       <property name="minimum" >
+        <number>1</number>
+       </property>
+       <property name="maximum" >
+        <number>50</number>
+       </property>
+       <property name="value">
+        <number>2</number>
+       </property>
+      </widget>
+     </item>
+   </layout>
+ </item>
+   <item>
+     <widget class="QVTKOpenGLNativeWidget" name="RenderWidget">
+       <property name="sizePolicy">
+         <sizepolicy vsizetype="Expanding" hsizetype="Expanding">
+           <horstretch>0.9</horstretch>
+           <verstretch>0.9</verstretch>
+         </sizepolicy>
+       </property>
+       <property name="minimumSize">
+         <size>
+           <width>300</width>
+           <height>300</height>
+         </size>
+       </property>
+     </widget>
+   </item>
    <item>
     <layout class="QHBoxLayout" name="MaterialListLayout">
      <property name="spacing">
@@ -181,65 +244,6 @@
        <item>
         <widget class="pqExpandableTableView" name="PropertiesView"/>
        </item>
-       <item>
-        <layout class="QVBoxLayout" name="verticalLayoutToolbar">
-         <item>
-          <widget class="QToolButton" name="AddProperty">
-           <property name="toolTip">
-            <string>Add new shader variable</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="icon">
-            <iconset resource="../../../Widgets/Resources/QtWidgets.qrc">
-             <normaloff>:/QtWidgets/Icons/pqPlus.svg</normaloff>:/QtWidgets/Icons/pqPlus.svg</iconset>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="RemoveProperty">
-           <property name="toolTip">
-            <string>Remove selected shader variable. This reset the value to its default value.</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="icon">
-            <iconset resource="../../../Widgets/Resources/QtWidgets.qrc">
-             <normaloff>:/QtWidgets/Icons/pqMinus.svg</normaloff>:/QtWidgets/Icons/pqMinus.svg</iconset>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="VerticalSpacerToolbar">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QToolButton" name="DeleteProperties">
-           <property name="toolTip">
-            <string>Remove all shader variables of the current material and reset them to their default value.</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="icon">
-            <iconset resource="../../../Widgets/Resources/QtWidgets.qrc">
-             <normaloff>:/QtWidgets/Icons/pqDelete.svg</normaloff>:/QtWidgets/Icons/pqDelete.svg</iconset>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
       </layout>
      </widget>
     </widget>
@@ -264,6 +268,11 @@
    <class>pqExpandableTableView</class>
    <extends>QTableView</extends>
    <header>pqExpandableTableView.h</header>
+  </customwidget>
+  <customwidget>
+    <class>QVTKOpenGLNativeWidget</class>
+    <extends>QOpenGLWidget</extends>
+    <header>QVTKOpenGLNativeWidget.h</header>
   </customwidget>
  </customwidgets>
  <resources>

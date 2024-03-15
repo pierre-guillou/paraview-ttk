@@ -1,23 +1,13 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkProcessModuleInternals_h
 #define vtkProcessModuleInternals_h
 
+#include "vtkNew.h"
 #include "vtkSession.h"      // for vtkSession
 #include "vtkSmartPointer.h" // for vtkSmartPointer
-#include "vtkWeakPointer.h"  // for vtkWeakPointer
+#include "vtkThreadedCallbackQueue.h"
+#include "vtkWeakPointer.h" // for vtkWeakPointer
 
 #include <map>    // for std::map
 #include <vector> // for std::vector
@@ -30,6 +20,8 @@ public:
 
   typedef std::vector<vtkWeakPointer<vtkSession>> ActiveSessionStackType;
   ActiveSessionStackType ActiveSessionStack;
+
+  vtkNew<vtkThreadedCallbackQueue> CallbackQueue;
 };
 
 #endif

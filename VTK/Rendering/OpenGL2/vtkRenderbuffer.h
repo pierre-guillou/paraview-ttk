@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderbuffer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRenderbuffer
  * @brief   Storage for FBO's
@@ -26,6 +14,7 @@
 #include "vtkRenderingOpenGL2Module.h" // for export macro
 #include "vtkWeakPointer.h"            // for render context
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderWindow;
 class vtkWindow;
 
@@ -114,9 +103,9 @@ private:
   unsigned int Handle;
   vtkWeakPointer<vtkRenderWindow> Context;
 
-private:
   vtkRenderbuffer(const vtkRenderbuffer&) = delete;
   void operator=(const vtkRenderbuffer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

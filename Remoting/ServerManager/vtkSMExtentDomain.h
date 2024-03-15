@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMExtentDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMExtentDomain
  * @brief   int range domain based on data set extent
@@ -50,7 +38,7 @@ public:
    */
   void SetAnimationValue(vtkSMProperty* property, int idx, double value) override;
 
-  //@{
+  ///@{
   /**
    * A vtkSMProperty is often defined with a default value in the
    * XML itself. However, many times, the default value must be determined
@@ -65,7 +53,7 @@ public:
 protected:
   vtkSMExtentDomain();
   ~vtkSMExtentDomain() override;
-  //@}
+  ///@}
 
   void Update(vtkSMProxyProperty* pp);
 

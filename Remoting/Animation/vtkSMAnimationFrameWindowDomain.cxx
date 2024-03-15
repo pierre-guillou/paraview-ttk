@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMAnimationFrameWindowDomain.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMAnimationFrameWindowDomain.h"
 
 #include "vtkCompositeAnimationPlayer.h"
@@ -50,15 +38,11 @@ void vtkSMAnimationFrameWindowDomain::Update(vtkSMProperty*)
       case vtkCompositeAnimationPlayer::SEQUENCE:
       {
         int numFrames = vtkSMUncheckedPropertyHelper(scene, "NumberOfFrames").GetAsInt();
-        values.push_back(vtkEntry(0, numFrames - 1));
-      }
-      break;
-      case vtkCompositeAnimationPlayer::REAL_TIME:
-      {
-        int frameRate = vtkSMUncheckedPropertyHelper(frameRateProperty).GetAsInt();
-        double duration = vtkSMUncheckedPropertyHelper(scene, "Duration").GetAsInt();
-        // (see #17031)
-        int numFrames = 1 + (frameRate * duration);
+        vtkSMProxy* timeKeeper = vtkSMUncheckedPropertyHelper(scene, "TimeKeeper").GetAsProxy();
+        if (vtkSMUncheckedPropertyHelper(timeKeeper, "TimestepValues").GetNumberOfElements() == 0)
+        {
+          numFrames = 1;
+        }
         values.push_back(vtkEntry(0, numFrames - 1));
       }
       break;

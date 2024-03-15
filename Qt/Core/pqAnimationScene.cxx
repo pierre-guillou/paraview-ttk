@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAnimationScene.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqAnimationScene.h"
 
 #include "pqAnimationCue.h"
@@ -43,12 +15,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkBoundingBox.h"
 #include "vtkCommand.h"
 #include "vtkEventQtSlotConnect.h"
+#include "vtkPVCameraCueManipulator.h"
 #include "vtkPoints.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyLink.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMProxyProperty.h"
 #include "vtkSMProxySelectionModel.h"
+#include "vtkSMRenderViewProxy.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMUtilities.h"
@@ -152,6 +126,14 @@ void pqAnimationScene::onCuesChanged()
     if (cue && cue->getServer() == this->getServer())
     {
       currentCues.insert(cue);
+      this->connect(cue, &pqAnimationCue::enabled, [&](bool enabled) {
+        if (enabled)
+        {
+          // force update
+          this->getProxy()->UpdateProperty("AnimationTime", 1);
+          this->getProxy()->UpdateVTKObjects();
+        }
+      });
     }
   }
 
@@ -219,6 +201,23 @@ pqAnimationCue* pqAnimationScene::getCue(
     }
   }
   return nullptr;
+}
+
+//-----------------------------------------------------------------------------
+pqAnimationCue* pqAnimationScene::createCue(const pqAnimatedPropertyInfo& propInfo)
+{
+  QString cueProxyName = "KeyFrameAnimationCue";
+  if (!propInfo.Proxy)
+  {
+    cueProxyName = "PythonAnimationCue";
+  }
+  else if (vtkSMRenderViewProxy::SafeDownCast(propInfo.Proxy))
+  {
+    cueProxyName = "CameraAnimationCue";
+  }
+
+  return this->createCueInternal(
+    cueProxyName, propInfo.Proxy, propInfo.Name.toUtf8().data(), propInfo.Index);
 }
 
 //-----------------------------------------------------------------------------
@@ -326,31 +325,53 @@ void pqAnimationScene::initializeCue(
   {
     cue->setKeyFrameType("CameraKeyFrame");
 
-    // Setup default animation to revolve around the selected objects (if any)
-    // in a plane normal to the current view-up vector.
-    pqSMAdaptor::setElementProperty(
-      cue->getProxy()->GetProperty("Mode"), 1); // PATH-based animation.
     vtkSMProxy* kf0 = cue->insertKeyFrame(0);
     vtkSMProxy* kf1 = cue->insertKeyFrame(1);
-    pqAnimationSceneResetCameraKeyFrameToCurrent(proxy, kf0);
-    pqAnimationSceneResetCameraKeyFrameToCurrent(proxy, kf1);
+
+    if (QString(propertyname) == "path")
+    {
+      // Setup default animation to revolve around the selected objects (if any)
+      // in a plane normal to the current view-up vector.
+      pqSMAdaptor::setElementProperty(
+        cue->getProxy()->GetProperty("Mode"), vtkPVCameraCueManipulator::PATH);
+
+      double bounds[6] = { -1, 1, -1, 1, -1, 1 };
+      cue->getServer()->activeSourcesSelectionModel()->GetSelectionDataBounds(bounds);
+
+      vtkBoundingBox bbox(bounds);
+      double center[3];
+      bbox.GetCenter(center);
+      vtkPoints* pts = vtkSMUtilities::CreateOrbit(center,
+        vtkSMPropertyHelper(kf0, "ViewUp").GetDoubleArray().data(), 5 * bbox.GetMaxLength() / 2.0,
+        10);
+      vtkSMPropertyHelper(kf0, "PositionPathPoints")
+        .Set(reinterpret_cast<double*>(pts->GetVoidPointer(0)), pts->GetNumberOfPoints() * 3);
+      vtkSMPropertyHelper(kf0, "ClosedPositionPath").Set(1);
+      vtkSMPropertyHelper(kf0, "FocalPathPoints").Set(center, 3);
+      kf0->UpdateVTKObjects();
+      pts->Delete();
+    }
+    else if (QString(propertyname) == "data")
+    {
+      pqSMAdaptor::setElementProperty(
+        cue->getProxy()->GetProperty("Mode"), vtkPVCameraCueManipulator::FOLLOW_DATA);
+
+      vtkSMProxy* dataProxy = cue->getServer()->activeSourcesSelectionModel()->GetCurrentProxy();
+      pqSMAdaptor::setProxyProperty(cue->getProxy()->GetProperty("DataSource"), dataProxy);
+    }
+    else
+    {
+      pqSMAdaptor::setElementProperty(
+        cue->getProxy()->GetProperty("Mode"), vtkPVCameraCueManipulator::CAMERA);
+
+      pqAnimationSceneResetCameraKeyFrameToCurrent(proxy, kf0);
+      pqAnimationSceneResetCameraKeyFrameToCurrent(proxy, kf1);
+
+      pqSMAdaptor::setElementProperty(cue->getProxy()->GetProperty("Interpolation"), 1);
+    }
     kf0->UpdateVTKObjects();
     kf1->UpdateVTKObjects();
-
-    double bounds[6] = { -1, 1, -1, 1, -1, 1 };
-    cue->getServer()->activeSourcesSelectionModel()->GetSelectionDataBounds(bounds);
-
-    vtkBoundingBox bbox(bounds);
-    double center[3];
-    bbox.GetCenter(center);
-    vtkPoints* pts = vtkSMUtilities::CreateOrbit(center,
-      &vtkSMPropertyHelper(kf0, "ViewUp").GetDoubleArray()[0], 5 * bbox.GetMaxLength() / 2.0, 10);
-    vtkSMPropertyHelper(kf0, "PositionPathPoints")
-      .Set(reinterpret_cast<double*>(pts->GetVoidPointer(0)), pts->GetNumberOfPoints() * 3);
-    vtkSMPropertyHelper(kf0, "ClosedPositionPath").Set(1);
-    vtkSMPropertyHelper(kf0, "FocalPathPoints").Set(center, 3);
-    kf0->UpdateVTKObjects();
-    pts->Delete();
+    cue->getProxy()->UpdateVTKObjects();
   }
 }
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticCleanUnstructuredGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStaticCleanUnstructuredGrid
  * @brief   merge duplicate points, removed unused points, in an vtkUnstructuredGrid
@@ -76,6 +64,7 @@
 #include "vtkUnstructuredGridAlgorithm.h"
 #include <vector> // API to vtkStaticCleanUnstructuredGrid
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkCellData;
 class vtkPointData;
@@ -249,4 +238,5 @@ private:
   void operator=(const vtkStaticCleanUnstructuredGrid&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

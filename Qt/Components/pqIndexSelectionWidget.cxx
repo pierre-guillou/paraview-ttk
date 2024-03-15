@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqIndexSelectionWidget
-
-   Copyright (c) 2015 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqIndexSelectionWidget.h"
 
@@ -57,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <QCoreApplication>
 #include <algorithm>
 
 namespace
@@ -116,7 +89,7 @@ Widgets::Widgets(pqIndexSelectionWidget* parent, const QString& key, int current
   this->slider->setProperty(keyPropertyName, key);
   this->edit->setProperty(keyPropertyName, key);
 
-  this->layout->setMargin(0);
+  this->layout->setContentsMargins(0, 0, 0, 0);
   this->layout->addWidget(this->slider);
   this->layout->addWidget(this->edit);
 
@@ -220,7 +193,8 @@ pqIndexSelectionWidget::pqIndexSelectionWidget(
   : Superclass(pxy, parentW)
   , PropertyUpdatePending(false)
   , IgnorePushPropertyUpdates(false)
-  , GroupBox(new QGroupBox(QString(pushProp->GetXMLLabel()), this))
+  , GroupBox(
+      new QGroupBox(QCoreApplication::translate("ServerManagerXML", pushProp->GetXMLLabel()), this))
   , VBox(new QVBoxLayout(this))
   , Form(new QFormLayout(this->GroupBox))
   , Internals(new pqInternals())
@@ -244,10 +218,14 @@ pqIndexSelectionWidget::pqIndexSelectionWidget(
 
   this->GroupBox->setAlignment(Qt::AlignLeft);
 
-  this->VBox->setMargin(pqPropertiesPanel::suggestedMargin());
+  this->VBox->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin());
   this->VBox->addWidget(this->GroupBox);
 
-  this->Form->setMargin(pqPropertiesPanel::suggestedMargin());
+  this->Form->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin());
   this->Form->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
   this->Form->setLabelAlignment(Qt::AlignLeft);
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPStreamTracer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPStreamTracer.h"
 
 #include "vtkAMRInterpolatedVelocityField.h"
@@ -125,6 +113,7 @@
 #define AssertNe(a, b)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 inline int CNext(int i, int n)
@@ -1898,3 +1887,4 @@ void vtkPStreamTracer::Prepend(vtkPolyData* pathPoly, vtkPolyData* headPoly)
   AssertEq(newNumPoints, nPoints + 1);
   AssertEq(newNumPoints, pathPoly->GetNumberOfPoints());
 }
+VTK_ABI_NAMESPACE_END

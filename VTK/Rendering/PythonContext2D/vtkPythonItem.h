@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPythonItem
@@ -33,6 +21,7 @@
 #include "vtkContextItem.h"
 #include "vtkPythonContext2DModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSmartPyObject;
 
 class VTKPYTHONCONTEXT2D_EXPORT vtkPythonItem : public vtkContextItem
@@ -66,5 +55,6 @@ private:
   PyObject* Object;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // #ifndef vtkPythonItem_h
 #endif

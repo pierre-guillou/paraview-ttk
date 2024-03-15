@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVTrackballRotate.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVTrackballRotate
  * @brief   Rotates camera with xy mouse movement.
@@ -33,7 +21,7 @@ public:
   vtkTypeMacro(vtkPVTrackballRotate, vtkCameraManipulator);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Event bindings controlling the effects of pressing mouse buttons
    * or moving the mouse.
@@ -41,9 +29,9 @@ public:
   void OnMouseMove(int x, int y, vtkRenderer* ren, vtkRenderWindowInteractor* rwi) override;
   void OnButtonDown(int x, int y, vtkRenderer* ren, vtkRenderWindowInteractor* rwi) override;
   void OnButtonUp(int x, int y, vtkRenderer* ren, vtkRenderWindowInteractor* rwi) override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * These methods are called on all registered manipulators, not just the
    * active one. Hence, these should just be used to record state and not
@@ -52,7 +40,7 @@ public:
    */
   void OnKeyUp(vtkRenderWindowInteractor* iren) override;
   void OnKeyDown(vtkRenderWindowInteractor* iren) override;
-  //@}
+  ///@}
 
   /**
    * Returns the currently pressed key code.

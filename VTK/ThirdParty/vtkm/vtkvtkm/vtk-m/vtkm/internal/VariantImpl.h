@@ -17,7 +17,6 @@
 
 #include <vtkm/internal/VariantImplDetail.h>
 
-#include <vtkm/Deprecated.h>
 #include <vtkm/List.h>
 
 #include <vtkm/internal/Assume.h>
@@ -25,8 +24,6 @@
 namespace vtkm
 {
 namespace VTK_M_NAMESPACE
-{
-namespace internal
 {
 
 // Forward declaration
@@ -126,8 +123,7 @@ template <typename VariantType>
 struct VariantTriviallyCopyable;
 
 template <typename... Ts>
-struct VariantTriviallyCopyable<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>>
-  : AllTriviallyCopyable<Ts...>
+struct VariantTriviallyCopyable<vtkm::VTK_M_NAMESPACE::Variant<Ts...>> : AllTriviallyCopyable<Ts...>
 {
 };
 
@@ -135,7 +131,7 @@ template <typename VariantType>
 struct VariantTriviallyConstructible;
 
 template <typename... Ts>
-struct VariantTriviallyConstructible<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>>
+struct VariantTriviallyConstructible<vtkm::VTK_M_NAMESPACE::Variant<Ts...>>
   : AllTriviallyConstructible<Ts...>
 {
 };
@@ -205,9 +201,8 @@ struct VariantConstructorImpl;
 
 // Can trivially construct, deconstruct, and copy all data. (Probably all trivial classes.)
 template <typename... Ts>
-struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
-                              std::true_type,
-                              std::true_type> : VariantStorageImpl<Ts...>
+struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::Variant<Ts...>, std::true_type, std::true_type>
+  : VariantStorageImpl<Ts...>
 {
   VariantConstructorImpl() = default;
   ~VariantConstructorImpl() = default;
@@ -221,7 +216,7 @@ struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
 // Can trivially copy, but cannot trivially construct. Common if a class is simple but
 // initializes itself.
 template <typename... Ts>
-struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
+struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::Variant<Ts...>,
                               std::false_type,
                               std::true_type> : VariantStorageImpl<Ts...>
 {
@@ -242,7 +237,7 @@ struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
 
 // Cannot trivially copy. We assume we cannot trivially construct/destruct.
 template <typename construct_type, typename... Ts>
-struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
+struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::Variant<Ts...>,
                               construct_type,
                               std::false_type> : VariantStorageImpl<Ts...>
 {
@@ -256,21 +251,31 @@ struct VariantConstructorImpl<vtkm::VTK_M_NAMESPACE::internal::Variant<Ts...>,
   VTK_M_DEVICE VariantConstructorImpl(const VariantConstructorImpl& src) noexcept
     : VariantStorageImpl<Ts...>(vtkm::internal::NullType{})
   {
-    src.CastAndCall(VariantCopyConstructFunctor{}, this->Storage);
+    if (src.IsValid())
+    {
+      src.CastAndCall(VariantCopyConstructFunctor{}, this->Storage);
+    }
     this->Index = src.Index;
   }
 
   VTK_M_DEVICE VariantConstructorImpl& operator=(const VariantConstructorImpl& src) noexcept
   {
-    if (this->GetIndex() == src.GetIndex())
+    if (src.IsValid())
     {
-      src.CastAndCall(detail::VariantCopyFunctor{}, this->Storage);
+      if (this->GetIndex() == src.GetIndex())
+      {
+        src.CastAndCall(detail::VariantCopyFunctor{}, this->Storage);
+      }
+      else
+      {
+        this->Reset();
+        src.CastAndCall(detail::VariantCopyConstructFunctor{}, this->Storage);
+        this->Index = src.Index;
+      }
     }
     else
     {
       this->Reset();
-      src.CastAndCall(detail::VariantCopyConstructFunctor{}, this->Storage);
-      this->Index = src.Index;
     }
     return *this;
   }
@@ -342,6 +347,14 @@ public:
     return (this->Index >= 0) && (this->Index < NumberOfTypes);
   }
 
+  /// Returns true if this `Variant` stores the given type
+  ///
+  template <typename T>
+  VTK_M_DEVICE bool IsType() const
+  {
+    return (this->GetIndex() == this->GetIndexOf<T>());
+  }
+
   Variant() = default;
   ~Variant() = default;
   Variant(const Variant&) = default;
@@ -363,7 +376,7 @@ public:
   template <typename T>
   VTK_M_DEVICE Variant& operator=(const T& src)
   {
-    if (this->GetIndex() == this->GetIndexOf<T>())
+    if (this->IsType<T>())
     {
       this->Get<T>() = src;
     }
@@ -424,7 +437,7 @@ private:
   }
 
 public:
-  //@{
+  ///@{
   /// Returns the value as the type at the given index. The behavior is undefined if the
   /// variant does not contain the value at the given index.
   ///
@@ -441,9 +454,9 @@ public:
     VTKM_ASSERT(I == this->GetIndex());
     return detail::VariantUnionGet<I>(this->Storage);
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Returns the value as the given type. The behavior is undefined if the variant does not
   /// contain a value of the given type.
   ///
@@ -458,20 +471,20 @@ public:
   {
     return this->GetImpl<T>(CanStore<T>{});
   }
-  //@}
+  ///@}
 
 private:
   template <typename T>
   VTK_M_DEVICE T& GetImpl(std::true_type)
   {
-    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
+    VTKM_ASSERT(this->IsType<T>());
     return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
   }
 
   template <typename T>
   VTK_M_DEVICE const T& GetImpl(std::true_type) const
   {
-    VTKM_ASSERT(this->GetIndexOf<T>() == this->GetIndex());
+    VTKM_ASSERT(this->IsType<T>());
     return detail::VariantUnionGet<IndexOf<T>::value>(this->Storage);
   }
 
@@ -490,7 +503,7 @@ private:
   }
 
 public:
-  //@{
+  ///@{
   /// Given a functor object, calls the functor with the contained object cast to the appropriate
   /// type. If extra \c args are given, then those are also passed to the functor after the cast
   /// object. If the functor returns a value, that value is returned from \c CastAndCall.
@@ -500,7 +513,6 @@ public:
   template <typename Functor, typename... Args>
   VTK_M_DEVICE auto CastAndCall(Functor&& f, Args&&... args) const
     noexcept(noexcept(f(std::declval<const TypeAt<0>&>(), args...)))
-      -> decltype(f(std::declval<const TypeAt<0>&>(), args...))
   {
     VTKM_ASSERT(this->IsValid());
     return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
@@ -508,9 +520,9 @@ public:
   }
 
   template <typename Functor, typename... Args>
-  VTK_M_DEVICE auto CastAndCall(Functor&& f, Args&&... args) noexcept(
-    noexcept(f(std::declval<const TypeAt<0>&>(), args...)))
-    -> decltype(f(std::declval<TypeAt<0>&>(), args...))
+  VTK_M_DEVICE auto CastAndCall(Functor&& f,
+                                Args&&... args) noexcept(noexcept(f(std::declval<TypeAt<0>&>(),
+                                                                    args...)))
   {
     VTKM_ASSERT(this->IsValid());
     return detail::VariantCastAndCallImpl<sizeof...(Ts)>(
@@ -530,23 +542,12 @@ public:
   }
 };
 
-/// \brief Convert a ListTag to a Variant.
-///
-/// Depricated. Use ListAsVariant instead.
-///
-template <typename ListTag>
-using ListTagAsVariant VTKM_DEPRECATED(
-  1.6,
-  "vtkm::ListTag is no longer supported. Use vtkm::List instead.") =
-  vtkm::ListApply<ListTag, vtkm::VTK_M_NAMESPACE::internal::Variant>;
-
 /// \brief Convert a `List` to a `Variant`.
 ///
 template <typename List>
-using ListAsVariant = vtkm::ListApply<List, vtkm::VTK_M_NAMESPACE::internal::Variant>;
+using ListAsVariant = vtkm::ListApply<List, vtkm::VTK_M_NAMESPACE::Variant>;
 }
-}
-} // namespace vtkm::VTK_M_NAMESPACE::internal
+} // namespace vtkm::VTK_M_NAMESPACE
 
 #undef VTK_M_DEVICE
 #undef VTK_M_NAMESPACE

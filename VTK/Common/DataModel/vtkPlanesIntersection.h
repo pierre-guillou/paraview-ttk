@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlanesIntersection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlanesIntersection
@@ -26,7 +11,7 @@
  *
  *    A subclass of vtkPlanes, this class determines whether it
  *    intersects an axis aligned box.   This is motivated by the
- *    need to intersect the axis aligned region of a spacial
+ *    need to intersect the axis aligned region of a spatial
  *    decomposition of volume data with various other regions.
  *    It uses the algorithm from Graphics Gems IV, page 81.
  *
@@ -45,6 +30,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkPlanes.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkPointsProjectedHull;
 class vtkCell;
@@ -131,4 +117,5 @@ private:
   vtkPlanesIntersection(const vtkPlanesIntersection&) = delete;
   void operator=(const vtkPlanesIntersection&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

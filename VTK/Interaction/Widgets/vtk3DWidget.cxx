@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtk3DWidget.h"
 
 #include "vtkCallbackCommand.h"
@@ -23,6 +11,7 @@
 #include "vtkRenderer.h"
 #include "vtkTrivialProducer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtk3DWidget, Prop3D, vtkProp3D);
 
 class vtk3DWidgetConnection : public vtkAlgorithm
@@ -205,3 +194,4 @@ vtkDataSet* vtk3DWidget::GetInput()
 {
   return vtkDataSet::SafeDownCast(this->ConnectionHolder->GetInputDataObject(0, 0));
 }
+VTK_ABI_NAMESPACE_END

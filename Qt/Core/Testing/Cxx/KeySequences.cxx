@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  KeySequences.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "KeySequences.h"
 
 #include <QAction>
@@ -69,7 +41,7 @@ KeySequencesWidget::KeySequencesWidget(const std::string& label, const std::stri
   auto* hl = new QHBoxLayout(this);
   hl->addWidget(m_label);
   hl->addWidget(m_button);
-  hl->setMargin(1);
+  hl->setContentsMargins(1, 1, 1, 1);
   m_shortcut = pqKeySequences::instance().addModalShortcut(shortcut, m_action, this);
   m_shortcut->setObjectName(label.c_str());
   QObject::connect(
@@ -85,7 +57,11 @@ void KeySequencesWidget::demo()
   pqKeySequences::instance().dumpShortcuts(m_shortcut->keySequence());
 }
 
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
 void KeySequencesWidget::enterEvent(QEvent* e)
+#else
+void KeySequencesWidget::enterEvent(QEnterEvent* e)
+#endif
 {
   this->setFrameShape(QFrame::Box);
   if (!m_shortcut->isEnabled())
@@ -203,7 +179,7 @@ void KeySequencesTester::basic()
   auto* widget = new QWidget(window);
   window->setCentralWidget(widget);
   auto* layout = new QVBoxLayout(widget);
-  layout->setMargin(1);
+  layout->setContentsMargins(1, 1, 1, 1);
   layout->setSpacing(1);
 
   auto* w1 = new KeySequencesWidget("Thing 1", "1", QKeySequence(tr("Ctrl+A")), widget);

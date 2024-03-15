@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMedicalImageReader2.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMedicalImageReader2
  * @brief   vtkImageReader2 with medical meta data.
@@ -29,6 +17,7 @@
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkImageReader2.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMedicalImageProperties;
 
 class VTKIOIMAGE_EXPORT vtkMedicalImageReader2 : public vtkImageReader2
@@ -80,4 +69,5 @@ private:
   void operator=(const vtkMedicalImageReader2&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

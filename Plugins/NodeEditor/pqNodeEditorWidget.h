@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Plugin:    NodeEditor
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  ParaViewPluginsNodeEditor - BSD 3-Clause License - Copyright (C) 2021 Jonas Lukasczyk
-
-  See the Copyright.txt file provided
-  with ParaViewPluginsNodeEditor for license information.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (C) 2021 Jonas Lukasczyk
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqNodeEditorWidget_h
 #define pqNodeEditorWidget_h
@@ -28,6 +11,7 @@
 
 #include <unordered_map>
 
+class pqNodeEditorAnnotationItem;
 class pqNodeEditorApplyBehavior;
 class pqNodeEditorEdge;
 class pqNodeEditorNode;
@@ -38,7 +22,10 @@ class pqPipelineFilter;
 class pqPipelineSource;
 class pqOutputPort;
 class pqView;
+class pqRepresentation;
+
 class QAction;
+class QCheckBox;
 class QLayout;
 
 /**
@@ -52,7 +39,7 @@ class pqNodeEditorWidget : public QDockWidget
 public:
   pqNodeEditorWidget(QWidget* parent = nullptr);
   pqNodeEditorWidget(const QString& title, QWidget* parent = nullptr);
-  ~pqNodeEditorWidget() override = default;
+  ~pqNodeEditorWidget() override;
 
 public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
@@ -70,30 +57,55 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
    */
   int zoom();
 
-  //@{
+  /**
+   * Update style for the view nodes.
+   */
+  int updateActiveView(pqView* view = nullptr);
+
+  /**
+   * Update style for ports and sources according to the current selection and active objects.
+   */
+  int updateActiveSourcesAndPorts();
+
+  /**
+   * Toggle the visibility of the given output port int the active view.
+   * if exclusive == true then only the given port will be shown.
+   */
+  int toggleInActiveView(pqOutputPort* port, bool exclusive = false);
+
+  /**
+   * Hide every actors in the active view
+   *
+   */
+  int hideAllInActiveView();
+
+  /**
+   * Cycle the node verbosity in incrasing order
+   */
+  int cycleNodeVerbosity();
+
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
+  ///@{
   /**
    * Create/Remove the node corresponding to the given proxy
    */
   int createNodeForSource(pqPipelineSource* proxy);
   int createNodeForView(pqView* proxy);
+  int createNodeForRepresentation(pqRepresentation* repr);
   int removeNode(pqProxy* proxy);
-  //@}
+  ///@}
+
+  /**
+   * Show/Hide view and representation nodes and edges according to `showViewNodes` and
+   * the visibility of the representation.
+   */
+  void toggleViewNodesVisibility();
 
   /**
    * Given a consumer, set its input port @c idx to be connected with the
    * currently selected output ports.
    */
   int setInput(pqPipelineSource* consumer, int idx, bool clear);
-
-  /**
-   * Update style for the view nodes.
-   */
-  int updateActiveView();
-
-  /**
-   * Update style for ports and sources according to the current selection and active objects.
-   */
-  int updateActiveSourcesAndPorts();
 
   /**
    * Given a proxy, remove every edges connected to its input ports. Only affects the UI.
@@ -105,42 +117,57 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
    */
   int updatePipelineEdges(pqPipelineFilter* consumer);
 
+  ///@{
   /**
-   * Sets the style of ports.
+   * Import/Export layout from/as a Qt settings file. This is called whenver a state file is
+   * loaded/saved. Use this->processedStateFile to determine where to save the layout.
    */
-  int updatePortStyles();
+  void exportLayout();
+  void importLayout();
+  ///@}
 
   /**
-   * Rebuild every input edges of a given view proxy.
+   * Handle creation and delection of annotation items. Called when the view catch the
+   * related user input.
+   *
+   * @param del if true then will delete all selected annotation items. Id false
+   * it will create a new annotation item that will contain currently selected pipeline items.
    */
-  int updateVisibilityEdges(pqView* proxy);
+  void annotateNodes(bool del);
 
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
-   * Toggle the visibility of the given output port int the active view.
+   * Register a specific node in the scene and other internals structures.
    */
-  int toggleInActiveView(pqOutputPort* port);
-
-  /**
-   * Hide every actors in the active view
-   */
-  int hideAllInActiveView();
-
-  /**
-   * Cycle the node verbosity in incrasing order
-   */
-  int cycleNodeVerbosity();
-
-protected:
-  void initializeNode(pqNodeEditorNode* node, vtkIdType id);
+  void registerNode(pqNodeEditorNode* node, vtkIdType id);
 
   int initializeActions();
   int initializeSignals();
   int createToolbar(QLayout* layout);
   int attachServerManagerListeners();
 
+  /**
+   * Set the visibility of a specified port. It implements 3 behaviors :
+   * vis == 0: hide the port
+   * vis  > 0: show the port
+   * vis  < 0: toggle the visibility of the port
+   */
+  void setPortVisibility(pqOutputPort* port, pqView* view, int vis);
+
+  /**
+   * Construct the absolute path to the layout file using this->processedStateFile
+   * Returns an empty string if processedStateFile is empty.
+   * This function assume processedStateFile is a valid path (even though the actual file may not
+   * exist)
+   */
+  QString constructLayoutFilename() const;
+
 private:
   pqNodeEditorScene* scene;
   pqNodeEditorView* view;
+
+  // set using signals when state files are loaded / saved
+  QString processedStateFile;
 
   bool autoUpdateLayout{ true };
   bool showViewNodes{ true };
@@ -153,6 +180,8 @@ private:
   QAction* actionToggleViewNodeVisibility;
   pqNodeEditorApplyBehavior* applyBehavior;
 
+  QCheckBox* autoLayoutCheckbox;
+
   /**
    *  The node registry stores a node for each source/filter/view proxy
    *  The key is the global identifier of the node proxy.
@@ -164,6 +193,8 @@ private:
    *  The key is the global identifier of the node proxy.
    */
   std::unordered_map<vtkIdType, std::vector<pqNodeEditorEdge*>> edgeRegistry;
+
+  std::vector<pqNodeEditorAnnotationItem*> annotationRegistry;
 };
 
 #endif // pqNodeEditorWidget_h

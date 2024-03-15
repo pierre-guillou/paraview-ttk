@@ -1,46 +1,19 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonManager.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqPythonManager_h
 #define pqPythonManager_h
 
 #include "pqPythonModule.h" // for exports
+#include "vtkType.h"        // for vtkTypeUInt32
 
 #include <QObject>
 #include <QVector>
 
 class QWidget;
 class QToolBar;
+class pqPythonMacroSupervisor;
 class pqServer;
-class pqPythonDialog;
 
 /**
  * pqPythonManager is a class to facilitate the use of a python interpreter
@@ -61,6 +34,11 @@ public:
   ~pqPythonManager() override;
 
   /**
+   * Provides access to the macro supervisor.
+   */
+  pqPythonMacroSupervisor* macroSupervisor() const;
+
+  /**
    * Convienience method to call `vtkPythonInterpreter::Initialize()`.
    */
   bool initializeInterpreter();
@@ -71,7 +49,7 @@ public:
    */
   bool interpreterIsInitialized();
 
-  //@{
+  ///@{
   /**
    * Add a widget to be given macro actions.  QActions representing script macros
    * will be added to the widget.  This could be a QToolBar, QMenu, or other type
@@ -80,12 +58,12 @@ public:
   void addWidgetForRunMacros(QWidget* widget);
   void addWidgetForEditMacros(QWidget* widget);
   void addWidgetForDeleteMacros(QWidget* widget);
-  //@}
+  ///@}
 
   /**
    * Save the macro in ParaView configuration and update widget automatically
    */
-  void addMacro(const QString& fileName);
+  void addMacro(const QString& fileName, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
 
   /**
    * Invalidate the macro list, so the menu/toolbars are updated according to
@@ -109,14 +87,16 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
    * Executes the given script.  If the python interpreter hasn't been initialized
    * yet it will be initialized.
    */
-  void executeScript(const QString& filename);
+  void executeScript(
+    const QString& filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
 
   /**
    * Same as `executeScript()` except that is also triggers a render on all
    * views in the application after the script has been processed. This is used
    * when playing back macros, for example.
    */
-  void executeScriptAndRender(const QString& filename);
+  void executeScriptAndRender(
+    const QString& filename, vtkTypeUInt32 location = 0x10 /*vtkPVSession::CLIENT*/);
 
   /**
    * Launch python editor to edit the macro

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLinearTransformCellLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLinearTransformCellLocator
  * @brief   Cell locator adaptor to perform cell Location on datasets that are a linear
@@ -41,6 +29,8 @@
 #include "vtkAbstractCellLocator.h"
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 #include "vtkSmartPointer.h"           // For vtkSmartPointer
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkTransform;
 
@@ -109,7 +99,7 @@ public:
    *
    * For other IntersectWithLine signatures, see vtkAbstractCellLocator.
    */
-  int IntersectWithLine(const double p1[3], const double p2[3], const double tol, vtkPoints* points,
+  int IntersectWithLine(const double p1[3], const double p2[3], double tol, vtkPoints* points,
     vtkIdList* cellIds, vtkGenericCell* cell) override;
 
   /**
@@ -218,4 +208,5 @@ private:
   void operator=(const vtkLinearTransformCellLocator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

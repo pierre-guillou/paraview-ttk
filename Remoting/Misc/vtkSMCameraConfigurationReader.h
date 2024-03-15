@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMCameraConfigurationReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMCameraConfigurationReader
  * @brief   A reader for XML camera configuration.
@@ -48,7 +37,7 @@ public:
    */
   void SetRenderViewProxy(vtkSMProxy* rvProxy);
 
-  //@{
+  ///@{
   /**
    * Read the named file, and push the properties into the underying
    * managed render view proxy. This will make sure the renderview is
@@ -58,7 +47,7 @@ public:
   int ReadConfiguration(vtkPVXMLElement* x) override;
   // unhide
   int ReadConfiguration() override { return this->Superclass::ReadConfiguration(); }
-  //@}
+  ///@}
 
 protected:
   vtkSMCameraConfigurationReader();

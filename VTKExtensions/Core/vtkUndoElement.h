@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkUndoElement.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUndoElement
  * @brief   unit undo-redo-able operation.
@@ -52,7 +40,7 @@ public:
    */
   virtual int Redo() = 0;
 
-  //@{
+  ///@{
   /**
    * Returns if this undo element can be merged with other
    * undo elements.
@@ -62,7 +50,7 @@ public:
    * are mergeable.
    */
   vtkGetMacro(Mergeable, bool);
-  //@}
+  ///@}
 
   /**
    * Called on the older element in the UndoSet to merge with the
@@ -88,7 +76,7 @@ protected:
   vtkUndoElement();
   ~vtkUndoElement() override;
 
-  //@{
+  ///@{
   /**
    * Subclasses must set this flag to enable merging of consecutive elements
    * in an UndoSet.
@@ -96,7 +84,7 @@ protected:
   bool Mergeable;
   vtkSetMacro(Mergeable, bool);
   vtkCollection* UndoSetWorkingContext;
-  //@}
+  ///@}
 
 private:
   vtkUndoElement(const vtkUndoElement&) = delete;

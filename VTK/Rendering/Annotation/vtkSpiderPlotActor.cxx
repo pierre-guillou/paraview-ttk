@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpiderPlotActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpiderPlotActor.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -36,6 +24,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSpiderPlotActor);
 
 vtkCxxSetObjectMacro(vtkSpiderPlotActor, LabelTextProperty, vtkTextProperty);
@@ -832,7 +821,7 @@ void vtkSpiderPlotActor::ReleaseGraphicsResources(vtkWindow* win)
 }
 
 //------------------------------------------------------------------------------
-void vtkSpiderPlotActor::SetAxisLabel(const int i, const char* label)
+void vtkSpiderPlotActor::SetAxisLabel(int i, const char* label)
 {
   if (i < 0)
   {
@@ -956,3 +945,4 @@ void vtkSpiderPlotActor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Legend Actor: " << this->LegendActor << "\n";
   this->LegendActor->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

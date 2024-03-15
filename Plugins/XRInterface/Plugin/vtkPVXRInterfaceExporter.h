@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVXRInterfaceExporter
  * @brief   support for exporting XRInterfaceViews
@@ -24,7 +13,7 @@
 #include <map> // for ivar
 
 class vtkSMViewProxy;
-class vtkPVXRInterfaceHelperLocation;
+struct vtkPVXRInterfaceHelperLocation;
 class vtkPVXRInterfaceHelper;
 class vtkRenderer;
 
@@ -37,18 +26,18 @@ public:
   // export the data for each saved location
   // as a skybox
   void ExportLocationsAsSkyboxes(vtkPVXRInterfaceHelper* helper, vtkSMViewProxy* view,
-    std::map<int, vtkPVXRInterfaceHelperLocation>& locations, vtkRenderer* ren);
+    std::vector<vtkPVXRInterfaceHelperLocation>& locations, vtkRenderer* ren);
 
   // export the data for each saved location
   // in a form mineview can load. Bacially
   // as imple XML format with the surface geometry
   // stored as vtp files.
   void ExportLocationsAsView(vtkPVXRInterfaceHelper* helper, vtkSMViewProxy* view,
-    std::map<int, vtkPVXRInterfaceHelperLocation>& locations);
+    std::vector<vtkPVXRInterfaceHelperLocation>& locations);
 
 protected:
-  vtkPVXRInterfaceExporter(){};
-  ~vtkPVXRInterfaceExporter(){};
+  vtkPVXRInterfaceExporter() = default;
+  ~vtkPVXRInterfaceExporter() override = default;
 
 private:
   vtkPVXRInterfaceExporter(const vtkPVXRInterfaceExporter&) = delete;

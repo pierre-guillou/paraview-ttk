@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVTransferFunction2DBox.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 // ParaView includes
 #include "vtkPVTransferFunction2DBox.h"
@@ -73,8 +61,7 @@ const vtkRectd& vtkPVTransferFunction2DBox::GetBox()
 }
 
 //------------------------------------------------------------------------------------------------
-void vtkPVTransferFunction2DBox::SetBox(
-  const double x, const double y, const double width, const double height)
+void vtkPVTransferFunction2DBox::SetBox(double x, double y, double width, double height)
 {
   if (x == this->Box.GetLeft() && (x + width) == this->Box.GetRight() &&
     y == this->Box.GetBottom() && (y + height) == this->Box.GetTop())

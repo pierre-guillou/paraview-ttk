@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoxRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBoxRepresentation
  * @brief   a class defining the representation for the vtkBoxWidget2
@@ -39,6 +27,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkPolyDataMapper;
 class vtkLineSource;
@@ -155,6 +144,29 @@ public:
    */
   vtkGetObjectMacro(OutlineProperty, vtkProperty);
   vtkGetObjectMacro(SelectedOutlineProperty, vtkProperty);
+  ///@}
+
+  ///@{
+  /**
+   * Set the foreground color (the outline of the box).
+   */
+  void SetForegroundColor(double _arg1, double _arg2, double _arg3);
+  void SetForegroundColor(const double _arg[3])
+  {
+    this->SetForegroundColor(_arg[0], _arg[1], _arg[2]);
+  }
+  ///@}
+
+  ///@{
+  /**
+   * Set the interaction color. Applies to the handle and outline
+   * when interaction is happening.
+   */
+  void SetInteractionColor(double _arg1, double _arg2, double _arg3);
+  void SetInteractionColor(const double _arg[3])
+  {
+    this->SetInteractionColor(_arg[0], _arg[1], _arg[2]);
+  }
   ///@}
 
   ///@{
@@ -417,4 +429,5 @@ private:
   void operator=(const vtkBoxRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

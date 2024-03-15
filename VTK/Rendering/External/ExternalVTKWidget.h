@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    ExternalVTKWidget.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME ExternalVTKWidget - Use VTK rendering in an external window/application
 // .SECTION Description
 // ExternalVTKWidget provides an easy way to render VTK objects in an external
@@ -26,6 +14,7 @@
 #include "vtkRenderingExternalModule.h" // For export macro
 
 // Class that maintains an external render window.
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGEXTERNAL_EXPORT ExternalVTKWidget : public vtkObject
 {
 public:
@@ -58,4 +47,6 @@ private:
   void operator=(const ExternalVTKWidget&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif //__ExternalVTKWidget_h
+/* VTK-HeaderTest-Exclude: INCLUDES */

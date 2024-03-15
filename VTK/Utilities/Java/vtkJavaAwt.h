@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkJavaAwt.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkJavaAwt_h
 #define vtkJavaAwt_h
@@ -40,11 +28,16 @@
     H = E->CallIntMethod(C, mid);                                                                  \
   }
 #include "vtkWindows.h"
+VTK_ABI_NAMESPACE_BEGIN
 int WJLH_init_check = 0;
+VTK_ABI_NAMESPACE_END
 #include <map> // STL Header
+VTK_ABI_NAMESPACE_BEGIN
 std::map<int, int> WJLH_lock_map;
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 extern "C" JNIEXPORT jint JNICALL Java_vtk_vtkPanel_RenderCreate(
   JNIEnv* env, jobject canvas, jobject id0)
 {
@@ -363,5 +356,6 @@ extern "C" JNIEXPORT jint JNICALL Java_vtk_vtkPanel_UnLock(JNIEnv* env, jobject 
 #pragma GCC diagnostic pop
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkJavaAwt.h

@@ -228,6 +228,9 @@ void pqTestUtility::onRecordStopped()
     delete dialog;
   }
   this->File->close();
+
+  this->setDashboardMode(false);
+  this->updateTranslators();
 }
 
 //-----------------------------------------------------------------------------
@@ -247,6 +250,9 @@ bool pqTestUtility::playTests(const QStringList& filenames)
     return false;
   }
 
+  this->setDashboardMode(true);
+  this->updatePlayers();
+
   this->PlayingTest = true;
   Q_EMIT this->playbackStarted();
 
@@ -259,8 +265,16 @@ bool pqTestUtility::playTests(const QStringList& filenames)
       break;
     }
     QFileInfo info(filename);
+
+    if (!info.exists())
+    {
+      qCritical() << filename << " does not exists, aborting";
+      return false;
+    }
+
     Q_EMIT this->playbackStarted(filename);
-    QString suffix = info.suffix();
+    QString suffix = info.completeSuffix();
+
     QMap<QString, pqEventSource*>::iterator iter;
     iter = this->EventSources.find(suffix);
     if (info.isReadable() && iter != this->EventSources.end())
@@ -286,6 +300,8 @@ bool pqTestUtility::playTests(const QStringList& filenames)
 
   this->Filename = "";
   this->PlayingTest = false;
+  this->setDashboardMode(false);
+  this->updatePlayers();
   Q_EMIT this->playbackStopped();
 
   return success;
@@ -305,6 +321,9 @@ void pqTestUtility::recordTests()
              " correctly record menus");
   }
 #endif
+
+  this->setDashboardMode(true);
+  this->updateTranslators();
 
   pqEventObserver* observer = this->EventObservers.value(this->FileSuffix);
   if (!observer)

@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <string>
 
@@ -40,6 +42,15 @@ static const std::string LOG_svol_rvol_prefix = "Sparse volume importer: ";
 inline nv::index::Sparse_volume_voxel_format match_volume_format(const std::string& fmt_string)
 {
   if (fmt_string == "char")
+  {
+    // "char" is platform dependent
+#if VTK_TYPE_CHAR_IS_SIGNED
+    return nv::index::SPARSE_VOLUME_VOXEL_FORMAT_SINT8;
+#else
+    return nv::index::SPARSE_VOLUME_VOXEL_FORMAT_UINT8;
+#endif
+  }
+  else if (fmt_string == "signed char")
   {
     return nv::index::SPARSE_VOLUME_VOXEL_FORMAT_SINT8;
   }

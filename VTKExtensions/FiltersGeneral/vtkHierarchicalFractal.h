@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkHierarchicalFractal.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHierarchicalFractal
  * @brief   A source to test AMR data object.
@@ -48,7 +36,7 @@ public:
   vtkTypeMacro(vtkHierarchicalFractal, vtkCompositeDataSetAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Essentially the iso surface value.
    * The fractal array is scaled to map this value to 0.5 for use as a volume
@@ -56,9 +44,9 @@ public:
    */
   vtkSetMacro(FractalValue, float);
   vtkGetMacro(FractalValue, float);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Any blocks touching a predefined line will be subdivided to this level.
    * Other blocks are subdivided so that neighboring blocks only differ
@@ -66,35 +54,35 @@ public:
    */
   vtkSetMacro(MaximumLevel, int);
   vtkGetMacro(MaximumLevel, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * XYZ dimensions of cells.
    */
   vtkSetMacro(Dimensions, int);
   vtkGetMacro(Dimensions, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * For testing ghost levels.
    */
   vtkSetMacro(GhostLevels, int);
   vtkGetMacro(GhostLevels, int);
   vtkBooleanMacro(GhostLevels, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Dummy time-step
    */
   vtkSetMacro(TimeStep, int);
   vtkGetMacro(TimeStep, int);
   vtkGetVector2Macro(TimeStepRange, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Generate either rectilinear grids either uniform grids.
    * Default is false.
@@ -102,34 +90,34 @@ public:
   vtkSetMacro(GenerateRectilinearGrids, int);
   vtkGetMacro(GenerateRectilinearGrids, int);
   vtkBooleanMacro(GenerateRectilinearGrids, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Make a 2D data set to test.
    */
   vtkSetMacro(TwoDimensional, int);
   vtkGetMacro(TwoDimensional, int);
   vtkBooleanMacro(TwoDimensional, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Test the case when the blocks do not have the same sizes.
    * Adds 2 to the x extent of the far x blocks (level 1).
    */
   vtkSetMacro(Asymetric, int);
   vtkGetMacro(Asymetric, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Test with lower levels overlapping higher levels.
    * This is what I assume flash is like.
    */
   vtkSetMacro(Overlap, int);
   vtkGetMacro(Overlap, int);
-  //@}
+  ///@}
 
 protected:
   vtkHierarchicalFractal();

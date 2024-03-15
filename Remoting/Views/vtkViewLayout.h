@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkViewLayout
  * @brief   used by vtkSMViewLayoutProxy.
@@ -60,14 +48,14 @@ public:
    */
   void ShowOnTileDisplay();
 
-  //@{
+  ///@{
   /**
    * Add/remove views in this layout.
    */
   void RemoveAllViews();
   void AddView(vtkPVView*, const double* viewport);
   void AddView(vtkPVComparativeView*, const double* viewport);
-  //@}
+  ///@}
 
   /**
    * Intended for testing and debugging. When called, this will save the layout
@@ -75,7 +63,7 @@ public:
    */
   bool SaveAsPNG(int rank, const char* fname);
 
-  //@{
+  ///@{
   /**
    * Set the color to use for separator between views in multi-view
    * configurations when saving images.
@@ -84,16 +72,16 @@ public:
    */
   vtkSetVector3Macro(SeparatorColor, double);
   vtkGetVector3Macro(SeparatorColor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the separator width (in pixels) to use for separator between views
    * in multi-view configurations.
    */
   vtkSetClampMacro(SeparatorWidth, int, 0, VTK_INT_MAX);
   vtkGetMacro(SeparatorWidth, int);
-  //@}
+  ///@}
 
   enum
   {
@@ -114,22 +102,22 @@ protected:
   vtkViewLayout();
   ~vtkViewLayout() override;
 
-  //@{
+  ///@{
   /**
    * Set the tile dimensions. Default is (1, 1).
    */
   vtkSetVector2Macro(TileDimensions, int);
   vtkGetVector2Macro(TileDimensions, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the tile mullions in pixels. Use negative numbers to indicate overlap
    * between tiles.
    */
   vtkSetVector2Macro(TileMullions, int);
   vtkGetVector2Macro(TileMullions, int);
-  //@}
+  ///@}
 
   void UpdateLayout(vtkObject*, unsigned long, void*);
   void UpdateLayoutForTileDisplay(vtkRenderWindow*);

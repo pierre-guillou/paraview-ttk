@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOggTheoraWriter.h
-
-  Copyright (c) Michael Wild, Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Michael Wild
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOggTheoraWriter
  * @brief   Uses the ogg and theora libraries to write video
@@ -32,6 +21,7 @@
 #include "vtkGenericMovieWriter.h"
 #include "vtkIOOggTheoraModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOggTheoraWriterInternal;
 
 class VTKIOOGGTHEORA_EXPORT vtkOggTheoraWriter : public vtkGenericMovieWriter
@@ -94,4 +84,5 @@ private:
   void operator=(const vtkOggTheoraWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

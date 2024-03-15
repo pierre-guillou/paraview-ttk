@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMArrayListDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMArrayListDomain
  * @brief   list of arrays obtained from input
@@ -36,6 +24,13 @@
  *                FieldDataSelection is specified and no vtkSMInputArrayDomain
  *                is found, then this domain assumes that all array associations
  *                are valid.
+ * \li \c AssemblyName : (optional) Instead of checking all the arrays, you can
+ *                check only the arrays that are part of a specific assembly using
+ *                specified selectors. This is useful when you want to get a subset
+ *                of the arrays.
+ * \li \c Selectors : (optional) The selectors are used in conjunction with the
+ *                AssemblyName property. The selectors are used to filter the arrays
+ *                that are part of the assembly.
  *
  * Supported XML attributes:
  * \li \c attribute_type : (optional) when specified, this is used to pick the
@@ -130,13 +125,13 @@ public:
    */
   int GetDomainAssociation(unsigned int idx);
 
-  //@{
+  ///@{
   /**
    * Return the attribute type. The values are listed in
    * vtkDataSetAttributes.h.
    */
   vtkGetMacro(AttributeType, int);
-  //@}
+  ///@}
 
   /**
    * A vtkSMProperty is often defined with a default value in the
@@ -162,7 +157,7 @@ public:
     REJECT_KEY
   };
 
-  //@{
+  ///@{
   /**
    * Adds a new InformationKey to the domain.
    * The default strategy is NEED_KEY if none is specified.
@@ -174,7 +169,7 @@ public:
   {
     return this->AddInformationKey(location, name, vtkSMArrayListDomain::NEED_KEY);
   }
-  //@}
+  ///@}
 
   /**
    * Removes an InformationKey from this domain.
@@ -191,14 +186,14 @@ public:
    */
   void RemoveAllInformationKeys();
 
-  //@{
+  ///@{
   /**
    * Returns the location/name/strategy of a given InformationKey
    */
   const char* GetInformationKeyLocation(unsigned int);
   const char* GetInformationKeyName(unsigned int);
   int GetInformationKeyStrategy(unsigned int);
-  //@}
+  ///@}
 
   /**
    * returns the mangled name for the component index that is passed in.
@@ -206,14 +201,14 @@ public:
    */
   static std::string CreateMangledName(vtkPVArrayInformation* arrayInfo, int component);
 
-  //@{
+  ///@{
   /**
    * returns the mangled name for the component index that is passed in.
 
    */
   static std::string ArrayNameFromMangledName(const char* name);
   static int ComponentIndexFromMangledName(vtkPVArrayInformation* info, const char* name);
-  //@}
+  ///@}
 
 protected:
   vtkSMArrayListDomain();
@@ -239,22 +234,22 @@ protected:
    */
   virtual bool IsFilteredArray(vtkPVDataInformation* info, int association, const char* arrayName);
 
-  //@{
+  ///@{
   /**
    * Set to an attribute type defined in vtkDataSetAttributes.
    */
   vtkSetMacro(AttributeType, int);
   int AttributeType;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * InputDomainName refers to a input property domain that describes
    * the type of array is needed by this property.
    */
   vtkGetStringMacro(InputDomainName);
   vtkSetStringMacro(InputDomainName);
-  //@}
+  ///@}
 
   char* InputDomainName;
 

@@ -89,7 +89,6 @@ VTKM_EXEC int FindNeighborCellInLocalIndex(const vtkm::Id2& eOI,
 {
   int neighboringCellIndex = -1;
   vtkm::IdComponent numberOfIncidentCells = incidentCells.GetNumberOfComponents();
-  size_t neighboringCellsCount = 0;
   for (vtkm::IdComponent incidentCellIndex = 0; incidentCellIndex < numberOfIncidentCells;
        incidentCellIndex++)
   {
@@ -122,7 +121,6 @@ VTKM_EXEC int FindNeighborCellInLocalIndex(const vtkm::Id2& eOI,
           (canonicalEdgeId[0] == eOI[1] && canonicalEdgeId[1] == eOI[0]))
       {
         neighboringCellIndex = incidentCellIndex;
-        neighboringCellsCount++;
         break;
       }
     }
@@ -475,7 +473,7 @@ public:
 
 
     // Create the new cellset
-    CellDeepCopy::Run(oldCellset, newCellset);
+    CellDeepCopy::Run(oldCellset, newCellset, this->NewPointsIdArray.GetNumberOfValues());
     // FIXME: Since the non const get array function is not in CellSetExplict.h,
     // here I just get a non-const copy of the array handle.
     auto connectivityArrayHandle = newCellset.GetConnectivityArray(vtkm::TopologyElementTagCell(),
@@ -500,20 +498,6 @@ public:
         }
       }
     }
-  }
-
-  template <typename ValueType, typename StorageTag>
-  vtkm::cont::ArrayHandle<ValueType> ProcessPointField(
-    const vtkm::cont::ArrayHandle<ValueType, StorageTag> in) const
-  {
-    // Use a temporary permutation array to simplify the mapping:
-    auto tmp = vtkm::cont::make_ArrayHandlePermutation(this->NewPointsIdArray, in);
-
-    // Copy into an array with default storage:
-    vtkm::cont::ArrayHandle<ValueType> result;
-    vtkm::cont::ArrayCopy(tmp, result);
-
-    return result;
   }
 
   vtkm::cont::ArrayHandle<vtkm::Id> GetNewPointsIdArray() const { return this->NewPointsIdArray; }

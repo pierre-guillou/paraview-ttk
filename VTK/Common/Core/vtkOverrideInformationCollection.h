@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverrideInformationCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOverrideInformationCollection
  * @brief   maintain a list of override information objects
@@ -30,6 +18,7 @@
 
 #include "vtkOverrideInformation.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkOverrideInformationCollection : public vtkCollection
 {
 public:
@@ -64,7 +53,6 @@ private:
   // hide the standard AddItem from the user and the compiler.
   void AddItem(vtkObject* o) { this->vtkCollection::AddItem(o); }
 
-private:
   vtkOverrideInformationCollection(const vtkOverrideInformationCollection&) = delete;
   void operator=(const vtkOverrideInformationCollection&) = delete;
 };
@@ -79,4 +67,5 @@ inline vtkOverrideInformation* vtkOverrideInformationCollection::GetNextItem()
   return static_cast<vtkOverrideInformation*>(this->GetNextItemAsObject());
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

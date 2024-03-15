@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataProbeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCompositeDataProbeFilter.h"
 
 #include "vtkCellData.h"
@@ -33,6 +21,7 @@
 #include "vtkPointData.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeDataProbeFilter);
 //------------------------------------------------------------------------------
 vtkCompositeDataProbeFilter::vtkCompositeDataProbeFilter()
@@ -104,6 +93,7 @@ int vtkCompositeDataProbeFilter::RequestData(
   if (sourceHTG)
   {
     vtkNew<vtkHyperTreeGridProbeFilter> htgProbe;
+    htgProbe->SetContainerAlgorithm(this);
     htgProbe->SetPassCellArrays(this->GetPassCellArrays());
     htgProbe->SetPassPointArrays(this->GetPassPointArrays());
     htgProbe->SetPassFieldArrays(this->GetPassFieldArrays());
@@ -131,6 +121,10 @@ int vtkCompositeDataProbeFilter::RequestData(
     int idx = 0;
     for (iter->InitReverseTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       sourceDS = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
       sourceHTG = vtkHyperTreeGrid::SafeDownCast(iter->GetCurrentDataObject());
       if (!sourceDS && !sourceHTG)
@@ -143,6 +137,7 @@ int vtkCompositeDataProbeFilter::RequestData(
       if (sourceHTG)
       {
         vtkNew<vtkHyperTreeGridProbeFilter> htgProbe;
+        htgProbe->SetContainerAlgorithm(this);
         htgProbe->SetPassCellArrays(this->GetPassCellArrays());
         htgProbe->SetPassPointArrays(this->GetPassPointArrays());
         htgProbe->SetPassFieldArrays(this->GetPassFieldArrays());
@@ -208,6 +203,7 @@ int vtkCompositeDataProbeFilter::RequestData(
         this->SetFindCellStrategy(nullptr);
       }
 
+      this->InitializeSourceArrays(sourceDS);
       this->DoProbing(input, idx, sourceDS, output);
       idx++;
     }
@@ -352,3 +348,4 @@ void vtkCompositeDataProbeFilter::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << "PassPartialArrays: " << this->PassPartialArrays << endl;
 }
+VTK_ABI_NAMESPACE_END

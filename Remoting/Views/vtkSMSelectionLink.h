@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSelectionLink.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMSelectionLink
  *
@@ -37,7 +25,7 @@ public:
   vtkTypeMacro(vtkSMSelectionLink, vtkSMLink);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add a selection to the link. updateDir determines whether
    * the proxy used is an input or an output. When a selection of an input proxy
@@ -49,7 +37,7 @@ public:
    */
   void AddLinkedSelection(vtkSMProxy* proxy, int updateDir);
   void RemoveLinkedSelection(vtkSMProxy* proxy);
-  //@}
+  ///@}
 
   /**
    * Get the number of properties that are involved in this link.

@@ -1,41 +1,12 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSaveStateReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSaveStateReaction.h"
 
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqFileDialog.h"
-#include "pqPVApplicationCore.h"
 #include "pqProxyWidgetDialog.h"
 #include "pqServer.h"
 #include "pqStandardRecentlyUsedResourceLoaderImplementation.h"
@@ -75,27 +46,28 @@ void pqSaveStateReaction::updateEnableState()
 //-----------------------------------------------------------------------------
 bool pqSaveStateReaction::saveState()
 {
+  QString fileExt = tr("ParaView state file") + QString(" (*.pvsm);;");
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-  QString fileExt = tr("ParaView state file (*.pvsm);;Python state file (*.py);;All files (*)");
-#else
-  QString fileExt = tr("ParaView state file (*.pvsm);;All files (*)");
+  fileExt += tr("Python state file") + QString(" (*.py);;");
 #endif
+  fileExt += tr("All Files") + QString(" (*)");
+  pqServer* server = pqActiveObjects::instance().activeServer();
   pqFileDialog fileDialog(
-    nullptr, pqCoreUtilities::mainWidget(), tr("Save State File"), QString(), fileExt);
+    server, pqCoreUtilities::mainWidget(), tr("Save State File"), QString(), fileExt, false, false);
 
   fileDialog.setObjectName("FileSaveServerStateDialog");
   fileDialog.setFileMode(pqFileDialog::AnyFile);
 
   if (fileDialog.exec() == QDialog::Accepted)
   {
-    QString selectedFile = fileDialog.getSelectedFiles()[0];
+    const QString selectedFile = fileDialog.getSelectedFiles()[0];
     if (selectedFile.endsWith(".py"))
     {
-      pqSaveStateReaction::savePythonState(selectedFile);
+      pqSaveStateReaction::savePythonState(selectedFile, fileDialog.getSelectedLocation());
     }
     else
     {
-      pqSaveStateReaction::saveState(selectedFile);
+      pqSaveStateReaction::saveState(selectedFile, fileDialog.getSelectedLocation());
     }
     return true;
   }
@@ -103,9 +75,9 @@ bool pqSaveStateReaction::saveState()
 }
 
 //-----------------------------------------------------------------------------
-bool pqSaveStateReaction::saveState(const QString& filename)
+bool pqSaveStateReaction::saveState(const QString& filename, vtkTypeUInt32 location)
 {
-  if (!pqApplicationCore::instance()->saveState(filename))
+  if (!pqApplicationCore::instance()->saveState(filename, location))
   {
     qCritical() << "Failed to save " << filename;
     return false;
@@ -113,12 +85,12 @@ bool pqSaveStateReaction::saveState(const QString& filename)
   pqServer* server = pqActiveObjects::instance().activeServer();
   // Add this to the list of recent server resources ...
   pqStandardRecentlyUsedResourceLoaderImplementation::addStateFileToRecentResources(
-    server, filename);
+    server, filename, location);
   return true;
 }
 
 //-----------------------------------------------------------------------------
-bool pqSaveStateReaction::savePythonState(const QString& filename)
+bool pqSaveStateReaction::savePythonState(const QString& filename, vtkTypeUInt32 location)
 {
 #if VTK_MODULE_ENABLE_ParaView_pqPython
   vtkSMSessionProxyManager* pxm = pqActiveObjects::instance().proxyManager();
@@ -135,7 +107,7 @@ bool pqSaveStateReaction::savePythonState(const QString& filename)
   controller->InitializeProxy(options);
 
   pqProxyWidgetDialog dialog(options);
-  dialog.setWindowTitle("Python State Options");
+  dialog.setWindowTitle(tr("Python State Options"));
   dialog.setObjectName("StateOptionsDialog");
   dialog.setApplyChangesImmediately(true);
   if (dialog.exec() != QDialog::Accepted)
@@ -143,26 +115,28 @@ bool pqSaveStateReaction::savePythonState(const QString& filename)
     return false;
   }
 
-  std::string state = vtkSMTrace::GetState(options);
+  const std::string state = vtkSMTrace::GetState(options);
   if (state.empty())
   {
     qWarning("Empty state generated.");
     return false;
   }
-  QFile file(filename);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+
+  Q_EMIT pqApplicationCore::instance()->aboutToWriteState(filename);
+
+  if (!pxm->SaveString(state.c_str(), filename.toStdString().c_str(), location))
   {
-    qWarning() << "Could not open file:" << filename;
+    qCritical() << tr("Failed to save state in ") << filename;
     return false;
   }
-  QTextStream out(&file);
-  out << state.c_str();
+
   pqServer* server = pqActiveObjects::instance().activeServer();
   // Add this to the list of recent server resources ...
   pqStandardRecentlyUsedResourceLoaderImplementation::addStateFileToRecentResources(
-    server, filename);
+    server, filename, location);
   return true;
 #else
+  Q_UNUSED(location);
   qCritical() << "Failed to save '" << filename
               << "' since Python support in not enabled in this build.";
   return false;

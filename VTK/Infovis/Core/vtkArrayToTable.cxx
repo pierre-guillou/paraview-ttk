@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayToTable.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkArrayToTable.h"
 #include "vtkArrayData.h"
@@ -46,6 +29,7 @@
 #include <stdexcept>
 
 /// Convert a 1D array to a table with one column ...
+VTK_ABI_NAMESPACE_BEGIN
 template <typename ValueT, typename ColumnT>
 static bool ConvertVector(vtkArray* Array, vtkTable* Output)
 {
@@ -250,3 +234,4 @@ int vtkArrayToTable::RequestData(
 
   return 0;
 }
+VTK_ABI_NAMESPACE_END

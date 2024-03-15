@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSeedWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSeedWidget.h"
 
 #include "vtkCallbackCommand.h"
@@ -30,6 +18,7 @@
 #include <iterator>
 #include <list>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSeedWidget);
 
 // The vtkSeedList is a PIMPLed list<T>.
@@ -391,3 +380,4 @@ void vtkSeedWidget::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "WidgetState: " << this->WidgetState << endl;
 }
+VTK_ABI_NAMESPACE_END

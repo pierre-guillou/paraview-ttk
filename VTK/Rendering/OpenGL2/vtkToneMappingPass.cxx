@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkToneMappingPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkToneMappingPass.h"
 
@@ -29,6 +17,7 @@
 #include "vtkShaderProgram.h"
 #include "vtkTextureObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkToneMappingPass);
 
 //------------------------------------------------------------------------------
@@ -328,3 +317,4 @@ void vtkToneMappingPass::PreComputeAnchorCurveGenericFilmic()
         (powf(m, a * d) * n - n * powf(this->HdrMax, a * d)),
       0.f);
 }
+VTK_ABI_NAMESPACE_END

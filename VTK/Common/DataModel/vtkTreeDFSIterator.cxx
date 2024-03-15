@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTreeDFSIterator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkTreeDFSIterator.h"
 
@@ -27,6 +11,7 @@
 #include <stack>
 using std::stack;
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkTreeDFSIteratorPosition
 {
   vtkTreeDFSIteratorPosition(vtkIdType vertex, vtkIdType index)
@@ -158,7 +143,7 @@ vtkIdType vtkTreeDFSIterator::NextInternal()
         vtkIdType found = this->Tree->GetChild(pos.Vertex, pos.Index);
         // cout << "DFS coloring " << found << " gray (adjacency)" << endl;
         this->Color->SetValue(found, this->GRAY);
-        this->Internals->Stack.push(vtkTreeDFSIteratorPosition(found, 0));
+        this->Internals->Stack.emplace(found, 0);
         if (this->Mode == this->DISCOVER)
         {
           // cout << "DFS adjacent discovery " << found << endl;
@@ -176,7 +161,7 @@ vtkIdType vtkTreeDFSIterator::NextInternal()
         {
           // Found a new component; make it gray, put it on the stack
           // cerr << "DFS coloring " << this->CurRoot << " gray (new component)" << endl;
-          this->Internals->Stack.push(vtkTreeDFSIteratorPosition(this->CurRoot, 0));
+          this->Internals->Stack.emplace(this->CurRoot, 0);
           this->Color->SetValue(this->CurRoot, this->GRAY);
           if (this->Mode == this->DISCOVER)
           {
@@ -197,3 +182,4 @@ vtkIdType vtkTreeDFSIterator::NextInternal()
   // cout << "DFS no more!" << endl;
   return -1;
 }
+VTK_ABI_NAMESPACE_END

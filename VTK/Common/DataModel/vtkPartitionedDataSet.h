@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPartitionedDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPartitionedDataSet
  * @brief   composite dataset to encapsulates a dataset consisting of
@@ -42,6 +30,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObjectTree.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class VTKCOMMONDATAMODEL_EXPORT vtkPartitionedDataSet : public vtkDataObjectTree
 {
@@ -85,7 +74,7 @@ public:
   /**
    * Returns true if meta-data is available for a given partition.
    */
-  int HasMetaData(unsigned int idx) { return this->Superclass::HasChildMetaData(idx); }
+  vtkTypeBool HasMetaData(unsigned int idx) { return this->Superclass::HasChildMetaData(idx); }
 
   /**
    * Returns the meta-data for the partition. If none is already present, a new
@@ -113,7 +102,7 @@ public:
   /**
    * Unhiding superclass method.
    */
-  int HasMetaData(vtkCompositeDataIterator* iter) override
+  vtkTypeBool HasMetaData(vtkCompositeDataIterator* iter) override
   {
     return this->Superclass::HasMetaData(iter);
   }
@@ -139,4 +128,5 @@ private:
   void operator=(const vtkPartitionedDataSet&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

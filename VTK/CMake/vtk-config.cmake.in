@@ -37,18 +37,14 @@ The following variables are provided by this module:
   * `VTK_ENABLE_VR_COLLABORATION`: Is VR collaboration enabled when VR is enabled.
   * `VTK_SMP_BACKENDS`: The list of available SMP backends.
 
-For more information about the Python in use by VTK, the `VTK_PYTHON_VERSION`
-variable may be used to query the `find_package(Python)` that VTK performs
-internally (note that the `Python` component must be found to guarantee that
-this happens). For example, the following information would be useful:
+For more information about the Python in use by VTK, (note that the `Python`
+component must be found to guarantee that this happens), see the
+[FindPython3][] documentation for what is available. Of particular use are
+likely to be:
 
-  - the `Python${VTK_PYTHON_VERSION}_VERSION` variable; and
-  - the `Python${VTK_PYTHON_VERSION}::Python` target.
+  - the `Python3_VERSION` variable; and
+  - the `Python3::Python` target.
 
-See [FindPython2][] and [FindPython3][] documentation for all of the available
-data.
-
-[FindPython2]: https://cmake.org/cmake/help/v3.13/module/FindPython2.html
 [FindPython3]: https://cmake.org/cmake/help/v3.13/module/FindPython3.html
 [VTK module API]: TODO: Link to hosted documentation.
 #]==]
@@ -63,9 +59,17 @@ endif ()
 cmake_policy(PUSH)
 cmake_policy(VERSION 3.12)
 
+set("${CMAKE_FIND_PACKAGE_NAME}_AVAILABLE_COMPONENTS" "@vtk_all_components@")
+
 set(_vtk_temp_variables)
 set(_vtk_real_components)
 foreach (_vtk_component IN LISTS "${CMAKE_FIND_PACKAGE_NAME}_FIND_COMPONENTS")
+  # Handle component requests that are not VTK.
+  if (NOT _vtk_component IN_LIST "${CMAKE_FIND_PACKAGE_NAME}_AVAILABLE_COMPONENTS")
+    set("${CMAKE_FIND_PACKAGE_NAME}_${_vtk_component}_FOUND" 0)
+    list(APPEND "${CMAKE_FIND_PACKAGE_NAME}_${_vtk_component}_NOT_FOUND_MESSAGE"
+      "The ${_vtk_component} component is not recognized.")
+  endif ()
   if (_vtk_component MATCHES "^vtk" AND
       NOT _vtk_component STREQUAL "vtksys" AND
       NOT _vtk_component STREQUAL "vtkjava")
@@ -121,8 +125,6 @@ set("${CMAKE_FIND_PACKAGE_NAME}_LEGACY_REMOVE" "@VTK_LEGACY_REMOVE@")
 set("${CMAKE_FIND_PACKAGE_NAME}_AUTOINIT_INCLUDE" "\"vtkAutoInit.h\"")
 set("${CMAKE_FIND_PACKAGE_NAME}_SMP_BACKENDS" "@vtk_smp_backends@")
 
-set("${CMAKE_FIND_PACKAGE_NAME}_AVAILABLE_COMPONENTS" "@vtk_all_components@")
-
 unset("${CMAKE_FIND_PACKAGE_NAME}_FOUND")
 set("${CMAKE_FIND_PACKAGE_NAME}_HAS_VTKm" "@vtk_has_vtkm@")
 if (${CMAKE_FIND_PACKAGE_NAME}_HAS_VTKm)
@@ -132,6 +134,11 @@ if (${CMAKE_FIND_PACKAGE_NAME}_HAS_VTKm)
   if (NOT VTKm_FOUND)
     set("${CMAKE_FIND_PACKAGE_NAME}_FOUND" 0)
   endif ()
+
+  # Prior to VTK-m 2.0, the main VTK module was called VTK::vtkm
+  if (TARGET VTK::vtkvtkm)
+    add_library(VTK::vtkm ALIAS VTK::vtkvtkm)
+  endif()
 endif ()
 
 include("${CMAKE_CURRENT_LIST_DIR}/vtkCMakeBackports.cmake")
@@ -149,6 +156,13 @@ if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
   set(OpenGL_GL_PREFERENCE "@vtk_opengl_preference@")
 endif ()
 
+# Ensure that python is found based on location, not on version
+# See https://cmake.org/cmake/help/latest/module/FindPython.html
+if (DEFINED Python3_FIND_STRATEGY)
+  set("${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save" "${Python3_FIND_STRATEGY}")
+endif ()
+set(Python3_FIND_STRATEGY LOCATION)
+
 include("${CMAKE_CURRENT_LIST_DIR}/${CMAKE_FIND_PACKAGE_NAME}-vtk-module-find-packages.cmake")
 
 if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
@@ -158,6 +172,13 @@ if (@vtk_opengl_preference_set@) # vtk_opengl_preference_set
   else ()
     unset(OpenGL_GL_PREFERENCE)
   endif ()
+endif ()
+
+if (DEFINED "${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save")
+  set(Python3_FIND_STRATEGY "${${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save}")
+  unset("${CMAKE_FIND_PACKAGE_NAME}_Python3_FIND_STRATEGY_save")
+else ()
+  unset(Python3_FIND_STRATEGY)
 endif ()
 
 if (TARGET VTK::opengl)
@@ -321,9 +342,9 @@ if (NOT DEFINED "${CMAKE_FIND_PACKAGE_NAME}_FOUND")
       ${${CMAKE_FIND_PACKAGE_NAME}_AVAILABLE_COMPONENTS})
   endif ()
   list(REMOVE_ITEM _vtk_found_components
-    # This component needs to always be requested explicitly (it is not a
-    # module).
-    vtkjava)
+    # These components need to always be requested explicitly since they are
+    # not modules.
+    @_vtk_non_module_components@)
   # Build the `_LIBRARIES` variable.
   foreach (_vtk_component IN LISTS _vtk_found_components)
     if (TARGET "${CMAKE_FIND_PACKAGE_NAME}::${_vtk_component}")

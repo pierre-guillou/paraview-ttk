@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVTransposeTable.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVTransposeTable
  * @brief   create a subtable made with selected
@@ -38,15 +26,15 @@ public:
   vtkTypeMacro(vtkPVTransposeTable, vtkTransposeTable);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Interface for preparing selection of arrays in ParaView.
    */
   void EnableAttributeArray(const char*);
   void ClearAttributeArrays();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Can be used to bypass the transposition code. The output
    * is then the table made with the selected columns.
@@ -54,7 +42,7 @@ public:
   vtkGetMacro(DoNotTranspose, bool);
   vtkSetMacro(DoNotTranspose, bool);
   vtkBooleanMacro(DoNotTranspose, bool);
-  //@}
+  ///@}
 
 protected:
   vtkPVTransposeTable();

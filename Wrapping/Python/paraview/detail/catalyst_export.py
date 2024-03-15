@@ -1,14 +1,15 @@
 r"""Module used to generate Catalyst export scripts"""
 from .. import simple, smstate, smtrace, servermanager
 
+from paraview.modules.vtkRemotingCore import vtkPVSession
+
 def _get_catalyst_state(options):
     # build a `source_set` comprising of the extractor proxies.
     # if not extracts have been configured, then there's nothing to generate.
     extractors = simple.GetExtractors()
     if not extractors:
         from .. import print_warning
-        print_warning('No extractors defined. Extractors are required to export a Catalyst state.')
-        return None
+        print_warning('No extractors defined. This script will do nothing until LiveVisualisation is on.')
 
     # convert catalyst options to PythonStateOptions.
     soptions = servermanager.ProxyManager().NewProxy("pythontracing", "PythonStateOptions")
@@ -24,7 +25,10 @@ def _get_catalyst_state(options):
 def _get_catalyst_preamble(options):
     """returns the preamble text"""
     return ["# script-version: 2.0",
-            "# Catalyst state generated using %s" % simple.GetParaViewSourceVersion()]
+            "# Catalyst state generated using %s" % simple.GetParaViewSourceVersion(),
+            "import paraview",
+            "paraview.compatibility.major = %d" % servermanager.vtkSMProxyManager.GetVersionMajor(),
+            "paraview.compatibility.minor = %d" % servermanager.vtkSMProxyManager.GetVersionMinor()]
 
 def _get_catalyst_postamble(options):
     """returns the postamble text"""
@@ -54,7 +58,7 @@ def _get_catalyst_postamble(options):
         "    SaveExtractsUsingCatalystOptions(options)"])
     return str(trace)
 
-def save_catalyst_state(fname, options):
+def save_catalyst_state(fname, options, location=vtkPVSession.CLIENT):
     options = servermanager._getPyProxy(options)
     state = _get_catalyst_state(options)
     if not state:
@@ -62,6 +66,6 @@ def save_catalyst_state(fname, options):
         print_error('No state generated')
         return
 
-    with open(fname, 'w') as file:
-        file.write(state)
-        file.write('\n')
+    pxm = servermanager.ProxyManager()
+    state += '\n'
+    pxm.SaveString(state, fname, location)

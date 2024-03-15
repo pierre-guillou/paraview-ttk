@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkKMeansStatistics.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2010 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2010 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkKMeansStatistics
  * @brief   A class for KMeans clustering
@@ -100,6 +84,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkFiltersStatisticsModule.h" // For export macro
 #include "vtkStatisticsAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdTypeArray;
 class vtkIntArray;
 class vtkDoubleArray;
@@ -159,7 +144,7 @@ public:
    * Given a collection of models, calculate aggregate model
    * NB: not implemented
    */
-  void Aggregate(vtkDataObjectCollection*, vtkMultiBlockDataSet*) override { return; }
+  void Aggregate(vtkDataObjectCollection*, vtkMultiBlockDataSet*) override {}
 
   /**
    * A convenience method for setting properties by name.
@@ -205,7 +190,7 @@ protected:
   /**
    * Execute the calculations required by the Test option.
    */
-  void Test(vtkTable*, vtkMultiBlockDataSet*, vtkTable*) override { return; }
+  void Test(vtkTable*, vtkMultiBlockDataSet*, vtkTable*) override {}
 
   /**
    * Provide the appropriate assessment functor.
@@ -286,4 +271,5 @@ private:
   void operator=(const vtkKMeansStatistics&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

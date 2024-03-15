@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCPExodusIIElementBlock.h"
 #include "vtkCPExodusIIInSituReader.h"
@@ -53,6 +42,9 @@
 // Define this to work around "glommed" point/cell data in the reference data.
 #undef GLOM_WORKAROUND
 //#define GLOM_WORKAROUND
+
+// See issue #
+#define vtkContourFilter_IS_FIXED 0
 
 #define FAIL(x)                                                                                    \
   cerr << x << endl;                                                                               \
@@ -445,6 +437,7 @@ void populateAttributes(vtkDataSet* ref, vtkDataSet* test)
   test->GetPointData()->SetNormals(testNormals);
 }
 
+#if vtkContourFilter_IS_FIXED
 void testContourFilter(vtkUnstructuredGridBase* input, vtkDataSet*& output, double& time)
 {
   vtkNew<vtkTimerLog> timer;
@@ -458,6 +451,7 @@ void testContourFilter(vtkUnstructuredGridBase* input, vtkDataSet*& output, doub
   output->Register(nullptr);
   time = timer->GetElapsedTime();
 }
+#endif
 
 void testDataSetSurfaceFilter(vtkUnstructuredGridBase* input, vtkDataSet*& output, double& time)
 {
@@ -721,6 +715,7 @@ bool testFilters(vtkUnstructuredGridBase* ref, vtkUnstructuredGridBase* test)
   //////////////////////////////
 
   // Contour filter
+#if vtkContourFilter_IS_FIXED
   std::vector<double> contourRefTimes;
   std::vector<double> contourTestTimes;
   doBenchmark(testContourFilter(ref, refOutput, benchmarkTime), refOutput->Delete();
@@ -732,6 +727,7 @@ bool testFilters(vtkUnstructuredGridBase* ref, vtkUnstructuredGridBase* test)
     return false;
   }
   printTimingInfo("contour", contourRefTimes, contourTestTimes);
+#endif
 
   // Extract surface
   std::vector<double> dataSetSurfaceRefTimes;

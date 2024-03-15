@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkImageVolumeRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageVolumeRepresentation
  * @brief   representation for showing image
@@ -82,13 +70,13 @@ public:
   void SetAnisotropy(float);
   void SetSliceFunction(vtkImplicitFunction* slice);
 
-  //@{
+  ///@{
   /**
    * Methods to set isosurface values.
    */
   void SetIsosurfaceValue(int i, double value);
   void SetNumberOfIsosurfaces(int number);
-  //@}
+  ///@}
 
   //***************************************************************************
   // Forwarded to vtkSmartVolumeMapper/vtkMultiBlockVolumeMapper.
@@ -98,21 +86,21 @@ public:
   void SetGlobalIlluminationReach(float);
   void SetVolumetricScatteringBlending(float);
 
-  //@{
+  ///@{
   /**
    * Get/Set the cropping origin.
    */
   vtkSetVector3Macro(CroppingOrigin, double);
   vtkGetVector3Macro(CroppingOrigin, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the cropping scale.
    */
   vtkSetVector3Macro(CroppingScale, double);
   vtkGetVector3Macro(CroppingScale, double);
-  //@}
+  ///@}
 
   //***************************************************************************
   // For 2D transfer functions

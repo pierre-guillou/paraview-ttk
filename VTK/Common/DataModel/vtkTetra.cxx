@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTetra.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTetra.h"
 
@@ -27,8 +15,10 @@
 #include "vtkUnstructuredGrid.h"
 
 #include <cassert>
+#include <numeric> //std::iota
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTetra);
 
 //------------------------------------------------------------------------------
@@ -64,8 +54,14 @@ int vtkTetra::EvaluatePosition(const double x[3], double closestPoint[3], int& s
   subId = 0;
   pcoords[0] = pcoords[1] = pcoords[2] = 0.0;
 
-  vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
-  const double* pts = pointArray->GetPointer(0);
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   const double* pt1 = pts + 3;
   const double* pt2 = pts + 6;
   const double* pt3 = pts + 9;
@@ -198,8 +194,13 @@ void vtkTetra::EvaluateLocation(
   int i;
 
   // Efficient point access
-  vtkDoubleArray* pointArray = static_cast<vtkDoubleArray*>(this->Points->GetData());
-  const double* pts = pointArray->GetPointer(0);
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   const double* pt1 = pts + 3;
   const double* pt2 = pts + 6;
   const double* pt3 = pts + 9;
@@ -588,17 +589,10 @@ int vtkTetra::IntersectWithLine(const double p1[3], const double p2[3], double t
 }
 
 //------------------------------------------------------------------------------
-int vtkTetra::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkTetra::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  ptIds->Reset();
-  pts->Reset();
-
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->InsertId(i, this->PointIds->GetId(i));
-    pts->InsertPoint(i, this->Points->GetPoint(i));
-  }
-
+  ptIds->SetNumberOfIds(4);
+  std::iota(ptIds->begin(), ptIds->end(), 0);
   return 1;
 }
 
@@ -1209,3 +1203,4 @@ void vtkTetra::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Triangle:\n";
   this->Triangle->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

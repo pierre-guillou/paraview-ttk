@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCompositeRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCompositeRepresentation
  * @brief   a data-representation used by ParaView.
@@ -77,7 +65,7 @@ public:
    */
   virtual void SetPolarAxesVisibility(bool visible);
 
-  //@{
+  ///@{
   /**
    * Passed on to internal representations as well.
    */
@@ -90,15 +78,15 @@ public:
   void AddInputConnection(vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, int idx) override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkSelectionRepresentation.
    */
   virtual void SetPointFieldDataArrayName(const char*);
   virtual void SetCellFieldDataArrayName(const char*);
-  //@}
+  ///@}
 
   /**
    * Override because of internal composite representations that need to be

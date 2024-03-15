@@ -17,19 +17,16 @@ set(unit_tests
   UnitTestAverageByKey.cxx
   UnitTestBoundingIntervalHierarchy.cxx
   UnitTestCellDeepCopy.cxx
-  UnitTestContourTreeUniform.cxx
-  UnitTestContourTreeUniformAugmented.cxx
   UnitTestContourTreeUniformDistributed.cxx
   UnitTestCosmoTools.cxx
   UnitTestDescriptiveStatistics.cxx
+  UnitTestDispatcherBase.cxx
   UnitTestFieldStatistics.cxx
   UnitTestKeys.cxx
   UnitTestMaskIndices.cxx
   UnitTestMaskSelect.cxx
   UnitTestNormalize.cxx
   UnitTestNDimsHistMarginalization.cxx
-  UnitTestParticleAdvection.cxx
-  UnitTestProbe.cxx
   UnitTestScalarsToColors.cxx
   UnitTestScatterAndMask.cxx
   UnitTestScatterCounting.cxx
@@ -37,8 +34,6 @@ set(unit_tests
   UnitTestSplatKernels.cxx
   UnitTestScatterAndMaskWithTopology.cxx
   UnitTestStreamLineUniformGrid.cxx
-  UnitTestStreamSurface.cxx
-  UnitTestTemporalAdvection.cxx
   UnitTestTriangleWinding.cxx
   UnitTestWholeCellSetIn.cxx
   UnitTestWorkletMapField.cxx
@@ -53,20 +48,12 @@ set(unit_tests
   UnitTestWaveletCompressor.cxx
  )
 
-if(HIP IN_LIST Kokkos_DEVICES)
-  list(REMOVE_ITEM unit_tests
-       UnitTestParticleAdvection.cxx # Taking too long to compile with HIPCC
-       UnitTestScalarsToColors.cxx # Failing: incorrect results
-  )
-endif()
-
 vtkm_unit_tests(
-  SOURCES ${unit_tests}
+  DEVICE_SOURCES ${unit_tests}
   LIBRARIES vtkm_source vtkm_worklet vtkm_filter vtkm_io
-  ALL_BACKENDS
   USE_VTKM_JOB_POOL
   )
-if (TARGET vtkm::cuda)
+if (TARGET vtkm_cuda)
   if(CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA" AND
      CMAKE_CUDA_COMPILER_VERSION VERSION_LESS 10.0.0)
     set(problematic_cuda_srcs

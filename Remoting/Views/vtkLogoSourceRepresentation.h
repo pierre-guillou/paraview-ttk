@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkLogoSourceRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLogoSourceRepresentation
  *
@@ -35,13 +23,13 @@ public:
   vtkTypeMacro(vtkLogoSourceRepresentation, vtkPVDataRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the Logo widget.
    */
   void SetLogoWidgetRepresentation(vtk3DWidgetRepresentation* widget);
   vtkGetObjectMacro(LogoWidgetRepresentation, vtk3DWidgetRepresentation);
-  //@}
+  ///@}
 
   /**
    * Set the visibility.
@@ -53,13 +41,32 @@ public:
    */
   void SetInteractivity(bool);
 
-  //@{
+  ///@{
   /**
    * Set the opacity of the logo
    */
   vtkSetMacro(Opacity, double);
   vtkGetMacro(Opacity, double);
-  //@}
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the scaling interactivity.
+   */
+  vtkSetMacro(InteractiveScaling, bool);
+  vtkGetMacro(InteractiveScaling, bool);
+  vtkBooleanMacro(InteractiveScaling, bool);
+  ///@}
+
+  static constexpr double VTK_MINIMUM_IMAGE_SCALE = 0.01;
+  static constexpr double VTK_MAXIMUM_IMAGE_SCALE = 2.0;
+  ///@{
+  /**
+   * Set/Get the scale of the image relatively to screen height.
+   */
+  vtkSetClampMacro(ImageScale, double, VTK_MINIMUM_IMAGE_SCALE, VTK_MAXIMUM_IMAGE_SCALE);
+  vtkGetMacro(ImageScale, double);
+  ///@}
 
   /**
    * vtkAlgorithm::ProcessRequest() equivalent for rendering passes. This is
@@ -101,6 +108,8 @@ protected:
   vtkNew<vtkImageData> ImageCache;
   vtk3DWidgetRepresentation* LogoWidgetRepresentation = nullptr;
   double Opacity = 1.0;
+  bool InteractiveScaling = true;
+  double ImageScale = 0.075; // Defined by Position2 in vtkLogoRepresentation
 
 private:
   vtkLogoSourceRepresentation(const vtkLogoSourceRepresentation&) = delete;

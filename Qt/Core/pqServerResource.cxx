@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqServerResource.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqServerResource.h"
 
@@ -36,7 +8,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <QDir>
 #include <QPointer>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QUrl>
 #include <QtDebug>
 
@@ -73,25 +45,28 @@ public:
       // we had conflicting documentation!!! The doc said that the render server
       // is separated by a "/" while the code looks for "//". Updating the
       // regular expressions so that both cases are handled.
-      QRegExp render_server_host("//?([^:/]*)");
-      if (0 == render_server_host.indexIn(temp.path()))
+      QRegularExpression render_server_host("//?([^:/]*)");
+      QRegularExpressionMatch match = render_server_host.match(temp.path());
+      if (match.hasMatch())
       {
-        this->RenderServerHost = render_server_host.cap(1);
+        this->RenderServerHost = match.captured(1);
       }
 
-      QRegExp render_server_port("//?[^:]*:([^/]*)");
-      if (0 == render_server_port.indexIn(temp.path()))
+      QRegularExpression render_server_port("//?[^:]*:([^/]*)");
+      match = render_server_port.match(temp.path());
+      if (match.hasMatch())
       {
         bool ok = false;
-        const int port = render_server_port.cap(1).toInt(&ok);
+        const int port = match.captured(1).toInt(&ok);
         if (ok)
           this->RenderServerPort = port;
       }
 
-      QRegExp path("(//[^/]*)(.*)");
-      if (0 == path.indexIn(temp.path()))
+      QRegularExpression path("(//[^/]*)(.*)");
+      match = path.match(temp.path());
+      if (match.hasMatch())
       {
-        this->Path = path.cap(2);
+        this->Path = match.captured(2);
       }
     }
     else

@@ -46,8 +46,13 @@ using DataSourcesType = std::unordered_map<std::string, std::shared_ptr<DataSour
 class DataSetReader::DataSetReaderImpl
 {
 public:
-  DataSetReaderImpl(const std::string dataModel, DataModelInput inputType, const Params& params)
+  DataSetReaderImpl(const std::string& dataModel,
+                    DataModelInput inputType,
+                    bool streamSteps,
+                    const Params& params,
+                    bool createSharedPoints)
   {
+    this->StreamingMode = streamSteps;
     this->Cleanup();
     if (inputType == DataModelInput::BPFile)
     {
@@ -62,6 +67,10 @@ public:
       rapidjson::Document doc = this->GetJSONDocument(dataModel, inputType);
       this->ParsingChecks(doc, dataModel, inputType);
       this->ReadJSON(doc);
+    }
+    for (auto it : this->DataSources)
+    {
+      it.second->CreateSharedPoints = createSharedPoints;
     }
 
     this->SetDataSourceParameters(params);
@@ -113,7 +122,7 @@ public:
     }
   }
 
-  void SetDataSourceParameters(const std::string source, const DataSourceParams& params)
+  void SetDataSourceParameters(const std::string& source, const DataSourceParams& params)
   {
     auto it = this->DataSources.find(source);
     if (it == this->DataSources.end())
@@ -124,7 +133,7 @@ public:
     ds.SetDataSourceParameters(params);
   }
 
-  void SetDataSourceIO(const std::string source, void* io)
+  void SetDataSourceIO(const std::string& source, void* io)
   {
     auto it = this->DataSources.find(source);
     if (it == this->DataSources.end())
@@ -135,7 +144,7 @@ public:
     ds.SetDataSourceIO(io);
   }
 
-  void SetDataSourceIO(const std::string source, const std::string& io)
+  void SetDataSourceIO(const std::string& source, const std::string& io)
   {
     auto it = this->DataSources.find(source);
     if (it == this->DataSources.end())
@@ -272,7 +281,7 @@ public:
   }
 
   template <typename ValueType>
-  const rapidjson::Value& FindAndReturnObject(ValueType& root, const std::string name)
+  const rapidjson::Value& FindAndReturnObject(ValueType& root, const std::string& name)
   {
     if (!root.HasMember(name.c_str()))
     {
@@ -458,14 +467,23 @@ public:
       time = static_cast<double>(array.ReadPortal().Get(0));
     }
   };
-
-  fides::metadata::MetaData ReadMetaData(const std::unordered_map<std::string, std::string>& paths)
+  fides::metadata::MetaData ReadMetaData(const std::unordered_map<std::string, std::string>& paths,
+                                         const std::string& groupName)
   {
+    if (!this->StreamingMode)
+    {
+      // for bp5, if we're reading random access, we have to specify it now
+      // otherwise we won't be able to read any variables or attributes
+      for (const auto& source : this->DataSources)
+      {
+        source.second->StreamingMode = false;
+      }
+    }
     if (!this->CoordinateSystem)
     {
       throw std::runtime_error("Cannot read missing coordinate system.");
     }
-    size_t nBlocks = this->CoordinateSystem->GetNumberOfBlocks(paths, this->DataSources);
+    size_t nBlocks = this->CoordinateSystem->GetNumberOfBlocks(paths, this->DataSources, groupName);
     fides::metadata::MetaData metaData;
     fides::metadata::Size nBlocksM(nBlocks);
     metaData.Set(fides::keys::NUMBER_OF_BLOCKS(), nBlocksM);
@@ -482,13 +500,6 @@ public:
         fields.Data.push_back(afield);
       }
       metaData.Set(fides::keys::FIELDS(), fields);
-    }
-
-    size_t nSteps = this->GetNumberOfSteps();
-    if (nSteps > 0)
-    {
-      fides::metadata::Size nStepsM(nSteps);
-      metaData.Set(fides::keys::NUMBER_OF_STEPS(), nStepsM);
     }
 
     auto it = this->DataSources.find(this->StepSource);
@@ -508,6 +519,9 @@ public:
       // for streaming PrepareNextStep has to be called before ReadMetaData anyway
       if (this->StreamingMode)
       {
+        // assumes time value is defined globally in this step, i.e for all groups.
+        // if the time value is defined inside the group, then metadata::MetaData() will
+        // need to set GROUP_SELECTION
         auto timeVec = ds->GetScalarVariable(this->TimeVariable, metadata::MetaData());
         if (!timeVec.empty())
         {
@@ -525,16 +539,17 @@ public:
       }
       else
       {
+        // assumes time array is defined globally, i.e for all groups.
+        // if the time array is defined inside the group, then metadata::MetaData() will
+        // need to set GROUP_SELECTION
         auto timeVec = ds->GetTimeArray(this->TimeVariable, metadata::MetaData());
         if (!timeVec.empty())
         {
           auto& timeAH = timeVec[0];
-          if (!timeAH.CanConvert<vtkm::cont::ArrayHandle<vtkm::Float64>>())
-          {
-            std::runtime_error("can't convert time array to double");
-          }
-          vtkm::cont::ArrayHandle<vtkm::Float64> timeCasted =
-            timeAH.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Float64>>();
+          vtkm::cont::UnknownArrayHandle tUAH = timeAH.NewInstanceFloatBasic();
+          tUAH.CopyShallowIfPossible(timeAH);
+          vtkm::cont::ArrayHandle<vtkm::FloatDefault> timeCasted =
+            tUAH.AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::FloatDefault>>();
 
           auto timePortal = timeCasted.ReadPortal();
           fides::metadata::Vector<double> time;
@@ -546,7 +561,46 @@ public:
       }
     }
 
+    size_t nSteps = this->GetNumberOfSteps();
+    if (nSteps > 0)
+    {
+      fides::metadata::Size nStepsM(nSteps);
+      metaData.Set(fides::keys::NUMBER_OF_STEPS(), nStepsM);
+    }
+
     return metaData;
+  }
+
+  std::set<std::string> GetGroupNames(const std::unordered_map<std::string, std::string>& paths)
+  {
+    if (!this->StreamingMode)
+    {
+      // for bp5, if we're reading random access, we have to specify it now
+      // otherwise we won't be able to read any variables or attributes
+      for (const auto& source : this->DataSources)
+      {
+        source.second->StreamingMode = false;
+      }
+    }
+    if (!this->CoordinateSystem)
+    {
+      throw std::runtime_error("Cannot read missing coordinate system.");
+    }
+    auto it = this->DataSources.find(this->StepSource);
+    if (it != this->DataSources.end())
+    {
+      auto ds = it->second;
+      auto itr = paths.find(this->StepSource);
+      if (itr == paths.end())
+      {
+        throw std::runtime_error("Could not find data_source with name " + this->StepSource +
+                                 " among the input paths.");
+      }
+      std::string path = itr->second + ds->FileName;
+      ds->OpenSource(path);
+      return this->CoordinateSystem->GetGroupNames(paths, this->DataSources);
+    }
+    return {};
   }
 
   void PostRead(std::vector<vtkm::cont::DataSet>& pds, const fides::metadata::MetaData& selections)
@@ -637,6 +691,7 @@ bool DataSetReader::CheckForDataModelAttribute(const std::string& filename,
   // MPI mode. vtkFidesReader::CanReadFile uses this function to see if it can read
   // a given ADIOS file. When running in parallel, only rank 0 will execute this, so we need
   // to make sure that we don't do collective calls.
+  source->StreamingMode = false;
   source->OpenSource(filename, false);
   if (source->GetAttributeType(attrName) == "string")
   {
@@ -658,14 +713,25 @@ bool DataSetReader::CheckForDataModelAttribute(const std::string& filename,
   return found;
 }
 
-DataSetReader::DataSetReader(const std::string dataModel,
+DataSetReader::DataSetReader(const std::string& dataModel,
                              DataModelInput inputType /*=DataModelInput::JSONFile*/,
-                             const Params& params)
+                             const Params& params,
+                             bool createSharedPoints /*=false*/)
+  : DataSetReader(dataModel, inputType, false, params, createSharedPoints)
+{
+}
+
+DataSetReader::DataSetReader(const std::string& dataModel,
+                             DataModelInput inputType,
+                             bool streamSteps,
+                             const Params& params,
+                             bool createSharedPoints /*=false*/)
   : Impl(nullptr)
 {
   if (inputType != DataModelInput::BPFile)
   {
-    this->Impl.reset(new DataSetReaderImpl(dataModel, inputType, params));
+    this->Impl.reset(
+      new DataSetReaderImpl(dataModel, inputType, streamSteps, params, createSharedPoints));
     return;
   }
 
@@ -675,6 +741,9 @@ DataSetReader::DataSetReader(const std::string dataModel,
   auto source = std::make_shared<DataSourceType>();
   source->Mode = fides::io::FileNameMode::Relative;
   source->FileName = dataModel; // in this case dataModel should be bp filename
+  // streaming mode should always be false in this case because
+  // we're simply reading an attribute
+  source->StreamingMode = false;
   source->OpenSource(dataModel);
   if (source->GetAttributeType(fidesAttr) == "string")
   {
@@ -683,7 +752,8 @@ DataSetReader::DataSetReader(const std::string dataModel,
     {
       if (predefined::DataModelSupported(result[0]))
       {
-        this->Impl.reset(new DataSetReaderImpl(dataModel, inputType, params));
+        this->Impl.reset(
+          new DataSetReaderImpl(dataModel, inputType, streamSteps, params, createSharedPoints));
         return;
       }
     }
@@ -696,7 +766,8 @@ DataSetReader::DataSetReader(const std::string dataModel,
     auto schema = source->ReadAttribute<std::string>(schemaAttr);
     if (!schema.empty())
     {
-      this->Impl.reset(new DataSetReaderImpl(schema[0], DataModelInput::JSONString, params));
+      this->Impl.reset(new DataSetReaderImpl(
+        schema[0], DataModelInput::JSONString, streamSteps, params, createSharedPoints));
       return;
     }
   }
@@ -708,9 +779,10 @@ DataSetReader::DataSetReader(const std::string dataModel,
 DataSetReader::~DataSetReader() = default;
 
 fides::metadata::MetaData DataSetReader::ReadMetaData(
-  const std::unordered_map<std::string, std::string>& paths)
+  const std::unordered_map<std::string, std::string>& paths,
+  const std::string& groupName /*=""*/)
 {
-  return this->Impl->ReadMetaData(paths);
+  return this->Impl->ReadMetaData(paths, groupName);
 }
 
 vtkm::cont::PartitionedDataSet DataSetReader::ReadDataSet(
@@ -736,6 +808,12 @@ vtkm::cont::PartitionedDataSet DataSetReader::ReadDataSet(
   // }
 
   return vtkm::cont::PartitionedDataSet(ds);
+}
+
+std::set<std::string> DataSetReader::GetGroupNames(
+  const std::unordered_map<std::string, std::string>& paths)
+{
+  return this->Impl->GetGroupNames(paths);
 }
 
 StepStatus DataSetReader::PrepareNextStep(const std::unordered_map<std::string, std::string>& paths)
@@ -771,7 +849,10 @@ std::vector<vtkm::cont::DataSet> DataSetReader::ReadDataSetInternal(
     }
     if (i < cellSets.size())
     {
-      dataSets[i].SetCellSet(cellSets[i]);
+      if (cellSets[i].IsValid())
+      {
+        dataSets[i].SetCellSet(cellSets[i]);
+      }
     }
   }
 
@@ -815,18 +896,18 @@ std::vector<vtkm::cont::DataSet> DataSetReader::ReadDataSetInternal(
   return dataSets;
 }
 
-void DataSetReader::SetDataSourceParameters(const std::string source,
+void DataSetReader::SetDataSourceParameters(const std::string& source,
                                             const DataSourceParams& params)
 {
   this->Impl->SetDataSourceParameters(source, params);
 }
 
-void DataSetReader::SetDataSourceIO(const std::string source, void* io)
+void DataSetReader::SetDataSourceIO(const std::string& source, void* io)
 {
   this->Impl->SetDataSourceIO(source, io);
 }
 
-void DataSetReader::SetDataSourceIO(const std::string source, const std::string& io)
+void DataSetReader::SetDataSourceIO(const std::string& source, const std::string& io)
 {
   this->Impl->SetDataSourceIO(source, io);
 }

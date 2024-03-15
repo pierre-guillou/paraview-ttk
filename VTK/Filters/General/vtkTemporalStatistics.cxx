@@ -1,27 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*
- * Copyright 2008 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-NVIDIA-USGov
 
 #include "vtkTemporalStatistics.h"
 
@@ -32,6 +11,7 @@
 #include "vtkDataArray.h"
 #include "vtkDataArrayRange.h"
 #include "vtkDataSet.h"
+#include "vtkDoubleArray.h"
 #include "vtkGraph.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -46,6 +26,7 @@
 #include <functional>
 
 //=============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalStatistics);
 
 namespace
@@ -168,8 +149,26 @@ struct FinishStdDev
     }
   }
 };
+} // anonymous namespace
 
-} // end anon namespace
+//------------------------------------------------------------------------------
+struct vtkTemporalStatisticsInternal
+{
+  std::vector<double> TimeSteps;
+  vtkDataObject* StatisticsOutput;
+
+  vtkTemporalStatisticsInternal()
+    : StatisticsOutput(nullptr)
+  {
+  }
+  ~vtkTemporalStatisticsInternal()
+  {
+    if (this->StatisticsOutput)
+    {
+      this->StatisticsOutput->Delete();
+    }
+  }
+};
 
 //=============================================================================
 vtkTemporalStatistics::vtkTemporalStatistics()
@@ -178,12 +177,16 @@ vtkTemporalStatistics::vtkTemporalStatistics()
   this->ComputeMinimum = 1;
   this->ComputeMaximum = 1;
   this->ComputeStandardDeviation = 1;
+  this->IntegrateFullTimeSeries = true;
 
-  this->CurrentTimeIndex = 0;
   this->GeneratedChangingTopologyWarning = false;
+  this->Internal = new vtkTemporalStatisticsInternal;
 }
 
-vtkTemporalStatistics::~vtkTemporalStatistics() = default;
+vtkTemporalStatistics::~vtkTemporalStatistics()
+{
+  delete this->Internal;
+}
 
 void vtkTemporalStatistics::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -202,20 +205,6 @@ int vtkTemporalStatistics::FillInputPortInformation(int vtkNotUsed(port), vtkInf
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkGraph");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
-  return 1;
-}
-
-//------------------------------------------------------------------------------
-int vtkTemporalStatistics::RequestInformation(vtkInformation* vtkNotUsed(request),
-  vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)
-{
-  vtkInformation* outInfo = outputVector->GetInformationObject(0);
-
-  // The output data of this filter has no time associated with it.  It is the
-  // result of computations that happen over all time.
-  outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
-  outInfo->Remove(vtkStreamingDemandDrivenPipeline::TIME_RANGE());
-
   return 1;
 }
 
@@ -239,6 +228,7 @@ int vtkTemporalStatistics::RequestDataObject(vtkInformation* vtkNotUsed(request)
   if (!output || !output->IsA(input->GetClassName()))
   {
     newOutput.TakeReference(input->NewInstance());
+    this->Internal->StatisticsOutput = input->NewInstance();
   }
 
   if (newOutput)
@@ -250,28 +240,44 @@ int vtkTemporalStatistics::RequestDataObject(vtkInformation* vtkNotUsed(request)
 }
 
 //------------------------------------------------------------------------------
-int vtkTemporalStatistics::RequestUpdateExtent(vtkInformation* vtkNotUsed(request),
-  vtkInformationVector** inputVector, vtkInformationVector* vtkNotUsed(outputVector))
+int vtkTemporalStatistics::Initialize(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkDataObject* input = vtkDataObject::GetData(inInfo);
 
-  // The RequestData method will tell the pipeline executive to iterate the
-  // upstream pipeline to get each time step in order.  The executive in turn
-  // will call this method to get the extent request for each iteration (in this
-  // case the time step).
-  double* inTimes = inInfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
-  if (inTimes)
-  {
-    inInfo->Set(
-      vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP(), inTimes[this->CurrentTimeIndex]);
-  }
+  vtkInformation* outInfo = outputVector->GetInformationObject(0);
+  vtkDataObject* output = vtkDataObject::GetData(outInfo);
+
+  this->Internal->StatisticsOutput->Initialize();
+  this->InitializeStatistics(input, output, this->Internal->StatisticsOutput);
 
   return 1;
 }
 
 //------------------------------------------------------------------------------
-int vtkTemporalStatistics::RequestData(
-  vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+int vtkTemporalStatistics::Execute(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector*)
+{
+  int currentTimeIndex = this->GetCurrentTimeIndex();
+
+  if (!currentTimeIndex)
+  {
+    // We do not need to execute the first time step. It is already processed upon initializing.
+    return 1;
+  }
+
+  vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
+  vtkDataObject* input = vtkDataObject::GetData(inInfo);
+
+  this->AccumulateStatistics(input, this->Internal->StatisticsOutput, currentTimeIndex);
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkTemporalStatistics::Finalize(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
   vtkInformation* outInfo = outputVector->GetInformationObject(0);
@@ -279,54 +285,34 @@ int vtkTemporalStatistics::RequestData(
   vtkDataObject* input = vtkDataObject::GetData(inInfo);
   vtkDataObject* output = vtkDataObject::GetData(outInfo);
 
-  if (this->CurrentTimeIndex == 0)
-  {
-    // First execution, initialize arrays.
-    this->InitializeStatistics(input, output);
-  }
-  else
-  {
-    // Subsequent execution, accumulate new data.
-    this->AccumulateStatistics(input, output);
-  }
-
-  this->CurrentTimeIndex++;
-
-  if (this->CurrentTimeIndex < inInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
-  {
-    // There is still more to do.
-    request->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 1);
-  }
-  else
-  {
-    // We are done.  Finish up.
-    this->PostExecute(input, output);
-    request->Remove(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING());
-    this->CurrentTimeIndex = 0;
-  }
+  output->DeepCopy(this->Internal->StatisticsOutput);
+  this->PostExecute(input, output, this->GetCurrentTimeIndex() + 1);
 
   return 1;
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::InitializeStatistics(vtkDataObject* input, vtkDataObject* output)
+void vtkTemporalStatistics::InitializeStatistics(
+  vtkDataObject* input, vtkDataObject* output, vtkDataObject* cache)
 {
   if (input->IsA("vtkDataSet"))
   {
-    this->InitializeStatistics(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output));
+    this->InitializeStatistics(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output),
+      vtkDataSet::SafeDownCast(cache));
     return;
   }
 
   if (input->IsA("vtkGraph"))
   {
-    this->InitializeStatistics(vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output));
+    this->InitializeStatistics(
+      vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output), vtkGraph::SafeDownCast(cache));
     return;
   }
 
   if (input->IsA("vtkCompositeDataSet"))
   {
-    this->InitializeStatistics(
-      vtkCompositeDataSet::SafeDownCast(input), vtkCompositeDataSet::SafeDownCast(output));
+    this->InitializeStatistics(vtkCompositeDataSet::SafeDownCast(input),
+      vtkCompositeDataSet::SafeDownCast(output), vtkCompositeDataSet::SafeDownCast(cache));
     return;
   }
 
@@ -334,28 +320,32 @@ void vtkTemporalStatistics::InitializeStatistics(vtkDataObject* input, vtkDataOb
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::InitializeStatistics(vtkDataSet* input, vtkDataSet* output)
+void vtkTemporalStatistics::InitializeStatistics(
+  vtkDataSet* input, vtkDataSet* output, vtkDataSet* cache)
 {
   output->CopyStructure(input);
-  this->InitializeArrays(input->GetFieldData(), output->GetFieldData());
-  this->InitializeArrays(input->GetPointData(), output->GetPointData());
-  this->InitializeArrays(input->GetCellData(), output->GetCellData());
+  cache->CopyStructure(input);
+  this->InitializeArrays(input->GetFieldData(), cache->GetFieldData());
+  this->InitializeArrays(input->GetPointData(), cache->GetPointData());
+  this->InitializeArrays(input->GetCellData(), cache->GetCellData());
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::InitializeStatistics(vtkGraph* input, vtkGraph* output)
+void vtkTemporalStatistics::InitializeStatistics(vtkGraph* input, vtkGraph* output, vtkGraph* cache)
 {
   output->CopyStructure(input);
-  this->InitializeArrays(input->GetFieldData(), output->GetFieldData());
-  this->InitializeArrays(input->GetVertexData(), output->GetVertexData());
-  this->InitializeArrays(input->GetEdgeData(), output->GetEdgeData());
+  cache->CopyStructure(input);
+  this->InitializeArrays(input->GetFieldData(), cache->GetFieldData());
+  this->InitializeArrays(input->GetEdgeData(), cache->GetEdgeData());
+  this->InitializeArrays(input->GetVertexData(), cache->GetVertexData());
 }
 
 //------------------------------------------------------------------------------
 void vtkTemporalStatistics::InitializeStatistics(
-  vtkCompositeDataSet* input, vtkCompositeDataSet* output)
+  vtkCompositeDataSet* input, vtkCompositeDataSet* output, vtkCompositeDataSet* cache)
 {
   output->CopyStructure(input);
+  cache->CopyStructure(input);
 
   vtkSmartPointer<vtkCompositeDataIterator> inputItr;
   inputItr.TakeReference(input->NewIterator());
@@ -366,9 +356,12 @@ void vtkTemporalStatistics::InitializeStatistics(
 
     vtkSmartPointer<vtkDataObject> outputObj;
     outputObj.TakeReference(inputObj->NewInstance());
+    vtkSmartPointer<vtkDataObject> cacheObj;
+    cacheObj.TakeReference(inputObj->NewInstance());
 
-    this->InitializeStatistics(inputObj, outputObj);
+    this->InitializeStatistics(inputObj, outputObj, cacheObj);
     output->SetDataSet(inputItr, outputObj);
+    cache->SetDataSet(inputItr, cacheObj);
   }
 }
 
@@ -390,20 +383,37 @@ void vtkTemporalStatistics::InitializeArrays(vtkFieldData* inFd, vtkFieldData* o
   {
     vtkDataArray* globalIds = inDsa->GetGlobalIds();
     vtkAbstractArray* pedigreeIds = inDsa->GetPedigreeIds();
+    vtkDataArray* processIds = inDsa->GetProcessIds();
     if (globalIds)
+    {
       outDsa->SetGlobalIds(globalIds);
+    }
     if (pedigreeIds)
+    {
       outDsa->SetPedigreeIds(pedigreeIds);
+    }
+    if (processIds)
+    {
+      outDsa->SetProcessIds(processIds);
+    }
   }
 
   int numArrays = inFd->GetNumberOfArrays();
   for (int i = 0; i < numArrays; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* array = inFd->GetArray(i);
     if (!array)
-      continue; // Array not numeric.
+    {
+      continue; // Array is not numeric.
+    }
     if (outFd->HasArray(array->GetName()))
-      continue; // Must be Ids.
+    {
+      continue; // Array is ids attribute.
+    }
 
     this->InitializeArray(array, outFd);
   }
@@ -466,46 +476,51 @@ void vtkTemporalStatistics::InitializeArray(vtkDataArray* array, vtkFieldData* o
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::AccumulateStatistics(vtkDataObject* input, vtkDataObject* output)
+void vtkTemporalStatistics::AccumulateStatistics(
+  vtkDataObject* input, vtkDataObject* output, int currentTimeIndex)
 {
   if (input->IsA("vtkDataSet"))
   {
-    this->AccumulateStatistics(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output));
+    this->AccumulateStatistics(
+      vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output), currentTimeIndex);
     return;
   }
 
   if (input->IsA("vtkGraph"))
   {
-    this->AccumulateStatistics(vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output));
+    this->AccumulateStatistics(
+      vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output), currentTimeIndex);
     return;
   }
 
   if (input->IsA("vtkCompositeDataSet"))
   {
-    this->AccumulateStatistics(
-      vtkCompositeDataSet::SafeDownCast(input), vtkCompositeDataSet::SafeDownCast(output));
+    this->AccumulateStatistics(vtkCompositeDataSet::SafeDownCast(input),
+      vtkCompositeDataSet::SafeDownCast(output), currentTimeIndex);
   }
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::AccumulateStatistics(vtkDataSet* input, vtkDataSet* output)
+void vtkTemporalStatistics::AccumulateStatistics(
+  vtkDataSet* input, vtkDataSet* output, int currentTimeIndex)
 {
-  this->AccumulateArrays(input->GetFieldData(), output->GetFieldData());
-  this->AccumulateArrays(input->GetPointData(), output->GetPointData());
-  this->AccumulateArrays(input->GetCellData(), output->GetCellData());
-}
-
-//------------------------------------------------------------------------------
-void vtkTemporalStatistics::AccumulateStatistics(vtkGraph* input, vtkGraph* output)
-{
-  this->AccumulateArrays(input->GetFieldData(), output->GetFieldData());
-  this->AccumulateArrays(input->GetVertexData(), output->GetVertexData());
-  this->AccumulateArrays(input->GetEdgeData(), output->GetEdgeData());
+  this->AccumulateArrays(input->GetFieldData(), output->GetFieldData(), currentTimeIndex);
+  this->AccumulateArrays(input->GetPointData(), output->GetPointData(), currentTimeIndex);
+  this->AccumulateArrays(input->GetCellData(), output->GetCellData(), currentTimeIndex);
 }
 
 //------------------------------------------------------------------------------
 void vtkTemporalStatistics::AccumulateStatistics(
-  vtkCompositeDataSet* input, vtkCompositeDataSet* output)
+  vtkGraph* input, vtkGraph* output, int currentTimeIndex)
+{
+  this->AccumulateArrays(input->GetFieldData(), output->GetFieldData(), currentTimeIndex);
+  this->AccumulateArrays(input->GetVertexData(), output->GetVertexData(), currentTimeIndex);
+  this->AccumulateArrays(input->GetEdgeData(), output->GetEdgeData(), currentTimeIndex);
+}
+
+//------------------------------------------------------------------------------
+void vtkTemporalStatistics::AccumulateStatistics(
+  vtkCompositeDataSet* input, vtkCompositeDataSet* output, int currentTimeIndex)
 {
   vtkSmartPointer<vtkCompositeDataIterator> inputItr;
   inputItr.TakeReference(input->NewIterator());
@@ -515,16 +530,21 @@ void vtkTemporalStatistics::AccumulateStatistics(
     vtkDataObject* inputObj = inputItr->GetCurrentDataObject();
     vtkDataObject* outputObj = output->GetDataSet(inputItr);
 
-    this->AccumulateStatistics(inputObj, outputObj);
+    this->AccumulateStatistics(inputObj, outputObj, currentTimeIndex);
   }
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::AccumulateArrays(vtkFieldData* inFd, vtkFieldData* outFd)
+void vtkTemporalStatistics::AccumulateArrays(
+  vtkFieldData* inFd, vtkFieldData* outFd, int currentTimeIndex)
 {
   int numArrays = inFd->GetNumberOfArrays();
   for (int i = 0; i < numArrays; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* inArray = inFd->GetArray(i);
     vtkDataArray* outArray;
     if (!inArray)
@@ -541,9 +561,9 @@ void vtkTemporalStatistics::AccumulateArrays(vtkFieldData* inFd, vtkFieldData* o
       {
         using Dispatcher = vtkArrayDispatch::Dispatch3SameValueType;
         AccumulateStdDev worker;
-        if (!Dispatcher::Execute(inArray, stdevOutArray, outArray, worker, this->CurrentTimeIndex))
+        if (!Dispatcher::Execute(inArray, stdevOutArray, outArray, worker, currentTimeIndex))
         { // Fallback to slow path:
-          worker(inArray, stdevOutArray, outArray, this->CurrentTimeIndex);
+          worker(inArray, stdevOutArray, outArray, currentTimeIndex);
         }
 
         // Alert change in data.
@@ -554,7 +574,7 @@ void vtkTemporalStatistics::AccumulateArrays(vtkFieldData* inFd, vtkFieldData* o
       AccumulateAverage worker;
       if (!Dispatcher::Execute(inArray, outArray, worker))
       { // Fallback to slow path:
-        worker(inArray, stdevOutArray);
+        worker(inArray, outArray);
       }
 
       // Alert change in data.
@@ -591,45 +611,46 @@ void vtkTemporalStatistics::AccumulateArrays(vtkFieldData* inFd, vtkFieldData* o
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::PostExecute(vtkDataObject* input, vtkDataObject* output)
+void vtkTemporalStatistics::PostExecute(vtkDataObject* input, vtkDataObject* output, int numSteps)
 {
   if (input->IsA("vtkDataSet"))
   {
-    this->PostExecute(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output));
+    this->PostExecute(vtkDataSet::SafeDownCast(input), vtkDataSet::SafeDownCast(output), numSteps);
     return;
   }
 
   if (input->IsA("vtkGraph"))
   {
-    this->PostExecute(vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output));
+    this->PostExecute(vtkGraph::SafeDownCast(input), vtkGraph::SafeDownCast(output), numSteps);
     return;
   }
 
   if (input->IsA("vtkCompositeDataSet"))
   {
-    this->PostExecute(
-      vtkCompositeDataSet::SafeDownCast(input), vtkCompositeDataSet::SafeDownCast(output));
+    this->PostExecute(vtkCompositeDataSet::SafeDownCast(input),
+      vtkCompositeDataSet::SafeDownCast(output), numSteps);
   }
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::PostExecute(vtkDataSet* input, vtkDataSet* output)
+void vtkTemporalStatistics::PostExecute(vtkDataSet* input, vtkDataSet* output, int numSteps)
 {
-  this->FinishArrays(input->GetFieldData(), output->GetFieldData());
-  this->FinishArrays(input->GetPointData(), output->GetPointData());
-  this->FinishArrays(input->GetCellData(), output->GetCellData());
+  this->FinishArrays(input->GetFieldData(), output->GetFieldData(), numSteps);
+  this->FinishArrays(input->GetPointData(), output->GetPointData(), numSteps);
+  this->FinishArrays(input->GetCellData(), output->GetCellData(), numSteps);
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::PostExecute(vtkGraph* input, vtkGraph* output)
+void vtkTemporalStatistics::PostExecute(vtkGraph* input, vtkGraph* output, int numSteps)
 {
-  this->FinishArrays(input->GetFieldData(), output->GetFieldData());
-  this->FinishArrays(input->GetVertexData(), output->GetVertexData());
-  this->FinishArrays(input->GetEdgeData(), output->GetEdgeData());
+  this->FinishArrays(input->GetFieldData(), output->GetFieldData(), numSteps);
+  this->FinishArrays(input->GetVertexData(), output->GetVertexData(), numSteps);
+  this->FinishArrays(input->GetEdgeData(), output->GetEdgeData(), numSteps);
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::PostExecute(vtkCompositeDataSet* input, vtkCompositeDataSet* output)
+void vtkTemporalStatistics::PostExecute(
+  vtkCompositeDataSet* input, vtkCompositeDataSet* output, int numSteps)
 {
   vtkSmartPointer<vtkCompositeDataIterator> inputItr;
   inputItr.TakeReference(input->NewIterator());
@@ -639,18 +660,22 @@ void vtkTemporalStatistics::PostExecute(vtkCompositeDataSet* input, vtkComposite
     vtkDataObject* inputObj = inputItr->GetCurrentDataObject();
     vtkDataObject* outputObj = output->GetDataSet(inputItr);
 
-    this->PostExecute(inputObj, outputObj);
+    this->PostExecute(inputObj, outputObj, numSteps);
   }
 }
 
 //------------------------------------------------------------------------------
-void vtkTemporalStatistics::FinishArrays(vtkFieldData* inFd, vtkFieldData* outFd)
+void vtkTemporalStatistics::FinishArrays(vtkFieldData* inFd, vtkFieldData* outFd, int numSteps)
 {
   using Dispatcher = vtkArrayDispatch::Dispatch;
 
   int numArrays = inFd->GetNumberOfArrays();
   for (int i = 0; i < numArrays; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* inArray = inFd->GetArray(i);
     vtkDataArray* outArray;
     if (!inArray)
@@ -660,9 +685,9 @@ void vtkTemporalStatistics::FinishArrays(vtkFieldData* inFd, vtkFieldData* outFd
     if (outArray)
     {
       FinishAverage worker;
-      if (!Dispatcher::Execute(outArray, worker, this->CurrentTimeIndex))
+      if (!Dispatcher::Execute(outArray, worker, numSteps))
       { // fall-back to slow path
-        worker(outArray, this->CurrentTimeIndex);
+        worker(outArray, numSteps);
       }
     }
     vtkDataArray* avgArray = outArray;
@@ -682,9 +707,9 @@ void vtkTemporalStatistics::FinishArrays(vtkFieldData* inFd, vtkFieldData* outFd
       else
       {
         FinishStdDev worker;
-        if (!Dispatcher::Execute(outArray, worker, this->CurrentTimeIndex))
+        if (!Dispatcher::Execute(outArray, worker, numSteps))
+          worker(outArray, numSteps);
         { // fall-back to slow path
-          worker(outArray, this->CurrentTimeIndex);
         }
         if (!this->ComputeAverage)
         {
@@ -721,3 +746,4 @@ vtkDataArray* vtkTemporalStatistics::GetArray(
 
   return outArray;
 }
+VTK_ABI_NAMESPACE_END

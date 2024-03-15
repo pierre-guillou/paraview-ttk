@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGridAxes3DActor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVGridAxes3DActor
  * @brief   ParaView extensions for vtkGridAxes3DActor.
@@ -55,27 +43,27 @@ public:
    */
   void ShallowCopy(vtkProp* prop) override;
 
-  //@{
+  ///@{
   /**
    * Specify transformation used by the data.
    */
   vtkSetVector3Macro(DataScale, double);
   vtkGetVector3Macro(DataScale, double);
-  //@}
+  ///@}
 
   vtkSetVector3Macro(DataPosition, double);
   vtkGetVector3Macro(DataPosition, double);
 
-  //@{
+  ///@{
   /**
    * Specify the scale factor used to proportionally
    * scale each axis. 1 means no change.
    */
   vtkSetMacro(DataBoundsScaleFactor, double);
   vtkGetMacro(DataBoundsScaleFactor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Another way for specifying grid bounds except here the bounds are
    * considered to be pre-transformed. Using the DataPosition, DataScale, and
@@ -86,25 +74,25 @@ public:
    */
   vtkSetVector6Macro(TransformedBounds, double);
   vtkGetVector6Macro(TransformedBounds, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If set to true, CustomTransformedBounds are used instead of
    * TransformedBounds. Default is false.
    */
   vtkSetMacro(UseCustomTransformedBounds, bool);
   vtkGetMacro(UseCustomTransformedBounds, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Same as TransformedBounds, except used only when UseCustomTransformedBounds
    * is set.
    */
   vtkSetVector6Macro(CustomTransformedBounds, double);
   vtkGetVector6Macro(CustomTransformedBounds, double);
-  //@}
+  ///@}
 
   vtkSetMacro(UseModelTransform, bool);
   vtkGetMacro(UseModelTransform, bool);

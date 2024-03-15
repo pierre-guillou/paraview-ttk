@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProjectedTexture.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProjectedTexture.h"
 
 #include "vtkDataSet.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProjectedTexture);
 
 // Description:
@@ -133,6 +122,10 @@ int vtkProjectedTexture::RequestData(vtkInformation* vtkNotUsed(request),
   // compute s-t coordinates
   for (i = 0; i < numPts; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     output->GetPoint(i, p);
 
     for (j = 0; j < 3; j++)
@@ -270,3 +263,4 @@ void vtkProjectedTexture::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "MirrorSeparation: " << this->MirrorSeparation << "\n";
 }
+VTK_ABI_NAMESPACE_END

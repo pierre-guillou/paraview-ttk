@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVDReader
  * @brief   ParaView-specific vtkXMLCollectionReader subclass
@@ -33,7 +21,7 @@ public:
   vtkTypeMacro(vtkPVDReader, vtkXMLCollectionReader);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the required value for the timestep attribute.  The value
    * should be referenced by its index.  Only data sets matching this
@@ -42,7 +30,7 @@ public:
    */
   void SetTimeStep(int index) override;
   int GetTimeStep() override;
-  //@}
+  ///@}
 
 protected:
   vtkPVDReader();

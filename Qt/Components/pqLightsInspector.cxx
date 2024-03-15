@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqLightsInspector.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqLightsInspector.h"
 #include "ui_pqLightsInspector.h"
 
@@ -153,7 +125,7 @@ public:
     for (size_t j = 0; j < ngroups; ++j)
     {
       vtkSMPropertyGroup* smGroup = view->GetPropertyGroup(j);
-      if (smGroup->GetXMLLabel() == std::string("Lights"))
+      if (smGroup->GetName() != nullptr && smGroup->GetName() == std::string("Lights"))
       {
         lightkitGroup = smGroup;
         break;
@@ -178,7 +150,7 @@ public:
       QVBoxLayout* vbox = new QVBoxLayout(widget);
       vbox->setContentsMargins(pqPropertiesPanel::suggestedMargins());
       vbox->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
-      vbox->addWidget(pqProxyWidget::newGroupLabelWidget(QString("Light %1").arg(i), widget));
+      vbox->addWidget(pqProxyWidget::newGroupLabelWidget(tr("Light %1").arg(i), widget));
 
       // some buttons.
       QWidget* buttonWidget = new QWidget(widget);
@@ -189,30 +161,30 @@ public:
       vbox->addWidget(buttonWidget);
 
       // Add a button to sync this light with the camera.
-      QPushButton* syncButton = new QPushButton("Move to Camera");
+      QPushButton* syncButton = new QPushButton(tr("Move to Camera"));
       syncButton->setObjectName("MoveToCamera");
       // which light does this button affect?
       syncButton->setProperty("LightIndex", i);
-      syncButton->setToolTip("Match this light's position and focal point to the camera.");
+      syncButton->setToolTip(tr("Match this light's position and focal point to the camera."));
       connect(syncButton, SIGNAL(clicked()), self, SLOT(syncLightToCamera()));
       hbox->addWidget(syncButton);
       this->updateMoveToCamera(i, light);
 
       // Add a button to reset this light.
-      QPushButton* resetButton = new QPushButton("Reset Light");
+      QPushButton* resetButton = new QPushButton(tr("Reset Light"));
       resetButton->setObjectName("ResetLight");
       // which light does this button affect?
       resetButton->setProperty("LightIndex", i);
-      resetButton->setToolTip("Reset this light parameters to default");
+      resetButton->setToolTip(tr("Reset this light parameters to default"));
       connect(resetButton, SIGNAL(clicked()), self, SLOT(resetLight()));
       hbox->addWidget(resetButton);
 
       // Add a button to remove this light.
-      QPushButton* removeButton = new QPushButton("Remove Light");
+      QPushButton* removeButton = new QPushButton(tr("Remove Light"));
       removeButton->setObjectName("RemoveLight");
       // which light does this button affect?
       removeButton->setProperty("LightIndex", i);
-      removeButton->setToolTip("Remove this light.");
+      removeButton->setToolTip(tr("Remove this light."));
       connect(removeButton, SIGNAL(clicked()), self, SLOT(removeLight()));
       hbox->addWidget(removeButton);
 
@@ -280,7 +252,7 @@ void pqLightsInspector::addLight()
   }
 
   // tell undo/redo and state about the new light
-  BEGIN_UNDO_SET("Add Light");
+  BEGIN_UNDO_SET(tr("Add Light"));
   vtkSMSessionProxyManager* pxm = view->GetSessionProxyManager();
   vtkSMProxy* light = pxm->NewProxy("additional_lights", "Light");
 
@@ -360,10 +332,10 @@ void pqLightsInspector::removeLight(vtkSMProxy* lightProxy)
   SM_SCOPED_TRACE(CallFunction)
     .arg("RemoveLight")
     .arg("light", lightProxy)
-    .arg("comment", "remove light added to the view");
+    .arg("comment", qPrintable(tr("remove light added to the view")));
 
   // tell undo/redo and state about the new light
-  BEGIN_UNDO_SET("Remove Light");
+  BEGIN_UNDO_SET(tr("Remove Light"));
 
   vtkSMPropertyHelper(view, "AdditionalLights").Remove(lightProxy);
 
@@ -397,7 +369,9 @@ void pqLightsInspector::resetLight(vtkSMProxy* lightProxy)
     lightProxy = vtkSMPropertyHelper(view, "AdditionalLights").GetAsProxy(index);
   }
 
-  SM_SCOPED_TRACE(PropertiesModified).arg("proxy", lightProxy).arg("comment", "reset a light");
+  SM_SCOPED_TRACE(PropertiesModified)
+    .arg("proxy", lightProxy)
+    .arg("comment", qPrintable(tr("reset a light")));
   lightProxy->ResetPropertiesToDefault();
   lightProxy->UpdateVTKObjects();
   this->render();
@@ -419,7 +393,9 @@ void pqLightsInspector::syncLightToCamera(vtkSMProxy* lightProxy)
     lightProxy = vtkSMPropertyHelper(view, "AdditionalLights").GetAsProxy(index);
   }
 
-  SM_SCOPED_TRACE(PropertiesModified).arg("proxy", lightProxy).arg("comment", "update a light");
+  SM_SCOPED_TRACE(PropertiesModified)
+    .arg("proxy", lightProxy)
+    .arg("comment", qPrintable(tr("update a light")));
 
   int type = 0;
   vtkSMPropertyHelper(lightProxy, "LightType").Get(&type);

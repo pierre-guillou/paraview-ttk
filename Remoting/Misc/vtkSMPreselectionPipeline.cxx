@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSMPreselectionPipeline.h"
 
@@ -21,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkProcessModule.h"
 #include "vtkSMInputProperty.h"
+#include "vtkSMIntVectorProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyManager.h"
@@ -96,6 +85,9 @@ vtkSMSourceProxy* vtkSMPreselectionPipeline::ConnectPVExtractSelection(
   {
     extract =
       vtkSMSourceProxy::SafeDownCast(proxyManager->NewProxy("filters", "PVExtractSelection"));
+    vtkSMIntVectorProperty* HTG2UG =
+      vtkSMIntVectorProperty::SafeDownCast(extract->GetProperty("HyperTreeGridToUnstructuredGrid"));
+    HTG2UG->SetElement(0, 1);
   }
   else
   {
@@ -121,14 +113,15 @@ vtkSMSourceProxy* vtkSMPreselectionPipeline::ConnectPVExtractSelection(
 }
 
 //----------------------------------------------------------------------------
-vtkSMProxy* vtkSMPreselectionPipeline::CreateSelectionRepresentation(vtkSMSourceProxy* extract)
+vtkSMProxy* vtkSMPreselectionPipeline::CreateSelectionRepresentation(
+  vtkSMSourceProxy* extract, vtkSMRenderViewProxy* view)
 {
   if (!this->SelectionRepresentation)
   {
     vtkSMSessionProxyManager* proxyManager =
       vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
-    vtkSMProxy* representation =
-      proxyManager->NewProxy("representations", "SelectionRepresentation");
+    vtkSMProxy* representation = proxyManager->NewProxy("representations",
+      view ? view->GetSelectionRepresentationProxyName() : "SelectionRepresentation");
     vtkSMSettings* settings = vtkSMSettings::GetInstance();
     settings->GetProxySettings(representation);
 
@@ -225,14 +218,22 @@ void vtkSMPreselectionPipeline::Show(
     {
       this->ClearCache();
     }
+    // Clear Cache when then render view type has changed
+    if (this->PreviousView && strcmp(this->PreviousView->GetXMLName(), view->GetXMLName()) != 0)
+    {
+      this->ClearCache();
+    }
 
-    this->CreateSelectionRepresentation(extract);
+    this->CreateSelectionRepresentation(extract, view);
     if (this->PreviousView)
     {
       vtkSMPropertyHelper(this->PreviousView, "Representations")
         .Remove(this->SelectionRepresentation);
       this->PreviousView->UpdateVTKObjects();
     }
+    auto selectionRepresentation = representation->GetSubProxy("SelectionRepresentation");
+    view->CopySelectionRepresentationProperties(
+      selectionRepresentation, this->SelectionRepresentation);
     vtkSMPropertyHelper(view, "Representations").Add(this->SelectionRepresentation);
     view->UpdateVTKObjects();
     view->StillRender();

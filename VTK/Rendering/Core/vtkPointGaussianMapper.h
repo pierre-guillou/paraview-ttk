@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointGaussianMapper
  * @brief   draw PointGaussians using imposters
@@ -26,9 +15,11 @@
 #ifndef vtkPointGaussianMapper_h
 #define vtkPointGaussianMapper_h
 
+#include "vtkDeprecation.h" // For deprecation macro
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPiecewiseFunction;
 
 class VTKRENDERINGCORE_EXPORT vtkPointGaussianMapper : public vtkPolyDataMapper
@@ -145,9 +136,8 @@ public:
 
   ///@{
   /**
-   * When drawing triangles as opposed too point mode
-   * (triangles are for splats shaders that are bigger than a pixel)
-   * this controls how large the triangle will be. By default it
+   * When drawing splats as opposed to point mode (splats are bigger than a pixel)
+   * this controls how large the splat bound primitive will be. By default it
    * is large enough to contain a cicle of radius 3.0*scale which works
    * well for gaussian splats as after 3.0 standard deviations the
    * opacity is near zero. For custom shader codes a different
@@ -157,8 +147,12 @@ public:
    * to avoid sending many fragments to the shader that will just get
    * discarded.
    */
-  vtkSetMacro(TriangleScale, float);
-  vtkGetMacro(TriangleScale, float);
+  VTK_DEPRECATED_IN_9_3_0("Use SetBoundScale function instead")
+  void SetTriangleScale(float value) { this->SetBoundScale(value); }
+  VTK_DEPRECATED_IN_9_3_0("Use GetBoundScale function instead")
+  float GetTriangleScale() { return this->GetBoundScale(); }
+  vtkSetMacro(BoundScale, float);
+  vtkGetMacro(BoundScale, float);
   ///@}
 
   /**
@@ -188,11 +182,12 @@ protected:
   double ScaleFactor;
   vtkTypeBool Emissive;
 
-  float TriangleScale;
+  float BoundScale;
 
 private:
   vtkPointGaussianMapper(const vtkPointGaussianMapper&) = delete;
   void operator=(const vtkPointGaussianMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

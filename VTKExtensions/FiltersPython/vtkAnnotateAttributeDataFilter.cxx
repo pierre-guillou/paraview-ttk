@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAnnotateAttributeDataFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPython.h" // has to be first!
 
 #include "vtkAnnotateAttributeDataFilter.h"
@@ -81,7 +69,7 @@ void vtkAnnotateAttributeDataFilter::EvaluateExpression()
   }
 
   vtkSmartPyObject self(vtkPythonUtil::GetObjectFromPointer(this));
-  vtkSmartPyObject fname(PyString_FromString("execute_on_attribute_data"));
+  vtkSmartPyObject fname(PyUnicode_FromString("execute_on_attribute_data"));
 
   // call `paraview.detail.annotation.execute_on_attribute_data(self)`
   vtkSmartPyObject retVal(PyObject_CallMethodObjArgs(modAnnotation, fname.GetPointer(),

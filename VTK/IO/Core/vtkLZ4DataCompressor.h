@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLZ4DataCompressor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLZ4DataCompressor
  * @brief   Data compression using LZ4.
@@ -26,6 +14,7 @@
 #include "vtkDataCompressor.h"
 #include "vtkIOCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOCORE_EXPORT vtkLZ4DataCompressor : public vtkDataCompressor
 {
 public:
@@ -72,4 +61,5 @@ private:
   void operator=(const vtkLZ4DataCompressor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

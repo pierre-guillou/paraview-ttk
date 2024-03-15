@@ -1,17 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkSpyPlotBlock.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpyPlotBlock
  * @brief   Represents a SpyPlot Block Grid
@@ -44,7 +33,7 @@ class VTKPVVTKEXTENSIONSIOSPCTH_EXPORT vtkSpyPlotBlock
 public:
   vtkSpyPlotBlock();
   ~vtkSpyPlotBlock();
-  //@{
+  ///@{
   /**
 
    */
@@ -73,7 +62,7 @@ public:
   static int Scan(vtkSpyPlotIStream* stream, unsigned char* isAllocated, int fileVersion);
   // For performance reasons, lets do 16 at a time.
   static int Scan16(vtkSpyPlotIStream* stream, unsigned char* isAllocated, int fileVersion);
-  //@}
+  ///@}
 
   int SetGeometry(int dir, const unsigned char* encodedInfo, int infoSize);
   int GetTotalSize() const;

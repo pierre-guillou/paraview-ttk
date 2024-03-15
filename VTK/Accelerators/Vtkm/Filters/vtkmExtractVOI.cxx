@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractVOI.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkmExtractVOI.h"
 
 #include "vtkCellData.h"
@@ -24,10 +12,9 @@
 #include "vtkmlib/ArrayConverters.h"
 #include "vtkmlib/ImageDataConverter.h"
 
-#include "vtkmFilterPolicy.h"
-
 #include "vtkm/filter/entity_extraction/ExtractStructured.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkmExtractVOI);
 
 //------------------------------------------------------------------------------
@@ -96,3 +83,4 @@ int vtkmExtractVOI::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

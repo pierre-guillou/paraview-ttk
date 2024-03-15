@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractPoints.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkExtractPoints.h"
 
 #include "vtkImplicitFunction.h"
@@ -20,6 +8,7 @@
 #include "vtkPoints.h"
 #include "vtkSMPTools.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractPoints);
 vtkCxxSetObjectMacro(vtkExtractPoints, ImplicitFunction, vtkImplicitFunction);
 
@@ -137,3 +126,4 @@ void vtkExtractPoints::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Implicit Function: " << static_cast<void*>(this->ImplicitFunction) << "\n";
   os << indent << "Extract Inside: " << (this->ExtractInside ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

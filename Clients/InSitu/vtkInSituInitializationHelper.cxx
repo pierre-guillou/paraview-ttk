@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkInSituInitializationHelper.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInSituInitializationHelper.h"
 
 #include "vtkArrayDispatch.h"
@@ -40,11 +28,17 @@
 #include "vtkSMSourceProxy.h"
 #include "vtkSmartPointer.h"
 #include "vtkSteeringDataGenerator.h"
+#include "vtksys/SystemTools.hxx"
 
 #include <algorithm>
 #include <cctype>
 #include <map>
+#include <set>
 #include <string>
+
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+#include <catalyst_conduit.hpp>
+#endif
 
 #if VTK_MODULE_ENABLE_ParaView_PythonCatalyst
 extern "C"
@@ -223,7 +217,8 @@ void vtkInSituInitializationHelper::Finalize()
 }
 
 //----------------------------------------------------------------------------
-vtkInSituPipeline* vtkInSituInitializationHelper::AddPipeline(const std::string& path)
+vtkInSituPipeline* vtkInSituInitializationHelper::AddPipeline(
+  const std::string& name, const std::string& path)
 {
   if (vtkInSituInitializationHelper::Internals == nullptr)
   {
@@ -234,18 +229,50 @@ vtkInSituPipeline* vtkInSituInitializationHelper::AddPipeline(const std::string&
 
   if (path.empty())
   {
-    vtkLogF(WARNING, "Empty path specified.");
+    vtkLogF(WARNING, "Empty filename provided for script.");
     return nullptr;
   }
-
+  std::string tmp = path;
   if (!vtkPSystemTools::FileExists(path.c_str()))
   {
-    vtkLogF(WARNING, "File/path does not exist: '%s'. Skipping", path.c_str());
-    return nullptr;
+    tmp.clear();
+    if (vtksys::SystemTools::HasEnv("PYTHONPATH"))
+    {
+      std::string pythonPath;
+      vtksys::SystemTools::GetEnv("PYTHONPATH", pythonPath);
+      vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(),
+        "Looking in PYTHONPATH '%s' for Catalyst script '%s'.", pythonPath.c_str(), path.c_str());
+#if defined(_WIN32) && !defined(__MINGW32__)
+      char splitChar = ';';
+#else
+      char splitChar = ':';
+#endif
+      std::vector<std::string> paths = vtksys::SystemTools::SplitString(pythonPath, splitChar);
+      for (auto& p : paths)
+      {
+#if defined(_WIN32) && !defined(__MINGW32__)
+        std::string testPath = p + "\\" + path;
+#else
+        std::string testPath = p + "/" + path;
+#endif
+        if (vtkPSystemTools::FileExists(testPath.c_str()))
+        {
+          tmp = testPath;
+          break;
+        }
+      }
+    }
+    if (tmp.empty())
+    {
+      vtkLogF(
+        WARNING, "File/path does not exist and not in PYTHONPATH: '%s'. Skipping.", path.c_str());
+      return nullptr;
+    }
   }
 
   vtkNew<vtkInSituPipelinePython> pipeline;
-  pipeline->SetFileName(path.c_str());
+  pipeline->SetFileName(tmp.c_str());
+  pipeline->SetName(name.c_str());
   vtkInSituInitializationHelper::AddPipeline(pipeline);
   return pipeline;
 }
@@ -349,7 +376,12 @@ void vtkInSituInitializationHelper::MarkProducerModified(vtkSMSourceProxy* produ
 
 //----------------------------------------------------------------------------
 bool vtkInSituInitializationHelper::ExecutePipelines(
-  int timestep, double time, const std::vector<std::string>& parameters)
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+  int timestep, double time, const conduit_node* pipelines,
+  const std::vector<std::string>& parameters)
+#else
+  int timestep, double time, const conduit_node*, const std::vector<std::string>& parameters)
+#endif
 {
   if (vtkInSituInitializationHelper::Internals == nullptr)
   {
@@ -372,26 +404,66 @@ bool vtkInSituInitializationHelper::ExecutePipelines(
 
   UpdateSteerableProxies();
 
+  // If there is a pipelines node, it gives up the list of pipelines
+  // to execute. Create a set from the pipelines to be used when
+  // executing them.
+  std::set<std::string> to_execute;
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+  if (pipelines)
+  {
+    const conduit_cpp::Node cpp_pipelines =
+      conduit_cpp::cpp_node(const_cast<conduit_node*>(pipelines));
+
+    const conduit_index_t nchildren = cpp_pipelines.number_of_children();
+    for (conduit_index_t i = 0; i < nchildren; ++i)
+    {
+      try
+      {
+        to_execute.insert(cpp_pipelines.child(i).as_string());
+      }
+      catch (conduit_cpp::Error&)
+      {
+      }
+    }
+  }
+  else
+  {
+    // If there is no pipelines node, insert all pipelines into
+    // the set of pipelines to execute.
+    for (auto& item : internals.Pipelines)
+    {
+      to_execute.insert(item.Pipeline->GetName());
+    }
+  }
+#endif
+
   for (auto& item : internals.Pipelines)
   {
     if (!item.Initialized)
     {
       item.InitializationFailed = !item.Pipeline->Initialize();
+
       item.Initialized = true;
     }
 
     if (!item.InitializationFailed && !item.ExecuteFailed)
     {
-      // set the execute parameters for this pipeline
-      auto pipeline = vtkInSituPipelinePython::SafeDownCast(item.Pipeline);
-      if (pipeline)
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+      // Check the to_execute set to see if the pipeline is to be executed.
+      if (item.Pipeline->GetName() && to_execute.find(item.Pipeline->GetName()) != to_execute.end())
+#endif
       {
-        pipeline->SetParameters(parameters);
+        // set the execute parameters for this pipeline
+        auto pipeline = vtkInSituPipelinePython::SafeDownCast(item.Pipeline);
+        if (pipeline)
+        {
+          pipeline->SetParameters(parameters);
+        }
+        // If `Initialize` failed, don't call `Execute` on the Pipeline.
+        // If Execute fails even once, we no longer call Execute on this pipeline
+        // in subsequent calls to `ExecutePipelines`.
+        item.ExecuteFailed = !item.Pipeline->Execute(timestep, time);
       }
-      // If `Initialize` failed, don't call `Execute` on the Pipeline.
-      // If Execute fails even once, we no longer call Execute on this pipeline
-      // in subsequent calls to `ExecutePipelines`.
-      item.ExecuteFailed = !item.Pipeline->Execute(timestep, time);
     }
   }
 

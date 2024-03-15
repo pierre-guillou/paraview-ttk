@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseMangle.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2011 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in May 2011
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2011 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseMangle.h"
 #include "vtkParseExtras.h"
 #include <assert.h>
@@ -137,11 +119,9 @@ size_t vtkParse_MangledTypeName(const char* name, char* new_name)
       basictype = 'm';
       break;
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
       basictype = 'x';
       break;
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       basictype = 'y';
       break;
     case VTK_PARSE_FLOAT:

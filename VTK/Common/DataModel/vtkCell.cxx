@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCell.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCell.h"
 
@@ -27,6 +15,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 //----------------------------------------------------------------------------
@@ -449,38 +438,35 @@ int vtkCell::IntersectWithCell(vtkCell* other, double tol)
 }
 
 //----------------------------------------------------------------------------
-// Compute cell bounding box (xmin,xmax,ymin,ymax,zmin,zmax). Return pointer
-// to array of six double values.
-double* vtkCell::GetBounds()
+int vtkCell::Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts)
 {
-  double x[3];
-  int i, numPts = this->Points->GetNumberOfPoints();
+  // Convert the local ids to the global ones, plus collect the points
+  if (!this->TriangulateLocalIds(index, ptIds))
+  {
+    return 0;
+  };
+  pts->SetNumberOfPoints(ptIds->GetNumberOfIds());
+  for (int i = 0; i < ptIds->GetNumberOfIds(); i++)
+  {
+    pts->SetPoint(i, this->Points->GetPoint(ptIds->GetId(i)));
+    ptIds->SetId(i, this->PointIds->GetId(ptIds->GetId(i)));
+  }
+  return 1;
+}
 
-  if (numPts)
+//----------------------------------------------------------------------------
+int vtkCell::TriangulateIds(int index, vtkIdList* ptIds)
+{
+  // Convert the local ids to the global ones
+  if (!this->TriangulateLocalIds(index, ptIds))
   {
-    this->Points->GetPoint(0, x);
-    this->Bounds[0] = x[0];
-    this->Bounds[2] = x[1];
-    this->Bounds[4] = x[2];
-    this->Bounds[1] = x[0];
-    this->Bounds[3] = x[1];
-    this->Bounds[5] = x[2];
-    for (i = 1; i < numPts; i++)
-    {
-      this->Points->GetPoint(i, x);
-      this->Bounds[0] = (x[0] < this->Bounds[0] ? x[0] : this->Bounds[0]);
-      this->Bounds[1] = (x[0] > this->Bounds[1] ? x[0] : this->Bounds[1]);
-      this->Bounds[2] = (x[1] < this->Bounds[2] ? x[1] : this->Bounds[2]);
-      this->Bounds[3] = (x[1] > this->Bounds[3] ? x[1] : this->Bounds[3]);
-      this->Bounds[4] = (x[2] < this->Bounds[4] ? x[2] : this->Bounds[4]);
-      this->Bounds[5] = (x[2] > this->Bounds[5] ? x[2] : this->Bounds[5]);
-    }
-  }
-  else
+    return 0;
+  };
+  for (int i = 0; i < ptIds->GetNumberOfIds(); i++)
   {
-    vtkMath::UninitializeBounds(this->Bounds);
+    ptIds->SetId(i, this->PointIds->GetId(ptIds->GetId(i)));
   }
-  return this->Bounds;
+  return 1;
 }
 
 //------------------------------------------------------------------------------
@@ -488,11 +474,16 @@ double* vtkCell::GetBounds()
 // user provided array.
 void vtkCell::GetBounds(double bounds[6])
 {
-  this->GetBounds();
-  for (int i = 0; i < 6; i++)
-  {
-    bounds[i] = this->Bounds[i];
-  }
+  vtkBoundingBox::ComputeBounds(this->Points, bounds);
+}
+
+//----------------------------------------------------------------------------
+// Compute cell bounding box (xmin,xmax,ymin,ymax,zmin,zmax). Return pointer
+// to array of six double values.
+double* vtkCell::GetBounds()
+{
+  this->GetBounds(this->Bounds);
+  return this->Bounds;
 }
 
 //------------------------------------------------------------------------------
@@ -596,3 +587,4 @@ double* vtkCell::GetParametricCoords()
 {
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangeHexahedron.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkLagrangeHexahedron.h"
 
@@ -31,6 +19,7 @@
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLagrangeHexahedron);
 
 vtkLagrangeHexahedron::vtkLagrangeHexahedron() = default;
@@ -61,6 +50,7 @@ vtkCell* vtkLagrangeHexahedron::GetEdge(int edgeId)
 vtkCell* vtkLagrangeHexahedron::GetFace(int faceId)
 {
   vtkLagrangeQuadrilateral* result = FaceCell;
+  int faceOrder[2];
 
   const auto set_number_of_ids_and_points = [&](const vtkIdType& npts) -> void {
     result->Points->SetNumberOfPoints(npts);
@@ -71,7 +61,9 @@ vtkCell* vtkLagrangeHexahedron::GetFace(int faceId)
     result->PointIds->SetId(face_id, this->PointIds->GetId(vol_id));
   };
 
-  this->SetFaceIdsAndPoints(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
+  vtkHigherOrderHexahedron::SetFaceIdsAndPoints(
+    faceId, this->Order, set_number_of_ids_and_points, set_ids_and_points, faceOrder);
+  result->SetOrder(faceOrder[0], faceOrder[1]);
   return result;
 }
 
@@ -135,4 +127,5 @@ vtkHigherOrderQuadrilateral* vtkLagrangeHexahedron::GetFaceCell()
 vtkHigherOrderInterpolation* vtkLagrangeHexahedron::GetInterpolation()
 {
   return Interp;
-};
+}
+VTK_ABI_NAMESPACE_END

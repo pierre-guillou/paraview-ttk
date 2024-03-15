@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRuledSurfaceFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRuledSurfaceFilter
  * @brief   generates a surface from a set of lines
@@ -57,6 +45,7 @@
 #include "vtkFiltersModelingModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkPoints;
 class vtkPolyData;
@@ -191,9 +180,9 @@ private:
   void PointWalk(vtkPolyData* output, vtkPoints* inPts, int npts, const vtkIdType* pts, int npts2,
     const vtkIdType* pts2);
 
-private:
   vtkRuledSurfaceFilter(const vtkRuledSurfaceFilter&) = delete;
   void operator=(const vtkRuledSurfaceFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

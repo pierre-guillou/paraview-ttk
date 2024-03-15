@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyProperty.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMProxyProperty.h"
 #include "vtkSMProxyPropertyInternals.h"
 
@@ -355,12 +343,12 @@ void vtkSMProxyProperty::Copy(vtkSMProperty* src)
 void vtkSMProxyProperty::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  // os << indent << "Values: ";
-  // for (unsigned int i=0; i<this->GetNumberOfProxies(); i++)
-  //  {
-  //  os << this->GetProxy(i) << " ";
-  //  }
-  // os << endl;
+  os << indent << "Values: ";
+  for (unsigned int i = 0; i < this->GetNumberOfProxies(); i++)
+  {
+    os << this->GetProxy(i) << " ";
+  }
+  os << endl;
 }
 //---------------------------------------------------------------------------
 void vtkSMProxyProperty::SaveStateValues(vtkPVXMLElement* propertyElement)

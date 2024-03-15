@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkmGradient.h"
 
 #include "vtkCellData.h"
@@ -28,13 +17,13 @@
 #include "vtkmlib/DataSetConverters.h"
 #include "vtkmlib/PolyDataConverter.h"
 
-#include "vtkmFilterPolicy.h"
-
+#include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/ArrayHandleTransform.h>
 #include <vtkm/cont/ErrorFilterExecution.h>
 #include <vtkm/filter/field_conversion/PointAverage.h>
 #include <vtkm/filter/vector_analysis/Gradient.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkmGradient);
 
 namespace
@@ -363,3 +352,4 @@ int vtkmGradient::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

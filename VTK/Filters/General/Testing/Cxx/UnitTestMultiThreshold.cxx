@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    UnitTestMultiThreshold.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCellData.h"
 #include "vtkDataObject.h"
 #include "vtkExecutive.h"
@@ -283,7 +271,7 @@ int TestErrorsAndWarnings()
 
   // WARNING: You passed a null array name
   intervalSets.push_back(threshold->AddIntervalSet(0, 2, vtkMultiThreshold::CLOSED,
-    vtkMultiThreshold::CLOSED, vtkDataObject::FIELD_ASSOCIATION_POINTS, (char*)nullptr, 0, 1));
+    vtkMultiThreshold::CLOSED, vtkDataObject::FIELD_ASSOCIATION_POINTS, nullptr, 0, 1));
   if (filterObserver->GetWarning())
   {
     std::cout << "Caught expected warning: " << filterObserver->GetWarningMessage();

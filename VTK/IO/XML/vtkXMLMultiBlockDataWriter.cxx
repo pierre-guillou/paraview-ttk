@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLMultiBlockDataWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLMultiBlockDataWriter.h"
 
 #include "vtkDataObjectTreeIterator.h"
@@ -21,6 +9,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkXMLDataElement.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXMLMultiBlockDataWriter);
 //------------------------------------------------------------------------------
 vtkXMLMultiBlockDataWriter::vtkXMLMultiBlockDataWriter() = default;
@@ -55,6 +44,12 @@ int vtkXMLMultiBlockDataWriter::WriteComposite(
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
   {
     toBeWritten++;
+  }
+
+  if (toBeWritten == 0)
+  {
+    // No leaf, nothing to write but this is not an issue.
+    return 1;
   }
 
   float progressRange[2] = { 0.f, 0.f };
@@ -130,3 +125,4 @@ void vtkXMLMultiBlockDataWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

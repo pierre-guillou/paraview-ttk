@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    pqEqualizerPropertyWidget.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqEqualizerPropertyWidget_h
 #define pqEqualizerPropertyWidget_h
 
@@ -38,8 +26,8 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqEqualizerPropertyWidget
 
 public:
   explicit pqEqualizerPropertyWidget(
-    vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = 0);
-  ~pqEqualizerPropertyWidget();
+    vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = nullptr);
+  ~pqEqualizerPropertyWidget() override;
 
 protected Q_SLOTS:
   /**
@@ -53,7 +41,7 @@ private Q_SLOTS:
   void loadEqualizer();
   void resetEqualizer();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   Q_DISABLE_COPY(pqEqualizerPropertyWidget)
 
   pqPropertyLinks WidgetLinks;

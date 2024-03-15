@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageProgressIterator.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkImageProgressIterator_txx
 #define vtkImageProgressIterator_txx
 
@@ -19,6 +7,7 @@
 #include "vtkImageData.h"
 #include "vtkImageProgressIterator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class DType>
 vtkImageProgressIterator<DType>::vtkImageProgressIterator(
   vtkImageData* imgd, int* ext, vtkAlgorithm* po, int id)
@@ -68,4 +57,5 @@ vtkTypeBool vtkImageProgressIterator<DType>::IsAtEnd()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

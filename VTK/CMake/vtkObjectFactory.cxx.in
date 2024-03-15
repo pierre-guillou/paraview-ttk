@@ -1,19 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    @_vtk_object_factory_library_name@ObjectFactory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Object factories should never have deprecation warnings.
+// NOLINTNEXTLINE(modernize-macro-to-enum)
 #define VTK_DEPRECATION_LEVEL 0
 
 #include "@_vtk_object_factory_library_name@ObjectFactory.h"
@@ -21,6 +10,8 @@
 
 // Include all of the classes we want to create overrides for.
 @_vtk_object_factory_includes@
+
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(@_vtk_object_factory_library_name@ObjectFactory);
 
@@ -60,3 +51,4 @@ static unsigned int @_vtk_object_factory_library_name@Count = 0;
     }
   }
 }
+VTK_ABI_NAMESPACE_END

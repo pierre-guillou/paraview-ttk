@@ -9,7 +9,7 @@ else ()
       set(use_legacy OFF)
     endif ()
   else ()
-    # Without the policy, only legacy is availale.
+    # Without the policy, only legacy is available.
     set(use_legacy ON)
   endif ()
 endif ()
@@ -30,7 +30,7 @@ if (VTK_OPENGL_USE_GLES)
   list(APPEND opengl_targets OpenGL::GLES3)
 else ()
   list(APPEND opengl_components OpenGL)
-  if (WIN32)
+  if (VTK_USE_WIN32_OPENGL)
     list(APPEND opengl_targets OpenGL::GL)
   else ()
     if (use_legacy)
@@ -45,7 +45,7 @@ if (VTK_OPENGL_HAS_EGL)
   list(APPEND opengl_targets OpenGL::EGL)
 endif ()
 
-if (VTK_OPENGL_HAS_OSMESA AND NOT VTK_CAN_DO_ONSCREEN)
+if (VTK_OPENGL_HAS_OSMESA AND NOT vtk_can_do_onscreen)
   vtk_module_third_party_external(
     PACKAGE OSMesa
     TARGETS OSMesa::OSMesa)

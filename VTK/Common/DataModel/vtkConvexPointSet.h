@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvexPointSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkConvexPointSet
  * @brief   a 3D cell defined by a set of convex points
@@ -33,6 +21,7 @@
 #include "vtkCell3D.h"
 #include "vtkCommonDataModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnstructuredGrid;
 class vtkCellArray;
 class vtkTriangle;
@@ -49,7 +38,9 @@ public:
   /**
    * See vtkCell3D API for description of this method.
    */
-  virtual int HasFixedTopology() { return 0; }
+#ifndef VTK_LEGACY_REMOVE
+  virtual vtkTypeBool HasFixedTopology() { return 0; }
+#endif
 
   ///@{
   /**
@@ -174,7 +165,7 @@ public:
   /**
    * Triangulate using methods of vtkOrderedTriangulator.
    */
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
 
   /**
    * Computes derivatives by triangulating and from subId and pcoords,
@@ -235,4 +226,5 @@ inline int vtkConvexPointSet::GetParametricCenter(double pcoords[3])
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

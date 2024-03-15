@@ -16,6 +16,9 @@ set(template_classes
   vtkQuaternion
 )
 
+set(templates
+  vtkFFT.txx)
+
 set(headers
   vtkTuple.h
 )
@@ -32,7 +35,9 @@ endif()
 
 vtk_module_add_module(VTK::CommonMath
   CLASSES           ${classes}
+  TEMPLATES         ${templates}
   TEMPLATE_CLASSES  ${template_classes}
   HEADERS           ${headers}
   NOWRAP_CLASSES    ${nowrap_classes}
 )
+vtk_add_test_mangling(VTK::CommonMath)

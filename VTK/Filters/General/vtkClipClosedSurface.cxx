@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClipClosedSurface.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkClipClosedSurface.h"
 
 #include "vtkCellArray.h"
@@ -20,6 +8,7 @@
 #include "vtkContourTriangulator.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
+#include "vtkExecutive.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -43,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkClipClosedSurface);
 
 vtkCxxSetObjectMacro(vtkClipClosedSurface, ClippingPlanes, vtkPlaneCollection);
@@ -75,6 +65,9 @@ vtkClipClosedSurface::vtkClipClosedSurface()
 
   // A whole bunch of objects needed during execution
   this->IdList = nullptr;
+
+  // Initialize two output ports
+  this->SetNumberOfOutputPorts(2);
 }
 
 //------------------------------------------------------------------------------
@@ -286,10 +279,8 @@ vtkIdType* vtkCCSEdgeLocator::InsertUniqueEdge(vtkIdType i0, vtkIdType i1, vtkId
     return nullptr;
   }
 
-  int i = 1;
   while (node->next != nullptr)
   {
-    i++;
     node = node->next;
 
     if (node->ptId0 == i0 && node->ptId1 == i1)
@@ -360,6 +351,12 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
     {
       pointData->CopyData(inPointData, ptId, ptId);
     }
+  }
+
+  vtkCellArray* clipFacePolys = nullptr;
+  if (this->GenerateClipFaceOutput)
+  {
+    clipFacePolys = vtkCellArray::New();
   }
 
   // An edge locator to avoid point duplication while clipping
@@ -528,7 +525,7 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
   for (int planeId = 0; planes && (plane = planes->GetNextPlane(iter)); planeId++)
   {
     this->UpdateProgress((planeId + 1.0) / (numPlanes + 1.0));
-    if (this->GetAbortExecute())
+    if (this->CheckAbort())
     {
       break;
     }
@@ -546,6 +543,13 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
     // Convert the plane into an easy-to-evaluate function
     double pc[4];
     plane->GetNormal(pc);
+    if (this->InsideOut)
+    {
+      for (int i = 0; i < 3; ++i)
+      {
+        pc[i] *= -1.0;
+      }
+    }
     pc[3] = -vtkMath::Dot(pc, plane->GetOrigin());
 
     // Create the clip scalars by evaluating the plane at each point
@@ -579,6 +583,16 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
       // Cut the polys to generate more lines
       this->ClipAndContourPolys(points, pointScalars, pointData, edgeLocator, triangulate, polys,
         newPolys, newLines, inPolyData, outPolyData, outLineData);
+      if (this->GenerateClipFaceOutput)
+      {
+        vtkCellArray* tmpPolys = vtkCellArray::New();
+        vtkCellArray* tmpLines = vtkCellArray::New();
+        this->ClipAndContourPolys(points, pointScalars, pointData, edgeLocator, triangulate,
+          clipFacePolys, tmpPolys, tmpLines, inPolyData, outPolyData, outLineData);
+        clipFacePolys->DeepCopy(tmpPolys);
+        tmpPolys->Delete();
+        tmpLines->Delete();
+      }
 
       // Add scalars for the newly-created contour lines
       vtkUnsignedCharArray* scalars =
@@ -612,8 +626,24 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
       tmpContourData->SetLines(newLines);
       tmpContourData->BuildCells();
 
-      this->TriangulateContours(
-        tmpContourData, numClipLines, numClipAndContourLines - numClipLines, newPolys, pc);
+      if (this->GenerateClipFaceOutput)
+      {
+        vtkCellArray* tmpPolys = vtkCellArray::New();
+        this->TriangulateContours(
+          tmpContourData, numClipLines, numClipAndContourLines - numClipLines, tmpPolys, pc);
+        tmpContourData->SetPolys(tmpPolys);
+        newPolys->Append(tmpPolys);
+        if (this->GenerateClipFaceOutput)
+        {
+          clipFacePolys->Append(tmpPolys);
+        }
+        tmpPolys->Delete();
+      }
+      else
+      {
+        this->TriangulateContours(
+          tmpContourData, numClipLines, numClipAndContourLines - numClipLines, newPolys, pc);
+      }
 
       // Add scalars for the newly-created polys
       scalars = vtkArrayDownCast<vtkUnsignedCharArray>(outPolyData->GetScalars());
@@ -684,6 +714,26 @@ int vtkClipClosedSurface::RequestData(vtkInformation* vtkNotUsed(request),
   edgeLocator->Delete();
 
   // Delete the contour data container
+  if (this->GenerateClipFaceOutput)
+  {
+    if (!this->GenerateOutline)
+    {
+      // Remove lines from the clip face output if not required
+      tmpContourData->SetLines(nullptr);
+    }
+    if (this->GenerateFaces)
+    {
+      tmpContourData->SetPolys(clipFacePolys);
+    }
+    else
+    {
+      // Remove faces from the clip face output if not required
+      tmpContourData->SetPolys(nullptr);
+    }
+    // Finally, set the clip face output
+    this->GetClipFaceOutput()->DeepCopy(tmpContourData);
+    clipFacePolys->Delete();
+  }
   tmpContourData->Delete();
 
   // Delete the clip scalars
@@ -1295,8 +1345,8 @@ void vtkClipClosedSurface::TriangulateContours(vtkPolyData* data, vtkIdType firs
   }
 
   double nnormal[3] = { -normal[0], -normal[1], -normal[2] };
-  int rval =
-    vtkContourTriangulator::TriangulateContours(data, firstLine, numLines, outputPolys, nnormal);
+  int rval = vtkContourTriangulator::TriangulateContours(
+    data, firstLine, numLines, outputPolys, nnormal, this);
 
   if (rval == 0 && this->TriangulationErrorDisplay)
   {
@@ -1304,9 +1354,16 @@ void vtkClipClosedSurface::TriangulateContours(vtkPolyData* data, vtkIdType firs
   }
 }
 
-// ---------------------------------------------------
+//------------------------------------------------------------------------------
 int vtkClipClosedSurface::TriangulatePolygon(
   vtkIdList* polygon, vtkPoints* points, vtkCellArray* triangles)
 {
   return vtkContourTriangulator::TriangulatePolygon(polygon, points, triangles);
 }
+
+//------------------------------------------------------------------------------
+vtkPolyData* vtkClipClosedSurface::GetClipFaceOutput()
+{
+  return vtkPolyData::SafeDownCast(this->GetExecutive()->GetOutputData(1));
+}
+VTK_ABI_NAMESPACE_END

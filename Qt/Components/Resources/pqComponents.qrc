@@ -1,3 +1,5 @@
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <RCC>
     <qresource prefix="/pqWidgets">
         <file>Icons/explicit_color.png</file>
@@ -8,6 +10,7 @@
         <file>Icons/no_opacity.png</file>
         <file>Icons/pdf.png</file>
         <file>Icons/PVSplashScreen.png</file>
+        <file>Icons/pq2DTransferFunction.svg</file>
         <file>Icons/pq3DView16.png</file>
         <file>Icons/pqAdvanced.svg</file>
         <file>Icons/pqAddFavorites16.png</file>
@@ -22,6 +25,7 @@
         <file>Icons/pqBottomRightCorner32.png</file>
         <file>Icons/pqBoxChart16.png</file>
         <file>Icons/pqBoxColorAlpha.svg</file>
+        <file>Icons/pqBringCollaboratorsHere.svg</file>
         <file>Icons/pqBundle16.png</file>
         <file>Icons/pqBundle32.png</file>
         <file>Icons/pqCalculator.svg</file>
@@ -75,16 +79,20 @@
         <file>Icons/pqGlyph.svg</file>
         <file>Icons/pqGroup.svg</file>
         <file>Icons/pqGroupExtract.svg</file>
+        <file>Icons/pqGroupFiles.svg</file>
         <file>Icons/pqHelp.svg</file>
         <file>Icons/pqHierarchicalData16.png</file>
         <file>Icons/pqHistogram16.png</file>
         <file>Icons/pqHistogram24.png</file>
         <file>Icons/pqHistogramReload24.png</file>
+        <file>Icons/pqHome.svg</file>
+        <file>Icons/pqHomeWithSave.svg</file>
         <file>Icons/pqInsituServerRunning16.png</file>
         <file>Icons/pqInsituServerPaused16.png</file>
         <file>Icons/pqInsituBreakpoint16.png</file>
         <file>Icons/pqInteractionMode2D.svg</file>
         <file>Icons/pqInteractionMode3D.svg</file>
+        <file>Icons/pqInteractiveRay.svg</file>
         <file>Icons/pqInvert.svg</file>
         <file>Icons/pqIsometricView.svg</file>
         <file>Icons/pqIsosurface.svg</file>
@@ -98,13 +106,17 @@
         <file>Icons/pqLoadState.svg</file>
         <file>Icons/pqLoadWindow.svg</file>
         <file>Icons/pqLock24.png</file>
+        <file>Icons/pqLock.svg</file>
         <file>Icons/pqMousePick15.png</file>
         <file>Icons/pqMultiBlockData16.png</file>
+        <file>Icons/pqNavBack.svg</file>
+        <file>Icons/pqNavForward.svg</file>
         <file>Icons/pqNewFolder.svg</file>
         <file>Icons/pqNodalData.svg</file>
         <file>Icons/pqNodeMapData.svg</file>
         <file>Icons/pqNodeSetData.svg</file>
         <file>Icons/pqOctreeData.svg</file>
+        <file>Icons/pqOpacityTransferFunction.svg</file>
         <file>Icons/pqOpen.svg</file>
         <file>Icons/pqPalette.svg</file>
         <file>Icons/pqPaste.svg</file>
@@ -122,6 +134,7 @@
         <file>Icons/pqProbeLocation.svg</file>
         <file>Icons/pqProgrammableAnnotation.svg</file>
         <file>Icons/pqProgrammableFilter.svg</file>
+        <file>Icons/pqProtractor.svg</file>
         <file>Icons/pqRamp24.png</file>
         <file>Icons/pqRenameWindow.svg</file>
         <file>Icons/pqRectilinearGrid16.png</file>
@@ -131,6 +144,7 @@
         <file>Icons/pqReflect.svg</file>
         <file>Icons/pqReloadFile.svg</file>
         <file>Icons/pqReset.svg</file>
+        <file>Icons/pqResetActorsPosition.svg</file>
         <file>Icons/pqResetCamera.svg</file>
         <file>Icons/pqResetCameraClosest.svg</file>
         <file>Icons/pqResetCenter.svg</file>
@@ -167,6 +181,7 @@
         <file>Icons/pqSettings.svg</file>
         <file>Icons/pqShadow24.png</file>
         <file>Icons/pqShowCenterAxes.svg</file>
+        <file>Icons/pqShowFloor.svg</file>
         <file>Icons/pqShowOrientationAxes.svg</file>
         <file>Icons/pqSideSetData.svg</file>
         <file>Icons/pqSinusoidal24.png</file>
@@ -207,6 +222,7 @@
         <file>Icons/pqUndo.svg</file>
         <file>Icons/pqUndoCamera.svg</file>
         <file>Icons/pqUnknownData16.png</file>
+        <file>Icons/pqUnlock.svg</file>
         <file>Icons/pqUnstructuredGrid16.png</file>
         <file>Icons/pqVcrBack.svg</file>
         <file>Icons/pqVcrFirst.svg</file>

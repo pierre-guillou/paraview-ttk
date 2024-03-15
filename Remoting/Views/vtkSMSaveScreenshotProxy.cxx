@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSaveScreenshotProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMSaveScreenshotProxy.h"
 
 #include "vtkAlgorithm.h"
@@ -502,13 +490,8 @@ vtkSMSaveScreenshotProxy::~vtkSMSaveScreenshotProxy()
 }
 
 //----------------------------------------------------------------------------
-bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname)
-{
-  return this->WriteImage(fname, vtkPVSession::CLIENT);
-}
-
-//----------------------------------------------------------------------------
-bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname, vtkTypeUInt32 location)
+bool vtkSMSaveScreenshotProxy::WriteImage(
+  const char* fname, vtkTypeUInt32 location, vtkPVXMLElement* stateXMLRoot)
 {
   if (fname == nullptr)
   {
@@ -568,7 +551,8 @@ bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname, vtkTypeUInt32 locat
     .arg("filename", filename.c_str())
     .arg("view", view)
     .arg("layout", layout)
-    .arg("mode_screenshot", 1);
+    .arg("mode_screenshot", 1)
+    .arg("location", static_cast<int>(location));
 
   if (!this->Prepare())
   {
@@ -607,34 +591,49 @@ bool vtkSMSaveScreenshotProxy::WriteImage(const char* fname, vtkTypeUInt32 locat
     vtkSMSourceProxy::SafeDownCast(pxm->NewProxy("misc", "RemoteWriterHelper")));
   vtkSMPropertyHelper(remoteWriter, "Writer").Set(format);
   vtkSMPropertyHelper(remoteWriter, "OutputDestination").Set(static_cast<int>(location));
+  vtkSMPropertyHelper(remoteWriter, "TryWritingInBackground")
+    .Set(vtkSMPropertyHelper(this, "SaveInBackground").GetAsInt());
   remoteWriter->UpdateVTKObjects();
 
   vtkTimerLog::MarkStartEvent("Write image to disk");
   auto remoteWriterAlgorithm = vtkAlgorithm::SafeDownCast(remoteWriter->GetClientSideObject());
 
-  // write right-eye image first.
+  // save paraview state as metadata
+  const bool embedState = stateXMLRoot && strcmp(format->GetXMLName(), "PNG") == 0;
+  if (embedState)
+  {
+    std::ostringstream stream;
+    stateXMLRoot->PrintXML(stream, vtkIndent());
+    vtkSMPropertyHelper metadata(format, "MetaData");
+    metadata.Set(0, "ParaViewState");
+    metadata.Set(1, stream.str().c_str());
+  }
+
   if (image_pair.second)
   {
+    // write right-eye.
     vtkSMPropertyHelper(format, "FileName")
       .Set(this->GetStereoFileName(filename, /*left=*/false).c_str());
     format->UpdateVTKObjects();
     remoteWriterAlgorithm->SetInputDataObject(image_pair.second);
     remoteWriter->UpdatePipeline();
 
-    // change left-eye filename too
+    // write left-eye.
     vtkSMPropertyHelper(format, "FileName")
       .Set(this->GetStereoFileName(filename, /*left=*/true).c_str());
     format->UpdateVTKObjects();
+    remoteWriterAlgorithm->SetInputDataObject(image_pair.first);
+    remoteWriter->UpdatePipeline();
   }
   else
   {
+    // write left-eye.
     vtkSMPropertyHelper(format, "FileName").Set(filename.c_str());
     format->UpdateVTKObjects();
+    remoteWriterAlgorithm->SetInputDataObject(image_pair.first);
+    remoteWriter->UpdatePipeline();
   }
 
-  // now write left-eye.
-  remoteWriterAlgorithm->SetInputDataObject(image_pair.first);
-  remoteWriter->UpdatePipeline();
   remoteWriterAlgorithm->SetInputDataObject(nullptr);
   vtkTimerLog::MarkEndEvent("Write image to disk");
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraticHexahedron.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkQuadraticHexahedron.h"
 
@@ -25,6 +13,9 @@
 #include "vtkQuadraticEdge.h"
 #include "vtkQuadraticQuad.h"
 
+#include <algorithm> //std::copy
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadraticHexahedron);
 
 //------------------------------------------------------------------------------
@@ -220,14 +211,23 @@ int vtkQuadraticHexahedron::EvaluatePosition(const double x[3], double closestPo
   double params[3] = { 0.5, 0.5, 0.5 };
   double derivs[60];
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   // compute a bound on the volume to get a scale for an acceptable determinant
   vtkIdType diagonals[4][2] = { { 0, 6 }, { 1, 7 }, { 2, 4 }, { 3, 5 } };
   double longestDiagonal = 0;
   for (int i = 0; i < 4; i++)
   {
-    double pt0[3], pt1[3];
-    this->Points->GetPoint(diagonals[i][0], pt0);
-    this->Points->GetPoint(diagonals[i][1], pt1);
+    const double *pt0, *pt1;
+    pt0 = pts + 3 * diagonals[i][0];
+    pt1 = pts + 3 * diagonals[i][1];
     double d2 = vtkMath::Distance2BetweenPoints(pt0, pt1);
     if (longestDiagonal < d2)
     {
@@ -235,7 +235,7 @@ int vtkQuadraticHexahedron::EvaluatePosition(const double x[3], double closestPo
     }
   }
   // longestDiagonal value is already squared
-  double volumeBound = pow(longestDiagonal, 1.5);
+  double volumeBound = longestDiagonal * std::sqrt(longestDiagonal);
   double determinantTolerance = 1e-20 < .00001 * volumeBound ? 1e-20 : .00001 * volumeBound;
 
   //  set initial position for Newton's method
@@ -255,8 +255,7 @@ int vtkQuadraticHexahedron::EvaluatePosition(const double x[3], double closestPo
            tcol[3] = { 0, 0, 0 };
     for (int i = 0; i < 20; i++)
     {
-      double pt[3];
-      this->Points->GetPoint(i, pt);
+      const double* pt = pts + 3 * i;
       for (int j = 0; j < 3; j++)
       {
         fcol[j] += pt[j] * weights[i];
@@ -360,14 +359,22 @@ void vtkQuadraticHexahedron::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i, j;
-  double pt[3];
+  const double* pt;
 
   vtkQuadraticHexahedron::InterpolationFunctions(pcoords, weights);
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
   x[0] = x[1] = x[2] = 0.0;
   for (i = 0; i < 20; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -482,235 +489,16 @@ int vtkQuadraticHexahedron::IntersectWithLine(
 }
 
 //------------------------------------------------------------------------------
-int vtkQuadraticHexahedron::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkQuadraticHexahedron::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  // results in 22 tets
-  ptIds->SetNumberOfIds(22 * 4);
-  pts->SetNumberOfPoints(22 * 4);
-
-  int p[4];
-  p[0] = 8;
-  p[1] = 11;
-  p[2] = 0;
-  p[3] = 16;
-  vtkIdType counter = 0;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 1;
-  p[1] = 9;
-  p[2] = 8;
-  p[3] = 17;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 2;
-  p[1] = 10;
-  p[2] = 9;
-  p[3] = 18;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 11;
-  p[1] = 8;
-  p[2] = 10;
-  p[3] = 12;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 10;
-  p[1] = 8;
-  p[2] = 9;
-  p[3] = 12;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 11;
-  p[1] = 10;
-  p[2] = 3;
-  p[3] = 19;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 12;
-  p[1] = 9;
-  p[2] = 10;
-  p[3] = 13;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 13;
-  p[1] = 10;
-  p[2] = 12;
-  p[3] = 14;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 11;
-  p[1] = 12;
-  p[2] = 10;
-  p[3] = 14;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 14;
-  p[1] = 11;
-  p[2] = 12;
-  p[3] = 15;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 12;
-  p[1] = 11;
-  p[2] = 8;
-  p[3] = 16;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 4;
-  p[1] = 15;
-  p[2] = 12;
-  p[3] = 16;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 15;
-  p[1] = 11;
-  p[2] = 12;
-  p[3] = 16;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 9;
-  p[1] = 12;
-  p[2] = 8;
-  p[3] = 17;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 12;
-  p[1] = 13;
-  p[2] = 5;
-  p[3] = 17;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 13;
-  p[1] = 12;
-  p[2] = 9;
-  p[3] = 17;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 13;
-  p[1] = 9;
-  p[2] = 10;
-  p[3] = 18;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 13;
-  p[1] = 14;
-  p[2] = 6;
-  p[3] = 18;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 14;
-  p[1] = 13;
-  p[2] = 10;
-  p[3] = 18;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 11;
-  p[1] = 14;
-  p[2] = 10;
-  p[3] = 19;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 14;
-  p[1] = 15;
-  p[2] = 7;
-  p[3] = 19;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-  p[0] = 15;
-  p[1] = 14;
-  p[2] = 11;
-  p[3] = 19;
-  for (int i = 0; i < 4; i++)
-  {
-    ptIds->SetId(counter, this->PointIds->GetId(p[i]));
-    pts->SetPoint(counter, this->Points->GetPoint(p[i]));
-    counter++;
-  }
-
+  ptIds->SetNumberOfIds(88);
+  constexpr vtkIdType localPtIds[22][4] = { { 8, 11, 0, 16 }, { 1, 9, 8, 17 }, { 2, 10, 9, 18 },
+    { 11, 8, 10, 12 }, { 10, 8, 9, 12 }, { 11, 10, 3, 19 }, { 12, 9, 10, 13 }, { 13, 10, 12, 14 },
+    { 11, 12, 10, 14 }, { 14, 11, 12, 15 }, { 12, 11, 8, 16 }, { 4, 15, 12, 16 },
+    { 15, 11, 12, 16 }, { 9, 12, 8, 17 }, { 12, 13, 5, 17 }, { 13, 12, 9, 17 }, { 13, 9, 10, 18 },
+    { 13, 14, 6, 18 }, { 14, 13, 10, 18 }, { 11, 14, 10, 19 }, { 14, 15, 7, 19 },
+    { 15, 14, 11, 19 } };
+  std::copy(&localPtIds[0][0], &localPtIds[0][0] + 88, ptIds->begin());
   return 1;
 }
 
@@ -992,3 +780,4 @@ void vtkQuadraticHexahedron::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Scalars:\n";
   this->Scalars->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

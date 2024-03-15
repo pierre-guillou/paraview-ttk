@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    PyVTKSpecialObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*-----------------------------------------------------------------------
   The PyVTKSpecialObject was created in Feb 2001 by David Gobbi.
   The PyVTKSpecialType class was created in April 2010 by David Gobbi.
@@ -20,6 +8,7 @@
 #ifndef PyVTKSpecialObject_h
 #define PyVTKSpecialObject_h
 
+#include "vtkABINamespace.h"
 #include "vtkPython.h"
 #include "vtkSystemIncludes.h"
 #include "vtkWrappingPythonCoreModule.h" // For export macro
@@ -33,6 +22,7 @@ typedef void* (*vtkcopyfunc)(const void*);
 
 // Because the PyTypeObject can't hold all the typing information that we
 // need, we use this PyVTKSpecialType class to hold a bit of extra info.
+VTK_ABI_NAMESPACE_BEGIN
 class VTKWRAPPINGPYTHONCORE_EXPORT PyVTKSpecialType
 {
 public:
@@ -65,6 +55,7 @@ struct PyVTKSpecialObject
   void* vtk_ptr;
   long vtk_hash;
 };
+VTK_ABI_NAMESPACE_END
 
 extern "C"
 {
@@ -86,3 +77,4 @@ extern "C"
 }
 
 #endif
+/* VTK-HeaderTest-Exclude: PyVTKSpecialObject.h */

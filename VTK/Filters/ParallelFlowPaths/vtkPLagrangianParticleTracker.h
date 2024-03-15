@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLagrangianParticleTracker.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPLagrangianParticleTracker
  * @brief    parallel Lagrangian particle tracker
@@ -43,6 +31,7 @@
 
 #include <map> // for std::map
 
+VTK_ABI_NAMESPACE_BEGIN
 class ParticleFeedManager;
 class ParticleIdManager;
 class ParticleStreamManager;
@@ -73,7 +62,7 @@ protected:
    * Worker flag working : the worker has at least one particle in it's queue and
       is currently integrating it.
    * Worker flag empty : the worker has no more particle in it's queue and is
-       activelly waiting for more particle to integrate from other ranks.
+       actively waiting for more particle to integrate from other ranks.
    * Worker flag finished : the worker has received a master empty flag and after
        checking one last time, still doesn't have any particle to integrate. It is
        now just waiting for master to send the master finished flag.
@@ -137,4 +126,5 @@ private:
   vtkPLagrangianParticleTracker(const vtkPLagrangianParticleTracker&) = delete;
   void operator=(const vtkPLagrangianParticleTracker&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

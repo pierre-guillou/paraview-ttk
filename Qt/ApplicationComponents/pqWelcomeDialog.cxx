@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqWelcomeDialog.h"
 #include "ui_pqWelcomeDialog.h"
 
@@ -21,6 +23,8 @@ pqWelcomeDialog::pqWelcomeDialog(QWidget* parentObject)
   , ui(new Ui::pqWelcomeDialog)
 {
   ui->setupUi(this);
+  // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 
   QObject::connect(this->ui->DoNotShowAgainButton, SIGNAL(stateChanged(int)), this,
     SLOT(onDoNotShowAgainStateChanged(int)));

@@ -18,6 +18,7 @@
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/UnknownCellSet.h>
 #include <vtkm/worklet/DispatcherMapTopology.h>
+#include <vtkm/worklet/ScatterCounting.h>
 #include <vtkm/worklet/WorkletMapField.h>
 #include <vtkm/worklet/WorkletMapTopology.h>
 
@@ -47,7 +48,7 @@ public:
                                   FieldOut ptsPerPolyline,
                                   FieldOut ptsPerTube,
                                   FieldOut numTubeConnIds,
-                                  FieldOut linesPerPolyline);
+                                  FieldOut validCell);
     using ExecutionSignature = void(CellShape shapeType,
                                     PointCount numPoints,
                                     PointIndices ptIndices,
@@ -56,7 +57,7 @@ public:
                                     _4 ptsPerPolyline,
                                     _5 ptsPerTube,
                                     _6 numTubeConnIds,
-                                    _7 linesPerPolyline);
+                                    _7 validCell);
     using InputDomain = _1;
 
     template <typename CellShapeTag, typename PointIndexType, typename InPointsType>
@@ -68,11 +69,13 @@ public:
                               vtkm::Id& ptsPerPolyline,
                               vtkm::Id& ptsPerTube,
                               vtkm::Id& numTubeConnIds,
-                              vtkm::Id& linesPerPolyline) const
+                              vtkm::Id& validCell) const
     {
       // We only support polylines that contain 2 or more points.
       vtkm::IdComponent numNonCoincidentPoints = 1;
       vtkm::Vec3f p = inPts.Get(ptIndices[0]);
+
+      validCell = 0;
       for (int i = 1; i < numPoints; ++i)
       {
         vtkm::Vec3f pNext = inPts.Get(ptIndices[i]);
@@ -80,6 +83,7 @@ public:
         {
           numNonCoincidentPoints++;
           p = pNext;
+          validCell = 1;
         }
       }
 
@@ -90,7 +94,6 @@ public:
         ptsPerTube = this->NumSides * numNonCoincidentPoints;
         // (two tris per segment) X (numSides) X numVertsPerCell
         numTubeConnIds = (numNonCoincidentPoints - 1) * 2 * this->NumSides * this->NumVertsPerCell;
-        linesPerPolyline = numNonCoincidentPoints - 1;
 
         //Capping adds center vertex in middle of cap, plus NumSides triangles for cap.
         if (this->Capping)
@@ -101,11 +104,11 @@ public:
       }
       else
       {
+        validCell = 0;
         ptsPerPolyline = 0;
         nonIncidentPtsPerPolyline = 0;
         ptsPerTube = 0;
         numTubeConnIds = 0;
-        linesPerPolyline = 0;
       }
     }
 
@@ -138,7 +141,12 @@ public:
                                     _3 polylineOffset,
                                     _4 outNormals);
     using InputDomain = _1;
-
+    using ScatterType = vtkm::worklet::ScatterCounting;
+    VTKM_CONT
+    static ScatterType MakeScatter(const vtkm::cont::ArrayHandle<vtkm::Id>& validCell)
+    {
+      return ScatterType(validCell);
+    }
 
     template <typename InPointsType, typename PointIndexType>
     VTKM_EXEC vtkm::IdComponent FindValidSegment(const InPointsType& inPts,
@@ -151,7 +159,7 @@ public:
       while (end < numPoints)
       {
         auto pe = inPts.Get(ptIndices[end]);
-        if (vtkm::Magnitude(pe - ps) > 0)
+        if (vtkm::Magnitude(pe - ps) > vtkm::Epsilon<vtkm::FloatDefault>())
           return end - 1;
         end++;
       }
@@ -309,6 +317,12 @@ public:
                                     _7 outPts,
                                     _8 outPointSrcIdx);
     using InputDomain = _1;
+    using ScatterType = vtkm::worklet::ScatterCounting;
+    VTKM_CONT
+    static ScatterType MakeScatter(const vtkm::cont::ArrayHandle<vtkm::Id>& validCell)
+    {
+      return ScatterType(validCell);
+    }
 
     template <typename CellShapeTag,
               typename PointIndexType,
@@ -462,24 +476,23 @@ public:
                                   FieldInCell ptsPerPolyline,
                                   FieldInCell tubePointOffsets,
                                   FieldInCell tubeConnOffsets,
-                                  FieldInCell segOffset,
                                   WholeArrayOut outConnectivity,
                                   WholeArrayOut outCellSrcIdx);
     using ExecutionSignature = void(CellShape shapeType,
+                                    InputIndex inCellIndex,
                                     _2 ptsPerPolyline,
                                     _3 tubePointOffset,
                                     _4 tubeConnOffsets,
-                                    _5 segOffset,
-                                    _6 outConn,
-                                    _7 outCellSrcIdx);
+                                    _5 outConn,
+                                    _6 outCellSrcIdx);
     using InputDomain = _1;
 
     template <typename CellShapeTag, typename OutConnType, typename OutCellSrcIdxType>
     VTKM_EXEC void operator()(const CellShapeTag& shapeType,
+                              vtkm::Id inCellIndex,
                               const vtkm::IdComponent& numPoints,
                               const vtkm::Id& tubePointOffset,
                               const vtkm::Id& tubeConnOffset,
-                              const vtkm::Id& segOffset,
                               OutConnType& outConn,
                               OutCellSrcIdxType& outCellSrcIdx) const
     {
@@ -498,7 +511,7 @@ public:
             outConn.Set(outIdx + 1, tubePtOffset + i * this->NumSides + (j + 1) % this->NumSides);
             outConn.Set(outIdx + 2,
                         tubePtOffset + (i + 1) * this->NumSides + (j + 1) % this->NumSides);
-            outCellSrcIdx.Set(outIdx / 3, segOffset + static_cast<vtkm::Id>(i));
+            outCellSrcIdx.Set(outIdx / 3, inCellIndex);
             outIdx += 3;
 
             //Triangle 2: verts 0,2,3
@@ -506,7 +519,7 @@ public:
             outConn.Set(outIdx + 1,
                         tubePtOffset + (i + 1) * this->NumSides + (j + 1) % this->NumSides);
             outConn.Set(outIdx + 2, tubePtOffset + (i + 1) * this->NumSides + j);
-            outCellSrcIdx.Set(outIdx / 3, segOffset + static_cast<vtkm::Id>(i));
+            outCellSrcIdx.Set(outIdx / 3, inCellIndex);
             outIdx += 3;
           }
         }
@@ -520,7 +533,7 @@ public:
             outConn.Set(outIdx + 0, startCenterPt);
             outConn.Set(outIdx + 1, startCenterPt + 1 + j);
             outConn.Set(outIdx + 2, startCenterPt + 1 + ((j + 1) % this->NumSides));
-            outCellSrcIdx.Set(outIdx / 3, segOffset);
+            outCellSrcIdx.Set(outIdx / 3, inCellIndex);
             outIdx += 3;
           }
 
@@ -533,7 +546,7 @@ public:
             outConn.Set(outIdx + 0, endCenterPt);
             outConn.Set(outIdx + 1, endOffsetPt + j);
             outConn.Set(outIdx + 2, endOffsetPt + ((j + 1) % this->NumSides));
-            outCellSrcIdx.Set(outIdx / 3, segOffset + static_cast<vtkm::Id>(numPoints - 2));
+            outCellSrcIdx.Set(outIdx / 3, inCellIndex);
             outIdx += 3;
           }
         }
@@ -603,7 +616,7 @@ public:
     }
 
     //Count number of polyline pts, tube pts and tube cells
-    vtkm::cont::ArrayHandle<vtkm::Id> ptsPerPolyline, ptsPerTube, numTubeConnIds, segPerPolyline;
+    vtkm::cont::ArrayHandle<vtkm::Id> ptsPerPolyline, ptsPerTube, numTubeConnIds, validCell;
     vtkm::cont::ArrayHandle<vtkm::IdComponent> nonIncidentPtsPerPolyline;
     CountSegments countSegs(this->Capping, this->NumSides);
     vtkm::worklet::DispatcherMapTopology<CountSegments> countInvoker(countSegs);
@@ -613,7 +626,7 @@ public:
                         ptsPerPolyline,
                         ptsPerTube,
                         numTubeConnIds,
-                        segPerPolyline);
+                        validCell);
 
     vtkm::Id totalPolylinePts = vtkm::cont::Algorithm::Reduce(ptsPerPolyline, vtkm::Id(0));
     if (totalPolylinePts == 0)
@@ -624,26 +637,27 @@ public:
     vtkm::Id totalTubeCells = totalTubeConnIds / 3;
 
     vtkm::cont::ArrayHandle<vtkm::Id> polylinePtOffset, nonIncidentPolylinePtOffset,
-      tubePointOffsets, tubeConnOffsets, segOffset;
+      tubePointOffsets, tubeConnOffsets;
     vtkm::cont::Algorithm::ScanExclusive(ptsPerPolyline, polylinePtOffset);
     vtkm::cont::Algorithm::ScanExclusive(
       vtkm::cont::make_ArrayHandleCast<vtkm::Id>(nonIncidentPtsPerPolyline),
       nonIncidentPolylinePtOffset);
     vtkm::cont::Algorithm::ScanExclusive(ptsPerTube, tubePointOffsets);
     vtkm::cont::Algorithm::ScanExclusive(numTubeConnIds, tubeConnOffsets);
-    vtkm::cont::Algorithm::ScanExclusive(segPerPolyline, segOffset);
 
     //Generate normals at each point on all polylines
     NormalsType normals;
     normals.Allocate(totalPolylinePts);
-    vtkm::worklet::DispatcherMapTopology<GenerateNormals> genNormalsDisp;
+    vtkm::worklet::DispatcherMapTopology<GenerateNormals> genNormalsDisp(
+      GenerateNormals::MakeScatter(validCell));
     genNormalsDisp.Invoke(cellset, coords, polylinePtOffset, normals);
 
     //Generate the tube points
     newPoints.Allocate(totalTubePts);
     this->OutputPointSourceIndex.Allocate(totalTubePts);
     GeneratePoints genPts(this->Capping, this->NumSides, this->Radius);
-    vtkm::worklet::DispatcherMapTopology<GeneratePoints> genPtsDisp(genPts);
+    vtkm::worklet::DispatcherMapTopology<GeneratePoints> genPtsDisp(
+      genPts, GeneratePoints::MakeScatter(validCell));
     genPtsDisp.Invoke(cellset,
                       coords,
                       normals,
@@ -663,34 +677,9 @@ public:
                         nonIncidentPtsPerPolyline,
                         tubePointOffsets,
                         tubeConnOffsets,
-                        segOffset,
                         newConnectivity,
                         this->OutputCellSourceIndex);
     newCells.Fill(totalTubePts, vtkm::CELL_SHAPE_TRIANGLE, 3, newConnectivity);
-  }
-
-  template <typename T, typename StorageType>
-  vtkm::cont::ArrayHandle<T> ProcessPointField(
-    const vtkm::cont::ArrayHandle<T, StorageType>& input) const
-  {
-    vtkm::cont::ArrayHandle<T> output;
-    vtkm::worklet::DispatcherMapField<MapField> mapFieldDisp;
-
-    output.Allocate(this->OutputPointSourceIndex.GetNumberOfValues());
-    mapFieldDisp.Invoke(this->OutputPointSourceIndex, input, output);
-    return output;
-  }
-
-  template <typename T, typename StorageType>
-  vtkm::cont::ArrayHandle<T> ProcessCellField(
-    const vtkm::cont::ArrayHandle<T, StorageType>& input) const
-  {
-    vtkm::cont::ArrayHandle<T> output;
-    vtkm::worklet::DispatcherMapField<MapField> mapFieldDisp;
-
-    output.Allocate(this->OutputCellSourceIndex.GetNumberOfValues());
-    mapFieldDisp.Invoke(this->OutputCellSourceIndex, input, output);
-    return output;
   }
 
   vtkm::cont::ArrayHandle<vtkm::Id> GetOutputCellSourceIndex() const

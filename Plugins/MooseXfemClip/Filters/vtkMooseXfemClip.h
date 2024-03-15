@@ -1,18 +1,7 @@
-/*=========================================================================
-
-  Module:    vtkMooseXfemClip.h
-  Copyright (c) 2017 Battelle Energy Alliance, LLC
-
-  Based on Visualization Toolkit
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2017 Battelle Energy Alliance, LLC
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkMooseXfemClip
  * @brief Clip partial elements produced by MOOSE xfem module
@@ -54,7 +43,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the desired precision for the output types. See the documentation
    * for the vtkAlgorithm::DesiredOutputPrecision enum for an explanation of
@@ -62,7 +51,7 @@ public:
    */
   vtkSetClampMacro(OutputPointsPrecision, int, SINGLE_PRECISION, DEFAULT_PRECISION);
   vtkGetMacro(OutputPointsPrecision, int);
-  //@}
+  ///@}
 
   /**
    * Create default locator. Used to create one when none is specified. The

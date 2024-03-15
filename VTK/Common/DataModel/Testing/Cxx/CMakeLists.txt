@@ -28,6 +28,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestComputeBoundingSphere.cxx
   TestDataAssembly.cxx
   TestDataAssemblyUtilities.cxx
+  TestDataSetAttributes.cxx
   TestDataObject.cxx
   TestDataObjectTreeRange.cxx
   TestFieldList.cxx
@@ -37,11 +38,13 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestGraphAttributes.cxx
   TestHigherOrderCell.cxx
   TestHyperTreeGridBitmask.cxx
+  TestHyperTreeGridCursors.cxx
   TestHyperTreeGridElderChildIndex.cxx
   TestImageDataFindCell.cxx
   TestImageDataInterpolation.cxx
   TestImageDataOrientation.cxx
   TestImageIterator.cxx
+  TestInformationDataObjectKey.cxx
   TestInterpolationDerivs.cxx
   TestInterpolationFunctions.cxx
   TestMappedGridDeepCopy.cxx
@@ -61,6 +64,8 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestPolyhedronCombinatorialContouring.cxx
   TestPolyhedronConvexity.cxx
   TestPolyhedronConvexityMultipleCells.cxx
+  TestPolyhedronTriangulateFaces.cxx
+  TestPyramid.cxx
   TestQuadraticPolygon.cxx
   TestRect.cxx
   TestSMPFeatures.cxx
@@ -79,9 +84,11 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   otherCellBoundaries.cxx
   otherCellPosition.cxx
   otherCellTypes.cxx
+  otherCellGrid.cxx
   otherColorTransferFunction.cxx
   otherEmptyCell.cxx
   otherFieldData.cxx
+  otherHyperTreeGrid.cxx
   otherImageData.cxx
   otherPolyData.cxx
   otherRectilinearGrid.cxx
@@ -117,8 +124,10 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests data_tests
   TestMeanValueCoordinatesInterpolation1.cxx
   TestMeanValueCoordinatesInterpolation2.cxx
   TestPolyhedron4.cxx,NO_VALID,NO_OUTPUT
+  TestPolyhedronDecompose.cxx,NO_DATA
   TestSmoothErrorMetric.cxx
   TestQuadraticPolygonFilters.cxx
+  TestNonlinearSubdivisionOfDegenerateCells.cxx,NO_DATA
   )
 # add to the list but don't define a test
 list(APPEND data_tests
@@ -135,7 +144,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests output_tests
 ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
   NAME VTK::CommonDataModelCxxTests-TestCellLocatorsEdgeCases
   COMMAND vtkCommonDataModelCxxTests TestCellLocatorsEdgeCases
-  DATA{../Data/test_surface.vtp}
+  DATA{../Data/test_surface.vtp} DATA{../Data/cone.vtp}
   )
 ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
   NAME VTK::CommonDataModelCxxTests-TestPolyhedron2

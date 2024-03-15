@@ -142,52 +142,12 @@ void InitializeCustomOptionsWithArgs()
   CheckArgs(argc, argv, "--foo", "bar", "--baz");
 }
 
-void InitializeDeprecatedOptionsWithArgs()
-{
-  std::cout << "Calling program has option --foo that takes arg bar." << std::endl;
-
-  int argc;
-  char** argv;
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
-    argc, argv, "--device", "Any", "--foo=bar", "--baz");
-  vtkm::cont::Initialize(argc, argv);
-  CheckArgs(argc, argv, "--foo=bar", "--baz");
-
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
-    argc, argv, "--foo=bar", "--baz", "--device", "Any");
-  vtkm::cont::Initialize(argc, argv);
-  CheckArgs(argc, argv, "--foo=bar", "--baz");
-
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
-    argc, argv, "-d", "Any", "--foo", "bar", "--baz");
-  vtkm::cont::Initialize(argc, argv);
-  CheckArgs(argc, argv, "--foo", "bar", "--baz");
-
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
-    argc, argv, "--foo", "bar", "--baz", "-d", "Any");
-  vtkm::cont::Initialize(argc, argv);
-  CheckArgs(argc, argv, "--foo", "bar", "--baz");
-
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
-    argc, argv, "--foo", "-v", "OFF", "--", "--device", "Any", "--bar", "baz");
-  vtkm::cont::Initialize(argc, argv);
-  CheckArgs(argc, argv, "--foo", "--", "--device", "Any", "--bar", "baz");
-}
-
 void InitializeRuntimeDeviceConfigurationWithArgs()
 {
   int argc;
   char** argv;
-  vtkm::cont::testing::Testing::MakeArgsAddProgramName(argc,
-                                                       argv,
-                                                       "--device",
-                                                       "Any",
-                                                       "--vtkm-num-threads",
-                                                       "100",
-                                                       "--vtkm-numa-regions",
-                                                       "4",
-                                                       "--vtkm-device-instance",
-                                                       "2");
+  vtkm::cont::testing::Testing::MakeArgsAddProgramName(
+    argc, argv, "--vtkm-device", "Any", "--vtkm-num-threads", "100", "--vtkm-device-instance", "2");
   vtkm::cont::Initialize(argc, argv);
   CheckArgs(argc, argv);
 }
@@ -199,7 +159,7 @@ void InitializeWithHelp()
   int argc;
   char** argv;
   vtkm::cont::testing::Testing::MakeArgsAddProgramName(argc, argv, "--vtkm-help");
-  vtkm::cont::Initialize(argc, argv, vtkm::cont::InitializeOptions::AddHelp);
+  vtkm::cont::Initialize(argc, argv);
 
   VTKM_TEST_FAIL("Help argument did not exit as expected.");
 }
@@ -217,7 +177,6 @@ void DoInitializeTests()
   InitializeCustomOptions();
   InitializeMixedOptions();
   InitializeCustomOptionsWithArgs();
-  InitializeDeprecatedOptionsWithArgs();
   InitializeRuntimeDeviceConfigurationWithArgs();
 
   // This should be the last function called as it should exit with a zero status.

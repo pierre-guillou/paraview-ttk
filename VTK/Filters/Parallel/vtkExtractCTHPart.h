@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractCTHPart.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractCTHPart
  * @brief   Generates surface of a CTH volume fraction.
@@ -44,6 +32,7 @@
 #include "vtkMultiBlockDataSetAlgorithm.h"
 #include "vtkSmartPointer.h" // for using smartpointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAppendPolyData;
 class vtkContourFilter;
 class vtkDataArray;
@@ -179,7 +168,7 @@ protected:
    */
   vtkSmartPointer<vtkDataSet> ExtractSolid(vtkCompositeDataSet* input, const char* arrayName);
 
-  void ExecuteFaceQuads(vtkDataSet* input, vtkPolyData* output, int maxFlag, int originExtents[3],
+  void ExecuteFaceQuads(vtkDataSet* input, vtkPolyData* output, int maxFlag, int originExtents[6],
     int ext[6], int aAxis, int bAxis, int cAxis);
 
   /**
@@ -256,4 +245,5 @@ private:
   friend class ScaledProgress;
   vtkExtractCTHPartInternal* Internals;
 };
+VTK_ABI_NAMESPACE_END
 #endif

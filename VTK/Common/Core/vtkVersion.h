@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVersion.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVersion
  * @brief   Versioning class for vtk
@@ -31,6 +19,7 @@
 #include "vtkObject.h"
 #include "vtkVersionMacros.h" // For version macros
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkVersion : public vtkObject
 {
 public:
@@ -64,4 +53,5 @@ extern "C"
   VTKCOMMONCORE_EXPORT const char* GetVTKVersion();
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

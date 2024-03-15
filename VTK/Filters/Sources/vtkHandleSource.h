@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHandleSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHandleSource
  * @brief   interface that can be inherited to define handler sources for any kind of interaction.
@@ -30,6 +18,7 @@
 #include "vtkFiltersSourcesModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkHandleSource : public vtkPolyDataAlgorithm
 {
 public:
@@ -97,7 +86,7 @@ public:
 
 protected:
   vtkHandleSource();
-  virtual ~vtkHandleSource() override = default;
+  ~vtkHandleSource() override = default;
 
   // Flag to indicate if the handle should be aware of any direction.
   bool Directional = false;
@@ -105,4 +94,5 @@ protected:
   double Size = 0.5;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

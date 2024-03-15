@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransformTextureCoords.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTransformTextureCoords.h"
 
 #include "vtkDataSet.h"
@@ -22,6 +10,7 @@
 #include "vtkPointData.h"
 #include "vtkTransform.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTransformTextureCoords);
 
 // Create instance with Origin (0.5,0.5,0.5); Position (0,0,0); and Scale
@@ -179,3 +168,4 @@ void vtkTransformTextureCoords::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FlipS: " << (this->FlipS ? "On\n" : "Off\n");
   os << indent << "FlipT: " << (this->FlipT ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

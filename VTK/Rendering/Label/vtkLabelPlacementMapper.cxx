@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabelPlacementMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkLabelPlacementMapper.h"
 
@@ -46,6 +30,7 @@
 #include "vtkTransformCoordinateSystems.h"
 
 // From: http://www.flipcode.com/archives/2D_OBB_Intersection.shtml
+VTK_ABI_NAMESPACE_BEGIN
 class LabelRect
 {
 public:
@@ -601,7 +586,9 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
   unsigned long allowableLabelArea = static_cast<unsigned long>(
     ((kdbounds[1] - kdbounds[0]) * (kdbounds[3] - kdbounds[2])) * this->MaximumLabelFraction);
   (void)allowableLabelArea;
+#ifndef NDEBUG
   unsigned long renderedLabelArea = 0;
+#endif
   double camVec[3];
   if (this->PositionsAsNormals)
   {
@@ -780,9 +767,11 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
       // Render it
       this->RenderStrategy->RenderLabel(origin, tpropCopy, inIter->GetLabel(), width);
 
+#ifndef NDEBUG
       int renderedHeight = static_cast<int>(bds[3] - bds[2]);
       int renderedWidth = static_cast<int>((bds[1] - bds[0] < width) ? (bds[1] - bds[0]) : width);
       renderedLabelArea += static_cast<unsigned long>(renderedWidth * renderedHeight);
+#endif
       continue;
     }
 
@@ -821,7 +810,9 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
     {
       r.Render(ren, this->Shape, this->Style, this->Margin, this->BackgroundColor,
         this->BackgroundOpacity);
+#ifndef NDEBUG
       renderedLabelArea += static_cast<unsigned long>(sz[0] * sz[1]);
+#endif
       if (labelType == 0)
       {
         // label is text
@@ -865,7 +856,9 @@ void vtkLabelPlacementMapper::RenderOverlay(vtkViewport* viewport, vtkActor2D* v
 
   vtkDebugMacro("------");
   vtkDebugMacro("Placed: " << placed);
+  (void)placed;
   vtkDebugMacro("Labels Occluded: " << occluded);
+  (void)occluded;
 
   delete[] zPtr;
 
@@ -903,3 +896,4 @@ void vtkLabelPlacementMapper::PrintSelf(ostream& os, vtkIndent indent)
      << this->BackgroundColor[1] << ", " << this->BackgroundColor[2] << endl;
   os << indent << "BackgroundOpacity: " << this->BackgroundOpacity << "\n";
 }
+VTK_ABI_NAMESPACE_END

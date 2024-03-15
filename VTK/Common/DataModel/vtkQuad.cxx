@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuad.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQuad.h"
 
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkDoubleArray.h"
 #include "vtkIncrementalPointLocator.h"
 #include "vtkLine.h"
 #include "vtkMath.h"
@@ -25,6 +14,10 @@
 #include "vtkPoints.h"
 #include "vtkTriangle.h"
 
+#include <algorithm> //std::copy
+#include <array>
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuad);
 
 static const double VTK_DIVERGED = 1.e6;
@@ -87,7 +80,7 @@ static const int VTK_QUAD_MAX_ITERATION = 20;
 static const double VTK_QUAD_CONVERGED = 1.e-04;
 
 inline static void ComputeNormal(
-  vtkQuad* self, double pt1[3], double pt2[3], double pt3[3], double n[3])
+  vtkQuad* self, const double* pt1, const double* pt2, const double* pt3, double n[3])
 {
   vtkTriangle::ComputeNormal(pt1, pt2, pt3, n);
 
@@ -106,7 +99,8 @@ int vtkQuad::EvaluatePosition(const double x[3], double closestPoint[3], int& su
   double pcoords[3], double& dist2, double weights[])
 {
   int i, j;
-  double pt1[3], pt2[3], pt3[3], pt[3], n[3];
+  const double *pt1, *pt2, *pt3, *pt;
+  double n[3];
   double det;
   double maxComponent;
   int idx = 0, indices[2];
@@ -119,11 +113,20 @@ int vtkQuad::EvaluatePosition(const double x[3], double closestPoint[3], int& su
   pcoords[0] = pcoords[1] = params[0] = params[1] = 0.5;
   pcoords[2] = 0.0;
 
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   // Get normal for quadrilateral
   //
-  this->Points->GetPoint(0, pt1);
-  this->Points->GetPoint(1, pt2);
-  this->Points->GetPoint(2, pt3);
+  pt1 = pts;
+  pt2 = pts + 3;
+  pt3 = pts + 6;
   ComputeNormal(this, pt1, pt2, pt3, n);
 
   // Project point to plane
@@ -167,7 +170,7 @@ int vtkQuad::EvaluatePosition(const double x[3], double closestPoint[3], int& su
     }
     for (i = 0; i < 4; i++)
     {
-      this->Points->GetPoint(i, pt);
+      pt = pts + 3 * i;
       for (j = 0; j < 2; j++)
       {
         fcol[j] += pt[indices[j]] * weights[i];
@@ -237,11 +240,11 @@ int vtkQuad::EvaluatePosition(const double x[3], double closestPoint[3], int& su
   else
   {
     double t;
-    double pt4[3];
+    const double* pt4;
 
     if (closestPoint)
     {
-      this->Points->GetPoint(3, pt4);
+      pt4 = pts + 9;
 
       if (pcoords[0] < 0.0 && pcoords[1] < 0.0)
       {
@@ -301,14 +304,23 @@ void vtkQuad::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i, j;
-  double pt[3];
+  const double* pt;
 
   vtkQuad::InterpolationFunctions(pcoords, weights);
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   x[0] = x[1] = x[2] = 0.0;
   for (i = 0; i < 4; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -672,50 +684,24 @@ int vtkQuad::IntersectWithLine(const double p1[3], const double p2[3], double to
 }
 
 //------------------------------------------------------------------------------
-int vtkQuad::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkQuad::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  double d1, d2;
+  // The base of the pyramid must be split into two triangles.  There are two
+  // ways to do this (across either diagonal).  Pick the shorter diagonal.
+  double d1 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(0), this->Points->GetPoint(2));
+  double d2 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(1), this->Points->GetPoint(3));
 
-  pts->Reset();
-  ptIds->Reset();
-
-  // use minimum diagonal (Delaunay triangles) - assumed convex
-  d1 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(0), this->Points->GetPoint(2));
-  d2 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(1), this->Points->GetPoint(3));
-
+  ptIds->SetNumberOfIds(6);
   if (d1 <= d2)
   {
-    ptIds->InsertId(0, this->PointIds->GetId(0));
-    pts->InsertPoint(0, this->Points->GetPoint(0));
-    ptIds->InsertId(1, this->PointIds->GetId(1));
-    pts->InsertPoint(1, this->Points->GetPoint(1));
-    ptIds->InsertId(2, this->PointIds->GetId(2));
-    pts->InsertPoint(2, this->Points->GetPoint(2));
-
-    ptIds->InsertId(3, this->PointIds->GetId(0));
-    pts->InsertPoint(3, this->Points->GetPoint(0));
-    ptIds->InsertId(4, this->PointIds->GetId(2));
-    pts->InsertPoint(4, this->Points->GetPoint(2));
-    ptIds->InsertId(5, this->PointIds->GetId(3));
-    pts->InsertPoint(5, this->Points->GetPoint(3));
+    constexpr std::array<vtkIdType, 6> localPtIds{ 0, 1, 2, 0, 2, 3 };
+    std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   }
   else
   {
-    ptIds->InsertId(0, this->PointIds->GetId(0));
-    pts->InsertPoint(0, this->Points->GetPoint(0));
-    ptIds->InsertId(1, this->PointIds->GetId(1));
-    pts->InsertPoint(1, this->Points->GetPoint(1));
-    ptIds->InsertId(2, this->PointIds->GetId(3));
-    pts->InsertPoint(2, this->Points->GetPoint(3));
-
-    ptIds->InsertId(3, this->PointIds->GetId(1));
-    pts->InsertPoint(3, this->Points->GetPoint(1));
-    ptIds->InsertId(4, this->PointIds->GetId(2));
-    pts->InsertPoint(4, this->Points->GetPoint(2));
-    ptIds->InsertId(5, this->PointIds->GetId(3));
-    pts->InsertPoint(5, this->Points->GetPoint(3));
+    constexpr std::array<vtkIdType, 6> localPtIds{ 0, 1, 3, 1, 2, 3 };
+    std::copy(localPtIds.begin(), localPtIds.end(), ptIds->begin());
   }
-
   return 1;
 }
 
@@ -1020,3 +1006,4 @@ void vtkQuad::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Triangle:\n";
   this->Triangle->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

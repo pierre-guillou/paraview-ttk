@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPixelBufferObject.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPixelBufferObject.h"
 
 #include "vtk_glew.h"
@@ -32,6 +20,7 @@
 
 // Mapping from Usage values to OpenGL values.
 
+VTK_ABI_NAMESPACE_BEGIN
 static const GLenum OpenGLBufferObjectUsage[9] = { GL_STREAM_DRAW, GL_STREAM_READ, GL_STREAM_COPY,
   GL_STATIC_DRAW, GL_STATIC_READ, GL_STATIC_COPY, GL_DYNAMIC_DRAW, GL_DYNAMIC_READ,
   GL_DYNAMIC_COPY };
@@ -50,6 +39,7 @@ const GLenum OpenGLBufferObjectAccess[2] = {
 
 // targets
 const GLenum OpenGLBufferObjectTarget[2] = { GL_PIXEL_UNPACK_BUFFER, GL_PIXEL_PACK_BUFFER };
+VTK_ABI_NAMESPACE_END
 
 #ifdef VTK_PBO_DEBUG
 #include <pthread.h> // for debugging with MPI, pthread_self()
@@ -57,6 +47,7 @@ const GLenum OpenGLBufferObjectTarget[2] = { GL_PIXEL_UNPACK_BUFFER, GL_PIXEL_PA
 
 // converting double to float behind the
 // scene so we need sizeof(double)==4
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 class vtksizeof
 {
@@ -692,3 +683,4 @@ void vtkPixelBufferObject::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "VTK Type: " << vtkImageScalarTypeNameMacro(this->Type) << endl;
   os << indent << "Usage:" << BufferObjectUsageAsString[this->Usage] << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEdgeCenters.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEdgeCenters.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkEdgeCenters);
 
 // Construct object with vertex cell generation turned off.
@@ -188,3 +177,4 @@ void vtkEdgeCenters::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Vertex Cells: " << (this->VertexCells ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

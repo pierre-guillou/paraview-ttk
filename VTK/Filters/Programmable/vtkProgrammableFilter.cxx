@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProgrammableFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProgrammableFilter.h"
 
 #include "vtkCompositeDataIterator.h"
@@ -29,10 +17,13 @@
 #include "vtkTable.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProgrammableFilter);
+VTK_ABI_NAMESPACE_END
 
 namespace details
 {
+VTK_ABI_NAMESPACE_BEGIN
 // CopyStructure is not defined at vtkDataObject level.
 // Use template to downcast and forward call.
 template <class DataType>
@@ -44,7 +35,7 @@ void copyStructure(vtkDataObject* dataIn, vtkDataObject* dataOut)
   {
     out->CopyStructure(in);
   }
-};
+}
 
 void initializeOutput(vtkDataObject* objInput, vtkDataObject* objOutput, bool copyArrays)
 {
@@ -73,7 +64,10 @@ void initializeOutput(vtkDataObject* objInput, vtkDataObject* objOutput, bool co
     }
   }
 }
-};
+VTK_ABI_NAMESPACE_END
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 
 // Construct programmable filter with empty execute method.
 vtkProgrammableFilter::vtkProgrammableFilter()
@@ -251,3 +245,4 @@ void vtkProgrammableFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "CopyArrays: " << this->CopyArrays << endl;
 }
+VTK_ABI_NAMESPACE_END

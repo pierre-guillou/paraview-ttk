@@ -36,7 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "QtTestingExport.h"
 #include <QObject>
 #include <QRect>
-#include <QRegExp>
+#include <QRegularExpression>
 
 class pqEventComment;
 class pqTestUtility;
@@ -88,12 +88,18 @@ public:
   /// Return the pqEventComment, to be able to add any comment events
   pqEventComment* eventComment() const;
 
-  /// Adds a Qt object to a list of objects that should be ignored when
-  /// translating events which command is equivalent to the regexp
+  /// Adds @a object to a list of objects that will be ignored when
+  /// translating events that have a command matching @a commandFilter
   /// (useful to prevent recording UI events from being
   /// captured as part of the recording)
-  void ignoreObject(
-    QObject* object, QRegExp commandFilter = QRegExp("*", Qt::CaseInsensitive, QRegExp::Wildcard));
+  ///
+  /// You may also choose to ignore commands by setting the
+  /// "BlockRecordCommands" property of @a object to a QRegExp that will
+  /// match the commands to block.  This is useful for temporarily blocking
+  /// a command when a programatically change will fire a signal that generates
+  /// a command.
+  void ignoreObject(QObject* object, QRegularExpression commandFilter = QRegularExpression(
+                                       ".*", QRegularExpression::CaseInsensitiveOption));
 
   /// start listening to the GUI and translating events
   void start();
@@ -110,6 +116,10 @@ public:
 
   /// Set the record interaction timings flag
   void recordInteractionTimings(bool value);
+
+  /// Record a dashboard mode toggle event
+  void recordDashboardModeToggle(QObject* object, bool toggle);
+
 Q_SIGNALS:
   /// This signal will be emitted every time a translator generates a
   /// high-level ParaView event.  Observers should connect to this signal

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpherePuzzle.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpherePuzzle.h"
 
 #include "vtkAppendPolyData.h"
@@ -30,6 +18,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSpherePuzzle);
 
 //------------------------------------------------------------------------------
@@ -127,9 +116,11 @@ int vtkSpherePuzzle::RequestData(vtkInformation* vtkNotUsed(request),
 
   sphere->SetPhiResolution(4);
   sphere->SetThetaResolution(4);
+  sphere->SetContainerAlgorithm(this);
 
   tf->SetTransform(this->Transform);
   tf->SetInputConnection(sphere->GetOutputPort());
+  tf->SetContainerAlgorithm(this);
 
   for (j = 0; j < 4; ++j)
   {
@@ -177,6 +168,7 @@ int vtkSpherePuzzle::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
+  append->SetContainerAlgorithm(this);
   append->Update();
 
   // Move the data to the output.
@@ -462,3 +454,4 @@ void vtkSpherePuzzle::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << endl;
 }
+VTK_ABI_NAMESPACE_END

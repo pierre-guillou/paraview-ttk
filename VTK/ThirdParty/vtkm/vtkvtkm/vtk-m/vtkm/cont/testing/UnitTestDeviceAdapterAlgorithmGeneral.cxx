@@ -15,14 +15,16 @@
 // everything else. Because this test is based of the serial device adapter,
 // make sure that UnitTestDeviceAdapterSerial is working before trying to debug
 // this one.
+
+// It's OK to compile this without the device compiler.
+#ifndef VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG
+#define VTKM_NO_ERROR_ON_MIXED_CUDA_CXX_TAG 1
+#endif
+
 #include <vtkm/cont/ArrayHandle.h>
 #include <vtkm/cont/RuntimeDeviceTracker.h>
 #include <vtkm/cont/internal/DeviceAdapterAlgorithmGeneral.h>
 #include <vtkm/cont/serial/DeviceAdapterSerial.h>
-
-#ifndef VTKM_NO_DEPRECATED_VIRTUAL
-#include <vtkm/cont/internal/VirtualObjectTransferShareWithControl.h>
-#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
 #include <vtkm/cont/testing/TestingDeviceAdapter.h>
 
@@ -82,17 +84,6 @@ class DeviceAdapterMemoryManager<vtkm::cont::DeviceAdapterTagTestAlgorithmGenera
     return vtkm::cont::DeviceAdapterTagTestAlgorithmGeneral{};
   }
 };
-
-#ifndef VTKM_NO_DEPRECATED_VIRTUAL
-VTKM_DEPRECATED_SUPPRESS_BEGIN
-template <typename TargetClass>
-struct VirtualObjectTransfer<TargetClass, vtkm::cont::DeviceAdapterTagTestAlgorithmGeneral> final
-  : public VirtualObjectTransferShareWithControl<TargetClass>
-{
-  using VirtualObjectTransferShareWithControl<TargetClass>::VirtualObjectTransferShareWithControl;
-};
-VTKM_DEPRECATED_SUPPRESS_END
-#endif //VTKM_NO_DEPRECATED_VIRTUAL
 
 }
 }

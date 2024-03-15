@@ -1,15 +1,5 @@
-/*=========================================================================
-  Program:   Visualization Toolkit
-  Module:    vtkOBJImporterInternals.cxx
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOBJImporterInternals.h"
 #include "vtkBMPReader.h"
 #include "vtkJPEGReader.h"
@@ -36,6 +26,7 @@
 #pragma warning(disable : 4800)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 int localVerbosity = 0;
@@ -245,8 +236,11 @@ bool tokenGetTexture(size_t& t, std::vector<Token>& tokens, vtkOBJImportedMateri
 }
 }
 
-// NOLINTNEXTLINE(bugprone-suspicious-include)
-#include "mtlsyntax.cxx"
+VTK_ABI_NAMESPACE_END
+
+#include "mtlsyntax.inl"
+
+VTK_ABI_NAMESPACE_BEGIN
 std::vector<vtkOBJImportedMaterial*> vtkOBJPolyDataProcessor::ParseOBJandMTL(
   std::string Filename, int& result_code)
 {
@@ -552,3 +546,4 @@ vtkOBJImportedMaterial::vtkOBJImportedMaterial()
   this->name = "x";
   obj_set_material_defaults(this);
 }
+VTK_ABI_NAMESPACE_END

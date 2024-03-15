@@ -1,24 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAttributeSmoothingFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAttributeSmoothingFilter
  * @brief   smooth mesh point attribute data using distance weighted Laplacian kernel
  *
  * vtkAttributeSmoothingFilter is a filter that smooths point attribute data
- * using a Laplacian smoothing approach. The effect is to "relax" the
- * attributes, reducing high frequency information. Note that this filter
+ * using a Laplacian smoothing approach. The effect is to "relax" or "smooth"
+ * the attributes, reducing high frequency information. Note that this filter
  * operates on all dataset types.
  *
  * A central concept of this filter is the point smoothing stencil. A
@@ -52,7 +40,7 @@
  * boundary point (versus interior point) changes depending on the input
  * dataset type. For vtkPolyData, boundary *edges* are used to identify
  * boundary points; for all other dataset types, points used by a boundary
- * *face* are considered boundary points. It is also possible to expicitly
+ * *face* are considered boundary points. It is also possible to explicitly
  * specify which points are smoothed, and those that are constrained, by
  * specifying a smooth mask associated with each input point.
  *
@@ -95,7 +83,8 @@
  * time consuming for large data.
  *
  * @sa
- * vtkConstrainedSmoothingFilter vtkExtractEdges vtkMarkBoundaryFilter
+ * vtkConstrainedSmoothingFilter vtkWindowedSincPolyDataFilter
+ * vtkSmoothPolyDataFilter vtkExtractEdges vtkMarkBoundaryFilter
  */
 
 #ifndef vtkAttributeSmoothingFilter_h
@@ -107,6 +96,7 @@
 #include "vtkUnsignedCharArray.h"     // For point smoothing mask
 #include <vector>                     //For std::vector<> - ExcludedArrays
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGEOMETRY_EXPORT vtkAttributeSmoothingFilter : public vtkDataSetAlgorithm
 {
 public:
@@ -270,5 +260,6 @@ private:
   vtkAttributeSmoothingFilter(const vtkAttributeSmoothingFilter&) = delete;
   void operator=(const vtkAttributeSmoothingFilter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPParticlePathFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPParticlePathFilter
  * @brief   A Parallel Particle tracer for unsteady vector fields
@@ -30,6 +18,7 @@
 #include "vtkParticlePathFilter.h" //for utility
 
 #include "vtkFiltersParallelFlowPathsModule.h" // For export macro
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSPARALLELFLOWPATHS_EXPORT vtkPParticlePathFilter : public vtkPParticleTracerBase
 {
 public:
@@ -64,4 +53,5 @@ private:
   vtkPParticlePathFilter(const vtkPParticlePathFilter&) = delete;
   void operator=(const vtkPParticlePathFilter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

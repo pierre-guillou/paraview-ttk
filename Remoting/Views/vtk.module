@@ -2,6 +2,16 @@ NAME
   ParaView::RemotingViews
 LIBRARY_NAME
   vtkRemotingViews
+SPDX_LICENSE_IDENTIFIER
+  LicenseRef-BSD-3-Clause-Sandia-USGov
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
+SPDX_CUSTOM_LICENSE_FILE
+  LICENSE
+SPDX_CUSTOM_LICENSE_NAME
+  BSD-3-Clause-Sandia-USGov
+LICENSE_FILES
+  LICENSE
 GROUPS
   PARAVIEW_CORE
 CONDITION
@@ -12,17 +22,19 @@ IMPLEMENTS
   ParaView::RemotingServerManager
 IMPLEMENTABLE
 DEPENDS
-  ParaView::RemotingCore
   ParaView::RemotingServerManager
+  ParaView::Versioning
   VTK::ChartsCore
   VTK::CommonExecutionModel
   VTK::RenderingAnnotation
   VTK::RenderingContext2D
   VTK::RenderingCore
+  VTK::RenderingCellGrid
   VTK::RenderingParallel
   VTK::ViewsContext2D
   VTK::ViewsCore
 PRIVATE_DEPENDS
+  ParaView::RemotingCore
   ParaView::VTKExtensionsExtraction
   ParaView::VTKExtensionsFiltersRendering
   ParaView::VTKExtensionsInteractionStyle
@@ -30,6 +42,7 @@ PRIVATE_DEPENDS
   VTK::CommonColor
   VTK::CommonSystem
   VTK::DomainsChemistryOpenGL2
+  VTK::FiltersCellGrid
   VTK::FiltersModeling
   VTK::FiltersParallel
   VTK::FiltersParallelDIY2

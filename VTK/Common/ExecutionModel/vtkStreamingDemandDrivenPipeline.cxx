@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStreamingDemandDrivenPipeline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStreamingDemandDrivenPipeline.h"
 
 #include "vtkAlgorithm.h"
@@ -39,6 +27,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStreamingDemandDrivenPipeline);
 
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, CONTINUE_EXECUTING, Integer);
@@ -64,6 +53,8 @@ vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, TIME_RANGE, DoubleVecto
 
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, BOUNDS, DoubleVector);
 vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, TIME_DEPENDENT_INFORMATION, Integer);
+
+vtkInformationKeyMacro(vtkStreamingDemandDrivenPipeline, NO_PRIOR_TEMPORAL_ACCESS, Integer);
 
 //------------------------------------------------------------------------------
 class vtkStreamingDemandDrivenPipelineToDataObjectFriendship
@@ -159,11 +150,13 @@ vtkTypeBool vtkStreamingDemandDrivenPipeline ::ProcessRequest(
         N2E = 0;
       }
     }
+
     if (N2E)
     {
       vtkLogF(TRACE, "%s execute-update-time", vtkLogIdentifier(this->Algorithm));
       result = this->CallAlgorithm(request, vtkExecutive::RequestUpstream, inInfoVec, outInfoVec);
-      // Propagate the update extent to all inputs.
+
+      // Propagate the update time to all inputs.
       if (result)
       {
         result = this->ForwardUpstream(request);
@@ -359,6 +352,22 @@ vtkTypeBool vtkStreamingDemandDrivenPipeline ::ProcessRequest(
           info->Set(COMBINED_UPDATE_EXTENT(), emptyExt, 6);
         }
       }
+
+      // If input ports have the key NO_PRIOR_TEMPORAL_ACCESS set to NO_PRIOR_TEMPORAL_ACCESS_RESET,
+      // we can now set it to NO_PRIOR_TEMPORAL_ACCESS_CONTINUE as the first temporal iteration has
+      // been executed.
+      for (int port = 0; port < this->GetNumberOfInputPorts(); ++port)
+      {
+        for (int i = 0; i < inInfoVec[port]->GetNumberOfInformationObjects(); ++i)
+        {
+          vtkInformation* info = inInfoVec[port]->GetInformationObject(i);
+          if (info->Has(vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS()))
+          {
+            info->Set(vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS(),
+              vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_CONTINUE);
+          }
+        }
+      }
       return 1;
     }
     return 0;
@@ -514,8 +523,10 @@ void vtkStreamingDemandDrivenPipeline ::CopyDefaultInformation(vtkInformation* r
           outInfo->CopyEntry(inInfo, TIME_STEPS());
           outInfo->CopyEntry(inInfo, TIME_RANGE());
           outInfo->CopyEntry(inInfo, vtkDataObject::ORIGIN());
+          outInfo->CopyEntry(inInfo, vtkDataObject::DIRECTION());
           outInfo->CopyEntry(inInfo, vtkDataObject::SPACING());
           outInfo->CopyEntry(inInfo, TIME_DEPENDENT_INFORMATION());
+          outInfo->CopyEntry(inInfo, NO_PRIOR_TEMPORAL_ACCESS());
           if (scalarInfo)
           {
             int scalarType = VTK_DOUBLE;
@@ -1007,8 +1018,8 @@ void vtkStreamingDemandDrivenPipeline ::ExecuteDataEnd(
     if (!this->ContinueExecuting)
     {
       this->ContinueExecuting = 1;
-      this->Update(request->Get(FROM_OUTPUT_PORT()));
     }
+    this->Update(request->Get(FROM_OUTPUT_PORT()));
   }
   else
   {
@@ -1073,20 +1084,25 @@ void vtkStreamingDemandDrivenPipeline ::MarkOutputsGenerated(
       {
         dataInfo->Set(vtkDataObject::DATA_PIECE_NUMBER(), piece);
         dataInfo->Set(vtkDataObject::DATA_NUMBER_OF_PIECES(), numPieces);
-        // If the source or filter produced a different number of ghost
-        // levels, honor it.
-        int dataGhostLevel = 0;
-        if (dataInfo->Has(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS()))
+
+        if (data->SupportsGhostArray(vtkDataObject::POINT) ||
+          data->SupportsGhostArray(vtkDataObject::CELL))
         {
-          dataGhostLevel = dataInfo->Get(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS());
+          // If the source or filter produced a different number of ghost
+          // levels, honor it.
+          int dataGhostLevel = 0;
+          if (dataInfo->Has(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS()))
+          {
+            dataGhostLevel = dataInfo->Get(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS());
+          }
+          // If the ghost level generated by the algorithm is larger than
+          // requested, we keep it. Otherwise, we store the requested one.
+          // We do this because there is no point in the algorithm re-executing
+          // if the downstream asks for the same level even though the
+          // algorithm cannot produce it.
+          dataInfo->Set(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS(),
+            ghostLevel > dataGhostLevel ? ghostLevel : dataGhostLevel);
         }
-        // If the ghost level generated by the algorithm is larger than
-        // requested, we keep it. Otherwise, we store the requested one.
-        // We do this because there is no point in the algorithm re-executing
-        // if the downstream asks for the same level even though the
-        // algorithm cannot produce it.
-        dataInfo->Set(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS(),
-          ghostLevel > dataGhostLevel ? ghostLevel : dataGhostLevel);
       }
 
       // In this block, we make sure that DATA_TIME_STEP() is set if:
@@ -1207,18 +1223,24 @@ int vtkStreamingDemandDrivenPipeline ::NeedToExecuteData(
   {
     return 1;
   }
-  int dataGhostLevel = dataInfo->Get(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS());
-  int updateGhostLevel = outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS());
-  if (updateNumberOfPieces > 1 && dataGhostLevel < updateGhostLevel)
+
+  // Check if more ghost levels are needed
+  if (dataObject->SupportsGhostArray(vtkDataObject::POINT) ||
+    dataObject->SupportsGhostArray(vtkDataObject::CELL))
   {
-    return 1;
-  }
-  if (dataNumberOfPieces != 1)
-  {
-    int dataPiece = dataInfo->Get(vtkDataObject::DATA_PIECE_NUMBER());
-    if (dataPiece != updatePiece)
+    int dataGhostLevel = dataInfo->Get(vtkDataObject::DATA_NUMBER_OF_GHOST_LEVELS());
+    int updateGhostLevel = outInfo->Get(UPDATE_NUMBER_OF_GHOST_LEVELS());
+    if (updateNumberOfPieces > 1 && dataGhostLevel < updateGhostLevel)
     {
       return 1;
+    }
+    if (dataNumberOfPieces != 1)
+    {
+      int dataPiece = dataInfo->Get(vtkDataObject::DATA_PIECE_NUMBER());
+      if (dataPiece != updatePiece)
+      {
+        return 1;
+      }
     }
   }
 
@@ -1516,3 +1538,4 @@ int vtkStreamingDemandDrivenPipeline::GetRequestExactExtent(int port)
   }
   return info->Get(EXACT_EXTENT());
 }
+VTK_ABI_NAMESPACE_END

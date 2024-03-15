@@ -1,17 +1,7 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2021, Triad National Security, LLC
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-LANL-Triad-USGov
 
-  Program:   Visualization Toolkit
-  Module:    vtkPIOReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
 #include "vtkPIOReader.h"
 
 #include "PIOAdaptor.h"
@@ -36,6 +26,7 @@
 #include <iostream>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPIOReader);
 vtkCxxSetObjectMacro(vtkPIOReader, Controller, vtkMultiProcessController);
 
@@ -395,3 +386,4 @@ void vtkPIOReader::PrintSelf(ostream& os, vtkIndent indent)
 
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

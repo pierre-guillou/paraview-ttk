@@ -1,25 +1,16 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabelMapLookup.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLabelMapLookup
  * @brief   provide an efficient numeric label lookup
  *
  *
- * vtkLabelMapLookup is a helper object that enables faster lookup of
- * a segmentation label from a set of labels. It uses caching, and
+ * vtkLabelMapLookup is a light weight helper object that enables faster
+ * lookup of a segmentation label from a set of labels. It uses caching, and
  * different strategies depending on the size of the set of labels.
+ *
+ * Note that, due to speed concerns, vtkLabelMapLookup does not inherit from
+ * vtkObject hence does not support the usual VTK reference counting.
  *
  * @sa
  * vtkSurfaceNets2D vtkSurfaceNets3D vtkDiscreteFlyingEdgesClipper2D
@@ -28,9 +19,12 @@
 #ifndef vtkLabelMapLookup_h
 #define vtkLabelMapLookup_h
 
+#include "vtkCommonDataModelModule.h"
+
 #include <unordered_set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 // Determine whether an image label/object has been specified for output.
 // This requires looking up an image pixel/scalar value and determining
 // whether it's part of a segmented object. Since this can be relatively
@@ -70,8 +64,8 @@ struct vtkLabelMapLookup
     }
   }
 
-  // A little factor for creating the right type of label map based on the
-  // number of labels in the set.
+  // A factory method for creating the right type of label map based
+  // on the number of labels in the set.
   static vtkLabelMapLookup<T>* CreateLabelLookup(const double* values, vtkIdType numLabels);
 }; // vtkLabelMapLookup
 
@@ -184,5 +178,6 @@ vtkLabelMapLookup<T>* vtkLabelMapLookup<T>::CreateLabelLookup(
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkLabelMapLookup.h

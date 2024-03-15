@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointOccupancyFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkPointOccupancyFilter.h"
 
 #include "vtkImageData.h"
@@ -27,6 +15,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointOccupancyFilter);
 
 //------------------------------------------------------------------------------
@@ -342,3 +331,4 @@ void vtkPointOccupancyFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Empty Value: " << this->EmptyValue << "\n";
   os << indent << "Occupied Value: " << this->OccupiedValue << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqTabbedMultiViewWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqTabbedMultiViewWidget.h"
 
 #include "pqActiveObjects.h"
@@ -79,6 +51,13 @@ pqTabbedMultiViewWidget::pqTabWidget::pqTabWidget(QWidget* parentObject)
   , ReadOnly(false)
   , TabBarVisibility(true)
 {
+  // If annotation filters are enabled, it is possible to get into a situation
+  // where no layouts are visible. This means the new-layout tab ("+") is both
+  // visible and active – users cannot switch to it to create a new layout with
+  // a view-selector because it is already active. In that case, the connection
+  // below allows us to explicitly create a new layout.
+  QObject::connect(
+    this, &QTabWidget::tabBarClicked, this, &pqTabWidget::createViewSelectorTabIfNeeded);
 }
 
 //-----------------------------------------------------------------------------
@@ -135,8 +114,8 @@ int pqTabbedMultiViewWidget::pqTabWidget::addAsTab(
 
   label = new QLabel();
   label->setObjectName("close");
-  label->setToolTip("Close layout");
-  label->setStatusTip("Close layout");
+  label->setToolTip(tr("Close layout"));
+  label->setStatusTip(tr("Close layout"));
   label->setPixmap(label->style()
                      ->standardIcon(QStyle::SP_TitleBarCloseButton)
                      .pixmap(PQTABBED_WIDGET_PIXMAP_SIZE, PQTABBED_WIDGET_PIXMAP_SIZE));
@@ -147,10 +126,10 @@ int pqTabbedMultiViewWidget::pqTabWidget::addAsTab(
 }
 
 //-----------------------------------------------------------------------------
-const char* pqTabbedMultiViewWidget::pqTabWidget::popoutLabelText(bool popped_out)
+QString pqTabbedMultiViewWidget::pqTabWidget::popoutLabelText(bool popped_out)
 {
-  return popped_out ? "Bring popped out window back to the frame"
-                    : "Pop out layout in separate window";
+  return popped_out ? tr("Bring popped out window back to the frame")
+                    : tr("Pop out layout in separate window");
 }
 
 //-----------------------------------------------------------------------------
@@ -180,6 +159,21 @@ void pqTabbedMultiViewWidget::pqTabWidget::setTabBarVisibility(bool val)
 {
   this->TabBarVisibility = val;
   this->tabBar()->setVisible(val);
+}
+
+//-----------------------------------------------------------------------------
+void pqTabbedMultiViewWidget::pqTabWidget::createViewSelectorTabIfNeeded(int tabIndex)
+{
+  (void)tabIndex;
+  if (this->currentIndex() == 0 && this->count() == 1)
+  {
+    pqServer* server = pqActiveObjects::instance().activeServer();
+    auto* tmv = qobject_cast<pqTabbedMultiViewWidget*>(this->parent());
+    if (tmv)
+    {
+      tmv->createTab(server);
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -369,11 +363,12 @@ public:
   void updateVisibleTabs()
   {
     // build a list of visible tabs and if they are different,
-    // that what's shown update the view.
+    // than what's shown, update the view.
     QList<QWidget*> visibleWidgets;
     for (const auto& widget : this->widgets())
     {
-      if (widget && this->isVisible(widget->layoutManager()))
+      if (widget &&
+        (this->isVisible(widget->layoutManager()) || widget->layoutManager()->GetViews().empty()))
       {
         visibleWidgets.push_back(widget);
       }
@@ -459,7 +454,7 @@ pqTabbedMultiViewWidget::pqTabbedMultiViewWidget(QWidget* parentObject)
     this, SLOT(contextMenuRequested(const QPoint&)));
 
   QGridLayout* glayout = new QGridLayout(this);
-  glayout->setMargin(0);
+  glayout->setContentsMargins(0, 0, 0, 0);
   glayout->setSpacing(0);
   glayout->addWidget(this->Internals->TabWidget, 0, 0);
 
@@ -544,7 +539,7 @@ void pqTabbedMultiViewWidget::toggleFullScreen()
 
     QGridLayout* glayout = new QGridLayout(fullScreenWindow);
     glayout->setSpacing(0);
-    glayout->setMargin(0);
+    glayout->setContentsMargins(0, 0, 0, 0);
     glayout->addWidget(internals.TabWidget, 0, 0);
     fullScreenWindow->showFullScreen();
     fullScreenWindow->show();
@@ -615,7 +610,7 @@ void pqTabbedMultiViewWidget::closeTab(int index)
     pqServerManagerModel* smmodel = pqApplicationCore::instance()->getServerManagerModel();
     pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
 
-    BEGIN_UNDO_SET("Remove View Tab");
+    BEGIN_UNDO_SET(tr("Remove View Tab"));
     // first remove each of the views in the tab layout.
     widget->destroyAllViews();
 
@@ -645,7 +640,7 @@ int pqTabbedMultiViewWidget::createTab(pqServer* server)
 {
   if (server)
   {
-    BEGIN_UNDO_SET("Add View Tab");
+    BEGIN_UNDO_SET(tr("Add View Tab"));
     auto pxm = server->proxyManager();
     auto vlayout = pxm->NewProxy("misc", "ViewLayout");
     Q_ASSERT(vlayout != nullptr);
@@ -656,6 +651,7 @@ int pqTabbedMultiViewWidget::createTab(pqServer* server)
     vlayout->FastDelete();
     END_UNDO_SET();
 
+    this->updateVisibleTabs();
     return this->Internals->tabIndex(vlayout);
   }
   return -1;
@@ -688,7 +684,7 @@ bool pqTabbedMultiViewWidget::eventFilter(QObject* obj, QEvent* evt)
         this->Internals->TabWidget->tabButtonIndex(qobject_cast<QWidget*>(obj), QTabBar::RightSide);
       if (index != -1)
       {
-        BEGIN_UNDO_SET("Close Tab");
+        BEGIN_UNDO_SET(tr("Close Tab"));
         this->closeTab(index);
         END_UNDO_SET();
         return true;
@@ -826,7 +822,7 @@ void pqTabbedMultiViewWidget::contextMenuRequested(const QPoint& point)
   int tabIndex = this->Internals->TabWidget->tabBar()->tabAt(point);
   pqMultiViewWidget* widget =
     qobject_cast<pqMultiViewWidget*>(this->Internals->TabWidget->widget(tabIndex));
-  vtkSMProxy* vlayout = widget ? widget->layoutManager() : nullptr;
+  auto vlayout = widget ? vtkSMViewLayoutProxy::SafeDownCast(widget->layoutManager()) : nullptr;
   if (!vlayout)
   {
     return;
@@ -835,12 +831,17 @@ void pqTabbedMultiViewWidget::contextMenuRequested(const QPoint& point)
   pqProxy* proxy = smmodel->findItem<pqProxy*>(vlayout);
 
   QMenu* menu = new QMenu(this);
-  QAction* renameAction = menu->addAction("Rename");
+  QAction* renameAction = menu->addAction(tr("Rename"));
   QAction* closeAction = menu->addAction(tr("Close layout"));
+  auto equalizeMenu = menu->addMenu(tr("Equalize Views"));
+  QAction* horizontalAction = equalizeMenu->addAction(tr("Horizontally"));
+  equalizeMenu->addAction(tr("Vertically"));
+  QAction* bothAction = equalizeMenu->addAction(tr("Both"));
+
   QAction* action = menu->exec(this->Internals->TabWidget->tabBar()->mapToGlobal(point));
   if (action == closeAction)
   {
-    BEGIN_UNDO_SET("Close Tab");
+    BEGIN_UNDO_SET(tr("Close Tab"));
     this->closeTab(tabIndex);
     END_UNDO_SET();
   }
@@ -860,6 +861,16 @@ void pqTabbedMultiViewWidget::contextMenuRequested(const QPoint& point)
       proxy->rename(newName);
     }
   }
+  else if (action == bothAction)
+  {
+    vlayout->EqualizeViews();
+  }
+  else if (action)
+  {
+    vlayout->EqualizeViews(action == horizontalAction ? vtkSMViewLayoutProxy::HORIZONTAL
+                                                      : vtkSMViewLayoutProxy::VERTICAL);
+  }
+
   delete menu;
 }
 

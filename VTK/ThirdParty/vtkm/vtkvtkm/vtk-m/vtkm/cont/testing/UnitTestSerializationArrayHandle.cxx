@@ -22,6 +22,7 @@
 #include <vtkm/cont/ArrayHandleIndex.h>
 #include <vtkm/cont/ArrayHandlePermutation.h>
 #include <vtkm/cont/ArrayHandleReverse.h>
+#include <vtkm/cont/ArrayHandleRuntimeVec.h>
 #include <vtkm/cont/ArrayHandleSOA.h>
 #include <vtkm/cont/ArrayHandleSwizzle.h>
 #include <vtkm/cont/ArrayHandleTransform.h>
@@ -144,6 +145,19 @@ struct TestArrayHandleBasic
   void operator()(T) const
   {
     auto array = RandomArrayHandle<T>::Make(ArraySize);
+    RunTest(array);
+    RunTest(MakeTestUnknownArrayHandle(array));
+    RunTest(MakeTestUncertainArrayHandle(array));
+  }
+};
+
+struct TestArrayHandleBasicEmpty
+{
+  template <typename T>
+  void operator()(T) const
+  {
+    vtkm::cont::ArrayHandle<T> array;
+    array.Allocate(0);
     RunTest(array);
     RunTest(MakeTestUnknownArrayHandle(array));
     RunTest(MakeTestUncertainArrayHandle(array));
@@ -290,6 +304,19 @@ struct TestArrayHandleGroupVecVariable
   }
 };
 
+struct TestArrayHandleRuntimeVec
+{
+  template <typename T>
+  void operator()(T) const
+  {
+    auto numComps = RandomValue<vtkm::IdComponent>::Make(1, 5);
+    auto flat = RandomArrayHandle<T>::Make(ArraySize * numComps);
+    auto array = vtkm::cont::make_ArrayHandleRuntimeVec(numComps, flat);
+    RunTest(array);
+    RunTest(MakeTestUnknownArrayHandle(array));
+  }
+};
+
 void TestArrayHandleIndex()
 {
   auto size = RandomValue<vtkm::Id>::Make(2, 10);
@@ -372,6 +399,12 @@ void TestArrayHandleSerialization()
   vtkm::testing::Testing::TryTypes(
     TestArrayHandleBasic(), vtkm::List<char, long, long long, unsigned long, unsigned long long>());
 
+  std::cout << "Testing empty ArrayHandleBasic\n";
+  vtkm::testing::Testing::TryTypes(TestArrayHandleBasicEmpty(), TestTypesList());
+  vtkm::testing::Testing::TryTypes(
+    TestArrayHandleBasicEmpty(),
+    vtkm::List<char, long, long long, unsigned long, unsigned long long>());
+
   std::cout << "Testing ArrayHandleSOA\n";
   vtkm::testing::Testing::TryTypes(TestArrayHandleSOA(), TestTypesListVec());
 
@@ -393,6 +426,9 @@ void TestArrayHandleSerialization()
 
   std::cout << "Testing ArrayHandleGroupVecVariable\n";
   vtkm::testing::Testing::TryTypes(TestArrayHandleGroupVecVariable(), TestTypesList());
+
+  std::cout << "Testing ArrayHandleRuntimeVec\n";
+  vtkm::testing::Testing::TryTypes(TestArrayHandleRuntimeVec(), TestTypesList());
 
   std::cout << "Testing ArrayHandleIndex\n";
   TestArrayHandleIndex();

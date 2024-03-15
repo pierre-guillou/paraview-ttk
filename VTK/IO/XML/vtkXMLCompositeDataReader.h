@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLCompositeDataReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLCompositeDataReader
  * @brief   Reader for multi-group datasets
@@ -32,14 +21,17 @@
 #include "vtkIOXMLModule.h" // For export macro
 #include "vtkXMLReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataSet;
 class vtkInformationIntegerKey;
 class vtkInformationIntegerVectorKey;
 struct vtkXMLCompositeDataReaderInternals;
 
+VTK_ABI_NAMESPACE_END
 #include <set>    // for std::set
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOXML_EXPORT vtkXMLCompositeDataReader : public vtkXMLReader
 {
 public:
@@ -171,4 +163,5 @@ private:
   vtkXMLCompositeDataReaderInternals* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

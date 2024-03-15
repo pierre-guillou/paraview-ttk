@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSightGoldBinaryReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEnSightGoldBinaryReader.h"
 
 #include "vtkByteSwap.h"
@@ -32,6 +20,7 @@
 #include "vtksys/RegularExpression.hxx"
 #include "vtksys/SystemTools.hxx"
 
+#include <algorithm> /* std::remove */
 #include <array>
 #include <cctype>
 #include <map>
@@ -48,6 +37,14 @@
 // The BSDs use stat().
 #define VTK_STAT_STRUCT struct stat
 #define VTK_STAT_FUNC stat
+#elif defined __EMSCRIPTEN__
+#if defined _LARGEFILE64_SOURCE
+#define VTK_STAT_STRUCT struct stat64
+#define VTK_STAT_FUNC stat64
+#else
+#define VTK_STAT_STRUCT struct stat
+#define VTK_STAT_FUNC stat
+#endif
 #else
 // here, we're relying on _FILE_OFFSET_BITS defined in vtkWin32Header.h to help
 // us on POSIX without resorting to using stat64.
@@ -55,6 +52,7 @@
 #define VTK_STAT_FUNC stat64
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkEnSightGoldBinaryReader::vtkUtilities
 {
   static int GetDestinationComponent(int srcComponent, int numComponents)
@@ -345,6 +343,8 @@ int vtkEnSightGoldBinaryReader::InitializeFile(const char* fileName)
     return 0;
   }
   std::string sfilename;
+  std::string filenameString(fileName);
+  this->SanitizeFileName(filenameString);
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -352,12 +352,12 @@ int vtkEnSightGoldBinaryReader::InitializeFile(const char* fileName)
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filenameString;
     vtkDebugMacro("full path to geometry file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filenameString;
   }
 
   if (this->OpenFile(sfilename.c_str()) == 0)
@@ -1243,6 +1243,8 @@ int vtkEnSightGoldBinaryReader::ReadMeasuredGeometryFile(
     return 0;
   }
   std::string sfilename;
+  std::string filenameString(fileName);
+  this->SanitizeFileName(filenameString);
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -1250,12 +1252,12 @@ int vtkEnSightGoldBinaryReader::ReadMeasuredGeometryFile(
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filenameString;
     vtkDebugMacro("full path to measured geometry file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filenameString;
   }
 
   if (this->OpenFile(sfilename.c_str()) == 0)
@@ -1395,6 +1397,8 @@ bool vtkEnSightGoldBinaryReader::OpenVariableFile(const char* fileName, const ch
   }
 
   std::string sfilename;
+  std::string filenameString(fileName);
+  this->SanitizeFileName(filenameString);
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -1402,12 +1406,12 @@ bool vtkEnSightGoldBinaryReader::OpenVariableFile(const char* fileName, const ch
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filenameString;
     vtkDebugMacro("full path to variable (" << type << ") file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filenameString;
   }
 
   if (this->OpenFile(sfilename.c_str()) == 0)
@@ -3624,3 +3628,4 @@ void vtkEnSightGoldBinaryReader::AddFileIndexToCache(const char* fileName)
   }
   this->GoldIFile->seekg(0l, ios::beg);
 }
+VTK_ABI_NAMESPACE_END

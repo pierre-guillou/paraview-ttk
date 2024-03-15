@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME QVTKApplication - A superclass for QApplication using VTK.
 // .SECTION Description
 // This is a superclass for QApplication using VTK. It essentially redefined
@@ -37,12 +25,15 @@
 #include <QApplication>
 
 #ifdef VTK_USE_TDX
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTDxDevice;
 #if defined(Q_WS_X11) || defined(Q_OS_LINUX)
 class vtkTDxQtUnixDevices;
 #endif
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKGUISUPPORTQT_EXPORT QVTKApplication : public QApplication
 {
   Q_OBJECT
@@ -82,4 +73,5 @@ protected:
 #endif
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

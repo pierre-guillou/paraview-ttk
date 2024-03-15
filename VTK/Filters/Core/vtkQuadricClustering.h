@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadricClustering.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQuadricClustering
  * @brief   reduce the number of triangles in a mesh
@@ -93,6 +81,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkFeatureEdges;
 class vtkPoints;
@@ -368,10 +357,10 @@ protected:
   // can be smaller than user values when input numb er of points is small.
   int NumberOfDivisions[3];
 
-  // Since there are two was of specifying the grid, we have this flag
+  // Since there are two ways of specifying the grid, we have this flag
   // to indicate which the user has set.  When this flag is on,
   // the bin sizes are computed from the DivisionOrigin and DivisionSpacing.
-  int ComputeNumberOfDivisions;
+  vtkTypeBool ComputeNumberOfDivisions;
 
   double DivisionOrigin[3];
   double DivisionSpacing[3];
@@ -423,4 +412,5 @@ private:
   void operator=(const vtkQuadricClustering&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

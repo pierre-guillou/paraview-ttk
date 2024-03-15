@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClearZPass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkClearZPass
  * @brief   Clear the depth buffer with a given value.
@@ -28,6 +16,7 @@
 #include "vtkRenderPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLRenderWindow;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkClearZPass : public vtkRenderPass
@@ -45,7 +34,7 @@ public:
 
   ///@{
   /**
-   * Set/Get the depth value. Initial value is 1.0 (farest).
+   * Set/Get the depth value. Initial value is 1.0 (farthest).
    */
   vtkSetClampMacro(Depth, double, 0.0, 1.0);
   vtkGetMacro(Depth, double);
@@ -69,4 +58,5 @@ private:
   void operator=(const vtkClearZPass&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

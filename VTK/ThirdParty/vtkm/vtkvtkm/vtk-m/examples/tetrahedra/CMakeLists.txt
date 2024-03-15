@@ -13,14 +13,10 @@ project(Tetrahedra CXX)
 #Find the VTK-m package
 find_package(VTKm REQUIRED QUIET)
 
-add_executable(Tetrahedralize Tetrahedralize.cxx)
-target_link_libraries(Tetrahedralize PRIVATE vtkm_filter vtkm_io)
+if(TARGET vtkm::filter_geometry_refinement AND TARGET vtkm::io)
+  add_executable(Tetrahedralize Tetrahedralize.cxx)
+  target_link_libraries(Tetrahedralize PRIVATE vtkm::filter_geometry_refinement vtkm::io)
 
-add_executable(Triangulate Triangulate.cxx)
-target_link_libraries(Triangulate PRIVATE vtkm_filter vtkm_io)
-
-vtkm_add_target_information(Tetrahedralize Triangulate
-                            DROP_UNUSED_SYMBOLS
-                            MODIFY_CUDA_FLAGS
-                            DEVICE_SOURCES
-                              Tetrahedralize.cxx Triangulate.cxx)
+  add_executable(Triangulate Triangulate.cxx)
+  target_link_libraries(Triangulate PRIVATE vtkm::filter_geometry_refinement vtkm::io)
+endif()

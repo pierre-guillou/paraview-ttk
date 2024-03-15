@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCameraRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCameraRepresentation.h"
 #include "vtkActor2D.h"
 #include "vtkCallbackCommand.h"
@@ -29,6 +17,7 @@
 #include "vtkTransform.h"
 #include "vtkTransformPolyDataFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCameraRepresentation);
 
 vtkCxxSetObjectMacro(vtkCameraRepresentation, Camera, vtkCamera);
@@ -198,7 +187,10 @@ void vtkCameraRepresentation::InitializePath()
 //------------------------------------------------------------------------------
 void vtkCameraRepresentation::GetActors2D(vtkPropCollection* pc)
 {
-  pc->AddItem(this->Actor);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    pc->AddItem(this->Actor);
+  }
   this->Superclass::GetActors2D(pc);
 }
 
@@ -262,3 +254,4 @@ void vtkCameraRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Camera: " << this->Camera << "\n";
   os << indent << "Number of Frames: " << this->NumberOfFrames << "\n";
 }
+VTK_ABI_NAMESPACE_END

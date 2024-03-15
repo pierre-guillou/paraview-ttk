@@ -1,10 +1,15 @@
 <!-- Proxy definitions for FFMPEG writer -->
 <ServerManagerConfiguration>
   <ProxyGroup name="animation_writers">
-    <Proxy name="VideoForWindows" class="vtkAVIWriter" label="Video For Windows" processes="client">
+    <Proxy name="VideoForWindows" class="vtkAVIWriter" label="Video For Windows" processes="client,dataserver">
       <Documentation>
         AVI writer that uses Video-for-Windows API.
       </Documentation>
+      <StringVectorProperty command="SetFileName"
+                            name="FileName"
+                            number_of_elements="1">
+        <Documentation>The name of the file to be written.</Documentation>
+      </StringVectorProperty>
 
       <IntVectorProperty name="Quality"
         command="SetQuality"
@@ -50,11 +55,17 @@
         <FormatOptions extensions="avi" file_description="VFW AVI files" />
       </Hints>
     </Proxy>
-    <Proxy name="MP4Writer" class="vtkMP4Writer" label="MP4 Writer" processes="client">
+    <Proxy name="MP4Writer" class="vtkMP4Writer" label="MP4 Writer" processes="client,dataserver">
       <Documentation>
         MP4 writer that uses the Microsoft Media Foundation API to write H.264-encoded
         video files.
       </Documentation>
+
+      <StringVectorProperty command="SetFileName"
+                            name="FileName"
+                            number_of_elements="1">
+        <Documentation>The name of the file to be written.</Documentation>
+      </StringVectorProperty>
 
       <IntVectorProperty name="BitRate"
         command="SetBitRate"

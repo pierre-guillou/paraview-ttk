@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFlyingEdges2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFlyingEdges2D.h"
 
 #include "vtkCellArray.h"
@@ -29,6 +17,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFlyingEdges2D);
 
 // This templated class is the heart of the algorithm. Templated across
@@ -233,18 +222,34 @@ public:
   class Pass1
   {
   public:
-    Pass1(vtkFlyingEdges2DAlgorithm<TT>* algo, double value)
+    Pass1(vtkFlyingEdges2DAlgorithm<TT>* algo, double value, vtkFlyingEdges2D* filter)
+      : Filter(filter)
     {
       this->Algo = algo;
       this->Value = value;
     }
     vtkFlyingEdges2DAlgorithm<TT>* Algo;
+    vtkFlyingEdges2D* Filter;
     double Value;
     void operator()(vtkIdType row, vtkIdType end)
     {
       TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((end - row) / 10 + 1, (vtkIdType)1000);
       for (; row < end; ++row)
       {
+        if (row % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            this->Filter->CheckAbort();
+          }
+          if (this->Filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
+
         this->Algo->ProcessXEdge(this->Value, rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -254,12 +259,30 @@ public:
   class Pass2
   {
   public:
-    Pass2(vtkFlyingEdges2DAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass2(vtkFlyingEdges2DAlgorithm<TT>* algo, vtkFlyingEdges2D* filter)
+      : Filter(filter)
+    {
+      this->Algo = algo;
+    }
     vtkFlyingEdges2DAlgorithm<TT>* Algo;
+    vtkFlyingEdges2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((end - row) / 10 + 1, (vtkIdType)1000);
       for (; row < end; ++row)
       {
+        if (row % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            this->Filter->CheckAbort();
+          }
+          if (this->Filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         this->Algo->ProcessYEdges(row);
       } // for all rows in this batch
     }
@@ -268,18 +291,33 @@ public:
   class Pass4
   {
   public:
-    Pass4(vtkFlyingEdges2DAlgorithm<TT>* algo, double value)
+    Pass4(vtkFlyingEdges2DAlgorithm<TT>* algo, double value, vtkFlyingEdges2D* filter)
+      : Filter(filter)
     {
       this->Algo = algo;
       this->Value = value;
     }
     vtkFlyingEdges2DAlgorithm<TT>* Algo;
     double Value;
+    vtkFlyingEdges2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       T* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((end - row) / 10 + 1, (vtkIdType)1000);
       for (; row < end; ++row)
       {
+        if (row % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            this->Filter->CheckAbort();
+          }
+          if (this->Filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         this->Algo->GenerateOutput(this->Value, rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -378,8 +416,8 @@ vtkFlyingEdges2DAlgorithm<T>::vtkFlyingEdges2DAlgorithm()
 // Interpolate a new point along a boundary edge. Make sure to consider
 // proximity to boundary when computing gradients, etc.
 template <class T>
-void vtkFlyingEdges2DAlgorithm<T>::InterpolateEdge(double value, T* s, int ijk[3],
-  unsigned char edgeNum, unsigned char edgeUses[12], vtkIdType* eIds)
+void vtkFlyingEdges2DAlgorithm<T>::InterpolateEdge(
+  double value, T* s, int ijk[3], unsigned char edgeNum, unsigned char edgeUses[4], vtkIdType* eIds)
 {
   // if this edge is not used then get out
   if (!edgeUses[edgeNum])
@@ -628,14 +666,12 @@ void vtkFlyingEdges2DAlgorithm<T>::GenerateOutput(double value, T* rowPtr, vtkId
   }
 
   // Get the trim edges and prepare to generate
-  vtkIdType i;
   vtkIdType xL = ((eMD0[3] < eMD1[3]) ? eMD0[3] : eMD1[3]);
   vtkIdType xR = ((eMD0[4] > eMD1[4]) ? eMD0[4] : eMD1[4]);
 
   // Grab the two edge cases bounding this pixel x-row. Begin at left trim edge.
-  unsigned char *ePtr0, *ePtr1;
-  ePtr0 = this->XCases + row * (this->Dims[0] - 1) + xL;
-  ePtr1 = ePtr0 + this->Dims[0] - 1;
+  unsigned char* ePtr0 = this->XCases + row * (this->Dims[0] - 1) + xL;
+  unsigned char* ePtr1 = ePtr0 + this->Dims[0] - 1;
 
   // Traverse all pixels in this row, those containing the contour are
   // further identified for processing, meaning generating points and
@@ -663,8 +699,16 @@ void vtkFlyingEdges2DAlgorithm<T>::GenerateOutput(double value, T* rowPtr, vtkId
   int ijk[3];
   ijk[1] = row;
   ijk[2] = this->K;
-  for (i = xL; i < xR; ++i)
+  for (vtkIdType i = xL; i < xR; ++i)
   {
+    // advance along pixel row (excluding the first iteration of this loop)
+    if (i > xL)
+    {
+      ePtr0++;
+      ePtr1++;
+      eCase = GetEdgeCase(ePtr0, ePtr1);
+    }
+
     if ((numLines = this->GetNumberOfPrimitives(eCase)) > 0)
     {
       // Start by generating triangles for this case
@@ -688,11 +732,6 @@ void vtkFlyingEdges2DAlgorithm<T>::GenerateOutput(double value, T* rowPtr, vtkId
 
       this->AdvancePixelIds(eCase, eIds);
     }
-
-    // advance along pixel row
-    ePtr0++;
-    ePtr1++;
-    eCase = GetEdgeCase(ePtr0, ePtr1);
   } // for all non-trimmed cells along this x-edge
 }
 
@@ -793,26 +832,31 @@ void vtkFlyingEdges2DAlgorithm<T>::ContourImage(vtkFlyingEdges2D* self, T* scala
   // pass generates polylines from the cases and intersection information.
   // In the final and third pass output points and lines are generated.
 
+  vtkIdType checkAbortInterval = std::min(numContours / 10 + 1, (vtkIdType)1000);
   // Loop across each contour value. This encompasses all three passes.
   for (vidx = 0; vidx < numContours; vidx++)
   {
+    if (vidx % checkAbortInterval == 0 && self->CheckAbort())
+    {
+      break;
+    }
     value = values[vidx];
 
     // PASS 1: Traverse all rows generating intersection points and building
     // the case table. Also accumulate information necessary for later allocation.
     // For example the number of output points is computed.
-    Pass1<T> pass1(&algo, value);
+    Pass1<T> pass1(&algo, value, self);
     vtkSMPTools::For(0, algo.Dims[1], pass1);
 
     // PASS 2: Traverse all rows and process cell y edges. Continue building
     // case table from y contributions (using computational trimming to reduce
     // work) and keep track of cell y intersections.
-    Pass2<T> pass2(&algo);
+    Pass2<T> pass2(&algo, self);
     vtkSMPTools::For(0, algo.Dims[1] - 1, pass2);
 
     // PASS 3: Now allocate and generate output. First we have to update the
     // x-Edge meta data to partition the output into separate pieces so
-    // independent threads can write into separate memory partititions. Once
+    // independent threads can write into separate memory partitions. Once
     // allocation is complete, process on a row by row basis and produce
     // output points, line primitives, and interpolate point attribute data
     // (if necessary).
@@ -853,7 +897,7 @@ void vtkFlyingEdges2DAlgorithm<T>::ContourImage(vtkFlyingEdges2D* self, T* scala
       }
 
       // PASS 4: Now process each x-row and produce the output primitives.
-      Pass4<T> pass4(&algo, value);
+      Pass4<T> pass4(&algo, value, self);
       vtkSMPTools::For(0, algo.Dims[1] - 1, pass4);
     } // if output generated
 
@@ -994,3 +1038,4 @@ void vtkFlyingEdges2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Compute Scalars: " << (this->ComputeScalars ? "On\n" : "Off\n");
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

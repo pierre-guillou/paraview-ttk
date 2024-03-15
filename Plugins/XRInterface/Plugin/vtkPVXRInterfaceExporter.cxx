@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVXRInterfaceExporter.h"
 
 #include "vtkCamera.h"
@@ -42,18 +31,75 @@
 #include "vtkXMLUtilities.h"
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
-#include <QCoreApplication>
 
 #if PARAVIEW_ENABLE_FFMPEG
 #include "vtkFFMPEGVideoSource.h"
 #include "vtkOpenGLMovieSphere.h"
 #endif
 
+#include <QCoreApplication>
+
 vtkStandardNewMacro(vtkPVXRInterfaceExporter);
 
+namespace
+{
+vtkPolyData* findPolyData(vtkDataObject* input)
+{
+  // do we have polydata?
+  vtkPolyData* pd = vtkPolyData::SafeDownCast(input);
+  if (pd)
+  {
+    return pd;
+  }
+  vtkCompositeDataSet* cd = vtkCompositeDataSet::SafeDownCast(input);
+  if (cd)
+  {
+    vtkSmartPointer<vtkCompositeDataIterator> iter;
+    iter.TakeReference(cd->NewIterator());
+    for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+    {
+      pd = vtkPolyData::SafeDownCast(iter->GetCurrentDataObject());
+      if (pd)
+      {
+        return pd;
+      }
+    }
+  }
+  return nullptr;
+}
+}
+
+namespace
+{
+template <typename T>
+void setVectorAttribute(vtkXMLDataElement* el, const char* name, int count, T* data)
+{
+  std::ostringstream o;
+  vtkNumberToString converter;
+  for (int i = 0; i < count; ++i)
+  {
+    if (i)
+    {
+      o << " ";
+    }
+    o << converter.Convert(data[i]);
+  }
+  el->SetAttribute(name, o.str().c_str());
+}
+
+void writeTextureReference(vtkXMLDataElement* adatael, vtkTexture* texture, const char* tname,
+  std::map<vtkTexture*, size_t>& textures)
+{
+  if (texture)
+  {
+    adatael->SetIntAttribute(tname, static_cast<int>(textures[texture]));
+  }
+}
+}
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceExporter::ExportLocationsAsSkyboxes(vtkPVXRInterfaceHelper* helper,
-  vtkSMViewProxy* smview, std::map<int, vtkPVXRInterfaceHelperLocation>& locations,
-  vtkRenderer* ren)
+  vtkSMViewProxy* smview, std::vector<vtkPVXRInterfaceHelperLocation>& locations, vtkRenderer* ren)
 {
   auto* view = vtkPVRenderView::SafeDownCast(smview->GetClientSideView());
   vtkRenderer* pvRenderer = view->GetRenderView()->GetRenderer();
@@ -102,20 +148,15 @@ void vtkPVXRInterfaceExporter::ExportLocationsAsSkyboxes(vtkPVXRInterfaceHelper*
           "\"arguments\": { \"poseIndex\": { \"values\": [";
 
   int count = 0;
-  for (auto& loci : locations)
+  for (std::size_t i = 0; i < locations.size(); ++i)
   {
-    auto& loc = loci.second;
     // create subdir for each pose
     std::ostringstream sdir;
     sdir << dir << count;
     vtksys::SystemTools::MakeDirectory(sdir.str());
 
-    helper->LoadLocationState(loci.first);
-
-    auto& camPose = *loc.Pose;
-
-    //    QCoreApplication::processEvents();
-    //  this->SMView->StillRender();
+    helper->LoadLocationState(i);
+    auto& camPose = *locations[i].Pose;
 
     renWin->Render();
 
@@ -206,64 +247,9 @@ void vtkPVXRInterfaceExporter::ExportLocationsAsSkyboxes(vtkPVXRInterfaceHelper*
           "\"metadata\": {\"backgroundColor\": \"rgb(0, 0, 0)\"} }";
 }
 
-namespace
-{
-vtkPolyData* findPolyData(vtkDataObject* input)
-{
-  // do we have polydata?
-  vtkPolyData* pd = vtkPolyData::SafeDownCast(input);
-  if (pd)
-  {
-    return pd;
-  }
-  vtkCompositeDataSet* cd = vtkCompositeDataSet::SafeDownCast(input);
-  if (cd)
-  {
-    vtkSmartPointer<vtkCompositeDataIterator> iter;
-    iter.TakeReference(cd->NewIterator());
-    for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
-    {
-      pd = vtkPolyData::SafeDownCast(iter->GetCurrentDataObject());
-      if (pd)
-      {
-        return pd;
-      }
-    }
-  }
-  return nullptr;
-}
-}
-
-namespace
-{
-template <typename T>
-void setVectorAttribute(vtkXMLDataElement* el, const char* name, int count, T* data)
-{
-  std::ostringstream o;
-  vtkNumberToString convert;
-  for (int i = 0; i < count; ++i)
-  {
-    if (i)
-    {
-      o << " ";
-    }
-    o << convert(data[i]);
-  }
-  el->SetAttribute(name, o.str().c_str());
-}
-
-void writeTextureReference(vtkXMLDataElement* adatael, vtkTexture* texture, const char* tname,
-  std::map<vtkTexture*, size_t>& textures)
-{
-  if (texture)
-  {
-    adatael->SetIntAttribute(tname, static_cast<int>(textures[texture]));
-  }
-}
-}
-
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceExporter::ExportLocationsAsView(vtkPVXRInterfaceHelper* helper,
-  vtkSMViewProxy* smview, std::map<int, vtkPVXRInterfaceHelperLocation>& locations)
+  vtkSMViewProxy* smview, std::vector<vtkPVXRInterfaceHelperLocation>& locations)
 {
   auto* view = vtkPVRenderView::SafeDownCast(smview->GetClientSideView());
   vtkRenderer* pvRenderer = view->GetRenderView()->GetRenderer();
@@ -300,13 +286,12 @@ void vtkPVXRInterfaceExporter::ExportLocationsAsView(vtkPVXRInterfaceHelper* hel
 
   vtkNew<vtkXMLDataElement> posesel;
   posesel->SetName("CameraPoses");
-  int count = 0;
-  for (auto& loci : locations)
+  size_t count = 0;
+  for (std::size_t i = 0; i < locations.size(); ++i)
   {
-    auto& loc = loci.second;
-    vtkVRCamera::Pose& pose = *loc.Pose;
+    vtkVRCamera::Pose& pose = *locations[i].Pose;
 
-    helper->LoadLocationState(loci.first);
+    helper->LoadLocationState(i);
 
     QCoreApplication::processEvents();
     smview->StillRender();
@@ -607,7 +592,7 @@ void vtkPVXRInterfaceExporter::ExportLocationsAsView(vtkPVXRInterfaceHelper* hel
   topel2->AddNestedElement(fsel);
 
   // write out photospheres
-  std::map<int, std::string> defaultSkyboxes;
+  std::map<size_t, std::string> defaultSkyboxes;
   vtkNew<vtkXMLDataElement> psel;
   psel->SetName("PhotoSpheres");
   count = 0;

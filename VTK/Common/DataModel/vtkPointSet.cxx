@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointSet.h"
 
 #include "vtkCell.h"
@@ -30,6 +18,7 @@
 
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointSet);
 vtkStandardExtendedNewMacro(vtkPointSet);
 
@@ -44,7 +33,7 @@ vtkPointSet::vtkPointSet()
   this->Points = nullptr;
   this->PointLocator = nullptr;
   this->CellLocator = nullptr;
-  this->EmptyCell = vtkEmptyCell::New();
+  this->EmptyCell = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -254,6 +243,16 @@ vtkIdType vtkPointSet::FindCell(double x[3], vtkCell* cell, vtkIdType cellId, do
 }
 
 //------------------------------------------------------------------------------
+vtkCell* vtkPointSet::GetCell(vtkIdType)
+{
+  if (!this->EmptyCell)
+  {
+    this->EmptyCell = vtkEmptyCell::New();
+  }
+  return this->EmptyCell;
+}
+
+//------------------------------------------------------------------------------
 vtkCellIterator* vtkPointSet::NewCellIterator()
 {
   vtkPointSetCellIterator* iter = vtkPointSetCellIterator::New();
@@ -356,3 +355,4 @@ void vtkPointSet::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PointLocator: " << this->PointLocator << "\n";
   os << indent << "CellLocator: " << this->CellLocator << "\n";
 }
+VTK_ABI_NAMESPACE_END

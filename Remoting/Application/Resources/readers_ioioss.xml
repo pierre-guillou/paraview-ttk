@@ -599,6 +599,21 @@
         </Documentation>
       </IntVectorProperty>
 
+      <IntVectorProperty name="ReadAllFilesToDetermineStructure"
+                         command="SetReadAllFilesToDetermineStructure"
+                         number_of_elements="1"
+                         default_values="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          When set to true (default), the reader will read all files to determine structure of the
+          dataset because some files might have certain blocks that other files don't have.
+          Set to false if you are sure that all files have the same structure, i.e. same blocks and sets.
+          When set to false, the reader will only read the first file to determine the structure.
+          which is faster than reading all files.
+        </Documentation>
+      </IntVectorProperty>
+
       <IntVectorProperty name="FileRange"
         command="SetFileRange"
         number_of_elements="2"
@@ -623,6 +638,17 @@
         </Documentation>
       </IntVectorProperty>
 
+      <IntVectorProperty command="SetMergeExodusEntityBlocks"
+                         default_values="0"
+                         name="MergeExodusEntityBlocks"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set whether to merge entity blocks into a single block.
+          This is useful only when the format is EXODUS.
+        </Documentation>
+      </IntVectorProperty>
+
       <IntVectorProperty command="SetApplyDisplacements"
                          default_values="1"
                          name="ApplyDisplacements"
@@ -630,7 +656,7 @@
         <BooleanDomain name="bool" />
         <Documentation>Geometric locations can include displacements. When this
           option is on, the nodal positions are 'displaced' by the standard
-          exodus displacement vector. If displacements are turned 'off', the user
+          EXODUS displacement vector. If displacements are turned 'off', the user
           can explicitly add them by applying a warp filter.
         </Documentation>
       </IntVectorProperty>
@@ -688,8 +714,7 @@
         panel_visibility="advanced">
         <BooleanDomain name="bool" />
         <Documentation>
-          When checked, the reader will read quality assurance and
-          information records, if available.
+          When checked, the reader will read global fields, if available.
         </Documentation>
       </IntVectorProperty>
 
@@ -701,7 +726,8 @@
         panel_visibility="advanced">
         <BooleanDomain name="bool" />
         <Documentation>
-          When checked, the reader will read global fields, if available.
+          When checked, the reader will read quality assurance and
+          information records, if available.
         </Documentation>
       </IntVectorProperty>
 
@@ -777,11 +803,13 @@
 
       <PropertyGroup label="Files">
         <Property name="ScanForRelatedFiles" />
+        <Property name="ReadAllFilesToDetermineStructure"/>
         <Property name="FileRange" />
         <Property name="FileStride" />
       </PropertyGroup>
 
       <PropertyGroup label="Miscellaneous">
+        <Property name="MergeExodusEntityBlocks"/>
         <Property name="DisplacementMagnitude" />
         <Property name="ApplyDisplacements" />
         <Property name="RemoveUnusedPoints" />

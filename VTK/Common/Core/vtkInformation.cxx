@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformation.h"
 
 #include "vtkCommand.h"
@@ -45,6 +33,7 @@
 
 #include "vtkInformationInternals.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInformation);
 
 //------------------------------------------------------------------------------
@@ -195,7 +184,7 @@ void vtkInformation::Clear()
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::Copy(vtkInformation* from, int deep)
+void vtkInformation::Copy(vtkInformation* from, vtkTypeBool deep)
 {
   vtkInformationInternals* oldInternal = this->Internal;
   this->Internal = new vtkInformationInternals;
@@ -212,7 +201,7 @@ void vtkInformation::Copy(vtkInformation* from, int deep)
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::Append(vtkInformation* from, int deep)
+void vtkInformation::Append(vtkInformation* from, vtkTypeBool deep)
 {
   if (from)
   {
@@ -226,33 +215,7 @@ void vtkInformation::Append(vtkInformation* from, int deep)
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationKey* key, int deep)
-{
-  if (!deep)
-  {
-    key->ShallowCopy(from, this);
-  }
-  else
-  {
-    key->DeepCopy(from, this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationDataObjectKey* key, int deep)
-{
-  if (!deep)
-  {
-    key->ShallowCopy(from, this);
-  }
-  else
-  {
-    key->DeepCopy(from, this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationInformationKey* key, int deep)
+void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -266,46 +229,7 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationInformationKe
 
 //------------------------------------------------------------------------------
 void vtkInformation::CopyEntry(
-  vtkInformation* from, vtkInformationInformationVectorKey* key, int deep)
-{
-  if (!deep)
-  {
-    key->ShallowCopy(from, this);
-  }
-  else
-  {
-    key->DeepCopy(from, this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationIntegerKey* key, int deep)
-{
-  if (!deep)
-  {
-    key->ShallowCopy(from, this);
-  }
-  else
-  {
-    key->DeepCopy(from, this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationRequestKey* key, int deep)
-{
-  if (!deep)
-  {
-    key->ShallowCopy(from, this);
-  }
-  else
-  {
-    key->DeepCopy(from, this);
-  }
-}
-
-//------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationIntegerVectorKey* key, int deep)
+  vtkInformation* from, vtkInformationDataObjectKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -319,7 +243,7 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationIntegerVector
 
 //------------------------------------------------------------------------------
 void vtkInformation::CopyEntry(
-  vtkInformation* from, vtkInformationObjectBaseVectorKey* key, int deep)
+  vtkInformation* from, vtkInformationInformationKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -332,7 +256,8 @@ void vtkInformation::CopyEntry(
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationDoubleVectorKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationInformationVectorKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -345,7 +270,8 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationDoubleVectorK
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationVariantKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationIntegerKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -358,7 +284,8 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationVariantKey* k
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationVariantVectorKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationRequestKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -371,7 +298,8 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationVariantVector
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationStringKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationIntegerVectorKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -384,7 +312,8 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationStringKey* ke
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationUnsignedLongKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationObjectBaseVectorKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -397,7 +326,8 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationUnsignedLongK
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationStringVectorKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationDoubleVectorKey* key, vtkTypeBool deep)
 {
   if (!deep)
   {
@@ -410,7 +340,77 @@ void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationStringVectorK
 }
 
 //------------------------------------------------------------------------------
-void vtkInformation::CopyEntries(vtkInformation* from, vtkInformationKeyVectorKey* key, int deep)
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationVariantKey* key, vtkTypeBool deep)
+{
+  if (!deep)
+  {
+    key->ShallowCopy(from, this);
+  }
+  else
+  {
+    key->DeepCopy(from, this);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationVariantVectorKey* key, vtkTypeBool deep)
+{
+  if (!deep)
+  {
+    key->ShallowCopy(from, this);
+  }
+  else
+  {
+    key->DeepCopy(from, this);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkInformation::CopyEntry(vtkInformation* from, vtkInformationStringKey* key, vtkTypeBool deep)
+{
+  if (!deep)
+  {
+    key->ShallowCopy(from, this);
+  }
+  else
+  {
+    key->DeepCopy(from, this);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationUnsignedLongKey* key, vtkTypeBool deep)
+{
+  if (!deep)
+  {
+    key->ShallowCopy(from, this);
+  }
+  else
+  {
+    key->DeepCopy(from, this);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkInformation::CopyEntry(
+  vtkInformation* from, vtkInformationStringVectorKey* key, vtkTypeBool deep)
+{
+  if (!deep)
+  {
+    key->ShallowCopy(from, this);
+  }
+  else
+  {
+    key->DeepCopy(from, this);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkInformation::CopyEntries(
+  vtkInformation* from, vtkInformationKeyVectorKey* key, vtkTypeBool deep)
 {
   int numberOfKeys = from->Length(key);
   vtkInformationKey** keys = from->Get(key);
@@ -955,3 +955,4 @@ vtkInformationRequestKey* vtkInformation::GetRequest()
 {
   return this->Request;
 }
+VTK_ABI_NAMESPACE_END

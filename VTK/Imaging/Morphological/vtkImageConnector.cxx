@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageConnector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageConnector.h"
 
 #include "vtkImageData.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageConnector);
 
 //------------------------------------------------------------------------------
@@ -172,6 +161,7 @@ void vtkImageConnector::MarkData(vtkImageData* data, int numberOfAxes, int exten
     delete seed;
   }
   vtkDebugMacro("Marked " << count << " pixels");
+  (void)count;
 }
 
 void vtkImageConnector::PrintSelf(ostream& os, vtkIndent indent)
@@ -181,3 +171,4 @@ void vtkImageConnector::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ConnectedValue: " << this->ConnectedValue << "\n";
   os << indent << "UnconnectedValue: " << this->UnconnectedValue << "\n";
 }
+VTK_ABI_NAMESPACE_END

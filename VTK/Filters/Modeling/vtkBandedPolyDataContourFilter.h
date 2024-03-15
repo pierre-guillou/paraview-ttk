@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBandedPolyDataContourFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBandedPolyDataContourFilter
  * @brief   generate filled contours for vtkPolyData
@@ -46,6 +34,7 @@
 
 #include "vtkContourValues.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkCellArray;
 class vtkPointData;
@@ -169,7 +158,7 @@ protected:
   int ComputeClippedIndex(double s);
   int InsertNextScalar(vtkFloatArray* scalars, int cellId, int idx);
   // data members
-  vtkContourValues* ContourValues;
+  vtkSmartPointer<vtkContourValues> ContourValues;
 
   vtkTypeBool Clipping;
   int ScalarMode;
@@ -258,4 +247,5 @@ inline void vtkBandedPolyDataContourFilter::GenerateValues(
   this->ContourValues->GenerateValues(numContours, rangeStart, rangeEnd);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

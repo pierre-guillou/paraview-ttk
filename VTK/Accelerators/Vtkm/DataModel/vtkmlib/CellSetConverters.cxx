@@ -1,36 +1,28 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "CellSetConverters.h"
 
 #include "ArrayConverters.hxx"
 #include "DataSetConverters.h"
 
-#include "vtkmFilterPolicy.h"
-
 #include <vtkm/cont/openmp/DeviceAdapterOpenMP.h>
 #include <vtkm/cont/serial/DeviceAdapterSerial.h>
 #include <vtkm/cont/tbb/DeviceAdapterTBB.h>
 
+#include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/ArrayCopy.h>
 #include <vtkm/cont/ArrayHandleCast.h>
 #include <vtkm/cont/ArrayHandleGroupVec.h>
+#include <vtkm/cont/ArrayHandleTransform.h>
 #include <vtkm/cont/CellSetSingleType.h>
 #include <vtkm/cont/TryExecute.h>
 
 #include <vtkm/worklet/WorkletMapField.h>
+
+#include <vtkm/BinaryPredicates.h>
+#include <vtkm/Swap.h>
 
 #include "vtkCellArray.h"
 #include "vtkCellType.h"
@@ -38,14 +30,9 @@
 #include "vtkNew.h"
 #include "vtkUnsignedCharArray.h"
 
-#if defined(VTKM_CUDA)
-#define FUNC_SCOPE __device__
-#else
-#define FUNC_SCOPE
-#endif
-
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 namespace
 {
@@ -54,16 +41,10 @@ struct ReorderHex : vtkm::worklet::WorkletMapField
 {
   using ControlSignature = void(FieldInOut);
 
-  FUNC_SCOPE void operator()(vtkm::Vec<vtkm::Id, 8>& indices) const
+  VTKM_EXEC void operator()(vtkm::Vec<vtkm::Id, 8>& indices) const
   {
-    auto doSwap = [&](vtkm::IdComponent id1, vtkm::IdComponent id2) {
-      const auto t = indices[id1];
-      indices[id1] = indices[id2];
-      indices[id2] = t;
-    };
-
-    doSwap(2, 3);
-    doSwap(6, 7);
+    vtkm::Swap(indices[2], indices[3]);
+    vtkm::Swap(indices[6], indices[7]);
   }
 };
 
@@ -108,14 +89,7 @@ struct BuildSingleTypeVoxelCellSetVisitor
       vtkm::cont::ArrayCopy(
         vtkm::cont::make_ArrayHandle(origData, numIds, vtkm::CopyFlag::Off), connHandle);
 
-      // reorder cells from voxel->hex: which only can run on
-      // devices that have shared memory / vtable with the CPU
-      vtkm::cont::ScopedRuntimeDeviceTracker tracker(
-        vtkm::cont::DeviceAdapterTagAny{}, vtkm::cont::RuntimeDeviceTrackerMode::Disable);
-      tracker.ResetDevice(vtkm::cont::DeviceAdapterTagTBB{});
-      tracker.ResetDevice(vtkm::cont::DeviceAdapterTagOpenMP{});
-      tracker.ResetDevice(vtkm::cont::DeviceAdapterTagSerial{});
-
+      // reorder cells from voxel->hex
       vtkm::cont::Invoker invoke;
       invoke(ReorderHex{}, vtkm::cont::make_ArrayHandleGroupVec<8>(connHandle));
     }
@@ -217,6 +191,16 @@ struct BuildExplicitCellSetVisitor
   }
 };
 
+struct SupportedCellShape
+{
+  VTKM_EXEC_CONT
+  bool operator()(vtkm::UInt8 shape) const
+  {
+    return (shape < vtkm::NUMBER_OF_CELL_SHAPES) && (shape != 2) && (shape != 6) && (shape != 8) &&
+      (shape != 11);
+  }
+};
+
 } // end anon namespace
 
 // convert a cell array of mixed types to a vtkm CellSetExplicit
@@ -225,13 +209,24 @@ vtkm::cont::UnknownCellSet Convert(
 {
   using ShapeArrayType = vtkAOSDataArrayTemplate<vtkm::UInt8>;
   using ShapeConverter = tovtkm::DataArrayToArrayHandle<ShapeArrayType, 1>;
-  return cells->Visit(BuildExplicitCellSetVisitor{}, ShapeConverter::Wrap(types), numberOfPoints);
+
+  auto shapes = ShapeConverter::Wrap(types);
+  if (!vtkm::cont::Algorithm::Reduce(
+        vtkm::cont::make_ArrayHandleTransform(shapes, SupportedCellShape{}), true,
+        vtkm::LogicalAnd()))
+  {
+    throw vtkm::cont::ErrorBadType("Unsupported VTK cell type in CellSet converter.");
+  }
+
+  return cells->Visit(BuildExplicitCellSetVisitor{}, shapes, numberOfPoints);
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace tovtkm
 
 namespace fromvtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 bool Convert(const vtkm::cont::UnknownCellSet& toConvert, vtkCellArray* cells,
   vtkUnsignedCharArray* typesArray)
@@ -285,4 +280,5 @@ bool Convert(const vtkm::cont::UnknownCellSet& toConvert, vtkCellArray* cells,
   return true;
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace fromvtkm

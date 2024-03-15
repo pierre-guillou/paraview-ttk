@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSteeringDataGenerator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSteeringDataGenerator
  * @brief source to generate dataset given field arrays
@@ -34,6 +22,22 @@
  *  <ProxyGroup name="sources">
  *     <!-- ==================================================================== -->
  *     <SourceProxy class="vtkSteeringDataGenerator" name="TestSteeringDataGeneratorSource">
+ *
+ *      <InputProperty command="SetSelectionConnection"
+ *                    name="Selection"
+ *                    panel_visibility="default"
+ *                    port_index="0">
+ *        <DataTypeDomain name="input_type">
+ *          <DataType value="vtkSelection"/>
+ *        </DataTypeDomain>
+ *        <Documentation>
+ *          The input that provides the selection object.
+ *        </Documentation>
+ *        <Hints>
+ *          <Optional/>
+ *          <SelectionInput/>
+ *        </Hints>
+ *      </InputProperty>
  *
  *       <IntVectorProperty name="PartitionType"
  *                          command="SetPartitionType"
@@ -78,7 +82,7 @@
  *
  * @endcode
  *
- * @section Caveats Caveats
+ * @section vtkSteeringDataGenerator_caveats Caveats
  *
  * This filter should ideally generated `vtkPartitionedDataSet`. However,
  * until `vtkPartitionedDataSet` is well supported, we are making it generate
@@ -88,8 +92,11 @@
 #ifndef vtkSteeringDataGenerator_h
 #define vtkSteeringDataGenerator_h
 
+#include "vtkAlgorithmOutput.h"
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkRemotingLiveModule.h" //needed for exports
+
+class vtkSelection;
 
 class VTKREMOTINGLIVE_EXPORT vtkSteeringDataGenerator : public vtkDataObjectAlgorithm
 {
@@ -98,17 +105,17 @@ public:
   vtkTypeMacro(vtkSteeringDataGenerator, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
-   * Choose the type for a parition in the output vtkMultiBlockDataSet.
+   * Choose the type for a partition in the output vtkMultiBlockDataSet.
    * Accepted values are any non-composite dataset type know to
    * vtkDataObjectTypes.
    */
   vtkSetMacro(PartitionType, int);
   vtkGetMacro(PartitionType, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Indicate the field association to which the specified data arrays are
    * added. The FieldAssociation must make sense for the chosen PartitionType
@@ -117,9 +124,28 @@ public:
    */
   vtkSetMacro(FieldAssociation, int);
   vtkGetMacro(FieldAssociation, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Convenience method to specify the selection connection (2nd input
+   * port).
+   *
+   * Note that for now only the first node of the selection will be considered as we didn't support
+   * expresion.
+   */
+  void SetSelectionConnection(int index, vtkAlgorithmOutput* algOutput)
+  {
+    this->SetInputConnection(index, algOutput);
+  }
+
+  void SetSelectionConnection(vtkAlgorithmOutput* algOutput)
+  {
+    this->SetInputConnection(0u, algOutput);
+  }
+  ///@}
+
+  ///@{
   /**
    * Methods to add individual tuples to the data arrays. The number of
    * components and type of the array depends on the API overload used. The
@@ -138,17 +164,23 @@ public:
   void SetTuple3Int(const char* arrayname, vtkIdType index, int val0, int val1, int val2);
   void SetTuple3IdType(
     const char* arrayname, vtkIdType index, vtkIdType val0, vtkIdType val1, vtkIdType val3);
-  //@}
+  ///@}
 
   /**
    * Remove the array identified by the arrayname, if any.
    */
   void Clear(const char* arrayname);
 
+  /**
+   * Append as array the list of selected id and the field type of the current selection.
+   */
+  void TransferSelectionToInternals(vtkSelection* selection);
+
 protected:
   vtkSteeringDataGenerator();
   ~vtkSteeringDataGenerator() override;
 
+  int FillInputPortInformation(int port, vtkInformation* info) override;
   int FillOutputPortInformation(int vtkNotUsed(port), vtkInformation* info) override;
   int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAxesToolbar.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqAxesToolbar.h"
 #include "ui_pqAxesToolbar.h"
 
@@ -136,8 +108,8 @@ void pqAxesToolbar::showOrientationAxes(bool show_axes)
 
   SM_SCOPED_TRACE(PropertiesModified)
     .arg("proxy", renderView->getProxy())
-    .arg(
-      "comment", QString(" %1 orientation axes").arg(show_axes ? "Show" : "Hide").toUtf8().data());
+    .arg("comment",
+      qPrintable(show_axes ? tr(" Show orientation axes") : tr(" Hide orientation axes")));
   renderView->setOrientationAxesVisibility(show_axes);
   renderView->render();
 }
@@ -153,7 +125,7 @@ void pqAxesToolbar::showCenterAxes(bool show_axes)
 
   SM_SCOPED_TRACE(PropertiesModified)
     .arg("proxy", renderView->getProxy())
-    .arg("comment", QString(" %1 center axes").arg(show_axes ? "Show" : "Hide").toUtf8().data());
+    .arg("comment", qPrintable(show_axes ? tr(" Show center axes") : tr(" Hide center axes")));
   renderView->setCenterAxesVisibility(show_axes);
   renderView->render();
 }
@@ -171,7 +143,7 @@ void pqAxesToolbar::resetCenterOfRotationToCenterOfCurrentData()
 
   SM_SCOPED_TRACE(PropertiesModified)
     .arg("proxy", renderView->getProxy())
-    .arg("comment", " update center of rotation");
+    .arg("comment", qPrintable(tr(" update center of rotation")));
 
   double bounds[6];
   if (repr->getDataBounds(bounds))
@@ -197,7 +169,7 @@ void pqAxesToolbar::pickCenterOfRotation(int posx, int posy)
     vtkSMRenderViewProxy* proxy = rm->getRenderViewProxy();
     SM_SCOPED_TRACE(PropertiesModified)
       .arg("proxy", proxy)
-      .arg("comment", " update center of rotation");
+      .arg("comment", qPrintable(tr(" update center of rotation")));
     proxy->ConvertDisplayToPointOnSurface(posxy, center, normal);
     if (!std::isnan(center[0]) || !std::isnan(center[1]) || !std::isnan(center[2]))
     {

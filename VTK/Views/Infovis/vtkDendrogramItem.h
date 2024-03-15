@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDendrogramItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDendrogramItem
  * @brief   A 2D graphics item for rendering a tree as
@@ -44,6 +32,7 @@
 #include "vtkStdString.h"    // For SetGet ivars
 #include "vtkVector.h"       // For vtkVector2f ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkColorLegend;
 class vtkDoubleArray;
 class vtkGraphLayout;
@@ -419,4 +408,5 @@ private:
   vtkStdString VertexNameArrayName;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

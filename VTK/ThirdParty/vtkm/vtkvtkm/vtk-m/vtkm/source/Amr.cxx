@@ -10,8 +10,8 @@
 
 
 #include <vtkm/cont/PartitionedDataSet.h>
-#include <vtkm/filter/AmrArrays.h>
 #include <vtkm/filter/field_conversion/CellAverage.h>
+#include <vtkm/filter/multi_block/AmrArrays.h>
 #include <vtkm/source/Amr.h>
 #include <vtkm/source/Wavelet.h>
 
@@ -29,8 +29,6 @@ Amr::Amr(vtkm::IdComponent dimension,
   , NumberOfLevels(numberOfLevels)
 {
 }
-
-Amr::~Amr() = default;
 
 template <vtkm::IdComponent Dim>
 vtkm::cont::DataSet Amr::GenerateDataSet(unsigned int level, unsigned int amrIndex) const
@@ -53,10 +51,11 @@ vtkm::cont::DataSet Amr::GenerateDataSet(unsigned int level, unsigned int amrInd
     center[2] = 0;
   }
 
-  vtkm::source::Wavelet waveletSource(-extent, extent);
+  vtkm::source::Wavelet waveletSource;
   waveletSource.SetOrigin(origin);
   waveletSource.SetSpacing(spacing);
   waveletSource.SetCenter(center);
+  waveletSource.SetExtent(-extent, extent);
   waveletSource.SetFrequency(frequency);
   waveletSource.SetStandardDeviation(deviation);
   vtkm::cont::DataSet wavelet = waveletSource.Execute();
@@ -101,7 +100,7 @@ vtkm::cont::PartitionedDataSet Amr::Execute() const
   }
 
   // Generate helper arrays
-  vtkm::filter::AmrArrays amrArrays;
+  vtkm::filter::multi_block::AmrArrays amrArrays;
   amrDataSet = amrArrays.Execute(amrDataSet);
 
   return amrDataSet;

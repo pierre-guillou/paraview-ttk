@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIOPostgreSQL_AutoInit.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPostgreSQLDatabase.h"
 
@@ -20,6 +8,7 @@
 #include <string>
 
 // Registration of PostgreSQL dynamically with the vtkSQLDatabase factory method.
+VTK_ABI_NAMESPACE_BEGIN
 vtkSQLDatabase* PostgreSQLCreateFunction(const char* URL)
 {
   std::string urlstr(URL ? URL : "");
@@ -50,3 +39,4 @@ VTKIOPOSTGRESQL_EXPORT void vtkIOPostgreSQL_AutoInit_Construct()
     vtkSQLDatabase::RegisterCreateFromURLCallback(PostgreSQLCreateFunction);
   }
 }
+VTK_ABI_NAMESPACE_END

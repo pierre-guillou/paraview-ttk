@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMParserMap.h
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifndef __DICOM_PARSER_MAP__H_
 #define __DICOM_PARSER_MAP__H_
 
@@ -31,6 +17,7 @@
 
 #include "DICOMConfig.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class DICOMCallback;
 
 //
@@ -100,10 +87,7 @@ typedef dicom_stl::pair<doublebyte, dicom_stl::vector<DICOMCallback*>*> DICOMMap
 class DICOMMapValue : public DICOMMapValueOverride
 {
 public:
-  DICOMMapValue()
-    : dicom_stl::pair<doublebyte, dicom_stl::vector<DICOMCallback*>*>()
-  {
-  }
+  DICOMMapValue() = default;
 
   DICOMMapValue(doublebyte v1, dicom_stl::vector<DICOMCallback*>* v2)
     : dicom_stl::pair<doublebyte, dicom_stl::vector<DICOMCallback*>*>(v1, v2)
@@ -136,4 +120,5 @@ class DICOMImplicitTypeMap
 #pragma warning(pop)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

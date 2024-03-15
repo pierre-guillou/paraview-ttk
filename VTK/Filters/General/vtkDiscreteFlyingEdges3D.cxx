@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscreteFlyingEdges3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDiscreteFlyingEdges3D.h"
 
 #include "vtkArrayListTemplate.h" // For processing attribute data
@@ -33,6 +21,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDiscreteFlyingEdges3D);
 
 //------------------------------------------------------------------------------
@@ -323,19 +312,31 @@ public:
   public:
     vtkDiscreteFlyingEdges3DAlgorithm<TT>* Algo;
     double Value;
-    Pass1(vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo, double value)
+    vtkDiscreteFlyingEdges3D* Filter;
+    Pass1(
+      vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo, double value, vtkDiscreteFlyingEdges3D* filter)
     {
       this->Algo = algo;
       this->Value = value;
+      this->Filter = filter;
     }
     void operator()(vtkIdType slice, vtkIdType end)
     {
       vtkIdType row;
       TT *rowPtr, *slicePtr = this->Algo->Scalars + slice * this->Algo->Inc2;
-      for (; slice < end; ++slice)
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      for (; slice < end && !this->Filter->GetAbortOutput(); ++slice)
       {
         for (row = 0, rowPtr = slicePtr; row < this->Algo->Dims[1]; ++row)
         {
+          if (isFirst)
+          {
+            this->Filter->CheckAbort();
+          }
+          if (this->Filter->GetAbortOutput())
+          {
+            break;
+          }
           this->Algo->ProcessXEdge(this->Value, rowPtr, row, slice);
           rowPtr += this->Algo->Inc1;
         } // for all rows in this slice
@@ -347,14 +348,28 @@ public:
   class Pass2
   {
   public:
-    Pass2(vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass2(vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo, vtkDiscreteFlyingEdges3D* filter)
+    {
+      this->Algo = algo;
+      this->Filter = filter;
+    }
     vtkDiscreteFlyingEdges3DAlgorithm<TT>* Algo;
+    vtkDiscreteFlyingEdges3D* Filter;
     void operator()(vtkIdType slice, vtkIdType end)
     {
-      for (; slice < end; ++slice)
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      for (; slice < end && !this->Filter->GetAbortOutput(); ++slice)
       {
         for (vtkIdType row = 0; row < (this->Algo->Dims[1] - 1); ++row)
         {
+          if (isFirst)
+          {
+            this->Filter->CheckAbort();
+          }
+          if (this->Filter->GetAbortOutput())
+          {
+            break;
+          }
           this->Algo->ProcessYZEdges(row, slice);
         } // for all rows in this slice
       }   // for all slices in this batch
@@ -364,21 +379,33 @@ public:
   class Pass4
   {
   public:
-    Pass4(vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo, double value)
+    Pass4(
+      vtkDiscreteFlyingEdges3DAlgorithm<TT>* algo, double value, vtkDiscreteFlyingEdges3D* filter)
     {
       this->Algo = algo;
       this->Value = value;
+      this->Filter = filter;
     }
     vtkDiscreteFlyingEdges3DAlgorithm<TT>* Algo;
     double Value;
+    vtkDiscreteFlyingEdges3D* Filter;
     void operator()(vtkIdType slice, vtkIdType end)
     {
       vtkIdType row;
       vtkIdType* eMD0 = this->Algo->EdgeMetaData + slice * 6 * this->Algo->Dims[1];
       vtkIdType* eMD1 = eMD0 + 6 * this->Algo->Dims[1];
       TT *rowPtr, *slicePtr = this->Algo->Scalars + slice * this->Algo->Inc2;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; slice < end; ++slice)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         // It's possible to skip entire slices if there is nothing to generate
         if (eMD1[3] > eMD0[3]) // there are triangle primitives!
         {
@@ -1247,19 +1274,23 @@ void vtkDiscreteFlyingEdges3DAlgorithm<T>::Contour(vtkDiscreteFlyingEdges3D* sel
   // Loop across each contour value. This encompasses all three passes.
   for (vidx = 0; vidx < numContours; vidx++)
   {
+    if (self->CheckAbort())
+    {
+      break;
+    }
     value = values[vidx];
 
     // PASS 1: Traverse all x-rows building edge cases and counting number of
     // intersections (i.e., accumulate information necessary for later output
     // memory allocation, e.g., the number of output points along the x-rows
     // are counted).
-    Pass1<T> pass1(&algo, value);
+    Pass1<T> pass1(&algo, value, self);
     vtkSMPTools::For(0, algo.Dims[2], pass1);
 
     // PASS 2: Traverse all voxel x-rows and process voxel y&z edges.  The
     // result is a count of the number of y- and z-intersections, as well as
     // the number of triangles generated along these voxel rows.
-    Pass2<T> pass2(&algo);
+    Pass2<T> pass2(&algo, self);
     vtkSMPTools::For(0, algo.Dims[2] - 1, pass2);
 
     // PASS 3: Now allocate and generate output. First we have to update the
@@ -1347,7 +1378,7 @@ void vtkDiscreteFlyingEdges3DAlgorithm<T>::Contour(vtkDiscreteFlyingEdges3D* sel
       // Note that we are simultaneously generating triangles and interpolating
       // points. These could be split into separate, parallel operations for
       // maximum performance.
-      Pass4<T> pass4(&algo, value);
+      Pass4<T> pass4(&algo, value, self);
       vtkSMPTools::For(0, algo.Dims[2] - 1, pass4);
     } // if anything generated
 
@@ -1561,3 +1592,4 @@ void vtkDiscreteFlyingEdges3D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Interpolate Attributes: " << (this->InterpolateAttributes ? "On\n" : "Off\n");
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -35,10 +35,13 @@ public:
   using ReadPortalType = vtkm::internal::ArrayPortalBasicRead<T>;
   using WritePortalType = vtkm::internal::ArrayPortalBasicWrite<T>;
 
-  VTKM_CONT constexpr static vtkm::IdComponent GetNumberOfBuffers() { return 1; }
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> CreateBuffers()
+  {
+    return std::vector<vtkm::cont::internal::Buffer>(1);
+  }
 
   VTKM_CONT static void ResizeBuffers(vtkm::Id numValues,
-                                      vtkm::cont::internal::Buffer* buffers,
+                                      const std::vector<vtkm::cont::internal::Buffer>& buffers,
                                       vtkm::CopyFlag preserve,
                                       vtkm::cont::Token& token)
   {
@@ -46,36 +49,43 @@ public:
       vtkm::internal::NumberOfValuesToNumberOfBytes<T>(numValues), preserve, token);
   }
 
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
   {
-    return static_cast<vtkm::Id>(buffers->GetNumberOfBytes() /
+    VTKM_ASSERT(buffers.size() == 1);
+    return static_cast<vtkm::Id>(buffers[0].GetNumberOfBytes() /
                                  static_cast<vtkm::BufferSizeType>(sizeof(T)));
   }
 
-  VTKM_CONT static void Fill(vtkm::cont::internal::Buffer* buffers,
+  VTKM_CONT static void Fill(const std::vector<vtkm::cont::internal::Buffer>& buffers,
                              const T& fillValue,
                              vtkm::Id startIndex,
                              vtkm::Id endIndex,
                              vtkm::cont::Token& token)
   {
+    VTKM_ASSERT(buffers.size() == 1);
     constexpr vtkm::BufferSizeType fillValueSize =
       static_cast<vtkm::BufferSizeType>(sizeof(fillValue));
     buffers[0].Fill(
       &fillValue, fillValueSize, startIndex * fillValueSize, endIndex * fillValueSize, token);
   }
 
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId device,
-                                                   vtkm::cont::Token& token)
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
+    VTKM_ASSERT(buffers.size() == 1);
     return ReadPortalType(reinterpret_cast<const T*>(buffers[0].ReadPointerDevice(device, token)),
                           GetNumberOfValues(buffers));
   }
 
-  VTKM_CONT static WritePortalType CreateWritePortal(vtkm::cont::internal::Buffer* buffers,
-                                                     vtkm::cont::DeviceAdapterId device,
-                                                     vtkm::cont::Token& token)
+  VTKM_CONT static WritePortalType CreateWritePortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId device,
+    vtkm::cont::Token& token)
   {
+    VTKM_ASSERT(buffers.size() == 1);
     return WritePortalType(reinterpret_cast<T*>(buffers[0].WritePointerDevice(device, token)),
                            GetNumberOfValues(buffers));
   }
@@ -222,13 +232,6 @@ VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandle(const T* array,
   }
 }
 
-template <typename T>
-VTKM_DEPRECATED(1.6, "Specify a vtkm::CopyFlag or use a move version of make_ArrayHandle.")
-VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandle(const T* array, vtkm::Id numberOfValues)
-{
-  return make_ArrayHandle(array, numberOfValues, vtkm::CopyFlag::Off);
-}
-
 /// A convenience function to move a user-allocated array into an `ArrayHandle`.
 /// The provided array pointer will be reset to `nullptr`.
 /// If the array was not allocated with the `new[]` operator, then deleter and reallocater
@@ -261,13 +264,6 @@ VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandle(const std::vector<T, 
     // Vector empty. Just return an empty array handle.
     return vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>();
   }
-}
-
-template <typename T, typename Allocator>
-VTKM_DEPRECATED(1.6, "Specify a vtkm::CopyFlag or use a move version of make_ArrayHandle.")
-VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandle(const std::vector<T, Allocator>& array)
-{
-  return make_ArrayHandle(array, vtkm::CopyFlag::Off);
 }
 
 /// Move an std::vector into an ArrayHandle.
@@ -345,7 +341,8 @@ struct Serialization<vtkm::cont::ArrayHandleBasic<T>>
     vtkm::cont::internal::Buffer buffer;
     vtkmdiy::load(bb, buffer);
 
-    obj = vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>(&buffer);
+    obj = vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>(
+      vtkm::cont::internal::CreateBuffers(buffer));
   }
 };
 

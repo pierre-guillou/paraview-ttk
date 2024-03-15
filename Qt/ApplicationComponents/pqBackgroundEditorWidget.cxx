@@ -1,34 +1,5 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqBackgroundEditorWidget.cxx
-
-   Copyright (c) 2005-2012 Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqBackgroundEditorWidget.h"
 #include "ui_pqBackgroundEditorWidget.h"
@@ -83,12 +54,18 @@ public:
     : PreviousType(SINGLE_COLOR_TYPE)
   {
     this->setupUi(self);
-    this->mainLayout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->mainLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->mainLayout->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
-    this->page1Layout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->page1Layout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->page1Layout->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
     this->page1Layout->setVerticalSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
-    this->page3Layout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->page3Layout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->page3Layout->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
   }
 };
@@ -221,7 +198,7 @@ void pqBackgroundEditorWidget::currentIndexChangedBackgroundType(int type)
   const int ROWS = 4;
   const int COLS = 2;
   Ui::BackgroundEditorWidget& ui = *this->Internal;
-  const char* colorButtonName[4] = { "Color", "Color 1", "Color", "Color" };
+  const QString colorButtonName[4] = { tr("Color"), tr("Color 1"), tr("Color"), tr("Color") };
   int currentPage[4] = { 0, 0, 1, 1 };
   bool visibleControls[4][ROWS] = { { true, false, false, false }, { true, true, false, false },
     { false, false, true, false }, { false, false, true, true } };
@@ -347,7 +324,7 @@ void pqBackgroundEditorWidget::clickedRestoreDefaultColor2()
 void pqBackgroundEditorWidget::changeColor(const char* propertyName)
 {
   vtkSMProperty* _property = this->propertyGroup()->GetProperty(propertyName);
-  BEGIN_UNDO_SET("Restore Default Color");
+  BEGIN_UNDO_SET(tr("Restore Default Color"));
   _property->ResetToDefault();
   Q_EMIT this->changeFinished();
   END_UNDO_SET();

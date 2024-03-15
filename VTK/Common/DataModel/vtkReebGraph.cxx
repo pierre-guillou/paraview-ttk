@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkReebGraph.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkReebGraph.h"
 
 #include "vtkCell.h"
@@ -39,6 +22,7 @@
 //------------------------------------------------------------------------------
 // Contain all of the internal data structures, and macros, in the
 // implementation.
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 //------------------------------------------------------------------------------
@@ -59,7 +43,7 @@ inline bool vtkReebGraphVertexSoS(
     (var2) = tmp;                                                                                  \
   } while (false)
 
-#define vtkReebGraphInitialStreamSize 1000
+constexpr int vtkReebGraphInitialStreamSize = 1000;
 
 #define vtkReebGraphIsSmaller(myReebGraph, nodeId0, nodeId1, node0, node1)                         \
   ((node0->Value < node1->Value) || (node0->Value == node1->Value && (nodeId0) < (nodeId1)))
@@ -1970,7 +1954,6 @@ void vtkReebGraph::CloseStream()
   } while (aIt != localAdjacency.end());
 
   // now cleanup the internal representation
-  int nmyend = 0;
   for (vtkIdType N = 1; N < this->Storage->MainNodeTable.Size; N++)
   {
     // clear the node
@@ -1981,7 +1964,6 @@ void vtkReebGraph::CloseStream()
 
     if (!n->IsFinalized)
     {
-      nmyend++;
       this->Storage->EndVertex(N);
     }
   }
@@ -3381,3 +3363,4 @@ inline vtkIdType vtkReebGraph::Implementation::AddArc(vtkIdType nodeId0, vtkIdTy
   vtkIdType nodevtkReebArcble[] = { nodeId0, nodeId1 };
   return AddPath(2, nodevtkReebArcble, 0);
 }
+VTK_ABI_NAMESPACE_END

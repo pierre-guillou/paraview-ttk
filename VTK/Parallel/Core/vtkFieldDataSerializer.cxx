@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkFieldDataSerializer.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFieldDataSerializer.h"
 #include "vtkDataArray.h"
 #include "vtkDoubleArray.h"
@@ -29,6 +17,7 @@
 #include <cassert> // For assert()
 #include <cstring> // For memcpy
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFieldDataSerializer);
 
 //------------------------------------------------------------------------------
@@ -467,3 +456,4 @@ void vtkFieldDataSerializer::DeserializeDataArray(
       cerr << "Cannot serialize data of type=" << dataArray->GetDataType() << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

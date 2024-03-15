@@ -1,21 +1,11 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkDataTabulator.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataTabulator.h"
 
 #include "vtkAttributeDataToTableFilter.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkDataAssembly.h"
+#include "vtkDataAssemblyUtilities.h"
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkExtractBlockUsingDataAssembly.h"
 #include "vtkFieldData.h"
@@ -33,7 +23,6 @@
 #include "vtkUniformGridAMRDataIterator.h"
 
 #include <cassert>
-#include <map>
 #include <string>
 
 namespace
@@ -105,8 +94,12 @@ int vtkDataTabulator::RequestData(
   {
     if (!this->Selectors.empty())
     {
+      auto assembly =
+        vtkDataAssemblyUtilities::GetDataAssembly(this->ActiveAssemblyForSelectors, inputCD);
+      const std::string activeAssemblyName =
+        assembly ? this->ActiveAssemblyForSelectors : "Hierarchy";
       vtkNew<vtkExtractBlockUsingDataAssembly> extractor;
-      extractor->SetAssemblyName(this->ActiveAssemblyForSelectors);
+      extractor->SetAssemblyName(activeAssemblyName.c_str());
       for (const auto& selector : this->Selectors)
       {
         extractor->AddSelector(selector.c_str());
@@ -189,7 +182,7 @@ int vtkDataTabulator::RequestData(
     iter->Delete();
 
     auto output = this->Transform(xInput);
-    outputPD->ShallowCopy(output);
+    outputPD->CompositeShallowCopy(vtkPartitionedDataSet::SafeDownCast(output));
   }
   else
   {

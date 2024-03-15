@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRHMDCamera
  * @brief   A superclass for HMD style cameras
@@ -24,6 +13,7 @@
 #include "vtkRenderingVRModule.h" // For export macro
 #include "vtkVRCamera.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkMatrix4x4;
 
@@ -56,6 +46,22 @@ protected:
   virtual void UpdateWorldToEyeMatrices(vtkRenderer*) = 0;
   virtual void UpdateEyeToProjectionMatrices(vtkRenderer*) = 0;
 
+  /**
+   * Compute the projection transform for the VR head-mounted display (HMD) camera.
+   *
+   * If the HMD tracking is enabled (GetTrackHMD() returns true), the function ignores
+   * the aspect argument provided and uses the left or right eye matrices explicitly
+   * created for the VR viewport.
+   *
+   * If HMD tracking is disabled, the default projection transform computation from
+   * vtkCamera is used.
+   *
+   * @warning This method should only be used within `vtkCamera.cxx`.
+   *
+   * @sa vtkCamera::ComputeProjectionTransform, vtkVRCamera::SetTrackHMD
+   */
+  void ComputeProjectionTransform(double aspect, double nearz, double farz) override;
+
   // all the matrices below are stored in VTK convention
   // as A = Mx where x is a column vector.
 
@@ -87,4 +93,5 @@ private:
   void operator=(const vtkVRHMDCamera&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

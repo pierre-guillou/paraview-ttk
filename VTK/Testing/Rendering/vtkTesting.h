@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTesting.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTesting
  * @brief   a unified VTK regression testing framework
@@ -63,15 +51,18 @@
 #define vtkTesting_h
 
 #include "vtkObject.h"
+#include "vtkSmartPointer.h"           // for vtkSmartPointer
 #include "vtkTestingRenderingModule.h" // For export macro
 #include <string>                      // STL Header used for argv
 #include <vector>                      // STL Header used for argv
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithm;
 class vtkRenderWindow;
 class vtkImageData;
 class vtkDataArray;
 class vtkDataSet;
+class vtkMultiProcessController;
 class vtkRenderWindowInteractor;
 
 /**
@@ -227,6 +218,13 @@ public:
   vtkGetObjectMacro(RenderWindow, vtkRenderWindow);
   ///@}
 
+  /**
+   * Get Mesa version if Mesa drivers are in use.
+   * version is populated with major, minor and patch numbers
+   * Returns true if mesa is in use, false otherwise.
+   */
+  static bool GetMesaVersion(vtkRenderWindow* renderWindow, int version[3]);
+
   ///@{
   /**
    * Set/Get the name of the valid image file
@@ -315,6 +313,15 @@ public:
   vtkGetMacro(Verbose, int);
   ///@}
 
+  ///@{
+  /**
+   * Get/Set the controller in an MPI environment. If one sets the controller to `nullptr`,
+   * an instance of `vtkDummyController` is stored instead. `GetController` never returns `nullptr`.
+   */
+  vtkMultiProcessController* GetController() const;
+  void SetController(vtkMultiProcessController* controller);
+  ///@}
+
 protected:
   vtkTesting();
   ~vtkTesting() override;
@@ -336,9 +343,12 @@ protected:
   double StartWallTime;
   double StartCPUTime;
 
+  vtkSmartPointer<vtkMultiProcessController> Controller;
+
 private:
   vtkTesting(const vtkTesting&) = delete;
   void operator=(const vtkTesting&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

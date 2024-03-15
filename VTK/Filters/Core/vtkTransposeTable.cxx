@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransposeTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTransposeTable.h"
 
@@ -43,6 +31,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransposeTableInternal
 {
 public:
@@ -155,6 +144,8 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
   // Check column type consistency
   bool useVariant = false;
   vtkAbstractArray* firstCol = this->InTable->GetColumn(idColOffset);
+  vtkIdType checkAbortInterval =
+    std::min((this->InTable->GetNumberOfColumns() - idColOffset) / 10 + 1, (vtkIdType)1000);
   for (int c = idColOffset; c < this->InTable->GetNumberOfColumns(); c++)
   {
     if (strcmp(firstCol->GetClassName(), this->InTable->GetColumn(c)->GetClassName()) != 0)
@@ -165,6 +156,10 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
   }
   for (int c = idColOffset; c < this->InTable->GetNumberOfColumns(); c++)
   {
+    if (c % checkAbortInterval == 0 && this->Parent->CheckAbort())
+    {
+      break;
+    }
     vtkAbstractArray* column = this->InTable->GetColumn(c);
     if (!column)
     {
@@ -221,8 +216,15 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
 
   // Set id column on transposed table
   firstCol = this->InTable->GetColumn(0);
+
+  checkAbortInterval = std::min(
+    (firstCol->GetNumberOfComponents() * firstCol->GetNumberOfTuples()) / 10 + 1, (vtkIdType)1000);
   for (int r = 0; r < firstCol->GetNumberOfComponents() * firstCol->GetNumberOfTuples(); r++)
   {
+    if (r % checkAbortInterval == 0 && this->Parent->CheckAbort())
+    {
+      break;
+    }
     vtkAbstractArray* destColumn = this->OutTable->GetColumn(r);
     if (this->Parent->GetUseIdColumn())
     {
@@ -231,7 +233,7 @@ bool vtkTransposeTableInternal::TransposeTable(vtkTable* inTable, vtkTable* outT
     else
     {
       // Set the column name to the (padded) row id.
-      // We padd ids with 0 to avoid downstream dictionary sort issues.
+      // We pad ids with 0 to avoid downstream dictionary sort issues.
       std::stringstream ss2;
       ss2 << std::setw(maxBLen) << std::setfill('0');
       ss2 << r;
@@ -296,3 +298,4 @@ int vtkTransposeTable::RequestData(
   vtkTransposeTableInternal intern(this);
   return intern.TransposeTable(inTable, outTable) ? 1 : 0;
 }
+VTK_ABI_NAMESPACE_END

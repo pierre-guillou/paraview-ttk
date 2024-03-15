@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKMeansDistanceFunctorCalculator.h"
 
 #include "vtkDoubleArray.h"
@@ -10,6 +12,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkKMeansDistanceFunctorCalculator);
 vtkCxxSetObjectMacro(vtkKMeansDistanceFunctorCalculator, FunctionParser, vtkFunctionParser);
 
@@ -94,3 +97,4 @@ void vtkKMeansDistanceFunctorCalculator::operator()(
   cout << " ]) = " << distance << "\n";
   */
 }
+VTK_ABI_NAMESPACE_END

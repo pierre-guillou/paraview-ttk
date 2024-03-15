@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGL2PSExporter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVGL2PSExporter
  * @brief   ParaView wrapper for vtkGL2PS exporter.
@@ -33,14 +21,14 @@ public:
   vtkTypeMacro(vtkPVGL2PSExporter, vtkOpenGLGL2PSExporter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the name of the output file.
    */
   vtkSetMacro(FileName, const char*) const char* GetFileName() { return this->FileName.c_str(); }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If Write3DPropsAsRasterImage is true, add all instances of
    * vtkCubeAxesActors to the RenderExclusions.
@@ -48,7 +36,7 @@ public:
   vtkSetMacro(ExcludeCubeAxesActorsFromRasterization, int);
   vtkGetMacro(ExcludeCubeAxesActorsFromRasterization, int);
   vtkBooleanMacro(ExcludeCubeAxesActorsFromRasterization, int);
-  //@}
+  ///@}
 
 protected:
   vtkPVGL2PSExporter();

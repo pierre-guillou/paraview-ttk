@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPOpenFOAMReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPOpenFOAMReader
  * @brief   reads a decomposed dataset in OpenFOAM format
@@ -33,6 +21,7 @@
 #include "vtkIOParallelModule.h" // For export macro
 #include "vtkOpenFOAMReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkMultiProcessController;
 
@@ -54,7 +43,7 @@ public:
   /**
    * Set and get case type. 0 = decomposed case, 1 = reconstructed case.
    */
-  void SetCaseType(const int t);
+  void SetCaseType(int t);
   vtkGetMacro(CaseType, caseType);
   ///@}
   ///@{
@@ -88,4 +77,5 @@ private:
   void AllGather(vtkDataArraySelection*);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

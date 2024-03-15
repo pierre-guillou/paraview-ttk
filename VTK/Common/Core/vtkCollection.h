@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCollection
  * @brief   create and manipulate ordered lists of objects
@@ -34,6 +22,7 @@
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCollectionElement //;prevents pick-up by man page generator
 {
 public:
@@ -103,6 +92,13 @@ public:
    * the return value-1.
    */
   int IsItemPresent(vtkObject* a);
+
+  /**
+   * Search for an object and return location in list. If the return value is
+   * -1, the object was not found. If the object was found, the location is
+   * at the returned (0-based) index.
+   */
+  int IndexOfFirstOccurence(vtkObject* a);
 
   /**
    * Return the number of objects in the list.
@@ -205,4 +201,5 @@ inline vtkObject* vtkCollection::GetNextItemAsObject(void*& cookie)
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

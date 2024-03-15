@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "../Types.h"
@@ -9,6 +11,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Group : public Object
     {
         friend class World;
@@ -56,4 +59,5 @@ namespace RTW
         std::set<GeometricModel *> geometricModels;
 
     };
+VTK_ABI_NAMESPACE_END
 }

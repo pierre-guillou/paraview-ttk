@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMTransferFunction2DProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMTransferFunction2DProxy
  * @brief vtkSMTransferFunction2DProxy is the proxy used for "TransferFunction2D".
@@ -62,7 +50,7 @@ public:
   virtual bool RescaleTransferFunction(
     double rangeXMin, double rangeXMax, double rangeYMin, double rangeYMax, bool extend = false);
 
-  //@{
+  ///@{
   /**
    * Safely call RescaleTransferFunction() after casting the proxy to
    * appropriate type.
@@ -74,9 +62,9 @@ public:
     return vtkSMTransferFunction2DProxy::RescaleTransferFunction(
       proxy, range[0], range[1], range[2], range[3], extend);
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Locates all representations that are currently using this transfer function
    * and then rescales the transfer function scalar range to exactly match the
@@ -88,9 +76,9 @@ public:
     vtkSMTransferFunction2DProxy* self = vtkSMTransferFunction2DProxy::SafeDownCast(proxy);
     return self ? self->RescaleTransferFunctionToDataRange(extend) : false;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Helper method used by RescaleTransferFunctionToDataRange() to compute range
    * from all visible representations using the transfer function.
@@ -102,9 +90,9 @@ public:
     vtkSMTransferFunction2DProxy* self = vtkSMTransferFunction2DProxy::SafeDownCast(proxy);
     return self ? self->ComputeDataRange(range) : false;
   }
-  //@}
+  ///@}
 
-  //@(
+  ///@{
   /**
    * Helper method used to compute a 2D histogram image with provided number of bins based on the
    * data from all the visible representations using the transfer function.
@@ -117,9 +105,9 @@ public:
     vtkSMTransferFunction2DProxy* self = vtkSMTransferFunction2DProxy::SafeDownCast(proxy);
     return self ? self->ComputeDataHistogram2D(numberOfBins) : nullptr;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Helper method used to recover the last histogram computed by ComputeDataHistogram2D
    * Returns the histogram as a vtkImageData if available, nullptr otherwise.
@@ -130,9 +118,9 @@ public:
     vtkSMTransferFunction2DProxy* self = vtkSMTransferFunction2DProxy::SafeDownCast(proxy);
     return self ? self->GetHistogram2DCache() : nullptr;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns current transfer function data range. Returns false is a valid
    * range could not be determined.
@@ -143,7 +131,7 @@ public:
     vtkSMTransferFunction2DProxy* self = vtkSMTransferFunction2DProxy::SafeDownCast(proxy);
     return self ? self->GetRange(range) : false;
   }
-  //@}
+  ///@}
 
   /**
    * Expected tuple size of the boxes property of the proxy.

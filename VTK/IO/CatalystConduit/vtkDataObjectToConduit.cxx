@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectToConduit.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataObjectToConduit.h"
 
 #include "vtkAOSDataArrayTemplate.h"
@@ -25,6 +13,7 @@
 #include "vtkPointData.h"
 #include "vtkPointSet.h"
 #include "vtkPoints.h"
+#include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkSOADataArrayTemplate.h"
 #include "vtkStringArray.h"
@@ -54,6 +43,40 @@ bool IsMixedShape(vtkUnstructuredGrid* unstructured_grid)
 }
 
 //----------------------------------------------------------------------------
+bool IsMixedShape(vtkPolyData* grid)
+{
+  // WARNING: This is inefficient
+  vtkNew<vtkCellTypes> cell_types;
+  grid->GetCellTypes(cell_types);
+  return cell_types->GetNumberOfTypes() > 1;
+}
+
+//----------------------------------------------------------------------------
+vtkCellArray* GetCells(vtkUnstructuredGrid* ugrid, int)
+{
+  return ugrid->GetCells();
+}
+
+//----------------------------------------------------------------------------
+vtkCellArray* GetCells(vtkPolyData* polydata, int cellType)
+{
+  switch (cellType)
+  {
+    case VTK_POLYGON:
+    case VTK_QUAD:
+    case VTK_TRIANGLE:
+      return polydata->GetPolys();
+    case VTK_LINE:
+      return polydata->GetLines();
+    case VTK_VERTEX:
+      return polydata->GetVerts();
+    default:
+      vtkLog(ERROR, << "Unsupported cell type in polydata. Cell type: "
+                    << vtkCellTypes::GetClassNameFromTypeId(cellType));
+      return nullptr;
+  }
+}
+//----------------------------------------------------------------------------
 bool IsSignedIntegralType(int data_type)
 {
   constexpr bool is_char_type_signed = (CHAR_MIN == SCHAR_MIN) && (CHAR_MAX == SCHAR_MAX);
@@ -81,11 +104,20 @@ bool IsFloatType(int data_type)
 }
 
 //----------------------------------------------------------------------------
-bool ConvertDataArrayToMCArray(
-  vtkDataArray* data_array, int offset, int stride, conduit_cpp::Node& conduit_node)
+bool ConvertDataArrayToMCArray(vtkDataArray* data_array, int offset, int stride,
+  conduit_cpp::Node& conduit_node, int array_size = -1)
 {
   stride = std::max(stride, 1);
-  conduit_index_t number_of_elements = data_array->GetNumberOfValues() / stride;
+
+  conduit_index_t number_of_elements;
+  if (array_size == -1)
+  {
+    number_of_elements = data_array->GetNumberOfValues() / stride;
+  }
+  else
+  {
+    number_of_elements = array_size / stride;
+  }
 
   int data_type = data_array->GetDataType();
   int data_type_size = data_array->GetDataTypeSize();
@@ -185,23 +217,179 @@ bool ConvertDataArrayToMCArray(
 }
 
 //----------------------------------------------------------------------------
-bool ConvertDataArrayToMCArray(vtkDataArray* data_array, conduit_cpp::Node& conduit_node)
+bool ConvertDataArrayToMCArray(vtkDataArray* data_array, conduit_cpp::Node& conduit_node,
+  const std::vector<std::string> names = std::vector<std::string>())
 {
-  return ConvertDataArrayToMCArray(data_array, 0, 0, conduit_node);
+  size_t nComponents = data_array->GetNumberOfComponents();
+  if (nComponents > 1)
+  {
+    bool success = true;
+    for (size_t i = 0; i < nComponents; ++i)
+    {
+      conduit_cpp::Node component_node;
+      if (i < names.size())
+      {
+        component_node = conduit_node[names[i]];
+      }
+      else
+      {
+        component_node = conduit_node[std::to_string(i)];
+      }
+      success = success && ConvertDataArrayToMCArray(data_array, i, nComponents, component_node);
+    }
+    return success;
+  }
+  else
+  {
+    return ConvertDataArrayToMCArray(data_array, 0, 0, conduit_node);
+  }
 }
 
 //----------------------------------------------------------------------------
-bool ConvertPoints(vtkPoints* points, conduit_cpp::Node& x_values_node,
-  conduit_cpp::Node& y_values_node, conduit_cpp::Node& z_values_node)
+bool FillMixedShape(vtkPolyData* dataset, conduit_cpp::Node& topologies_node)
 {
-  if (auto data_array = points->GetData())
+  (void)dataset; // Avoid compiler warning for unused variable
+  (void)topologies_node;
+
+  return false; // Not implemented (yet)
+}
+
+//----------------------------------------------------------------------------
+bool FillMixedShape(vtkUnstructuredGrid* dataset, conduit_cpp::Node& topologies_node)
+{
+  const auto number_of_cells = dataset->GetNumberOfCells();
+  topologies_node["elements/shape"].set("mixed");
+
+  auto shape_map = topologies_node["elements/shape_map"];
+  shape_map["hex"] = VTK_HEXAHEDRON;
+  shape_map["tet"] = VTK_TETRA;
+  shape_map["quad"] = VTK_QUAD;
+  shape_map["tri"] = VTK_TRIANGLE;
+  shape_map["polygonal"] = VTK_POLYGON;
+
+  auto offsets = dataset->GetCells()->GetOffsetsArray();
+  auto shapes = dataset->GetCellTypesArray();
+
+  vtkNew<vtkIdTypeArray> sizes;
+  sizes->SetName("vtkCellSizes");
+  sizes->SetNumberOfTuples(number_of_cells);
+  for (vtkIdType i = 0; i < number_of_cells; i++)
   {
-    return ConvertDataArrayToMCArray(data_array, 0, 3, x_values_node) &&
-      ConvertDataArrayToMCArray(data_array, 1, 3, y_values_node) &&
-      ConvertDataArrayToMCArray(data_array, 2, 3, z_values_node);
+    sizes->SetValue(i, dataset->GetCellSize(i));
   }
 
-  return false;
+  // We need allocated heap memory for the size array, which is not stored natively in the
+  // dataset. To avoid Conduit making a copy or a memory leak, we attach the array to the
+  // dataset. Warning : this creates a side-effect, impacting the input dataset by adding a
+  // field.
+  dataset->GetCellData()->AddArray(sizes);
+
+  auto offsets_node = topologies_node["elements/offsets"];
+  auto shapes_node = topologies_node["elements/shapes"];
+  auto sizes_node = topologies_node["elements/sizes"];
+
+  // Conduit offsets array is of size `number_of_cells` and not `number_of_cells + 1`.
+  if (!ConvertDataArrayToMCArray(offsets, 0, 0, offsets_node, number_of_cells) ||
+    !ConvertDataArrayToMCArray(shapes, shapes_node) ||
+    !ConvertDataArrayToMCArray(sizes, sizes_node))
+  {
+    vtkLogF(ERROR, "ConvertDataArrayToMCArray failed for mixed shapes unstructured grid.");
+    return false;
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+template <class T>
+bool FillTopology(T* dataset, conduit_cpp::Node& conduit_node)
+{
+  const char* datasetType = dataset->GetClassName();
+
+  auto coords_node = conduit_node["coordsets/coords"];
+
+  coords_node["type"] = "explicit";
+
+  auto values_node = coords_node["values"];
+  auto* points = dataset->GetPoints();
+
+  if (points)
+  {
+    if (!ConvertDataArrayToMCArray(points->GetData(), values_node, { "x", "y", "z" }))
+    {
+      vtkLogF(ERROR, "ConvertPoints failed for %s.", datasetType);
+      return false;
+    }
+  }
+  else
+  {
+    values_node["x"] = std::vector<float>();
+    values_node["y"] = std::vector<float>();
+    values_node["z"] = std::vector<float>();
+  }
+
+  auto topologies_node = conduit_node["topologies/mesh"];
+  topologies_node["type"] = "unstructured";
+  topologies_node["coordset"] = "coords";
+
+  int cell_type = VTK_VERTEX;
+
+  if (IsMixedShape(dataset))
+  {
+    if (!FillMixedShape(dataset, topologies_node))
+    {
+      vtkLogF(ERROR, "%s with mixed shape type partially supported.", datasetType);
+      return false;
+    }
+  }
+  else
+  {
+    const auto number_of_cells = dataset->GetNumberOfCells();
+
+    if (number_of_cells > 0)
+    {
+      cell_type = dataset->GetCellType(0);
+    }
+
+    switch (cell_type)
+    {
+      case VTK_HEXAHEDRON:
+        topologies_node["elements/shape"] = "hex";
+        break;
+      case VTK_TETRA:
+        topologies_node["elements/shape"] = "tet";
+        break;
+      case VTK_POLYGON:
+        topologies_node["elements/shape"] = "polygonal";
+        break;
+      case VTK_QUAD:
+        topologies_node["elements/shape"] = "quad";
+        break;
+      case VTK_TRIANGLE:
+        topologies_node["elements/shape"] = "tri";
+        break;
+      case VTK_LINE:
+        topologies_node["elements/shape"] = "line";
+        break;
+      case VTK_VERTEX:
+        topologies_node["elements/shape"] = "point";
+        break;
+      default:
+        vtkLogF(ERROR, "Unsupported cell type in %s. Cell type: %s", datasetType,
+          vtkCellTypes::GetClassNameFromTypeId(cell_type));
+        return false;
+    }
+  }
+
+  auto cell_connectivity = GetCells(dataset, cell_type);
+  auto connectivity_node = topologies_node["elements/connectivity"];
+
+  if (!ConvertDataArrayToMCArray(cell_connectivity->GetConnectivityArray(), connectivity_node))
+  {
+    vtkLogF(ERROR, "ConvertDataArrayToMCArray failed for %s.", datasetType);
+    return false;
+  }
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -269,11 +457,9 @@ bool FillTopology(vtkDataSet* data_set, conduit_cpp::Node& conduit_node)
 
     coords_node["type"] = "explicit";
 
-    auto x_values_node = coords_node["values/x"];
-    auto y_values_node = coords_node["values/y"];
-    auto z_values_node = coords_node["values/z"];
-
-    if (!ConvertPoints(structured_grid->GetPoints(), x_values_node, y_values_node, z_values_node))
+    auto values_node = coords_node["values"];
+    if (!ConvertDataArrayToMCArray(
+          structured_grid->GetPoints()->GetData(), values_node, { "x", "y", "z" }))
     {
       vtkLog(ERROR, "Failed ConvertPoints for structured grid");
       return false;
@@ -290,82 +476,11 @@ bool FillTopology(vtkDataSet* data_set, conduit_cpp::Node& conduit_node)
   }
   else if (auto unstructured_grid = vtkUnstructuredGrid::SafeDownCast(data_set))
   {
-    if (IsMixedShape(unstructured_grid))
-    {
-      vtkLogF(ERROR, "Unstructured type with mixed shape type unsupported.");
-      return false;
-    }
-
-    auto coords_node = conduit_node["coordsets/coords"];
-
-    coords_node["type"] = "explicit";
-
-    auto x_values_node = coords_node["values/x"];
-    auto y_values_node = coords_node["values/y"];
-    auto z_values_node = coords_node["values/z"];
-
-    auto* points = unstructured_grid->GetPoints();
-
-    if (points)
-    {
-      if (!ConvertPoints(points, x_values_node, y_values_node, z_values_node))
-      {
-        vtkLogF(ERROR, "ConvertPoints failed for unstructured grid.");
-        return false;
-      }
-    }
-    else
-    {
-      x_values_node = std::vector<float>();
-      y_values_node = std::vector<float>();
-      z_values_node = std::vector<float>();
-    }
-
-    auto topologies_node = conduit_node["topologies/mesh"];
-    topologies_node["type"] = "unstructured";
-    topologies_node["coordset"] = "coords";
-
-    int cell_type = VTK_VERTEX;
-    const auto number_of_cells = unstructured_grid->GetNumberOfCells();
-    if (number_of_cells > 0)
-    {
-      cell_type = unstructured_grid->GetCellType(0);
-    }
-
-    switch (cell_type)
-    {
-      case VTK_HEXAHEDRON:
-        topologies_node["elements/shape"] = "hex";
-        break;
-      case VTK_TETRA:
-        topologies_node["elements/shape"] = "tet";
-        break;
-      case VTK_QUAD:
-        topologies_node["elements/shape"] = "quad";
-        break;
-      case VTK_TRIANGLE:
-        topologies_node["elements/shape"] = "tri";
-        break;
-      case VTK_LINE:
-        topologies_node["elements/shape"] = "line";
-        break;
-      case VTK_VERTEX:
-        topologies_node["elements/shape"] = "point";
-        break;
-      default:
-        vtkLog(ERROR, << "Unsupported cell type in unstructured grid. Cell type: "
-                      << vtkCellTypes::GetClassNameFromTypeId(cell_type));
-        return false;
-    }
-
-    auto cell_connectivity = unstructured_grid->GetCells();
-    auto connectivity_node = topologies_node["elements/connectivity"];
-
-    if (!ConvertDataArrayToMCArray(cell_connectivity->GetConnectivityArray(), connectivity_node))
-    {
-      vtkLogF(ERROR, "ConvertDataArrayToMCArray failed for unstructured grid.");
-      return false;
-    }
+    return FillTopology(unstructured_grid, conduit_node);
+  }
+  else if (auto polydata = vtkPolyData::SafeDownCast(data_set))
+  {
+    return FillTopology(polydata, conduit_node);
   }
   else
   {
@@ -478,13 +593,14 @@ bool FillFields(vtkDataSet* data_set, conduit_cpp::Node& conduit_node)
 //----------------------------------------------------------------------------
 bool FillConduitNodeFromDataSet(vtkDataSet* data_set, conduit_cpp::Node& conduit_node)
 {
-  return FillTopology(data_set, conduit_node) && FillFields(data_set, conduit_node);
+  return FillFields(data_set, conduit_node) && FillTopology(data_set, conduit_node);
 }
 
 } // anonymous namespace
 
 namespace vtkDataObjectToConduit
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
 bool FillConduitNode(vtkDataObject* data_object, conduit_cpp::Node& conduit_node)
@@ -499,4 +615,5 @@ bool FillConduitNode(vtkDataObject* data_object, conduit_cpp::Node& conduit_node
   return FillConduitNodeFromDataSet(data_set, conduit_node);
 }
 
+VTK_ABI_NAMESPACE_END
 } // vtkDataObjectToConduit namespace

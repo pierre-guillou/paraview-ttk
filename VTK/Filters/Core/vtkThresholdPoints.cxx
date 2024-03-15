@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkThresholdPoints.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkThresholdPoints.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkThresholdPoints);
 
 //------------------------------------------------------------------------------
@@ -186,7 +175,7 @@ int vtkThresholdPoints::RequestData(vtkInformation* vtkNotUsed(request),
   verts->AllocateEstimate(numPts, 1);
 
   // Check that the scalars of each point satisfy the threshold criterion
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numPts / 20 + 1;
 
   for (ptId = 0; ptId < numPts && !abort; ptId++)
@@ -194,7 +183,7 @@ int vtkThresholdPoints::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(ptId % progressInterval))
     {
       this->UpdateProgress((double)ptId / numPts);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     double value = 0.0;
@@ -252,3 +241,4 @@ void vtkThresholdPoints::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Upper Threshold: " << this->UpperThreshold << "\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

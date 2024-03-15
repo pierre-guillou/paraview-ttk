@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkQuartileChartRepresentation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkQuartileChartRepresentation.h"
 #include "vtkXYChartRepresentationInternals.h"
 
@@ -108,7 +96,7 @@ public:
 
   //---------------------------------------------------------------------------
   // Export visible plots to a CSV file.
-  bool Export(vtkXYChartRepresentation* self, vtkCSVExporter* exporter) override
+  bool Export(vtkXYChartRepresentation* self, vtkAbstractChartExporter* exporter) override
   {
     // used to avoid adding duplicate columns.
     std::set<std::string> added_column_names;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVectorFieldTopology.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVectorFieldTopology
  * @brief   Extract the topological skeleton as output datasets
@@ -31,6 +19,7 @@
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkStreamTracer.h" // for vtkStreamSurface::CELL_LENGTH_UNIT
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGradientFilter;
 class vtkImageData;
 class vtkPolyData;
@@ -48,8 +37,8 @@ public:
   /**
    * Specify a uniform integration step unit for MinimumIntegrationStep,
    * InitialIntegrationStep, and MaximumIntegrationStep.
-   * 1 = LENGTH_UNIT, i.e. all sizes are expresed in coordinate scale or cell scale
-   * 2 = CELL_LENGTH_UNIT, i.e. all sizes are expresed in cell scale
+   * 1 = LENGTH_UNIT, i.e. all sizes are expressed in coordinate scale or cell scale
+   * 2 = CELL_LENGTH_UNIT, i.e. all sizes are expressed in cell scale
    */
   vtkSetMacro(IntegrationStepUnit, int);
   vtkGetMacro(IntegrationStepUnit, int);
@@ -253,7 +242,7 @@ private:
    * @param dataset: input vector field
    * @param interestPoints: a set of points that includes both critical points and boundary switch
    * points
-   * @param integrationStepUnit: whether the sizes are expresed in coordinate scale or cell scale
+   * @param integrationStepUnit: whether the sizes are expressed in coordinate scale or cell scale
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
@@ -271,7 +260,7 @@ private:
    * flow change
    * @param separatrices: inegration surfaces
    * @param dataset: input vector field
-   * @param integrationStepUnit: whether the sizes are expresed in coordinate scale or cell scale
+   * @param integrationStepUnit: whether the sizes are expressed in coordinate scale or cell scale
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
@@ -293,7 +282,7 @@ private:
    * @param dataset: input vector field
    * @param interestPoints: a set of points that includes both critical points and boundary switch
    * points
-   * @param integrationStepUnit: whether the sizes are expresed in coordinate scale or cell scale
+   * @param integrationStepUnit: whether the sizes are expressed in coordinate scale or cell scale
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
@@ -314,7 +303,7 @@ private:
    * @param zeroPos: location of the saddle
    * @param streamSurfaces: surfaces that have so far been computed
    * @param dataset: the vector field in which we advect
-   * @param integrationStepUnit: whether the sizes are expresed in coordinate scale or cell scale
+   * @param integrationStepUnit: whether the sizes are expressed in coordinate scale or cell scale
    * @param dist: size of the offset of the seeding
    * @param stepSize: stepsize of the integrator
    * @param maxNumSteps: maximal number of integration steps
@@ -515,4 +504,5 @@ private:
 
   vtkNew<vtkStreamSurface> StreamSurface;
 };
+VTK_ABI_NAMESPACE_END
 #endif

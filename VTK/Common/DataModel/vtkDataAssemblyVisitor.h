@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataAssemblyVisitor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDataAssemblyVisitor
  * @brief visitor API for vtkDataAssembly
@@ -54,6 +42,7 @@
 #include <memory> // for std::unique_ptr
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataAssembly;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkDataAssemblyVisitor : public vtkObject
@@ -121,4 +110,5 @@ private:
   friend class vtkDataAssembly;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

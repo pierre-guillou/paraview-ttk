@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMatrix3x3.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMatrix3x3
  * @brief   represent and manipulate 3x3 transformation matrices
@@ -30,6 +18,7 @@
 #include "vtkCommonMathModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONMATH_EXPORT vtkMatrix3x3 : public vtkObject
 {
   // Some of the methods in here have a corresponding static (class)
@@ -70,7 +59,7 @@ public:
    */
   void DeepCopy(const double elements[9])
   {
-    this->DeepCopy(*this->Element, elements);
+    vtkMatrix3x3::DeepCopy(*this->Element, elements);
     this->Modified();
   }
 
@@ -215,4 +204,5 @@ inline bool vtkMatrix3x3::IsIdentity()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

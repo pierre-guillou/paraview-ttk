@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscretizableColorTransferFunction.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDiscretizableColorTransferFunction
  * @brief   a combination of
@@ -50,6 +38,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // for vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkColorTransferFunction;
 class vtkLookupTable;
 class vtkPiecewiseFunction;
@@ -67,9 +56,9 @@ public:
   /**
    * Returns the negation of \a EnableOpacityMapping.
    */
-  int IsOpaque() override;
-  int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component) override;
-  int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
+  vtkTypeBool IsOpaque() override;
+  vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component) override;
+  vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
     vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip = 0xff) override;
   ///@}
 
@@ -139,8 +128,8 @@ public:
    * Get/Set if log scale must be used while mapping scalars
    * to colors. The default is 0.
    */
-  virtual void SetUseLogScale(int useLogScale);
-  vtkGetMacro(UseLogScale, int);
+  virtual void SetUseLogScale(vtkTypeBool useLogScale);
+  vtkGetMacro(UseLogScale, vtkTypeBool);
   ///@}
 
   ///@{
@@ -208,7 +197,7 @@ public:
    * This should return 1 if the subclass is using log scale for
    * mapping scalars to colors.
    */
-  int UsingLogScale() override { return this->UseLogScale; }
+  vtkTypeBool UsingLogScale() override { return this->UseLogScale; }
 
   /**
    * Get the number of available colors for mapping to.
@@ -249,7 +238,7 @@ protected:
   /**
    * Flag indicating whether log scaling is to be used.
    */
-  int UseLogScale;
+  vtkTypeBool UseLogScale;
 
   /**
    * Number of values to use in discretized color map.
@@ -284,4 +273,5 @@ private:
   vtkInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

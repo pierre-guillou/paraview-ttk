@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGarbageCollector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGarbageCollector.h"
 
 #include "vtkMultiThreader.h"
@@ -36,6 +24,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGarbageCollector);
 
 #if VTK_GARBAGE_COLLECTOR_HASH
@@ -158,10 +147,10 @@ public:
   ~vtkGarbageCollectorSingleton();
 
   // Internal implementation of vtkGarbageCollector::GiveReference.
-  int GiveReference(vtkObjectBase* obj);
+  vtkTypeBool GiveReference(vtkObjectBase* obj);
 
   // Internal implementation of vtkGarbageCollector::TakeReference.
-  int TakeReference(vtkObjectBase* obj);
+  vtkTypeBool TakeReference(vtkObjectBase* obj);
 
   // Called by GiveReference to decide whether to accept a reference.
   vtkTypeBool CheckAccept();
@@ -645,7 +634,7 @@ void vtkGarbageCollectorImpl::Report(vtkObjectBase* obj, void* ptr)
   }
 
   // Save this reference.
-  v->References.push_back(EntryEdge(w, ptr));
+  v->References.emplace_back(w, ptr);
 }
 
 //------------------------------------------------------------------------------
@@ -927,7 +916,7 @@ void vtkGarbageCollector::DeferredCollectionPop()
 }
 
 //------------------------------------------------------------------------------
-int vtkGarbageCollector::GiveReference(vtkObjectBase* obj)
+vtkTypeBool vtkGarbageCollector::GiveReference(vtkObjectBase* obj)
 {
   // We must have an object.
   assert(obj != nullptr);
@@ -943,7 +932,7 @@ int vtkGarbageCollector::GiveReference(vtkObjectBase* obj)
 }
 
 //------------------------------------------------------------------------------
-int vtkGarbageCollector::TakeReference(vtkObjectBase* obj)
+vtkTypeBool vtkGarbageCollector::TakeReference(vtkObjectBase* obj)
 {
   // We must have an object.
   assert(obj != nullptr);
@@ -973,7 +962,7 @@ vtkGarbageCollectorSingleton::~vtkGarbageCollectorSingleton()
 }
 
 //------------------------------------------------------------------------------
-int vtkGarbageCollectorSingleton::GiveReference(vtkObjectBase* obj)
+vtkTypeBool vtkGarbageCollectorSingleton::GiveReference(vtkObjectBase* obj)
 {
   // Check if we can store a reference to the object in the map.
   if (this->CheckAccept())
@@ -998,7 +987,7 @@ int vtkGarbageCollectorSingleton::GiveReference(vtkObjectBase* obj)
 }
 
 //------------------------------------------------------------------------------
-int vtkGarbageCollectorSingleton::TakeReference(vtkObjectBase* obj)
+vtkTypeBool vtkGarbageCollectorSingleton::TakeReference(vtkObjectBase* obj)
 {
   // If we have a reference to the object hand it back to the caller.
   ReferencesType::iterator i = this->References.find(obj);
@@ -1065,3 +1054,4 @@ void vtkGarbageCollectorReport(
 {
   ptr.Report(collector, desc);
 }
+VTK_ABI_NAMESPACE_END

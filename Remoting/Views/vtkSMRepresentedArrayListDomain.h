@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMRepresentedArrayListDomain
  * @brief   extends vtkSMArrayListDomain to add
@@ -47,7 +35,7 @@ public:
    */
   void Update(vtkSMProperty*) override;
 
-  //@{
+  ///@{
   /**
    * Set this to true (default) to let this domain use the
    * represented-data-information from the outer  most representation proxy.
@@ -60,7 +48,7 @@ public:
    * value.
    */
   vtkGetMacro(UseTrueParentForRepresentatedDataInformation, bool);
-  //@}
+  ///@}
 
 protected:
   vtkSMRepresentedArrayListDomain();

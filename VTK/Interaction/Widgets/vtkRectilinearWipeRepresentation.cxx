@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearWipeRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRectilinearWipeRepresentation.h"
 #include "vtkActor2D.h"
 #include "vtkCellArray.h"
@@ -30,6 +18,7 @@
 #include "vtkProperty2D.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRectilinearWipeRepresentation);
 
 vtkCxxSetObjectMacro(vtkRectilinearWipeRepresentation, RectilinearWipe, vtkImageRectilinearWipe);
@@ -419,7 +408,10 @@ void vtkRectilinearWipeRepresentation::BuildRepresentation()
 //------------------------------------------------------------------------------
 void vtkRectilinearWipeRepresentation::GetActors2D(vtkPropCollection* pc)
 {
-  this->WipeActor->GetActors2D(pc);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    this->WipeActor->GetActors2D(pc);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -488,3 +480,4 @@ void vtkRectilinearWipeRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Tolerance: " << this->Tolerance << "\n";
 }
+VTK_ABI_NAMESPACE_END

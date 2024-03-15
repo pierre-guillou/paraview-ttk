@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkJSONDataSetWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkJSONDataSetWriter.h"
 
 #include "vtkArchiver.h"
@@ -23,6 +11,7 @@
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
+#include "vtkMatrix3x3.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
@@ -41,6 +30,7 @@
 #include <string>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkJSONDataSetWriter);
 vtkCxxSetObjectMacro(vtkJSONDataSetWriter, Archiver, vtkArchiver);
 
@@ -209,6 +199,14 @@ void vtkJSONDataSetWriter::Write(vtkDataSet* dataset)
                  << imageData->GetExtent()[1] << ", " << imageData->GetExtent()[2] << ", "
                  << imageData->GetExtent()[3] << ", " << imageData->GetExtent()[4] << ", "
                  << imageData->GetExtent()[5] << "]";
+
+    // Direction
+    // Write the matrix using vtk.js convention for direction matrices (transpose the matrix)
+    auto direction = imageData->GetDirectionMatrix()->GetData();
+    metaJsonFile << ",\n  \"direction\": [" << direction[0] << ", " << direction[3] << ", "
+                 << direction[6] << ", " << direction[1] << ", " << direction[4] << ", "
+                 << direction[7] << ", " << direction[2] << ", " << direction[5] << ", "
+                 << direction[8] << "]";
   }
 
   // PolyData
@@ -506,3 +504,4 @@ std::string vtkJSONDataSetWriter::GetValidString(const char* name)
 
   return ss.str();
 }
+VTK_ABI_NAMESPACE_END

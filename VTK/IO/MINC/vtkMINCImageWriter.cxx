@@ -1,50 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMINCImageWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-Copyright (c) 2006 Atamai, Inc.
-
-Use, modification and redistribution of the software, in source or
-binary forms, are permitted provided that the following terms and
-conditions are met:
-
-1) Redistribution of the source code, in verbatim or modified
-   form, must retain the above copyright notice, this license,
-   the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.
-
-2) Redistribution in binary form must include the above copyright
-   notice, a copy of this license and the following disclaimer
-   in the documentation or with other materials provided with the
-   distribution.
-
-3) Modified copies of the source code must be clearly marked as such,
-   and must not be misrepresented as verbatim copies of the source code.
-
-THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
-WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
-MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
-OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
-THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGES.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2006 Atamai, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMINCImageWriter.h"
 
@@ -90,6 +46,7 @@ POSSIBILITY OF SUCH DAMAGES.
 #define VTK_MINC_MAX_DIMS 8
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMINCImageWriter);
 
 vtkCxxSetObjectMacro(vtkMINCImageWriter, DirectionCosines, vtkMatrix4x4);
@@ -540,7 +497,7 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
   }
   for (int iuserdims = 0; iuserdims < nuserdims; iuserdims++)
   {
-    vtkStdString dimname = dimensionNames->GetValue(iuserdims);
+    std::string dimname = dimensionNames->GetValue(iuserdims);
     // Remove vector_dimension, we'll add it back if it is needed
     if (dimname == MIvector_dimension)
     {
@@ -631,19 +588,19 @@ int vtkMINCImageWriter::CreateMINCDimensions(vtkImageData* input, int numTimeSte
   this->FileDimensionNames->SetNumberOfValues(ndim);
   for (int idim = 0; idim < ndim; idim++)
   {
-    const char* dimname = dimensions[idim].c_str();
+    std::string dimname = dimensions[idim];
     this->FileDimensionNames->SetValue(idim, dimname);
-    int dimIndex = this->IndexFromDimensionName(dimname);
+    int dimIndex = this->IndexFromDimensionName(dimname.c_str());
     size_t length = numTimeSteps;
     if (dimIndex >= 0 && dimIndex < 3)
     {
       length = wholeExtent[2 * dimIndex + 1] - wholeExtent[2 * dimIndex] + 1;
     }
-    else if (strcmp(dimname, MIvector_dimension) == 0)
+    else if (dimname == MIvector_dimension)
     {
       length = numComponents;
     }
-    status = nc_def_dim(ncid, dimname, length, &dimids[idim]);
+    status = nc_def_dim(ncid, dimname.c_str(), length, &dimids[idim]);
     if (status != NC_NOERR)
     {
       vtkMINCImageWriterFailAndClose(ncid, status);
@@ -679,7 +636,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
   int ndim = this->FileDimensionNames->GetNumberOfValues();
   for (int dimidx = 0; dimidx < ndim; dimidx++)
   {
-    vtkStdString dimname = this->FileDimensionNames->GetValue(dimidx);
+    std::string dimname = this->FileDimensionNames->GetValue(dimidx);
     // vector_dimension isn't ever included as a variable
     if (dimname != MIvector_dimension)
     {
@@ -716,7 +673,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
   }
   for (int iuservars = 0; iuservars < nuservars; iuservars++)
   {
-    vtkStdString varname = variableNames->GetValue(iuservars);
+    std::string varname = variableNames->GetValue(iuservars);
     int ivar;
     int nvars = static_cast<int>(variables.size());
     for (ivar = 0; ivar < nvars; ivar++)
@@ -750,7 +707,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
   int ivar = 0;
   for (ivar = 0; ivar < nvars; ivar++)
   {
-    vtkStdString varname = variables[ivar];
+    std::string varname = variables[ivar];
     if (varname == MIrootvariable || varname == MIimagemin || varname == MIimagemax)
     {
       continue;
@@ -777,14 +734,14 @@ int vtkMINCImageWriter::CreateMINCVariables(
   nvars = static_cast<int>(variables.size());
   for (ivar = -1; ivar < nvars; ivar++)
   {
-    const char* varname = MI_EMPTY_STRING;
-    const char* vartype = MI_EMPTY_STRING;
+    std::string varname;
+    std::string vartype;
     int varid = -1;
 
     if (ivar >= 0)
     {
       nc_type cdftype = NC_INT;
-      varname = variables[ivar].c_str();
+      varname = variables[ivar];
       const char* parent = MIrootvariable;
       const char* children = nullptr;
       int vardims = 0;
@@ -799,7 +756,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
       {
         for (const char** tryname = stdVarNames; *tryname != nullptr; tryname++)
         {
-          if (strcmp(varname, *tryname) == 0)
+          if (varname == *tryname)
           {
             vartype = MI_GROUP;
           }
@@ -807,12 +764,12 @@ int vtkMINCImageWriter::CreateMINCVariables(
       }
 
       // Check if this is an image-related variable
-      if (strcmp(varname, MIimage) == 0)
+      if (varname == MIimage)
       {
         cdftype = (nc_type)this->MINCImageType;
         vardims = ndim + (numComponents > 1);
       }
-      else if (strcmp(varname, MIimagemin) == 0 || strcmp(varname, MIimagemax) == 0)
+      else if (varname == MIimagemin || varname == MIimagemax)
       {
         parent = MIimage;
         vartype = MI_VARATT;
@@ -821,14 +778,14 @@ int vtkMINCImageWriter::CreateMINCVariables(
       }
 
       // Check if this is the rootvariable
-      if (strcmp(varname, MIrootvariable) == 0)
+      if (varname == MIrootvariable)
       {
         parent = MI_EMPTY_STRING;
         children = rootChildren.c_str();
       }
 
       // Create the NetCDF variable
-      status = nc_def_var(ncid, varname, cdftype, vardims, dimids, &varid);
+      status = nc_def_var(ncid, varname.c_str(), cdftype, vardims, dimids, &varid);
 
       if (status != NC_NOERR)
       {
@@ -838,21 +795,21 @@ int vtkMINCImageWriter::CreateMINCVariables(
       }
 
       // Variables of known type get standard MINC attributes
-      if (strcmp(vartype, MI_EMPTY_STRING) != 0)
+      if (vartype.empty())
       {
         vtkMINCImageWriterPutAttributeTextMacro(MIvarid, MI_STDVAR);
         vtkMINCImageWriterPutAttributeTextMacro(MIversion, MI_VERSION_1_0);
-        vtkMINCImageWriterPutAttributeTextMacro(MIvartype, vartype);
+        vtkMINCImageWriterPutAttributeTextMacro(MIvartype, vartype.c_str());
       }
 
       int dimIndex = 0;
-      if (strcmp(vartype, MI_DIMENSION) == 0)
+      if (vartype == MI_DIMENSION)
       {
         static const char* dimensionComments[] = { "X increases from patient left to right",
           "Y increases from patient posterior to anterior",
           "Z increases from patient inferior to superior", nullptr };
 
-        dimIndex = this->IndexFromDimensionName(varname);
+        dimIndex = this->IndexFromDimensionName(varname.c_str());
         double start = 0.0;
         double step = 1.0;
         if (dimIndex >= 0 && dimIndex < 3)
@@ -900,25 +857,25 @@ int vtkMINCImageWriter::CreateMINCVariables(
           }
         }
       }
-      else if (strcmp(vartype, MI_VARATT) == 0)
+      else if (vartype == MI_VARATT)
       {
         vtkMINCImageWriterPutAttributeTextMacro(MIparent, parent);
         if (children)
         {
           vtkMINCImageWriterPutAttributeTextMacro(MIchildren, children);
         }
-        if (strcmp(varname, MIimagemin) == 0)
+        if (varname == MIimagemin)
         {
           double val = 0.0;
           vtkMINCImageWriterPutAttributeDoubleMacro(MI_FillValue, 1, &val);
         }
-        else if (strcmp(varname, MIimagemax) == 0)
+        else if (varname == MIimagemax)
         {
           double val = 1.0;
           vtkMINCImageWriterPutAttributeDoubleMacro(MI_FillValue, 1, &val);
         }
       }
-      else if (strcmp(vartype, MI_GROUP) == 0)
+      else if (vartype == MI_GROUP)
       {
         vtkMINCImageWriterPutAttributeTextMacro(MIparent, parent);
         if (children)
@@ -926,7 +883,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
           vtkMINCImageWriterPutAttributeTextMacro(MIchildren, children);
         }
 
-        if (strcmp(varname, MIimage) == 0)
+        if (varname == MIimage)
         {
           const char* signType = MI_SIGNED;
           if (this->MINCImageTypeSigned == 0)
@@ -1009,7 +966,7 @@ int vtkMINCImageWriter::CreateMINCVariables(
     vtkStringArray* attArray = nullptr;
     if (this->ImageAttributes)
     {
-      attArray = this->ImageAttributes->GetAttributeNames(varname);
+      attArray = this->ImageAttributes->GetAttributeNames(varname.c_str());
     }
     if (attArray)
     {
@@ -1017,11 +974,12 @@ int vtkMINCImageWriter::CreateMINCVariables(
       int natts = attArray->GetNumberOfValues();
       for (int iatt = 0; iatt < natts; iatt++)
       {
-        vtkStdString attname = attArray->GetValue(iatt);
+        std::string attname = attArray->GetValue(iatt);
         vtkDataArray* array =
-          this->ImageAttributes->GetAttributeValueAsArray(varname, attname.c_str());
+          this->ImageAttributes->GetAttributeValueAsArray(varname.c_str(), attname.c_str());
 
-        int result = this->ImageAttributes->ValidateAttribute(varname, attname.c_str(), array);
+        int result =
+          this->ImageAttributes->ValidateAttribute(varname.c_str(), attname.c_str(), array);
 
         if (result == 0)
         {
@@ -1620,7 +1578,7 @@ int vtkMINCImageWriter::WriteMINCData(
   {
     idim--;
 
-    vtkStdString dimName = this->FileDimensionNames->GetValue(idim);
+    std::string dimName = this->FileDimensionNames->GetValue(idim);
 
     // Find the VTK dimension index.
     int dimIndex = this->IndexFromDimensionName(dimName.c_str());
@@ -1895,7 +1853,7 @@ void vtkMINCImageWriter::Write()
   while (idim)
   {
     idim--;
-    vtkStdString dimName = this->FileDimensionNames->GetValue(idim);
+    std::string dimName = this->FileDimensionNames->GetValue(idim);
     dimIndex = this->IndexFromDimensionName(dimName.c_str());
     if (dimIndex >= 0 && dimIndex < 3)
     {
@@ -2106,3 +2064,4 @@ int vtkMINCImageWriter::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

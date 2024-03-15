@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTreeFieldAggregator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkTreeFieldAggregator
  * @brief   aggregate field values from the leaves up the tree
@@ -35,11 +19,12 @@
 #ifndef vtkTreeFieldAggregator_h
 #define vtkTreeFieldAggregator_h
 
-class vtkPoints;
-class vtkTree;
-
 #include "vtkInfovisCoreModule.h" // For export macro
 #include "vtkTreeAlgorithm.h"
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkPoints;
+class vtkTree;
 
 class VTKINFOVISCORE_EXPORT vtkTreeFieldAggregator : public vtkTreeAlgorithm
 {
@@ -101,4 +86,5 @@ private:
   static void SetDoubleValue(vtkAbstractArray* arr, vtkIdType id, double value);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

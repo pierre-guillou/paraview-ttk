@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAxisFollower.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAxisFollower.h"
 
@@ -30,6 +18,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAxisFollower);
 
 // List of vectors per axis (depending on which one needs to be
@@ -531,3 +520,4 @@ bool vtkAxisFollower::IsTextUpsideDown(double* a, double* b)
   double angle = vtkMath::RadiansFromDegrees(this->Orientation[2]);
   return (b[0] - a[0]) * cos(angle) - (b[1] - a[1]) * sin(angle) < 0;
 }
+VTK_ABI_NAMESPACE_END

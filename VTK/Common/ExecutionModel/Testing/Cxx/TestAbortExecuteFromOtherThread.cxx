@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestAbortExecuteFromOtherThread.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkClipDataSet.h"
 #include "vtkContourGrid.h"
@@ -25,7 +13,7 @@
 #include <chrono>
 #include <thread>
 
-vtkNew<vtkContourGrid> contour;
+vtkContourGrid* contour = nullptr;
 bool returnFailure = false;
 std::atomic<bool> runUpdate{ false };
 
@@ -82,6 +70,9 @@ void toggleAbort()
 
 int TestAbortExecuteFromOtherThread(int, char*[])
 {
+  vtkNew<vtkContourGrid> staticContour;
+  contour = staticContour;
+
   std::thread threadA(runPipeline);
   std::thread threadB(toggleAbort);
 

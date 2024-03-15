@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMapper3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageMapper3D.h"
 
 #include "vtkAbstractTransform.h"
@@ -35,6 +23,7 @@
 #include "vtkTemplateAliasMacro.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkImageMapper3D::vtkImageMapper3D()
 {
   // Default color conversion
@@ -764,21 +753,6 @@ static VTK_THREAD_RETURN_TYPE vtkImageMapperMapColors(void* arg)
   return VTK_THREAD_RETURN_VALUE;
 }
 
-//------------------------------------------------------------------------------
-// Given an image and an extent that describes a single slice, this method
-// will return a contiguous block of unsigned char data that can be loaded
-// into a texture.
-// The values of xsize, ysize, bytesPerPixel, and reuseTexture must be
-// pre-loaded with the current texture size and depth, with subTexture
-// set to 1 if only a subTexture is to be generated.
-// When the method returns, these values will be set to the dimensions
-// of the data that was produced, and subTexture will remain set to 1
-// if xsize,ysize describe a subtexture size.
-// If subTexture is not set to one upon return, then xsize,ysize will
-// describe the full texture size, with the assumption that the full
-// texture must be reloaded.
-// If reuseData is false upon return, then the returned array must be
-// freed after use with delete [].
 unsigned char* vtkImageMapper3D::MakeTextureData(vtkImageProperty* property, vtkImageData* input,
   int extent[6], int& xsize, int& ysize, int& bytesPerPixel, bool& reuseTexture, bool& reuseData)
 {
@@ -1171,3 +1145,4 @@ void vtkImageMapper3D::CheckerboardRGBA(unsigned char* data, int xsize, int ysiz
     gy += fy;
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGridAxesPlane2DActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGridAxesPlane2DActor
  * @brief   renders a 2D grid for vtkGridAxes2DActor.
@@ -47,7 +36,7 @@ public:
   vtkTypeMacro(vtkGridAxesPlane2DActor, vtkProp3D);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the bounding box defining the grid space. This, together with the
    * \c Face identify which planar surface this class is interested in. This
@@ -58,7 +47,7 @@ public:
    */
   vtkSetVector6Macro(GridBounds, double);
   vtkGetVector6Macro(GridBounds, double);
-  //@}
+  ///@}
 
   // These are in the same order as the faces of a vtkVoxel.
   enum Faces
@@ -71,7 +60,7 @@ public:
     MAX_XY = vtkGridAxesHelper::MAX_XY
   };
 
-  //@{
+  ///@{
   /**
    * Indicate which face of the specified bounds is this class operating with.
    * Note: this is only needed/used when the vtkGridAxesHelper is not provided
@@ -80,7 +69,7 @@ public:
    */
   vtkSetClampMacro(Face, int, MIN_YZ, MAX_XY);
   vtkGetMacro(Face, int);
-  //@}
+  ///@}
 
   /**
    * For some exporters and other other operations we must be
@@ -98,16 +87,16 @@ public:
    */
   void UpdateGeometry(vtkViewport* vp);
 
-  //@{
+  ///@{
   /**
    * Get/Set whether to generate lines for the plane's grid. Default is true.
    */
   vtkSetMacro(GenerateGrid, bool);
   vtkGetMacro(GenerateGrid, bool);
   vtkBooleanMacro(GenerateGrid, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether to generate the polydata for the plane's edges. Default is
    * true.
@@ -115,9 +104,9 @@ public:
   vtkSetMacro(GenerateEdges, bool);
   vtkGetMacro(GenerateEdges, bool);
   vtkBooleanMacro(GenerateEdges, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether to generate tick markers for the tick positions. Default is
    * true.
@@ -125,7 +114,7 @@ public:
   vtkSetMacro(GenerateTicks, bool);
   vtkGetMacro(GenerateTicks, bool);
   vtkBooleanMacro(GenerateTicks, bool);
-  //@}
+  ///@}
 
   enum
   {
@@ -134,14 +123,14 @@ public:
     TICK_DIRECTION_BOTH = TICK_DIRECTION_INWARDS | TICK_DIRECTION_OUTWARDS,
   };
 
-  //@{
+  ///@{
   /**
    * Get/Set the tick direction.
    */
   vtkSetClampMacro(TickDirection, unsigned int, static_cast<unsigned int>(TICK_DIRECTION_INWARDS),
     static_cast<unsigned int>(TICK_DIRECTION_BOTH));
   vtkGetMacro(TickDirection, unsigned int);
-  //@}
+  ///@}
 
   /**
    * Set the tick positions for each of the coordinate axis. Which tick
@@ -157,19 +146,19 @@ public:
     return (axis >= 0 && axis < 3) ? this->TickPositions[axis] : this->EmptyVector;
   }
 
-  //@{
+  ///@{
   /**
    * Get/Set the property used to control the appearance of the rendered grid.
    */
   void SetProperty(vtkProperty*);
   vtkProperty* GetProperty();
-  //@}
+  ///@}
 
   //--------------------------------------------------------------------------
   // Methods for vtkProp3D API.
   //--------------------------------------------------------------------------
 
-  //@{
+  ///@{
   /**
    * Returns the prop bounds.
    */
@@ -178,7 +167,7 @@ public:
     this->GetGridBounds(this->Bounds);
     return this->Bounds;
   }
-  //@}
+  ///@}
 
   int RenderOpaqueGeometry(vtkViewport*) override;
   int RenderTranslucentPolygonalGeometry(vtkViewport* viewport) override;
@@ -190,7 +179,7 @@ protected:
   vtkGridAxesPlane2DActor(vtkGridAxesHelper* helper = nullptr);
   ~vtkGridAxesPlane2DActor() override;
 
-  //@{
+  ///@{
   /**
    * vtkGridAxes2DActor uses this method to create vtkGridAxesPlane2DActor
    * instance. In that case, vtkGridAxesPlane2DActor assumes that the
@@ -199,9 +188,9 @@ protected:
    */
   static vtkGridAxesPlane2DActor* New(vtkGridAxesHelper* helper);
   friend class vtkGridAxes2DActor;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Update's the polydata.
    */
@@ -209,7 +198,7 @@ protected:
   bool UpdateEdges(vtkViewport* viewport);
   bool UpdateGrid(vtkViewport* viewport);
   bool UpdateTicks(vtkViewport* viewport);
-  //@}
+  ///@}
 
   double GridBounds[6];
   int Face;

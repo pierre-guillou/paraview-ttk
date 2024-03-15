@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSmoothPolyDataFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSmoothPolyDataFilter
  * @brief   adjust point positions using Laplacian smoothing
@@ -99,6 +87,7 @@
 #include "vtkPolyDataAlgorithm.h"
 #include <memory> // For std::unique_ptr<>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSmoothPoints;
 
 class VTKFILTERSCORE_EXPORT vtkSmoothPolyDataFilter : public vtkPolyDataAlgorithm
@@ -226,7 +215,7 @@ public:
 
 protected:
   vtkSmoothPolyDataFilter();
-  ~vtkSmoothPolyDataFilter() override = default;
+  ~vtkSmoothPolyDataFilter() override;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int FillInputPortInformation(int port, vtkInformation* info) override;
@@ -249,4 +238,5 @@ private:
   void operator=(const vtkSmoothPolyDataFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

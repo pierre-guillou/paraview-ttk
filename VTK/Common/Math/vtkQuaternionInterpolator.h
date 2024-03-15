@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuaternionInterpolator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQuaternionInterpolator
  * @brief   interpolate a quaternion
@@ -58,6 +46,7 @@
 #include "vtkCommonMathModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQuaterniond;
 class vtkQuaternionList;
 
@@ -151,9 +140,9 @@ public:
   ///@{
   /**
    * Specify which type of function to use for interpolation. By default
-   * (SetInterpolationFunctionToSpline()), cubic spline interpolation using a
+   * (SetInterpolationTypeToSpline()), cubic spline interpolation using a
    * modified Kochanek basis is employed. Otherwise, if
-   * SetInterpolationFunctionToLinear() is invoked, linear spherical
+   * SetInterpolationTypeToLinear() is invoked, linear spherical
    * interpolation
    * is used between each pair of quaternions.
    */
@@ -179,4 +168,5 @@ private:
   void operator=(const vtkQuaternionInterpolator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

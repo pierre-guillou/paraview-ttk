@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOSOpenGLRenderWindow.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtk_glew.h"
 #include <GL/gl.h>
 
@@ -44,10 +32,11 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtksys/SystemTools.hxx"
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOSOpenGLRenderWindow;
 class vtkRenderWindow;
 
-typedef OSMesaContext GLAPIENTRY (*OSMesaCreateContextAttribs_func)(
+typedef OSMesaContext(GLAPIENTRY* OSMesaCreateContextAttribs_func)(
   const int* attribList, OSMesaContext sharelist);
 
 class vtkOSOpenGLRenderWindowInternal
@@ -84,7 +73,7 @@ void* vtkOSMesaCreateWindow(int width, int height)
 
 vtkOSOpenGLRenderWindow::vtkOSOpenGLRenderWindow()
 {
-  //   this->ParentId = (Window)nullptr;
+  //   this->ParentId = nullptr;
   this->ScreenSize[0] = 1280;
   this->ScreenSize[1] = 1024;
   this->OwnDisplay = 0;
@@ -244,7 +233,7 @@ void vtkOSOpenGLRenderWindow::ResizeOffScreenWindow(int width, int height)
 }
 
 // Initialize the window for rendering.
-void vtkOSOpenGLRenderWindow::WindowInitialize(void)
+void vtkOSOpenGLRenderWindow::WindowInitialize()
 {
   this->CreateAWindow();
 
@@ -262,7 +251,7 @@ void vtkOSOpenGLRenderWindow::WindowInitialize(void)
 }
 
 // Initialize the rendering window.
-void vtkOSOpenGLRenderWindow::Initialize(void)
+void vtkOSOpenGLRenderWindow::Initialize()
 {
   if (!(this->Internal->OffScreenContextId))
   {
@@ -273,7 +262,7 @@ void vtkOSOpenGLRenderWindow::Initialize(void)
   }
 }
 
-void vtkOSOpenGLRenderWindow::Finalize(void)
+void vtkOSOpenGLRenderWindow::Finalize()
 {
   // clean and destroy window
   this->DestroyWindow();
@@ -364,7 +353,7 @@ int* vtkOSOpenGLRenderWindow::GetScreenSize()
 }
 
 // Get the position in screen coordinates (pixels) of the window.
-int* vtkOSOpenGLRenderWindow::GetPosition(void)
+int* vtkOSOpenGLRenderWindow::GetPosition()
 {
   return this->Position;
 }
@@ -438,7 +427,7 @@ const char* vtkOSOpenGLRenderWindow::ReportCapabilities()
   strm << "OpenGL vendor string:  " << glVendor << endl;
   strm << "OpenGL renderer string:  " << glRenderer << endl;
   strm << "OpenGL version string:  " << glVersion << endl;
-  strm << "OpenGL extensions:  " << glExtensions << endl;
+  strm << "OpenGL extensions:  " << (glExtensions ? glExtensions : "(none)") << endl;
   delete[] this->Capabilities;
   size_t len = strm.str().length();
   this->Capabilities = new char[len + 1];
@@ -477,3 +466,4 @@ void* vtkOSOpenGLRenderWindow::GetGenericWindowId()
 {
   return (void*)this->Internal->OffScreenWindow;
 }
+VTK_ABI_NAMESPACE_END

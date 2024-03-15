@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkStreamTracer.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStreamTracer.h"
 
 #include "vtkAMRInterpolatedVelocityField.h"
@@ -49,6 +37,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkStreamTracer);
 vtkCxxSetObjectMacro(vtkStreamTracer, Integrator, vtkInitialValueProblemSolver);
 vtkCxxSetObjectMacro(vtkStreamTracer, InterpolatorPrototype, vtkAbstractInterpolatedVelocityField);
@@ -535,6 +524,7 @@ int vtkStreamTracer::RequestData(vtkInformation* vtkNotUsed(request),
   seedIds->Delete();
 
   this->InputData->UnRegister(this);
+  this->CheckAbort();
   return 1;
 }
 
@@ -871,6 +861,7 @@ struct TracerIntegrator
   bool SurfaceStreamlines;
   bool HasMatchingPointAttributes;
   bool GenerateNormalsInIntegrate;
+  bool Sequential;
 
   TracerIntegrator(vtkStreamTracer* streamTracer, vtkCompositeDataSet* inputData, bool matchingAttr,
     vtkDataSetAttributes* protoPD, vtkDataArray* seedSource, vtkIdList* seedIds,
@@ -879,7 +870,8 @@ struct TracerIntegrator
     vtkIdType inNumSteps, double inIntegrationTime, int vecType, const char* vecName,
     bool genNormals, vtkPolyData* output,
     std::vector<CustomTerminationCallbackType>& customTerminationCallback,
-    std::vector<void*>& customTerminationClientData, std::vector<int>& customReasonForTermination)
+    std::vector<void*>& customTerminationClientData, std::vector<int>& customReasonForTermination,
+    bool sequential)
     : StreamTracer(streamTracer)
     , InputData(inputData)
     , ProtoPD(protoPD)
@@ -901,6 +893,7 @@ struct TracerIntegrator
     , VecType(vecType)
     , HasMatchingPointAttributes(matchingAttr)
     , GenerateNormalsInIntegrate(genNormals)
+    , Sequential(sequential)
   {
     this->MaximumError = this->StreamTracer->GetMaximumError();
     this->MaximumNumberOfSteps = this->StreamTracer->GetMaximumNumberOfSteps();
@@ -994,12 +987,22 @@ struct TracerIntegrator
       }
     }
 
+    bool isFirst = this->Sequential || vtkSMPTools::GetSingleThread();
+
     // We will interpolate all point attributes of the input on each point of
     // the output (unless they are turned off). Note that we are using only
     // the first input, if there are more than one, the attributes have to match.
     double velocity[3];
     for (; seedNum < endSeedNum; ++seedNum)
     {
+      if (isFirst)
+      {
+        this->StreamTracer->CheckAbort();
+      }
+      if (this->StreamTracer->GetAbortOutput())
+      {
+        break;
+      }
       if (seedNum == 0) // only update the first streamline, otherwise zero
       {
         propagation = this->InPropagation;
@@ -1601,18 +1604,22 @@ void vtkStreamTracer::Integrate(vtkPointData* input0Data, vtkPolyData* output,
   vtkNew<vtkPointData> protoPD;
   this->InputPD.BuildPrototype(protoPD, input0Data);
 
-  // Generate streamlines.
-  TracerIntegrator ti(this, this->InputData, this->HasMatchingPointAttributes, protoPD, seedSource,
-    seedIds, intDirs, offsets, func, integrator, maxCellSize, inPropagation, inNumSteps,
-    inIntegrationTime, vecType, vecName, this->GenerateNormalsInIntegrate, output,
-    customTerminationCallback, customTerminationClientData, customReasonForTermination);
-
   // Streamline threading only kicks in when the number of seeds exceeds a
   // threshold value.  This is because there is a cost to spinning up
   // threads, and then compositing the results. So for small numbers of
   // seeds, just use a serial approach. Otherwise thread the streamlines.
   const int VTK_ST_THREADING_THRESHOLD = 8;
-  if (numSeeds < VTK_ST_THREADING_THRESHOLD || this->SerialExecution)
+
+  bool runSequential = numSeeds < VTK_ST_THREADING_THRESHOLD || this->SerialExecution;
+
+  // Generate streamlines.
+  TracerIntegrator ti(this, this->InputData, this->HasMatchingPointAttributes, protoPD, seedSource,
+    seedIds, intDirs, offsets, func, integrator, maxCellSize, inPropagation, inNumSteps,
+    inIntegrationTime, vecType, vecName, this->GenerateNormalsInIntegrate, output,
+    customTerminationCallback, customTerminationClientData, customReasonForTermination,
+    runSequential);
+
+  if (runSequential)
   { // Serial
     ti.Initialize();
     ti(0, numSeeds);
@@ -1857,3 +1864,4 @@ vtkExecutive* vtkStreamTracer::CreateDefaultExecutive()
 {
   return vtkCompositeDataPipeline::New();
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransformCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTransformCollection
  * @brief   maintain a list of transforms
@@ -32,6 +20,7 @@
 
 #include "vtkTransform.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONTRANSFORMS_EXPORT vtkTransformCollection : public vtkCollection
 {
 public:
@@ -67,7 +56,6 @@ private:
   // hide the standard AddItem from the user and the compiler.
   void AddItem(vtkObject* o) { this->vtkCollection::AddItem(o); }
 
-private:
   vtkTransformCollection(const vtkTransformCollection&) = delete;
   void operator=(const vtkTransformCollection&) = delete;
 };
@@ -84,4 +72,5 @@ inline vtkTransform* vtkTransformCollection::GetNextItem()
   return static_cast<vtkTransform*>(this->GetNextItemAsObject());
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

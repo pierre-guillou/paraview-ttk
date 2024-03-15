@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDistributedDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDistributedDataFilter.h"
 
@@ -31,6 +16,7 @@
 #include "vtkUnstructuredGrid.h"
 
 // Needed to let vtkPDistributedDataFilter be instantiated when available
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkDistributedDataFilter);
 
 //------------------------------------------------------------------------------
@@ -274,7 +260,7 @@ int vtkDistributedDataFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
   if (outputCD)
   {
-    outputCD->ShallowCopy(input);
+    outputCD->CompositeShallowCopy(vtkCompositeDataSet::SafeDownCast(input));
   }
   else
   {
@@ -343,3 +329,4 @@ void vtkDistributedDataFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

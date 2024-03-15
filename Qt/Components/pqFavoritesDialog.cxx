@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqFavoritesDialog.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // self
 #include "pqFavoritesDialog.h"
@@ -38,6 +10,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Qt
 #include <QDropEvent>
 #include <QHeaderView>
+#include <QRegularExpression>
+#include <QSequentialIterable>
 #include <QSet>
 #include <QShortcut>
 #include <QStringList>
@@ -63,12 +37,12 @@ void ensureUniqueCategoryName(QTreeWidgetItem* parent, QTreeWidgetItem* item, in
     QTreeWidgetItem* child = parent->child(i);
     if (child != item && isItemCategory(child) && child->text(0) == itemText)
     {
-      QRegExp rx("(.*)_([0-9]+)");
-      int p = rx.indexIn(itemText);
-      if (p > -1)
+      QRegularExpression rx("(.*)_([0-9]+)");
+      QRegularExpressionMatch match = rx.match(itemText);
+      if (match.hasMatch())
       {
-        itemText = rx.cap(1);
-        v = rx.cap(2).toInt();
+        itemText = match.captured(1);
+        v = match.captured(2).toInt();
       }
       item->setText(0, QString("%1_%2").arg(itemText, QString::number(v + 1)));
       ensureUniqueCategoryName(parent, item, v + 1);
@@ -165,6 +139,8 @@ pqFavoritesDialog::pqFavoritesDialog(const QVariant& filtersList, QWidget* p)
   , Ui(new Ui::pqFavoritesDialog())
 {
   this->Ui->setupUi(this);
+  // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 
   this->Ui->availableFilters->setAcceptDrops(false);
   this->Ui->availableFilters->sortByColumn(0, Qt::AscendingOrder);

@@ -1,38 +1,11 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqComparativeCueWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqComparativeCueWidget.h"
 #include "ui_pqComparativeParameterRangeDialog.h"
 
-#include <QRegExpValidator>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 
 #include "pqQtDeprecated.h"
 #include "pqUndoStack.h"
@@ -194,7 +167,7 @@ void pqComparativeCueWidget::onCellChanged(int rowno, int colno)
   {
     return;
   }
-  BEGIN_UNDO_SET("Parameter Changed");
+  BEGIN_UNDO_SET(tr("Parameter Changed"));
   QString text = this->item(rowno, colno)->text();
   if (this->acceptsMultipleValues())
   {
@@ -249,10 +222,12 @@ void pqComparativeCueWidget::editRange()
   ui.multivalueHint->setVisible(csv);
   ui.mode->setVisible(ranges[0].rowCount() > 1 && ranges[0].columnCount() > 1);
 
-  QRegExp floatNum = QRegExp("[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?");
-  QRegExp csvFloatNum = QRegExp(QString("%1(,%1)*").arg(floatNum.pattern()));
-  ui.minValue->setValidator(new QRegExpValidator(csv ? csvFloatNum : floatNum, ui.minValue));
-  ui.maxValue->setValidator(new QRegExpValidator(csv ? csvFloatNum : floatNum, ui.maxValue));
+  QRegularExpression floatNum = QRegularExpression("[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?");
+  QRegularExpression csvFloatNum = QRegularExpression(QString("%1(,%1)*").arg(floatNum.pattern()));
+  ui.minValue->setValidator(
+    new QRegularExpressionValidator(csv ? csvFloatNum : floatNum, ui.minValue));
+  ui.maxValue->setValidator(
+    new QRegularExpressionValidator(csv ? csvFloatNum : floatNum, ui.maxValue));
 
   if (dialog.exec() != QDialog::Accepted)
   {
@@ -278,7 +253,7 @@ void pqComparativeCueWidget::editRange()
     return;
   }
 
-  BEGIN_UNDO_SET("Update Parameter Values");
+  BEGIN_UNDO_SET(tr("Update Parameter Values"));
 
   vtkSMComparativeAnimationCueProxy* acueProxy = this->cue();
 

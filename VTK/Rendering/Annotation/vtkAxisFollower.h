@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAxisFollower.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAxisFollower
  * @brief   a subclass of vtkFollower that ensures that
@@ -35,6 +23,7 @@
 #include "vtkWeakPointer.h" // For vtkWeakPointer
 
 // Forward declarations.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor;
 class vtkRenderer;
 
@@ -139,7 +128,7 @@ public:
    * Overridden to disable this function, and use ComputeTransformMatrix instead, as
    * we need a renderer to compute the transform matrix
    */
-  virtual void ComputeMatrix() override{};
+  void ComputeMatrix() override {}
 
   /**
    * Generate the matrix based on ivars. This method overloads its superclasses
@@ -200,4 +189,5 @@ private:
   void Render(vtkRenderer*, vtkMapper*) override {}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkAxisFollower_h

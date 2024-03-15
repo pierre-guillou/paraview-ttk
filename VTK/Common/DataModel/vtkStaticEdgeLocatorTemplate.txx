@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticEdgeLocatorTemplate.txx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkStaticEdgeLocatorTemplate.h"
 
 #include "vtkSMPTools.h"
@@ -21,6 +9,7 @@
 
 //----------------------------------------------------------------------------
 // Gather coincident edges into contiguous runs. Use this for merging edges.
+VTK_ABI_NAMESPACE_BEGIN
 template <typename IDType, typename EdgeData>
 const IDType* vtkStaticEdgeLocatorTemplate<IDType, EdgeData>::MergeEdges(
   vtkIdType numEdges, EdgeTupleType* mergeArray, vtkIdType& numUniqueEdges)
@@ -110,4 +99,5 @@ vtkIdType vtkStaticEdgeLocatorTemplate<IDType, EdgeData>::BuildLocator(
   return this->NumEdges;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

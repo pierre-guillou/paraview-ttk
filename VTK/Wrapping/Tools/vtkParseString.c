@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseString.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2012 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in April 2012
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2012 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseString.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -849,6 +831,46 @@ char* vtkParse_NewString(StringCache* cache, size_t n)
   cache->Position = nextPosition;
 
   return cp;
+}
+
+/* merge "other" into "cache", leaving "other" empty */
+void vtkParse_MergeStringCache(StringCache* cache, StringCache* other)
+{
+  if (cache->NumberOfChunks == 0)
+  {
+    cache->NumberOfChunks = other->NumberOfChunks;
+    cache->Chunks = other->Chunks;
+    cache->ChunkSize = other->ChunkSize;
+    cache->Position = other->Position;
+  }
+  else if (other->NumberOfChunks > 0)
+  {
+    unsigned long i;
+    unsigned long n = cache->NumberOfChunks + other->NumberOfChunks;
+
+    /* round up to a power of two, see NewString for reason */
+    n -= 1;
+    for (i = 1; i <= sizeof(unsigned long) * 4; i *= 2)
+    {
+      n |= n >> i;
+    }
+    n += 1;
+
+    cache->Chunks = (char**)realloc(cache->Chunks, n * sizeof(char*));
+
+    for (i = 0; i < other->NumberOfChunks; i++)
+    {
+      cache->Chunks[cache->NumberOfChunks++] = other->Chunks[i];
+    }
+
+    cache->ChunkSize = other->ChunkSize;
+    cache->Position = other->Position;
+
+    free(other->Chunks);
+  }
+
+  other->NumberOfChunks = 0;
+  other->Chunks = NULL;
 }
 
 /* free all allocated strings */

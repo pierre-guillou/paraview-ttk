@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestThreshold.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkDataSetSurfaceFilter.h"
@@ -59,10 +47,6 @@ int TestVTKMThreshold2(int argc, char* argv[])
   threshold->SetLowerThreshold(L);
   threshold->SetUpperThreshold(U);
   threshold->SetAllScalars(0);
-  threshold->Update();
-
-  threshold->UseContinuousCellRangeOn();
-  threshold->Update();
 
   vtkNew<vtkDataSetSurfaceFilter> surface;
   surface->SetInputConnection(threshold->GetOutputPort());

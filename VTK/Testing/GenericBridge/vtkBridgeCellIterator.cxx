@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBridgeCellIterator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkBridgeCellIterator - Implementation of vtkGenericCellIterator.
 // It is just an example that show how to implement the Generic. It is also
 // used for testing and evaluating the Generic.
@@ -33,6 +21,7 @@
 #include "vtkBridgeCellIteratorOnDataSet.h"
 #include "vtkBridgeCellIteratorOne.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBridgeCellIterator);
 
 //------------------------------------------------------------------------------
@@ -245,3 +234,4 @@ void vtkBridgeCellIterator::InitWithPoints(
   this->IteratorOneCell->InitWithPoints(coords, pts, dim, cellid);
   this->CurrentIterator = this->IteratorOneCell;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCompositeRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeRepresentation
  * @brief   combine multiple representations into one
@@ -52,7 +40,7 @@ public:
    */
   void SetVisibility(bool val) override;
 
-  //@{
+  ///@{
   /**
    * Add/Remove representations. \c key is a unique string used to identify
    * that representation.
@@ -60,23 +48,23 @@ public:
   virtual void AddRepresentation(const char* key, vtkPVDataRepresentation* repr);
   virtual void RemoveRepresentation(vtkPVDataRepresentation* repr);
   virtual void RemoveRepresentation(const char* key);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the active key. If a valid key is not specified, then none of the
    * representations is treated as active.
    */
   void SetActiveRepresentation(const char* key);
   const char* GetActiveRepresentationKey();
-  //@}
+  ///@}
 
   /**
    * Returns the active representation if valid.
    */
   vtkPVDataRepresentation* GetActiveRepresentation();
 
-  //@{
+  ///@{
   /**
    * Overridden to simply pass the input to the internal representations. We
    * won't need this if vtkPVDataRepresentation correctly respected in the
@@ -88,7 +76,7 @@ public:
   void AddInputConnection(vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, vtkAlgorithmOutput* input) override;
   void RemoveInputConnection(int port, int idx) override;
-  //@}
+  ///@}
 
   /**
    * Set the selection connection. This is used to pass a selection source output
@@ -111,14 +99,14 @@ public:
    */
   vtkStringArray* GetRepresentationTypes();
 
-  //@{
+  ///@{
   /**
    * Passed on to internal representations as well.
    */
   void SetUpdateTime(double time) override;
   void SetForceUseCache(bool val) override;
   void SetForcedCacheKey(double val) override;
-  //@}
+  ///@}
 
 protected:
   vtkCompositeRepresentation();

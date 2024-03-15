@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    pqInteractiveProperty2DWidget.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqInteractiveProperty2DWidget_h
 #define pqInteractiveProperty2DWidget_h
 
@@ -48,7 +36,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqInteractiveProperty2DWidget
 
 public:
   pqInteractiveProperty2DWidget(const char* widget_smgroup, const char* widget_smname,
-    vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = 0);
+    vtkSMProxy* proxy, vtkSMPropertyGroup* smgroup, QWidget* parent = nullptr);
   ~pqInteractiveProperty2DWidget() override;
 
   /**

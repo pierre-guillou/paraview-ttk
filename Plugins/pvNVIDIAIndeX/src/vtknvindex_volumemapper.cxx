@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <cassert>
 #include <cstdio>
@@ -276,6 +278,16 @@ bool vtknvindex_volumemapper::initialize_mapper(vtkVolume* vol)
                << "supported by NVIDIA IndeX. "
                << "The plugin will proceed to convert the values from " << scalar_type << " "
                << "to float with the corresponding overhead.";
+      m_data_array_warning_printed.emplace(this->ArrayName);
+    }
+  }
+  else if (scalar_type == "char")
+  {
+    if (m_data_array_warning_printed.find(this->ArrayName) == m_data_array_warning_printed.end())
+    {
+      WARN_LOG << "The data array '" << this->ArrayName << "' has scalar values "
+               << "in '" << scalar_type << "' format which is platform dependent. "
+               << "Use 'signed char' or 'unsigned char' instead.";
       m_data_array_warning_printed.emplace(this->ArrayName);
     }
   }

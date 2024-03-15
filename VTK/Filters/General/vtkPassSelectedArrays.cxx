@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPassSelectedArrays.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPassSelectedArrays.h"
 
 #include "vtkCommand.h"
@@ -20,6 +8,7 @@
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPassSelectedArrays);
 //------------------------------------------------------------------------------
 vtkPassSelectedArrays::vtkPassSelectedArrays()
@@ -83,6 +72,10 @@ int vtkPassSelectedArrays::RequestData(
   // now filter arrays for each of the associations.
   for (int association = 0; association < vtkDataObject::NUMBER_OF_ASSOCIATIONS; ++association)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (association == vtkDataObject::FIELD_ASSOCIATION_POINTS_THEN_CELLS)
     {
       continue;
@@ -147,3 +140,4 @@ void vtkPassSelectedArrays::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "RowDataArraySelection: " << endl;
   this->GetRowDataArraySelection()->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

@@ -10,12 +10,10 @@
 
 set(headers
   ArrayCopyUnknown.h
-  ArrayHandleDeprecated.h
   ArrayHandleExecutionManager.h
   ArrayPortalFromIterators.h
+  ArrayRangeComputeUtils.h
   ArrayTransfer.h
-  AtomicInterfaceControl.h
-  AtomicInterfaceExecution.h
   Buffer.h
   CastInvalidValue.h
   CellLocatorBase.h
@@ -25,6 +23,7 @@ set(headers
   DeviceAdapterMemoryManager.h
   DeviceAdapterMemoryManagerShared.h
   DeviceAdapterListHelpers.h
+  FieldCollection.h
   FunctorsGeneral.h
   IteratorFromArrayPortal.h
   KXSort.h
@@ -38,19 +37,8 @@ set(headers
   RuntimeDeviceConfiguration.h
   RuntimeDeviceConfigurationOptions.h
   RuntimeDeviceOption.h
-  StorageDeprecated.h
   StorageError.h
-  Variant.h
   )
-
-if (NOT VTKm_NO_DEPRECATED_VIRTUAL)
-  set(headers ${headers}
-    TransferInfo.h
-    VirtualObjectTransfer.h
-    VirtualObjectTransferInstantiate.h
-    VirtualObjectTransferShareWithControl.h
-    )
-endif()
 
 vtkm_declare_headers(${headers})
 
@@ -58,7 +46,3 @@ vtkm_declare_headers(${headers})
 # They are in a separate directory to highlight which objects are
 # internal and which are part of the external interface.
 #add_custom_target(vtkmContInternal ALL DEPENDS vtkmCont)
-
-if (VTKm_ENABLE_TESTING)
-  add_subdirectory(testing)
-endif ()

@@ -1,17 +1,8 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
-  Program:   Visualization Toolkit
-  Module:    vtkCompositePolyDataMapper2.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// Hide VTK_DEPRECATED_IN_9_3_0() warnings for this class.
+#define VTK_DEPRECATION_LEVEL 0
 #include "vtkCompositePolyDataMapper2.h"
 
 #include "vtk_glew.h"
@@ -60,7 +51,28 @@
 #include "vtkCompositeMapperHelper2.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeMapperHelper2);
+
+namespace
+{
+template <typename T>
+class ScopedValueRollback
+{
+public:
+  ScopedValueRollback(T& value, T newValue)
+  {
+    Value = value;
+    Pointer = &value;
+    *Pointer = newValue;
+  }
+  ~ScopedValueRollback() { *Pointer = Value; }
+
+private:
+  T* Pointer = nullptr;
+  T Value;
+};
+} // end anonymous namespace
 
 //------------------------------------------------------------------------------
 void vtkCompositeMapperHelper2::PrintSelf(ostream& os, vtkIndent indent)
@@ -236,6 +248,7 @@ void vtkCompositeMapperHelper2::RemoveUnused()
 std::vector<vtkPolyData*> vtkCompositeMapperHelper2::GetRenderedList() const
 {
   std::vector<vtkPolyData*> result;
+  result.reserve(this->Data.size());
   for (const auto& pair : this->Data)
   {
     result.push_back(pair.first);
@@ -336,8 +349,8 @@ void vtkCompositeMapperHelper2::UpdateCameraShiftScale(vtkRenderer* ren, vtkActo
   }
 
   // handle camera shift scale
-  if (this->ShiftScaleMethod == vtkOpenGLVertexBufferObject::NEAR_PLANE_SHIFT_SCALE ||
-    this->ShiftScaleMethod == vtkOpenGLVertexBufferObject::FOCAL_POINT_SHIFT_SCALE)
+  if (this->ShiftScaleMethod == ShiftScaleMethodType::NEAR_PLANE_SHIFT_SCALE ||
+    this->ShiftScaleMethod == ShiftScaleMethodType::FOCAL_POINT_SHIFT_SCALE)
   {
     // get ideal shift scale from camera
     auto posVBO = this->VBOs->GetVBO("vertexMC");
@@ -590,9 +603,9 @@ void vtkCompositeMapperHelper2::BuildBufferObjects(vtkRenderer* ren, vtkActor* a
   vtkOpenGLVertexBufferObject* posVBO = this->VBOs->GetVBO("vertexMC");
   if (posVBO)
   {
-    if (this->ShiftScaleMethod == vtkOpenGLVertexBufferObject::AUTO_SHIFT_SCALE)
+    if (this->ShiftScaleMethod == ShiftScaleMethodType::AUTO_SHIFT_SCALE)
     {
-      posVBO->SetCoordShiftAndScaleMethod(vtkOpenGLVertexBufferObject::MANUAL_SHIFT_SCALE);
+      posVBO->SetCoordShiftAndScaleMethod(ShiftScaleMethodType::MANUAL_SHIFT_SCALE);
       bbox.GetBounds(bounds);
       std::vector<double> shift;
       std::vector<double> scale;
@@ -1932,10 +1945,10 @@ void vtkCompositePolyDataMapper2::Render(vtkRenderer* ren, vtkActor* actor)
     this->BlockState.Visibility.push(true);
     this->BlockState.Pickability.push(true);
     this->BlockState.Opacity.push(prop->GetOpacity());
-    this->BlockState.AmbientColor.push(vtkColor3d(prop->GetAmbientColor()));
-    this->BlockState.DiffuseColor.push(vtkColor3d(prop->GetDiffuseColor()));
-    this->BlockState.SpecularColor.push(vtkColor3d(prop->GetSpecularColor()));
-    this->BlockState.SelectionColor.push(vtkColor3d(selColor));
+    this->BlockState.AmbientColor.emplace(prop->GetAmbientColor());
+    this->BlockState.DiffuseColor.emplace(prop->GetDiffuseColor());
+    this->BlockState.SpecularColor.emplace(prop->GetSpecularColor());
+    this->BlockState.SelectionColor.emplace(selColor);
     this->BlockState.SelectionOpacity.push(selColor[3]);
 
     unsigned int flat_index = 0;
@@ -2142,3 +2155,4 @@ vtkMTimeType vtkCompositePolyDataMapper2::GetMTime()
   }
   return this->Superclass::GetMTime();
 }
+VTK_ABI_NAMESPACE_END

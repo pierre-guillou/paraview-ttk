@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuantileAccumulator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkQuantileAccumulator
@@ -82,13 +71,13 @@ public:
    */
   typedef std::shared_ptr<ListType> ListPointer;
 
-  //@{
+  ///@{
   /**
    * Methods for adding data to the accumulator.
    */
   void Add(vtkAbstractAccumulator* accumulator) override;
   void Add(double value, double weight = 1.0) override;
-  //@}
+  ///@}
 
   /**
    * Set object into initial state
@@ -120,13 +109,13 @@ public:
    */
   double GetValue() const override;
 
-  //@{
+  ///@{
   /**
    * Set / Get on the Percentile to compute.
    */
   vtkGetMacro(Percentile, double);
   vtkSetMacro(Percentile, double);
-  //@}
+  ///@}
 
   /**
    * Getter for the index of the percentile in the sorted list.

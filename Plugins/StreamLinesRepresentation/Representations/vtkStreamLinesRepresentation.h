@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamLinesRepresentation
  * @brief   Representation for showing data sets using live streamlines.
@@ -99,7 +87,7 @@ public:
   virtual void SetInterpolateScalarsBeforeMapping(int val);
   virtual void SetLookupTable(vtkScalarsToColors* val);
 
-  //@{
+  ///@{
   /**
    * Sets if scalars are mapped through a color-map or are used
    * directly as colors.
@@ -177,7 +165,7 @@ protected:
   virtual vtkPVLODActor* GetRenderedProp() { return this->Actor; };
 
   vtkSmartPointer<vtkDataObject> Cache;
-  vtkAlgorithm* MBMerger;
+  vtkAlgorithm* MergeBlocks;
   vtkStreamLinesMapper* StreamLinesMapper;
   vtkProperty* Property;
   vtkPVLODActor* Actor;

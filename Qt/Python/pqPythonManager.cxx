@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonManager.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 // Include vtkPython.h first to avoid python??_d.lib not found linking error on
 // Windows debug builds.
 #include <vtkPython.h>
@@ -48,17 +20,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkOutputWindow.h"
 #include "vtkPythonInteractiveInterpreter.h"
 #include "vtkPythonInterpreter.h"
+#include "vtkSMSessionProxyManager.h"
 #include "vtkSmartPointer.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QFileDialog>
 #include <QInputDialog>
 #include <QLayout>
-#include <QMainWindow>
-#include <QSplitter>
 #include <QStatusBar>
 #include <QTextStream>
 #include <sstream>
@@ -104,8 +74,10 @@ public:
     std::string* strData = reinterpret_cast<std::string*>(calldata);
     bool ok;
     QString inputText = QInputDialog::getText(pqCoreUtilities::mainWidget(),
-      QCoreApplication::translate("pqPythonManager", "Enter Input requested by Python"),
-      QCoreApplication::translate("pqPythonManager", "Input: "), QLineEdit::Normal, QString(), &ok);
+      QCoreApplication::translate(
+        "pqPythonManagerRawInputHelper", "Enter Input requested by Python"),
+      QCoreApplication::translate("pqPythonManagerRawInputHelper", "Input: "), QLineEdit::Normal,
+      QString(), &ok);
     if (ok)
     {
       *strData = inputText.toStdString();
@@ -135,6 +107,12 @@ pqPythonManager::~pqPythonManager()
 {
   pqApplicationCore::instance()->unRegisterManager("PYTHON_MANAGER");
   delete this->Internal;
+}
+
+//-----------------------------------------------------------------------------
+pqPythonMacroSupervisor* pqPythonManager::macroSupervisor() const
+{
+  return this->Internal->MacroSupervisor;
 }
 
 //-----------------------------------------------------------------------------
@@ -209,27 +187,28 @@ void pqPythonManager::executeCode(
 }
 
 //-----------------------------------------------------------------------------
-void pqPythonManager::executeScript(const QString& filename)
+void pqPythonManager::executeScript(const QString& filename, vtkTypeUInt32 location)
 {
-  QFile file(filename);
-  if (file.open(QIODevice::ReadOnly))
+  // read python script from file
+  auto pxm = pqApplicationCore::instance()->getActiveServer()->proxyManager();
+  const auto pyScript = pxm->LoadString(filename.toUtf8().data(), location);
+  if (pyScript.empty())
   {
-    const QByteArray code = file.readAll();
-    const QVector<QByteArray> pre_cmd = { "import sys",
-      QString("__file__ = r'%1'").arg(filename).toUtf8() };
-    const QVector<QByteArray> post_cmd = { "del __file__" };
-    this->executeCode(code, pre_cmd, post_cmd);
+    qCritical() << "Failed to open file : " << filename;
+    return;
   }
-  else
-  {
-    qWarning() << "Error opening '" << filename << "'.";
-  }
+
+  const QByteArray code = QString(pyScript.c_str()).toLocal8Bit();
+  const QVector<QByteArray> pre_cmd = { "import sys",
+    QString("__file__ = r'%1'").arg(filename).toUtf8() };
+  const QVector<QByteArray> post_cmd = { "del __file__" };
+  this->executeCode(code, pre_cmd, post_cmd);
 }
 
 //-----------------------------------------------------------------------------
-void pqPythonManager::executeScriptAndRender(const QString& filename)
+void pqPythonManager::executeScriptAndRender(const QString& filename, vtkTypeUInt32 location)
 {
-  this->executeScript(filename);
+  this->executeScript(filename, location);
   pqApplicationCore::instance()->render();
 }
 
@@ -240,7 +219,7 @@ void pqPythonManager::updateMacroList()
 }
 
 //----------------------------------------------------------------------------
-void pqPythonManager::addMacro(const QString& fileName)
+void pqPythonManager::addMacro(const QString& fileName, vtkTypeUInt32 location)
 {
   QString userMacroDir = pqCoreUtilities::getParaViewUserDirectory() + "/Macros";
   QDir dir;
@@ -255,7 +234,20 @@ void pqPythonManager::addMacro(const QString& fileName)
   QString expectedFilePath = userMacroDir + "/" + QFileInfo(fileName).fileName();
   expectedFilePath = pqCoreUtilities::getNoneExistingFileName(expectedFilePath);
 
-  QFile::copy(fileName, expectedFilePath);
+  // read python script from file
+  auto pxm = pqApplicationCore::instance()->getActiveServer()->proxyManager();
+  const auto pyScript = pxm->LoadString(fileName.toUtf8().data(), location);
+
+  // write python script to file in user directory
+  QFile file(expectedFilePath);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+  {
+    qWarning() << "Could not create user Macro file:" << expectedFilePath;
+    return;
+  }
+  QTextStream out(&file);
+  out << pyScript.c_str();
+  file.close();
 
   // Register the inner one
   this->Internal->MacroSupervisor->addMacro(expectedFilePath);

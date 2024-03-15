@@ -79,10 +79,7 @@
         {
           "inputs": {
             "click": {
-              "output": "leftgripaction"
-            },
-            "pose": {
-              "output": "handposehandgrip"
+              "output": "complexgestureaction"
             }
           },
           "path": "/user/hand/left/input/squeeze"
@@ -90,10 +87,7 @@
         {
           "inputs": {
             "click": {
-              "output": "rightgripaction"
-            },
-            "pose": {
-              "output": "handposehandgrip"
+              "output": "complexgestureaction"
             }
           },
           "path": "/user/hand/right/input/squeeze"

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConvertToPartitionedDataSetCollection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkConvertToPartitionedDataSetCollection.h"
 
 #include "vtkDataAssembly.h"
@@ -32,6 +20,7 @@
 #include <functional>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkConvertToPartitionedDataSetCollection);
 //----------------------------------------------------------------------------
 vtkConvertToPartitionedDataSetCollection::vtkConvertToPartitionedDataSetCollection() = default;
@@ -56,17 +45,20 @@ int vtkConvertToPartitionedDataSetCollection::RequestData(
   if (auto pdc = vtkPartitionedDataSetCollection::SafeDownCast(inputDO))
   {
     // nothing to do, input is already a vtkPartitionedDataSetCollection.
-    output->ShallowCopy(pdc);
+    output->CompositeShallowCopy(pdc);
+    this->CheckAbort();
     return 1;
   }
   else if (auto pd = vtkPartitionedDataSet::SafeDownCast(inputDO))
   {
     output->SetPartitionedDataSet(0, pd);
+    this->CheckAbort();
     return 1;
   }
   else if (vtkCompositeDataSet::SafeDownCast(inputDO) == nullptr)
   {
     output->SetPartition(0, 0, inputDO);
+    this->CheckAbort();
     return 1;
   }
 
@@ -74,6 +66,7 @@ int vtkConvertToPartitionedDataSetCollection::RequestData(
   if (vtkDataAssemblyUtilities::GenerateHierarchy(
         vtkCompositeDataSet::SafeDownCast(inputDO), assembly, output))
   {
+    this->CheckAbort();
     return 1;
   }
 
@@ -86,3 +79,4 @@ void vtkConvertToPartitionedDataSetCollection::PrintSelf(ostream& os, vtkIndent 
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

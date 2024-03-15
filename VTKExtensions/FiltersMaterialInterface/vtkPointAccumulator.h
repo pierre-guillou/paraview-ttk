@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointAccumulator
  * @brief   Container class that manages appending data arrays of points.
@@ -41,7 +30,7 @@ public:
     this->NPts = 0;
   }
   ~vtkPointAccumulator() { this->Clear(); }
-  //@{
+  ///@{
   /**
    * Free resources and mark as empty.
    */
@@ -54,12 +43,12 @@ public:
     this->PtStore = nullptr;
     this->NPts = 0;
   }
-  //@}
+  ///@}
   /**
    * Test if there is anything in the store.
    */
   bool Empty() { return this->NPts == 0; }
-  //@{
+  ///@{
   /**
    * Extend the internal store and get a pointer to
    * the newly added memory.
@@ -83,11 +72,11 @@ public:
     // update
     this->PtStore = newPointStore;
     this->NPts = newNPts;
-    //@}
+    ///@}
 
     return writePointer;
   }
-  //@{
+  ///@{
   /**
    * Adds an array of points to the end of
    * the internal store.
@@ -100,13 +89,13 @@ public:
     const int bytesPerPoint = 3 * sizeof(T_CPP);
     memcpy(writePointer, pts, n * bytesPerPoint);
   }
-  //@}
+  ///@}
   /**
    * Adds an array of points at the end of
    * the internal store.
    */
   void Accumulate(T_VTK* pts) { this->Accumulate(pts->GetPointer(0), pts->GetNumberOfTuples()); }
-  //@{
+  ///@{
   /**
    * Creates a vtkPoints data structure from
    * the internal store. Caller to delete the points.
@@ -119,11 +108,11 @@ public:
     vtkPoints* pts = vtkPoints::New();
     pts->SetData(da);
     da->Delete();
-    //@}
+    ///@}
 
     return pts;
   }
-  //@{
+  ///@{
   /**
    * Compute axis-aligned bounding box. An exhaustive search is made
    * through points every time. It's calllers responsibility to use
@@ -159,12 +148,12 @@ public:
         bounds[5] = pt[2];
     }
   }
-  //@}
+  ///@}
   /**
    * Return the number of points currently in the point store.
    */
   vtkIdType GetNumberOfPoints() { return this->NPts; }
-  //@{
+  ///@{
   /**
    * Print the contents of the internal store.
    */
@@ -182,7 +171,7 @@ public:
       pBuf += 3;
     }
   }
-  //@}
+  ///@}
 
 private:
   vtkPointAccumulator(const vtkPointAccumulator&) = delete;

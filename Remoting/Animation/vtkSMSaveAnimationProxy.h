@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSaveAnimationProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMSaveAnimationProxy
  * @brief proxy to save animation to images/video.
@@ -46,7 +34,7 @@ public:
    * Save animation as images/video. The properties on this proxy provide all
    * the necessary information to save the animation.
    */
-  virtual bool WriteAnimation(const char* filename);
+  virtual bool WriteAnimation(const char* filename, vtkTypeUInt32 location = vtkPVSession::CLIENT);
 
   /**
    * Overridden to update visibility state of "FrameRate" property.
@@ -60,7 +48,8 @@ protected:
   /**
    * Write animation on local process.
    */
-  virtual bool WriteAnimationLocally(const char* filename);
+  virtual bool WriteAnimationInternal(
+    const char* filename, vtkTypeUInt32 location = vtkPVSession::CLIENT);
 
   /**
    * Prepares for saving animation.

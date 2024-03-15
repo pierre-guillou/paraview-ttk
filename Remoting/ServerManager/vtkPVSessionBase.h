@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVSessionBase.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVSessionBase
  *
@@ -139,12 +127,12 @@ public:
   // SMObjects.
   //---------------------------------------------------------------------------
 
-  //@{
+  ///@{
   /**
    * Provides access to the session core.
    */
   vtkGetObjectMacro(SessionCore, vtkPVSessionCore);
-  //@}
+  ///@}
 
   /**
    * Get the ProxyDefinitionManager.
@@ -216,29 +204,29 @@ protected:
   vtkPVSessionBase(vtkPVSessionCore* coreToUse);
   ~vtkPVSessionBase() override;
 
-  //@{
+  ///@{
   /**
    * Method used to migrate from one Session type to another by keeping the same
    * vtkPVSessionCore
    */
   vtkPVSessionCore* GetSessionCore() const;
   void SetSessionCore(vtkPVSessionCore*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Should be called to begin/end receiving progresses on this session.
    * Overridden to relay to the server(s).
    */
   void PrepareProgressInternal() override;
   void CleanupPendingProgressInternal() override;
-  //@}
+  ///@}
 
   friend class vtkSMRemoteObject;
   friend class vtkSMSessionProxyManager;
   friend class vtkSMLiveInsituLinkProxy; // Needed to get access to vtkPVCatalystSessionCore
 
-  //@{
+  ///@{
   /**
    * Methods used to monitor if we are currently processing a server notification
    * Only vtkSMSessionClient use the flag to disable ignore_synchronization
@@ -247,7 +235,7 @@ protected:
   virtual bool StartProcessingRemoteNotification();
   virtual void StopProcessingRemoteNotification(bool previousValue);
   bool ProcessingRemoteNotification;
-  //@}
+  ///@}
 
   /**
    * Register a remote object

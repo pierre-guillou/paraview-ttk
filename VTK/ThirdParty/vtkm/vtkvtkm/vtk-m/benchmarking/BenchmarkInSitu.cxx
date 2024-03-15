@@ -10,11 +10,16 @@
 
 #include "Benchmarker.h"
 
+#include <cstddef>
 #include <random>
 #include <sstream>
+#include <unordered_map>
 
 #include <vtkm/ImplicitFunction.h>
+#include <vtkm/Particle.h>
 
+#include <vtkm/cont/Algorithm.h>
+#include <vtkm/cont/ArrayCopy.h>
 #include <vtkm/cont/BoundsCompute.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/cont/FieldRangeCompute.h>
@@ -25,9 +30,9 @@
 
 #include <vtkm/cont/internal/OptionParser.h>
 
-#include <vtkm/filter/Streamline.h>
 #include <vtkm/filter/contour/Contour.h>
 #include <vtkm/filter/contour/Slice.h>
+#include <vtkm/filter/flow/Streamline.h>
 #include <vtkm/filter/geometry_refinement/Tetrahedralize.h>
 #include <vtkm/filter/geometry_refinement/Tube.h>
 #include <vtkm/filter/vector_analysis/Gradient.h>
@@ -45,7 +50,6 @@
 namespace
 {
 
-const uint32_t DEFAULT_NUM_CYCLES = 20;
 const vtkm::Id DEFAULT_DATASET_DIM = 128;
 const vtkm::Id DEFAULT_IMAGE_SIZE = 1024;
 
@@ -62,6 +66,29 @@ vtkm::cont::PartitionedDataSet PartitionedInputDataSet;
 std::string PointScalarsName;
 // The point vectors to use:
 std::string PointVectorsName;
+
+// Global counters for number of cycles
+// These are globals because google benchmarks restarts the test for every
+// repetition when using --benchmark_repetitions
+
+// Additionlly, we need this global flag for when not doing repetitions,
+// as benchmark will repeatedly drop in and out of the measured function
+// and report the number of iterations for the last run of the function.
+// Thus, we'll have way more output images than what the iteration number
+// would lead you to believe (maybe fixed in > 1.7 with warmup time specifier)
+bool benchmark_repetitions = false;
+
+inline void hash_combine(std::size_t& vtkmNotUsed(seed)) {}
+
+template <typename T, typename... Rest>
+inline void hash_combine(std::size_t& seed, const T& v, Rest... rest)
+{
+  std::hash<T> hasher;
+  seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  hash_combine(seed, rest...);
+}
+
+std::unordered_map<size_t, int> bench_cycles;
 
 enum class RenderingMode
 {
@@ -91,7 +118,9 @@ void BuildInputDataSet(uint32_t cycle, bool isStructured, bool isMultiBlock, vtk
   PointVectorsName = "perlinnoisegrad";
 
   // Generate uniform dataset(s)
-  const vtkm::Id3 dims{ dim, dim, dim };
+  vtkm::source::PerlinNoise noise;
+  noise.SetPointDimensions({ dim, dim, dim });
+  noise.SetSeed(static_cast<vtkm::IdComponent>(cycle));
   if (isMultiBlock)
   {
     for (auto i = 0; i < 2; ++i)
@@ -100,12 +129,9 @@ void BuildInputDataSet(uint32_t cycle, bool isStructured, bool isMultiBlock, vtk
       {
         for (auto k = 0; k < 2; ++k)
         {
-          const vtkm::Vec3f origin{ static_cast<vtkm::FloatDefault>(i),
-                                    static_cast<vtkm::FloatDefault>(j),
-                                    static_cast<vtkm::FloatDefault>(k) };
-          const vtkm::source::PerlinNoise noise{ dims,
-                                                 origin,
-                                                 static_cast<vtkm::IdComponent>(cycle) };
+          noise.SetOrigin({ static_cast<vtkm::FloatDefault>(i),
+                            static_cast<vtkm::FloatDefault>(j),
+                            static_cast<vtkm::FloatDefault>(k) });
           const auto dataset = noise.Execute();
           partitionedInputDataSet.AppendPartition(dataset);
         }
@@ -114,7 +140,6 @@ void BuildInputDataSet(uint32_t cycle, bool isStructured, bool isMultiBlock, vtk
   }
   else
   {
-    const vtkm::source::PerlinNoise noise{ dims, static_cast<vtkm::IdComponent>(cycle) };
     inputDataSet = noise.Execute();
   }
 
@@ -282,33 +307,42 @@ void BenchContour(::benchmark::State& state)
 {
   const vtkm::cont::DeviceAdapterId device = Config.Device;
 
-  const uint32_t cycle = static_cast<uint32_t>(state.range(0));
-  const vtkm::Id numIsoVals = static_cast<vtkm::Id>(state.range(1));
-  const bool isStructured = static_cast<bool>(state.range(2));
-  const bool isMultiBlock = static_cast<bool>(state.range(3));
-  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(4));
-
-  vtkm::cont::Timer inputGenTimer{ device };
-  inputGenTimer.Start();
-  BuildInputDataSet(cycle, isStructured, isMultiBlock, DataSetDim);
-  inputGenTimer.Stop();
-
-  vtkm::filter::contour::Contour filter;
-  filter.SetActiveField(PointScalarsName, vtkm::cont::Field::Association::Points);
-  filter.SetMergeDuplicatePoints(true);
-  filter.SetGenerateNormals(true);
-  filter.SetComputeFastNormalsForStructured(true);
-  filter.SetComputeFastNormalsForUnstructured(true);
+  const vtkm::Id numIsoVals = static_cast<vtkm::Id>(state.range(0));
+  const bool isStructured = static_cast<bool>(state.range(1));
+  const bool isMultiBlock = static_cast<bool>(state.range(2));
+  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(3));
 
   vtkm::cont::Timer totalTimer{ device };
   vtkm::cont::Timer filterTimer{ device };
   vtkm::cont::Timer renderTimer{ device };
   vtkm::cont::Timer writeTimer{ device };
 
+  size_t hash_val = 0;
+  hash_combine(hash_val, std::string("BenchContour"), isStructured, isMultiBlock, renderAlgo);
+
+  int* cycles = &(bench_cycles[hash_val]);
+  if (!benchmark_repetitions)
+    *cycles = 0;
+
   for (auto _ : state)
   {
     (void)_;
     totalTimer.Start();
+
+    // Disable the benchmark timers for the updating/creation of the datasets
+    state.PauseTiming(); // Stop timers.
+    vtkm::cont::Timer inputGenTimer{ device };
+    inputGenTimer.Start();
+    BuildInputDataSet(*cycles, isStructured, isMultiBlock, DataSetDim);
+    inputGenTimer.Stop();
+
+    vtkm::filter::contour::Contour filter;
+    filter.SetActiveField(PointScalarsName, vtkm::cont::Field::Association::Points);
+    filter.SetMergeDuplicatePoints(true);
+    filter.SetGenerateNormals(true);
+    filter.SetComputeFastNormals(true);
+    state.ResumeTiming(); // And resume timers.
+
     filterTimer.Start();
     std::vector<vtkm::cont::DataSet> dataSets;
     if (isMultiBlock)
@@ -330,10 +364,12 @@ void BenchContour(::benchmark::State& state)
     renderTimer.Stop();
 
     writeTimer.Start();
-    WriteToDisk(*canvas, renderAlgo, "contour", isStructured, isMultiBlock, cycle);
+    WriteToDisk(*canvas, renderAlgo, "contour", isStructured, isMultiBlock, *cycles);
     writeTimer.Stop();
 
     totalTimer.Stop();
+
+    (*cycles)++;
 
     state.SetIterationTime(totalTimer.GetElapsedTime());
     state.counters.insert(
@@ -346,21 +382,24 @@ void BenchContour(::benchmark::State& state)
 
 void BenchContourGenerator(::benchmark::internal::Benchmark* bm)
 {
-  bm->ArgNames({ "Cycle", "NIsos", "IsStructured", "IsMultiBlock", "RenderingMode" });
+  bm->ArgNames({ "NIsos", "IsStructured", "IsMultiBlock", "RenderingMode" });
 
   std::vector<uint32_t> isStructureds{ false, true };
   std::vector<uint32_t> isMultiBlocks{ false, true };
   std::vector<RenderingMode> renderingModes{ RenderingMode::RayTrace };
-  for (uint32_t cycle = 1; cycle <= DEFAULT_NUM_CYCLES; ++cycle)
+  for (auto& isStructured : isStructureds)
   {
-    for (auto& isStructured : isStructureds)
+    for (auto& isMultiBlock : isMultiBlocks)
     {
-      for (auto& isMultiBlock : isMultiBlocks)
+      for (auto& mode : renderingModes)
       {
-        for (auto& mode : renderingModes)
-        {
-          bm->Args({ cycle, 10, isStructured, isMultiBlock, static_cast<int>(mode) });
-        }
+        size_t hash_val = 0;
+        hash_combine(hash_val, std::string("BenchContour"), isStructured, isMultiBlock, mode);
+        auto search = bench_cycles.find(hash_val);
+        // If we can't find the hash, or we're not doing repetitions, reset to 0
+        if (search == bench_cycles.end())
+          bench_cycles[hash_val] = 0;
+        bm->Args({ 10, isStructured, isMultiBlock, static_cast<int>(mode) });
       }
     }
   }
@@ -423,7 +462,7 @@ void AddField(vtkm::cont::PartitionedDataSet& input,
 }
 
 template <typename DataSetType>
-DataSetType RunStreamlinesHelper(vtkm::filter::Streamline& filter, const DataSetType& input)
+DataSetType RunStreamlinesHelper(vtkm::filter::flow::Streamline& filter, const DataSetType& input)
 {
   auto dataSetBounds = vtkm::cont::BoundsCompute(input);
   vtkm::cont::ArrayHandle<vtkm::Particle> seedArray;
@@ -447,30 +486,40 @@ void BenchStreamlines(::benchmark::State& state)
 {
   const vtkm::cont::DeviceAdapterId device = Config.Device;
 
-  const uint32_t cycle = static_cast<uint32_t>(state.range(0));
-  const bool isStructured = static_cast<bool>(state.range(1));
-  const bool isMultiBlock = static_cast<bool>(state.range(2));
-  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(3));
-
-  vtkm::cont::Timer inputGenTimer{ device };
-  inputGenTimer.Start();
-  BuildInputDataSet(cycle, isStructured, isMultiBlock, DataSetDim);
-  inputGenTimer.Stop();
-
-  vtkm::filter::Streamline streamline;
-  streamline.SetStepSize(0.1f);
-  streamline.SetNumberOfSteps(1000);
-  streamline.SetActiveField(PointVectorsName);
+  const bool isStructured = static_cast<bool>(state.range(0));
+  const bool isMultiBlock = static_cast<bool>(state.range(1));
+  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(2));
 
   vtkm::cont::Timer totalTimer{ device };
   vtkm::cont::Timer filterTimer{ device };
   vtkm::cont::Timer renderTimer{ device };
   vtkm::cont::Timer writeTimer{ device };
 
+  size_t hash_val = 0;
+  hash_combine(hash_val, std::string("BenchStreamlines"), isStructured, isMultiBlock, renderAlgo);
+
+  int* cycles = &(bench_cycles[hash_val]);
+  if (!benchmark_repetitions)
+    *cycles = 0;
+
   for (auto _ : state)
   {
     (void)_;
     totalTimer.Start();
+
+    // Disable the benchmark timers for the updating/creation of the datasets
+    state.PauseTiming(); // Stop timers.
+    vtkm::cont::Timer inputGenTimer{ device };
+    inputGenTimer.Start();
+    BuildInputDataSet(*cycles, isStructured, isMultiBlock, DataSetDim);
+    inputGenTimer.Stop();
+
+    vtkm::filter::flow::Streamline streamline;
+    streamline.SetStepSize(0.1f);
+    streamline.SetNumberOfSteps(1000);
+    streamline.SetActiveField(PointVectorsName);
+    state.ResumeTiming(); // And resume timers.
+
     filterTimer.Start();
 
     std::vector<vtkm::cont::DataSet> dataSets;
@@ -493,10 +542,12 @@ void BenchStreamlines(::benchmark::State& state)
     renderTimer.Stop();
 
     writeTimer.Start();
-    WriteToDisk(*canvas, renderAlgo, "streamlines", isStructured, isMultiBlock, cycle);
+    WriteToDisk(*canvas, renderAlgo, "streamlines", isStructured, isMultiBlock, *cycles);
     writeTimer.Stop();
 
     totalTimer.Stop();
+
+    (*cycles)++;
 
     state.SetIterationTime(totalTimer.GetElapsedTime());
     state.counters.insert(
@@ -509,21 +560,24 @@ void BenchStreamlines(::benchmark::State& state)
 
 void BenchStreamlinesGenerator(::benchmark::internal::Benchmark* bm)
 {
-  bm->ArgNames({ "Cycle", "IsStructured", "IsMultiBlock", "RenderingMode" });
+  bm->ArgNames({ "IsStructured", "IsMultiBlock", "RenderingMode" });
 
   std::vector<uint32_t> isStructureds{ false, true };
   std::vector<uint32_t> isMultiBlocks{ false, true };
   std::vector<RenderingMode> renderingModes{ RenderingMode::Mesh };
-  for (uint32_t cycle = 1; cycle <= DEFAULT_NUM_CYCLES; ++cycle)
+  for (auto& isStructured : isStructureds)
   {
-    for (auto& isStructured : isStructureds)
+    for (auto& isMultiBlock : isMultiBlocks)
     {
-      for (auto& isMultiBlock : isMultiBlocks)
+      for (auto& mode : renderingModes)
       {
-        for (auto& mode : renderingModes)
-        {
-          bm->Args({ cycle, isStructured, isMultiBlock, static_cast<int>(mode) });
-        }
+        size_t hash_val = 0;
+        hash_combine(hash_val, std::string("BenchStreamlines"), isStructured, isMultiBlock, mode);
+        auto search = bench_cycles.find(hash_val);
+        // If we can't find the hash, or we're not doing repetitions, reset to 0
+        if (search == bench_cycles.end())
+          bench_cycles[hash_val] = 0;
+        bm->Args({ isStructured, isMultiBlock, static_cast<int>(mode) });
       }
     }
   }
@@ -567,15 +621,9 @@ void BenchSlice(::benchmark::State& state)
 {
   const vtkm::cont::DeviceAdapterId device = Config.Device;
 
-  const uint32_t cycle = static_cast<uint32_t>(state.range(0));
-  const bool isStructured = static_cast<bool>(state.range(1));
-  const bool isMultiBlock = static_cast<bool>(state.range(2));
-  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(3));
-
-  vtkm::cont::Timer inputGenTimer{ device };
-  inputGenTimer.Start();
-  BuildInputDataSet(cycle, isStructured, isMultiBlock, DataSetDim);
-  inputGenTimer.Stop();
+  const bool isStructured = static_cast<bool>(state.range(0));
+  const bool isMultiBlock = static_cast<bool>(state.range(1));
+  const RenderingMode renderAlgo = static_cast<RenderingMode>(state.range(2));
 
   vtkm::filter::contour::Slice filter;
 
@@ -584,10 +632,26 @@ void BenchSlice(::benchmark::State& state)
   vtkm::cont::Timer renderTimer{ device };
   vtkm::cont::Timer writeTimer{ device };
 
+  size_t hash_val = 0;
+  hash_combine(hash_val, std::string("BenchSlice"), isStructured, isMultiBlock, renderAlgo);
+
+  int* cycles = &(bench_cycles[hash_val]);
+  if (!benchmark_repetitions)
+    *cycles = 0;
+
   for (auto _ : state)
   {
     (void)_;
     totalTimer.Start();
+
+    // Disable the benchmark timers for the updating/creation of the datasets
+    state.PauseTiming(); // Stop timers.
+    vtkm::cont::Timer inputGenTimer{ device };
+    inputGenTimer.Start();
+    BuildInputDataSet(*cycles, isStructured, isMultiBlock, DataSetDim);
+    inputGenTimer.Stop();
+    state.ResumeTiming(); // And resume timers.
+
     filterTimer.Start();
     std::vector<vtkm::cont::DataSet> dataSets;
     if (isMultiBlock)
@@ -617,10 +681,12 @@ void BenchSlice(::benchmark::State& state)
     renderTimer.Stop();
 
     writeTimer.Start();
-    WriteToDisk(*canvas, renderAlgo, "slice", isStructured, isMultiBlock, cycle);
+    WriteToDisk(*canvas, renderAlgo, "slice", isStructured, isMultiBlock, *cycles);
     writeTimer.Stop();
 
     totalTimer.Stop();
+
+    (*cycles)++;
 
     state.SetIterationTime(totalTimer.GetElapsedTime());
     state.counters.insert(
@@ -633,21 +699,24 @@ void BenchSlice(::benchmark::State& state)
 
 void BenchSliceGenerator(::benchmark::internal::Benchmark* bm)
 {
-  bm->ArgNames({ "Cycle", "IsStructured", "IsMultiBlock", "RenderingMode" });
+  bm->ArgNames({ "IsStructured", "IsMultiBlock", "RenderingMode" });
 
   std::vector<uint32_t> isStructureds{ false, true };
   std::vector<uint32_t> isMultiBlocks{ false, true };
   std::vector<RenderingMode> renderingModes{ RenderingMode::RayTrace };
-  for (uint32_t cycle = 1; cycle <= DEFAULT_NUM_CYCLES; ++cycle)
+  for (auto& isStructured : isStructureds)
   {
-    for (auto& isStructured : isStructureds)
+    for (auto& isMultiBlock : isMultiBlocks)
     {
-      for (auto& isMultiBlock : isMultiBlocks)
+      for (auto& mode : renderingModes)
       {
-        for (auto& mode : renderingModes)
-        {
-          bm->Args({ cycle, isStructured, isMultiBlock, static_cast<int>(mode) });
-        }
+        size_t hash_val = 0;
+        hash_combine(hash_val, std::string("BenchSlice"), isStructured, isMultiBlock, mode);
+        auto search = bench_cycles.find(hash_val);
+        // If we can't find the hash, or we're not doing repetitions, reset to 0
+        if (search == bench_cycles.end())
+          bench_cycles[hash_val] = 0;
+        bm->Args({ isStructured, isMultiBlock, static_cast<int>(mode) });
       }
     }
   }
@@ -659,25 +728,34 @@ void BenchMeshRendering(::benchmark::State& state)
 {
   const vtkm::cont::DeviceAdapterId device = Config.Device;
 
-  const uint32_t cycle = static_cast<uint32_t>(state.range(0));
-  const bool isStructured = static_cast<bool>(state.range(1));
-  const bool isMultiBlock = static_cast<bool>(state.range(2));
+  const bool isStructured = static_cast<bool>(state.range(0));
+  const bool isMultiBlock = static_cast<bool>(state.range(1));
 
   vtkm::cont::Timer inputGenTimer{ device };
   vtkm::cont::Timer renderTimer{ device };
   vtkm::cont::Timer writeTimer{ device };
 
-  inputGenTimer.Start();
-  BuildInputDataSet(cycle, isStructured, isMultiBlock, DataSetDim);
-  inputGenTimer.Stop();
-
   vtkm::cont::Timer totalTimer{ device };
+
+  size_t hash_val = 0;
+  hash_combine(hash_val, std::string("BenchMeshRendering"), isStructured, isMultiBlock);
+
+  int* cycles = &(bench_cycles[hash_val]);
+  if (!benchmark_repetitions)
+    *cycles = 0;
 
   for (auto _ : state)
   {
     (void)_;
 
     totalTimer.Start();
+
+    // Disable the benchmark timers for the updating/creation of the datasets
+    state.PauseTiming(); // Stop timers.
+    inputGenTimer.Start();
+    BuildInputDataSet(*cycles, isStructured, isMultiBlock, DataSetDim);
+    inputGenTimer.Stop();
+    state.ResumeTiming(); // And resume timers.
 
     std::vector<vtkm::cont::DataSet> dataSets =
       isMultiBlock ? ExtractDataSets(PartitionedInputDataSet) : ExtractDataSets(InputDataSet);
@@ -687,10 +765,12 @@ void BenchMeshRendering(::benchmark::State& state)
     renderTimer.Stop();
 
     writeTimer.Start();
-    WriteToDisk(*canvas, RenderingMode::Mesh, "mesh", isStructured, isMultiBlock, cycle);
+    WriteToDisk(*canvas, RenderingMode::Mesh, "mesh", isStructured, isMultiBlock, *cycles);
     writeTimer.Stop();
 
     totalTimer.Stop();
+
+    (*cycles)++;
 
     state.SetIterationTime(totalTimer.GetElapsedTime());
     state.counters.insert(
@@ -703,18 +783,21 @@ void BenchMeshRendering(::benchmark::State& state)
 
 void BenchMeshRenderingGenerator(::benchmark::internal::Benchmark* bm)
 {
-  bm->ArgNames({ "Cycle", "IsStructured", "IsMultiBlock" });
+  bm->ArgNames({ "IsStructured", "IsMultiBlock" });
 
   std::vector<uint32_t> isStructureds{ false, true };
   std::vector<uint32_t> isMultiBlocks{ false, true };
-  for (uint32_t cycle = 1; cycle <= DEFAULT_NUM_CYCLES; ++cycle)
+  for (auto& isStructured : isStructureds)
   {
-    for (auto& isStructured : isStructureds)
+    for (auto& isMultiBlock : isMultiBlocks)
     {
-      for (auto& isMultiBlock : isMultiBlocks)
-      {
-        bm->Args({ cycle, isStructured, isMultiBlock });
-      }
+      size_t hash_val = 0;
+      hash_combine(hash_val, std::string("BenchMeshRendering"), isStructured, isMultiBlock);
+      auto search = bench_cycles.find(hash_val);
+      // If we can't find the hash, or we're not doing repetitions, reset to 0
+      if (search == bench_cycles.end())
+        bench_cycles[hash_val] = 0;
+      bm->Args({ isStructured, isMultiBlock });
     }
   }
 }
@@ -725,23 +808,32 @@ void BenchVolumeRendering(::benchmark::State& state)
 {
   const vtkm::cont::DeviceAdapterId device = Config.Device;
 
-  const uint32_t cycle = static_cast<uint32_t>(state.range(0));
   const bool isStructured = true;
-  const bool isMultiBlock = static_cast<bool>(state.range(1));
-
-  vtkm::cont::Timer inputGenTimer{ device };
-  inputGenTimer.Start();
-  BuildInputDataSet(cycle, isStructured, isMultiBlock, DataSetDim);
-  inputGenTimer.Stop();
+  const bool isMultiBlock = static_cast<bool>(state.range(0));
 
   vtkm::cont::Timer totalTimer{ device };
   vtkm::cont::Timer renderTimer{ device };
   vtkm::cont::Timer writeTimer{ device };
 
+  size_t hash_val = 0;
+  hash_combine(hash_val, std::string("BenchVolumeRendering"), isMultiBlock);
+
+  int* cycles = &(bench_cycles[hash_val]);
+  if (!benchmark_repetitions)
+    *cycles = 0;
+
   for (auto _ : state)
   {
     (void)_;
     totalTimer.Start();
+
+    // Disable the benchmark timers for the updating/creation of the datasets
+    state.PauseTiming(); // Stop timers.
+    vtkm::cont::Timer inputGenTimer{ device };
+    inputGenTimer.Start();
+    BuildInputDataSet(*cycles, isStructured, isMultiBlock, DataSetDim);
+    inputGenTimer.Stop();
+    state.ResumeTiming(); // And resume timers.
 
     renderTimer.Start();
     std::vector<vtkm::cont::DataSet> dataSets =
@@ -750,10 +842,12 @@ void BenchVolumeRendering(::benchmark::State& state)
     renderTimer.Stop();
 
     writeTimer.Start();
-    WriteToDisk(*canvas, RenderingMode::Volume, "volume", isStructured, isMultiBlock, cycle);
+    WriteToDisk(*canvas, RenderingMode::Volume, "volume", isStructured, isMultiBlock, *cycles);
     writeTimer.Stop();
 
     totalTimer.Stop();
+
+    (*cycles)++;
 
     state.SetIterationTime(totalTimer.GetElapsedTime());
     state.counters.insert(
@@ -766,15 +860,18 @@ void BenchVolumeRendering(::benchmark::State& state)
 
 void BenchVolumeRenderingGenerator(::benchmark::internal::Benchmark* bm)
 {
-  bm->ArgNames({ "Cycle", "IsMultiBlock" });
+  bm->ArgNames({ "IsMultiBlock" });
 
   std::vector<uint32_t> isMultiBlocks{ false };
-  for (uint32_t cycle = 1; cycle <= DEFAULT_NUM_CYCLES; ++cycle)
+  for (auto& isMultiBlock : isMultiBlocks)
   {
-    for (auto& isMultiBlock : isMultiBlocks)
-    {
-      bm->Args({ cycle, isMultiBlock });
-    }
+    size_t hash_val = 0;
+    hash_combine(hash_val, std::string("BenchVolumeRendering"), isMultiBlock);
+    auto search = bench_cycles.find(hash_val);
+    // If we can't find the hash, or we're not doing repetitions, reset to 0
+    if (search == bench_cycles.end())
+      bench_cycles[hash_val] = 0;
+    bm->Args({ isMultiBlock });
   }
 }
 
@@ -935,6 +1032,34 @@ void ParseBenchmarkOptions(int& argc, char** argv)
   argc = destArg;
 }
 
+// Adding a const char* or std::string to a vector of char* is harder than it sounds.
+void AddArg(int& argc, std::vector<char*>& args, const std::string newArg)
+{
+  // This object will be deleted when the program exits
+  static std::vector<std::vector<char>> stringPool;
+
+  // Add a new vector of chars to the back of stringPool
+  stringPool.emplace_back();
+  std::vector<char>& newArgData = stringPool.back();
+
+  // Copy the string to the std::vector.
+  // Yes, something like malloc or strdup would be easier. But that would technically create
+  // a memory leak that could be reported by a memory analyzer. By copying this way, the
+  // memory will be deleted on program exit and no leak will be reported.
+  newArgData.resize(newArg.length() + 1);
+  std::copy(newArg.begin(), newArg.end(), newArgData.begin());
+  newArgData.back() = '\0'; // Don't forget the terminating null character.
+
+  // Add the argument to the list.
+  if (args.size() <= static_cast<std::size_t>(argc))
+  {
+    args.resize(static_cast<std::size_t>(argc + 1));
+  }
+  args[static_cast<std::size_t>(argc)] = newArgData.data();
+
+  ++argc;
+}
+
 } // end anon namespace
 
 int main(int argc, char* argv[])
@@ -952,6 +1077,34 @@ int main(int argc, char* argv[])
   if (opts != vtkm::cont::InitializeOptions::None)
   {
     vtkm::cont::GetRuntimeDeviceTracker().ForceDevice(Config.Device);
+  }
+
+  bool benchmark_min_time = false;
+  bool benchmark_report_aggregates_only = false;
+  for (auto i = 0; i <= argc; i++)
+    if (!strncmp(args[i], "--benchmark_repetitions", 23))
+      benchmark_repetitions = true;
+    else if (!strncmp(args[i], "--benchmark_min_time", 20))
+      benchmark_min_time = true;
+    else if (!strncmp(args[i], "--benchmark_report_aggregates_only", 34))
+      benchmark_report_aggregates_only = true;
+
+  // If repetitions are explicitly set without also specifying a minimum_time,
+  // force the minimum time to be fairly small so that in all likelyhood, benchmarks
+  // will only run 1 iteration for each test
+  //
+  // And, for good measure, only output the accumulated statistics
+  if (benchmark_repetitions)
+  {
+    if (!benchmark_min_time)
+    {
+      AddArg(argc, args, "--benchmark_min_time=0.00000001");
+    }
+
+    if (!benchmark_report_aggregates_only)
+    {
+      AddArg(argc, args, "--benchmark_report_aggregates_only=true");
+    }
   }
 
   VTKM_EXECUTE_BENCHMARKS(argc, args.data());

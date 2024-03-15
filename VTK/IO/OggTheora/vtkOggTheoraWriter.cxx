@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOggTheoraWriter.cxx
-
-  Copyright (c) Michael Wild, Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Michael Wild
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOggTheoraWriter.h"
 
@@ -25,6 +14,7 @@
 #include <ctime>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOggTheoraWriterInternal
 {
 public:
@@ -182,8 +172,8 @@ int vtkOggTheoraWriterInternal::Start()
     // make sure there's nothing left laying around...
     delete[] this->thImage[i].data;
     // allocate the image plane
-    size_t siz = this->thImage[i].width * this->thImage[i].height;
-    this->thImage[i].data = new unsigned char[siz];
+    size_t size = this->thImage[i].width * this->thImage[i].height;
+    this->thImage[i].data = new unsigned char[size];
   }
 
   // thInfo is no longer needed
@@ -589,3 +579,4 @@ void vtkOggTheoraWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Rate: " << this->Rate << endl;
   os << indent << "Subsampling: " << this->Subsampling << endl;
 }
+VTK_ABI_NAMESPACE_END

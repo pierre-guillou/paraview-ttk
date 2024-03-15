@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherStructuredGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME
 // .SECTION Description
@@ -37,6 +25,13 @@ int TestOSG_0d(ostream& strm)
 {
   int i, k;
   vtkNew<vtkStructuredGrid> sg0D;
+
+  if (!sg0D->SupportsGhostArray(vtkDataObject::POINT) ||
+    !sg0D->SupportsGhostArray(vtkDataObject::CELL))
+  {
+    std::cerr << "Unexpected results on SupportsGhostArray\n";
+    return 1;
+  }
 
   vtkNew<vtkPoints> onepoints;
   for (k = 0; k < 1; k++)

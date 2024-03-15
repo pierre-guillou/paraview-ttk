@@ -652,7 +652,15 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
   try
     {
     this->AvtFile->FormatGetTimes( timesteps );
+    if (timesteps.empty())
+      {
+      timesteps = this->MetaData->GetTimes();
+      }
     this->AvtFile->FormatGetCycles( cycles );
+    if (cycles.empty())
+      {
+      cycles = this->MetaData->GetCycles();
+      }
     }
   catch(...)
     {

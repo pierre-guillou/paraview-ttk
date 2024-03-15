@@ -1,31 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTableBasedClipDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*****************************************************************************
- *
- * Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
- * Produced at the Lawrence Livermore National Laboratory
- * LLNL-CODE-400124
- * All rights reserved.
- *
- * This file was adapted from the VisIt clipper (vtkVisItClipper). For  details,
- * see https://visit.llnl.gov/.  The full copyright notice is contained in the
- * file COPYRIGHT located at the root of the VisIt distribution or at
- * http://www.llnl.gov/visit/copyright.html.
- *
- *****************************************************************************/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTableBasedClipDataSet
@@ -96,9 +71,12 @@
 #ifndef vtkTableBasedClipDataSet_h
 #define vtkTableBasedClipDataSet_h
 
-#include "vtkFiltersGeneralModule.h" // For export macro
+#include "vtkFiltersGeneralModule.h"    // For export macro
+#include "vtkIncrementalPointLocator.h" // For vtkIncrementalPointLocator
 #include "vtkUnstructuredGridAlgorithm.h"
+#include "vtkWeakPointer.h" // Needed for weak pointer to the vtkIncrementalPointLocator
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDoubleArray;
 class vtkImplicitFunction;
@@ -226,6 +204,15 @@ public:
   vtkGetMacro(BatchSize, unsigned int);
   ///@}
 
+  ///@{
+  /**
+   * Specify a spatial locator for merging points.
+   * Forwarded to vtkClipDataSet.
+   */
+  void SetLocator(vtkIncrementalPointLocator* locator);
+  vtkGetObjectMacro(Locator, vtkIncrementalPointLocator);
+  ///@}
+
 protected:
   vtkTableBasedClipDataSet(vtkImplicitFunction* cf = nullptr);
   ~vtkTableBasedClipDataSet() override;
@@ -286,11 +273,15 @@ private:
   void ClipUnstructuredGrid(vtkDataSet* inputGrid, vtkImplicitFunction* implicitFunction,
     vtkDoubleArray* scalars, double isoValue, vtkUnstructuredGrid* outputUG);
 
-  /**
-   * This function checks if vtkPolyData/vtkUnstructuredGrid have cells that can be handled
-   * by this filter or vtkClipDataSet needs to be used internally.
-   */
-  bool CanFullyProcessUnstructuredData(vtkDataSet* inputGrid);
+  template <typename TGrid, typename TInputIdType>
+  vtkSmartPointer<vtkUnstructuredGrid> ClipUnstructuredData(TGrid* input, vtkPoints* inputPoints,
+    vtkImplicitFunction* implicitFunction, vtkDoubleArray* scalars, double isoValue, bool insideOut,
+    bool generateClipScalars, int outputPointsPrecision, unsigned int batchSize);
+
+  template <typename TGrid, typename TInputIdType>
+  vtkSmartPointer<vtkUnstructuredGrid> ClipStructuredData(TGrid* input, vtkPoints* inputPoints,
+    vtkImplicitFunction* implicitFunction, vtkDoubleArray* scalars, double isoValue, bool insideOut,
+    bool generateClipScalars, int outputPointsPrecision, unsigned int batchSize);
 
   /**
    * Register a callback function with the InternalProgressObserver.
@@ -315,9 +306,12 @@ protected:
 
   int OutputPointsPrecision;
 
+  vtkWeakPointer<vtkIncrementalPointLocator> Locator;
+
 private:
   vtkTableBasedClipDataSet(const vtkTableBasedClipDataSet&) = delete;
   void operator=(const vtkTableBasedClipDataSet&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

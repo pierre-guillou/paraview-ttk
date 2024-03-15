@@ -12,12 +12,14 @@
 #include <vtkm/cont/Initialize.h>
 #include <vtkm/cont/Invoker.h>
 
+#include <vtkm/filter/FilterField.h>
 #include <vtkm/filter/vector_analysis/Gradient.h>
 #include <vtkm/io/VTKDataSetReader.h>
 #include <vtkm/io/VTKDataSetWriter.h>
 
 #include <vtkm/worklet/WorkletMapField.h>
 
+// Worklet that does the actual work on the device.
 struct ComputeMagnitude : vtkm::worklet::WorkletMapField
 {
   using ControlSignature = void(FieldIn inputVectors, FieldOut outputMagnitudes);
@@ -28,31 +30,33 @@ struct ComputeMagnitude : vtkm::worklet::WorkletMapField
   }
 };
 
-#include <vtkm/filter/FilterField.h>
-
-class FieldMagnitude : public vtkm::filter::FilterField<FieldMagnitude>
+// The filter class used by external code to run the algorithm. Normally the class definition
+// is in a separate header file.
+class FieldMagnitude : public vtkm::filter::FilterField
 {
-public:
-  using SupportedTypes = vtkm::List<vtkm::Vec3f>;
-
-  template <typename ArrayHandleType, typename Policy>
-  VTKM_CONT vtkm::cont::DataSet DoExecute(const vtkm::cont::DataSet& inDataSet,
-                                          const ArrayHandleType& inField,
-                                          const vtkm::filter::FieldMetadata& fieldMetadata,
-                                          vtkm::filter::PolicyBase<Policy>)
-  {
-    vtkm::cont::ArrayHandle<vtkm::FloatDefault> outField;
-    this->Invoke(ComputeMagnitude{}, inField, outField);
-
-    std::string outFieldName = this->GetOutputFieldName();
-    if (outFieldName == "")
-    {
-      outFieldName = fieldMetadata.GetName() + "_magnitude";
-    }
-
-    return vtkm::filter::CreateResult(inDataSet, outField, outFieldName, fieldMetadata);
-  }
+protected:
+  VTKM_CONT vtkm::cont::DataSet DoExecute(const vtkm::cont::DataSet& inDataSet) override;
 };
+
+// Implementation for the filter. Normally this is in its own .cxx file.
+VTKM_CONT vtkm::cont::DataSet FieldMagnitude::DoExecute(const vtkm::cont::DataSet& inDataSet)
+{
+  const vtkm::cont::Field& inField = this->GetFieldFromDataSet(inDataSet);
+  vtkm::cont::ArrayHandle<vtkm::FloatDefault> outArrayHandle;
+
+  auto resolveType = [&](const auto& inArrayHandle) {
+    this->Invoke(ComputeMagnitude{}, inArrayHandle, outArrayHandle);
+  };
+  this->CastAndCallVecField<3>(inField, resolveType);
+
+  std::string outFieldName = this->GetOutputFieldName();
+  if (outFieldName == "")
+  {
+    outFieldName = inField.GetName() + "_magnitude";
+  }
+
+  return this->CreateResultField(inDataSet, outFieldName, inField.GetAssociation(), outArrayHandle);
+}
 
 int main(int argc, char** argv)
 {

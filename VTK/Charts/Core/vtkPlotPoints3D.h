@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotPoints3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotPoints3D
@@ -32,6 +20,7 @@
 #include "vtkChartsCoreModule.h" // For export macro
 #include "vtkPlot3D.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 
 class VTKCHARTSCORE_EXPORT vtkPlotPoints3D : public vtkPlot3D
@@ -50,10 +39,12 @@ protected:
   vtkPlotPoints3D();
   ~vtkPlotPoints3D() override;
 
+  void ReleaseGraphicsCache() override;
+
   /**
    * The selected points.
    */
-  std::vector<vtkVector3f> SelectedPoints;
+  vtkNew<vtkPoints> SelectedPoints;
 
   /**
    * The selected points.
@@ -65,4 +56,5 @@ private:
   void operator=(const vtkPlotPoints3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotPoints3D_h

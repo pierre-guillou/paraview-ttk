@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqSelectionQueryPropertyWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSelectionQueryPropertyWidget.h"
 
 #include "pqComboBoxDomain.h"
@@ -46,6 +18,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSelectionQueryDomain.h"
 
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -147,6 +120,8 @@ class pqSelectionQueryPropertyWidget::pqValueWidget : public QWidget
 {
   QList<pqLineEdit*> LineEdits;
 
+  Q_DECLARE_TR_FUNCTIONS(pqValueWidget);
+
 public:
   pqValueWidget(pqSelectionQueryPropertyWidget::pqQueryWidget* prnt);
 
@@ -220,32 +195,39 @@ private:
       case COMMA_SEPARATED_VALUES:
       {
         auto vbox = new QVBoxLayout(this);
-        vbox->setMargin(0);
+        vbox->setContentsMargins(0, 0, 0, 0);
         vbox->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
         auto edit = new pqLineEdit(this);
         this->LineEdits.push_back(edit);
         edit->setObjectName("value");
         vbox->addWidget(edit);
 
-        edit->setPlaceholderText(this->Type == SINGLE_VALUE ? "value" : "comma separated values");
+        if (this->Type == SINGLE_VALUE)
+        {
+          edit->setPlaceholderText(tr("value"));
+        }
+        else
+        {
+          edit->setPlaceholderText(tr("comma separated values"));
+        }
       }
       break;
 
       case RANGE_PAIR:
       {
         auto hbox = new QHBoxLayout(this);
-        hbox->setMargin(0);
+        hbox->setContentsMargins(0, 0, 0, 0);
         hbox->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
 
         auto editMin = new pqLineEdit(this);
         editMin->setObjectName("value_min");
-        editMin->setPlaceholderText("minimum");
+        editMin->setPlaceholderText(tr("minimum"));
 
         auto editMax = new pqLineEdit(this);
         editMax->setObjectName("value_max");
-        editMax->setPlaceholderText("maximum");
+        editMax->setPlaceholderText(tr("maximum"));
 
-        auto label = new QLabel("and");
+        auto label = new QLabel(tr("and"));
         label->setAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
         hbox->addWidget(editMin, /*strech=*/1);
         hbox->addWidget(label);
@@ -259,18 +241,18 @@ private:
       case LOCATION_WITH_TOLERANCE:
       {
         auto grid = new QGridLayout(this);
-        grid->setMargin(0);
+        grid->setContentsMargins(0, 0, 0, 0);
         grid->setVerticalSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
         grid->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
         auto editX = new pqDoubleLineEdit(this);
         editX->setObjectName("value_x");
-        editX->setPlaceholderText("X coordinate");
+        editX->setPlaceholderText(tr("X coordinate"));
         auto editY = new pqDoubleLineEdit(this);
         editY->setObjectName("value_y");
-        editY->setPlaceholderText("Y coordinate");
+        editY->setPlaceholderText(tr("Y coordinate"));
         auto editZ = new pqDoubleLineEdit(this);
         editZ->setObjectName("value_z");
-        editZ->setPlaceholderText("Z coordinate");
+        editZ->setPlaceholderText(tr("Z coordinate"));
         grid->addWidget(editX, 0, 0);
         grid->addWidget(editY, 0, 1);
         grid->addWidget(editZ, 0, 2);
@@ -281,7 +263,7 @@ private:
         {
           auto editTolerance = new pqDoubleLineEdit(this);
           editTolerance->setObjectName("value_tolerance");
-          editTolerance->setPlaceholderText("within epsilon");
+          editTolerance->setPlaceholderText(tr("within epsilon"));
           grid->addWidget(editTolerance, 1, 0, 1, 3);
           this->LineEdits.push_back(editTolerance);
         }
@@ -332,7 +314,7 @@ public:
     this->Operator->setSizeAdjustPolicy(QComboBox::AdjustToContents);
 
     auto hbox = new QHBoxLayout(this);
-    hbox->setMargin(0);
+    hbox->setContentsMargins(0, 0, 0, 0);
     hbox->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
     hbox->addWidget(this->Term, 0, Qt::AlignTop);
     hbox->addWidget(this->Operator, 0, Qt::AlignTop);
@@ -569,6 +551,10 @@ void pqSelectionQueryPropertyWidget::pqQueryWidget::populateOperators(int termTy
       this->addOperator("is <=", ValueWidget::SINGLE_VALUE, "{term} <= {value}");
       this->addOperator("is min", ValueWidget::NO_VALUE, "{term} == min({term})");
       this->addOperator("is max", ValueWidget::NO_VALUE, "{term} == max({term})");
+      this->addOperator(
+        "is min per block", ValueWidget::NO_VALUE, "{term} == min_per_block({term})");
+      this->addOperator(
+        "is max per block", ValueWidget::NO_VALUE, "{term} == max_per_block({term})");
       this->addOperator("is NaN", ValueWidget::NO_VALUE, "isnan({term})");
       this->addOperator("is <= mean", ValueWidget::NO_VALUE, "{term} <= mean({term})");
       this->addOperator("is >= mean", ValueWidget::NO_VALUE, "{term} >= mean({term})");
@@ -620,7 +606,7 @@ class pqSelectionQueryPropertyWidget::pqInternals
   void insertQuery(int index, const QString& expr = QString())
   {
     auto hbox = new QHBoxLayout();
-    hbox->setMargin(0);
+    hbox->setContentsMargins(0, 0, 0, 0);
     hbox->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
 
     auto wdg = new QueryWidgetType(this->Parent);
@@ -704,7 +690,7 @@ public:
     : Parent(self)
   {
     auto vbox = new QVBoxLayout(self);
-    vbox->setMargin(0);
+    vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
   }
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMatrixToLinearTransform.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkMatrixToLinearTransform
@@ -32,6 +20,7 @@
 #include "vtkCommonTransformsModule.h" // For export macro
 #include "vtkLinearTransform.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 
 class VTKCOMMONTRANSFORMS_EXPORT vtkMatrixToLinearTransform : public vtkLinearTransform
@@ -73,7 +62,7 @@ protected:
   void InternalUpdate() override;
   void InternalDeepCopy(vtkAbstractTransform* transform) override;
 
-  int InverseFlag;
+  vtkTypeBool InverseFlag;
   vtkMatrix4x4* Input;
 
 private:
@@ -81,4 +70,5 @@ private:
   void operator=(const vtkMatrixToLinearTransform&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

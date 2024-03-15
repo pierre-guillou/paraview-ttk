@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVHardwareSelector.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVHardwareSelector
  * @brief   vtkHardwareSelector subclass with paraview
@@ -47,9 +35,10 @@ public:
   void SetView(vtkPVRenderView* view);
 
   /**
-   * Overridden to avoid clearing of captured buffers.
+   * Perform the selection over the specified region.
+   * Avoid clearing of captured buffers.
    */
-  vtkSelection* Select(int region[4]);
+  virtual vtkSelection* Select(int region[4]);
 
   /**
    * Same as Select() above, except this one use a polygon, instead

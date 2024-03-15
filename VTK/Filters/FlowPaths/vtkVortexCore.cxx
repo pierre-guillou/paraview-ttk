@@ -1,19 +1,8 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVortexCore.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVortexCore.h"
 
+#include "vtkArrayCalculator.h"
 #include "vtkArrayDispatch.h"
 #include "vtkCharArray.h"
 #include "vtkDataSet.h"
@@ -34,6 +23,7 @@
 #include <array>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // Computes A*b = x given a 3-matrix A and a 3-vector b.
@@ -43,12 +33,15 @@ class MatrixVectorMultiplyFunctor
   AArrayType* AArray;
   BArrayType* BArray;
   XArrayType* XArray;
+  vtkVortexCore* Filter;
 
 public:
-  MatrixVectorMultiplyFunctor(AArrayType* aArray, BArrayType* bArray, XArrayType* xArray)
+  MatrixVectorMultiplyFunctor(
+    AArrayType* aArray, BArrayType* bArray, XArrayType* xArray, vtkVortexCore* filter)
     : AArray(aArray)
     , BArray(bArray)
     , XArray(xArray)
+    , Filter(filter)
   {
   }
 
@@ -61,9 +54,18 @@ public:
     auto a = aRange.cbegin();
     auto b = bRange.cbegin();
     auto x = xRange.begin();
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (; a != aRange.cend(); ++a, ++b, ++x)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       for (vtkIdType i = 0; i < 3; ++i)
       {
         (*x)[i] =
@@ -76,9 +78,10 @@ public:
 struct MatrixVectorMultiplyWorker
 {
   template <typename AArrayType, typename BArrayType, typename XArrayType>
-  void operator()(AArrayType* aArray, BArrayType* bArray, XArrayType* xArray)
+  void operator()(AArrayType* aArray, BArrayType* bArray, XArrayType* xArray, vtkVortexCore* filter)
   {
-    MatrixVectorMultiplyFunctor<AArrayType, BArrayType, XArrayType> functor(aArray, bArray, xArray);
+    MatrixVectorMultiplyFunctor<AArrayType, BArrayType, XArrayType> functor(
+      aArray, bArray, xArray, filter);
     vtkSMPTools::For(0, xArray->GetNumberOfTuples(), functor);
   }
 };
@@ -123,8 +126,10 @@ bool computeVortexCriteria(const double s[9], const double omega[9], double vort
 
   // The delta-criterion is defined as
   // \Delta = \left( \frac{Q}{3} \right)^3 + \left( \frac{\det J}{2} \right)^2 > 0
+  const double Q_3 = Q / 3.;
+  const double jDet_2 = J.determinant() / 2.;
   double& delta = vortexCriteria[1];
-  delta = std::pow(Q / 3., 3) + std::pow(J.determinant() / 2., 2);
+  delta = Q_3 * Q_3 * Q_3 + jDet_2 * jDet_2;
   if (delta <= 0.)
   {
     return false;
@@ -190,25 +195,36 @@ class ComputeCriteriaFunctor
 {
   JacobianArrayType* JacobianArray;
   AcceptedPointsArrayType* AcceptedPointsArray;
+  vtkVortexCore* Filter;
 
 public:
-  ComputeCriteriaFunctor(
-    JacobianArrayType* jacobianArray, AcceptedPointsArrayType* acceptedPointsArray)
+  ComputeCriteriaFunctor(JacobianArrayType* jacobianArray,
+    AcceptedPointsArrayType* acceptedPointsArray, vtkVortexCore* filter)
     : JacobianArray(jacobianArray)
     , AcceptedPointsArray(acceptedPointsArray)
+    , Filter(filter)
   {
   }
 
   void operator()(vtkIdType begin, vtkIdType end)
   {
     const auto jacobianRange = vtk::DataArrayTupleRange<9>(this->JacobianArray, begin, end);
-    auto acceptedPointsRange = vtk::DataArrayTupleRange<1>(this->AcceptedPointsArray, begin, end);
+    auto acceptedPointsRange = vtk::DataArrayValueRange<1>(this->AcceptedPointsArray, begin, end);
 
     auto j = jacobianRange.cbegin();
     auto a = acceptedPointsRange.begin();
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (; j != jacobianRange.cend(); ++j, ++a)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       std::array<double, 4> vortexCriteria;
       double S[9];
       double Omega[9];
@@ -224,7 +240,7 @@ public:
         Omega[i] = (j_i - jt_i) / 2.;
       }
       // Only use the first two criteria to discriminate points
-      (*a)[0] = computeVortexCriteria(S, Omega, vortexCriteria.data(), false);
+      *a = computeVortexCriteria(S, Omega, vortexCriteria.data(), false);
     }
   }
 };
@@ -232,10 +248,11 @@ public:
 struct ComputeCriteriaWorker
 {
   template <typename JacobianArrayType, typename AcceptedPointsArrayType>
-  void operator()(JacobianArrayType* jacobianArray, AcceptedPointsArrayType* acceptedPointsArray)
+  void operator()(JacobianArrayType* jacobianArray, AcceptedPointsArrayType* acceptedPointsArray,
+    vtkVortexCore* filter)
   {
     ComputeCriteriaFunctor<JacobianArrayType, AcceptedPointsArrayType> functor(
-      jacobianArray, acceptedPointsArray);
+      jacobianArray, acceptedPointsArray, filter);
     vtkSMPTools::For(0, acceptedPointsArray->GetNumberOfTuples(), functor);
   }
 };
@@ -292,16 +309,9 @@ void vtkParallelVectorsForVortexCore::Prefilter(
 bool vtkParallelVectorsForVortexCore::AcceptSurfaceTriangle(
   const vtkIdType surfaceSimplexIndices[3])
 {
-  char accepted[3];
-  for (int i = 0; i < 3; i++)
-  {
-    this->AcceptedPoints->GetTypedTuple(surfaceSimplexIndices[i], &accepted[i]);
-    if (!accepted[i])
-    {
-      return false;
-    }
-  }
-  return true;
+  auto acceptedPoints = this->AcceptedPoints->GetPointer(0);
+  return acceptedPoints[surfaceSimplexIndices[0]] && acceptedPoints[surfaceSimplexIndices[1]] &&
+    acceptedPoints[surfaceSimplexIndices[2]];
 }
 
 //------------------------------------------------------------------------------
@@ -372,13 +382,21 @@ int vtkVortexCore::RequestData(
     gradient->SetInputData(input);
     gradient->SetFasterApproximation(this->FasterApproximation);
     gradient->SetResultArrayName("jacobian");
+    gradient->ComputeVorticityOn();
+    gradient->SetVorticityArrayName("vorticity");
     gradient->SetInputArrayToProcess(
       0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, velocity->GetName());
+    gradient->SetContainerAlgorithm(this);
     gradient->Update();
 
     dataset = gradient->GetOutput();
 
     jacobian = vtkDataArray::SafeDownCast(dataset->GetPointData()->GetAbstractArray("jacobian"));
+  }
+
+  if (this->CheckAbort())
+  {
+    return 1;
   }
 
   // Compute the acceleration field: a = J * v
@@ -398,14 +416,19 @@ int vtkVortexCore::RequestData(
       vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
 
     // Generate optimized workers when mags/vecs are both float|double
-    if (!Dispatcher::Execute(jacobian, velocity, acceleration, worker))
+    if (!Dispatcher::Execute(jacobian, velocity, acceleration, worker, this))
     {
       // Otherwise fallback to using the vtkDataArray API.
-      worker(jacobian.Get(), velocity, acceleration.Get());
+      worker(jacobian.Get(), velocity, acceleration.Get(), this);
     }
 
     dataset->GetPointData()->AddArray(acceleration);
     dataset->GetPointData()->SetActiveVectors(acceleration->GetName());
+  }
+
+  if (this->CheckAbort())
+  {
+    return 1;
   }
 
   vtkDataArray* vField = velocity;
@@ -422,6 +445,7 @@ int vtkVortexCore::RequestData(
       gradientPrime->SetResultArrayName("jacobian_prime");
       gradientPrime->SetInputArrayToProcess(
         0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, "jacobian");
+      gradientPrime->SetContainerAlgorithm(this);
       gradientPrime->Update();
       jacobianPrime = vtkDoubleArray::SafeDownCast(
         gradientPrime->GetOutput()->GetPointData()->GetAbstractArray("jacobian_prime"));
@@ -441,15 +465,20 @@ int vtkVortexCore::RequestData(
         vtkArrayDispatch::Reals, vtkArrayDispatch::Reals>;
 
       // Generate optimized workers when mags/vecs are both float|double
-      if (!Dispatcher::Execute(jacobianPrime, velocity, jerk, worker))
+      if (!Dispatcher::Execute(jacobianPrime, velocity, jerk, worker, this))
       {
         // Otherwise, fallback to using the vtkDataArray API.
-        worker(jacobianPrime.Get(), velocity, jerk.Get());
+        worker(jacobianPrime.Get(), velocity, jerk.Get(), this);
       }
     }
 
     dataset->GetPointData()->AddArray(jerk);
     wField = jerk;
+  }
+
+  if (this->CheckAbort())
+  {
+    return 1;
   }
 
   // Use criteria to assign acceptance value to each point in the dataset.
@@ -464,11 +493,12 @@ int vtkVortexCore::RequestData(
     using Dispatcher =
       vtkArrayDispatch::Dispatch2ByValueType<vtkArrayDispatch::Reals, vtkArrayDispatch::Integrals>;
 
-    if (!Dispatcher::Execute(jacobian, acceptedPoints, worker))
+    if (!Dispatcher::Execute(jacobian, acceptedPoints, worker, this))
     {
-      worker(jacobian.Get(), acceptedPoints.Get());
+      worker(jacobian.Get(), acceptedPoints.Get(), this);
     }
   }
+  auto vorticityArray = dataset->GetPointData()->GetArray("vorticity");
 
   // Compute polylines that correspond to locations where two vector point
   // fields are parallel.
@@ -478,12 +508,19 @@ int vtkVortexCore::RequestData(
   parallelVectorsForVortexCore->SetJacobianDataArray(jacobian);
   parallelVectorsForVortexCore->SetFirstVectorFieldName(vField->GetName());
   parallelVectorsForVortexCore->SetSecondVectorFieldName(wField->GetName());
-  parallelVectorsForVortexCore->Update();
 
-  vtkPolyData* parallelVectorsOutput =
-    vtkPolyData::SafeDownCast(parallelVectorsForVortexCore->GetOutput());
-
-  output->ShallowCopy(parallelVectorsOutput);
+  // compute the magnitude of the vorticity array
+  vtkNew<vtkArrayCalculator> calculator;
+  calculator->SetInputConnection(parallelVectorsForVortexCore->GetOutputPort());
+  if (vorticityArray)
+  {
+    calculator->SetResultArrayType(vorticityArray->GetDataType());
+  }
+  calculator->AddVectorArrayName("vorticity");
+  calculator->SetResultArrayName("vorticity_magnitude");
+  calculator->SetFunction("mag(vorticity)");
+  calculator->Update();
+  output->ShallowCopy(calculator->GetOutput());
 
   return 1;
 }
@@ -500,3 +537,4 @@ void vtkVortexCore::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

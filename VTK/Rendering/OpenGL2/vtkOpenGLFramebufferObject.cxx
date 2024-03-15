@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLFramebufferObject.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLFramebufferObject.h"
 
 #include "vtk_glew.h"
@@ -30,6 +18,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFOInfo
 {
 public:
@@ -1539,9 +1528,11 @@ bool vtkOpenGLFramebufferObject::PopulateFramebuffer(int width, int height, bool
           case 16:
             depth->AllocateDepth(this->LastSize[0], this->LastSize[1], vtkTextureObject::Fixed16);
             break;
+#ifdef GL_DEPTH_COMPONENT32
           case 32:
             depth->AllocateDepth(this->LastSize[0], this->LastSize[1], vtkTextureObject::Fixed32);
             break;
+#endif
           case 24:
           default:
             depth->AllocateDepth(this->LastSize[0], this->LastSize[1], vtkTextureObject::Fixed24);
@@ -1616,3 +1607,4 @@ int vtkOpenGLFramebufferObject::GetNumberOfColorAttachments()
 {
   return static_cast<int>(this->ColorBuffers.size());
 }
+VTK_ABI_NAMESPACE_END

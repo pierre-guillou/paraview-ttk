@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmfWriter.h"
 
@@ -74,6 +62,8 @@ using namespace xdmf2;
 
 struct _xmlNode;
 typedef _xmlNode* XdmfXmlNode;
+
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkXW2NodeHelp
 {
   xdmf2::XdmfDOM* DOM;
@@ -1354,3 +1344,4 @@ void vtkXdmfWriter::ConvertVToXArray(vtkDataArray* vda, XdmfArray* xda, vtkIdTyp
       vda->GetNumberOfTuples() * vda->GetNumberOfComponents() * vda->GetElementComponentSize());
   }
 }
+VTK_ABI_NAMESPACE_END

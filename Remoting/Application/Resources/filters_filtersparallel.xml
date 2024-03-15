@@ -730,6 +730,21 @@
         processor's output. If the pipeline also requests ghost levels, the
         larger value will be used.</Documentation>
       </IntVectorProperty>
+      <Hints>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="20" />
+          <Text title="Potentially running out of memory">
+            **D3** filter will create an unstructured grid output
+            and you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+      </Hints>
       <!-- End D3 -->
     </SourceProxy>
 
@@ -856,7 +871,7 @@
 
     <!-- ==================================================================== -->
     <SourceProxy class="vtkHyperTreeGridGhostCellsGenerator"
-                 label="Hyper Tree Grid Ghost Cells Generator"
+                 label="HyperTreeGrid Ghost Cells Generator"
                  name="HyperTreeGridGhostCellsGenerator">
       <Documentation long_help="Generate Ghost Cells for HyperTreeGrid."
                      short_help="Generate Ghost Cells for HyperTreeGrid.">
@@ -1470,6 +1485,21 @@
         9-component data arrays (considered as tensors ) of signed type will be flipped.
         All other arrays won't be flipped and will only be copied.</Documentation>
       </IntVectorProperty>
+      <Hints>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="100" />
+          <Text title="Potentially running out of memory">
+            **Reflect** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+      </Hints>
       <!-- End ReflectionFilter -->
     </SourceProxy>
 
@@ -1477,6 +1507,10 @@
     <SourceProxy class="vtkProcessIdScalars"
                  label="Process Id Scalars"
                  name="ProcessIdScalars">
+      <Deprecated deprecated_in="5.12" to_remove_in="5.14">
+        This has been replaced by 'GenerateProcessIds'. Please consider
+        using that instead.
+      </Deprecated>
       <Documentation long_help="This filter uses colors to show how data is partitioned across processes."
                      short_help="Generate point scalars from process id.">The
                      Process Id Scalars filter assigns a unique scalar value to
@@ -1517,6 +1551,47 @@
         the array as point data or cell data.</Documentation>
       </IntVectorProperty>
       <!-- End ProcessIdScalars -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkGenerateProcessIds"
+                 name="GenerateProcessIds">
+      <Documentation long_help="This filter generate point and cell data containing the current process id of each point and cell."
+                     short_help="Generate process id scalars">
+                     GenerateProcessIds is meant to fill in the ProcessIds attribute array,
+                     to know which processor owns which cells and points. It can generate it
+                     for both PointData and CellData. The ProcessIds array's name will be
+                     "PointProcessIds" for PointData, and "CellProcessIds" for CellData.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain composite_data_supported="1"
+                        name="input_type">
+          <DataType value="vtkDataSet" />
+        </DataTypeDomain>
+      </InputProperty>
+      <IntVectorProperty command="SetGeneratePointData"
+                         default_values="1"
+                         name="GeneratePointData"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>The value of this property determines whether to generate process id
+        for points.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetGenerateCellData"
+                         default_values="0"
+                         name="GenerateCellData"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>The value of this property determines whether to generate process id
+        for cells.</Documentation>
+      </IntVectorProperty>
+
+      <!-- End GenerateProcessIds -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -1694,10 +1769,12 @@
         <!-- View can be used to specify the preferred view for the proxy -->
         <PipelineIcon name="XYChartView" />
         <View type="QuartileChartView" />
-        <WarnOnCreate title="Potentially slow operation">
-          **Plot Selection Over Time** filter needs to process all timesteps
-          available in your dataset and can potentially take a long time to complete.
-          Do you want to continue?
+        <WarnOnCreate>
+          <Text title="Potentially slow operation">
+            **Plot Selection Over Time** filter needs to process all timesteps
+            available in your dataset and can potentially take a long time to complete.
+            Do you want to continue?
+          </Text>
         </WarnOnCreate>
         <InitializationHelper class="vtkSMExtractSelectionProxyInitializationHelper" />
       </Hints>
@@ -1752,13 +1829,48 @@
         <!-- View can be used to specify the preferred view for the proxy -->
         <PipelineIcon name="XYChartView" />
         <View type="QuartileChartView" />
-        <WarnOnCreate title="Potentially slow operation">
-          **Plot Data Over Time** filter needs to process all timesteps
-          available in your dataset and can potentially take a long time to complete.
-          Do you want to continue?
+        <WarnOnCreate>
+          <Text title="Potentially slow operation">
+            **Plot Data Over Time** filter needs to process all timesteps
+            available in your dataset and can potentially take a long time to complete.
+            Do you want to continue?
+          </Text>
         </WarnOnCreate>
       </Hints>
       <!-- End of PlotDataOverTime -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAlignImageDataSetFilter"
+                 label="Align Image Origins"
+                 name="AlignImageOrigin">
+      <Documentation long_help="Assign consistent origins to input images in a composite dataset."
+                     short_help="Make image origins consistent.">The Align Image Origins filter
+                     treats input images as parts of a whole, and sets the same origin. Each
+                     block's extent is set relative to that origin.</Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkMultiBlockDataSet" child_match="any">
+            <DataType value="vtkImageData" />
+          </DataType>
+          <DataType value="vtkPartitionedDataSetCollection"/>
+          <DataType value="vtkPartitionedDataSet"/>
+        </DataTypeDomain>
+        <Documentation>This property specifies the input to the Align Image Origins
+        filter.</Documentation>
+      </InputProperty>
+      <IntVectorProperty command="SetMinimumExtent"
+                         default_values="0 0 0"
+                         name="MinimumExtent"
+                         number_of_elements="3">
+        <Documentation>Specify the global minimum extent to use.</Documentation>
+      </IntVectorProperty>
+      <!-- End AlignImageOrigin -->
     </SourceProxy>
 
   </ProxyGroup>

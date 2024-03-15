@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenVRRenderWindow.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenVRRenderWindow
  * @brief   OpenVR rendering window
@@ -20,14 +8,6 @@ PURPOSE.  See the above copyright notice for more information.
  * vtkOpenVRRenderWindow is a concrete implementation of the abstract
  * class vtkVRRenderWindow. vtkOpenVRRenderer interfaces to the
  * OpenVR graphics library
- *
- * This class and its similar classes are designed to be drop in
- * replacements for VTK. If you link to this module and turn on
- * the CMake option VTK_OPENVR_OBJECT_FACTORY, the object
- * factory mechanism should replace the core rendering classes such as
- * RenderWindow with OpenVR specialized versions. The goal is for VTK
- * programs to be able to use the OpenVR library with little to no
- * changes.
  *
  * This class handles the bulk of interfacing to OpenVR. It supports one
  * renderer currently. The renderer is assumed to cover the entire window
@@ -60,6 +40,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <openvr.h> // for ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkOpenVRModel;
 
@@ -80,10 +61,11 @@ public:
   void Initialize() override;
 
   /**
-   * Free up any graphics resources associated with this window
-   * a value of nullptr means the context may already be destroyed
+   * Finalize the rendering window.  This will shutdown all system-specific
+   * resources. After having called this, it should be possible to destroy
+   * a window that was used for a SetWindowId() call without any ill effects.
    */
-  void ReleaseGraphicsResources(vtkWindow* renWin) override;
+  void Finalize() override;
 
   /**
    * Get the system pointer
@@ -148,14 +130,28 @@ public:
   uint32_t GetDeviceHandleForOpenVRHandle(vr::TrackedDeviceIndex_t index);
   vtkEventDataDevice GetDeviceForOpenVRHandle(vr::TrackedDeviceIndex_t ohandle);
 
+  ///@{
+  /**
+   * Get the most recent OpenVR pose for a given  device. index is used to
+   * disambiguate when there are multiple device handles that map to a
+   * device.
+   */
+  void GetOpenVRPose(vtkEventDataDevice dev, vr::TrackedDevicePose_t** pose)
+  {
+    return this->GetOpenVRPose(dev, 0, pose);
+  }
+  void GetOpenVRPose(vtkEventDataDevice dev, uint32_t index, vr::TrackedDevicePose_t** pose);
+  ///@}
+
 protected:
   vtkOpenVRRenderWindow();
-  ~vtkOpenVRRenderWindow() override = default;
+  ~vtkOpenVRRenderWindow() override;
 
   std::string GetWindowTitleFromAPI() override;
   bool GetSizeFromAPI() override;
 
   bool CreateFramebuffers(uint32_t viewCount = 2) override;
+  void RenderFramebuffer(FramebufferDesc& framebufferDesc) override;
   bool CreateOneFramebuffer(int nWidth, int nHeight, FramebufferDesc& framebufferDesc);
 
   /**
@@ -172,10 +168,12 @@ protected:
   vtkSmartPointer<vtkOpenVROverlay> DashboardOverlay;
   vr::IVRSystem* HMD = nullptr;
   vr::IVRRenderModels* OpenVRRenderModels = nullptr;
+  vr::TrackedDevicePose_t OpenVRTrackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
 
 private:
   vtkOpenVRRenderWindow(const vtkOpenVRRenderWindow&) = delete;
   void operator=(const vtkOpenVRRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

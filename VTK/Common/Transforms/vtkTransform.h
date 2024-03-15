@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransform.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTransform
@@ -51,6 +39,7 @@
 
 #include "vtkMatrix4x4.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONTRANSFORMS_EXPORT vtkTransform : public vtkLinearTransform
 {
 public:
@@ -361,7 +350,7 @@ public:
    * flipped every time Inverse() is called.  The InverseFlag
    * is off when a transform is first created.
    */
-  int GetInverseFlag() { return this->Concatenation->GetInverseFlag(); }
+  vtkTypeBool GetInverseFlag() { return this->Concatenation->GetInverseFlag(); }
 
   ///@{
   /**
@@ -456,4 +445,5 @@ private:
   void operator=(const vtkTransform&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

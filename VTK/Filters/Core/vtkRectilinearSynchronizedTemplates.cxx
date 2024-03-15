@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearSynchronizedTemplates.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRectilinearSynchronizedTemplates.h"
 
 #include "vtkCellArray.h"
@@ -42,6 +30,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRectilinearSynchronizedTemplates);
 
 //------------------------------------------------------------------------------
@@ -270,10 +259,10 @@ void ContourRectilinearGrid(vtkRectilinearSynchronizedTemplates* self, int* exEx
   int i, j, k;
   int zstep, yisectstep;
   int offsets[12];
-  int ComputeNormals = self->GetComputeNormals();
-  int ComputeGradients = self->GetComputeGradients();
-  int ComputeScalars = self->GetComputeScalars();
-  int NeedGradients = ComputeGradients || ComputeNormals;
+  vtkTypeBool ComputeNormals = self->GetComputeNormals();
+  vtkTypeBool ComputeGradients = self->GetComputeGradients();
+  vtkTypeBool ComputeScalars = self->GetComputeScalars();
+  bool NeedGradients = ComputeGradients || ComputeNormals;
   double n[3], n0[3], n1[3];
   int jj, g0;
   int* tablePtr;
@@ -302,6 +291,7 @@ void ContourRectilinearGrid(vtkRectilinearSynchronizedTemplates* self, int* exEx
   double spacing[6];
   vtkPolygonBuilder polyBuilder;
   vtkSmartPointer<vtkIdListCollection> polys = vtkSmartPointer<vtkIdListCollection>::New();
+  bool abort = false;
 
   if (ComputeScalars)
   {
@@ -366,8 +356,10 @@ void ContourRectilinearGrid(vtkRectilinearSynchronizedTemplates* self, int* exEx
     isect1[((ydim - 1) * xdim + i) * 3 * 2 + 1] = -1;
   }
 
+  int checkAbortInterval = std::min((zMax - zMin) / 10 + 1, 1000);
+
   // for each contour
-  for (vidx = 0; vidx < numContours; vidx++)
+  for (vidx = 0; vidx < numContours && !abort; vidx++)
   {
     value = values[vidx];
     inPtrZ = ptr;
@@ -378,6 +370,11 @@ void ContourRectilinearGrid(vtkRectilinearSynchronizedTemplates* self, int* exEx
     {
       self->UpdateProgress(
         (double)vidx / numContours + (k - zMin) / ((zMax - zMin + 1.0) * numContours));
+      if (k % checkAbortInterval == 0 && self->CheckAbort())
+      {
+        abort = true;
+        break;
+      }
 
       z = zCoords->GetComponent(k - inExt[4], 0);
       x[2] = z;
@@ -861,3 +858,4 @@ void vtkRectilinearSynchronizedTemplates::PrintSelf(ostream& os, vtkIndent inden
   os << indent << "Compute Scalars: " << (this->ComputeScalars ? "On\n" : "Off\n");
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

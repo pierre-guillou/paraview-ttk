@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadricDecimation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Comments from Brad---
 // FIXME: I do not have a very good method for detecting the stability of a
 // matrix
@@ -55,6 +43,7 @@
 #include "vtkPriorityQueue.h"
 #include "vtkTriangle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadricDecimation);
 
 //------------------------------------------------------------------------------
@@ -134,6 +123,57 @@ void vtkQuadricDecimation::SetPointAttributeArray(vtkIdType ptId, const double* 
   }
 }
 
+void vtkQuadricDecimation::SetPointAttributeArray(vtkIdType ptId[2], const double* x)
+{
+  auto points = this->Mesh->GetPoints();
+  if (!points)
+  {
+    vtkErrorMacro("Points in internal mesh are not allocated");
+    return;
+  }
+
+  if (this->MapPointData || this->AttributeErrorMetric)
+  {
+    // calculate weights equivalent to projecting back to the initial edge and interpolating there
+    std::array<double, 3> pt = { 0 };
+    points->GetPoint(ptId[0], pt.data());
+    double weightBegin = vtkMath::Distance2BetweenPoints(pt.data(), x);
+    points->GetPoint(ptId[1], pt.data());
+    double weightEnd = vtkMath::Distance2BetweenPoints(pt.data(), x);
+    double norm = weightBegin + weightEnd;
+    weightBegin /= norm;
+    weightEnd /= norm;
+    // iterate over all arrays and apply edge interpolation
+    for (int iArr = 0; iArr < this->Mesh->GetPointData()->GetNumberOfArrays(); ++iArr)
+    {
+      auto dArray = this->Mesh->GetPointData()->GetArray(iArr);
+      if (!dArray)
+      {
+        continue;
+      }
+      std::vector<double> res(dArray->GetNumberOfComponents(), 0.0);
+      std::vector<double> buffer(dArray->GetNumberOfComponents(), 0.0);
+      dArray->GetTuple(ptId[0], res.data());
+      for (auto& val : res)
+      {
+        val *= weightBegin;
+      }
+      dArray->GetTuple(ptId[1], buffer.data());
+      for (auto& val : buffer)
+      {
+        val *= weightEnd;
+      }
+      for (std::size_t comp = 0; comp < res.size(); ++comp)
+      {
+        res[comp] += buffer[comp];
+      }
+      dArray->SetTuple(ptId[0], res.data());
+    }
+  }
+
+  points->SetPoint(ptId[0], x);
+}
+
 void vtkQuadricDecimation::GetPointAttributeArray(vtkIdType ptId, double* x)
 {
   int i;
@@ -194,7 +234,6 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   vtkCellArray* polys;
   vtkDataArray* attrib;
   vtkPoints* points;
-  vtkPointData* pointData;
   vtkIdType endPtIds[2];
   vtkIdList* outputCellList;
   vtkIdType npts;
@@ -217,7 +256,6 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
 
   polys = vtkCellArray::New();
   points = vtkPoints::New();
-  pointData = vtkPointData::New();
   outputCellList = vtkIdList::New();
 
   // copy the input (only polys) to our working mesh
@@ -228,11 +266,10 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   polys->DeepCopy(input->GetPolys());
   this->Mesh->SetPolys(polys);
   polys->Delete();
-  if (this->AttributeErrorMetric)
+  if (this->AttributeErrorMetric || this->MapPointData)
   {
     this->Mesh->GetPointData()->DeepCopy(input->GetPointData());
   }
-  pointData->Delete();
   this->Mesh->GetFieldData()->PassData(input->GetFieldData());
   this->Mesh->BuildCells();
   this->Mesh->BuildLinks();
@@ -320,16 +357,15 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   this->NumberOfEdgeCollapses = 0;
   edgeId = this->EdgeCosts->Pop(0, cost);
 
-  while (edgeId >= 0 && cost < VTK_DOUBLE_MAX && this->ActualReduction < this->TargetReduction)
+  bool abort = false;
+  while (
+    !abort && edgeId >= 0 && cost < VTK_DOUBLE_MAX && this->ActualReduction < this->TargetReduction)
   {
     if (!(this->NumberOfEdgeCollapses % 10000))
     {
       vtkDebugMacro(<< "Collapsing edge#" << this->NumberOfEdgeCollapses);
       this->UpdateProgress(0.20 + 0.80 * this->NumberOfEdgeCollapses / numPts);
-      if (this->GetAbortExecute())
-      {
-        break;
-      }
+      abort = this->CheckAbort();
     }
 
     endPtIds[0] = this->EndPoint1List->GetId(edgeId);
@@ -351,7 +387,7 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
     this->NumberOfEdgeCollapses++;
 
     // Set the new coordinates of point0.
-    this->SetPointAttributeArray(endPtIds[0], x);
+    this->SetPointAttributeArray(endPtIds, x);
     vtkDebugMacro(<< "Cost: " << cost << " Edge: " << endPtIds[0] << " " << endPtIds[1]);
 
     // Merge the quadrics of the two points.
@@ -404,7 +440,7 @@ int vtkQuadricDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   outputCellList->Delete();
 
   // renormalize, clamp attributes
-  if (this->AttributeErrorMetric)
+  if (this->AttributeErrorMetric || this->MapPointData)
   {
     if (nullptr != (attrib = output->GetPointData()->GetNormals()))
     {
@@ -439,6 +475,12 @@ void vtkQuadricDecimation::InitializeQuadrics(vtkIdType numPts)
   A[1] = data + 4;
   A[2] = data + 8;
   A[3] = data + 12;
+
+  double regularizationVariance = 0.0;
+  if (this->Regularize)
+  {
+    regularizationVariance = std::pow(this->Regularization, 2);
+  }
 
   // allocate local QEM sparse matrix
   QEM = new double[11 + 4 * this->NumberOfComponents];
@@ -488,6 +530,23 @@ void vtkQuadricDecimation::InitializeQuadrics(vtkIdType numPts)
 
     QEM[9] = d * d;
     QEM[10] = 1;
+
+    if (this->Regularize)
+    {
+      // Add in some regularizing identity \Sigma_n
+      QEM[0] += regularizationVariance;
+      QEM[4] += regularizationVariance;
+      QEM[7] += regularizationVariance;
+
+      // -\Sigma_n . q
+      QEM[3] -= regularizationVariance * point0[0];
+      QEM[6] -= regularizationVariance * point0[1];
+      QEM[8] -= regularizationVariance * point0[2];
+
+      // q^T \Sigma_n q + n^T \Sigma_q n + Tr(\Sigma_n \Sigma_q)
+      QEM[9] +=
+        regularizationVariance * (vtkMath::Dot(point0, point0) + 1 + 3 * regularizationVariance);
+    }
 
     if (this->AttributeErrorMetric)
     {
@@ -678,11 +737,25 @@ void vtkQuadricDecimation::AddBoundaryConstraints()
         volatile
 #endif
           double d = -vtkMath::Dot(n, t1);
+        // The above line might merit some review: The same quadric gets added to t1 and t2 and one
+        // might prefer adding a quadric calculated using t1 at t1 and using t2 at t2
         w = vtkMath::Norm(e0);
 
-        // w *= w;
-        // area issue ??
-        // could possible add in angle weights??
+        if (!this->WeighBoundaryConstraintsByLength)
+        {
+          /*
+           * The argument for using area instead of length is based on homogeneity here: The quadric
+           * field is already weighted by triangle area. It makes sense weighting the boundary
+           * constraints by area instead of length. Length technically has zero measure in terms of
+           * units of area. The squared version also seems to give more coherent results at the
+           * boundary.
+           */
+          w *= w;
+        }
+        w *= this->BoundaryWeightFactor;
+
+        // could possible add in
+        // angle weights??
         QEM[0] = n[0] * n[0];
         QEM[1] = n[0] * n[1];
         QEM[2] = n[0] * n[2];
@@ -899,8 +972,6 @@ double vtkQuadricDecimation::ComputeCost(vtkIdType edgeId, double* x)
   {
     // it would be better to use the normal of the matrix to test singularity??
     vtkMath::LinearSolve3x3(A, b, x);
-    vtkMath::Multiply3x3(A, x, temp);
-    // error too high, backup plans
   }
   else
   {
@@ -1477,3 +1548,4 @@ void vtkQuadricDecimation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TCoords Weight: " << this->TCoordsWeight << "\n";
   os << indent << "Tensors Weight: " << this->TensorsWeight << "\n";
 }
+VTK_ABI_NAMESPACE_END

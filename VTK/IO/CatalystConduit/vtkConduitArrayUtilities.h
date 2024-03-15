@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConduitArrayUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkConduitArrayUtilities
  * @brief helper to convert Conduit arrays to VTK arrays.
@@ -36,6 +24,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
 
@@ -53,6 +42,15 @@ public:
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKArray(const conduit_node* mcarray);
   static vtkSmartPointer<vtkDataArray> MCArrayToVTKArray(
     const conduit_node* mcarray, const std::string& arrayname);
+  ///@}
+
+  ///@{
+  /**
+   * Returns a vtkDataArray from a conduit node in the conduit mcarray protocol
+   * that is a conduit ghost array named ascent_ghosts.
+   */
+  static vtkSmartPointer<vtkDataArray> MCGhostArrayToVTKGhostArray(
+    const conduit_node* mcarray, bool is_cell_data);
   ///@}
 
   /**
@@ -92,5 +90,6 @@ private:
   vtkConduitArrayUtilities(const vtkConduitArrayUtilities&) = delete;
   void operator=(const vtkConduitArrayUtilities&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

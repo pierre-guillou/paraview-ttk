@@ -26,15 +26,39 @@ Warn the user when creating the filter or source in the UI.
 
 The motivation behind this hint is to warn the user when executing filters
 like **Temporal Statistics** filter since they can potentially take a long time
-for large file series.
+for large file series or when a filter may uses too much memory relative to
+the remaining memory.
 
     <SourceProxy ...>
       ...
       <Hints>
-        <WarnOnCreate title="Potentially slow operations">
-          **Temporal Statistics** filter needs to process all timesteps
-          available in your dataset and can potentially take a long time to complete.
-          Do you want to continue?
+        <WarnOnCreate>
+          <Text title="Potentially slow operations">
+            **Temporal Statistics** filter needs to process all timesteps
+            available in your dataset and can potentially take a long time to complete.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+    </SourceProxy>
+
+It is possible to specify some conditions for the warn based on memory usage and inputs types.
+In the below example, the warning will be presented to the user only if the input is a vtkImageData
+and the remaining memory is smaller than the expected size of the output, which is `10` times the size of the input.
+If relative is not set, a default value of `1` will be used.
+The DataTypeDomain syntax is the same as the one for the DataTypeDomain with InputProperty.
+
+    <SourceProxy ...>
+      ...
+      <Hints>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+          </DataTypeDomain>
+          <MemoryUsage relative="10" />
+          <Text title="Potentially running out of memory">
+            This filter may not have enough memory to process
+            Do you want to continue?
+          </Text>
         </WarnOnCreate>
     </SourceProxy>
 
@@ -365,3 +389,30 @@ into an existing category or a new category, as well as set the icon.
         <ShowInMenu category="Category" icon=":/path/to/resource/icon.png" />
       </Hints>
     </SourceProxy>
+
+NoSolidColor
+--------------------------
+Disable the "Solid Color" option for a specific representation type.
+
+This is used to indicate to the pqDisplayColorWidget to disable the
+"Solid Color" option because this representation type doesn't handle it
+usefully.
+
+    <RepresentationProxy ...>
+      ...
+      <Hints>
+        <NoSolidColor representation="Slice" />
+        <NoSolidColor representation="Volume" />
+      </Hints>
+    </RepresentationProxy>
+
+HideCursor
+--------------------------
+Hide the mouse cursor when hovering a render view.
+
+    <RenderViewProxy ...>
+      ...
+      <Hints>
+        <HideCursor/>
+      </Hints>
+    </RenderViewProxy>

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonAnimationCue
  *
@@ -35,16 +23,16 @@ public:
   vtkTypeMacro(vtkPythonAnimationCue, vtkAnimationCue);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Enable/Disable this cue.
    */
   vtkSetMacro(Enabled, bool);
   vtkGetMacro(Enabled, bool);
   vtkBooleanMacro(Enabled, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the python script to execute. The script must have the following
    * functions:
@@ -54,20 +42,20 @@ public:
    */
   void SetScript(const std::string&);
   std::string GetScript() const;
-  //@}
+  ///@}
 
 protected:
   vtkPythonAnimationCue();
   ~vtkPythonAnimationCue() override;
 
-  //@{
+  ///@{
   /**
    * Callbacks that forward the call to corresponding Python function.
    */
   virtual void HandleStartCueEvent();
   virtual void HandleTickEvent();
   virtual void HandleEndCueEvent();
-  //@}
+  ///@}
 
   /**
    * Cleans the interpretor.

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderQuadrilateral.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHigherOrderQuadrilateral.h"
 
@@ -29,6 +17,9 @@
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
 
+#include <array>
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkHigherOrderQuadrilateral::vtkHigherOrderQuadrilateral()
 {
   this->Approx = nullptr;
@@ -191,12 +182,21 @@ void vtkHigherOrderQuadrilateral::EvaluateLocation(
   subId = 0; // TODO: Should this be -1?
   this->InterpolateFunctions(pcoords, weights);
 
-  double p[3];
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  const double* p;
   x[0] = x[1] = x[2] = 0.;
   vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
   for (vtkIdType idx = 0; idx < nPoints; ++idx)
   {
-    this->Points->GetPoint(idx, p);
+    p = pts + 3 * idx;
     for (vtkIdType jdx = 0; jdx < 3; ++jdx)
     {
       x[jdx] += p[jdx] * weights[idx];
@@ -274,30 +274,32 @@ int vtkHigherOrderQuadrilateral::IntersectWithLine(
   return intersection ? 1 : 0;
 }
 
-int vtkHigherOrderQuadrilateral::Triangulate(
-  int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkHigherOrderQuadrilateral::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  ptIds->Reset();
-  pts->Reset();
+  // The base of the pyramid must be split into two triangles.  There are two
+  // ways to do this (across either diagonal).  Pick the shorter diagonal.
+  double d1 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(0), this->Points->GetPoint(2));
+  double d2 = vtkMath::Distance2BetweenPoints(this->Points->GetPoint(1), this->Points->GetPoint(3));
+  constexpr std::array<vtkIdType, 6> localPtIds1{ 0, 1, 2, 0, 2, 3 };
+  constexpr std::array<vtkIdType, 6> localPtIds2{ 0, 1, 3, 1, 2, 3 };
 
   vtkIdType nquad = vtkHigherOrderInterpolation::NumberOfIntervals<2>(this->GetOrder());
-  for (int i = 0; i < nquad; ++i)
+  ptIds->SetNumberOfIds(nquad * 6);
+  int i, j, k, corner;
+  int count = 0;
+  for (int subId = 0; subId < nquad; ++subId)
   {
-    vtkQuad* approx = this->GetApproximateQuad(i);
-    if (approx->Triangulate(1, this->TmpIds.GetPointer(), this->TmpPts.GetPointer()))
+    if (!this->SubCellCoordinatesFromId(i, j, k, subId))
     {
-      // Sigh. Triangulate methods all reset their points/ids
-      // so we must copy them to our output.
-      vtkIdType np = this->TmpPts->GetNumberOfPoints();
-      vtkIdType ni = this->TmpIds->GetNumberOfIds();
-      for (vtkIdType ii = 0; ii < np; ++ii)
-      {
-        pts->InsertNextPoint(this->TmpPts->GetPoint(ii));
-      }
-      for (vtkIdType ii = 0; ii < ni; ++ii)
-      {
-        ptIds->InsertNextId(this->TmpIds->GetId(ii));
-      }
+      vtkErrorMacro("Invalid subId " << subId);
+      return 0;
+    }
+    for (vtkIdType ic : ((d1 <= d2) ? localPtIds1 : localPtIds2))
+    {
+      corner = this->PointIndexFromIJK(
+        i + ((((ic + 1) / 2) % 2) ? 1 : 0), j + (((ic / 2) % 2) ? 1 : 0), 0);
+      ptIds->SetId(count, corner);
+      count++;
     }
   }
   return 1;
@@ -563,24 +565,33 @@ bool vtkHigherOrderQuadrilateral::TransformApproxToCellParams(int subCell, doubl
 /**\brief Set the degree  of the cell, given a vtkDataSet and cellId
  */
 void vtkHigherOrderQuadrilateral::SetOrderFromCellData(
-  vtkCellData* cell_data, const vtkIdType numPts, const vtkIdType cell_id)
+  vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id)
+{
+  vtkHigherOrderQuadrilateral::SetOrderFromCellData(cell_data, numPts, cell_id, this->Order);
+}
+
+void vtkHigherOrderQuadrilateral::SetOrderFromCellData(
+  vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id, int* order)
 {
   vtkDataArray* v = cell_data->GetHigherOrderDegrees();
   if (v)
   {
     double degs[3];
     v->GetTuple(cell_id, degs);
-    this->SetOrder(degs[0], degs[1]);
-    if (this->Order[2] != numPts)
-      vtkErrorMacro("The degrees are not correctly set in the input file.");
+    order[0] = degs[0];
+    order[1] = degs[1];
   }
   else
   {
-    this->SetUniformOrderFromNumPoints(numPts);
+    order[0] = order[1] = static_cast<int>(round(std::sqrt(static_cast<int>(numPts)))) - 1;
   }
+  order[2] = (order[0] + 1) * (order[1] + 1);
+  if (order[2] != numPts)
+    vtkGenericWarningMacro(
+      "The degrees are direction dependents, and should be set in the input file.");
 }
 
-void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(const vtkIdType numPts)
+void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(vtkIdType numPts)
 {
   int deg = static_cast<int>(round(std::sqrt(static_cast<int>(numPts)))) - 1;
   this->SetOrder(deg, deg);
@@ -588,7 +599,7 @@ void vtkHigherOrderQuadrilateral::SetUniformOrderFromNumPoints(const vtkIdType n
     vtkErrorMacro("The degrees are direction dependents, and should be set in the input file.");
 }
 
-void vtkHigherOrderQuadrilateral::SetOrder(const int s, const int t)
+void vtkHigherOrderQuadrilateral::SetOrder(int s, int t)
 {
   if (this->PointParametricCoordinates && (Order[0] != s || Order[1] != t))
     this->PointParametricCoordinates->Reset();
@@ -614,3 +625,23 @@ const int* vtkHigherOrderQuadrilateral::GetOrder()
   }
   return this->Order;
 }
+
+bool vtkHigherOrderQuadrilateral::PointCountSupportsUniformOrder(vtkIdType pointsPerCell)
+{
+  // Determine if sqrt(N) is integral (and if so, what is it?).
+  vtkIdType nn = pointsPerCell;
+  int h = nn % 0x0f; // Perfect squares in base 16 must end in 0, 1, 4, or 9.
+  if (h > 9 || (h > 1 && h < 4) || (h > 4 && h < 9))
+  {
+    // Trivially reject numbers with a bad final digit.
+    return false;
+  }
+  // There's a chance we have a perfect square, do the hard work.
+  int root = std::floor(std::sqrt(nn) + 0.5);
+  if (root * root != nn)
+  {
+    return false;
+  }
+  return root >= 4;
+}
+VTK_ABI_NAMESPACE_END

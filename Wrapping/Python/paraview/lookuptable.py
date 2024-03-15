@@ -1,23 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-License-Identifier: BSD-3-Clause
+
 r"""Utility module for easy manipultions of lookup tables.
 This module is intended for use with by simple.py.
 
 
-DEPRECATED: will be removed in future releases of ParaView.
+PARAVIEW_DEPRECATED_IN_5_12_0: will be removed in future releases of ParaView.
 """
-#==============================================================================
-#
-#  Program:   ParaView
-#  Module:    lookuptable.py
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY; without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-#==============================================================================
 from __future__ import absolute_import
 import os
 from math import sqrt
@@ -146,6 +135,9 @@ class vtkPVLUTReader:
   """
 
   def __init__(self,ns=None):
+    import warnings
+    warnings.warn("'vtkPVLUTReader' is deprecated.", DeprecationWarning)
+
     self.LUTS={}
     self.DefaultLUT=None
     self.Globals=ns

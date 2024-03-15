@@ -1,40 +1,13 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTableBasedClipCases.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*****************************************************************************
-*
-* Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
-* Produced at the Lawrence Livermore National Laboratory
-* LLNL-CODE-400124
-* All rights reserved.
-*
-* This file is a combination of several VisIt files containing the triangulation
-* and clipping tables used in VisIt cutter and clipper / slicer. For details,
-* see https://visit.llnl.gov/.  The full copyright notice is contained in the
-* file COPYRIGHT located at the root of the VisIt distribution or at
-* http://www.llnl.gov/visit/copyright.html.
-*
-*****************************************************************************/
-
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2000 - 2009, Lawrence Livermore National Security, LLC
+// SPDX-License-Identifier: BSD-3-Clause
 // ============================================================================
 // ====================== vtkTriangulationTables (begin) ======================
 // ============================================================================
 
 namespace vtkTableBasedClipperTriangulationTables
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 static const int8_t TetTriangulationTable[16][7] = {
   {-1, -1, -1, -1, -1, -1, -1},
@@ -824,7 +797,8 @@ static const int8_t LineVerticesFromEdges[1][2] =
     {0,1}
 };
 
-};
+VTK_ABI_NAMESPACE_END
+}
 
 // ============================================================================
 // ====================== vtkTriangulationTables ( end ) ======================
@@ -837,6 +811,7 @@ static const int8_t LineVerticesFromEdges[1][2] =
 
 namespace vtkTableBasedClipperClipTables
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // ---- ClipCases.h (begin)
@@ -8985,7 +8960,8 @@ static uint8_t ClipShapesVtx[] = {
 // ---- ClipCasesVtx.C ( end )
 //------------------------------------------------------------------------------
 
-};
+VTK_ABI_NAMESPACE_END
+}
 
 // ============================================================================
 // ============================= ClipCases ( end ) ============================

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebGLDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWebGLDataSet
  * @brief   vtkWebGLDataSet represent vertices, lines, polygons, and triangles.
@@ -26,6 +14,7 @@
 #include "vtkWebGLObject.h" // Needed for the enum
 #include <string>           // needed for md5
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKWEBGLEXPORTER_EXPORT vtkWebGLDataSet : public vtkObject
 {
 public:
@@ -75,4 +64,5 @@ private:
   void operator=(const vtkWebGLDataSet&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

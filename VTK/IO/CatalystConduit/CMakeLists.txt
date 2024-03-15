@@ -1,6 +1,7 @@
 set(classes
   vtkConduitArrayUtilities
   vtkConduitSource
+  vtkConduitToDataObject
   vtkDataObjectToConduit)
 
 # SDK component is required for Catalyst implementation (see Catalyst subdir)
@@ -15,4 +16,5 @@ vtk_module_link(VTK::IOCatalystConduit
   PUBLIC
     catalyst::catalyst)
 
+vtk_add_test_mangling(VTK::IOCatalystConduit)
 add_subdirectory(Catalyst)

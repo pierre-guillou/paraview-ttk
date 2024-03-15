@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolygon.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolygon
  * @brief   a cell that represents an n-sided polygon
@@ -27,7 +15,9 @@
 
 #include "vtkCell.h"
 #include "vtkCommonDataModelModule.h" // For export macro
+#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkIdTypeArray;
 class vtkLine;
@@ -65,7 +55,7 @@ public:
   void EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights) override;
   int IntersectWithLine(const double p1[3], const double p2[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   int IsPrimaryCell() override { return 0; }
@@ -166,6 +156,12 @@ public:
    */
   static int PointInPolygon(double x[3], int numPts, double* pts, double bounds[6], double n[3]);
 
+  // Needed to remove warning "member function does not override any
+  // base class virtual member function"
+  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override
+  {
+    return vtkCell::Triangulate(index, ptIds, pts);
+  }
   /**
    * Triangulate this polygon. The user must provide the vtkIdList outTris.
    * On output, the outTris list contains the ids of the points defining the
@@ -174,6 +170,7 @@ public:
    * of three: each three-group defines one triangle. The method returns
    * non-zero if the triangulation is successful.
    */
+  VTK_DEPRECATED_IN_9_3_0("Replaced by its parent's implementation vtkCell::TriangulateLocalIds")
   int Triangulate(vtkIdList* outTris);
 
   /**
@@ -208,7 +205,7 @@ public:
    * is an intersection.
    */
   static int IntersectPolygonWithPolygon(int npts, double* pts, double bounds[6], int npts2,
-    double* pts2, double bounds2[3], double tol, double x[3]);
+    double* pts2, double bounds2[6], double tol, double x[3]);
 
   /**
    * Intersect two convex 2D polygons to produce a line segment as output.
@@ -318,4 +315,5 @@ private:
   void operator=(const vtkPolygon&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

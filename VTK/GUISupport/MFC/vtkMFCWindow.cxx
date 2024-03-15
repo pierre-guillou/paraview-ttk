@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMFCWindow.cpp
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // 0x0501 means target Windows XP or later
 #ifndef WINVER
@@ -39,9 +27,12 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #undef THIS_FILE
+VTK_ABI_NAMESPACE_BEGIN
 static char THIS_FILE[] = __FILE__;
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 BEGIN_MESSAGE_MAP(vtkMFCWindow, CWnd)
 ON_WM_SIZE()
 ON_WM_PAINT()
@@ -330,3 +321,4 @@ void vtkMFCWindow::OnTimer(UINT_PTR nIDEvent)
   static_cast<vtkWin32RenderWindowInteractor*>(this->GetInteractor())
     ->OnTimer(this->GetSafeHwnd(), (UINT)nIDEvent);
 }
+VTK_ABI_NAMESPACE_END

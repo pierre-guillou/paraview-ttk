@@ -1,23 +1,14 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DS.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtk3DS_h
 #define vtk3DS_h
 
+#include "vtkABINamespace.h"
+
 #include <ctype.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLight;
 class vtkCamera;
 class vtkProperty;
@@ -184,5 +175,6 @@ struct vtk3DSColour_t_24
 };
 using vtk3DSColour_24 = struct vtk3DSColour_t_24;
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtk3DS.h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetAttributesFieldList.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetAttributesFieldList.h"
 
 #include "vtkDataArray.h"
@@ -32,6 +20,7 @@
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 /**
  * FieldInfo is used to store metadata about a field.
  */
@@ -301,7 +290,10 @@ void remove_if(Container& cont, ForwardIt first, ForwardIt second, UnaryPredicat
     }
   }
 }
+VTK_ABI_NAMESPACE_END
 } // namespace detail
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkDataSetAttributesFieldList::vtkInternals
 {
@@ -320,7 +312,7 @@ public:
 
   vtkInternals()
     : NumberOfTuples(0)
-    , NumberOfInputs(-1)
+    , NumberOfInputs(0)
     , Mode(NONE)
   {
   }
@@ -329,7 +321,7 @@ public:
   {
     this->Fields.clear();
     this->NumberOfTuples = 0;
-    this->NumberOfInputs = -1;
+    this->NumberOfInputs = 0;
     this->Mode = NONE;
   }
 
@@ -423,7 +415,7 @@ void vtkDataSetAttributesFieldList::InitializeFieldList(vtkDataSetAttributes* ds
 void vtkDataSetAttributesFieldList::IntersectFieldList(vtkDataSetAttributes* dsa)
 {
   auto& internals = *this->Internals;
-  if (internals.NumberOfInputs == -1)
+  if (internals.NumberOfInputs == 0)
   {
     // called without calling InitializeFieldList, just call it.
     this->InitializeFieldList(dsa);
@@ -496,7 +488,7 @@ void vtkDataSetAttributesFieldList::IntersectFieldList(vtkDataSetAttributes* dsa
 void vtkDataSetAttributesFieldList::UnionFieldList(vtkDataSetAttributes* dsa)
 {
   auto& internals = *this->Internals;
-  if (internals.NumberOfInputs == -1)
+  if (internals.NumberOfInputs == 0)
   {
     // called without calling InitializeFieldList, just call it.
     this->InitializeFieldList(dsa);
@@ -827,3 +819,4 @@ void vtkDataSetAttributesFieldList::PrintSelf(ostream& os, vtkIndent indent)
     pair.second.PrintSelf(os, indent.GetNextIndent());
   }
 }
+VTK_ABI_NAMESPACE_END

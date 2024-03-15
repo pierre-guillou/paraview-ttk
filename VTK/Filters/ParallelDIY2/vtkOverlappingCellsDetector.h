@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverlappingCellsDetector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkOverlappingCellsDetector
  * @brief Exposes how many cells each cell of the input collide.
@@ -56,6 +44,7 @@
 #include <unordered_map> // For DetectOverlappingCells
 #include <vector>        // For DetectOverlappingCells
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkMultiProcessController;
 class vtkPointSet;
@@ -161,4 +150,5 @@ private:
   void operator=(const vtkOverlappingCellsDetector&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

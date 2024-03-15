@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotArea.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPlotArea
  * @brief   draws an area plot.
@@ -28,6 +16,7 @@
 
 #include "vtkPlot.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCHARTSCORE_EXPORT vtkPlotArea : public vtkPlot
 {
 public:
@@ -57,7 +46,7 @@ public:
   void SetColorF(double r, double g, double b) override;
 
   VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
-  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); };
+  void SetColor(double r, double g, double b) override { this->SetColorF(r, g, b); }
   ///@}
 
   ///@{
@@ -109,7 +98,7 @@ public:
    * This method is called by Update() when either the plot's data has changed or
    * CacheRequiresUpdate() returns true. It is not necessary to call this method explicitly.
    */
-  virtual bool UpdateCache() override;
+  bool UpdateCache() override;
 
 protected:
   vtkPlotArea();
@@ -130,4 +119,5 @@ private:
   vtkTimeStamp UpdateTime;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

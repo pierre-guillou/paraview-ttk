@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVChangeOfBasisHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVChangeOfBasisHelper
  *
@@ -45,23 +33,23 @@ public:
 
   static vtkSmartPointer<vtkMatrix4x4> GetChangeOfBasisMatrix(vtkDataObject* dataObject);
 
-  //@{
+  ///@{
   /**
    * Add basis titles to field data.
    */
   static bool AddBasisNames(
     vtkDataObject* dataObject, const char* utitle, const char* vtitle, const char* wtitle);
-  //@}
+  ///@}
 
   static void GetBasisName(
     vtkDataObject* dataObject, const char*& utitle, const char*& vtitle, const char*& wtitle);
 
-  //@{
+  ///@{
   /**
    * Add bounding box in model space.
    */
   static bool AddBoundingBoxInBasis(vtkDataObject* dataObject, const double bbox[6]);
-  //@}
+  ///@}
 
   static bool GetBoundingBoxInBasis(vtkDataObject* dataObject, double bbox[6]);
 };

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkBoundingBox.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBoundingBox
  * @brief   Fast, simple class for representing and operating on 3D bounds
@@ -31,6 +19,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkSystemIncludes.h"
 #include <atomic> // For threaded bounding box computation
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkBoundingBox
@@ -78,14 +67,28 @@ public:
    * Compute the bounding box from an array of vtkPoints. It uses a fast
    * (i.e., threaded) path when possible. The second signature (with point
    * uses) only considers points with ptUses[i] != 0 in the bounds
-   * calculation. The non-static ComputeBounds() methods update the current
-   * bounds of an instance of this class.
+   * calculation. The third signature uses point ids.
+   * The non-static ComputeBounds() methods update the current bounds of an instance of this class.
    */
   static void ComputeBounds(vtkPoints* pts, double bounds[6]);
   static void ComputeBounds(vtkPoints* pts, const unsigned char* ptUses, double bounds[6]);
   static void ComputeBounds(
     vtkPoints* pts, const std::atomic<unsigned char>* ptUses, double bounds[6]);
-  void ComputeBounds(vtkPoints* pts) { this->ComputeBounds(pts, (unsigned char*)nullptr); }
+  static void ComputeBounds(
+    vtkPoints* pts, const long long* ptIds, long long numPointIds, double bounds[6]);
+  static void ComputeBounds(vtkPoints* pts, const long* ptIds, long numPointIds, double bounds[6]);
+  static void ComputeBounds(vtkPoints* pts, const int* ptIds, int numPointIds, double bounds[6]);
+  void ComputeBounds(vtkPoints* pts)
+  {
+    double bds[6];
+    vtkBoundingBox::ComputeBounds(pts, bds);
+    this->MinPnt[0] = bds[0];
+    this->MinPnt[1] = bds[2];
+    this->MinPnt[2] = bds[4];
+    this->MaxPnt[0] = bds[1];
+    this->MaxPnt[1] = bds[3];
+    this->MaxPnt[2] = bds[5];
+  }
   void ComputeBounds(vtkPoints* pts, unsigned char* ptUses)
   {
     double bds[6];
@@ -154,7 +157,7 @@ public:
    * Adjust the bounding box so it contains the specified bounds (defined by
    * the VTK representation (xmin,xmax, ymin,ymax, zmin,zmax).
    */
-  void AddBounds(const double bounds[]);
+  void AddBounds(const double bounds[6]);
 
   /**
    * Returns true if this instance is entirely contained by bbox.
@@ -202,6 +205,25 @@ public:
    * within the bounds of the specified box, else returns 0.
    */
   int Contains(const vtkBoundingBox& bbox) const;
+
+  /**
+   * A specialized, performant method to compute the containment of a finite
+   * line emanating from the center of a bounding box. The method returns
+   * true if the box contains the line defined by (x,lineEnd); and false if
+   * the line intersects the box (i.e., the line passes through the boundary
+   * of the box). The box is defined by specifying a point at the center of
+   * the box x[3] with sides lengths s[3] (in the x-y-z directions). If an
+   * intersection occurs (i.e., the containment return value is false), then
+   * the function returns the parametric coordinate of intersection t, the
+   * position of intersection xInt[3], and the plane of intersection where
+   * integers (0, 1, 2, 3, 4, 5) stand for the (xmin, xmax, ymin, ymax, zmin,
+   * zmax) box planes respectively.  (If no intersection occurs, i.e., the
+   * line is contained, then the line (x,lineEnd) is contained within the box
+   * with x-y-z lengths s[3] centered around the point x, and the values of
+   * t, xInt, and plane are undefined.)
+   */
+  static bool ContainsLine(const double x[3], const double s[3], const double lineEnd[3], double& t,
+    double xInt[3], int& plane);
 
   ///@{
   /**
@@ -271,11 +293,14 @@ public:
    */
   double GetMaxLength() const;
 
+  ///@{
   /**
    * Return the length of the diagonal.
    * \pre not_empty: this->IsValid()
    */
+  double GetDiagonalLength2() const;
   double GetDiagonalLength() const;
+  ///@}
 
   ///@{
   /**
@@ -567,5 +592,6 @@ inline void vtkBoundingBox::GetCorner(int corner, double p[3]) const
   p[2] = pts[iz][2];
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkBoundingBox.h

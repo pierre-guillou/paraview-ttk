@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianBasicIntegrationModel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLagrangianBasicIntegrationModel
  * @brief   vtkFunctionSet abstract implementation to be used
@@ -60,6 +48,7 @@
 #include <mutex> // for mutexes
 #include <queue> // for new particles
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkAbstractCellLocator;
 class vtkCell;
@@ -388,7 +377,7 @@ public:
   }
 
   /**
-   * Allow for model setup prior to Particle Initalization
+   * Allow for model setup prior to Particle Initialization
    */
   virtual void PreParticleInitalization() {}
 
@@ -435,21 +424,21 @@ public:
   virtual void InitializeParticleData(vtkFieldData* particleData, int maxTuples = 0);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts Id, ParentID, SeedID and Termination.
    * Reimplement as needed in accordance with InitializePathData.
    */
   virtual void InsertPathData(vtkLagrangianParticle* particle, vtkFieldData* data);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts Interaction.
    * Reimplement as needed in accordance with InitializeInteractionData.
    */
   virtual void InsertInteractionData(vtkLagrangianParticle* particle, vtkFieldData* data);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts StepNumber, ParticleVelocity, IntegrationTime.
    * stepEnum enables to select which data to insert, Prev, Current or Next.
    * Reimplement as needed in accordance with InitializeParticleData.
@@ -458,7 +447,7 @@ public:
     vtkLagrangianParticle* particle, vtkFieldData* data, int stepEnum);
 
   /**
-   * Method used by the LPT to insert data from the partice into
+   * Method used by the LPT to insert data from the particle into
    * the provided vtkFieldData. It inserts all arrays from the original SeedData.
    * Reimplement as needed.
    */
@@ -655,4 +644,5 @@ private:
   void operator=(const vtkLagrangianBasicIntegrationModel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

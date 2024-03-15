@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransform2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTransform2D.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
@@ -19,6 +7,7 @@
 
 #include <cstdlib>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTransform2D);
 
 //------------------------------------------------------------------------------
@@ -279,3 +268,4 @@ void vtkTransform2D::InverseTransformPoints(vtkPoints2D* inPts, vtkPoints2D* out
     outPts->SetPoint(i, point);
   }
 }
+VTK_ABI_NAMESPACE_END

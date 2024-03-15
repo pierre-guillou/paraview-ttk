@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSphereRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSphereRepresentation
  * @brief   a class defining the representation for the vtkSphereWidget2
@@ -50,6 +38,7 @@
 #include "vtkSphereSource.h"             // Needed for fast access to the sphere source
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkPolyDataMapper;
 class vtkSphere;
@@ -256,7 +245,7 @@ public:
   /**
    * Get the handle properties (the little ball on the sphere is the
    * handle). The properties of the handle when selected and unselected
-   * can be manipulated.
+   * can be manipulated. Also applied to the center cursor.
    */
   vtkGetObjectMacro(HandleProperty, vtkProperty);
   vtkGetObjectMacro(SelectedHandleProperty, vtkProperty);
@@ -276,6 +265,19 @@ public:
    * appearance of the optional line connecting the center to the handle.
    */
   vtkGetObjectMacro(RadialLineProperty, vtkProperty);
+  ///@}
+
+  ///@{
+  /**
+   * Set the interaction color of sphere and handle. Set the handle color of the
+   * handle, center cursor and radial line. Foreground color applies to the sphere and text.
+   */
+  void SetInteractionColor(double, double, double);
+  void SetInteractionColor(double c[3]) { this->SetInteractionColor(c[0], c[1], c[2]); }
+  void SetHandleColor(double, double, double);
+  void SetHandleColor(double c[3]) { this->SetHandleColor(c[0], c[1], c[2]); }
+  void SetForegroundColor(double, double, double);
+  void SetForegroundColor(double c[3]) { this->SetForegroundColor(c[0], c[1], c[2]); }
   ///@}
 
   /**
@@ -420,4 +422,5 @@ private:
   void operator=(const vtkSphereRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

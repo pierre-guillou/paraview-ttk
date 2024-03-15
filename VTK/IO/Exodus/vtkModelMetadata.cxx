@@ -1,23 +1,7 @@
-
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkModelMetadata.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkModelMetadata.h"
 #include "vtkCellData.h"
 #include "vtkCharArray.h"
@@ -33,12 +17,15 @@
 #include "vtkStringArray.h"
 #include <ctime>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkModelMetadata);
 
+VTK_ABI_NAMESPACE_END
 #include <algorithm>
 #include <map>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkModelMetadataSTLCloak
 {
 public:
@@ -1303,3 +1290,4 @@ void vtkModelMetadata::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AllVariablesDefinedInAllBlocks: " << this->AllVariablesDefinedInAllBlocks
      << endl;
 }
+VTK_ABI_NAMESPACE_END

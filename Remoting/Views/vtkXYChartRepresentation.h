@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXYChartRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXYChartRepresentation
  *
@@ -49,7 +37,7 @@ public:
    */
   void SetVisibility(bool visible) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the chart type, defaults to line chart. This must be set before
    * this representation is updated.
@@ -58,7 +46,7 @@ public:
    */
   vtkSetMacro(ChartType, int);
   vtkGetMacro(ChartType, int);
-  //@}
+  ///@}
 
   void SetChartTypeToLine();
   void SetChartTypeToPoints();
@@ -75,24 +63,24 @@ public:
    */
   vtkChartXY* GetChart();
 
-  //@{
+  ///@{
   /**
    * Set the series to use as the X-axis.
    */
   vtkSetStringMacro(XAxisSeriesName);
   vtkGetStringMacro(XAxisSeriesName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether the index should be used for the x axis. When true, XSeriesName
    * is ignored.
    */
   vtkSetMacro(UseIndexForXAxis, bool);
   vtkGetMacro(UseIndexForXAxis, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/set whether the points in the chart should be sorted by their x-axis value.
    * Points are connected in line plots in the order they are in the table.  Sorting
@@ -100,9 +88,9 @@ public:
    */
   void SetSortDataByXAxis(bool val);
   vtkGetMacro(SortDataByXAxis, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Clear the properties for Y series/columns.
    */
@@ -118,7 +106,7 @@ public:
   void SetUseColorMapping(const char* name, bool useColorMapping);
   void SetLookupTable(const char* name, vtkScalarsToColors* lut);
   const char* GetLabel(const char* name) const;
-  //@}
+  ///@}
 
   void ClearSeriesVisibilities();
   void ClearLineThicknesses();
@@ -133,20 +121,20 @@ public:
   vtkSetVector3Macro(SelectionColor, double);
   vtkGetVector3Macro(SelectionColor, double);
 
-  //@{
+  ///@{
   /**
    * Get/Set the series label prefix.
    */
   vtkSetStringMacro(SeriesLabelPrefix);
   vtkGetStringMacro(SeriesLabelPrefix);
-  //@}
+  ///@}
 
   /**
    * Called by vtkPVContextView::Export() to export the representation's data to
    * a CSV file. Return false on failure which will call the exporting process
    * to abort and raise an error. Default implementation simply returns false.
    */
-  bool Export(vtkCSVExporter* exporter) override;
+  bool Export(vtkAbstractChartExporter* exporter) override;
 
 protected:
   vtkXYChartRepresentation();

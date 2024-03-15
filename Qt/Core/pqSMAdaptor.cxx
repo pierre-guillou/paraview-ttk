@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSMAdaptor.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // self includes
 #include "pqSMAdaptor.h"
@@ -73,12 +45,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSourceProxy.h"
 #include "vtkSMStringListDomain.h"
 #include "vtkSMStringVectorProperty.h"
+#include "vtkSMTimeStepsDomain.h"
 #include "vtkSMUncheckedPropertyHelper.h"
 #include "vtkSMVectorProperty.h"
 
 // ParaView includes
 #include "pqSMProxy.h"
+#include "vtkPVXMLElement.h"
 
+#include <QCoreApplication>
 #include <algorithm>
 #include <cassert>
 #include <set>
@@ -125,11 +100,19 @@ pqSMAdaptor::PropertyType pqSMAdaptor::getPropertyType(vtkSMProperty* Property)
 
   vtkSMProxyProperty* proxy = vtkSMProxyProperty::SafeDownCast(Property);
   vtkSMVectorProperty* VectorProperty = vtkSMVectorProperty::SafeDownCast(Property);
+  vtkPVXMLElement* vectorPropertyHint = VectorProperty ? VectorProperty->GetHints() : nullptr;
+  bool isSelection = vectorPropertyHint
+    ? vectorPropertyHint->FindNestedElementByName("IsSelectable") != nullptr
+    : false;
 
   if (proxy)
   {
     vtkSMInputProperty* input = vtkSMInputProperty::SafeDownCast(Property);
     if (input && input->GetMultipleInput())
+    {
+      type = pqSMAdaptor::PROXYLIST;
+    }
+    if (proxy->GetRepeatable() || proxy->GetNumberOfProxies() > 1)
     {
       type = pqSMAdaptor::PROXYLIST;
     }
@@ -147,6 +130,7 @@ pqSMAdaptor::PropertyType pqSMAdaptor::getPropertyType(vtkSMProperty* Property)
     vtkSMFileListDomain* fileListDomain = nullptr;
     vtkSMStringListDomain* stringListDomain = nullptr;
     vtkSMArrayListDomain* arrayListDomain = nullptr;
+    vtkSMTimeStepsDomain* timeStepsDomain = nullptr;
     vtkSMCompositeTreeDomain* compositeTreeDomain = nullptr;
     vtkSMChartSeriesSelectionDomain* chartSeriesSelectionDomain = nullptr;
 
@@ -176,6 +160,10 @@ pqSMAdaptor::PropertyType pqSMAdaptor::getPropertyType(vtkSMProperty* Property)
       if (!arrayListDomain)
       {
         arrayListDomain = vtkSMArrayListDomain::SafeDownCast(iter->GetDomain());
+      }
+      if (!timeStepsDomain)
+      {
+        timeStepsDomain = vtkSMTimeStepsDomain::SafeDownCast(iter->GetDomain());
       }
       if (!compositeTreeDomain)
       {
@@ -207,7 +195,7 @@ pqSMAdaptor::PropertyType pqSMAdaptor::getPropertyType(vtkSMProperty* Property)
       type = pqSMAdaptor::MULTIPLE_ELEMENTS;
     }
     else if (VectorProperty && VectorProperty->GetRepeatable() &&
-      (stringListDomain || enumerationDomain))
+      (stringListDomain || enumerationDomain || (timeStepsDomain && isSelection)))
     {
       type = pqSMAdaptor::SELECTION;
     }
@@ -319,33 +307,34 @@ void pqSMAdaptor::setUncheckedProxyProperty(vtkSMProperty* Property, pqSMProxy V
   }
 }
 
-QList<pqSMProxy> pqSMAdaptor::getProxyListProperty(vtkSMProperty* Property)
+QList<QVariant> pqSMAdaptor::getProxyListProperty(vtkSMProperty* Property)
 {
-  QList<pqSMProxy> value;
+  QList<QVariant> value;
   if (pqSMAdaptor::getPropertyType(Property) == pqSMAdaptor::PROXYLIST)
   {
     vtkSMProxyProperty* proxyProp = vtkSMProxyProperty::SafeDownCast(Property);
     unsigned int num = proxyProp->GetNumberOfProxies();
     for (unsigned int i = 0; i < num; i++)
     {
-      value.append(proxyProp->GetProxy(i));
+      value.push_back(QVariant::fromValue<void*>(proxyProp->GetProxy(i)));
     }
   }
   return value;
 }
 
-void pqSMAdaptor::setProxyListProperty(vtkSMProperty* Property, QList<pqSMProxy> Value)
+void pqSMAdaptor::setProxyListProperty(vtkSMProperty* Property, QList<QVariant> Values)
 {
   vtkSMProxyProperty* proxyProp = vtkSMProxyProperty::SafeDownCast(Property);
   if (proxyProp)
   {
-    vtkSMProxy** proxies = new vtkSMProxy*[Value.size() + 1];
-    for (int cc = 0; cc < Value.size(); cc++)
+    std::vector<vtkSMProxy*> proxies;
+    for (const auto& val : Values)
     {
-      proxies[cc] = Value[cc].GetPointer();
+      vtkSMProxy* aproxy = reinterpret_cast<vtkSMProxy*>(val.value<void*>());
+      proxies.push_back(aproxy);
     }
-    proxyProp->SetProxies(Value.size(), proxies);
-    delete[] proxies;
+    // proxies.push_back(nullptr);
+    proxyProp->SetProxies(Values.size(), proxies.data());
   }
 }
 
@@ -426,6 +415,7 @@ QList<QList<QVariant>> pqSMAdaptor::getSelectionProperty(
 
   vtkSMStringListDomain* StringListDomain = nullptr;
   vtkSMEnumerationDomain* EnumerationDomain = nullptr;
+  vtkSMTimeStepsDomain* timeStepsDomain = nullptr;
 
   vtkSMDomainIterator* iter = Property->NewDomainIterator();
   iter->Begin();
@@ -440,11 +430,15 @@ QList<QList<QVariant>> pqSMAdaptor::getSelectionProperty(
     {
       EnumerationDomain = vtkSMEnumerationDomain::SafeDownCast(d);
     }
+    if (!timeStepsDomain)
+    {
+      timeStepsDomain = vtkSMTimeStepsDomain::SafeDownCast(d);
+    }
     iter->Next();
   }
   iter->Delete();
 
-  int numSelections = 0;
+  unsigned int numSelections = 0;
   if (EnumerationDomain)
   {
     numSelections = EnumerationDomain->GetNumberOfEntries();
@@ -453,8 +447,12 @@ QList<QList<QVariant>> pqSMAdaptor::getSelectionProperty(
   {
     numSelections = StringListDomain->GetNumberOfStrings();
   }
+  else if (timeStepsDomain)
+  {
+    numSelections = timeStepsDomain->GetNumberOfValues();
+  }
 
-  for (int i = 0; i < numSelections; i++)
+  for (unsigned int i = 0; i < numSelections; i++)
   {
     QList<QVariant> tmp;
     tmp = pqSMAdaptor::getSelectionProperty(Property, i, Type);
@@ -477,6 +475,7 @@ QList<QVariant> pqSMAdaptor::getSelectionProperty(
   vtkSMArraySelectionDomain* StringDomain = nullptr;
   vtkSMStringListDomain* StringListDomain = nullptr;
   vtkSMEnumerationDomain* EnumerationDomain = nullptr;
+  vtkSMTimeStepsDomain* timeStepsDomain = nullptr;
 
   vtkSMDomainIterator* iter = Property->NewDomainIterator();
   iter->Begin();
@@ -494,6 +493,10 @@ QList<QVariant> pqSMAdaptor::getSelectionProperty(
     if (!EnumerationDomain)
     {
       EnumerationDomain = vtkSMEnumerationDomain::SafeDownCast(d);
+    }
+    if (!timeStepsDomain)
+    {
+      timeStepsDomain = vtkSMTimeStepsDomain::SafeDownCast(d);
     }
     iter->Next();
   }
@@ -601,7 +604,8 @@ QList<QVariant> pqSMAdaptor::getSelectionProperty(
 
     if (Index < EnumerationDomain->GetNumberOfEntries())
     {
-      ret.append(EnumerationDomain->GetEntryText(Index));
+      ret.append(
+        QCoreApplication::translate("ServerManagerXML", EnumerationDomain->GetEntryText(Index)));
       if (values.contains(EnumerationDomain->GetEntryValue(Index)))
       {
         ret.append(1);
@@ -614,6 +618,21 @@ QList<QVariant> pqSMAdaptor::getSelectionProperty(
     else
     {
       qWarning("index out of range for enumeration domain\n");
+    }
+  }
+  else if (timeStepsDomain)
+  {
+    QList<QVariant> values = pqSMAdaptor::getMultipleElementProperty(Property, Type);
+
+    if (Index < timeStepsDomain->GetNumberOfValues())
+    {
+      QVariant value = timeStepsDomain->GetValue(Index);
+      ret.append(value);
+      ret.append(values.contains(value) ? 1 : 0);
+    }
+    else
+    {
+      qWarning("index out of range for timesteps domain\n");
     }
   }
 
@@ -696,11 +715,13 @@ void pqSMAdaptor::setSelectionProperty(
   }
 
   std::vector<int> smValueInts;
+  std::vector<double> smValueDoubles;
   vtkNew<vtkStringList> smValueStrings;
 
   vtkSMArraySelectionDomain* StringDomain = nullptr;
   vtkSMStringListDomain* StringListDomain = nullptr;
   vtkSMEnumerationDomain* EnumerationDomain = nullptr;
+  vtkSMTimeStepsDomain* timeStepsDomain = nullptr;
   vtkSMDomainIterator* iter = Property->NewDomainIterator();
   iter->Begin();
   while (!iter->IsAtEnd())
@@ -717,6 +738,10 @@ void pqSMAdaptor::setSelectionProperty(
     if (!EnumerationDomain)
     {
       EnumerationDomain = vtkSMEnumerationDomain::SafeDownCast(d);
+    }
+    if (!timeStepsDomain)
+    {
+      timeStepsDomain = vtkSMTimeStepsDomain::SafeDownCast(d);
     }
     iter->Next();
   }
@@ -750,12 +775,18 @@ void pqSMAdaptor::setSelectionProperty(
         smValueStrings->AddString(name.toUtf8().data());
       }
     }
+    else if (timeStepsDomain)
+    {
+      if (status)
+      {
+        smValueDoubles.push_back(value[0].toDouble());
+      }
+    }
   }
 
   if (StringListDomain || StringDomain)
   {
     vtkSMStringVectorProperty* svp = vtkSMStringVectorProperty::SafeDownCast(Property);
-    assert(svp);
     if (Type == CHECKED)
     {
       svp->SetElements(smValueStrings.GetPointer());
@@ -768,7 +799,6 @@ void pqSMAdaptor::setSelectionProperty(
   else if (EnumerationDomain)
   {
     vtkSMIntVectorProperty* ivp = vtkSMIntVectorProperty::SafeDownCast(Property);
-    assert(ivp);
     smValueInts.push_back(0); // avoids need to check for size==0.
     if (Type == CHECKED)
     {
@@ -777,6 +807,21 @@ void pqSMAdaptor::setSelectionProperty(
     else
     {
       ivp->SetUncheckedElements(&smValueInts[0], static_cast<unsigned int>(smValueInts.size() - 1));
+    }
+  }
+  else if (timeStepsDomain)
+  {
+    vtkSMDoubleVectorProperty* dvp = vtkSMDoubleVectorProperty::SafeDownCast(Property);
+
+    smValueDoubles.push_back(0); // avoids need to check for size==0.
+    if (Type == CHECKED)
+    {
+      dvp->SetElements(&smValueDoubles[0], static_cast<unsigned int>(smValueDoubles.size() - 1));
+    }
+    else
+    {
+      dvp->SetUncheckedElements(
+        &smValueDoubles[0], static_cast<unsigned int>(smValueDoubles.size() - 1));
     }
   }
 }
@@ -793,6 +838,7 @@ QList<QVariant> pqSMAdaptor::getSelectionPropertyDomain(vtkSMProperty* Property)
 
   vtkSMStringListDomain* StringListDomain = nullptr;
   vtkSMEnumerationDomain* EnumerationDomain = nullptr;
+  vtkSMTimeStepsDomain* timeStepsDomain = nullptr;
 
   vtkSMDomainIterator* iter = Property->NewDomainIterator();
   iter->Begin();
@@ -807,6 +853,10 @@ QList<QVariant> pqSMAdaptor::getSelectionPropertyDomain(vtkSMProperty* Property)
     {
       EnumerationDomain = vtkSMEnumerationDomain::SafeDownCast(d);
     }
+    if (!timeStepsDomain)
+    {
+      timeStepsDomain = vtkSMTimeStepsDomain::SafeDownCast(d);
+    }
     iter->Next();
   }
   iter->Delete();
@@ -816,7 +866,8 @@ QList<QVariant> pqSMAdaptor::getSelectionPropertyDomain(vtkSMProperty* Property)
     unsigned int numEntries = EnumerationDomain->GetNumberOfEntries();
     for (unsigned int i = 0; i < numEntries; i++)
     {
-      ret.append(EnumerationDomain->GetEntryText(i));
+      ret.append(
+        QCoreApplication::translate("ServerManagerXML", EnumerationDomain->GetEntryText(i)));
     }
   }
   else if (StringListDomain && VProperty->GetRepeatable())
@@ -825,6 +876,14 @@ QList<QVariant> pqSMAdaptor::getSelectionPropertyDomain(vtkSMProperty* Property)
     for (unsigned int i = 0; i < numEntries; i++)
     {
       ret.append(StringListDomain->GetString(i));
+    }
+  }
+  else if (timeStepsDomain && VProperty->GetRepeatable())
+  {
+    auto valueList = timeStepsDomain->GetValues();
+    for (double value : valueList)
+    {
+      ret.append(value);
     }
   }
 
@@ -922,7 +981,7 @@ QVariant pqSMAdaptor::getEnumerationProperty(vtkSMProperty* Property, PropertyVa
     {
       if (EnumerationDomain->GetEntryValue(i) == val)
       {
-        var = EnumerationDomain->GetEntryText(i);
+        var = QCoreApplication::translate("ServerManagerXML", EnumerationDomain->GetEntryText(i));
         break;
       }
     }
@@ -1159,7 +1218,8 @@ QList<QVariant> pqSMAdaptor::getEnumerationPropertyDomain(vtkSMProperty* Propert
     unsigned int numEntries = EnumerationDomain->GetNumberOfEntries();
     for (unsigned int i = 0; i < numEntries; i++)
     {
-      enumerations.push_back(EnumerationDomain->GetEntryText(i));
+      enumerations.push_back(
+        QCoreApplication::translate("ServerManagerXML", EnumerationDomain->GetEntryText(i)));
     }
   }
   else if (ProxyGroupDomain)
@@ -1755,12 +1815,6 @@ QVariant pqSMAdaptor::convertToQVariant(const vtkVariant& variant)
       return variant.ToInt();
     case VTK_UNSIGNED_INT:
       return variant.ToUnsignedInt();
-#ifdef VTK_TYPE_USE___INT64
-    case VTK___INT64:
-      return variant.ToTypeInt64();
-    case VTK_UNSIGNED___INT64:
-      return variant.ToTypeUInt64();
-#endif
     case VTK_LONG_LONG:
       return variant.ToLongLong();
     case VTK_UNSIGNED_LONG_LONG:
@@ -1772,7 +1826,7 @@ QVariant pqSMAdaptor::convertToQVariant(const vtkVariant& variant)
     case VTK_STRING:
       return QString::fromUtf8(variant.ToString().c_str());
     case VTK_OBJECT:
-      return QVariant(QMetaType::VoidStar, variant.ToVTKObject());
+      return QVariant::fromValue(reinterpret_cast<void*>(variant.ToVTKObject()));
     default:
       return QVariant();
   }

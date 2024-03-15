@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPDFContextExport.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPDFExporter.h"
 
@@ -238,7 +226,7 @@ bool ContextPDFTest::Paint(vtkContext2D* painter)
   painter->GetBrush()->SetColor(0, 0, 100, 69);
   // Draws smooth path (Full circle, testing oddball angles):
   painter->DrawEllipseWedge(100.0, 89.0, 20, 100, 15, 75, -26.23, 333.77);
-  // Parital circle, more odd angles:
+  // Partial circle, more odd angles:
   painter->DrawEllipseWedge(150.0, 89.0, 20, 100, 15, 75, 403.f, 541.f);
   // Smooth path:
   painter->DrawEllipticArc(200.0, 89.0, 20, 100, 0, 360);

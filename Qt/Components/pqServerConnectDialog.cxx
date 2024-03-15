@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqServerConnectDialog.h"
 #include "pqCoreUtilities.h"
 #include "pqQtDeprecated.h"
@@ -69,11 +41,14 @@ QString getPVSCSourcesFromSettings()
   pqSettings* settings = pqApplicationCore::instance()->settings();
   return settings
     ->value("PVSC_SOURCES",
-      QString("# Enter list of URLs to obtain server configurations from.\n"
-              "# Syntax:\n"
-              "#    pvsc <url> <userfriendly-name>\n\n"
-              "# Official Kitware Server Configurations\n"
-              "pvsc http://www.paraview.org/files/pvsc Kitware Inc.\n"))
+      QString("# %1\n# %2\n# %3\n#   pvsc <url> <%4>\n\n# %5\n%6")
+        .arg(QCoreApplication::translate(
+          "pqServerConnectDialog", "Enter list of URLs to obtain server configurations from."))
+        .arg(QCoreApplication::translate("pqServerConnectDialog", "Syntax:"))
+        .arg(QCoreApplication::translate("pqServerConnectDialog", "userfriendly-name"))
+        .arg(QCoreApplication::translate(
+          "pqServerConnectDialog", "Official Kitware Server Configurations"))
+        .arg("pvsc http://www.paraview.org/files/pvsc Kitware Inc.\n"))
     .toString();
 }
 
@@ -153,6 +128,7 @@ pqServerConnectDialog::pqServerConnectDialog(
 {
   this->Internals = new pqInternals();
   this->Internals->setupUi(this);
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
   this->Internals->Selector = selector;
 
   this->Internals->servers->horizontalHeader()->setObjectName("horz_header");
@@ -251,24 +227,24 @@ void pqServerConnectDialog::updateDialogTitle(int page_number)
   switch (page_number)
   {
     case 1:
-      this->setWindowTitle("Edit Server Configuration");
+      this->setWindowTitle(tr("Edit Server Configuration"));
       break;
 
     case 2:
-      this->setWindowTitle("Edit Server Launch Configuration");
+      this->setWindowTitle(tr("Edit Server Launch Configuration"));
       break;
 
     case 3:
-      this->setWindowTitle("Fetch Server Configurations");
+      this->setWindowTitle(tr("Fetch Server Configurations"));
       break;
 
     case 4:
-      this->setWindowTitle("Edit Server Configuration Sources");
+      this->setWindowTitle(tr("Edit Server Configuration Sources"));
       break;
 
     case 0:
     default:
-      this->setWindowTitle("Choose Server Configuration");
+      this->setWindowTitle(tr("Choose Server Configuration"));
       break;
   }
 }
@@ -323,7 +299,7 @@ void pqServerConnectDialog::onServerSelected()
 void pqServerConnectDialog::addServer()
 {
   // Edit an empty server configuration with a non already existing name
-  QString originalName = "My Server";
+  QString originalName = tr("My Server");
   QString name = originalName;
   if (this->serverNameExists(name))
   {
@@ -666,8 +642,8 @@ void pqServerConnectDialog::deleteServer()
   assert(original_index >= 0 && original_index < this->Internals->Configurations.size());
 
   const pqServerConfiguration& config = this->Internals->Configurations[original_index];
-  if (QMessageBox::question(this, "Delete Server Configuration",
-        QString("Are you sure you want to delete \"%1\"?").arg(config.name()),
+  if (QMessageBox::question(this, tr("Delete Server Configuration"),
+        tr("Are you sure you want to delete \"%1\"?").arg(config.name()),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes)
   {
     pqApplicationCore::instance()->serverConfigurations().removeConfiguration(config.name());
@@ -682,7 +658,7 @@ void pqServerConnectDialog::deleteAllServers()
 {
 
   QMessageBox::StandardButton ret =
-    QMessageBox::question(this, "Delete All", "All servers will be deleted. Are you sure?");
+    QMessageBox::question(this, tr("Delete All"), tr("All servers will be deleted. Are you sure?"));
   if (ret == QMessageBox::StandardButton::Yes)
   {
     pqApplicationCore::instance()->serverConfigurations().removeUserConfigurations();
@@ -695,7 +671,8 @@ void pqServerConnectDialog::saveServers()
   QString filters;
   filters += "ParaView server configuration file (*.pvsc)";
 
-  pqFileDialog dialog(nullptr, this, tr("Save Server Configuration File"), QString(), filters);
+  pqFileDialog dialog(
+    nullptr, this, tr("Save Server Configuration File"), QString(), filters, false);
   dialog.setObjectName("SaveServerConfigurationDialog");
   dialog.setFileMode(pqFileDialog::AnyFile);
   if (dialog.exec() == QDialog::Accepted)
@@ -712,7 +689,8 @@ void pqServerConnectDialog::loadServers()
   filters += "ParaView server configuration file (*.pvsc)";
   filters += ";;All files (*)";
 
-  pqFileDialog dialog(nullptr, this, tr("Load Server Configuration File"), QString(), filters);
+  pqFileDialog dialog(
+    nullptr, this, tr("Load Server Configuration File"), QString(), filters, false);
   dialog.setObjectName("LoadServerConfigurationDialog");
   dialog.setFileMode(pqFileDialog::ExistingFile);
   if (dialog.exec() == QDialog::Accepted)
@@ -849,7 +827,7 @@ void pqServerConnectDialog::fetchServers()
   QDialog dialog(this);
   QFormLayout* flayout = new QFormLayout();
   dialog.setLayout(flayout);
-  dialog.setWindowTitle("Fetching configurations ...");
+  dialog.setWindowTitle(tr("Fetching configurations ..."));
 
   QDialogButtonBox* buttons =
     new QDialogButtonBox(QDialogButtonBox::Abort, Qt::Horizontal, &dialog);
@@ -870,17 +848,17 @@ void pqServerConnectDialog::authenticationRequired(
   QFormLayout* flayout = new QFormLayout();
   dialog.setLayout(flayout);
 
-  dialog.setWindowTitle("Authenticate Connection");
+  dialog.setWindowTitle(tr("Authenticate Connection"));
   QLabel* label =
-    new QLabel(QString("%1 at %2").arg(authenticator->realm()).arg(reply->url().host()), &dialog);
+    new QLabel(tr("%1 at %2").arg(authenticator->realm()).arg(reply->url().host()), &dialog);
   QLineEdit* username = new QLineEdit(reply->url().userName(), &dialog);
   QLineEdit* password = new QLineEdit(reply->url().password(), &dialog);
-  QPushButton* okButton = new QPushButton("Accept");
+  QPushButton* okButton = new QPushButton(tr("Accept"));
   QObject::connect(okButton, SIGNAL(clicked()), &dialog, SLOT(accept()));
   password->setEchoMode(QLineEdit::Password);
   flayout->addRow(label);
-  flayout->addRow("Username", username);
-  flayout->addRow("Password", password);
+  flayout->addRow(tr("Username"), username);
+  flayout->addRow(tr("Password"), password);
   dialog.adjustSize();
   if (dialog.exec() == QDialog::Accepted)
   {

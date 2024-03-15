@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCubeAxesOrientedBoundingBox.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCamera.h"
 #include "vtkCubeAxesActor.h"
@@ -67,7 +55,7 @@ int TestCubeAxesIntersectionPoint(int argc, char* argv[])
   vtkMath::Normalize(baseZ);
 
   vtkNew<vtkCubeAxesActor> axes;
-  axes->SetUseOrientedBounds(1);
+  axes->SetUseOrientedBounds(true);
   axes->SetOrientedBounds(-1, 1, -1.5, 1.5, 0, 4);
   axes->SetAxisBaseForX(baseX);
   axes->SetAxisBaseForY(baseY);
@@ -79,7 +67,7 @@ int TestCubeAxesIntersectionPoint(int argc, char* argv[])
   axes->SetScreenSize(15.);
   axes->SetFlyModeToClosestTriad();
   axes->SetAxisOrigin(-1, -0.25, 1);
-  axes->SetUseAxisOrigin(1);
+  axes->SetUseAxisOrigin(true);
   axes->SetCornerOffset(.0);
 
   // Use red color for X axis

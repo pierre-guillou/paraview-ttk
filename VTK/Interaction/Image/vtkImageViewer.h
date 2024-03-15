@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageViewer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageViewer
  * @brief   Display a 2d image.
@@ -35,6 +23,7 @@
 #include "vtkImageMapper.h"  // For all the inline methods
 #include "vtkRenderWindow.h" // For all the inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInteractorStyleImage;
 
 class VTKINTERACTIONIMAGE_EXPORT vtkImageViewer : public vtkObject
@@ -185,4 +174,5 @@ private:
   void operator=(const vtkImageViewer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,29 +1,24 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkCompositeMapperHelper2_h
 #define vtkCompositeMapperHelper2_h
 
 #include "vtkOpenGLPolyDataMapper.h"
-#include "vtkRenderingOpenGL2Module.h" // for export macro
 
+#include "vtkColor.h"                  // class uses vtkColor
+#include "vtkDeprecation.h"            // For VTK_DEPRECATED_IN_9_3_0
+#include "vtkRenderingOpenGL2Module.h" // for export macro
+#include "vtk_glew.h"                  // for OpenGL enums
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyData;
 class vtkCompositePolyDataMapper2;
 
 // this class encapsulates values tied to a
 // polydata
-class vtkCompositeMapperHelperData
+
+class VTK_DEPRECATED_IN_9_3_0(
+  "Please use vtkCompositePolyDataMapper instead") vtkCompositeMapperHelperData
 {
 public:
   vtkPolyData* Data;
@@ -53,7 +48,8 @@ public:
 
 //===================================================================
 /// Helper class for vtkCompositePolyDataMapper2 that is a subclass of vtkOpenGLPolyDataMapper
-class VTKRENDERINGOPENGL2_EXPORT vtkCompositeMapperHelper2 : public vtkOpenGLPolyDataMapper
+class VTK_DEPRECATED_IN_9_3_0("Please use vtkCompositePolyDataMapper instead")
+  VTKRENDERINGOPENGL2_EXPORT vtkCompositeMapperHelper2 : public vtkOpenGLPolyDataMapper
 {
 public:
   static vtkCompositeMapperHelper2* New();
@@ -102,7 +98,7 @@ protected:
   /// handle updating shift scale based on pose changes
   void UpdateCameraShiftScale(vtkRenderer* ren, vtkActor* actor) override;
 
-  vtkCompositeMapperHelper2() { this->Parent = nullptr; };
+  vtkCompositeMapperHelper2() { this->Parent = nullptr; }
   ~vtkCompositeMapperHelper2() override;
 
   void DrawIBO(vtkRenderer* ren, vtkActor* actor, int primType, vtkOpenGLHelper& CellBO,
@@ -172,4 +168,5 @@ private:
   void operator=(const vtkCompositeMapperHelper2&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

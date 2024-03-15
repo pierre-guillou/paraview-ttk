@@ -1,4 +1,4 @@
-vtk_module_find_package(
+vtk_module_find_package(PRIVATE_IF_SHARED
   PACKAGE FFMPEG
   VERSION 2.3.3
   FORWARD_VERSION_REQ MINOR
@@ -43,3 +43,4 @@ vtk_module_link(VTK::IOFFMPEG
     FFMPEG::avutil
     FFMPEG::swscale
     ${ffmpeg_libraries})
+vtk_add_test_mangling(VTK::IOFFMPEG)

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayRename.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkArrayRename.h"
 
@@ -24,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStringArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkArrayRename);
 
 //------------------------------------------------------------------------------
@@ -154,7 +143,10 @@ int vtkArrayRename::RequestData(vtkInformation* vtkNotUsed(request),
   vtkDataObject* output = outInfo->Get(vtkDataObject::DATA_OBJECT());
   output->ShallowCopy(input);
 
-  for (int type = vtkDataObject::POINT; type < vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES; type++)
+  bool abort = false;
+
+  for (int type = vtkDataObject::POINT; type < vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES && !abort;
+       type++)
   {
     if (type == vtkDataObject::POINT_THEN_CELL)
     {
@@ -169,8 +161,15 @@ int vtkArrayRename::RequestData(vtkInformation* vtkNotUsed(request),
     }
 
     vtkFieldData::Iterator arrayIterator(inFd);
+    vtkIdType checkAbortInterval =
+      std::min(input->GetNumberOfElements(type) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType idx = arrayIterator.BeginIndex(); idx != -1; idx = arrayIterator.NextIndex())
     {
+      if (idx % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        abort = true;
+        break;
+      }
       vtkAbstractArray* array = inFd->GetAbstractArray(idx);
       vtkAbstractArray* newArray = array->NewInstance();
 
@@ -206,3 +205,4 @@ int vtkArrayRename::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

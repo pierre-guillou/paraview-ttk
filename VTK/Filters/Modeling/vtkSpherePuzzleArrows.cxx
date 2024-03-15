@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpherePuzzleArrows.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpherePuzzleArrows.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSpherePuzzleArrows);
 
 //------------------------------------------------------------------------------
@@ -74,6 +63,10 @@ int vtkSpherePuzzleArrows::RequestData(vtkInformation* vtkNotUsed(request),
 
   for (idx = 0; idx < 32; ++idx)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (this->Permutation[idx] != idx)
     {
       // this->AppendArrow(idx, this->Permutation[idx], pts, polys);
@@ -213,3 +206,4 @@ void vtkSpherePuzzleArrows::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << endl;
 }
+VTK_ABI_NAMESPACE_END

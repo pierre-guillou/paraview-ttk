@@ -1,17 +1,19 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2021, Triad National Security, LLC
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-LANL-Triad-USGov
+/**
+ *
+ * @class PIOAdaptor
+ * @brief   class for reading PIO (Parallel Input Output) data files
+ *
+ * This class reads in dump files generated from xRage, a LANL physics code.
+ * The PIO (Parallel Input Output) library is used to create the dump files.
+ *
+ * @par Thanks:
+ * Developed by Patricia Fasel at Los Alamos National Laboratory
+ */
 
-  Program:   ParaView
-  Module:    PIOAdaptor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
 #ifndef PIOAdaptor_h
 #define PIOAdaptor_h
 
@@ -20,9 +22,12 @@
 #include "vtkMultiBlockDataSet.h"
 
 #include "PIOData.h"
+#include "PIODataHDF5.h"
+#include "PIODataPIO.h"
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 
 // class to hold information about chunk/material variables
@@ -74,12 +79,13 @@ public:
 protected:
   // Collect the metadata
   int parsePIOFile(const char* DumpDescFile);
+  PIO_DATA* openPIODataFile(const char* filename);
   int collectMetaData(const char* DumpDescFile);
   void collectVariableMetaData();
   void collectMaterialVariableMetaData();
-  void addMaterialVariable(vtkStdString& pioFieldName, std::vector<std::string> matident);
-  void addMaterialVariableEntries(
-    std::string& prefix, std::string& baseVar, std::string& var, std::vector<std::string> matident);
+  void addMaterialVariable(vtkStdString& pioFieldName, std::valarray<std::string> matident);
+  void addMaterialVariableEntries(std::string& prefix, std::string& baseVar, std::string& var,
+    std::valarray<std::string> matident);
   std::string trimString(const std::string& str);
 
   // Create the unstructured grid for tracers
@@ -136,6 +142,9 @@ protected:
   // Structure to access the dump file data
   PIO_DATA* pioData;
 
+  bool knownFormat; // whether the pio format is known or not
+  bool isHDF5; // what type of internal format the pio file is, either native pio or hdf5 variant
+
   // Time series of dumps
   std::string descFileName;               // name.pio
   std::string dumpBaseName;               // base name to use for dumps
@@ -173,4 +182,5 @@ protected:
   AdaptorImpl* Impl;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkUniformHyperTreeGrid.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUniformHyperTreeGrid.h"
 
 #include "vtkDoubleArray.h"
@@ -22,6 +10,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <deque>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUniformHyperTreeGrid);
 
 // Helper macros to quickly fetch a HT at a given index or iterator
@@ -273,7 +262,7 @@ void vtkUniformHyperTreeGrid::SetZCoordinates(vtkDataArray* m_ZCoordinates)
   this->GridScale[2] =
     (m_ZCoordinates->GetTuple1(m_ZCoordinates->GetNumberOfTuples() - 1) - this->Origin[2]) /
     (m_ZCoordinates->GetNumberOfTuples() - 1);
-};
+}
 
 vtkDataArray* vtkUniformHyperTreeGrid::GetZCoordinates()
 {
@@ -461,3 +450,4 @@ unsigned long vtkUniformHyperTreeGrid::GetActualMemorySizeBytes()
 
   return size;
 }
+VTK_ABI_NAMESPACE_END

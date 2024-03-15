@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenVDBReader.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +26,7 @@
 #include <openvdb/openvdb.h>
 #include <openvdb/points/PointCount.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenVDBReader);
 
 //------------------------------------------------------------------------
@@ -343,7 +346,7 @@ struct PopulateImageDataArray
 //------------------------------------------------------------------------
 vtkSmartPointer<vtkDataArray> InstanciateVtkArrayType(openvdb::GridBase::Ptr grid)
 {
-  // instanciate a vtkDataArray of the correct type according to the OpenVDB grid type
+  // instantiate a vtkDataArray of the correct type according to the OpenVDB grid type
   if (grid->isType<openvdb::BoolGrid>())
   {
     return vtkSmartPointer<vtkCharArray>::New();
@@ -499,7 +502,7 @@ public:
   void UpdateGridInformation(struct OpenVDBGridInformation*, openvdb::GridBase::Ptr grid);
 
   // this functions makes sure that all the information about a grid are up-to-date
-  // it updates the information that can be missing, because they were not avaible in the
+  // it updates the information that can be missing, because they were not available in the
   // grid's metadata.
   // therefore, it should only be called when grid represents a grid that is FULLY loaded into
   // memory
@@ -805,6 +808,12 @@ vtkOpenVDBReader::vtkOpenVDBReader()
   openvdb::initialize();
 }
 
+//------------------------------------------------------------------------------
+vtkOpenVDBReader::~vtkOpenVDBReader()
+{
+  this->SetFileName(nullptr);
+}
+
 //------------------------------------------------------------------------
 bool vtkOpenVDBReader::LoadFile()
 {
@@ -877,7 +886,7 @@ int vtkOpenVDBReader::RequestInformation(vtkInformation* vtkNotUsed(request),
 
   if (!this->DataCorrect)
   {
-    vtkErrorMacro(<< "An error occured while reading the file.");
+    vtkErrorMacro(<< "An error occurred while reading the file.");
     return 0;
   }
 
@@ -927,7 +936,7 @@ int vtkOpenVDBReader::RequestData(vtkInformation* vtkNotUsed(request),
 {
   if (!this->DataCorrect)
   {
-    vtkErrorMacro(<< "An error occured while reading the file.");
+    vtkErrorMacro(<< "An error occurred while reading the file.");
     return 0;
   }
 
@@ -1043,7 +1052,7 @@ int vtkOpenVDBReader::RequestData(vtkInformation* vtkNotUsed(request),
     }
     if (!dataInfo.ComputeDatasetInformation())
     {
-      vtkErrorMacro(<< "Couln't compute the datasets information.");
+      vtkErrorMacro(<< "Couldn't compute the datasets information.");
       return 0;
     }
   }
@@ -1068,11 +1077,11 @@ int vtkOpenVDBReader::RequestData(vtkInformation* vtkNotUsed(request),
     // inside each vtkResDataLeafInformation, there is one array per requested grid
     for (const auto& gridInfo : imgDataInfo.GridsInfo)
     {
-      // instanciate the correct data array type (according to the OpenVDB grid type)
+      // instantiate the correct data array type (according to the OpenVDB grid type)
       vtkSmartPointer<vtkDataArray> dataArray = ::InstanciateVtkArrayType(gridInfo->Grid);
       if (!dataArray)
       {
-        vtkErrorMacro(<< "Couldn't instanciate vtDataArray, unknown array type");
+        vtkErrorMacro(<< "Couldn't instantiate vtDataArray, unknown array type");
         return 0;
       }
       dataArray->SetName(gridInfo->Name.c_str());
@@ -1246,3 +1255,4 @@ void vtkOpenVDBReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MergePointSets: " << this->MergePointSets << endl;
   this->GridSelection->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

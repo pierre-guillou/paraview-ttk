@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqParaViewBehaviors.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqParaViewBehaviors.h"
 
 #include "pqAlwaysConnectedBehavior.h"
@@ -43,7 +15,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqCustomShortcutBehavior.h"
 #include "pqDataTimeStepBehavior.h"
 #include "pqDefaultViewBehavior.h"
-#include "pqFileDialogFavoriteModel.h"
+#include "pqFileDialogLocationModel.h"
 #include "pqInterfaceTracker.h"
 #include "pqLiveSourceBehavior.h"
 #include "pqLockPanelsBehavior.h"
@@ -162,7 +134,9 @@ PQ_BEHAVIOR_DEFINE_FLAG(LiveSourceBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(CustomShortcutBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(MainWindowEventBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(UsageLoggingBehavior, false);
+// PARAVIEW_DEPRECATED_IN_5_12_0
 PQ_BEHAVIOR_DEFINE_FLAG(AddExamplesInFavoritesBehavior, true);
+PQ_BEHAVIOR_DEFINE_FLAG(AddExamplesInFileDialogBehavior, true);
 #undef PQ_BEHAVIOR_DEFINE_FLAG
 
 #define PQ_IS_BEHAVIOR_ENABLED(_name) enable##_name()
@@ -192,7 +166,11 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
     pgm->addInterface(new pqStandardRecentlyUsedResourceLoaderImplementation(pgm));
   }
 
-  pqFileDialogFavoriteModel::AddExamplesInFavorites =
+  pqFileDialogLocationModel::AddExamplesInLocations =
+    PQ_IS_BEHAVIOR_ENABLED(AddExamplesInFileDialogBehavior);
+
+  // PARAVIEW_DEPRECATED_IN_5_12_0
+  pqFileDialogLocationModel::AddExamplesInLocations &=
     PQ_IS_BEHAVIOR_ENABLED(AddExamplesInFavoritesBehavior);
 
   // Define application behaviors.
@@ -312,7 +290,8 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
     QShortcut* ctrlSpace = new QShortcut(Qt::CTRL + Qt::Key_Space, mainWindow);
     QObject::connect(
       ctrlSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
-    QShortcut* ctrlShiftSpace = new QShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_Space, mainWindow);
+    QShortcut* ctrlShiftSpace =
+      new QShortcut(QKeySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_Space), mainWindow);
     QObject::connect(
       ctrlShiftSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
     QShortcut* altSpace = new QShortcut(Qt::ALT + Qt::Key_Space, mainWindow);

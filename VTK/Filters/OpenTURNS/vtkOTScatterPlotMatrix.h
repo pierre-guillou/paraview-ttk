@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOTScatterPlotMatrix.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkOTScatterPlotMatrix
@@ -32,6 +20,7 @@
 #include "vtkScatterPlotMatrix.h"
 #include "vtkSmartPointer.h" // For SmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOTDensityMap;
 class vtkScalarsToColors;
 
@@ -79,8 +68,8 @@ protected:
    * with provided row and column, computed with OpenTURNS
    * if DensityMapVisibility is true and we are not animating
    */
-  virtual void AddSupplementaryPlot(vtkChart* chart, int plotType, vtkStdString row,
-    vtkStdString column, int plotCorner = 0) override;
+  void AddSupplementaryPlot(vtkChart* chart, int plotType, vtkStdString row, vtkStdString column,
+    int plotCorner = 0) override;
 
 private:
   vtkOTScatterPlotMatrix(const vtkOTScatterPlotMatrix&) = delete;
@@ -95,4 +84,5 @@ private:
   vtkSmartPointer<vtkScalarsToColors> TransferFunction;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkOTScatterPlotMatrix_h

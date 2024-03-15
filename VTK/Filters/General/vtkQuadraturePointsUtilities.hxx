@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraturePointsUtilities.hxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkQuadraturePointsUtilities_hxx
 #define vtkQuadraturePointsUtilities_hxx
@@ -26,6 +14,7 @@
 
 namespace vtkQuadraturePointsUtilities
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // Description:
 // For all cells in the input "usg", for a specific array
@@ -40,25 +29,27 @@ struct InterpolateWorker
   // Version without offsets:
   template <typename ValueArrayT>
   void operator()(ValueArrayT* valueArray, vtkUnstructuredGrid* usg, const vtkIdType nCellsUsg,
-    std::vector<vtkQuadratureSchemeDefinition*>& dict, vtkDoubleArray* interpolated)
+    std::vector<vtkQuadratureSchemeDefinition*>& dict, vtkDoubleArray* interpolated,
+    vtkAlgorithm* self)
   {
     this->operator()(valueArray, static_cast<vtkAOSDataArrayTemplate<vtkIdType>*>(nullptr), usg,
-      nCellsUsg, dict, interpolated);
+      nCellsUsg, dict, interpolated, self);
   }
 
   // Version with offsets:
   template <typename ValueArrayT, typename IndexArrayT>
   void operator()(ValueArrayT* valueArray, IndexArrayT* indexArray, vtkUnstructuredGrid* usg,
     const vtkIdType nCellsUsg, std::vector<vtkQuadratureSchemeDefinition*>& dict,
-    vtkDoubleArray* interpolated)
+    vtkDoubleArray* interpolated, vtkAlgorithm* self)
   {
     using IndexType = vtk::GetAPIType<IndexArrayT>;
     const vtk::ComponentIdType nCompsV = valueArray->GetNumberOfComponents();
     const auto valueTuples = vtk::DataArrayTupleRange(valueArray);
+    bool abort = false;
 
     // Walk cells.
     vtkIdType currentIndex = 0;
-    for (vtkIdType cellId = 0; cellId < nCellsUsg; ++cellId)
+    for (vtkIdType cellId = 0; cellId < nCellsUsg && !abort; ++cellId)
     {
       if (indexArray)
       {
@@ -84,6 +75,11 @@ struct InterpolateWorker
       // Walk quadrature points.
       for (int qPtId = 0; qPtId < nQPts; ++qPtId)
       {
+        if (self->CheckAbort())
+        {
+          abort = true;
+          break;
+        }
         // Grab the result and initialize.
         double* r = interpolated->WritePointer(currentIndex, nCompsV);
         for (int q = 0; q < nCompsV; ++q)
@@ -119,6 +115,7 @@ void ApplyShapeFunction(double* r, double N_j, T* A, int nComps)
   }
 }
 
-};
+VTK_ABI_NAMESPACE_END
+}
 
 #endif

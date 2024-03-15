@@ -1,50 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataToImageStencil.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*=========================================================================
-
-Copyright (c) 2008 Atamai, Inc.
-
-Use, modification and redistribution of the software, in source or
-binary forms, are permitted provided that the following terms and
-conditions are met:
-
-1) Redistribution of the source code, in verbatim or modified
-   form, must retain the above copyright notice, this license,
-   the following disclaimer, and any notices that refer to this
-   license and/or the following disclaimer.
-
-2) Redistribution in binary form must include the above copyright
-   notice, a copy of this license and the following disclaimer
-   in the documentation or with other materials provided with the
-   distribution.
-
-3) Modified copies of the source code must be clearly marked as such,
-   and must not be misrepresented as verbatim copies of the source code.
-
-THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES PROVIDE THE SOFTWARE "AS IS"
-WITHOUT EXPRESSED OR IMPLIED WARRANTY INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE.  IN NO EVENT SHALL ANY COPYRIGHT HOLDER OR OTHER PARTY WHO MAY
-MODIFY AND/OR REDISTRIBUTE THE SOFTWARE UNDER THE TERMS OF THIS LICENSE
-BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, LOSS OF DATA OR DATA BECOMING INACCURATE
-OR LOSS OF PROFIT OR BUSINESS INTERRUPTION) ARISING IN ANY WAY OUT OF
-THE USE OR INABILITY TO USE THE SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGES.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2008 Atamai, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPolyDataToImageStencil.h"
 #include "vtkImageStencilData.h"
 #include "vtkObjectFactory.h"
@@ -63,6 +19,9 @@ POSSIBILITY OF SUCH DAMAGES.
 #include "vtkSignedCharArray.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+#include "vtkSMPThreadLocalObject.h"
+#include "vtkSMPTools.h"
+
 #include <algorithm>
 #include <map>
 #include <utility>
@@ -70,6 +29,7 @@ POSSIBILITY OF SUCH DAMAGES.
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyDataToImageStencil);
 
 //------------------------------------------------------------------------------
@@ -77,6 +37,8 @@ vtkPolyDataToImageStencil::vtkPolyDataToImageStencil()
 {
   // The default tolerance is 0.5*2^(-16)
   this->Tolerance = 7.62939453125e-06;
+  // Multi-threading is enabled by default
+  this->EnableSMP = true;
 }
 
 //------------------------------------------------------------------------------
@@ -106,6 +68,7 @@ void vtkPolyDataToImageStencil::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Input: " << this->GetInput() << "\n";
   os << indent << "Tolerance: " << this->Tolerance << "\n";
+  os << indent << "EnableSMP: " << (this->EnableSMP ? "On\n" : "Off\n");
 }
 
 //------------------------------------------------------------------------------
@@ -212,10 +175,8 @@ bool EdgeLocator::InsertUniqueEdge(vtkIdType i0, vtkIdType i1, vtkIdType& edgeId
     return false;
   }
 
-  int i = 1;
   while (node->next != nullptr)
   {
-    i++;
     node = node->next;
 
     if (node->ptId == i1)
@@ -278,9 +239,40 @@ bool EdgeLocator::InterpolateEdge(vtkPoints* points, vtkPoints* outPoints, vtkId
 } // end anonymous namespace
 
 //------------------------------------------------------------------------------
+class vtkPolyDataToImageStencil::ThreadWorker
+{
+public:
+  ThreadWorker(const int extent[6], vtkPolyDataToImageStencil* algorithm, vtkImageStencilData* data)
+    : XMin(extent[0])
+    , XMax(extent[1])
+    , YMin(extent[2])
+    , YMax(extent[3])
+    , ZMin(extent[4])
+    // ZMax is not needed by the worker
+    , Algorithm(algorithm)
+    , Data(data)
+  {
+  }
+  ~ThreadWorker() = default;
+
+  void operator()(int begin, int end)
+  {
+    int subExtent[6] = { XMin, XMax, YMin, YMax, begin, end - 1 };
+    int piece = subExtent[4] - ZMin;
+    this->Algorithm->ThreadedExecute(this->Data, this->Storage.Local(), subExtent, piece);
+  }
+
+protected:
+  int XMin, XMax, YMin, YMax, ZMin;
+  vtkPolyDataToImageStencil* Algorithm;
+  vtkImageStencilData* Data;
+  vtkSMPThreadLocalObject<vtkIdList> Storage;
+};
+
+//------------------------------------------------------------------------------
 // Select contours within slice z
 void vtkPolyDataToImageStencil::PolyDataSelector(
-  vtkPolyData* input, vtkPolyData* output, double z, double thickness)
+  vtkPolyData* input, vtkPolyData* output, vtkIdList* storage, double z, double thickness)
 {
   vtkPoints* points = input->GetPoints();
   vtkCellArray* lines = input->GetLines();
@@ -302,7 +294,7 @@ void vtkPolyDataToImageStencil::PolyDataSelector(
     // check if all points in cell are within the slice
     vtkIdType npts;
     const vtkIdType* ptIds;
-    lines->GetCellAtId(cellId, npts, ptIds);
+    lines->GetCellAtId(cellId, npts, ptIds, storage);
     vtkIdType i;
     for (i = 0; i < npts; i++)
     {
@@ -345,7 +337,8 @@ void vtkPolyDataToImageStencil::PolyDataSelector(
 }
 
 //------------------------------------------------------------------------------
-void vtkPolyDataToImageStencil::PolyDataCutter(vtkPolyData* input, vtkPolyData* output, double z)
+void vtkPolyDataToImageStencil::PolyDataCutter(
+  vtkPolyData* input, vtkPolyData* output, vtkIdList* storage, double z)
 {
   vtkPoints* points = input->GetPoints();
   vtkCellArray* inputPolys = input->GetPolys();
@@ -377,7 +370,7 @@ void vtkPolyDataToImageStencil::PolyDataCutter(vtkPolyData* input, vtkPolyData* 
 
     vtkIdType npts;
     const vtkIdType* ptIds;
-    cellArray->GetCellAtId(realCellId++, npts, ptIds);
+    cellArray->GetCellAtId(realCellId++, npts, ptIds, storage);
 
     vtkIdType numSubCells = 1;
     if (cellArray == inputStrips)
@@ -443,7 +436,7 @@ void vtkPolyDataToImageStencil::PolyDataCutter(vtkPolyData* input, vtkPolyData* 
 
 //------------------------------------------------------------------------------
 void vtkPolyDataToImageStencil::ThreadedExecute(
-  vtkImageStencilData* data, int extent[6], int threadId)
+  vtkImageStencilData* data, vtkIdList* storage, int extent[6], int threadId)
 {
   // Description of algorithm:
   // 1) cut the polydata at each z slice to create polylines
@@ -506,12 +499,12 @@ void vtkPolyDataToImageStencil::ThreadedExecute(
     // Step 1: Cut the data into slices
     if (input->GetNumberOfPolys() > 0 || input->GetNumberOfStrips() > 0)
     {
-      this->PolyDataCutter(input, slice, z);
+      this->PolyDataCutter(input, slice, storage, z);
     }
     else
     {
       // if no polys, select polylines instead
-      this->PolyDataSelector(input, slice, z, spacing[2]);
+      this->PolyDataSelector(input, slice, storage, z, spacing[2]);
     }
 
     if (!slice->GetNumberOfLines())
@@ -545,7 +538,7 @@ void vtkPolyDataToImageStencil::ThreadedExecute(
     vtkIdType numCells = lines->GetNumberOfCells();
     for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
     {
-      lines->GetCellAtId(cellId, npts, pointIds);
+      lines->GetCellAtId(cellId, npts, pointIds, storage);
       if (npts > 0)
       {
         pointNeighborCounts[pointIds[0]] += 1;
@@ -722,7 +715,7 @@ void vtkPolyDataToImageStencil::ThreadedExecute(
     numCells = lines->GetNumberOfCells();
     for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
     {
-      lines->GetCellAtId(cellId, npts, pointIds);
+      lines->GetCellAtId(cellId, npts, pointIds, storage);
       if (npts > 0)
       {
         vtkIdType pointId0 = pointIds[0];
@@ -771,9 +764,17 @@ int vtkPolyDataToImageStencil::RequestData(
 
   int extent[6];
   data->GetExtent(extent);
-  // ThreadedExecute is only called from a single thread for
-  // now, but it could as easily be called from ThreadedRequestData
-  this->ThreadedExecute(data, extent, 0);
+
+  if (this->EnableSMP)
+  {
+    ThreadWorker worker(extent, this, data);
+    vtkSMPTools::For(extent[4], extent[5] + 1, worker);
+  }
+  else
+  {
+    vtkNew<vtkIdList> storage;
+    this->ThreadedExecute(data, storage, extent, 0);
+  }
 
   return 1;
 }
@@ -784,3 +785,4 @@ int vtkPolyDataToImageStencil::FillInputPortInformation(int, vtkInformation* inf
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPolyData");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

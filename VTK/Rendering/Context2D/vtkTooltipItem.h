@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTooltipItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTooltipItem
@@ -32,6 +20,7 @@
 #include "vtkStdString.h"                // For vtkStdString ivars
 #include "vtkVector.h"                   // Needed for vtkVector2f
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPen;
 class vtkBrush;
 class vtkTextProperty;
@@ -119,4 +108,5 @@ private:
   void operator=(const vtkTooltipItem&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkTooltipItem_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVEnSightMasterServerReader.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVEnSightMasterServerReader
  *
@@ -35,7 +23,7 @@ public:
   vtkTypeMacro(vtkPVEnSightMasterServerReader, vtkGenericEnSightReader);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * This class uses MPI communication mechanisms to verify the
    * integrity of all case files in the master file.  The get method
@@ -47,20 +35,20 @@ public:
    */
   virtual vtkMultiProcessController* GetController();
   virtual void SetController(vtkMultiProcessController* controller);
-  //@}
+  ///@}
 
   /**
    * Return whether we can read the file given.
    */
   int CanReadFile(const char*) override;
 
-  //@{
+  ///@{
   /**
    * Get the number of pieces in the file.  Valid after
    * UpdateInformation.
    */
   vtkGetMacro(NumberOfPieces, int);
-  //@}
+  ///@}
 
 protected:
   vtkPVEnSightMasterServerReader();

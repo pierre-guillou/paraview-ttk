@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTesting.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTesting.h"
 
 #include "vtkDataArray.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
+#include "vtkDummyController.h"
 #include "vtkFloatArray.h"
 #include "vtkImageClip.h"
 #include "vtkImageData.h"
@@ -25,6 +14,7 @@
 #include "vtkImageShiftScale.h"
 #include "vtkInformation.h"
 #include "vtkInteractorEventRecorder.h"
+#include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPNGReader.h"
@@ -40,6 +30,7 @@
 #include <sstream>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTesting);
 vtkCxxSetObjectMacro(vtkTesting, RenderWindow, vtkRenderWindow);
 
@@ -131,6 +122,7 @@ vtkTesting::vtkTesting()
   this->TempDirectory = nullptr;
   this->BorderOffset = 0;
   this->Verbose = 0;
+  this->Controller = vtkSmartPointer<vtkDummyController>::New();
 
   // on construction we start the timer
   this->StartCPUTime = vtkTimerLog::GetCPUTime();
@@ -144,6 +136,22 @@ vtkTesting::~vtkTesting()
   this->SetValidImageFileName(nullptr);
   this->SetDataRoot(nullptr);
   this->SetTempDirectory(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkTesting::GetController() const
+{
+  return this->Controller;
+}
+
+//------------------------------------------------------------------------------
+void vtkTesting::SetController(vtkMultiProcessController* controller)
+{
+  vtkSetSmartPointerBodyMacro(Controller, vtkMultiProcessController, controller);
+  if (!this->Controller)
+  {
+    this->Controller = vtkSmartPointer<vtkDummyController>::New();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -246,6 +254,33 @@ const char* vtkTesting::GetValidImageFileName()
 
   return this->ValidImageFileName;
 }
+
+//------------------------------------------------------------------------------
+bool vtkTesting::GetMesaVersion(vtkRenderWindow* renderWindow, int version[3])
+{
+  const std::string glCaps = renderWindow->ReportCapabilities();
+  bool mesaInUse = glCaps.find("OpenGL vendor string:  Mesa/X.org") != std::string::npos;
+  if (!mesaInUse)
+  {
+    return false;
+  }
+  const char* versionPtr =
+    vtksys::SystemTools::FindLastString(glCaps.c_str(), "OpenGL version string");
+  const auto lines = vtksys::SystemTools::SplitString(std::string(versionPtr), '\n');
+  const auto words = vtksys::SystemTools::SplitString(lines[0], ' ');
+  auto versionIter = std::find(words.begin(), words.end(), "Mesa");
+  if (versionIter != words.end())
+  {
+    const auto versionString = (++versionIter)->c_str();
+    const auto versionNumbers = vtksys::SystemTools::SplitString(versionString, '.');
+    for (int i = 0; i < 3; ++i)
+    {
+      version[i] = std::stoi(versionNumbers[i]);
+    }
+  }
+  return true;
+}
+
 //------------------------------------------------------------------------------
 int vtkTesting::IsInteractiveModeSpecified()
 {
@@ -396,16 +431,19 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
   rtW2if->Update();
   this->RenderWindow->SetSwapBuffers(swapBuffers); // restore swap state.
   int res = this->RegressionTest(rtW2if, thresh, out1);
-  if (res == FAILED)
+  int recvRes;
+  this->Controller->AllReduce(&res, &recvRes, 1, vtkCommunicator::MIN_OP);
+  if (recvRes == FAILED)
   {
     std::ostringstream out2;
     // tell it to read front buffer
     rtW2if->ReadFrontBufferOn();
     rtW2if->Update();
     res = this->RegressionTest(rtW2if, thresh, out2);
+    this->Controller->AllReduce(&res, &recvRes, 1, vtkCommunicator::MAX_OP);
     // If both tests fail, rerun the backbuffer tests to recreate the test
     // image. Otherwise an incorrect image will be uploaded to CDash.
-    if (res == PASSED)
+    if (recvRes == PASSED)
     {
       os << out2.str();
     }
@@ -426,7 +464,7 @@ int vtkTesting::RegressionTest(double thresh, ostream& os)
   {
     os << out1.str();
   }
-  return res;
+  return this->Controller->GetLocalProcessId() == 0 ? res : NOT_RUN;
 }
 //------------------------------------------------------------------------------
 int vtkTesting::RegressionTest(const string& pngFileName, double thresh)
@@ -1001,3 +1039,4 @@ void vtkTesting::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BorderOffset: " << this->GetBorderOffset() << endl;
   os << indent << "Verbose: " << this->GetVerbose() << endl;
 }
+VTK_ABI_NAMESPACE_END

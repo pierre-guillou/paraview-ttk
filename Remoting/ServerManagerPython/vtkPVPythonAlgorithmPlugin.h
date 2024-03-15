@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPythonAlgorithmPlugin.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVPythonAlgorithmPlugin
  * @brief packages a Python module into a ParaView plugin.
@@ -42,7 +30,7 @@ public:
   vtkPVPythonAlgorithmPlugin(const char* pythonmodule);
   ~vtkPVPythonAlgorithmPlugin() override;
 
-  //@{
+  ///@{
   /// Implementation of the vtkPVPlugin interface.
   const char* GetPluginName() override;
   const char* GetPluginVersionString() override;
@@ -51,9 +39,9 @@ public:
   const char* GetRequiredPlugins() override { return ""; }
   const char* GetDescription() override { return ""; }
   const char* GetEULA() override { return nullptr; }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Implementation of the vtkPVServerManagerPluginInterface.
   void GetXMLs(std::vector<std::string>& xmls) override;
   vtkClientServerInterpreterInitializer::InterpreterInitializationCallback
@@ -61,7 +49,7 @@ public:
   {
     return nullptr;
   }
-  //@}
+  ///@}
 
 private:
   vtkPVPythonAlgorithmPlugin(const vtkPVPythonAlgorithmPlugin&) = delete;

@@ -1,19 +1,5 @@
-/*=========================================================================
-
-  Program:   DICOMParser
-  Module:    DICOMParser.h
-  Language:  C++
-
-  Copyright (c) 2003 Matt Turek
-  All rights reserved.
-  See Copyright.txt for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) 2003 Matt Turek
+// SPDX-License-Identifier: BSD-4-Clause
 #ifndef __DICOMParser_h_
 #define __DICOMParser_h_
 
@@ -35,6 +21,7 @@
 #include "DICOMParserMap.h"
 #include "DICOMTypes.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class DICOMCallback;
 template <class T>
 class DICOMMemberCallback;
@@ -256,4 +243,5 @@ private:
 #pragma warning(pop)
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif // __DICOMParser_h_

@@ -12,7 +12,7 @@
 #define vtk_m_filter_entity_extraction_ExtractStructured_h
 
 #include <vtkm/RangeId3.h>
-#include <vtkm/filter/NewFilterField.h>
+#include <vtkm/filter/FilterField.h>
 #include <vtkm/filter/entity_extraction/vtkm_filter_entity_extraction_export.h>
 
 namespace vtkm
@@ -37,7 +37,7 @@ namespace entity_extraction
 /// for image processing, subsampling large volumes to reduce data size, or
 /// extracting regions of a volume with interesting data.
 ///
-class VTKM_FILTER_ENTITY_EXTRACTION_EXPORT ExtractStructured : public vtkm::filter::NewFilterField
+class VTKM_FILTER_ENTITY_EXTRACTION_EXPORT ExtractStructured : public vtkm::filter::FilterField
 {
 public:
   // Set the bounding box for the volume of interest
@@ -78,6 +78,14 @@ public:
   VTKM_CONT
   void SetIncludeBoundary(bool value) { this->IncludeBoundary = value; }
 
+  /// Set if VOI is specified in global (rather than in local) point indices
+  /// (NOTE: Depracted this method since this does not seem to work as
+  /// expected and there are no tests for it. Furthermore, neither VTK-m nor
+  /// VTK-h/Ascent seem to use this method. If your are using this method
+  /// somewhere else and think it should remain, please open a merge request to
+  /// "de-deprecate" it and add a test and documentation of the expected
+  /// behavior.)
+  VTKM_DEPRECATED(2.1)
   VTKM_CONT
   void SetIncludeOffset(bool value) { this->IncludeOffset = value; }
 
@@ -92,12 +100,6 @@ private:
 };
 
 } // namespace entity_extraction
-class VTKM_DEPRECATED(1.8,
-                      "Use vtkm::filter::entity_extraction::ExtractStructured.") ExtractStructured
-  : public vtkm::filter::entity_extraction::ExtractStructured
-{
-  using entity_extraction::ExtractStructured::ExtractStructured;
-};
 } // namespace filter
 } // namespace vtkm
 

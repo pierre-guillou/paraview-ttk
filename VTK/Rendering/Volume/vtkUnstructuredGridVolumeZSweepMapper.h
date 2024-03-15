@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridVolumeZSweepMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUnstructuredGridVolumeZSweepMapper
  * @brief   Unstructured grid volume mapper based the ZSweep Algorithm
@@ -38,6 +26,7 @@
 #include "vtkRenderingVolumeModule.h" // For export macro
 #include "vtkUnstructuredGridVolumeMapper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 class vtkVolume;
 class vtkRayCastImageDisplayHelper;
@@ -51,10 +40,12 @@ class vtkVolumeProperty;
 class vtkDoubleArray;
 class vtkUnstructuredGridVolumeRayIntegrator;
 class vtkRenderWindow;
+VTK_ABI_NAMESPACE_END
 
 // Internal classes
 namespace vtkUnstructuredGridVolumeZSweepMapperNamespace
 {
+VTK_ABI_NAMESPACE_BEGIN
 class vtkScreenEdge;
 class vtkSpan;
 class vtkPixelListFrame;
@@ -64,8 +55,10 @@ class vtkSimpleScreenEdge;
 class vtkDoubleScreenEdge;
 class vtkVertexEntry;
 class vtkPixelListEntryMemory;
-};
+VTK_ABI_NAMESPACE_END
+}
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGVOLUME_EXPORT vtkUnstructuredGridVolumeZSweepMapper
   : public vtkUnstructuredGridVolumeMapper
 {
@@ -365,4 +358,5 @@ private:
   void operator=(const vtkUnstructuredGridVolumeZSweepMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

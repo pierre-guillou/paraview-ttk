@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUniformGridAMRDataIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformGridAMRDataIterator
  * @brief   subclass of vtkCompositeDataIterator
@@ -26,6 +14,7 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkSmartPointer.h" //for member variable Information
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformation;
 class vtkAMRInformation;
 class vtkAMRDataInternals;
@@ -47,7 +36,7 @@ public:
    */
   vtkInformation* GetCurrentMetaData() override;
 
-  int HasCurrentMetaData() override { return 1; }
+  vtkTypeBool HasCurrentMetaData() override { return 1; }
 
   /**
    * Returns the current item. Valid only when IsDoneWithTraversal() returns 0.
@@ -107,4 +96,5 @@ private:
   void GetCurrentIndexPair(unsigned int& level, unsigned int& id);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

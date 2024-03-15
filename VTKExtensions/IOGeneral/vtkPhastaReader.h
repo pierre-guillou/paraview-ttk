@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPhastaReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPhastaReader
  * @brief   Reader for RPI's PHASTA software
@@ -42,30 +31,30 @@ public:
   vtkTypeMacro(vtkPhastaReader, vtkUnstructuredGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Specify file name of Phasta geometry file to read.
    */
   vtkSetStringMacro(GeometryFileName);
   vtkGetStringMacro(GeometryFileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify file name of Phasta field file to read.
    */
   vtkSetStringMacro(FieldFileName);
   vtkGetStringMacro(FieldFileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Clear/Set info. in FieldInfoMap for object of vtkPhastaReaderInternal
    */
   void ClearFieldInfo();
   void SetFieldInfo(const char* paraviewFieldTag, const char* phastaFieldTag, int index,
     int numOfComps, int dataDependency, const char* dataType);
-  //@}
+  ///@}
 
   void SetCachedGrid(vtkUnstructuredGrid*);
   vtkGetObjectMacro(CachedGrid, vtkUnstructuredGrid);

@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExodusIIWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExodusIIWriter.h"
 #include "vtkArrayIteratorIncludes.h"
 #include "vtkCellArray.h"
@@ -50,6 +33,7 @@
 #include <map>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkExodusIIWriter);
 vtkCxxSetObjectMacro(vtkExodusIIWriter, ModelMetadata, vtkModelMetadata);
 
@@ -1486,10 +1470,6 @@ int vtkExodusIIWriter::CreateSetsMetadata(vtkModelMetadata* em)
       }
       else if (isASideSet)
       {
-        int hexSides = 0;
-        int wedgeSides = 0;
-        int otherSides = 0;
-        int badSides = 0;
         numSideSets++;
         const char* id_str = name != nullptr ? strstr(name, "ID:") : nullptr;
         if (id_str != nullptr)
@@ -1520,7 +1500,6 @@ int vtkExodusIIWriter::CreateSetsMetadata(vtkModelMetadata* em)
             {
               case -1:
               {
-                badSides++;
                 break;
               }
               case VTK_WEDGE:
@@ -1528,20 +1507,17 @@ int vtkExodusIIWriter::CreateSetsMetadata(vtkModelMetadata* em)
                 int wedgeMapping[5] = { 3, 4, 0, 1, 2 };
                 int side = wedgeMapping[sourceSide->GetValue(c)] + 1;
                 sideSetSideList->InsertNextTuple1(side);
-                wedgeSides++;
                 break;
               }
               case VTK_HEXAHEDRON:
               {
                 int hexMapping[6] = { 3, 1, 0, 2, 4, 5 };
                 sideSetSideList->InsertNextTuple1(hexMapping[sourceSide->GetValue(c)] + 1);
-                hexSides++;
                 break;
               }
               default:
               {
                 sideSetSideList->InsertNextTuple1(sourceSide->GetValue(c) + 1);
-                otherSides++;
                 break;
               }
             }
@@ -3293,3 +3269,4 @@ vtkIntArray* vtkExodusIIWriter::GetBlockIdArray(const char* name, vtkUnstructure
   }
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

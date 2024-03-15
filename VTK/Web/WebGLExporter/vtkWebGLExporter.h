@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebGLExporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWebGLExporter
  * @brief   vtkWebGLExporter export the data of the scene to be used in the WebGL.
@@ -20,6 +8,10 @@
 #ifndef vtkWebGLExporter_h
 #define vtkWebGLExporter_h
 
+#include "vtkObject.h"
+#include "vtkWebGLExporterModule.h" // needed for export macro
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkActor2D;
 class vtkCellData;
@@ -32,11 +24,11 @@ class vtkTriangleFilter;
 class vtkWebGLObject;
 class vtkWebGLPolyData;
 
-#include "vtkObject.h"
-#include "vtkWebGLExporterModule.h" // needed for export macro
+VTK_ABI_NAMESPACE_END
 
 #include <string> // needed for internal structure
 
+VTK_ABI_NAMESPACE_BEGIN
 typedef enum
 {
   VTK_ONLYCAMERA = 0,
@@ -105,4 +97,5 @@ private:
   vtkInternal* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

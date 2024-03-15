@@ -1,23 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkUTF8TextCodec.cxx
-
-Copyright (c)
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2010 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2010 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkUTF8TextCodec.h"
 
 #include "vtkObjectFactory.h"
@@ -25,6 +8,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <vtk_utf8.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUTF8TextCodec);
 
 void vtkUTF8TextCodec::ToUnicode(istream& InputStream, vtkTextCodec::OutputIterator& Output)
@@ -87,3 +71,4 @@ void vtkUTF8TextCodec::PrintSelf(ostream& os, vtkIndent indent)
   indent = indent.GetNextIndent();
   this->Superclass::PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

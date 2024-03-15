@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqLinkViewWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqLinkViewWidget.h"
 
@@ -55,27 +27,41 @@ pqLinkViewWidget::pqLinkViewWidget(pqRenderView* firstLink)
   QVBoxLayout* l = new QVBoxLayout(this);
   QLabel* label = new QLabel(this);
   l->addWidget(label);
-  label->setText("Click on another view to link with.");
+  label->setText(tr("Click on another view to link with."));
   label->setWordWrap(true);
   QHBoxLayout* hl = new QHBoxLayout;
   l->addLayout(hl);
-  label = new QLabel("Name:", this);
+  label = new QLabel(tr("Name:"), this);
   hl->addWidget(label);
   this->LineEdit = new QLineEdit(this);
   hl->addWidget(this->LineEdit);
-  this->InteractiveViewLinkCheckBox = new QCheckBox("Interactive View Link", this);
+  this->InteractiveViewLinkCheckBox = new QCheckBox(tr("Interactive View Link"), this);
   l->addWidget(this->InteractiveViewLinkCheckBox);
+  this->CameraWidgetViewLinkCheckBox = new QCheckBox(tr("Camera Widget View Link"), this);
+  l->addWidget(this->CameraWidgetViewLinkCheckBox);
+
+  QObject::connect(
+    this->InteractiveViewLinkCheckBox, &QCheckBox::stateChanged, this,
+    [this](
+      int state) { this->CameraWidgetViewLinkCheckBox->setEnabled(!static_cast<bool>(state)); },
+    Qt::QueuedConnection);
+
+  QObject::connect(
+    this->CameraWidgetViewLinkCheckBox, &QCheckBox::stateChanged, this,
+    [this](int state) { this->InteractiveViewLinkCheckBox->setEnabled(!static_cast<bool>(state)); },
+    Qt::QueuedConnection);
+
   QPushButton* button = new QPushButton(this);
   l->addWidget(button);
-  button->setText("Cancel");
+  button->setText(tr("Cancel"));
   QObject::connect(button, SIGNAL(clicked(bool)), this, SLOT(close()));
 
   int index = 0;
   pqLinksModel* model = pqApplicationCore::instance()->getLinksModel();
-  QString name = QString("CameraLink%1").arg(index);
+  QString name = tr("CameraLink%1").arg(index);
   while (model->getLink(name))
   {
-    name = QString("CameraLink%1").arg(++index);
+    name = tr("CameraLink%1").arg(++index);
   }
   this->LineEdit->setText(name);
   this->LineEdit->selectAll();
@@ -138,8 +124,15 @@ bool pqLinkViewWidget::eventFilter(QObject* watched, QEvent* e)
         model->removeLink(name);
       }
 
-      model->addCameraLink(name, this->RenderView->getProxy(), otherView->getProxy(),
-        this->InteractiveViewLinkCheckBox->isChecked());
+      if (this->CameraWidgetViewLinkCheckBox->isChecked())
+      {
+        model->addCameraWidgetLink(name, this->RenderView->getProxy(), otherView->getProxy());
+      }
+      else
+      {
+        model->addCameraLink(name, this->RenderView->getProxy(), otherView->getProxy(),
+          this->InteractiveViewLinkCheckBox->isChecked());
+      }
 
       this->close();
     }

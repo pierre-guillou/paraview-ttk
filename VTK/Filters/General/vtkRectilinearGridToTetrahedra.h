@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearGridToTetrahedra.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRectilinearGridToTetrahedra
  * @brief   create a Tetrahedral mesh from a RectilinearGrid
@@ -54,6 +42,7 @@
 
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRectilinearGrid;
 class vtkSignedCharArray;
 class vtkIdList;
@@ -101,12 +90,12 @@ public:
    * If Extent[i]/Spacing[i] is within tol of an integer, then
    * assume the programmer meant an integer for direction i.
    */
-  void SetInput(const double Extent[3], const double Spacing[3], const double tol = 0.001);
+  void SetInput(const double Extent[3], const double Spacing[3], double tol = 0.001);
   /**
    * This version of the function for the wrappers
    */
-  void SetInput(const double ExtentX, const double ExtentY, const double ExtentZ,
-    const double SpacingX, const double SpacingY, const double SpacingZ, const double tol = 0.001);
+  void SetInput(double ExtentX, double ExtentY, double ExtentZ, double SpacingX, double SpacingY,
+    double SpacingZ, double tol = 0.001);
 
 protected:
   vtkRectilinearGridToTetrahedra();
@@ -135,7 +124,8 @@ private:
    * Take the grid and make it into a tetrahedral mesh.
    */
   static void GridToTetMesh(vtkRectilinearGrid* RectGrid, vtkSignedCharArray* VoxelSubdivisionType,
-    const int& TetraPerCell, const int& RememberVoxelId, vtkUnstructuredGrid* TetMesh);
+    const int& TetraPerCell, const int& RememberVoxelId, vtkUnstructuredGrid* TetMesh,
+    vtkRectilinearGridToTetrahedra* self);
 
   /**
    * Take a voxel and make tetrahedra out of it.
@@ -150,7 +140,8 @@ private:
    * Helper Function for TetrahedraizeVoxel
    * Adds a center point in the middle of the voxel
    */
-  static inline void TetrahedralizeAddCenterPoint(vtkIdList* VoxelCorners, vtkPoints* NodeList);
+  static void TetrahedralizeAddCenterPoint(vtkIdList* VoxelCorners, vtkPoints* NodeList);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkRectilinearGridToTetrahedra_h */

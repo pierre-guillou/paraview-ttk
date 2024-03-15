@@ -1,16 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
 * @class   vtkOpenVRModel
 * @brief   OpenVR device model
@@ -27,6 +16,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkVRModel.h"
 #include <openvr.h> // for ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGOPENVR_EXPORT vtkOpenVRModel : public vtkVRModel
 {
 public:
@@ -50,4 +40,5 @@ private:
   void operator=(const vtkOpenVRModel&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

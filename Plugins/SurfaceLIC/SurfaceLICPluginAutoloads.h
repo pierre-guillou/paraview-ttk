@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    SurfaceLICPluginAutoloads.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * This file
  */
@@ -22,6 +10,7 @@
 
 void SurfaceLICPluginAutoloads()
 {
+  // PARAVIEW_DEPRECATED_IN_5_11_0
   vtkLog(WARNING, "SurfaceLIC is now built-in ParaView. There is no need to load this plugin.");
 }
 

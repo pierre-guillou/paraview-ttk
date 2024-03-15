@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Included from octree
 
 /**\var template< typename T_, int d_, typename A_ > \
@@ -96,6 +98,7 @@
  * @param[in] x_center An array of coordinates specifying the center of the octree
  * @param[in] length The length (size) of each side of the octree
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, int d_, typename A_>
 octree<T_, d_, A_>::octree(const double* x_center, double length)
 {
@@ -194,3 +197,4 @@ size_t octree<T_, d_, A_>::size(bool only_leaves)
  *\brief The geometric length of each side of the hypercube defining the octree. Also called the
  *size of the node.
  */
+VTK_ABI_NAMESPACE_END

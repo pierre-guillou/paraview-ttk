@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkErrorCode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkErrorCode.h"
 
 #include <cctype>
@@ -20,6 +8,7 @@
 
 // this list should only contain the initial, contiguous
 // set of error codes and should not include UserError
+VTK_ABI_NAMESPACE_BEGIN
 static const char* vtkErrorCodeErrorStrings[] = { "NoError", "FileNotFoundError",
   "CannotOpenFileError", "UnrecognizedFileTypeError", "PrematureEndOfFileError", "FileFormatError",
   "NoFileNameError", "OutOfDiskSpaceError", "UnknownError", "UserError", nullptr };
@@ -80,3 +69,4 @@ unsigned long vtkErrorCode::GetLastSystemError()
 {
   return static_cast<unsigned long>(errno);
 }
+VTK_ABI_NAMESPACE_END

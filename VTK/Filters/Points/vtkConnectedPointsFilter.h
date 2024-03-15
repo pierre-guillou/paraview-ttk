@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConnectedPointsFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkConnectedPointsFilter
  * @brief   extract / segment points based on geometric connectivity
@@ -61,6 +49,7 @@
 #define VTK_EXTRACT_ALL_REGIONS 5
 #define VTK_EXTRACT_CLOSEST_POINT_REGION 6
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkDataArray;
 class vtkFloatArray;
@@ -257,7 +246,6 @@ private:
   vtkIdList* Wave;
   vtkIdList* Wave2;
 
-private:
   vtkConnectedPointsFilter(const vtkConnectedPointsFilter&) = delete;
   void operator=(const vtkConnectedPointsFilter&) = delete;
 };
@@ -289,4 +277,5 @@ inline const char* vtkConnectedPointsFilter::GetExtractionModeAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

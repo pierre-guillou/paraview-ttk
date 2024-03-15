@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFHelpers.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef OMFHelpers_h
 #define OMFHelpers_h
+
+#include "vtkABINamespace.h"
 
 #include "vtk_jsoncpp_fwd.h" // For Json fwd declaration
 
@@ -25,6 +14,7 @@ namespace omf
 {
 namespace helper
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 /**
  * print names of members of root. Just used for debugging
@@ -81,6 +71,7 @@ bool GetFloatArray(const Json::Value& root, std::vector<float>& value);
  */
 bool GetDoubleArray(const Json::Value& root, std::vector<double>& value);
 
+VTK_ABI_NAMESPACE_END
 } // end namespace helper
 } // end namespace omf
 

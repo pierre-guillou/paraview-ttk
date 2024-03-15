@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkShadowMapBakerPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 //#include "vtkAbstractTransform.h" // for helper classes stack and concatenation
 #include "vtkShadowMapBakerPass.h"
@@ -48,6 +36,7 @@
 //#define VTK_SHADOW_MAP_BAKER_PASS_DEBUG
 //#define DONT_DUPLICATE_LIGHTS
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkShadowMapBakerPass);
 vtkCxxSetObjectMacro(vtkShadowMapBakerPass, OpaqueSequence, vtkRenderPass);
 vtkCxxSetObjectMacro(vtkShadowMapBakerPass, CompositeZPass, vtkRenderPass);
@@ -712,3 +701,4 @@ void vtkShadowMapBakerPass::ReleaseGraphicsResources(vtkWindow* w)
   delete this->LightCameras;
   this->LightCameras = nullptr;
 }
+VTK_ABI_NAMESPACE_END

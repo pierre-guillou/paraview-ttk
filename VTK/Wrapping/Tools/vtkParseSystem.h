@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseSystem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
   This file contains routines for accessing the file system.
@@ -20,6 +8,7 @@
 #ifndef vtkParseSystem_h
 #define vtkParseSystem_h
 
+#include "vtkParseDependencyTracking.h"
 #include "vtkParseString.h"
 #include "vtkWrappingToolsModule.h"
 
@@ -65,6 +54,16 @@ extern "C"
    */
   VTKWRAPPINGTOOLS_EXPORT
   void vtkParse_FreeFileCache(SystemInfo* info);
+
+  /**
+   * On Win32, this interprets fname as UTF8 and then calls wfopen().
+   * The returned handle must be freed with fclose().
+   *
+   * This variant does not add a dependency on the passed filename to any
+   * dependency tracking.
+   */
+  VTKWRAPPINGTOOLS_EXPORT
+  FILE* vtkParse_FileOpenNoDependency(const char* fname, const char* mode);
 
   /**
    * On Win32, this interprets fname as UTF8 and then calls wfopen().

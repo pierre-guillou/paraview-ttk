@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSphereTreeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSphereTreeFilter
  * @brief represent a sphere tree as vtkPolyData
@@ -49,6 +37,7 @@
 #define VTK_SPHERE_TREE_LINE 2
 #define VTK_SPHERE_TREE_PLANE 3
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSphereTree;
 
 class VTKFILTERSCORE_EXPORT vtkSphereTreeFilter : public vtkPolyDataAlgorithm
@@ -169,4 +158,5 @@ private:
   void operator=(const vtkSphereTreeFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

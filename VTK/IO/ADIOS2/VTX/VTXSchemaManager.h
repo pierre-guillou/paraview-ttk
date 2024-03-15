@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    VTXSchemaManager.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * VTXSchemaManager.h : reusable class that manages a reader that
@@ -35,6 +23,7 @@
 
 namespace vtx
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 class VTXSchemaManager
 {
@@ -57,15 +46,15 @@ public:
    * @param schemaName schema name to look for either as attribute or separate
    * file
    */
-  void Update(const std::string& streamName, const size_t step = 0,
-    const std::string& schemaName = "vtk.xml");
+  void Update(
+    const std::string& streamName, size_t step = 0, const std::string& schemaName = "vtk.xml");
 
   /**
    * Fill multiblock data
    * @param multiblock output structure to be filled by m_Reader
    * @param step input data for one step at a time
    */
-  void Fill(vtkMultiBlockDataSet* multiblock, const size_t step = 0);
+  void Fill(vtkMultiBlockDataSet* multiblock, size_t step = 0);
 
 private:
   /** Current stream name */
@@ -92,6 +81,7 @@ private:
   bool InitReaderXMLVTK();
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace adios2vtk
 
 #endif /* VTK_IO_ADIOS2_VTX_VTXSchemaManager_h */

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAxesActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAxesActor.h"
 
 #include "vtkActor.h"
@@ -34,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAxesActor);
 
 vtkCxxSetObjectMacro(vtkAxesActor, UserDefinedTip, vtkPolyData);
@@ -804,3 +793,4 @@ void vtkAxesActor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NormalizedLabelPosition: " << this->NormalizedLabelPosition[0] << ","
      << this->NormalizedLabelPosition[1] << "," << this->NormalizedLabelPosition[2] << endl;
 }
+VTK_ABI_NAMESPACE_END

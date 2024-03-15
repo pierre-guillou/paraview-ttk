@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFElement.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef OMFElement_h
 #define OMFElement_h
 
@@ -23,12 +10,15 @@
 #include <memory>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPartitionedDataSet;
 class vtkPartitionedDataSetCollection;
 class vtkTexture;
+VTK_ABI_NAMESPACE_END
 
 namespace omf
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct OMFFile;
 
@@ -110,6 +100,7 @@ protected:
   size_t Dimensions[3];
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace omf
 
 #endif // OMFElement_h

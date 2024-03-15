@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartBox.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkChartBox
@@ -27,6 +15,7 @@
 #include "vtkChart.h"
 #include "vtkChartsCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdTypeArray;
 class vtkPlotBox;
 class vtkStdString;
@@ -165,19 +154,19 @@ public:
    * Calls superclass implementation and sets GeometryValid to False, causing
    * the chart's geometry to be updated on the next Paint call.
    */
-  virtual void SetSize(const vtkRectf& rect) override;
+  void SetSize(const vtkRectf& rect) override;
 
   /**
    * Calls superclass implementation and sets GeometryValid to False, causing
    * the chart's geometry to be updated on the next Paint call.
    */
-  virtual void SetGeometry(int arg1, int arg2) override;
+  void SetGeometry(int arg1, int arg2) override;
 
   /**
    * Calls superclass implementation and sets GeometryValid to False, causing
    * the chart's geometry to be updated on the next Paint call.
    */
-  virtual void SetLayoutStrategy(int strategy) override;
+  void SetLayoutStrategy(int strategy) override;
 
 protected:
   vtkChartBox();
@@ -256,4 +245,5 @@ struct vtkChartBoxData
 };
 ///@}
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkChartBox_h

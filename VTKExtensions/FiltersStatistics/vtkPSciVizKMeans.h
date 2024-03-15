@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPSciVizKMeans.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPSciVizKMeans
  * @brief   Find k cluster centers and/or assess the closest center and distance to it for each
@@ -44,7 +32,7 @@ public:
   vtkTypeMacro(vtkPSciVizKMeans, vtkSciVizStatistics);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * The number of cluster centers.
    * The initial centers will be chosen randomly.
@@ -53,25 +41,25 @@ public:
    */
   vtkSetMacro(K, int);
   vtkGetMacro(K, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * The maximum number of iterations to perform when converging on cluster centers.
    * The default value is 50 iterations.
    */
   vtkSetMacro(MaxNumIterations, int);
   vtkGetMacro(MaxNumIterations, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * The relative tolerance on cluster centers that will cause early termination of the algorithm.
    * The default value is 0.01: a 1 percent change in cluster coordinates.
    */
   vtkSetMacro(Tolerance, double);
   vtkGetMacro(Tolerance, double);
-  //@}
+  ///@}
 
 protected:
   vtkPSciVizKMeans();

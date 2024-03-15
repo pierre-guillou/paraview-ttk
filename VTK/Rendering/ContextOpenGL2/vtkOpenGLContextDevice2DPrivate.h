@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLContextDevice2DPrivate.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkOpenGL2ContextDevice2DPrivate
@@ -40,6 +28,7 @@
 #include "vtkColor.h"
 #include "vtkFreeTypeTools.h"
 #include "vtkGenericCell.h"
+#include "vtkOpenGLContextDeviceBufferObjectBuilder.h"
 #include "vtkTextProperty.h"
 #include "vtkTextRenderer.h"
 #include "vtkTexture.h"
@@ -54,6 +43,7 @@
 // .SECTION Description
 // Creating and initializing a texture can be time consuming,
 // vtkTextureImageCache offers the ability to reuse them as much as possible.
+VTK_ABI_NAMESPACE_BEGIN
 template <class Key>
 class vtkTextureImageCache
 {
@@ -512,6 +502,7 @@ public:
    */
   mutable vtkTextureImageCache<UTF8TextPropertyKey> TextTextureCache;
   ///@}
+  vtkOpenGLContextDeviceBufferObjectBuilder BufferObjectBuilder;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -553,7 +544,7 @@ public:
     , NumPointsCell(0)
   {
     this->cache = new PolyDataCache();
-  };
+  }
 
   ~CellArrayHelper() { delete this->cache; }
 
@@ -577,7 +568,7 @@ public:
         this->DrawPolygons(polyData, scalarMode, x, y, scale);
         break;
     }
-  };
+  }
 
   void HandleEndFrame() { this->cache->SwapCaches(); }
 
@@ -700,7 +691,7 @@ private:
 
       this->CellColors->SetTuple(i, mappedColorId, this->Colors);
     }
-  };
+  }
 
   /**
    * Batch all of the line primitives in an array and draw them using
@@ -767,11 +758,12 @@ private:
 
     if (!cacheItem->Lines.empty())
     {
-      this->Device->DrawLines(&cacheItem->Lines[0], static_cast<int>(cacheItem->Lines.size() / 2),
+      this->Device->DrawLines(cacheItem->Lines.data(),
+        static_cast<int>(cacheItem->Lines.size() / 2),
         static_cast<unsigned char*>(cacheItem->LineColors->GetVoidPointer(0)),
         cacheItem->LineColors->GetNumberOfComponents());
     }
-  };
+  }
 
   /**
    * Pre-computes the total number of polygon vertices after converted into triangles.
@@ -795,7 +787,7 @@ private:
 
     cellIter->Delete();
     return numTriVert;
-  };
+  }
 
   /**
    * Convert all of the polygon primitives into triangles and draw them as a batch using
@@ -878,7 +870,7 @@ private:
       this->Device->CoreDrawTriangles(cacheItem->PolyTri,
         static_cast<unsigned char*>(cacheItem->PolyColors->GetVoidPointer(0)), 4);
     }
-  };
+  }
 
   vtkOpenGLContextDevice2D* Device;
 
@@ -897,5 +889,6 @@ private:
 
   PolyDataCache* cache;
 };
+VTK_ABI_NAMESPACE_END
 #endif // VTKOPENGLCONTEXTDEVICE2DPRIVATE_H
 // VTK-HeaderTest-Exclude: vtkOpenGLContextDevice2DPrivate.h

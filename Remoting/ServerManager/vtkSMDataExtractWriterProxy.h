@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDataExtractWriterProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMDataExtractWriterProxy
  * @brief extract writers to write datasets
@@ -33,7 +21,7 @@ public:
   vtkTypeMacro(vtkSMDataExtractWriterProxy, vtkSMExtractWriterProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Implementation for vtkSMExtractWriterProxy API.
    */
@@ -42,7 +30,7 @@ public:
   bool IsExtracting(vtkSMProxy* proxy) override;
   void SetInput(vtkSMProxy* proxy) override;
   vtkSMProxy* GetInput() override;
-  //@}
+  ///@}
 
 protected:
   vtkSMDataExtractWriterProxy();

@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiThreshold.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkMultiThreshold
@@ -112,6 +97,7 @@
 #include <string> // for holding array names in NormKey
 #include <vector> // for lists of threshold rules
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkCellData;
 class vtkDataArray;
@@ -319,7 +305,7 @@ public:
     int OutputId; /// The index of the output mesh that will hold this set or -1 if the set is not
                   /// output.
 
-    /// Default constructur. The grid output ID is initialized to indicate that the set should not
+    /// Default constructor. The grid output ID is initialized to indicate that the set should not
     /// be output.
     Set() { this->OutputId = -1; }
     /// Virtual destructor since we have virtual members.
@@ -527,4 +513,5 @@ inline vtkMultiThreshold::BooleanSet* vtkMultiThreshold::BooleanSet::GetBooleanS
   return this;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkMultiThreshold_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTextRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTextRepresentation.h"
 
 #include "vtkCommand.h"
@@ -24,6 +12,7 @@
 #include "vtkTextRenderer.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTextRepresentationObserver : public vtkCommand
 {
 public:
@@ -144,7 +133,10 @@ void vtkTextRepresentation::BuildRepresentation()
 //------------------------------------------------------------------------------
 void vtkTextRepresentation::GetActors2D(vtkPropCollection* pc)
 {
-  pc->AddItem(this->TextActor);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    pc->AddItem(this->TextActor);
+  }
   this->Superclass::GetActors2D(pc);
 }
 
@@ -359,3 +351,4 @@ void vtkTextRepresentation::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Text Actor: " << this->TextActor << "\n";
 }
+VTK_ABI_NAMESPACE_END

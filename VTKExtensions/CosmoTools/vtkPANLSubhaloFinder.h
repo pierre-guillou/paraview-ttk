@@ -1,17 +1,6 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkPANLSubhaloFinder.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkPANLSubhaloFinder_h
 #define vtkPANLSubhaloFinder_h
 
@@ -57,7 +46,7 @@ public:
     ONLY_SELECTED_HALOS = 2
   };
 
-  //@{
+  ///@{
   /**
    * Sets/Gets the mode of the subhalo finding filter.  It should be one of the values
    * ALL_HALOS - find subhalos of all halos (default)
@@ -68,9 +57,9 @@ public:
    */
   vtkSetClampMacro(Mode, int, ALL_HALOS, ONLY_SELECTED_HALOS);
   vtkGetMacro(Mode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets/Gets the size threshold which is the minimum number of particles in the halos
    * that will have the subhalo finder run on them in HALOS_LARGER_THAN_THRESHOLD mode.
@@ -78,7 +67,7 @@ public:
    */
   vtkSetMacro(SizeThreshold, vtkIdType);
   vtkGetMacro(SizeThreshold, vtkIdType);
-  //@}
+  ///@}
 
   /**
    * Gets the halo to process at the given index
@@ -111,16 +100,16 @@ public:
    */
   void ClearHalosToProcess();
 
-  //@{
+  ///@{
   /**
    * Gets/Sets RL, the physical coordinate box size
    * Default: 256.0
    */
   vtkSetMacro(RL, double);
   vtkGetMacro(RL, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets the size of the ghost particle region around each process's particles
    * to exchange when creating ghost particles.
@@ -128,9 +117,9 @@ public:
    */
   vtkSetMacro(DeadSize, double);
   vtkGetMacro(DeadSize, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets the particle mass.  For input datasets that do not have mass information
    * the mass of each particle defaults to this value.
@@ -138,9 +127,9 @@ public:
    */
   vtkSetMacro(ParticleMass, float);
   vtkGetMacro(ParticleMass, float);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets distance threshold for particles to be considered in the same
    * halo.  This is measured in grid units on a NP x NP x NP grid.
@@ -148,9 +137,9 @@ public:
    */
   vtkSetMacro(BB, double);
   vtkGetMacro(BB, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets alpha factor.  This controls how aggressively small subhalos
    * are grown.  Alpha factor of 1.0 is the least aggressive
@@ -158,9 +147,9 @@ public:
    */
   vtkSetClampMacro(AlphaFactor, double, 0.0, 1.0);
   vtkGetMacro(AlphaFactor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets beta factor.  This controls how saddle points between
    * subhalos are treated.  Larger values allow identification of smaller
@@ -169,27 +158,27 @@ public:
    */
   vtkSetClampMacro(BetaFactor, double, 0.0, 1.0);
   vtkGetMacro(BetaFactor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets the minimum size of a subhalo candidate
    * Default: 200
    */
   vtkSetMacro(MinCandidateSize, int);
   vtkGetMacro(MinCandidateSize, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets NumSPHNeighbors
    * Default: 64
    */
   vtkSetMacro(NumSPHNeighbors, int);
   vtkGetMacro(NumSPHNeighbors, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets/Sets the number of neighbors that are examined by the subhalo finder
    * to determine local clumps near the each particle
@@ -197,7 +186,7 @@ public:
    */
   vtkSetMacro(NumNeighbors, int);
   vtkGetMacro(NumNeighbors, int);
-  //@}
+  ///@}
 
 protected:
   vtkPANLSubhaloFinder();

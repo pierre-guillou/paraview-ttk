@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVFileInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVFileInformation
  * @brief   Information object that can
@@ -49,13 +37,13 @@ public:
    */
   void CopyFromObject(vtkObject* object) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
   enum FileTypes
   {
@@ -73,7 +61,7 @@ public:
     DIRECTORY_GROUP
   };
 
-  //@{
+  ///@{
   /**
    * Helper that returns whether a FileType is a
    * directory (DIRECTORY, DRIVE, NETWORK_ROOT, etc...)
@@ -81,9 +69,9 @@ public:
    */
   static bool IsDirectory(int t);
   bool IsDirectory() const { return vtkPVFileInformation::IsDirectory(this->Type); }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Helper that returns true if file-type is a network related file i.e.
    * either a FILE_GROUP or a DIRECTORY_GROUP.
@@ -100,42 +88,42 @@ public:
     }
   }
   bool IsGroup() const { return vtkPVFileInformation::IsGroup(this->Type); }
-  //@}
+  ///@}
 
   /**
    * Initializes the information object.
    */
   void Initialize();
 
-  //@{
+  ///@{
   /**
    * Get the name of the file/directory whose information is
    * represented by this object.
    */
   vtkGetStringMacro(Name);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the full path of the file/directory whose information is
    * represented by this object.
    */
   vtkGetStringMacro(FullPath);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the type of this file object.
    */
   vtkGetMacro(Type, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the state of the hidden flag for the file/directory.
    */
   vtkGetMacro(Hidden, bool);
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -149,7 +137,7 @@ public:
   vtkBooleanMacro(GroupFileSequences, bool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Get the Contents for this directory.
    * Returns a collection with vtkPVFileInformation objects
@@ -161,7 +149,7 @@ public:
   vtkGetStringMacro(Extension);
   vtkGetMacro(Size, long long);
   vtkGetMacro(ModificationTime, time_t);
-  //@}
+  ///@}
 
   /**
    * Fetch the directory listing to be able to use GetSize or GetContents with directories
@@ -183,6 +171,11 @@ public:
    * Return the path of the documents packaged with ParaView.
    */
   static std::string GetParaViewDocDirectory();
+
+  /**
+   * Return the path of the translations packaged with ParaView.
+   */
+  static std::string GetParaViewTranslationsDirectory();
 
 protected:
   vtkPVFileInformation();
@@ -216,6 +209,7 @@ protected:
   int FastFileTypeDetection;
   bool ReadDetailedFileInformation;
   bool GroupFileSequences;
+  bool IncludeExamples;
 
 private:
   vtkPVFileInformation(const vtkPVFileInformation&) = delete;

@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPlotMatrixView.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVPlotMatrixView.h"
 
@@ -811,61 +796,4 @@ void vtkPVPlotMatrixView::Render(bool interactive)
   this->PlotMatrix->SetTitle(this->GetFormattedTitle());
 
   this->Superclass::Render(interactive);
-}
-
-// Deprecated methods
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetBackgroundColor(int plotType)
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetBackgroundColor(int plotType)",
-    "ParaView 5.10", "bool vtkPVPlotMatrixView::GetBackgroundColor(int plotType, double color[3])");
-  static double colorStore[3];
-  return this->GetBackgroundColor(plotType, colorStore) ? colorStore : nullptr;
-}
-
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetAxisColor(int plotType)
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetAxisColor(int plotType)",
-    "ParaView 5.10", "bool vtkPVPlotMatrixView::GetAxisColor(int plotType, double color[3])");
-  static double colorStore[3];
-  return this->GetAxisColor(plotType, colorStore) ? colorStore : nullptr;
-}
-
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetGridColor(int plotType)
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetGridColor(int plotType)",
-    "ParaView 5.10", "bool vtkPVPlotMatrixView::GetGridColor(int plotType, double color[3])");
-  static double colorStore[3];
-  return this->GetGridColor(plotType, colorStore) ? colorStore : nullptr;
-}
-
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetAxisLabelColor(int plotType)
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetAxisLabeldColor(int plotType)",
-    "ParaView 5.10", "bool vtkPVPlotMatrixView::GetAxisLabelColor(int plotType, double color[3])");
-  static double colorStore[3];
-  return this->GetAxisLabelColor(plotType, colorStore) ? colorStore : nullptr;
-}
-
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetScatterPlotSelectedRowColumnColor()
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetScatterPlotSelectedRowColumnColor()",
-    "ParaView 5.10",
-    "bool vtkPVPlotMatrixView::GetScatterPlotSelectedRowColumnColor(double color[3])");
-  static double colorStore[3];
-  return this->GetScatterPlotSelectedRowColumnColor(colorStore) ? colorStore : nullptr;
-}
-
-//----------------------------------------------------------------------------
-double* vtkPVPlotMatrixView::GetScatterPlotSelectedActiveColor()
-{
-  VTK_LEGACY_REPLACED_BODY("double* vtkPVPlotMatrixView::GetScatterSelectedActiveColor()",
-    "ParaView 5.10",
-    "bool vtkPVPlotMatrixView::GetScatterPlotSelectedActiveColor(double color[3])");
-  static double colorStore[3];
-  return this->GetScatterPlotSelectedActiveColor(colorStore) ? colorStore : nullptr;
 }

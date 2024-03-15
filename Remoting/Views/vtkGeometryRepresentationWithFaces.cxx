@@ -1,20 +1,8 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeometryRepresentationWithFaces.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGeometryRepresentationWithFaces.h"
 
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVLODActor.h"
@@ -28,8 +16,8 @@ vtkGeometryRepresentationWithFaces::vtkGeometryRepresentationWithFaces()
 {
   this->BackfaceActor = vtkPVLODActor::New();
   this->BackfaceProperty = vtkProperty::New();
-  this->BackfaceMapper = vtkCompositePolyDataMapper2::New();
-  this->LODBackfaceMapper = vtkCompositePolyDataMapper2::New();
+  this->BackfaceMapper = vtkCompositePolyDataMapper::New();
+  this->LODBackfaceMapper = vtkCompositePolyDataMapper::New();
   this->BackfaceRepresentation = FOLLOW_FRONTFACE;
 
   // Since we are overriding SetupDefaults(), we need to call it again.
@@ -202,6 +190,7 @@ void vtkGeometryRepresentationWithFaces::UpdateColoringParameters()
 
     // Copy parameters from this->Property
     this->BackfaceProperty->SetEdgeColor(this->Property->GetEdgeColor());
+    this->BackfaceProperty->SetEdgeOpacity(this->Property->GetEdgeOpacity());
     this->BackfaceProperty->SetInterpolation(this->Property->GetInterpolation());
     this->BackfaceProperty->SetLineWidth(this->Property->GetLineWidth());
     this->BackfaceProperty->SetPointSize(this->Property->GetPointSize());

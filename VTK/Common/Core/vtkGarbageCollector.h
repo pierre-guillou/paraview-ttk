@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGarbageCollector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGarbageCollector
  * @brief   Detect and break reference loops
@@ -78,6 +66,7 @@
 
 // This function is a friend of the collector so that it can call the
 // internal report method.
+VTK_ABI_NAMESPACE_BEGIN
 void VTKCOMMONCORE_EXPORT vtkGarbageCollectorReportInternal(
   vtkGarbageCollector*, vtkObjectBase*, void*, const char*);
 
@@ -153,7 +142,7 @@ private:
    * garbage collection is disabled, or when the collector has decided
    * it is time to do a check.
    */
-  static int GiveReference(vtkObjectBase* obj);
+  static vtkTypeBool GiveReference(vtkObjectBase* obj);
 
   /**
    * Called by Register method of an object that supports garbage
@@ -163,7 +152,7 @@ private:
    * hands it back to the caller by returning 1.  If no reference is
    * available, returns 0.
    */
-  static int TakeReference(vtkObjectBase* obj);
+  static vtkTypeBool TakeReference(vtkObjectBase* obj);
 
   // Singleton management functions.
   static void ClassInitialize();
@@ -177,7 +166,6 @@ private:
   friend void VTKCOMMONCORE_EXPORT vtkGarbageCollectorReportInternal(
     vtkGarbageCollector*, vtkObjectBase*, void*, const char*);
 
-private:
   vtkGarbageCollector(const vtkGarbageCollector&) = delete;
   void operator=(const vtkGarbageCollector&) = delete;
 };
@@ -199,4 +187,5 @@ void vtkGarbageCollectorReport(vtkGarbageCollector* collector, T*& ptr, const ch
   vtkGarbageCollectorReportInternal(collector, ptr, &ptr, desc);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

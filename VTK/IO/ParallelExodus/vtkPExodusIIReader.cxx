@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPExodusIIReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPExodusIIReader.h"
 
 #include "vtkAppendCompositeDataLeaves.h"
@@ -52,6 +35,7 @@
 #undef DBG_PEXOIIRDR
 #define vtkPExodusIIReaderMAXPATHLEN 2048
 
+VTK_ABI_NAMESPACE_BEGIN
 static const int objTypes[] = { vtkExodusIIReader::EDGE_BLOCK, vtkExodusIIReader::FACE_BLOCK,
   vtkExodusIIReader::ELEM_BLOCK, vtkExodusIIReader::NODE_SET, vtkExodusIIReader::EDGE_SET,
   vtkExodusIIReader::FACE_SET, vtkExodusIIReader::SIDE_SET, vtkExodusIIReader::ELEM_SET,
@@ -661,7 +645,7 @@ int vtkPExodusIIReader::RequestData(vtkInformation* vtkNotUsed(request),
   if (append->GetNumberOfInputConnections(0) != 0)
   {
     append->Update();
-    output->ShallowCopy(append->GetOutput());
+    output->CompositeShallowCopy(append->GetOutput());
   }
 
   // I've copied append's output to the 'output' so delete append
@@ -1468,3 +1452,4 @@ void vtkPExodusIIReader::Broadcast(vtkMultiProcessController* ctrl)
     ctrl->Broadcast(&this->NumberOfFiles, 1, 0);
   }
 }
+VTK_ABI_NAMESPACE_END

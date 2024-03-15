@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * This header file is designed to be included into your program
  * to support delayed loading of opengl and if needed use of Mesa
@@ -34,10 +23,13 @@
  *    to these libraries as the second argument to HandleOpenGL32Issues
  */
 
+#include "vtkABINamespace.h"
+
 #include <windows.h>
 
 // returns an int, zero indicates a problem though right now
 // all paths return 1.
+VTK_ABI_NAMESPACE_BEGIN
 int HandleOpenGL32Issues(const char* pathToTestOpenGLExecutable, const char* mesaLibPath)
 {
   // run the test executable and collect the result
@@ -56,3 +48,4 @@ int HandleOpenGL32Issues(const char* pathToTestOpenGLExecutable, const char* mes
 }
 
 // VTK-HeaderTest-Exclude: vtkTestOpenGLVersion.h
+VTK_ABI_NAMESPACE_END

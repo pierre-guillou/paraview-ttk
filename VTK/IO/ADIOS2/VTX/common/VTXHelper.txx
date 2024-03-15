@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    VTXHelper.txx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * VTXHelper.txx
@@ -38,6 +26,7 @@ namespace vtx
 {
 namespace helper
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // TODO: extend other types
 template <>
@@ -88,6 +77,7 @@ vtkSmartPointer<vtkDataArray> NewDataArray<double>()
   return vtkSmartPointer<vtkDoubleArray>::New();
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace helper
 } // end namespace vtx
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCategoricalMultiBlock.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // This test verifies that we can give each block its own material and
 // also override them easily.
 //
@@ -26,7 +14,7 @@
 #include "vtkCellData.h"
 #include "vtkColorSeries.h"
 #include "vtkCompositeDataDisplayAttributes.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkDoubleArray.h"
 #include "vtkLookupTable.h"
 #include "vtkMultiBlockDataSet.h"
@@ -149,8 +137,8 @@ int TestCategoricalMultiBlock(int argc, char* argv[])
   prop = actor->GetProperty();
   prop->SetMaterialName("Value Indexed"); // making submaterials
 
-  vtkSmartPointer<vtkCompositePolyDataMapper2> mapper =
-    vtkSmartPointer<vtkCompositePolyDataMapper2>::New();
+  vtkSmartPointer<vtkCompositePolyDataMapper> mapper =
+    vtkSmartPointer<vtkCompositePolyDataMapper>::New();
   mapper->SetInputDataObject(mbds);
   mapper->SetLookupTable(lut);
   actor->SetMapper(mapper);

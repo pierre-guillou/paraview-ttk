@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPVMetaClipDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVMetaClipDataSet
  * Meta class for clip filter that will allow the user to switch between
@@ -78,7 +67,7 @@ public:
   void SetInputArrayToProcess(
     int idx, int port, int connection, const char* fieldName, const char* fieldType) override;
 
-  //@{
+  ///@{
   /**
    * For clipping a box we will only get an approximate box from the vtkPVBox implicit function
    * which can give undesired results. In order to get the exact box geometry output we need
@@ -88,7 +77,7 @@ public:
   vtkSetMacro(ExactBoxClip, bool);
   vtkGetMacro(ExactBoxClip, bool);
   vtkBooleanMacro(ExactBoxClip, bool);
-  //@}
+  ///@}
 
   /**
    * Expose method from vtkClip
@@ -107,7 +96,7 @@ public:
   int ProcessRequest(
     vtkInformation* request, vtkCollection* inInfo, vtkInformationVector* outInfo) override;
 
-  virtual int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
+  int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
 protected:

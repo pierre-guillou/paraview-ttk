@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeDataObjectFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMergeDataObjectFilter.h"
 
 #include "vtkCellData.h"
@@ -24,7 +12,9 @@
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
+#include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMergeDataObjectFilter);
 
 //------------------------------------------------------------------------------
@@ -102,8 +92,14 @@ int vtkMergeDataObjectFilter::RequestData(vtkInformation* vtkNotUsed(request),
       vtkErrorMacro(<< "Field data size incompatible with number of cells");
       return 1;
     }
+
+    int checkAbortInterval = std::min(fd->GetNumberOfArrays() / 10 + 1, 1000);
     for (int i = 0; i < fd->GetNumberOfArrays(); i++)
     {
+      if (i % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       output->GetCellData()->AddArray(fd->GetArray(i));
     }
   }
@@ -117,6 +113,10 @@ int vtkMergeDataObjectFilter::RequestData(vtkInformation* vtkNotUsed(request),
     }
     for (int i = 0; i < fd->GetNumberOfArrays(); i++)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       output->GetPointData()->AddArray(fd->GetArray(i));
     }
   }
@@ -173,3 +173,4 @@ void vtkMergeDataObjectFilter::PrintSelf(ostream& os, vtkIndent indent)
     os << "CellDataField\n";
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLInstanceCulling.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLInstanceCulling.h"
 
@@ -33,6 +21,7 @@
 #include <array>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLInstanceCulling);
 
 void vtkOpenGLInstanceCulling::PrintSelf(ostream& os, vtkIndent indent)
@@ -465,3 +454,4 @@ vtkIdType vtkOpenGLInstanceCulling::GetNumberOfLOD()
 {
   return static_cast<vtkIdType>(this->LODList.size());
 }
+VTK_ABI_NAMESPACE_END

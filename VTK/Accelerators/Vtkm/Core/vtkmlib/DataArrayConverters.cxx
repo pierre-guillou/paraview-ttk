@@ -1,22 +1,10 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "DataArrayConverters.hxx"
 
 #include "vtkmDataArray.h"
-#include "vtkmFilterPolicy.h"
 
 #include "vtkmlib/PortalTraits.h"
 
@@ -28,6 +16,7 @@
 
 namespace fromvtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 namespace
 {
@@ -59,7 +48,7 @@ public:
     using ValueType = typename Traits::ComponentType;
     using VTKArrayType = vtkAOSDataArrayTemplate<ValueType>;
 
-    if (handle.GetNumberOfBuffers() == 0)
+    if (handle.GetBuffers().size() == 0)
     {
       return;
     }
@@ -100,7 +89,7 @@ public:
     using ValueType = typename Traits::ComponentType;
     using VTKArrayType = vtkSOADataArrayTemplate<ValueType>;
 
-    if (handle.GetNumberOfBuffers() != Traits::NUM_COMPONENTS)
+    if (handle.GetBuffers().size() != Traits::NUM_COMPONENTS)
     {
       return;
     }
@@ -150,13 +139,13 @@ vtkDataArray* Convert(const vtkm::cont::Field& input)
 {
   // We need to do the conversion from Field to a known vtkm::cont::ArrayHandle
   // after that we need to fill the vtkDataArray
-  vtkmOutputFilterPolicy policy;
   vtkDataArray* data = nullptr;
   ArrayConverter aConverter;
 
   try
   {
-    vtkm::cont::CastAndCall(vtkm::filter::ApplyPolicyFieldNotActive(input, policy), aConverter);
+    vtkm::cont::CastAndCall(
+      input.GetData().ResetTypes<tovtkm::FieldTypeOutVTK, VTKM_DEFAULT_STORAGE_LIST>(), aConverter);
     data = aConverter.Data;
     if (data && (input.GetName() != tovtkm::NoNameVTKFieldName()))
     {
@@ -212,4 +201,5 @@ vtkPoints* Convert(const vtkm::cont::CoordinateSystem& input)
   return points;
 }
 
+VTK_ABI_NAMESPACE_END
 }

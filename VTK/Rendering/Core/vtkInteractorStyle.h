@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorStyle.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkInteractorStyle
  * @brief   provide event-driven interface to the rendering window (defines trackball mode)
@@ -121,10 +109,12 @@
 #define VTKIS_ENV_ROTATE 19           // rotate the renderer environment texture
 #define VTKIS_GROUNDMOVEMENT 20       // horizontal movement according to the 4 directions
 #define VTKIS_ELEVATION 21            // vertical movement (up and down)
+#define VTKIS_TELEPORTATION 22        // teleportation (move instantly between two positions)
 
 #define VTKIS_ANIM_OFF 0
 #define VTKIS_ANIM_ON 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor2D;
 class vtkActor;
 class vtkCallbackCommand;
@@ -471,4 +461,5 @@ private:
   void operator=(const vtkInteractorStyle&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransform.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTransform.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 
 #include <cstdlib>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTransform);
 
 //------------------------------------------------------------------------------
@@ -330,7 +319,7 @@ vtkMTimeType vtkTransform::GetMTime()
 // array of three floating point values.
 void vtkTransform::GetOrientation(double orientation[3], vtkMatrix4x4* amatrix)
 {
-#define VTK_AXIS_EPSILON 0.001
+#define VTK_AXIS_EPSILON 2e-12
 #define VTK_ORTHO_EPSILON 4e-16
   int i;
 
@@ -547,3 +536,4 @@ void vtkTransform::GetTranspose(vtkMatrix4x4* transpose)
 {
   vtkMatrix4x4::Transpose(this->GetMatrix(), transpose);
 }
+VTK_ABI_NAMESPACE_END

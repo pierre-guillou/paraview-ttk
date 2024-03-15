@@ -1,4 +1,4 @@
-find_package(Qt5 QUIET REQUIRED COMPONENTS Network)
+find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" QUIET REQUIRED COMPONENTS Network)
 
 list(INSERT CMAKE_MODULE_PATH 0
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -7,8 +7,6 @@ option(PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN "Build CAVEInteraction plugin wi
 mark_as_advanced(PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN)
 option(PARAVIEW_PLUGIN_CAVEInteraction_USE_VRUI "Build CAVEInteraction plugin with VRUI support" OFF)
 mark_as_advanced(PARAVIEW_PLUGIN_CAVEInteraction_USE_VRUI)
-
-find_package(Qt5 REQUIRED COMPONENTS Network)
 
 # TODO: Should something be done with the files in samples/?
 
@@ -30,34 +28,8 @@ set(sources
   pqVRQueueHandler.h
   pqVRStarter.cxx
   pqVRStarter.h
-  vtkVRControlSliceOrientationStyle.cxx
-  vtkVRControlSliceOrientationStyle.h
-  vtkVRControlSlicePositionStyle.cxx
-  vtkVRControlSlicePositionStyle.h
-  vtkVRGrabPointStyle.cxx
-  vtkVRGrabPointStyle.h
-  vtkVRGrabTransformStyle.cxx
-  vtkVRGrabTransformStyle.h
-  vtkVRGrabWorldStyle.cxx
-  vtkVRGrabWorldStyle.h
-  vtkVRInteractorStyle.cxx
-  vtkVRInteractorStyle.h
   vtkVRInteractorStyleFactory.cxx
   vtkVRInteractorStyleFactory.h
-  vtkVRMovePointStyle.cxx
-  vtkVRMovePointStyle.h
-  vtkVRQueue.cxx
-  vtkVRQueue.h
-  vtkVRSkeletonStyle.cxx
-  vtkVRSkeletonStyle.h
-  vtkVRSpaceNavigatorGrabWorldStyle.cxx
-  vtkVRSpaceNavigatorGrabWorldStyle.h
-  vtkVRStylusStyle.cxx
-  vtkVRStylusStyle.h
-  vtkVRTrackStyle.cxx
-  vtkVRTrackStyle.h
-  vtkVRVirtualHandStyle.cxx
-  vtkVRVirtualHandStyle.h
   "${CMAKE_CURRENT_BINARY_DIR}/vtkPVVRConfig.h")
 
 
@@ -111,12 +83,23 @@ list(APPEND interfaces
 list(APPEND sources
   ${dock_sources})
 
+set(xml_files
+  CAVEInteraction_SM.xml)
+if (PARAVIEW_USE_PYTHON)
+  list(APPEND xml_files
+    CAVEInteraction_SM_Python.xml)
+endif ()
+
 paraview_add_plugin(CAVEInteraction
   REQUIRED_ON_CLIENT
+  REQUIRED_ON_SERVER
   VERSION "1.0"
   UI_INTERFACES ${interfaces}
   UI_FILES ${ui_files}
-  SOURCES ${sources})
+  SOURCES ${sources}
+  SERVER_MANAGER_XML ${xml_files}
+  MODULES ParaViewIncubator::CAVEInteractionStyles
+  XML_DOCUMENTATION OFF)
 
 target_include_directories(CAVEInteraction
   PRIVATE
@@ -132,7 +115,7 @@ target_link_libraries(CAVEInteraction
     VTK::CommonMath
     VTK::CommonTransforms
     VTK::RenderingCore
-    Qt5::Network)
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Network")
 target_compile_definitions(CAVEInteraction PRIVATE QT_NO_KEYWORDS)
 
 if (PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN)

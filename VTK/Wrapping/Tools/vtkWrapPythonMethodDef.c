@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonMethodDef.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonMethodDef.h"
 #include "vtkWrapPythonClass.h"
@@ -31,7 +19,7 @@
 /* prototypes for the methods used by the python wrappers */
 
 /* output the MethodDef table for this class */
-static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassInfo* data,
+static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, const ClassInfo* data,
   FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum);
 
 /* print out any custom methods */
@@ -48,14 +36,14 @@ static void vtkWrapPython_ReplaceInvokeEvent(FILE* fp, const char* classname, Cl
 static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, ClassInfo* data);
 
 /* modify vtkCollection to be more Pythonic */
-static void vtkWrapPython_CollectionMethods(FILE* fp, const char* classname, ClassInfo* data);
+static void vtkWrapPython_CollectionMethods(FILE* fp, const char* classname, const ClassInfo* data);
 
 /* -------------------------------------------------------------------- */
 /* prototypes for utility methods */
 
 /* check for wrappability, flags may be VTK_WRAP_ARG or VTK_WRAP_RETURN */
 static int vtkWrapPython_IsValueWrappable(
-  ClassInfo* data, ValueInfo* val, HierarchyInfo* hinfo, int flags);
+  const ClassInfo* data, const ValueInfo* val, const HierarchyInfo* hinfo, int flags);
 
 /* weed out methods that will never be called */
 static void vtkWrapPython_RemovePrecededMethods(
@@ -288,14 +276,13 @@ static void vtkWrapPython_RemovePrecededMethods(
  * words, this poorly named function is "the big one". */
 
 void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* data,
-  FileInfo* finfo, HierarchyInfo* hinfo, int is_vtkobject, int do_constructors)
+  FileInfo* finfo, const HierarchyInfo* hinfo, int is_vtkobject, int do_constructors)
 {
   int i;
   int fnum;
   int numberOfWrappedFunctions = 0;
   FunctionInfo** wrappedFunctions;
   FunctionInfo* theFunc;
-  char* cp;
   const char* ccp;
 
   wrappedFunctions = (FunctionInfo**)malloc(data->NumberOfFunctions * sizeof(FunctionInfo*));
@@ -323,9 +310,7 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
       (!vtkWrap_IsConstructor(data, theFunc) == !do_constructors))
     {
       ccp = vtkWrapText_PythonSignature(theFunc);
-      cp = (char*)malloc(strlen(ccp) + 1);
-      strcpy(cp, ccp);
-      theFunc->Signature = cp;
+      theFunc->Signature = vtkParse_CacheString(finfo->Strings, ccp, strlen(ccp));
       wrappedFunctions[numberOfWrappedFunctions++] = theFunc;
     }
   }
@@ -344,7 +329,7 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
     {
       fprintf(fp, "\n");
 
-      vtkWrapPython_GenerateOneMethod(fp, classname, data, hinfo, wrappedFunctions,
+      vtkWrapPython_GenerateOneMethod(fp, classname, data, finfo, hinfo, wrappedFunctions,
         numberOfWrappedFunctions, fnum, is_vtkobject, do_constructors);
 
     } /* is this method non NULL */
@@ -362,7 +347,7 @@ void vtkWrapPython_GenerateMethods(FILE* fp, const char* classname, ClassInfo* d
 
 /* -------------------------------------------------------------------- */
 /* output the MethodDef table for this class */
-static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassInfo* data,
+static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, const ClassInfo* data,
   FunctionInfo** wrappedFunctions, int numberOfWrappedFunctions, int fnum)
 {
   /* output the method table, with pointers to each function defined above */
@@ -451,7 +436,7 @@ static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, ClassI
 /* Check an arg to see if it is wrappable */
 
 static int vtkWrapPython_IsValueWrappable(
-  ClassInfo* data, ValueInfo* val, HierarchyInfo* hinfo, int flags)
+  const ClassInfo* data, const ValueInfo* val, const HierarchyInfo* hinfo, int flags)
 {
   static const unsigned int wrappableTypes[] = { VTK_PARSE_VOID, VTK_PARSE_BOOL, VTK_PARSE_FLOAT,
     VTK_PARSE_DOUBLE, VTK_PARSE_CHAR, VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, VTK_PARSE_INT,
@@ -588,7 +573,8 @@ static int vtkWrapPython_IsValueWrappable(
 /* -------------------------------------------------------------------- */
 /* Check a method to see if it is wrappable in python */
 
-int vtkWrapPython_MethodCheck(ClassInfo* data, FunctionInfo* currentFunction, HierarchyInfo* hinfo)
+int vtkWrapPython_MethodCheck(
+  const ClassInfo* data, const FunctionInfo* currentFunction, const HierarchyInfo* hinfo)
 {
   int i, n;
 
@@ -872,7 +858,7 @@ static void vtkWrapPython_ReplaceInvokeEvent(FILE* fp, const char* classname, Cl
       for (eventIdx = 0; eventIdx < 2; eventIdx++)
       {
         fprintf(fp,
-          "  {nullptr, PyvtkObject_InvokeEvent_%s%s, METH_VARARGS,\n"
+          "  {\"InvokeEvent\", PyvtkObject_InvokeEvent_%s%s, METH_VARARGS,\n"
           "   \"@%s%s\"},\n",
           eventTypeString[eventIdx], callBackTypeString[callBackIdx], eventTypeString[eventIdx],
           fullCallBackTypeString[callBackIdx]);
@@ -1032,7 +1018,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
 
 /* -------------------------------------------------------------------- */
 /* generate custom methods needed for vtkCollection */
-static void vtkWrapPython_CollectionMethods(FILE* fp, const char* classname, ClassInfo* data)
+static void vtkWrapPython_CollectionMethods(FILE* fp, const char* classname, const ClassInfo* data)
 {
   if (strcmp("vtkCollection", classname) == 0)
   {

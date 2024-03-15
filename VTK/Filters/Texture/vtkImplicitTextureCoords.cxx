@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitTextureCoords.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitTextureCoords.h"
 
 #include "vtkDataSet.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitTextureCoords);
 vtkCxxSetObjectMacro(vtkImplicitTextureCoords, SFunction, vtkImplicitFunction);
 vtkCxxSetObjectMacro(vtkImplicitTextureCoords, RFunction, vtkImplicitFunction);
@@ -223,3 +212,4 @@ void vtkImplicitTextureCoords::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "R Function defined\n";
   }
 }
+VTK_ABI_NAMESPACE_END

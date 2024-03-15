@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtk2DWidgetRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtk2DWidgetRepresentation_h
 #define vtk2DWidgetRepresentation_h
 
@@ -37,22 +25,22 @@ public:
   vtkTypeMacro(vtk2DWidgetRepresentation, vtkDataRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the representation.
    */
   vtkSetMacro(ContextItem, vtkContextItem*);
   virtual vtkContextItem* GetContextItem() const { return this->ContextItem; };
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether the widget is enabled.
    */
   vtkSetMacro(Enabled, bool);
   vtkGetMacro(Enabled, bool);
   vtkBooleanMacro(Enabled, bool);
-  //@}
+  ///@}
 
 protected:
   vtk2DWidgetRepresentation();

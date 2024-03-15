@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWarpLens.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWarpLens.h"
 
 #include "vtkImageData.h"
@@ -29,6 +17,7 @@
 #include "vtkNew.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWarpLens);
 
 //
@@ -118,6 +107,7 @@ int vtkWarpLens::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkNew<vtkImageDataToPointSet> image2points;
       image2points->SetInputData(inImage);
+      image2points->SetContainerAlgorithm(this);
       image2points->Update();
       input = image2points->GetOutput();
     }
@@ -131,6 +121,7 @@ int vtkWarpLens::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkNew<vtkRectilinearGridToPointSet> rect2points;
       rect2points->SetInputData(inRect);
+      rect2points->SetContainerAlgorithm(this);
       rect2points->Update();
       input = rect2points->GetOutput();
     }
@@ -173,6 +164,10 @@ int vtkWarpLens::RequestData(vtkInformation* vtkNotUsed(request),
   //
   for (ptId = 0; ptId < numPts; ptId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     inPts->GetPoint(ptId, pixel);
 
     //
@@ -234,3 +229,4 @@ void vtkWarpLens::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ImageWidth: " << this->ImageWidth << " in pixels\n";
   os << indent << "ImageHeight: " << this->ImageHeight << " in pixels\n";
 }
+VTK_ABI_NAMESPACE_END

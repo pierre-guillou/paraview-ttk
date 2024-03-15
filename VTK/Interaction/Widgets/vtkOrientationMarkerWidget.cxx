@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrientationMarkerWidget.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOrientationMarkerWidget.h"
 
 #include "vtkActor2D.h"
@@ -28,6 +16,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOrientationMarkerWidget);
 
 vtkCxxSetObjectMacro(vtkOrientationMarkerWidget, OrientationMarker, vtkProp);
@@ -547,7 +536,7 @@ void vtkOrientationMarkerWidget::SetInteractive(vtkTypeBool interact)
       this->Interactor->RemoveObserver(this->EventCallbackCommand);
     }
     this->Interactive = interact;
-    this->Interactor->Render();
+    this->Modified();
   }
   else
   {
@@ -976,10 +965,7 @@ void vtkOrientationMarkerWidget::ResizeBottomLeft(int X, int Y)
 void vtkOrientationMarkerWidget::SetOutlineColor(double r, double g, double b)
 {
   this->OutlineActor->GetProperty()->SetColor(r, g, b);
-  if (this->Interactor)
-  {
-    this->Interactor->Render();
-  }
+  this->Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -1073,7 +1059,7 @@ void vtkOrientationMarkerWidget::SetShouldConstrainSize(const vtkTypeBool should
 
 //------------------------------------------------------------------------------
 bool vtkOrientationMarkerWidget::SetSizeConstraintDimensionSizes(
-  const int minDimensionSize, const int maxDimensionSize)
+  int minDimensionSize, int maxDimensionSize)
 {
   // noop if the value doesn't change
   if (this->MinDimensionSize == minDimensionSize && this->MaxDimensionSize == maxDimensionSize)
@@ -1156,3 +1142,4 @@ void vtkOrientationMarkerWidget::ResizeToFitSizeConstraints()
     this->UpdateOutline();
   }
 }
+VTK_ABI_NAMESPACE_END

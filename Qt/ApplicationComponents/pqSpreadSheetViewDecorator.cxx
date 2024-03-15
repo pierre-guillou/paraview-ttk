@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSpreadSheetViewDecorator.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSpreadSheetViewDecorator.h"
 #include "ui_pqSpreadSheetViewDecorator.h"
 
@@ -53,6 +25,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqSpreadSheetViewModel.h"
 #include "pqSpreadSheetViewWidget.h"
 #include "pqUndoStack.h"
+#include "vtkDataObject.h"
 #include "vtkNew.h"
 #include "vtkSMEnumerationDomain.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
@@ -141,13 +114,20 @@ pqSpreadSheetViewDecorator::pqSpreadSheetViewDecorator(pqSpreadSheetView* view)
   {
     for (int cc = 0, max = enumDomain->GetNumberOfEntries(); cc < max; ++cc)
     {
-      internal.Attribute->addItem(enumDomain->GetEntryText(cc), enumDomain->GetEntryValue(cc));
+      internal.Attribute->addItem(
+        QCoreApplication::translate("ServerManagerXML", enumDomain->GetEntryText(cc)),
+        enumDomain->GetEntryValue(cc));
     }
   }
+  this->onCurrentAttributeChange(0);
 
   this->connect(internal.Attribute, SIGNAL(currentIndexChanged(int)), SIGNAL(uiModified()));
   this->connect(internal.ToggleCellConnectivity, SIGNAL(toggled(bool)), SIGNAL(uiModified()));
+  this->connect(internal.ToggleFieldData, SIGNAL(toggled(bool)), SIGNAL(uiModified()));
   this->connect(internal.SelectionOnly, SIGNAL(toggled(bool)), SIGNAL(uiModified()));
+
+  this->connect(internal.Attribute, SIGNAL(currentIndexChanged(int)), this,
+    SLOT(onCurrentAttributeChange(int)));
 
   internal.Links.setUseUncheckedProperties(true);
   QObject::connect(&internal.Links, &pqPropertyLinks::qtWidgetChanged, [proxy, &internal]() {
@@ -158,6 +138,8 @@ pqSpreadSheetViewDecorator::pqSpreadSheetViewDecorator(pqSpreadSheetView* view)
 
   internal.Links.addPropertyLink(this, "generateCellConnectivity", SIGNAL(uiModified()), proxy,
     proxy->GetProperty("GenerateCellConnectivity"));
+  internal.Links.addPropertyLink(
+    this, "showFieldData", SIGNAL(uiModified()), proxy, proxy->GetProperty("ShowFieldData"));
   internal.Links.addPropertyLink(this, "showSelectedElementsOnly", SIGNAL(uiModified()), proxy,
     proxy->GetProperty("SelectionOnly"));
   internal.Links.addPropertyLink<SpreadsheetConnection>(
@@ -223,6 +205,20 @@ void pqSpreadSheetViewDecorator::setGenerateCellConnectivity(bool val)
 {
   auto& internal = *this->Internal;
   internal.ToggleCellConnectivity->setChecked(val);
+}
+
+//-----------------------------------------------------------------------------
+bool pqSpreadSheetViewDecorator::showFieldData() const
+{
+  auto& internal = *this->Internal;
+  return internal.ToggleFieldData->isChecked();
+}
+
+//-----------------------------------------------------------------------------
+void pqSpreadSheetViewDecorator::setShowFieldData(bool val)
+{
+  auto& internal = *this->Internal;
+  internal.ToggleFieldData->setChecked(val);
 }
 
 //-----------------------------------------------------------------------------
@@ -296,6 +292,25 @@ void pqSpreadSheetViewDecorator::currentIndexChanged(pqOutputPort* port)
       this->Spreadsheet->render();
     }
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqSpreadSheetViewDecorator::onCurrentAttributeChange(int index)
+{
+  int currentFieldAssociation = this->Internal->Attribute->itemData(index).toInt();
+
+  if (currentFieldAssociation == vtkDataObject::FIELD_ASSOCIATION_NONE)
+  {
+    this->Internal->ToggleFieldData->setEnabled(false);
+    this->Internal->ToggleFieldData->setChecked(false);
+  }
+  else
+  {
+    this->Internal->ToggleFieldData->setEnabled(true);
+  }
+
+  bool enableCellConnectivity = (currentFieldAssociation == vtkDataObject::FIELD_ASSOCIATION_CELLS);
+  this->Internal->ToggleCellConnectivity->setEnabled(enableCellConnectivity);
 }
 
 //-----------------------------------------------------------------------------

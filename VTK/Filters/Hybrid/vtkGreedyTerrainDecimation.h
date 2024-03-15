@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGreedyTerrainDecimation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGreedyTerrainDecimation
  * @brief   reduce height field (represented as image) to reduced TIN
@@ -70,6 +58,7 @@
 #include "vtkFiltersHybridModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPriorityQueue;
 class vtkDataArray;
 class vtkPointData;
@@ -219,7 +208,7 @@ protected:
   vtkGreedyTerrainDecimationPointInfoType* PointInfo;     // map mesh pt id to input pt id
 
   // Make a guess at initial allocation
-  void EstimateOutputSize(const vtkIdType numInputPts, vtkIdType& numPts, vtkIdType& numTris);
+  void EstimateOutputSize(vtkIdType numInputPts, vtkIdType& numPts, vtkIdType& numTris);
 
   // Returns non-zero if the error measure is satisfied.
   virtual int SatisfiesErrorMeasure(double error);
@@ -243,7 +232,7 @@ protected:
 
   void UpdateTriangles(vtkIdType meshPtId); // update all points connected to this point
   void UpdateTriangle(vtkIdType triId, vtkIdType p1, vtkIdType p2, vtkIdType p3);
-  void UpdateTriangle(vtkIdType triId, int ij1[2], int ij2[2], int ij3[2], double h[4]);
+  void UpdateTriangle(vtkIdType triId, int ij1[2], int ij2[2], int ij3[2], double h[3]);
 
   int CharacterizeTriangle(int ij1[2], int ij2[2], int ij[3], int*& min, int*& max, int*& midL,
     int*& midR, int*& mid, int mid2[2], double h[3], double& hMin, double& hMax, double& hL,
@@ -254,4 +243,5 @@ private:
   void operator=(const vtkGreedyTerrainDecimation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

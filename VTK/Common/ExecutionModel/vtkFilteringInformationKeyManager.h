@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFilteringInformationKeyManager.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFilteringInformationKeyManager
  * @brief   Manages key types in vtkFiltering.
@@ -30,6 +18,7 @@
 
 #include "vtkDebugLeaksManager.h" // DebugLeaks exists longer than info keys.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationKey;
 
 class VTKCOMMONEXECUTIONMODEL_EXPORT vtkFilteringInformationKeyManager
@@ -61,5 +50,6 @@ private:
 // initialized before and destroyed after it is used.
 static vtkFilteringInformationKeyManager vtkFilteringInformationKeyManagerInstance;
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkFilteringInformationKeyManager.h

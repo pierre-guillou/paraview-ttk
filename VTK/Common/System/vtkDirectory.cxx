@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDirectory.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDirectory.h"
 #include "vtkStringArray.h"
 
@@ -20,6 +8,7 @@
 
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDirectory);
 
 vtkDirectory::vtkDirectory()
@@ -64,6 +53,7 @@ void vtkDirectory::PrintSelf(ostream& os, vtkIndent indent)
 // First microsoft and borland compilers
 
 #if defined(_MSC_VER) || defined(__BORLANDC__) || defined(__MINGW32__)
+VTK_ABI_NAMESPACE_END
 #include "vtkWindows.h"
 #include <cctype>
 #include <cstdio>
@@ -74,6 +64,7 @@ void vtkDirectory::PrintSelf(ostream& os, vtkIndent indent)
 #include <io.h>
 #include <sys/types.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 int vtkDirectory::Open(const char* name)
 {
   // clean up from any previous open
@@ -127,6 +118,7 @@ const char* vtkDirectory::GetCurrentWorkingDirectory(char* buf, unsigned int len
 
 // Now the POSIX style directory access
 
+VTK_ABI_NAMESPACE_END
 #include <dirent.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -145,6 +137,7 @@ const char* vtkDirectory::GetCurrentWorkingDirectory(char* buf, unsigned int len
 #define vtkdirectory_dirent dirent
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 int vtkDirectory::Open(const char* name)
 {
   // clean up from any previous open
@@ -299,3 +292,4 @@ int vtkDirectory::Rename(const char* oldname, const char* newname)
 {
   return 0 == rename(oldname, newname);
 }
+VTK_ABI_NAMESPACE_END

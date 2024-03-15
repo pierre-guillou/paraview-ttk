@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuaternion.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkQuaternion.h"
 
@@ -23,6 +11,7 @@
 #include <cmath>
 
 //----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 vtkQuaternion<T>::vtkQuaternion()
 {
@@ -628,4 +617,5 @@ vtkQuaternion<T> vtkQuaternion<T>::NormalizedWithAngleInDegrees() const
   return unitVTK;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

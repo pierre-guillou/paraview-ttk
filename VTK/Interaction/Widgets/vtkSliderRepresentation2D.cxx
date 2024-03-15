@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSliderRepresentation2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSliderRepresentation2D.h"
 #include "vtkActor2D.h"
 #include "vtkCellArray.h"
@@ -33,6 +21,7 @@
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSliderRepresentation2D);
 
 //------------------------------------------------------------------------------
@@ -299,7 +288,7 @@ vtkCoordinate* vtkSliderRepresentation2D::GetPoint2Coordinate()
 }
 
 //------------------------------------------------------------------------------
-void vtkSliderRepresentation2D::PlaceWidget(double* vtkNotUsed(bds[6]))
+void vtkSliderRepresentation2D::PlaceWidget(double* vtkNotUsed(bounds[6]))
 {
   // Position the handles at the end of the lines
   this->BuildRepresentation();
@@ -358,6 +347,11 @@ void vtkSliderRepresentation2D::Highlight(int highlight)
 //------------------------------------------------------------------------------
 void vtkSliderRepresentation2D::BuildRepresentation()
 {
+  if (!this->Renderer || !this->Visibility)
+  {
+    return;
+  }
+
   if (this->GetMTime() > this->BuildTime ||
     (this->Renderer && this->Renderer->GetVTKWindow() &&
       this->Renderer->GetVTKWindow()->GetMTime() > this->BuildTime))
@@ -477,23 +471,27 @@ void vtkSliderRepresentation2D::BuildRepresentation()
 }
 
 //------------------------------------------------------------------------------
-void vtkSliderRepresentation2D::GetActors2D(vtkPropCollection* pc)
+void vtkSliderRepresentation2D::GetActors2D(vtkPropCollection* propCollection)
 {
-  pc->AddItem(this->SliderActor);
-  pc->AddItem(this->TubeActor);
-  pc->AddItem(this->CapActor);
-  pc->AddItem(this->LabelActor);
-  pc->AddItem(this->TitleActor);
+  if (propCollection != nullptr && this->GetVisibility())
+  {
+    propCollection->AddItem(this->SliderActor);
+    propCollection->AddItem(this->TubeActor);
+    propCollection->AddItem(this->CapActor);
+    propCollection->AddItem(this->LabelActor);
+    propCollection->AddItem(this->TitleActor);
+  }
+  this->Superclass::GetActors2D(propCollection);
 }
 
 //------------------------------------------------------------------------------
-void vtkSliderRepresentation2D::ReleaseGraphicsResources(vtkWindow* w)
+void vtkSliderRepresentation2D::ReleaseGraphicsResources(vtkWindow* window)
 {
-  this->SliderActor->ReleaseGraphicsResources(w);
-  this->TubeActor->ReleaseGraphicsResources(w);
-  this->CapActor->ReleaseGraphicsResources(w);
-  this->LabelActor->ReleaseGraphicsResources(w);
-  this->TitleActor->ReleaseGraphicsResources(w);
+  this->SliderActor->ReleaseGraphicsResources(window);
+  this->TubeActor->ReleaseGraphicsResources(window);
+  this->CapActor->ReleaseGraphicsResources(window);
+  this->LabelActor->ReleaseGraphicsResources(window);
+  this->TitleActor->ReleaseGraphicsResources(window);
 }
 
 //------------------------------------------------------------------------------
@@ -609,3 +607,4 @@ void vtkSliderRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "TitleProperty: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

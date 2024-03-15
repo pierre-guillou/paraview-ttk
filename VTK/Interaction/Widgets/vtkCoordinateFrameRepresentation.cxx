@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCoordinateFrameRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCoordinateFrameRepresentation.h"
 
@@ -43,6 +31,7 @@
 #include "vtkTransform.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCoordinateFrameRepresentation);
 
 static constexpr double DefaultPickTol = 0.001;
@@ -559,19 +548,22 @@ double* vtkCoordinateFrameRepresentation::GetBounds()
 //------------------------------------------------------------------------------
 void vtkCoordinateFrameRepresentation::GetActors(vtkPropCollection* pc)
 {
-  pc->AddItem(this->OriginSphereActor);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    pc->AddItem(this->OriginSphereActor);
 
-  pc->AddItem(this->XVectorLineActor);
-  pc->AddItem(this->XVectorConeActor);
-  pc->AddItem(this->LockerXVectorConeActor);
+    pc->AddItem(this->XVectorLineActor);
+    pc->AddItem(this->XVectorConeActor);
+    pc->AddItem(this->LockerXVectorConeActor);
 
-  pc->AddItem(this->YVectorLineActor);
-  pc->AddItem(this->YVectorConeActor);
-  pc->AddItem(this->LockerYVectorConeActor);
+    pc->AddItem(this->YVectorLineActor);
+    pc->AddItem(this->YVectorConeActor);
+    pc->AddItem(this->LockerYVectorConeActor);
 
-  pc->AddItem(this->ZVectorLineActor);
-  pc->AddItem(this->ZVectorConeActor);
-  pc->AddItem(this->LockerZVectorConeActor);
+    pc->AddItem(this->ZVectorLineActor);
+    pc->AddItem(this->ZVectorConeActor);
+    pc->AddItem(this->LockerZVectorConeActor);
+  }
   this->Superclass::GetActors(pc);
 }
 
@@ -644,7 +636,7 @@ int vtkCoordinateFrameRepresentation::RenderTranslucentPolygonalGeometry(vtkView
 }
 
 //------------------------------------------------------------------------------
-int vtkCoordinateFrameRepresentation::HasTranslucentPolygonalGeometry()
+vtkTypeBool vtkCoordinateFrameRepresentation::HasTranslucentPolygonalGeometry()
 {
   int result = 0;
   if (!this->LockNormalToCamera)
@@ -1633,3 +1625,4 @@ void vtkCoordinateFrameRepresentation::ComputeAdaptivePickerTolerance()
   double tolerance = pickerCylinderRadius < DefaultPickTol ? pickerCylinderRadius : DefaultPickTol;
   this->CellPicker->SetTolerance(tolerance);
 }
+VTK_ABI_NAMESPACE_END

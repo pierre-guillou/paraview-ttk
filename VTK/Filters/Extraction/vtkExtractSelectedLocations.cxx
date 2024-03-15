@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedLocations.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -37,6 +25,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedLocations);
 
 //------------------------------------------------------------------------------
@@ -290,8 +279,13 @@ int vtkExtractSelectedLocations::ExtractCells(
   double* weights = new double[input->GetMaxCellSize()];
 
   vtkIdType ptId, cellId, locArrayIndex;
+  vtkIdType checkAbortInterval = std::min(numLocs / 10 + 1, (vtkIdType)1000);
   for (locArrayIndex = 0; locArrayIndex < numLocs; locArrayIndex++)
   {
+    if (locArrayIndex % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     cellId = input->FindCell(
       locArray->GetTuple(locArrayIndex), nullptr, cell, 0, 0.0, subId, pcoords, weights);
     if ((cellId >= 0) && (cellInArray->GetValue(cellId) != flag))
@@ -337,7 +331,7 @@ int vtkExtractSelectedLocations::ExtractCells(
 
   idList->Delete();
 
-  if (!passThrough)
+  if (!this->CheckAbort() && !passThrough)
   {
     vtkIdType* pointMap = new vtkIdType[numPts]; // maps old point ids into new
     vtkExtractSelectedLocationsCopyPoints(input, output, pointInArray->GetPointer(0), pointMap);
@@ -453,8 +447,13 @@ int vtkExtractSelectedLocations::ExtractPoints(
   double epsSquared = epsilon * epsilon;
   if (numPts > 0)
   {
+    vtkIdType checkAbortInterval = std::min(numLocs / 10 + 1, (vtkIdType)1000);
     for (locArrayIndex = 0; locArrayIndex < numLocs; locArrayIndex++)
     {
+      if (locArrayIndex % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       if (locator != nullptr)
       {
         ptId =
@@ -506,6 +505,7 @@ int vtkExtractSelectedLocations::ExtractPoints(
   else
   {
     ptId = -1;
+    this->CheckAbort();
   }
 
   ptCells->Delete();
@@ -516,7 +516,7 @@ int vtkExtractSelectedLocations::ExtractPoints(
     locator->Delete();
   }
 
-  if (!passThrough)
+  if (!this->CheckAbort() && !passThrough)
   {
     vtkIdType* pointMap = new vtkIdType[numPts]; // maps old point ids into new
     vtkExtractSelectedLocationsCopyPoints(input, output, pointInArray->GetPointer(0), pointMap);
@@ -558,3 +558,4 @@ void vtkExtractSelectedLocations::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

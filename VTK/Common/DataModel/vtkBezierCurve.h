@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierCurve.h
-
-  Copyright (c) Kevin Tew
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kevin Tew
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkBezierCurve
 // .SECTION Description
 // .SECTION See Also
@@ -25,6 +14,7 @@
 #include "vtkNew.h"          // For member variable.
 #include "vtkSmartPointer.h" // For member variable.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellData;
 class vtkDoubleArray;
 class vtkIdList;
@@ -43,7 +33,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   int GetCellType() override { return VTK_BEZIER_CURVE; }
-  void SetRationalWeightsFromPointData(vtkPointData* point_data, const vtkIdType numPts);
+  void SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts);
   void InterpolateFunctions(const double pcoords[3], double* weights) override;
   void InterpolateDerivs(const double pcoords[3], double* derivs) override;
 
@@ -62,4 +52,5 @@ private:
   void operator=(const vtkBezierCurve&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkBezierCurve_h

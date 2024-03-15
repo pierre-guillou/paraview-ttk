@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridAxisCut.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridAxisCut.h"
 
 #include "vtkBitArray.h"
@@ -30,6 +18,7 @@
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 #include "vtkHyperTreeGridNonOrientedGeometryCursor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridAxisCut);
 
 //------------------------------------------------------------------------------
@@ -172,6 +161,10 @@ int vtkHyperTreeGridAxisCut::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
   while (it.GetNextTree(inIndex))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new geometric cursor at root of current input tree
     input->InitializeNonOrientedGeometryCursor(inCursor, inIndex);
 
@@ -258,6 +251,10 @@ void vtkHyperTreeGridAxisCut::RecursivelyProcessTree(
     int numChildren = inCursor->GetNumberOfChildren();
     for (int inChild = 0; inChild < numChildren; ++inChild)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       inCursor->ToChild(inChild);
 
       // Retrieve normal axis and intercept of plane
@@ -288,3 +285,4 @@ void vtkHyperTreeGridAxisCut::RecursivelyProcessTree(
     } // inChild
   }   // if ( ! cursor->IsLeaf() )
 }
+VTK_ABI_NAMESPACE_END

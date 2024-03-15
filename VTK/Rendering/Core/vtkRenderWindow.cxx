@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkRenderWindow.h"
 
@@ -35,6 +23,7 @@
 #include <utility> // for std::swap
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkRenderWindow);
 
 // Construct an instance of  vtkRenderWindow with its screen size
@@ -417,9 +406,9 @@ void vtkRenderWindow::RemoveRenderer(vtkRenderer* ren)
   this->Renderers->RemoveItem(ren);
 }
 
-int vtkRenderWindow::HasRenderer(vtkRenderer* ren)
+vtkTypeBool vtkRenderWindow::HasRenderer(vtkRenderer* ren)
 {
-  return (ren && this->Renderers->IsItemPresent(ren));
+  return (ren && this->Renderers->IndexOfFirstOccurence(ren) >= 0);
 }
 
 //------------------------------------------------------------------------------
@@ -682,3 +671,4 @@ const char* vtkRenderWindow::GetStereoTypeAsString(int type)
       return "";
   }
 }
+VTK_ABI_NAMESPACE_END

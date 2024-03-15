@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotPie.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotPie
@@ -27,6 +15,7 @@
 #include "vtkPlot.h"
 #include "vtkSmartPointer.h" // To hold ColorSeries etc.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkColorSeries;
 class vtkPoints2D;
@@ -124,4 +113,5 @@ private:
   vtkPlotPiePrivate* Private;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotPie_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridThreshold.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridThreshold
  * @brief   Extract cells from a hyper tree grid
@@ -40,9 +28,13 @@
 #ifndef vtkHyperTreeGridThreshold_h
 #define vtkHyperTreeGridThreshold_h
 
+#include "vtkDeprecation.h"            // For deprecation macros
 #include "vtkFiltersHyperTreeModule.h" // For export macro
 #include "vtkHyperTreeGridAlgorithm.h"
 
+#include <memory> // For std::unique_ptr
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkHyperTreeGrid;
 
@@ -57,10 +49,15 @@ public:
 
   ///@{
   /**
-   * Set/Get True, create a new mask ; false, create a new HTG.
+   * Set/Get True, sets the MemoryStrategy to MaskInput ; False, does nothing now prefer
+   * SetMemoryStrategy.
+   *
+   * Default is technically true
    */
-  vtkSetMacro(JustCreateNewMask, bool);
-  vtkGetMacro(JustCreateNewMask, bool);
+  VTK_DEPRECATED_IN_9_3_0("JustCreateNewMask is deprecated in favor of MemoryStrategy")
+  virtual void SetJustCreateNewMask(bool) {}
+  VTK_DEPRECATED_IN_9_3_0("JustCreateNewMask is deprecated in favor of MemoryStrategy")
+  virtual bool GetJustCreateNewMask() { return (this->GetMemoryStrategy() == MaskInput); }
   ///@}
 
   ///@{
@@ -83,6 +80,30 @@ public:
    * Convenience method to set both threshold values at once
    */
   void ThresholdBetween(double, double);
+
+  ///@{
+  /**
+   * Enum for defining the strategy to take in allocating the memory used by the output
+   *
+   * - MaskInput: shallow copy the input and generate a new mask based on the threshold
+   * - CopyStructureAndIndexArrays: generate a new HTG from the minimal set of cells necessary to
+   * describe the thresholded result and use `vtkIndexedArray`s to index the cell data on the input
+   * - DeepThreshold: generate a new HTG from the threshold of the input HTG
+   */
+  enum MemoryStrategyChoice
+  {
+    MaskInput = 0,
+    CopyStructureAndIndexArrays = 1,
+    DeepThreshold = 2
+  };
+  /**
+   * Setter and Getter for the memory strategy
+   *
+   * Default is MaskInput
+   */
+  vtkGetMacro(MemoryStrategy, int);
+  vtkSetClampMacro(MemoryStrategy, int, MaskInput, DeepThreshold);
+  ///@}
 
 protected:
   vtkHyperTreeGridThreshold();
@@ -136,13 +157,22 @@ protected:
   vtkDataArray* InScalars;
 
   /**
-   * With or without copy
+   * With or without copy (deprecated in favor of MemoryStrategy)
    */
   bool JustCreateNewMask;
 
 private:
   vtkHyperTreeGridThreshold(const vtkHyperTreeGridThreshold&) = delete;
   void operator=(const vtkHyperTreeGridThreshold&) = delete;
+
+  /**
+   * The current memory strategy to use
+   */
+  int MemoryStrategy = MaskInput;
+
+  struct Internals;
+  std::unique_ptr<Internals> Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkHyperTreeGridThreshold */

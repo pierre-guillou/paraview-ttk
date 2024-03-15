@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNamedColors.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkNamedColors
  * @brief   A class holding colors and their names.
@@ -74,6 +62,7 @@
 #include "vtkStdString.h"   // Needed for arguments
 #include "vtkStringArray.h" // For returning color names
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkNamedColorsDataStore;
 class vtkColorStringParser;
 
@@ -400,4 +389,5 @@ private:
   void operator=(const vtkNamedColors&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkNamedColors_h */

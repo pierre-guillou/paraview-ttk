@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    pqEqualizerPropertyWidget.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqEqualizerPropertyWidget.h"
 
 #include "vtkEqualizerContextItem.h"
@@ -34,6 +22,7 @@
 #include "pqProxyWidget.h"
 
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QFileDialog>
 #include <QGridLayout>
 #include <QLabel>
@@ -66,7 +55,9 @@ pqEqualizerPropertyWidget::pqEqualizerPropertyWidget(
 
   // Setup GUI
   QGridLayout* layout = new QGridLayout(this);
-  layout->setMargin(pqPropertiesPanel::suggestedMargin());
+  layout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+    pqPropertiesPanel::suggestedMargin());
   layout->setVerticalSpacing(pqPropertiesPanel::suggestedVerticalSpacing());
   layout->setHorizontalSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
 
@@ -86,7 +77,8 @@ pqEqualizerPropertyWidget::pqEqualizerPropertyWidget(
 
   if (samplingFreqProp)
   {
-    auto* samplingFreqLabel = new QLabel(samplingFreqProp->GetXMLLabel(), this);
+    auto* samplingFreqLabel = new QLabel(
+      QCoreApplication::translate("ServerManagerXML", samplingFreqProp->GetXMLLabel()), this);
     auto* samplingFreqWidget =
       pqProxyWidget::createWidgetForProperty(samplingFreqProp, proxy, this);
     QObject::connect(samplingFreqWidget, &pqPropertyWidget::changeAvailable, this,
@@ -162,7 +154,7 @@ void pqEqualizerPropertyWidget::placeWidget()
 void pqEqualizerPropertyWidget::saveEqualizer()
 {
   pqFileDialog dialog(
-    nullptr, pqCoreUtilities::mainWidget(), tr("Save Equalizer:"), QString(), "CSV (*.csv)");
+    nullptr, pqCoreUtilities::mainWidget(), tr("Save Equalizer:"), QString(), "CSV (*.csv)", false);
   dialog.setFileMode(pqFileDialog::AnyFile);
   if (QFileDialog::Accepted == dialog.exec())
   {
@@ -187,7 +179,7 @@ void pqEqualizerPropertyWidget::saveEqualizer()
 void pqEqualizerPropertyWidget::loadEqualizer()
 {
   pqFileDialog dialog(
-    nullptr, pqCoreUtilities::mainWidget(), tr("Load Equalizer:"), QString(), "CSV (*.csv)");
+    nullptr, pqCoreUtilities::mainWidget(), tr("Load Equalizer:"), QString(), "CSV (*.csv)", false);
   dialog.setFileMode(pqFileDialog::ExistingFile);
   if (QFileDialog::Accepted == dialog.exec())
   {

@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChacoReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkChacoReader.h"
 
 #include "vtkCellArray.h"
@@ -35,6 +18,7 @@
 #include <cstdio>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkChacoReader);
 
 //------------------------------------------------------------------------------
@@ -859,7 +843,7 @@ int vtkChacoReader::OpenCurrentFile()
 // Code to read Chaco files.
 // This software was developed by Bruce Hendrickson and Robert Leland
 // at Sandia National Laboratories under US Department of Energy
-// contract DE-AC04-76DP00789 and is copyrighted by Sandia Corporation.
+// contract DE-AC04-76DP00789.
 
 void vtkChacoReader::ResetInputBuffers()
 {
@@ -874,16 +858,14 @@ int vtkChacoReader::InputGeom(vtkIdType nvtxs, // Number of vertices to read in
   double* x, double* y, double* z)
 {
   double xc = 0.0, yc = 0.0, zc = 0.0;
-  int line_num, end_flag, ndims, i = 0;
+  int end_flag, ndims, i = 0;
 
   rewind(this->CurrentGeometryFP);
 
-  line_num = 0;
   end_flag = 1;
   while (end_flag == 1)
   {
     xc = this->ReadVal(this->CurrentGeometryFP, &end_flag);
-    ++line_num;
   }
 
   if (end_flag == -1)
@@ -944,7 +926,6 @@ int vtkChacoReader::InputGeom(vtkIdType nvtxs, // Number of vertices to read in
 
   for (int nread = 1; nread < nvtxs; nread++)
   {
-    ++line_num;
     if (ndims == 1)
     {
       i = fscanf(this->CurrentGeometryFP, "%lf", x + nread);
@@ -1293,7 +1274,7 @@ double vtkChacoReader::ReadVal(FILE* infile, int* end_flag)
     /* Now read next line, or next segment of current one. */
     ptr2 = fgets(&Line[length_left], length, infile);
 
-    if (ptr2 == (char*)nullptr)
+    if (ptr2 == nullptr)
     {
       *end_flag = -1;
       return ((double)0.0);
@@ -1400,7 +1381,7 @@ vtkIdType vtkChacoReader::ReadInt(FILE* infile, int* end_flag)
     /* Now read next line, or next segment of current one. */
     ptr2 = fgets(&Line[length_left], length, infile);
 
-    if (ptr2 == (char*)nullptr)
+    if (ptr2 == nullptr)
     {
       *end_flag = -1;
       return (0);
@@ -1482,3 +1463,4 @@ void vtkChacoReader::FlushLine(FILE* infile)
     c = getc(infile);
   }
 }
+VTK_ABI_NAMESPACE_END

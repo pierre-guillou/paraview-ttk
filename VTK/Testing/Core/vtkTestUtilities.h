@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTestUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTestUtilities
  * @brief   Utility functions used for regression testing.
@@ -31,6 +19,7 @@
 #pragma warning(disable : 4996) // 'function': was declared deprecated
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkTestUtilities
 {
   /**
@@ -157,5 +146,6 @@ inline char* vtkTestUtilities::ExpandFileNameWithArgOrEnvOrDefault(const char* a
   return fullName;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkTestUtilities_h
 // VTK-HeaderTest-Exclude: vtkTestUtilities.h

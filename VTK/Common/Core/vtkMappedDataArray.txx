@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMappedDataArray.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkMappedDataArray_txx
 #define vtkMappedDataArray_txx
@@ -21,6 +9,7 @@
 #include "vtkVariant.h" // for vtkVariant
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <class Scalar>
 vtkMappedDataArray<Scalar>::vtkMappedDataArray()
 {
@@ -89,7 +78,6 @@ void vtkMappedDataArray<Scalar>::SetVoidArray(void*, vtkIdType, int)
 {
   vtkErrorMacro(<< "SetVoidArray not supported for vtkMappedDataArray "
                    "subclasses.");
-  return;
 }
 
 //------------------------------------------------------------------------------
@@ -98,7 +86,6 @@ void vtkMappedDataArray<Scalar>::SetVoidArray(void*, vtkIdType, int, int)
 {
   vtkErrorMacro(<< "SetVoidArray not supported for vtkMappedDataArray "
                    "subclasses.");
-  return;
 }
 
 //------------------------------------------------------------------------------
@@ -173,4 +160,5 @@ void vtkMappedDataArray<Scalar>::Modified()
   this->TemporaryScalarPointerSize = 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkMappedDataArray_txx

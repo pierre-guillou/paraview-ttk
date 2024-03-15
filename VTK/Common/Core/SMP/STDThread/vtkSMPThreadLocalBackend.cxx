@@ -1,19 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPThreadLocalBackend.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "SMP/STDThread/vtkSMPThreadLocalBackend.h"
+
+#include "SMP/STDThread/vtkSMPThreadPool.h"
 
 #include <algorithm>
 #include <cmath>      // For std::floor & std::log2
@@ -28,10 +18,11 @@ namespace smp
 {
 namespace STDThread
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 static ThreadIdType GetThreadId()
 {
-  return std::hash<std::thread::id>{}(std::this_thread::get_id());
+  return vtkSMPThreadPool::GetInstance().GetThreadId();
 }
 
 // 32 bit FNV-1a hash function
@@ -216,6 +207,7 @@ size_t ThreadSpecific::GetSize() const
   return this->Size;
 }
 
+VTK_ABI_NAMESPACE_END
 } // STDThread
 } // namespace smp
 } // namespace detail

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLFramebufferObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLFramebufferObject
  * @brief   Internal class which encapsulates OpenGL FramebufferObject
@@ -109,7 +97,7 @@
  * does not need to be polluted with OpenGL headers/constants.
  *
  * This class replaces both vtkFrameBufferObject and vtkFrameBufferObject2
- * and contins methods from both of them. Most methods from FO2 should
+ * and contains methods from both of them. Most methods from FO2 should
  * work with this class. Just rename FBO2 to FBO and make sure to Save and
  * Restore the bindings and buffers.
  * If you have been using the old FO class, which had comments
@@ -167,6 +155,7 @@
 #include <map>                         // for the maps
 #include <vector>                      // for the lists of logical buffers.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFOInfo;
 class vtkGenericOpenGLResourceFreeCallback;
 class vtkOpenGLRenderWindow;
@@ -517,4 +506,5 @@ private:
   void operator=(const vtkOpenGLFramebufferObject&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

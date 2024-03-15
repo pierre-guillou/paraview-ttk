@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-Initial version and concept gratefully provided by Klaus Steinhorst
-
-Returns 0 if the system supports OpenGL 3.2 or later.
-
-If provided a -v argument then it will display a message box
-with additional system information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
+#include "vtkABINamespace.h"
 
 #include <iostream>
 #include <sstream>
@@ -28,6 +11,14 @@ with additional system information.
 
 #include <GL/gl.h>
 
+/**
+ * Initial version and concept gratefully provided by Klaus Steinhorst
+ * Returns 0 if the system supports OpenGL 3.2 or later.
+ * If provided a -v argument then it will display a message box
+ * with additional system information.
+ */
+
+VTK_ABI_NAMESPACE_BEGIN
 class CheckOpenGLVersion
 {
 public:
@@ -152,6 +143,7 @@ bool CheckOpenGLVersion::hasVersion_3_2()
 
   return false;
 }
+VTK_ABI_NAMESPACE_END
 
 int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_ HINSTANCE /*hPrevInstance*/,
   _In_ LPSTR lpCmdLine, _In_ int /*nCmdShow*/)

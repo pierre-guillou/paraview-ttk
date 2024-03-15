@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBillboardTextActor3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBillboardTextActor3D.h"
 
@@ -39,6 +27,7 @@
 // Define to print debugging info:
 //#define DEBUG_BTA3D
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -666,3 +655,4 @@ void vtkBillboardTextActor3D::PreRender()
   // etc to work.
   this->QuadActor->SetPropertyKeys(this->GetPropertyKeys());
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QVTKRenderWindowAdapter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef QVTKRenderWindowAdapter_h
 #define QVTKRenderWindowAdapter_h
 
@@ -44,6 +32,8 @@ class QOpenGLContext;
 class QSurfaceFormat;
 class QWidget;
 class QWindow;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGenericOpenGLRenderWindow;
 class vtkObject;
 
@@ -182,7 +172,7 @@ public:
 private Q_SLOTS:
   void contextAboutToBeDestroyed();
 
-private:
+private: // NOLINT(readability-redundant-access-specifiers)
   QVTKRenderWindowAdapter(
     QOpenGLContext* cntxt, vtkGenericOpenGLRenderWindow* window, QObject* widgetOrWindow);
   Q_DISABLE_COPY(QVTKRenderWindowAdapter);
@@ -193,4 +183,5 @@ private:
   QCursor DefaultCursor;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

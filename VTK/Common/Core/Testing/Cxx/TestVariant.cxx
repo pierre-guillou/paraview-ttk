@@ -1,24 +1,11 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
-  Program:   Visualization Toolkit
-  Module:    TestVariant.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
-
+#include "vtkFloatArray.h"
+#include "vtkStringArray.h"
 #include "vtkVariant.h"
+#include "vtkVariantArray.h"
 
 int TestVariant(int, char*[])
 {
@@ -179,6 +166,42 @@ int TestVariant(int, char*[])
   {
     cerr << "double to string complex conversion failed with scientific formatting.\n";
     errors++;
+  }
+
+  // Regression test: ensure that empty arrays (of the 3 types) survive conversion to numeric.
+  // There used to be an incorrect assumption that arrays always had a 0th element.
+  {
+    vtkNew<vtkFloatArray> emptyArray;
+    vtkVariant arrayVariant(emptyArray);
+    bool isValid = true;
+    short numericValue = arrayVariant.ToShort(&isValid);
+    if (isValid || (numericValue != 0))
+    {
+      cerr << "empty vtkFloatArray should have failed to convert to numeric.\n";
+      errors++;
+    }
+  }
+  {
+    vtkNew<vtkStringArray> emptyArray;
+    vtkVariant arrayVariant(emptyArray);
+    bool isValid = true;
+    int numericValue = arrayVariant.ToInt(&isValid);
+    if (isValid || (numericValue != 0))
+    {
+      cerr << "empty vtkStringArray should have failed to convert to numeric.\n";
+      errors++;
+    }
+  }
+  {
+    vtkNew<vtkVariantArray> emptyArray;
+    vtkVariant arrayVariant(emptyArray);
+    bool isValid = true;
+    char numericValue = arrayVariant.ToChar(&isValid);
+    if (isValid || (numericValue != 0))
+    {
+      cerr << "empty vtkVariantArray should have failed to convert to numeric.\n";
+      errors++;
+    }
   }
 
   return errors;

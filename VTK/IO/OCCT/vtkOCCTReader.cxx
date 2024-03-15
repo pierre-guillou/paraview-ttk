@@ -1,30 +1,17 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*=========================================================================
-
-F3D project
-BSD 3-Clause License
-See LICENSE
-
-Copyright 2019-2021 Kitware SAS
-Copyright 2021-2022 Michael Migliore, Mathieu Westphal
-All rights reserved.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2019-2021 Kitware SAS
+// SPDX-FileCopyrightText: Copyright 2021-2022 Michael Migliore, Mathieu Westphal
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOCCTReader.h"
+
+#include <Standard_Version.hxx>
+#define VTK_OCCT_VERSION(major, minor, maint) ((major) << 16 | (minor) << 8 | (maint))
+
+#if VTK_OCCT_VERSION(7, 4, 1) <= OCC_VERSION_HEX
+#define VTK_OCCT_USE_PROGRESS 1
+#else
+#define VTK_OCCT_USE_PROGRESS 0
+#endif
 
 #include <BRepAdaptor_Surface.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
@@ -32,7 +19,9 @@ All rights reserved.
 #include <IGESCAFControl_Reader.hxx>
 #include <Message.hxx>
 #include <Message_PrinterOStream.hxx>
+#if VTK_OCCT_USE_PROGRESS
 #include <Message_ProgressIndicator.hxx>
+#endif
 #include <Poly.hxx>
 #include <Poly_Triangulation.hxx>
 #include <Quantity_Color.hxx>
@@ -75,6 +64,8 @@ All rights reserved.
 #include <numeric>
 #include <unordered_map>
 #include <vector>
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkOCCTReader::vtkInternals
 {
@@ -414,6 +405,7 @@ vtkOCCTReader::~vtkOCCTReader()
   this->SetFileName(nullptr);
 }
 
+#if VTK_OCCT_USE_PROGRESS
 //----------------------------------------------------------------------------
 class ProgressIndicator : public Message_ProgressIndicator
 {
@@ -436,6 +428,7 @@ private:
   double LastPosition = 0.0;
   vtkOCCTReader* Reader = nullptr;
 };
+#endif
 
 //----------------------------------------------------------------------------
 template <typename T>
@@ -447,8 +440,12 @@ bool TransferToDocument(vtkOCCTReader* that, T& reader, Handle(TDocStd_Document)
 
   if (reader.ReadFile(that->GetFileName()) == IFSelect_RetDone)
   {
+#if VTK_OCCT_USE_PROGRESS
     ProgressIndicator pi(that);
     return reader.Transfer(doc, pi.Start());
+#else
+    return reader.Transfer(doc);
+#endif
   }
   else
   {
@@ -524,3 +521,4 @@ void vtkOCCTReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ReadWire: " << (this->ReadWire ? "true" : "false") << "\n";
   os << indent << "FileFormat: " << (this->FileFormat == Format::STEP ? "STEP" : "IGES") << "\n";
 }
+VTK_ABI_NAMESPACE_END

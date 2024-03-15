@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResampleWithDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResampleWithDataSet
  * @brief   sample point and cell data of a dataset on
@@ -34,6 +22,7 @@
 #include "vtkNew.h"               // For vtkCompositeDataProbeFilter member variable
 #include "vtkPassInputTypeAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractCellLocator;
 class vtkCompositeDataProbeFilter;
 class vtkDataSet;
@@ -134,7 +123,7 @@ public:
   /**
    * Set whether to use the Tolerance field or precompute the tolerance.
    * When on, the tolerance will be computed and the field
-   * value is ignored. Off by default.
+   * value is ignored. On by default.
    */
   void SetComputeTolerance(bool arg);
   bool GetComputeTolerance();
@@ -205,4 +194,5 @@ private:
   void operator=(const vtkResampleWithDataSet&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkResampleWithDataSet_h

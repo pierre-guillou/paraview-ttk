@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSurfaceNets2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSurfaceNets2D
  * @brief   generate smoothed constours from segmented 2D image data (i.e., "label maps")
@@ -110,10 +98,14 @@
  * non-sequential type (set in the CMake variable
  * VTK_SMP_IMPLEMENTATION_TYPE) may improve performance significantly.
  *
+ * @warning
+ * See also vtkPackLabels which is a utility class for renumbering the labels
+ * found in the input segmentation mask to contiguous forms of smaller type.
+ *
  * @sa
  * vtkSurfaceNets3D vtkDiscreteFlyingEdges2D vtkDiscreteFlyingEdgesClipper2D
  * vtkConstrainedSmoothingFilter vtkFlyingEdges2D vtkFlyingEdges3D
- * vtkWindowedSincPolyDataFilter
+ * vtkWindowedSincPolyDataFilter vtkPackLabels
  */
 
 #ifndef vtkSurfaceNets2D_h
@@ -124,6 +116,8 @@
 #include "vtkFiltersCoreModule.h"          // For export macro
 #include "vtkPolyData.h"                   // To support data caching
 #include "vtkPolyDataAlgorithm.h"
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkImageData;
 
@@ -336,4 +330,5 @@ private:
   void operator=(const vtkSurfaceNets2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

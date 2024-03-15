@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVEnSightMasterServerTranslator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVEnSightMasterServerTranslator
  *
@@ -31,16 +19,16 @@ public:
   vtkTypeMacro(vtkPVEnSightMasterServerTranslator, vtkExtentTranslator);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the piece that should provide the data.  All other pieces
    * should provide empty data.
    */
   vtkGetMacro(ProcessId, int);
   vtkSetMacro(ProcessId, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Translates the piece matching ProcessId to the whole extent, and
    * all other pieces to empty.
@@ -51,7 +39,7 @@ public:
 protected:
   vtkPVEnSightMasterServerTranslator();
   ~vtkPVEnSightMasterServerTranslator() override;
-  //@}
+  ///@}
 
   // The process id on which this translator is running.
   int ProcessId;

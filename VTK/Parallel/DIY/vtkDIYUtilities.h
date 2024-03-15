@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDIYUtilities
  * @brief collection of helper functions for working with DIY
@@ -38,6 +26,7 @@
 #include VTK_DIY2(diy/types.hpp)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkBoundingBox;
 class vtkDataObject;
@@ -165,6 +154,7 @@ private:
   vtkDIYUtilities(const vtkDIYUtilities&) = delete;
   void operator=(const vtkDIYUtilities&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 namespace diy
 {
@@ -190,6 +180,7 @@ struct Serialization<vtkFieldData*>
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Implementation detail for Schwarz counter idiom.
 class VTKPARALLELDIY_EXPORT vtkDIYUtilitiesCleanup
 {
@@ -203,6 +194,7 @@ private:
 };
 static vtkDIYUtilitiesCleanup vtkDIYUtilitiesCleanupInstance;
 
+VTK_ABI_NAMESPACE_END
 #include "vtkDIYUtilities.txx" // for template implementations
 
 #endif

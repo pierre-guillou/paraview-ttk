@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExodusIIReaderVariableCheck.h"
 #include "vtkExodusIIReader.h"
 #include "vtkExodusIIReaderPrivate.h"
@@ -13,6 +15,7 @@
 
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 bool vtkExodusIIReaderVariableCheck::Start(std::string name, const int* truth, int numTruth)
 {
   this->SeqTruth.clear();
@@ -461,3 +464,4 @@ bool vtkExodusIIReaderIntPointCheck::AddIntegrationPoint(std::string iptName)
   }
   return true;
 }
+VTK_ABI_NAMESPACE_END

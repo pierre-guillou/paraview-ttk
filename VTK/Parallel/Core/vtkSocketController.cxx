@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSocketController.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocketController.h"
 
 #include "vtkObjectFactory.h"
@@ -24,6 +12,7 @@
 #define WSA_VERSION MAKEWORD(1, 1)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 int vtkSocketController::Initialized = 0;
 
 vtkStandardNewMacro(vtkSocketController);
@@ -136,3 +125,4 @@ vtkMultiProcessController* vtkSocketController::CreateCompliantController()
 
   return compliantController;
 }
+VTK_ABI_NAMESPACE_END

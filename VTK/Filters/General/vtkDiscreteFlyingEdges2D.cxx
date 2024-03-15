@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscreteFlyingEdges2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDiscreteFlyingEdges2D.h"
 
 #include "vtkCellArray.h"
@@ -29,6 +17,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDiscreteFlyingEdges2D);
 
 // This templated class is the heart of the algorithm. Templated across
@@ -232,18 +221,30 @@ public:
   class Pass1
   {
   public:
-    Pass1(vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo, double value)
+    Pass1(
+      vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo, double value, vtkDiscreteFlyingEdges2D* filter)
     {
       this->Algo = algo;
       this->Value = value;
+      this->Filter = filter;
     }
     vtkDiscreteFlyingEdges2DAlgorithm<TT>* Algo;
     double Value;
+    vtkDiscreteFlyingEdges2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       TT* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->ProcessXEdge(this->Value, rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -253,12 +254,26 @@ public:
   class Pass2
   {
   public:
-    Pass2(vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo) { this->Algo = algo; }
+    Pass2(vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo, vtkDiscreteFlyingEdges2D* filter)
+    {
+      this->Algo = algo;
+      this->Filter = filter;
+    }
     vtkDiscreteFlyingEdges2DAlgorithm<TT>* Algo;
+    vtkDiscreteFlyingEdges2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->ProcessYEdges(row);
       } // for all rows in this batch
     }
@@ -267,18 +282,30 @@ public:
   class Pass4
   {
   public:
-    Pass4(vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo, double value)
+    Pass4(
+      vtkDiscreteFlyingEdges2DAlgorithm<TT>* algo, double value, vtkDiscreteFlyingEdges2D* filter)
     {
       this->Algo = algo;
       this->Value = value;
+      this->Filter = filter;
     }
     vtkDiscreteFlyingEdges2DAlgorithm<TT>* Algo;
     double Value;
+    vtkDiscreteFlyingEdges2D* Filter;
     void operator()(vtkIdType row, vtkIdType end)
     {
       T* rowPtr = this->Algo->Scalars + row * this->Algo->Inc1;
+      bool isFirst = vtkSMPTools::GetSingleThread();
       for (; row < end; ++row)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         this->Algo->GenerateOutput(this->Value, rowPtr, row);
         rowPtr += this->Algo->Inc1;
       } // for all rows in this batch
@@ -377,7 +404,7 @@ vtkDiscreteFlyingEdges2DAlgorithm<T>::vtkDiscreteFlyingEdges2DAlgorithm()
 // proximity to boundary when computing gradients, etc.
 template <class T>
 void vtkDiscreteFlyingEdges2DAlgorithm<T>::InterpolateEdge(double vtkNotUsed(value),
-  T* vtkNotUsed(s), int ijk[3], unsigned char edgeNum, unsigned char edgeUses[12], vtkIdType* eIds)
+  T* vtkNotUsed(s), int ijk[3], unsigned char edgeNum, unsigned char edgeUses[4], vtkIdType* eIds)
 {
   // if this edge is not used then get out
   if (!edgeUses[edgeNum])
@@ -783,18 +810,18 @@ void vtkDiscreteFlyingEdges2DAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdges2D
     // PASS 1: Traverse all rows generating intersection points and building
     // the case table. Also accumulate information necessary for later allocation.
     // For example the number of output points is computed.
-    Pass1<T> pass1(&algo, value);
+    Pass1<T> pass1(&algo, value, self);
     vtkSMPTools::For(0, algo.Dims[1], pass1);
 
     // PASS 2: Traverse all rows and process cell y edges. Continue building
     // case table from y contributions (using computational trimming to reduce
     // work) and keep track of cell y intersections.
-    Pass2<T> pass2(&algo);
+    Pass2<T> pass2(&algo, self);
     vtkSMPTools::For(0, algo.Dims[1] - 1, pass2);
 
     // PASS 3: Now allocate and generate output. First we have to update the
     // x-Edge meta data to partition the output into separate pieces so
-    // independent threads can write into separate memory partititions. Once
+    // independent threads can write into separate memory partitions. Once
     // allocation is complete, process on a row by row basis and produce
     // output points, line primitives, and interpolate point attribute data
     // (if necessary).
@@ -833,7 +860,7 @@ void vtkDiscreteFlyingEdges2DAlgorithm<T>::ContourImage(vtkDiscreteFlyingEdges2D
       }
 
       // PASS 4: Now process each x-row and produce the output primitives.
-      Pass4<T> pass4(&algo, value);
+      Pass4<T> pass4(&algo, value, self);
       vtkSMPTools::For(0, algo.Dims[1] - 1, pass4);
     } // if output generated
 
@@ -975,3 +1002,4 @@ void vtkDiscreteFlyingEdges2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Compute Scalars: " << (this->ComputeScalars ? "On\n" : "Off\n");
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

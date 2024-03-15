@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositePolyDataMapper2.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositePolyDataMapper2
  * @brief   mapper for composite dataset consisting
@@ -26,19 +14,24 @@
 #define vtkCompositePolyDataMapper2_h
 
 #include "vtkOpenGLPolyDataMapper.h"
+
+#include "vtkDeprecation.h"            // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkSmartPointer.h"           // for vtkSmartPointer
+#include "vtk_glew.h"                  // for OpenGL enums
 
 #include "vtkColor.h" // used for ivars
 #include <map>        // use for ivars
 #include <stack>      // used for ivars
 #include <vector>     // used for ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataDisplayAttributes;
 class vtkCompositeMapperHelper2;
 class vtkCompositeMapperHelperData;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkCompositePolyDataMapper2 : public vtkOpenGLPolyDataMapper
+class VTK_DEPRECATED_IN_9_3_0("Please use vtkCompositePolyDataMapper instead")
+  VTKRENDERINGOPENGL2_EXPORT vtkCompositePolyDataMapper2 : public vtkOpenGLPolyDataMapper
 {
 public:
   static vtkCompositePolyDataMapper2* New();
@@ -254,4 +247,5 @@ private:
   void operator=(const vtkCompositePolyDataMapper2&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

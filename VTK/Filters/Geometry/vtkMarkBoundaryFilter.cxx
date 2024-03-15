@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMarkBoundaryFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMarkBoundaryFilter.h"
 
@@ -43,6 +31,7 @@
 #include "vtkVoxel.h"
 #include "vtkWedge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMarkBoundaryFilter);
 
 //------------------------------------------------------------------------------
@@ -145,13 +134,15 @@ struct MarkCellBoundary
   unsigned char* PtMarks;
   unsigned char* CellMarks;
   vtkIdType* FaceMarks;
+  vtkMarkBoundaryFilter* Filter;
 
   MarkCellBoundary(const unsigned char* ghosts, unsigned char* ptMarks, unsigned char* cellMarks,
-    vtkIdType* faceMarks)
+    vtkIdType* faceMarks, vtkMarkBoundaryFilter* filter)
     : CellGhosts(ghosts)
     , PtMarks(ptMarks)
     , CellMarks(cellMarks)
     , FaceMarks(faceMarks)
+    , Filter(filter)
   {
   }
 
@@ -199,8 +190,8 @@ struct MarkPolys : MarkCellBoundary
 
   MarkPolys(vtkPolyData* mesh, const unsigned char* ghosts, vtkIdType offset, vtkCellArray* polys,
     vtkStaticCellLinksTemplate<vtkIdType>* links, unsigned char* ptMarks, unsigned char* cellMarks,
-    vtkIdType* faceMarks)
-    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks)
+    vtkIdType* faceMarks, vtkMarkBoundaryFilter* filter)
+    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks, filter)
     , Mesh(mesh)
     , Offset(offset)
     , Polys(polys)
@@ -222,9 +213,18 @@ struct MarkPolys : MarkCellBoundary
     auto& neighbors = this->Neighbors.Local();
     vtkIdType npts, edgePts[2];
     const vtkIdType* pts;
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (cellId = 0; cellId < endCellId; ++cellId)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       // Handle ghost cells here.
       if (this->CellGhosts && this->CellGhosts[cellId] & vtkDataSetAttributes::DUPLICATECELL)
       { // Do not create surfaces in outer ghost cells.
@@ -250,7 +250,7 @@ struct MarkPolys : MarkCellBoundary
 };
 
 int PolyDataExecute(vtkDataSet* dsInput, const unsigned char* ghosts, unsigned char* bPoints,
-  unsigned char* bCells, vtkIdType* bFaces)
+  unsigned char* bCells, vtkIdType* bFaces, vtkMarkBoundaryFilter* self)
 {
   vtkPolyData* input = static_cast<vtkPolyData*>(dsInput);
   vtkIdType numPts = input->GetNumberOfPoints();
@@ -278,7 +278,7 @@ int PolyDataExecute(vtkDataSet* dsInput, const unsigned char* ghosts, unsigned c
   const vtkIdType* pts;
   if (numVerts > 0)
   {
-    MarkCellBoundary marker(ghosts, bPoints, bCells, bFaces);
+    MarkCellBoundary marker(ghosts, bPoints, bCells, bFaces, self);
     auto iter = vtk::TakeSmartPointer(verts->NewIterator());
     for (cellId = 0; cellId < numVerts; ++cellId)
     {
@@ -291,7 +291,7 @@ int PolyDataExecute(vtkDataSet* dsInput, const unsigned char* ghosts, unsigned c
   // This is done in serial since it's an uncommon workflow.
   if (numLines > 0)
   {
-    MarkCellBoundary marker(ghosts, bPoints, bCells, bFaces);
+    MarkCellBoundary marker(ghosts, bPoints, bCells, bFaces, self);
     auto iter = vtk::TakeSmartPointer(lines->NewIterator());
     vtkStaticCellLinksTemplate<vtkIdType> links;
     links.ThreadedBuildLinks(numPts, numLines, lines);
@@ -317,9 +317,12 @@ int PolyDataExecute(vtkDataSet* dsInput, const unsigned char* ghosts, unsigned c
   {
     vtkStaticCellLinksTemplate<vtkIdType> links;
     links.ThreadedBuildLinks(numPts, numPolys, polys);
-    MarkPolys mark(input, ghosts, (numVerts + numLines), polys, &links, bPoints, bCells, bFaces);
+    MarkPolys mark(
+      input, ghosts, (numVerts + numLines), polys, &links, bPoints, bCells, bFaces, self);
     vtkSMPTools::For(0, numPolys, mark);
   }
+
+  self->CheckAbort();
 
   return 1;
 }
@@ -329,7 +332,7 @@ int PolyDataExecute(vtkDataSet* dsInput, const unsigned char* ghosts, unsigned c
 // with unstructured grids.
 void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkIdType npts,
   const vtkIdType* pts, vtkUnstructuredGridCellIterator* cellIter, vtkGenericCell* cell,
-  MarkCellBoundary* marker, vtkIdList* cellIds)
+  MarkCellBoundary* marker)
 {
   vtkIdType faceId, numEdgePts, numFacePts;
   const int MAX_FACE_POINTS = 32;
@@ -353,11 +356,11 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
     case VTK_LINE:
     case VTK_POLY_LINE:
       // The end points, used by one line, are boundary
-      if (input->IsCellBoundary(cellId, 1, pts, cellIds))
+      if (input->IsCellBoundary(cellId, 1, pts))
       {
         marker->MarkCell(cellId, 0, 1, pts);
       }
-      if (input->IsCellBoundary(cellId, 1, pts + npts - 1, cellIds))
+      if (input->IsCellBoundary(cellId, 1, pts + npts - 1))
       {
         marker->MarkCell(cellId, 1, 1, pts + npts - 1);
       }
@@ -371,7 +374,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
       {
         edgePts[0] = pts[i];
         edgePts[1] = pts[(i + 1) % npts];
-        if (input->IsCellBoundary(cellId, 2, edgePts, cellIds))
+        if (input->IsCellBoundary(cellId, 2, edgePts))
         {
           marker->MarkCell(cellId, i, 2, edgePts);
         }
@@ -390,7 +393,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
       {
         edgePts[0] = pts[pixelConvert[i]];
         edgePts[1] = pts[pixelConvert[(i + 1) % npts]];
-        if (input->IsCellBoundary(cellId, 2, edgePts, cellIds))
+        if (input->IsCellBoundary(cellId, 2, edgePts))
         {
           marker->MarkCell(cellId, i, 2, edgePts);
         }
@@ -405,7 +408,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
         ptIds[0] = pts[faceVerts[0]];
         ptIds[1] = pts[faceVerts[1]];
         ptIds[2] = pts[faceVerts[2]];
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -422,7 +425,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
         ptIds[1] = pts[faceVerts[pixelConvert[1]]];
         ptIds[2] = pts[faceVerts[pixelConvert[2]]];
         ptIds[3] = pts[faceVerts[pixelConvert[3]]];
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -439,7 +442,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
         ptIds[1] = pts[faceVerts[1]];
         ptIds[2] = pts[faceVerts[2]];
         ptIds[3] = pts[faceVerts[3]];
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -460,7 +463,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
           ptIds[3] = pts[faceVerts[3]];
           numFacePts = 4;
         }
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -481,7 +484,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
           ptIds[3] = pts[faceVerts[3]];
           numFacePts = 4;
         }
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -504,7 +507,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
           ptIds[5] = pts[faceVerts[5]];
           numFacePts = 6;
         }
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -526,7 +529,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
           ptIds[4] = pts[faceVerts[4]];
           numFacePts = 5;
         }
-        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds, cellIds);
+        insertFace = input->IsCellBoundary(cellId, numFacePts, ptIds);
         if (insertFace)
         {
           marker->MarkCell(cellId, faceId, numFacePts, ptIds);
@@ -544,8 +547,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
         {
           vtkCell* face = cell->GetFace(j);
           numFacePts = face->PointIds->GetNumberOfIds();
-          insertFace =
-            input->IsCellBoundary(cellId, numFacePts, face->PointIds->GetPointer(0), cellIds);
+          insertFace = input->IsCellBoundary(cellId, numFacePts, face->PointIds->GetPointer(0));
           if (insertFace)
           {
             marker->MarkCell(cellId, j, numFacePts, face->PointIds->GetPointer(0));
@@ -559,8 +561,7 @@ void MarkUGCell(vtkUnstructuredGrid* input, vtkIdType cellId, int cellType, vtkI
         {
           vtkCell* edge = cell->GetEdge(j);
           numEdgePts = edge->PointIds->GetNumberOfIds();
-          insertEdge =
-            input->IsCellBoundary(cellId, numEdgePts, edge->PointIds->GetPointer(0), cellIds);
+          insertEdge = input->IsCellBoundary(cellId, numEdgePts, edge->PointIds->GetPointer(0));
           if (insertEdge)
           {
             marker->MarkCell(cellId, j, numEdgePts, edge->PointIds->GetPointer(0));
@@ -580,11 +581,10 @@ struct MarkUGrid : MarkCellBoundary
   // Working objects to avoid repeated allocation
   vtkSMPThreadLocal<vtkSmartPointer<vtkGenericCell>> Cell;
   vtkSMPThreadLocal<vtkSmartPointer<vtkUnstructuredGridCellIterator>> CellIter;
-  vtkSMPThreadLocal<vtkSmartPointer<vtkIdList>> CellIds;
 
   MarkUGrid(vtkUnstructuredGrid* grid, const unsigned char* ghosts, unsigned char* ptMarks,
-    unsigned char* cellMarks, vtkIdType* faceMarks)
-    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks)
+    unsigned char* cellMarks, vtkIdType* faceMarks, vtkMarkBoundaryFilter* filter)
+    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks, filter)
     , Grid(grid)
   {
   }
@@ -594,17 +594,24 @@ struct MarkUGrid : MarkCellBoundary
     this->Cell.Local().TakeReference(vtkGenericCell::New());
     this->CellIter.Local().TakeReference(
       static_cast<vtkUnstructuredGridCellIterator*>(this->Grid->NewCellIterator()));
-    this->CellIds.Local().TakeReference(vtkIdList::New());
   }
 
   void operator()(vtkIdType cellId, vtkIdType endCellId)
   {
     auto& cell = this->Cell.Local();
     auto& cellIter = this->CellIter.Local();
-    auto& cellIds = this->CellIds.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (cellIter->GoToCell(cellId); cellId < endCellId; ++cellId, cellIter->GoToNextCell())
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       // Handle ghost cells here.
       if (this->CellGhosts && this->CellGhosts[cellId] & vtkDataSetAttributes::DUPLICATECELL)
       { // Do not create surfaces in outer ghost cells.
@@ -616,7 +623,7 @@ struct MarkUGrid : MarkCellBoundary
       vtkIdType npts = pointIdList->GetNumberOfIds();
       vtkIdType* pts = pointIdList->GetPointer(0);
 
-      MarkUGCell(this->Grid, cellId, type, npts, pts, cellIter, cell, this, cellIds);
+      MarkUGCell(this->Grid, cellId, type, npts, pts, cellIter, cell, this);
     } // for all cells in this batch
   }
 
@@ -625,7 +632,7 @@ struct MarkUGrid : MarkCellBoundary
 
 // Mark unstructured grids
 int UnstructuredGridExecute(vtkDataSet* dsInput, const unsigned char* ghosts,
-  unsigned char* bPoints, unsigned char* bCells, vtkIdType* bFaces)
+  unsigned char* bPoints, unsigned char* bCells, vtkIdType* bFaces, vtkMarkBoundaryFilter* self)
 {
   vtkUnstructuredGrid* input = static_cast<vtkUnstructuredGrid*>(dsInput);
   vtkCellArray* connectivity = input->GetCells();
@@ -641,7 +648,7 @@ int UnstructuredGridExecute(vtkDataSet* dsInput, const unsigned char* ghosts,
   input->BuildLinks();
 
   // Perform the threaded boundary marking.
-  MarkUGrid mark(input, ghosts, bPoints, bCells, bFaces);
+  MarkUGrid mark(input, ghosts, bPoints, bCells, bFaces, self);
   vtkSMPTools::For(0, numCells, mark);
 
   return 1;
@@ -655,8 +662,8 @@ struct MarkStructured : public MarkCellBoundary
   vtkSMPThreadLocal<vtkSmartPointer<vtkIdList>> PtIds;
 
   MarkStructured(vtkDataSet* ds, vtkIdType ext[6], const unsigned char* ghosts,
-    unsigned char* bPoints, unsigned char* bCells, vtkIdType* bFaces)
-    : MarkCellBoundary(ghosts, bPoints, bCells, bFaces)
+    unsigned char* bPoints, unsigned char* bCells, vtkIdType* bFaces, vtkMarkBoundaryFilter* filter)
+    : MarkCellBoundary(ghosts, bPoints, bCells, bFaces, filter)
     , Input(ds)
     , Extent(ext)
   {
@@ -735,8 +742,17 @@ struct MarkStructured : public MarkCellBoundary
   void operator()(vtkIdType cellId, vtkIdType endCellId)
   {
     auto& ptIds = this->PtIds.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
     for (; cellId < endCellId; ++cellId)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       // Handle ghost cells here.  Another option was used cellVis array.
       if (this->CellGhosts && this->CellGhosts[cellId] & vtkDataSetAttributes::DUPLICATECELL)
       { // Do not create surfaces in outer ghost cells.
@@ -759,7 +775,7 @@ struct MarkStructured : public MarkCellBoundary
 
 // Mark 3D structured grids
 int StructuredExecute(vtkDataSet* input, const unsigned char* ghosts, unsigned char* bPoints,
-  unsigned char* bCells, vtkIdType* bFaces)
+  unsigned char* bCells, vtkIdType* bFaces, vtkMarkBoundaryFilter* self)
 {
   vtkIdType numCells = input->GetNumberOfCells();
 
@@ -801,7 +817,7 @@ int StructuredExecute(vtkDataSet* input, const unsigned char* ghosts, unsigned c
   ext[5] = tmpext[5];
 
   // Perform the threaded boundary marking.
-  MarkStructured mark(input, ext, ghosts, bPoints, bCells, bFaces);
+  MarkStructured mark(input, ext, ghosts, bPoints, bCells, bFaces, self);
   vtkSMPTools::For(0, numCells, mark);
 
   return 1;
@@ -817,8 +833,8 @@ struct MarkDataSet : MarkCellBoundary
   vtkSMPThreadLocal<vtkSmartPointer<vtkIdList>> CellIds;
 
   MarkDataSet(vtkDataSet* ds, const unsigned char* ghosts, unsigned char* ptMarks,
-    unsigned char* cellMarks, vtkIdType* faceMarks)
-    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks)
+    unsigned char* cellMarks, vtkIdType* faceMarks, vtkMarkBoundaryFilter* filter)
+    : MarkCellBoundary(ghosts, ptMarks, cellMarks, faceMarks, filter)
     , DataSet(ds)
   {
   }
@@ -835,9 +851,18 @@ struct MarkDataSet : MarkCellBoundary
     auto& cell = this->Cell.Local();
     auto& cellIds = this->CellIds.Local();
     auto& ptIds = this->IPts.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
 
     for (; cellId < endCellId; ++cellId)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       // Handle ghost cells here.
       if (this->CellGhosts && this->CellGhosts[cellId] & vtkDataSetAttributes::DUPLICATECELL)
       { // Do not create surfaces in outer ghost cells.
@@ -915,11 +940,11 @@ struct MarkDataSet : MarkCellBoundary
 
 // Fallback for other dataset types.
 int DataSetExecute(vtkDataSet* input, const unsigned char* ghosts, unsigned char* bPoints,
-  unsigned char* bCells, vtkIdType* bFaces)
+  unsigned char* bCells, vtkIdType* bFaces, vtkMarkBoundaryFilter* self)
 {
   // Perform the threaded boundary marking.
   vtkIdType numCells = input->GetNumberOfCells();
-  MarkDataSet mark(input, ghosts, bPoints, bCells, bFaces);
+  MarkDataSet mark(input, ghosts, bPoints, bCells, bFaces, self);
   vtkSMPTools::For(0, numCells, mark);
 
   return 1;
@@ -1000,13 +1025,13 @@ int vtkMarkBoundaryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   {
     case VTK_POLY_DATA:
     {
-      return PolyDataExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr);
+      return PolyDataExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr, this);
     }
 
     case VTK_UNSTRUCTURED_GRID:
     case VTK_UNSTRUCTURED_GRID_BASE:
     {
-      return UnstructuredGridExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr);
+      return UnstructuredGridExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr, this);
     }
 
     // Structured dataset types
@@ -1032,9 +1057,10 @@ int vtkMarkBoundaryFilter::RequestData(vtkInformation* vtkNotUsed(request),
   // general DataSetExecute will handle it just fine.
   if (dataDim == 3)
   {
-    return StructuredExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr);
+    return StructuredExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr, this);
   }
 
   // Use the general case for 1D/2D images, or for other dataset types
-  return DataSetExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr);
+  return DataSetExecute(input, cellGhosts, bPtsPtr, bCellsPtr, bFacesPtr, this);
 }
+VTK_ABI_NAMESPACE_END

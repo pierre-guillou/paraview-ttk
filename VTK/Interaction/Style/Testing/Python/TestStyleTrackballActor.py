@@ -1,24 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
-=========================================================================
 
-  Program:   Visualization Toolkit
-  Module:    TestNamedColorsIntegration.py
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================
-'''
-import vtk
-import vtk.test.Testing
+from vtkmodules.vtkCommonColor import vtkNamedColors
+from vtkmodules.vtkFiltersCore import vtkGlyph3D
+from vtkmodules.vtkFiltersSources import (
+    vtkConeSource,
+    vtkSphereSource,
+)
+from vtkmodules.vtkRenderingCore import (
+    vtkInteractorEventRecorder,
+    vtkPolyDataMapper,
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+    vtkRenderer,
+)
+from vtkmodules.vtkRenderingLOD import vtkLODActor
+import vtkmodules.vtkInteractionStyle
+import vtkmodules.vtkRenderingFreeType
+import vtkmodules.vtkRenderingOpenGL2
+import vtkmodules.test.Testing
 
 # Make grabbing color a little easier
 def GetRGBColor(colorName):
@@ -27,16 +28,16 @@ def GetRGBColor(colorName):
         color as doubles.
     '''
     rgb = [0.0, 0.0, 0.0]  # black
-    vtk.vtkNamedColors().GetColorRGB(colorName, rgb)
+    vtkNamedColors().GetColorRGB(colorName, rgb)
     return rgb
 
 # Create a sphere source and actor
-sphere = vtk.vtkSphereSource()
+sphere = vtkSphereSource()
 
-sphereMapper = vtk.vtkPolyDataMapper()
+sphereMapper = vtkPolyDataMapper()
 sphereMapper.SetInputConnection(sphere.GetOutputPort())
 
-sphereActor = vtk.vtkLODActor()
+sphereActor = vtkLODActor()
 sphereActor.SetMapper(sphereMapper)
 
 sphereActor.GetProperty().SetDiffuseColor(GetRGBColor('banana'))
@@ -45,20 +46,20 @@ sphereActor.GetProperty().SetSpecularPower(20)
 
 # Create the spikes using a cone source and the sphere source
 
-cone = vtk.vtkConeSource()
+cone = vtkConeSource()
 cone.SetResolution(20)
 
-glyph = vtk.vtkGlyph3D()
+glyph = vtkGlyph3D()
 glyph.SetInputConnection(sphere.GetOutputPort())
 glyph.SetSourceConnection(cone.GetOutputPort())
 glyph.SetVectorModeToUseNormal()
 glyph.SetScaleModeToScaleByVector()
 glyph.SetScaleFactor(0.25)
 
-spikeMapper = vtk.vtkPolyDataMapper()
+spikeMapper = vtkPolyDataMapper()
 spikeMapper.SetInputConnection(glyph.GetOutputPort())
 
-spikeActor = vtk.vtkLODActor()
+spikeActor = vtkLODActor()
 spikeActor.SetMapper(spikeMapper)
 
 spikeActor.GetProperty().SetDiffuseColor(GetRGBColor('tomato'))
@@ -69,12 +70,12 @@ spikeActor.GetProperty().SetSpecularPower(20)
 
 # Create the RenderWindow, Renderer and both Actors
 #
-ren = vtk.vtkRenderer()
-renWin = vtk.vtkRenderWindow()
+ren = vtkRenderer()
+renWin = vtkRenderWindow()
 renWin.SetMultiSamples(0)
 renWin.AddRenderer(ren)
 
-iRen = vtk.vtkRenderWindowInteractor()
+iRen = vtkRenderWindowInteractor()
 iRen.SetRenderWindow(renWin)
 
 ren.AddActor(sphereActor)
@@ -551,7 +552,7 @@ Recording = \
     MouseMoveEvent 144 155 0 0 0 a\n\
 "
 
-recorder = vtk.vtkInteractorEventRecorder()
+recorder = vtkInteractorEventRecorder()
 recorder.SetInteractor(iRen)
 #recorder.SetFileName("record.log")
 #recorder.On()

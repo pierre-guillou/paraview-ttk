@@ -8,6 +8,7 @@
 ##  PURPOSE.  See the above copyright notice for more information.
 ##============================================================================
 set(density_estimate_headers
+  ContinuousScatterPlot.h
   Entropy.h
   Histogram.h
   NDEntropy.h
@@ -15,9 +16,11 @@ set(density_estimate_headers
   ParticleDensityBase.h
   ParticleDensityCloudInCell.h
   ParticleDensityNearestGridPoint.h
+  Statistics.h
   )
 
 set(density_estimate_sources_device
+  ContinuousScatterPlot.cxx
   Entropy.cxx
   Histogram.cxx
   NDEntropy.cxx
@@ -25,6 +28,7 @@ set(density_estimate_sources_device
   ParticleDensityBase.cxx
   ParticleDensityCloudInCell.cxx
   ParticleDensityNearestGridPoint.cxx
+  Statistics.cxx
   )
 
 vtkm_library(
@@ -39,12 +43,6 @@ set_property(TARGET
   PROPERTY UNITY_BUILD_MODE GROUP
   )
 
-target_link_libraries(vtkm_filter_density_estimate PRIVATE vtkm_worklet PUBLIC vtkm_filter_core)
 target_link_libraries(vtkm_filter PUBLIC INTERFACE vtkm_filter_density_estimate)
 
 add_subdirectory(worklet)
-
-#-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-if (VTKm_ENABLE_TESTING)
-  add_subdirectory(testing)
-endif ()

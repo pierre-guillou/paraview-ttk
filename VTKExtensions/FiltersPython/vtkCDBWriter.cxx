@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCDBWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPython.h"
 
 #include "vtkCDBWriter.h"
@@ -81,7 +70,7 @@ int vtkCDBWriter::RequestData(vtkInformation* vtkNotUsed(request),
   }
 
   vtkSmartPyObject py_callable(PyObject_GetAttrString(module, "write"));
-  vtkSmartPyObject py_fname(PyString_FromString(this->Path));
+  vtkSmartPyObject py_fname(PyUnicode_FromString(this->Path));
   vtkSmartPyObject py_table(vtkPythonUtil::GetObjectFromPointer(input));
   vtkSmartPyObject py_result(PyObject_CallFunctionObjArgs(
     py_callable, py_fname.GetPointer(), py_table.GetPointer(), nullptr));

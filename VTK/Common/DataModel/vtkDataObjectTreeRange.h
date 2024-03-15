@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectTreeRange.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkDataObjectTreeRange_h
 #define vtkDataObjectTreeRange_h
@@ -27,6 +15,7 @@
 
 namespace vtk
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // Pass these to vtk::Range(cds, options):
 enum class DataObjectTreeOptions : unsigned int
@@ -37,15 +26,18 @@ enum class DataObjectTreeOptions : unsigned int
   TraverseSubTree = 1 << 3, // Descend into child composite datasets.
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk (for bitflag op definition)
 
+VTK_ABI_NAMESPACE_BEGIN
 VTK_GENERATE_BITFLAG_OPS(vtk::DataObjectTreeOptions)
+VTK_ABI_NAMESPACE_END
 
 namespace vtk
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct DataObjectTreeRange;
 struct DataObjectTreeIterator;
@@ -100,7 +92,7 @@ public:
 
   friend bool operator==(const DataObjectTreeIterator& lhs, const DataObjectTreeIterator& rhs)
   {
-    // A null internal iterator means it is an 'end' sentinal.
+    // A null internal iterator means it is an 'end' sentinel.
     InternalIterator* l = lhs.Iterator;
     InternalIterator* r = rhs.Iterator;
 
@@ -144,7 +136,7 @@ protected:
   }
 
   // Note: Iterators constructed using this ctor will be considered
-  // 'end' iterators via a sentinal pattern.
+  // 'end' iterators via a sentinel pattern.
   DataObjectTreeIterator() noexcept
     : Iterator{ nullptr }
   {
@@ -261,6 +253,7 @@ private:
   DataObjectTreeOptions Options;
 };
 
+VTK_ABI_NAMESPACE_END
 }
 } // end namespace vtk::detail
 

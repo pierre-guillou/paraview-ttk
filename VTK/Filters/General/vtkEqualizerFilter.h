@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEqualizerFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkEqualizerFilter_h
 #define vtkEqualizerFilter_h
 
@@ -28,6 +16,7 @@
  * depending on the frequency characteristics.
  */
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSGENERAL_EXPORT vtkEqualizerFilter : public vtkTableAlgorithm
 {
 public:
@@ -90,7 +79,6 @@ private:
   void ProcessColumn(
     vtkDataArray* array, vtkTable* spectrumTable, vtkTable* resultTable, vtkTable* normalizedTable);
 
-private:
   vtkEqualizerFilter(const vtkEqualizerFilter&) = delete;
   void operator=(const vtkEqualizerFilter&) = delete;
 
@@ -103,4 +91,5 @@ private:
   vtkInternal* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

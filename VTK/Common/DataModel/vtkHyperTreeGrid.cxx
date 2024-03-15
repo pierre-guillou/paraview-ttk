@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGrid.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGrid.h"
 
 #include "vtkBitArray.h"
@@ -26,6 +14,8 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkHyperTreeGridNonOrientedGeometryCursor.h"
 #include "vtkHyperTreeGridNonOrientedMooreSuperCursor.h"
 #include "vtkHyperTreeGridNonOrientedMooreSuperCursorLight.h"
+#include "vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor.h"
+#include "vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor.h"
 #include "vtkHyperTreeGridNonOrientedVonNeumannSuperCursor.h"
 #include "vtkHyperTreeGridNonOrientedVonNeumannSuperCursorLight.h"
 #include "vtkHyperTreeGridOrientedCursor.h"
@@ -49,6 +39,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <cassert>
 #include <deque>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationKeyMacro(vtkHyperTreeGrid, LEVELS, Integer);
 vtkInformationKeyMacro(vtkHyperTreeGrid, DIMENSION, Integer);
 vtkInformationKeyMacro(vtkHyperTreeGrid, ORIENTATION, Integer);
@@ -98,13 +89,7 @@ void vtkHyperTreeGrid::SetFixedCoordinates(unsigned int axis, double value)
 void vtkHyperTreeGrid::SetMask(vtkBitArray* _arg)
 {
   vtkSetObjectBodyMacro(Mask, vtkBitArray, _arg);
-
-  this->InitPureMask = false;
-  if (this->PureMask)
-  {
-    this->PureMask->Delete();
-    this->PureMask = nullptr;
-  }
+  this->CleanPureMask();
 }
 
 // Helper macros to quickly fetch a HT at a given index or iterator
@@ -125,17 +110,16 @@ vtkHyperTreeGrid::vtkHyperTreeGrid()
   this->TransposedRootIndexing = false;
 
   // Invalid default grid parameters to force actual initialization
-  this->Orientation = UINT_MAX;
+  this->Orientation = std::numeric_limits<unsigned int>::max();
   this->BranchFactor = 0;
   this->NumberOfChildren = 0;
 
   // Depth limiter
-  this->DepthLimiter = UINT_MAX;
+  this->DepthLimiter = std::numeric_limits<unsigned int>::max();
 
   // Masked primal leaves
   this->Mask = nullptr;
   this->PureMask = nullptr;
-  this->InitPureMask = false;
 
   // No interface by default
   this->HasInterface = false;
@@ -173,8 +157,8 @@ vtkHyperTreeGrid::vtkHyperTreeGrid()
   this->CellDims[1] = 0;
   this->CellDims[2] = 0;
 
-  this->Axis[0] = UINT_MAX;
-  this->Axis[1] = UINT_MAX;
+  this->Axis[0] = std::numeric_limits<unsigned int>::max();
+  this->Axis[1] = std::numeric_limits<unsigned int>::max();
 
   int extent[6] = { 0, -1, 0, -1, 0, -1 };
   memcpy(this->Extent, extent, 6 * sizeof(int));
@@ -214,12 +198,12 @@ void vtkHyperTreeGrid::Initialize()
   this->TransposedRootIndexing = false;
 
   // Invalid default grid parameters to force actual initialization
-  this->Orientation = UINT_MAX;
+  this->Orientation = std::numeric_limits<unsigned int>::max();
   this->BranchFactor = 0;
   this->NumberOfChildren = 0;
 
   // Depth limiter
-  this->DepthLimiter = UINT_MAX;
+  this->DepthLimiter = std::numeric_limits<unsigned int>::max();
 
   // Masked primal leaves
   this->SetMask(nullptr);
@@ -275,8 +259,8 @@ void vtkHyperTreeGrid::Initialize()
   this->CellDims[1] = 0;
   this->CellDims[2] = 0;
 
-  this->Axis[0] = UINT_MAX;
-  this->Axis[1] = UINT_MAX;
+  this->Axis[0] = std::numeric_limits<unsigned int>::max();
+  this->Axis[1] = std::numeric_limits<unsigned int>::max();
 
   int extent[6] = { 0, -1, 0, -1, 0, -1 };
   memcpy(this->Extent, extent, 6 * sizeof(int));
@@ -335,11 +319,7 @@ vtkHyperTreeGrid::~vtkHyperTreeGrid()
     this->Mask = nullptr;
   }
 
-  if (this->PureMask)
-  {
-    this->PureMask->Delete();
-    this->PureMask = nullptr;
-  }
+  this->CleanPureMask();
 
   if (this->XCoordinates)
   {
@@ -387,7 +367,6 @@ void vtkHyperTreeGrid::PrintSelf(ostream& os, vtkIndent indent)
   {
     this->PureMask->PrintSelf(os, indent.GetNextIndent());
   }
-  os << indent << "InitPureMask: " << (this->InitPureMask ? "true" : "false") << endl;
 
   os << indent << "HasInterface: " << (this->HasInterface ? "true" : "false") << endl;
   if (this->WithCoordinates)
@@ -466,7 +445,6 @@ void vtkHyperTreeGrid::CopyEmptyStructure(vtkDataObject* ds)
   this->NumberOfChildren = htg->NumberOfChildren;
   this->DepthLimiter = htg->DepthLimiter;
   this->TransposedRootIndexing = htg->TransposedRootIndexing;
-  this->InitPureMask = htg->InitPureMask;
   this->HasInterface = htg->HasInterface;
   this->SetInterfaceNormalsName(htg->InterfaceNormalsName);
   this->SetInterfaceInterceptsName(htg->InterfaceInterceptsName);
@@ -508,7 +486,6 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
   this->NumberOfChildren = htg->NumberOfChildren;
   this->DepthLimiter = htg->DepthLimiter;
   this->TransposedRootIndexing = htg->TransposedRootIndexing;
-  this->InitPureMask = htg->InitPureMask;
   this->HasInterface = htg->HasInterface;
   this->SetInterfaceNormalsName(htg->InterfaceNormalsName);
   this->SetInterfaceInterceptsName(htg->InterfaceInterceptsName);
@@ -627,8 +604,8 @@ void vtkHyperTreeGrid::SetExtent(const int extent[6])
   }
 
   this->Dimension = 0;
-  this->Axis[0] = UINT_MAX;
-  this->Axis[1] = UINT_MAX;
+  this->Axis[0] = std::numeric_limits<unsigned int>::max();
+  this->Axis[1] = std::numeric_limits<unsigned int>::max();
   for (unsigned int i = 0; i < 3; ++i)
   {
     this->Dimensions[i] = static_cast<unsigned int>(extent[2 * i + 1] - extent[2 * i] + 1);
@@ -641,8 +618,8 @@ void vtkHyperTreeGrid::SetExtent(const int extent[6])
       this->CellDims[i] = this->Dimensions[i] - 1;
       if (this->Dimension == 2)
       {
-        this->Axis[0] = UINT_MAX;
-        this->Axis[1] = UINT_MAX;
+        this->Axis[0] = std::numeric_limits<unsigned int>::max();
+        this->Axis[1] = std::numeric_limits<unsigned int>::max();
       }
       else
       {
@@ -653,11 +630,17 @@ void vtkHyperTreeGrid::SetExtent(const int extent[6])
   }
 
   assert("post: valid_axis" &&
-    (this->Dimension != 3 || (this->Axis[0] == UINT_MAX && this->Axis[1] == UINT_MAX)));
+    (this->Dimension != 3 ||
+      (this->Axis[0] == std::numeric_limits<unsigned int>::max() &&
+        this->Axis[1] == std::numeric_limits<unsigned int>::max())));
   assert("post: valid_axis" &&
-    (this->Dimension != 2 || (this->Axis[0] != UINT_MAX && this->Axis[1] != UINT_MAX)));
+    (this->Dimension != 2 ||
+      (this->Axis[0] != std::numeric_limits<unsigned int>::max() &&
+        this->Axis[1] != std::numeric_limits<unsigned int>::max())));
   assert("post: valid_axis" &&
-    (this->Dimension != 1 || (this->Axis[0] != UINT_MAX && this->Axis[1] == UINT_MAX)));
+    (this->Dimension != 1 ||
+      (this->Axis[0] != std::numeric_limits<unsigned int>::max() &&
+        this->Axis[1] == std::numeric_limits<unsigned int>::max())));
 
   switch (this->Dimension)
   {
@@ -898,6 +881,23 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::NewNonOrientedGeome
 }
 
 //------------------------------------------------------------------------------
+void vtkHyperTreeGrid::InitializeNonOrientedUnlimitedGeometryCursor(
+  vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor* cursor, vtkIdType index, bool create)
+{
+  cursor->Initialize(this, index, create);
+}
+
+//------------------------------------------------------------------------------
+vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor*
+vtkHyperTreeGrid::NewNonOrientedUnlimitedGeometryCursor(vtkIdType index, bool create)
+{
+  vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor* cursor =
+    vtkHyperTreeGridNonOrientedUnlimitedGeometryCursor::New();
+  cursor->Initialize(this, index, create);
+  return cursor;
+}
+
+//------------------------------------------------------------------------------
 unsigned int vtkHyperTreeGrid::RecurseDichotomic(
   double value, vtkDoubleArray* coord, double tol, unsigned int iBegin, unsigned int iEnd) const
 {
@@ -906,7 +906,8 @@ unsigned int vtkHyperTreeGrid::RecurseDichotomic(
     return iBegin;
   }
   unsigned int iMid = iBegin + (iEnd - iBegin) / 2;
-  double currentTol = (iMid == coord->GetNumberOfTuples() - 1) ? tol : 0.0;
+  double currentTol =
+    (iMid == static_cast<unsigned int>(coord->GetNumberOfTuples() - 1)) ? tol : 0.0;
   if (value < (coord->GetValue(iMid) + currentTol))
   {
     return this->RecurseDichotomic(value, coord, tol, iBegin, iMid);
@@ -923,7 +924,7 @@ unsigned int vtkHyperTreeGrid::FindDichotomic(double value, vtkDataArray* tmp, d
   if (value < (coord->GetValue(0) - tol) ||
     value > (coord->GetValue(coord->GetNumberOfTuples() - 1) + tol))
   {
-    return UINT_MAX;
+    return std::numeric_limits<unsigned int>::max();
   }
   return RecurseDichotomic(value, coord, tol, 0, coord->GetNumberOfTuples());
 }
@@ -950,17 +951,17 @@ vtkHyperTreeGridNonOrientedGeometryCursor* vtkHyperTreeGrid::FindNonOrientedGeom
   double x[3])
 {
   unsigned int i = this->FindDichotomicX(x[0]);
-  if (i == UINT_MAX)
+  if (i == std::numeric_limits<unsigned int>::max())
   {
     return nullptr;
   }
   unsigned int j = this->FindDichotomicY(x[1]);
-  if (j == UINT_MAX)
+  if (j == std::numeric_limits<unsigned int>::max())
   {
     return nullptr;
   }
   unsigned int k = this->FindDichotomicZ(x[2]);
-  if (k == UINT_MAX)
+  if (k == std::numeric_limits<unsigned int>::max())
   {
     return nullptr;
   }
@@ -1085,6 +1086,23 @@ vtkHyperTreeGrid::NewNonOrientedMooreSuperCursorLight(vtkIdType index, bool crea
 }
 
 //------------------------------------------------------------------------------
+void vtkHyperTreeGrid::InitializeNonOrientedUnlimitedMooreSuperCursor(
+  vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor* cursor, vtkIdType index, bool create)
+{
+  cursor->Initialize(this, index, create);
+}
+
+//------------------------------------------------------------------------------
+vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor*
+vtkHyperTreeGrid::NewNonOrientedUnlimitedMooreSuperCursor(vtkIdType index, bool create)
+{
+  vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor* cursor =
+    vtkHyperTreeGridNonOrientedUnlimitedMooreSuperCursor::New();
+  cursor->Initialize(this, index, create);
+  return cursor;
+}
+
+//------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
 {
   // Wrap convenience macro for outside use
@@ -1174,7 +1192,6 @@ void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
       this->PureMask = vtkBitArray::New();
     }
     this->PureMask->DeepCopy(htg->PureMask);
-    this->InitPureMask = htg->InitPureMask;
   }
 
   this->CellData->DeepCopy(htg->GetCellData());
@@ -1219,41 +1236,76 @@ void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
 }
 
 //------------------------------------------------------------------------------
+void vtkHyperTreeGrid::CleanPureMask()
+{
+  if (this->PureMask)
+  {
+    this->PureMask->Delete();
+    this->PureMask = nullptr;
+  }
+}
+
+//------------------------------------------------------------------------------
 bool vtkHyperTreeGrid::RecursivelyInitializePureMask(
-  vtkHyperTreeGridNonOrientedCursor* cursor, vtkDataArray* normale)
+  vtkHyperTreeGridNonOrientedCursor* cursor, vtkDataArray* intercepts)
 {
   // Retrieve mask value at cursor
   vtkIdType id = cursor->GetGlobalNodeIndex();
+
+  // 0 isn't masked : if not exist Mask or no masked
+  // 1 is masked : if exist Mask and masked
   bool mask = this->HasMask() && this->Mask->GetValue(id);
 
-  if (!mask && normale)
+  // Check masked
+  if (mask)
   {
-    double values[3];
-    normale->GetTuple(id, values);
-    // FR Retrieve cell interface value at cursor (is interface if one value is non null)
-    bool isInterface = (values[0] != 0 || values[1] != 0 || values[2] != 0);
-    // FR Cell with interface is considered as "not pure"
-    mask = isInterface;
+    // If the cell is masked then the cell is not a pure material cell,
+    // set PureMask to true
+    this->PureMask->SetTuple1(id, true);
+    return true;
   }
 
-  //  Dot recurse if node is masked or is a leaf
-  if (!mask && !cursor->IsLeaf())
+  // Check is leaf
+  if (cursor->IsLeaf())
   {
-    // Iterate over all children
-    unsigned int numChildren = this->GetNumberOfChildren();
-    bool pure = false;
-    for (unsigned int child = 0; child < numChildren; ++child)
+    // Check exist material interface intercepts
+    if (intercepts)
     {
-      cursor->ToChild(child);
-      // FR Obligatoire en profondeur afin d'associer une valeur a chaque maille
-      pure |= this->RecursivelyInitializePureMask(cursor, normale);
-      cursor->ToParent();
+      if (intercepts->GetNumberOfComponents() != 3)
+      {
+        vtkErrorMacro("Intercepts array must have 3 components, but has "
+          << intercepts->GetNumberOfComponents());
+        return mask;
+      }
+      double values[3];
+      intercepts->GetTuple(id, values);
+      // If the type value is less than 2 then the cell has
+      // one or two interfaces, it is not a pure material cell
+      // (this cell is mixed), set PureMask to true;
+      // else set PureMask to false
+      mask = (values[2] < 2);
     }
-    // Set and return pure material mask with recursively computed value
-    this->PureMask->SetTuple1(id, pure);
-    return pure;
+    this->PureMask->SetTuple1(id, mask);
+    return mask;
   }
 
+  // The cell is coarse, iterate over all children
+  unsigned int numChildren = this->GetNumberOfChildren();
+  for (unsigned int child = 0; child < numChildren; ++child)
+  {
+    cursor->ToChild(child);
+    // Recursively initialize pure material mask
+    // The initialization of the PureMask for a coarse cell
+    // depends on the values associated with each of
+    // its children. As soon as one of her daughters is PureMask
+    // then she is too.
+    // WARNING Nevertheless, it is essential to continue the
+    // in-depth journey in order to update all the values of
+    // PureMask offering the possibility of optimization at
+    // a higher level.
+    mask |= this->RecursivelyInitializePureMask(cursor, intercepts);
+    cursor->ToParent();
+  }
   // Set and return pure material mask with recursively computed value
   this->PureMask->SetTuple1(id, mask);
   return mask;
@@ -1263,47 +1315,60 @@ bool vtkHyperTreeGrid::RecursivelyInitializePureMask(
 vtkBitArray* vtkHyperTreeGrid::GetPureMask()
 {
   // Check whether a pure material mask was initialized
-  if (!this->InitPureMask)
+  // If not, then create one
+  if (this->PureMask)
   {
-    if (!this->Mask || !this->Mask->GetNumberOfTuples())
-    {
-      // Keep track of the fact that a pure material mask now exists
-      this->InitPureMask = true;
-      return nullptr;
-    }
-    // If not, then create one
-    if (this->PureMask == nullptr)
-    {
-      this->PureMask = vtkBitArray::New();
-    }
-    this->PureMask->SetNumberOfTuples(this->Mask ? this->Mask->GetNumberOfTuples() : 0);
+    // Return existing pure material mask
+    return this->PureMask;
+  }
+  else
+  {
+    this->PureMask = vtkBitArray::New();
+  }
+  this->PureMask->SetNumberOfTuples(this->GetNumberOfCells());
 
-    // Iterate over hyper tree grid
-    vtkIdType index;
-    vtkHyperTreeGridIterator it;
-    it.Initialize(this);
-
-    vtkDataArray* normale = nullptr;
-    if (this->HasInterface)
+  // Check material interface intercepts
+  // The first two fields of Intercepts describe the first and the
+  // second distance interface to origin.
+  // The third field describes the type of interface. If the type
+  // value is greater than or equal to 2, the cell does not describe
+  // an interface. She is pure material.
+  // For more detail look at the vtkHyperTreeGridGeometry filter.
+  vtkDataArray* intercepts = nullptr;
+  if (this->HasInterface)
+  {
+    intercepts = this->GetCellData()->GetArray(this->InterfaceInterceptsName);
+    if (intercepts)
     {
-      // Interface defined
-      normale = this->GetFieldData()->GetArray(this->InterfaceNormalsName);
+      if (intercepts->GetNumberOfComponents() != 3)
+      {
+        intercepts = nullptr;
+      }
+      else
+      {
+        vtkDataArray* normals = this->GetCellData()->GetArray(this->InterfaceNormalsName);
+        if (!normals || normals->GetNumberOfComponents() != 3)
+        {
+          intercepts = nullptr;
+        }
+      }
     }
-
-    vtkNew<vtkHyperTreeGridNonOrientedCursor> cursor;
-    while (it.GetNextTree(index))
-    {
-      // Create cursor instance over current hyper tree
-      this->InitializeNonOrientedCursor(cursor, index);
-      // Recursively initialize pure material mask
-      this->RecursivelyInitializePureMask(cursor, normale);
-    }
-
-    // Keep track of the fact that a pure material mask now exists
-    this->InitPureMask = true;
   }
 
-  // Return existing or created pure material mask
+  // Iterate over hyper tree grid
+  vtkIdType index;
+  vtkHyperTreeGridIterator it;
+  it.Initialize(this);
+  vtkNew<vtkHyperTreeGridNonOrientedCursor> cursor;
+  while (it.GetNextTree(index))
+  {
+    // Create cursor instance over current hyper tree
+    this->InitializeNonOrientedCursor(cursor, index);
+    // Recursively initialize pure material mask
+    this->RecursivelyInitializePureMask(cursor, intercepts);
+  }
+
+  // Return created pure material mask
   return this->PureMask;
 }
 
@@ -1357,6 +1422,16 @@ unsigned long vtkHyperTreeGrid::GetActualMemorySize()
 {
   // in kilibytes
   return (this->GetActualMemorySizeBytes() >> 10);
+}
+
+//------------------------------------------------------------------------------
+bool vtkHyperTreeGrid::SupportsGhostArray(int type)
+{
+  if (type == CELL)
+  {
+    return true;
+  }
+  return false;
 }
 
 //------------------------------------------------------------------------------
@@ -1695,3 +1770,4 @@ bool vtkHyperTreeGrid::HasAnyGhostCells() const
 {
   return this->CellData->GetArray(vtkDataSetAttributes::GhostArrayName()) != nullptr;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitImageRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImplicitImageRepresentation
  * @brief   a representation for a vtkImplicitPlaneWidget2 which reslices a volume
@@ -38,6 +26,7 @@
 #include "vtkImplicitPlaneRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkImageData;
 class vtkImageMapToColors;
@@ -183,4 +172,5 @@ private:
   void operator=(const vtkImplicitImageRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayRendererNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOSPRayRendererNode
  * @brief   links vtkRenderers to OSPRay
@@ -24,9 +12,9 @@
 
 #include "RTWrapper/RTWrapper.h" // for handle types
 #include "vtkDeprecation.h"      // For VTK_DEPRECATED_IN_9_2_0
-#include "vtkInformation.h"
-#include "vtkOSPRayCache.h" // For common cache infrastructure
-#include "vtkRenderer.h"
+#include "vtkInformation.h"      // For deprecated function
+#include "vtkOSPRayCache.h"      // For common cache infrastructure
+#include "vtkRenderer.h"         // For deprecated function
 #include "vtkRendererNode.h"
 #include "vtkRenderingRayTracingModule.h" // For export macro
 
@@ -36,6 +24,7 @@
 #include <OpenImageDenoise/oidn.hpp> // for denoiser structures
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationDoubleKey;
 class vtkInformationDoubleVectorKey;
 class vtkInformationIntegerKey;
@@ -44,7 +33,6 @@ class vtkInformationStringKey;
 class vtkMatrix4x4;
 class vtkOSPRayRendererNodeInternals;
 class vtkOSPRayMaterialLibrary;
-class vtkRenderer;
 
 class VTKRENDERINGRAYTRACING_EXPORT vtkOSPRayRendererNode : public vtkRendererNode
 {
@@ -157,7 +145,7 @@ public:
    * VTK_DEPRECATED_IN_9_2_0
    * This key is now deprecated, see vtkOSPRayRendererNode::SetVolumeAnisotropy.
    * It is replaced by vtkVolumeProperty::ScatteringAnisotropy.
-   * It is not explicitely deprecated with the macro to avoid compilation warnings.
+   * It is not explicitly deprecated with the macro to avoid compilation warnings.
    */
   static vtkInformationDoubleKey* VOLUME_ANISOTROPY();
 
@@ -239,6 +227,19 @@ public:
    */
   static void SetAmbientSamples(int, vtkRenderer* renderer);
   static int GetAmbientSamples(vtkRenderer* renderer);
+  ///@}
+
+  /**
+   * the rate of sampling for volumes, higher numbers increase
+   * the number of samples.  Defaults to 1.0.
+   */
+  static vtkInformationDoubleKey* VOLUME_SAMPLING_RATE();
+  ///@{
+  /**
+   * Convenience method VOLUME_SAMPLING_RATE on a vtkRenderer.
+   */
+  static void SetVolumeSamplingRate(double, vtkRenderer* renderer);
+  static double GetVolumeSamplingRate(vtkRenderer* renderer);
   ///@}
 
   /**
@@ -451,4 +452,5 @@ private:
   void operator=(const vtkOSPRayRendererNode&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

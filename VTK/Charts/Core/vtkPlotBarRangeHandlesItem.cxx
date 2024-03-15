@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPlotBarRangeHandlesItem.h"
 
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlotBarRangeHandlesItem);
 
 //------------------------------------------------------------------------------
@@ -99,3 +102,4 @@ void vtkPlotBarRangeHandlesItem::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)" << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

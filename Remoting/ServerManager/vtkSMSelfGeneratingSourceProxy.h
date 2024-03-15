@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSelfGeneratingSourceProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMSelfGeneratingSourceProxy
  * @brief source proxy that generates its own proxy definition at run time.
@@ -48,21 +36,21 @@ public:
   vtkTypeMacro(vtkSMSelfGeneratingSourceProxy, vtkSMSourceProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Will extend this proxy to add properties using the XML definition provided.
    */
   virtual bool ExtendDefinition(const char* proxy_definition_xml);
   virtual bool ExtendDefinition(vtkPVXMLElement* xml);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Overridden to save information about extended definitions loaded.
    */
   vtkPVXMLElement* SaveXMLState(vtkPVXMLElement* root, vtkSMPropertyIterator* iter) override;
   using Superclass::SaveXMLState;
-  //@}
+  ///@}
 
   /**
    * Overridden to process extended definition XML in the state file.

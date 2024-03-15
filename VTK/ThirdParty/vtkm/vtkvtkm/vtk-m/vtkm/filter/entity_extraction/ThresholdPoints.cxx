@@ -81,12 +81,12 @@ private:
 bool DoMapField(vtkm::cont::DataSet& result, const vtkm::cont::Field& field)
 {
   // point data is copied as is because it was not collapsed
-  if (field.IsFieldPoint())
+  if (field.IsPointField())
   {
     result.AddField(field);
     return true;
   }
-  else if (field.IsFieldGlobal())
+  else if (field.IsWholeDataSetField())
   {
     result.AddField(field);
     return true;
@@ -138,7 +138,7 @@ VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(const vtkm::cont::DataS
   const auto& field = this->GetFieldFromDataSet(input);
 
   // field to threshold on must be a point field
-  if (!field.IsFieldPoint())
+  if (!field.IsPointField())
   {
     throw vtkm::cont::ErrorFilterExecution("Point field expected.");
   }
@@ -174,8 +174,7 @@ VTKM_CONT vtkm::cont::DataSet ThresholdPoints::DoExecute(const vtkm::cont::DataS
 
   // create the output dataset
   auto mapper = [&](auto& result, const auto& f) { DoMapField(result, f); };
-  vtkm::cont::DataSet output =
-    this->CreateResult(input, outCellSet, input.GetCoordinateSystems(), mapper);
+  vtkm::cont::DataSet output = this->CreateResult(input, outCellSet, mapper);
 
   // compact the unused points in the output dataset
   if (this->CompactPoints)

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCatalystChannelInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCatalystChannelInformation
  * @brief   Find out the Catalyst input channel name for a dataset.
@@ -49,13 +37,13 @@ public:
    */
   void AddInformation(vtkPVInformation* other) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
   /**
    * Remove all gathered information.
@@ -67,9 +55,9 @@ protected:
   ~vtkPVCatalystChannelInformation() override;
 
   /// Information results
-  //@{
+  ///@{
   std::string ChannelName;
-  //@}
+  ///@}
 
   vtkPVCatalystChannelInformation(const vtkPVCatalystChannelInformation&) = delete;
   void operator=(const vtkPVCatalystChannelInformation&) = delete;

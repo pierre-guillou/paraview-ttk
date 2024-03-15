@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParametricSpline.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkParametricSpline
  * @brief   parametric function for 1D interpolating splines
@@ -38,11 +26,12 @@
 #ifndef vtkParametricSpline_h
 #define vtkParametricSpline_h
 
-class vtkSpline;
-class vtkPoints;
-
 #include "vtkCommonComputationalGeometryModule.h" // For export macro
 #include "vtkParametricFunction.h"
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkSpline;
+class vtkPoints;
 
 class VTKCOMMONCOMPUTATIONALGEOMETRY_EXPORT vtkParametricSpline : public vtkParametricFunction
 {
@@ -197,4 +186,5 @@ private:
   void operator=(const vtkParametricSpline&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

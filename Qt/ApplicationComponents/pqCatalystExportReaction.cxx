@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCatalystExportReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #include "vtkPython.h" // must be first
 
@@ -58,8 +30,8 @@ pqCatalystExportReaction::pqCatalystExportReaction(QAction* parentObject)
   parentObject->setEnabled(true);
 #else
   parentObject->setEnabled(false);
-  parentObject->setToolTip("Needs Python support");
-  parentObject->setStatusTip("Needs Python support");
+  parentObject->setToolTip(tr("Needs Python support"));
+  parentObject->setStatusTip(tr("Needs Python support"));
 #endif
 }
 
@@ -69,8 +41,14 @@ pqCatalystExportReaction::~pqCatalystExportReaction() = default;
 //-----------------------------------------------------------------------------
 QString pqCatalystExportReaction::exportScript()
 {
-  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(), tr("Save Catalyst State:"),
-    QString(), "Python file (*.py);;All files (*)");
+  QString fileExt;
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+  fileExt += tr("Catalyst state file") + QString(" (*.py);;");
+#endif
+  fileExt += tr("All files") + QString(" (*)");
+  pqServer* server = pqActiveObjects::instance().activeServer();
+  pqFileDialog fileDialog(server, pqCoreUtilities::mainWidget(), tr("Save Catalyst State:"),
+    QString(), fileExt, false, false);
   fileDialog.setObjectName("SaveCatalystStateFileDialog");
   fileDialog.setFileMode(pqFileDialog::AnyFile);
   if (!fileDialog.exec())
@@ -78,12 +56,13 @@ QString pqCatalystExportReaction::exportScript()
     return QString();
   }
 
-  auto fname = fileDialog.getSelectedFiles()[0];
-  return pqCatalystExportReaction::exportScript(fname) ? fname : QString();
+  auto filename = fileDialog.getSelectedFiles()[0];
+  auto location = fileDialog.getSelectedLocation();
+  return pqCatalystExportReaction::exportScript(filename, location) ? filename : QString();
 }
 
 //-----------------------------------------------------------------------------
-bool pqCatalystExportReaction::exportScript(const QString& filename)
+bool pqCatalystExportReaction::exportScript(const QString& filename, vtkTypeUInt32 location)
 {
   if (filename.isEmpty())
   {
@@ -96,7 +75,7 @@ bool pqCatalystExportReaction::exportScript(const QString& filename)
   auto proxy = vtkSmartPointer<vtkSMProxy>::Take(pxm->NewProxy("coprocessing", "CatalystOptions"));
   controller->InitializeProxy(proxy);
   pqProxyWidgetDialog dialog(proxy, pqCoreUtilities::mainWidget());
-  dialog.setWindowTitle("Save Catalyst State Options");
+  dialog.setWindowTitle(tr("Save Catalyst State Options"));
   dialog.setSettingsKey("CatalystOptions");
   dialog.setEnableSearchBar(true);
   if (dialog.exec() != QDialog::Accepted)
@@ -117,11 +96,12 @@ bool pqCatalystExportReaction::exportScript(const QString& filename)
     }
     return false;
   }
-  vtkSmartPyObject name(PyString_FromString("save_catalyst_state"));
-  vtkSmartPyObject pyfilename(PyString_FromString(filename.toUtf8().data()));
+  vtkSmartPyObject name(PyUnicode_FromString("save_catalyst_state"));
+  vtkSmartPyObject pyfilename(PyUnicode_FromString(filename.toUtf8().data()));
   vtkSmartPyObject pyproxy(vtkPythonUtil::GetObjectFromPointer(proxy));
+  vtkSmartPyObject pylocation(PyLong_FromUnsignedLong(location));
   vtkSmartPyObject result(PyObject_CallMethodObjArgs(
-    module, name, pyfilename.GetPointer(), pyproxy.GetPointer(), nullptr));
+    module, name, pyfilename.GetPointer(), pyproxy.GetPointer(), pylocation.GetPointer(), nullptr));
   if (PyErr_Occurred())
   {
     PyErr_Print();
@@ -130,6 +110,7 @@ bool pqCatalystExportReaction::exportScript(const QString& filename)
   }
   return true;
 #else
+  Q_UNUSED(location);
   qCritical("Catalyst state cannot be exported since Python support not enabled in this build.");
   return false;
 #endif

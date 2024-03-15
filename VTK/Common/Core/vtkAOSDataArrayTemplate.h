@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAOSDataArrayTemplate.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAOSDataArrayTemplate
  * @brief   Array-Of-Structs implementation of
@@ -39,6 +27,7 @@
 
 // The export macro below makes no sense, but is necessary for older compilers
 // when we export instantiations of this class from vtkCommonCore.
+VTK_ABI_NAMESPACE_BEGIN
 template <class ValueTypeT>
 class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate
   : public vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT>
@@ -298,6 +287,8 @@ private:
 // Declare vtkArrayDownCast implementations for AoS containers:
 vtkArrayDownCast_TemplateFastCastMacro(vtkAOSDataArrayTemplate);
 
+VTK_ABI_NAMESPACE_END
+
 // This macro is used by the subclasses to create dummy
 // declarations for these functions such that the wrapper
 // can see them. The wrappers ignore vtkAOSDataArrayTemplate.
@@ -329,9 +320,13 @@ vtkArrayDownCast_TemplateFastCastMacro(vtkAOSDataArrayTemplate);
 #define VTK_AOS_DATA_ARRAY_TEMPLATE_INSTANTIATE(T)                                                 \
   namespace vtkDataArrayPrivate                                                                    \
   {                                                                                                \
+  VTK_ABI_NAMESPACE_BEGIN                                                                          \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(vtkAOSDataArrayTemplate<T>, double);                        \
+  VTK_ABI_NAMESPACE_END                                                                            \
   }                                                                                                \
-  template class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate<T>
+  VTK_ABI_NAMESPACE_BEGIN                                                                          \
+  template class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate<T>;                                  \
+  VTK_ABI_NAMESPACE_END
 
 #elif defined(VTK_USE_EXTERN_TEMPLATE)
 #ifndef VTK_AOS_DATA_ARRAY_TEMPLATE_EXTERN
@@ -342,7 +337,9 @@ vtkArrayDownCast_TemplateFastCastMacro(vtkAOSDataArrayTemplate);
 // dllexport and is used from another class in vtkCommonCore
 #pragma warning(disable : 4910) // extern and dllexport incompatible
 #endif
+VTK_ABI_NAMESPACE_BEGIN
 vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate);
+VTK_ABI_NAMESPACE_END
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -373,7 +370,9 @@ vtkExternTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkAOSDataArra
 
 // Use an "extern explicit instantiation" to give the class a DLL
 // interface.  This is a compiler-specific extension.
+VTK_ABI_NAMESPACE_BEGIN
 vtkInstantiateTemplateMacro(extern template class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate);
+VTK_ABI_NAMESPACE_END
 
 #pragma warning(pop)
 

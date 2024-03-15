@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkReflectionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkReflectionFilter.h"
 
 #include "vtkBoundingBox.h"
@@ -34,6 +22,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 /**
@@ -161,6 +150,14 @@ vtkIdType vtkReflectionFilter::ReflectNon3DCell(
       newCellPts[3] = cellPts->GetId(4);
       newCellPts[4] = cellPts->GetId(3);
       newCellPts[5] = cellPts->GetId(5);
+      break;
+    }
+    case VTK_PIXEL:
+    {
+      newCellPts[0] = cellPts->GetId(0);
+      newCellPts[2] = cellPts->GetId(1);
+      newCellPts[1] = cellPts->GetId(2);
+      newCellPts[3] = cellPts->GetId(3);
       break;
     }
     case VTK_BEZIER_TRIANGLE:
@@ -315,6 +312,10 @@ int vtkReflectionFilter::RequestData(vtkInformation* vtkNotUsed(request),
       iter.TakeReference(inputCD->NewIterator());
       for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
       {
+        if (this->CheckAbort())
+        {
+          break;
+        }
         vtkDataSet* ds = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
         vtkSmartPointer<vtkUnstructuredGrid> ug = vtkSmartPointer<vtkUnstructuredGrid>::New();
         if (!this->RequestDataInternal(ds, ug, bounds))
@@ -497,6 +498,10 @@ int vtkReflectionFilter::RequestDataInternal(
   // Copy reflected points.
   for (vtkIdType i = 0; i < numPts; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     input->GetPoint(i, point);
     vtkIdType ptId = outPoints->InsertNextPoint(mirrorDir[0] * point[0] + constant[0],
       mirrorDir[1] * point[1] + constant[1], mirrorDir[2] * point[2] + constant[2]);
@@ -576,6 +581,10 @@ int vtkReflectionFilter::RequestDataInternal(
   // Generate reflected cells.
   for (vtkIdType i = 0; i < numCells; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkIdType outputCellId = -1;
     int cellType = input->GetCellType(i);
     switch (cellType)
@@ -1143,3 +1152,4 @@ void vtkReflectionFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Center: " << this->Center << endl;
   os << indent << "CopyInput: " << this->CopyInput << endl;
 }
+VTK_ABI_NAMESPACE_END

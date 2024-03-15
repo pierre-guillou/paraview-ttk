@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellQuality.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellQuality
  * @brief   Calculate functions of quality of the elements of a mesh
@@ -39,6 +27,7 @@
 #include "vtkFiltersVerdictModule.h" // For export macro
 #include "vtkMeshQuality.h"          // For QualityMeasureType
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkCellQualityFunctor;
 class vtkDataArray;
@@ -337,4 +326,5 @@ private:
   void operator=(const vtkCellQuality&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkCellQuality_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDualDepthPeelingPass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkDualDepthPeelingPass
@@ -56,6 +44,7 @@
 
 #include <array> // For std::array!
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLQuadHelper;
 class vtkOpenGLVertexArrayObject;
@@ -79,8 +68,8 @@ public:
    * It is usually set to a vtkVolumetricPass.
    * Initial value is a NULL pointer.
    */
-  vtkGetObjectMacro(VolumetricPass, vtkRenderPass) virtual void SetVolumetricPass(
-    vtkRenderPass* volumetricPass);
+  vtkGetObjectMacro(VolumetricPass, vtkRenderPass)
+  virtual void SetVolumetricPass(vtkRenderPass* volumetricPass);
   ///@}
 
   // vtkOpenGLRenderPass virtuals:
@@ -279,4 +268,5 @@ private:
   void operator=(const vtkDualDepthPeelingPass&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkDualDepthPeelingPass_h

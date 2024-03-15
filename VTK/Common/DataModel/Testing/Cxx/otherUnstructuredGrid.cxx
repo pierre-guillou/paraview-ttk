@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherUnstructuredGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME
 // .SECTION Description
@@ -27,6 +15,12 @@ int otherUnstructuredGrid(int, char*[])
   int retVal = EXIT_SUCCESS;
 
   vtkNew<vtkUnstructuredGrid> ug;
+  if (!ug->SupportsGhostArray(vtkDataObject::POINT) || !ug->SupportsGhostArray(vtkDataObject::CELL))
+  {
+    vtkLog(ERROR, "Unexpected results on SupportsGhostArray");
+    retVal = EXIT_FAILURE;
+  }
+
   vtkUnsignedCharArray* distinctCellTypes = ug->GetDistinctCellTypesArray();
   if (!distinctCellTypes)
   {

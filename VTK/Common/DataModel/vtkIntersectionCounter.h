@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkIntersectionCounter
  * @brief   Fast simple class for dealing with ray intersections
@@ -26,6 +28,7 @@
 
 // class VTKCOMMONDATAMODEL_EXPORT vtkIntersectionCounter
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIntersectionCounter
 {
 public:
@@ -104,5 +107,6 @@ protected:
 
 }; // vtkIntersectionCounter
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkIntersectionCounter.h

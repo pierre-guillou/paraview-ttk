@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkGraphAnnotationLayersFilter.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGraphAnnotationLayersFilter
@@ -53,6 +41,7 @@
 #include "vtkRenderingAnnotationModule.h" // For export macro
 #include "vtkSmartPointer.h"              // needed for ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAppendPolyData;
 class vtkConvexHull2D;
 class vtkRenderer;
@@ -133,4 +122,5 @@ private:
   vtkSmartPointer<vtkConvexHull2D> ConvexHullFilter;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkGraphAnnotationLayersFilter_h

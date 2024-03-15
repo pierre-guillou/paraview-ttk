@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridToUnstructuredGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridToUnstructuredGrid.h"
 
 #include "vtkBitArray.h"
@@ -25,6 +13,7 @@
 
 #include "vtkHyperTreeGridNonOrientedGeometryCursor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridToUnstructuredGrid);
 
 //------------------------------------------------------------------------------
@@ -96,6 +85,10 @@ int vtkHyperTreeGridToUnstructuredGrid::ProcessTrees(
   vtkNew<vtkHyperTreeGridNonOrientedGeometryCursor> cursor;
   while (it.GetNextTree(index))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new geometric cursor at root of current tree
     input->InitializeNonOrientedGeometryCursor(cursor, index);
 
@@ -163,6 +156,10 @@ void vtkHyperTreeGridToUnstructuredGrid::RecursivelyProcessTree(
     int numChildren = cursor->GetNumberOfChildren();
     for (int ichild = 0; ichild < numChildren; ++ichild)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       cursor->ToChild(ichild);
       // Recurse
       this->RecursivelyProcessTree(cursor);
@@ -289,3 +286,4 @@ void vtkHyperTreeGridToUnstructuredGrid::AddCell(vtkIdType inId, double* origin,
     this->OriginalIds->SetTuple1(outId, inId);
   }
 }
+VTK_ABI_NAMESPACE_END

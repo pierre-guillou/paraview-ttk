@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLRenderUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLRenderUtilities.h"
 #include "vtk_glew.h"
 
@@ -24,6 +12,7 @@
 #include "vtkShaderProgram.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkOpenGLRenderUtilities::vtkOpenGLRenderUtilities() = default;
 
 //------------------------------------------------------------------------------
@@ -223,3 +212,4 @@ void vtkOpenGLRenderUtilities::MarkDebugEvent(const std::string& event)
   vtkOpenGLClearErrorMacro();
 #endif // VTK_OPENGL_ENABLE_STREAM_ANNOTATIONS
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPLinearScalarFieldFunction.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPLinearScalarFieldFunction
  * @brief   Class for specifying scalars at points.
@@ -40,45 +28,45 @@ public:
   double ComputeComponenentAtPoint(
     unsigned int component, double point[3], unsigned long timeStep, double time) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the constant value for the field.
    */
   vtkSetMacro(Constant, double);
   vtkGetMacro(Constant, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the XMultiplier for the field.
    */
   vtkSetMacro(XMultiplier, double);
   vtkGetMacro(XMultiplier, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the YMultiplier for the field.
    */
   vtkSetMacro(YMultiplier, double);
   vtkGetMacro(YMultiplier, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the ZMultiplier for the field.
    */
   vtkSetMacro(ZMultiplier, double);
   vtkGetMacro(ZMultiplier, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the TimeMultiplier for the field.
    */
   vtkSetMacro(TimeMultiplier, double);
   vtkGetMacro(TimeMultiplier, double);
-  //@}
+  ///@}
 
 protected:
   vtkCPLinearScalarFieldFunction();
@@ -108,7 +96,7 @@ private:
    */
   double ZMultiplier;
 
-  //@{
+  ///@{
   /**
    * The TimeMultiplier for the scalar field.
    */

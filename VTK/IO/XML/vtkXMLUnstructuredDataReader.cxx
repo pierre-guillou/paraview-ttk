@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLUnstructuredDataReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLUnstructuredDataReader.h"
 
 #include "vtkArrayDispatch.h"
@@ -34,6 +22,7 @@
 #include <tuple>
 #include <utility>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // Ensures that array1 and array2 are of the same type. Returns a pair with
@@ -412,7 +401,7 @@ void vtkXMLUnstructuredDataReader::SetupOutputData()
   }
   else
   {
-    vtkErrorMacro(
+    vtkWarningMacro(
       "No Points element available in first piece found in file. Reading file may fail.");
   }
 
@@ -622,7 +611,7 @@ int vtkXMLUnstructuredDataReader::ReadCellArray(vtkIdType numberOfCells,
 {
   // This part is here to determine if we need to read the cell array.
   // If the cell array was already generated in a previous time step, there's no need recreating it.
-  // However, withing a same time step, multiple pieces can be present. We need to read them all.
+  // However, within a same time step, multiple pieces can be present. We need to read them all.
   // The logic works as follows:
   // * If there's no output geometry yet, it means we need to create it. We save the current time
   //   step to know in which time step the cell array is being read.
@@ -1240,3 +1229,4 @@ int vtkXMLUnstructuredDataReader::CellsNeedToReadTimeStep(
   // all other cases we don't need to read:
   return 0;
 }
+VTK_ABI_NAMESPACE_END

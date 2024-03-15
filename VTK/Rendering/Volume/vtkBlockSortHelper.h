@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBlockSortHelper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @brief Collection of comparison functions for std::sort.
  *
@@ -32,6 +20,7 @@
 
 namespace vtkBlockSortHelper
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename T>
 inline void GetBounds(T a, double bds[6])
@@ -404,6 +393,7 @@ inline void Sort(RandomIt bitr, RandomIt eitr, BackToFront<T>& me)
   // copy results to original container
   std::reverse_copy(result.begin(), result.end(), start);
 };
+VTK_ABI_NAMESPACE_END
 }
 
 #endif // vtkBlockSortHelper_h

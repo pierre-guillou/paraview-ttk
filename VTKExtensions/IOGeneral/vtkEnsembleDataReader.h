@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnsembleDataReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkEnsembleDataReader
  * @brief   reader for ensemble data sets
@@ -37,29 +26,29 @@ public:
   vtkTypeMacro(vtkEnsembleDataReader, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the filename of the ensemble (.pve extension).
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the current ensemble member to process.
    */
   vtkSetMacro(CurrentMember, unsigned int);
   vtkGetMacro(CurrentMember, unsigned int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the number of ensemble members
    */
   unsigned int GetNumberOfMembers() const;
   vtkGetVector2Macro(CurrentMemberRange, unsigned int);
-  //@}
+  ///@}
 
   /**
    * Get the file path associated with the specified row of the meta data

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    ImageDataConverter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "ImageDataConverter.h"
 
 #include <vtkm/cont/ArrayHandleUniformPointCoordinates.h>
@@ -76,6 +64,7 @@ struct SetGlobalPointIndexStart
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // convert an image data type
@@ -110,10 +99,12 @@ vtkm::cont::DataSet Convert(vtkImageData* input, FieldsFlag fields)
   return dataset;
 }
 
+VTK_ABI_NAMESPACE_END
 } // tovtkm
 
 namespace fromvtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 bool Convert(
   const vtkm::cont::DataSet& voutput, int extents[6], vtkImageData* output, vtkDataSet* input)
@@ -172,4 +163,5 @@ bool Convert(const vtkm::cont::DataSet& voutput, vtkImageData* output, vtkDataSe
   return Convert(voutput, extents, output, input);
 }
 
+VTK_ABI_NAMESPACE_END
 } // fromvtkm

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef octree_path_
 #define octree_path_
 
@@ -7,6 +9,7 @@
  *
  * A path is like an iterator without the capability to perform linear traversal.
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, typename R_, typename P_, typename O_, typename OP_, int d_ = 3>
 class octree_path
 {
@@ -56,4 +59,5 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // octree_path_

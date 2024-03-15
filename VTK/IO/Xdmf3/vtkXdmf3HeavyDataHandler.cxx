@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3HeavyDataHandler.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmf3HeavyDataHandler.h"
 
@@ -48,6 +35,7 @@
 #include <cassert>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 shared_ptr<vtkXdmf3HeavyDataHandler> vtkXdmf3HeavyDataHandler::New(vtkXdmf3ArraySelection* fs,
   vtkXdmf3ArraySelection* cs, vtkXdmf3ArraySelection* ps, vtkXdmf3ArraySelection* gc,
   vtkXdmf3ArraySelection* sc, unsigned int processor, unsigned int nprocessors, bool dt, double t,
@@ -554,3 +542,4 @@ vtkDataObject* vtkXdmf3HeavyDataHandler::ExtractSet(unsigned int setnum, shared_
   }
   return nullptr;
 }
+VTK_ABI_NAMESPACE_END

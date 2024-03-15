@@ -1,5 +1,7 @@
 set(classes
+  vtkBatchedSurfaceLICMapper
   vtkCompositeSurfaceLICMapper
+  vtkCompositeSurfaceLICMapperDelegator
   vtkImageDataLIC2D
   vtkLineIntegralConvolution2D
   vtkStructuredGridLIC2D
@@ -34,8 +36,6 @@ set(shader_cxx_files)
 foreach (shader_file IN LISTS shader_files)
   vtk_encode_string(
     INPUT         "${shader_file}"
-    EXPORT_SYMBOL "VTKRENDERINGLICOPENGL2_EXPORT"
-    EXPORT_HEADER "vtkRenderingLICOpenGL2Module.h"
     HEADER_OUTPUT header
     SOURCE_OUTPUT source)
   list(APPEND shader_cxx_files ${source})
@@ -59,3 +59,4 @@ if (VTK_RENDERINGPARALLELLIC_LINEINTEGRALCONVOLUTION2D_TIMER)
     PRIVATE
       vtkLineIntegralConvolution2DTIME)
 endif ()
+vtk_add_test_mangling(VTK::RenderingLICOpenGL2)

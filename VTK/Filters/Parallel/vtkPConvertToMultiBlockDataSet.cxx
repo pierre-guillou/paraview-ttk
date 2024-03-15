@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPConvertToMultiBlockDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPConvertToMultiBlockDataSet.h"
 
 #include "vtkCommunicator.h"
@@ -22,6 +10,7 @@
 #include "vtkPartitionedDataSetCollection.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkPConvertToMultiBlockDataSet);
 vtkCxxSetObjectMacro(vtkPConvertToMultiBlockDataSet, Controller, vtkMultiProcessController);
 
@@ -64,7 +53,7 @@ int vtkPConvertToMultiBlockDataSet::RequestData(
 
   // ensure that we have exactly the same number of partitions on all ranks.
   vtkNew<vtkPartitionedDataSetCollection> clone;
-  clone->ShallowCopy(input);
+  clone->CompositeShallowCopy(input);
 
   const auto count = input->GetNumberOfPartitionedDataSets();
   std::vector<unsigned int> piece_counts(count);
@@ -98,3 +87,4 @@ void vtkPConvertToMultiBlockDataSet::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

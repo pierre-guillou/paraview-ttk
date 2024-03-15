@@ -37,7 +37,7 @@ View::View(const vtkm::rendering::Scene& scene,
            const vtkm::rendering::Canvas& canvas,
            const vtkm::rendering::Color& backgroundColor,
            const vtkm::rendering::Color& foregroundColor)
-  : Internal(std::make_shared<InternalData>())
+  : Internal(std::make_unique<InternalData>())
 {
   this->Internal->Scene = scene;
   this->Internal->MapperPointer = mapper.NewCopy();
@@ -65,7 +65,7 @@ View::View(const vtkm::rendering::Scene& scene,
            const vtkm::rendering::Camera& camera,
            const vtkm::rendering::Color& backgroundColor,
            const vtkm::rendering::Color& foregroundColor)
-  : Internal(std::make_shared<InternalData>())
+  : Internal(std::make_unique<InternalData>())
 {
   this->Internal->Scene = scene;
   this->Internal->MapperPointer = mapper.NewCopy();
@@ -77,7 +77,7 @@ View::View(const vtkm::rendering::Scene& scene,
   this->AxisColor = foregroundColor;
 }
 
-View::~View() {}
+View::~View() = default;
 
 const vtkm::rendering::Scene& View::GetScene() const
 {
@@ -149,8 +149,6 @@ void View::SetForegroundColor(const vtkm::rendering::Color& color)
   this->Internal->CanvasPointer->SetForegroundColor(color);
 }
 
-void View::Initialize() {}
-
 void View::SaveAs(const std::string& fileName) const
 {
   this->GetCanvas().SaveAs(fileName);
@@ -159,16 +157,6 @@ void View::SaveAs(const std::string& fileName) const
 void View::SetAxisColor(vtkm::rendering::Color c)
 {
   this->AxisColor = c;
-}
-
-void View::ClearAnnotations()
-{
-  this->Internal->TextAnnotations.clear();
-}
-
-void View::AddAnnotation(std::unique_ptr<vtkm::rendering::TextAnnotation> ann)
-{
-  this->Internal->TextAnnotations.push_back(std::move(ann));
 }
 
 void View::ClearTextAnnotations()

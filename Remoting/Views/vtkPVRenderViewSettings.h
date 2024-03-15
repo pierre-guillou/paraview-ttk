@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVRenderViewSettings.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVRenderViewSettings
  * @brief   singleton used to keep track of options for
@@ -50,7 +38,7 @@ public:
     ZSHIFT = 3
   };
 
-  //@{
+  ///@{
   /**
    * vtkMapper settings.
    */
@@ -59,25 +47,25 @@ public:
   void SetLineOffsetParameters(double factor, double units);
   void SetPointOffsetParameter(double units);
   void SetZShift(double a);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the number of cells (in millions) when the representations show try to
    * use outline by default.
    */
   vtkSetMacro(OutlineThreshold, vtkIdType);
   vtkGetMacro(OutlineThreshold, vtkIdType);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When rendering a volume, this option simulates light coming from both its direction
    * and its opposite for all lights in the scene. It is enabled by default.
    */
   vtkSetMacro(TwoSidedLighting, bool);
   vtkGetMacro(TwoSidedLighting, bool);
-  //@}
+  ///@}
 
   enum
   {
@@ -85,15 +73,15 @@ public:
     ALWAYS_2D = 1,
     ALWAYS_3D = 2
   };
-  //@{
+  ///@{
   /**
    * Set the default interaction mode.
    */
   vtkSetMacro(DefaultInteractionMode, int);
   vtkGetMacro(DefaultInteractionMode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the radius in pixels to include for finding the closet point when
    * selecting a point on render view. This only after single point selections
@@ -101,17 +89,17 @@ public:
    */
   vtkSetMacro(PointPickingRadius, int);
   vtkGetMacro(PointPickingRadius, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * EXPERIMENTAL: Add ability to disable IceT.
    */
   vtkSetMacro(DisableIceT, bool);
   vtkGetMacro(DisableIceT, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enable fast preselection. When enabled, the preselection is computed using
    * the visible geometry. This avoids a call to the extract selection filter each time
@@ -120,25 +108,25 @@ public:
    */
   vtkSetMacro(EnableFastPreselection, bool);
   vtkGetMacro(EnableFastPreselection, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When enabled and growing selection, remove the initial selection seed.
    * Default is false.
    */
   vtkSetMacro(GrowSelectionRemoveSeed, bool);
   vtkGetMacro(GrowSelectionRemoveSeed, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When enabled and growing selection, remove the intermediate layers.
    * Default is false.
    */
   vtkSetMacro(GrowSelectionRemoveIntermediateLayers, bool);
   vtkGetMacro(GrowSelectionRemoveIntermediateLayers, bool);
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -151,6 +139,18 @@ public:
   vtkSetMacro(BackgroundColorMode, int);
   vtkGetMacro(BackgroundColorMode, int);
   ///@}
+
+  ///@{
+  /**
+   * OffsetRatio is used to add a zoom offset when using Reset Camera Closest and
+   * Zoom Closest To Data.
+   *
+   * Default is 0.9.
+   */
+  vtkSetMacro(ZoomClosestOffsetRatio, double);
+  vtkGetMacro(ZoomClosestOffsetRatio, double);
+  ///@}
+
 protected:
   vtkPVRenderViewSettings();
   ~vtkPVRenderViewSettings() override;
@@ -167,6 +167,7 @@ protected:
   double BackgroundColor[3];
   double Background2Color[3];
   int BackgroundColorMode;
+  double ZoomClosestOffsetRatio;
 
 private:
   vtkPVRenderViewSettings(const vtkPVRenderViewSettings&) = delete;

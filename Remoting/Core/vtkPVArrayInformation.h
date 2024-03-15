@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVArrayInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVArrayInformation
  * @brief provides meta data about arrays.
@@ -33,7 +21,10 @@
 #include <vector> // for std::vector
 
 class vtkAbstractArray;
+class vtkCellAttribute;
+class vtkCellGrid;
 class vtkClientServerStream;
+class vtkFieldData;
 class vtkGenericAttribute;
 
 class VTKREMOTINGCORE_EXPORT vtkPVArrayInformation : public vtkObject
@@ -62,7 +53,7 @@ public:
    * Returns range as a string. For string arrays, this lists string values
    * instead.
    */
-  std::string GetRangesAsString() const;
+  std::string GetRangesAsString(int lowExponent = -6, int highExponent = 20) const;
 
   /**
    * Get array's name
@@ -85,7 +76,7 @@ public:
    */
   vtkGetMacro(NumberOfTuples, vtkTypeInt64);
 
-  //@{
+  ///@{
   /**
    * Returns component range. If component is `-1`, then the range of the
    * magnitude (L2 norm) over all components will be provided.
@@ -94,9 +85,9 @@ public:
    */
   const double* GetComponentRange(int comp) const VTK_SIZEHINT(2);
   void GetComponentRange(int comp, double range[2]) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the finite range for each component.
    * If component is `-1`, then the range of the
@@ -106,7 +97,7 @@ public:
    */
   const double* GetComponentFiniteRange(int component) const VTK_SIZEHINT(2);
   void GetComponentFiniteRange(int comp, double range[2]) const;
-  //@}
+  ///@}
 
   /**
    * This method return the Min and Max possible range of the native
@@ -116,16 +107,16 @@ public:
    */
   void GetDataTypeRange(double range[2]) const;
 
-  //@{
+  ///@{
   /**
    * If IsPartial is true, this array is in only some of the
    * parts of a multi-block dataset. By default, IsPartial is
    * set to 0.
    */
   vtkGetMacro(IsPartial, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get information on the InformationKeys of this array
    */
@@ -133,17 +124,18 @@ public:
   const char* GetInformationKeyLocation(int) const;
   const char* GetInformationKeyName(int) const;
   bool HasInformationKey(const char* location, const char* name) const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * For string arrays, this returns first few non-empty values.
    */
   int GetNumberOfStringValues();
   const char* GetStringValue(int);
-  //@}
+  ///@}
 
-  void CopyFromArray(vtkAbstractArray* array);
+  void CopyFromArray(vtkAbstractArray* array, vtkFieldData* fd = nullptr);
+  void CopyFromCellAttribute(vtkCellGrid* grid, vtkCellAttribute* attribute);
   void CopyFromGenericAttribute(vtkGenericAttribute* array);
   void CopyToStream(vtkClientServerStream*) const;
   bool CopyFromStream(const vtkClientServerStream*);
@@ -155,14 +147,14 @@ protected:
   friend class vtkPVDataSetAttributesInformation;
   friend class vtkPVDataInformation;
 
-  //@{
+  ///@{
   /**
    * API for vtkPVDataSetAttributesInformation.
    */
   void DeepCopy(vtkPVArrayInformation* info);
   void AddInformation(vtkPVArrayInformation*, int fieldAssociation);
   vtkSetMacro(IsPartial, bool);
-  //@}
+  ///@}
 
   vtkSetMacro(Name, std::string);
 

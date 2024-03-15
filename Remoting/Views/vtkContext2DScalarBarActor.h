@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkContext2DScalarBarActor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /** @class   vtkContext2DScalarBarActor
  *  @brief   Custom scalar bar actor for ParaView that uses the Charts API.
  *
@@ -53,16 +41,16 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkContext2DScalarBarActor* New();
 
-  //@{
+  ///@{
   /**
    * Set the title justification. Valid values are VTK_TEXT_LEFT,
    * VTK_TEXT_CENTERED, and VTK_TEXT_RIGHT.
    */
   vtkGetMacro(TitleJustification, int);
   vtkSetClampMacro(TitleJustification, int, VTK_TEXT_LEFT, VTK_TEXT_RIGHT);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If this flag is on, the title will be drawn horizontally above the
    * scalar bar. Off by default.
@@ -70,7 +58,7 @@ public:
   vtkSetMacro(ForceHorizontalTitle, bool);
   vtkGetMacro(ForceHorizontalTitle, bool);
   vtkBooleanMacro(ForceHorizontalTitle, bool);
-  //@}
+  ///@}
 
   enum
   {
@@ -84,7 +72,7 @@ public:
     ABOVE_RANGE = 1,
   };
 
-  //@{
+  ///@{
   /**
    * Set the scalar bar thickness. When the orientation is
    * VTK_ORIENT_VERTICAL, this sets the scalar bar width.  When the
@@ -93,9 +81,9 @@ public:
    */
   vtkSetClampMacro(ScalarBarThickness, int, 0, VTK_INT_MAX);
   vtkGetMacro(ScalarBarThickness, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the scalar bar length. When the orientation is VTK_ORIENT_VERTICAL,
    * this sets the scalar bar height. When the orientation is
@@ -106,52 +94,52 @@ public:
    */
   vtkSetClampMacro(ScalarBarLength, double, 0, 1);
   vtkGetMacro(ScalarBarLength, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enable drawing an outline around the scalar bar.
    */
   vtkSetMacro(DrawScalarBarOutline, bool);
   vtkGetMacro(DrawScalarBarOutline, bool);
   vtkBooleanMacro(DrawScalarBarOutline, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the RGB color of the scalar bar outline.
    */
   vtkSetVector3Macro(ScalarBarOutlineColor, double);
   vtkGetVector3Macro(ScalarBarOutlineColor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the thickness of the scalar bar outline.
    */
   vtkSetClampMacro(ScalarBarOutlineThickness, int, 0, VTK_INT_MAX);
   vtkGetMacro(ScalarBarOutlineThickness, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set color of background to draw behind the color bar. First three components,
    * specify RGB color components, opacity is the fourth element.
    */
-  //@}
+  ///@}
   vtkSetVector4Macro(BackgroundColor, double);
   vtkGetVector4Macro(BackgroundColor, double);
 
-  //@{
+  ///@{
   /**
    * Set the padding to add to the background rectangle past the contents of
    * the color legend contents.
    */
-  //@}
+  ///@}
   vtkSetMacro(BackgroundPadding, double);
   vtkGetMacro(BackgroundPadding, double);
 
-  //@{
+  ///@{
   /**
    * Set whether the scalar bar is reversed ie from high
    * to low instead of from low to high. Default is false;
@@ -159,9 +147,9 @@ public:
   vtkSetMacro(ReverseLegend, bool);
   vtkGetMacro(ReverseLegend, bool);
   vtkBooleanMacro(ReverseLegend, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If true (the default), the printf format used for the labels will be
    * automatically generated to make the numbers best fit within the widget.  If
@@ -170,18 +158,18 @@ public:
   vtkGetMacro(AutomaticLabelFormat, int);
   vtkSetMacro(AutomaticLabelFormat, int);
   vtkBooleanMacro(AutomaticLabelFormat, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get whether to add range labels or not. These are labels that have
    * the minimum/maximum values of the scalar bar range.
    */
   vtkSetMacro(AddRangeLabels, int);
   vtkGetMacro(AddRangeLabels, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether annotions are automatically created according the number
    * of discrete colors. Default is FALSE;
@@ -189,9 +177,9 @@ public:
   vtkSetMacro(AutomaticAnnotations, int);
   vtkGetMacro(AutomaticAnnotations, int);
   vtkBooleanMacro(AutomaticAnnotations, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set whether the scalar data range endpoints (minimum and maximum)
    * are added as annotations.
@@ -199,39 +187,39 @@ public:
   vtkGetMacro(AddRangeAnnotations, int);
   vtkSetMacro(AddRangeAnnotations, int);
   vtkBooleanMacro(AddRangeAnnotations, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get whether tick marks should be drawn.
    */
   vtkSetMacro(DrawTickMarks, bool);
   vtkGetMacro(DrawTickMarks, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Printf format for range labels.
    */
   vtkSetStringMacro(RangeLabelFormat);
   vtkGetStringMacro(RangeLabelFormat);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Printf format for range labels.
    */
   vtkSetStringMacro(DataRangeLabelFormat);
   vtkGetStringMacro(DataRangeLabelFormat);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set number of custom labels.
    */
   void SetNumberOfCustomLabels(vtkIdType numLabels);
   vtkIdType GetNumberOfCustomLabels();
-  //@}
+  ///@}
 
   /**
    * Set label for index.

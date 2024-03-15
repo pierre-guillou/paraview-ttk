@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqSaveAnimationReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSaveAnimationReaction.h"
 
 #include "pqActiveObjects.h"
@@ -107,7 +79,8 @@ void pqSaveAnimationReaction::saveAnimation()
   }
 
   // Get the filename first, this will determine some of the options shown.
-  QString filename = pqSaveScreenshotReaction::promptFileName(ahProxy, "*.png");
+  vtkTypeUInt32 location;
+  QString filename = pqSaveScreenshotReaction::promptFileName(ahProxy, "*.png", location);
   if (filename.isEmpty())
   {
     return;
@@ -159,15 +132,15 @@ void pqSaveAnimationReaction::saveAnimation()
   pqProxyWidgetDialog dialog(ahProxy, pqCoreUtilities::mainWidget());
   dialog.setObjectName("SaveAnimationDialog");
   dialog.setApplyChangesImmediately(true);
-  dialog.setWindowTitle("Save Animation Options");
+  dialog.setWindowTitle(tr("Save Animation Options"));
   dialog.setEnableSearchBar(true);
   dialog.setSettingsKey("SaveAnimationDialog");
 
   if (dialog.exec() == QDialog::Accepted)
   {
     pqAnimationProgressDialog progress(
-      "Save animation progress", "Abort", 0, 100, pqCoreUtilities::mainWidget());
-    progress.setWindowTitle("Saving Animation ...");
+      tr("Save animation progress"), tr("Abort"), 0, 100, pqCoreUtilities::mainWidget());
+    progress.setWindowTitle(tr("Saving Animation ..."));
     progress.setAnimationScene(scene);
     progress.show();
 
@@ -178,7 +151,7 @@ void pqSaveAnimationReaction::saveAnimation()
     // as modal, we don't need to that. Plus, we want the cancel button on the
     // dialog to work.
     const auto prev = pgm->unblockEvents(true);
-    ahProxy->WriteAnimation(filename.toUtf8().data());
+    ahProxy->WriteAnimation(filename.toUtf8().data(), location);
     pgm->unblockEvents(prev);
   }
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridPreConfiguredSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyrgight notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkHyperTreeGridPreConfiguredSource
@@ -26,6 +14,7 @@
 #ifndef vtkHyperTreeGridPreConfiguredSource_h
 #define vtkHyperTreeGridPreConfiguredSource_h
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridNonOrientedCursor;
 class vtkDoubleArray;
@@ -171,7 +160,7 @@ protected:
    * Recursive helper for the BALANCED architecture
    */
   void RecurseBalanced(
-    vtkHyperTreeGridNonOrientedCursor* cursor, vtkDoubleArray* levels, const int maxDepth);
+    vtkHyperTreeGridNonOrientedCursor* cursor, vtkDoubleArray* levels, int maxDepth);
   ///@}
 
   ///@{
@@ -192,5 +181,6 @@ protected:
   ///@}
 
 }; // vtkHyperTreeGridPreConfiguredSource
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkHyperTreeGridPreConfiguredSource_h

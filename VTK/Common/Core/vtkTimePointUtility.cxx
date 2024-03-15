@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTimePointUtility.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkTimePointUtility.h"
 
@@ -26,6 +10,7 @@
 #include <locale> // C++ locale
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 const int vtkTimePointUtility::MILLIS_PER_SECOND = 1000;
 const int vtkTimePointUtility::MILLIS_PER_MINUTE = 60000;
 const int vtkTimePointUtility::MILLIS_PER_HOUR = 3600000;
@@ -419,3 +404,4 @@ const char* vtkTimePointUtility::TimePointToISO8601(vtkTypeUInt64 time, int form
   strcpy(copy, oss.str().c_str());
   return copy;
 }
+VTK_ABI_NAMESPACE_END

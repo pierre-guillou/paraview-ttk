@@ -8,7 +8,6 @@
 //  PURPOSE.  See the above copyright notice for more information.
 //============================================================================
 
-#include <vtkm/cont/Algorithm.h>
 #include <vtkm/cont/DataSetBuilderExplicit.h>
 #include <vtkm/cont/testing/ExplicitTestData.h>
 #include <vtkm/cont/testing/MakeTestDataSet.h>
@@ -18,8 +17,6 @@
 
 namespace DataSetBuilderExplicitNamespace
 {
-
-using DFA = vtkm::cont::Algorithm;
 
 template <typename T>
 vtkm::Bounds ComputeBounds(std::size_t numPoints, const T* coords)
@@ -40,7 +37,7 @@ void ValidateDataSet(const vtkm::cont::DataSet& ds,
                      const vtkm::Bounds& bounds)
 {
   //Verify basics..
-  VTKM_TEST_ASSERT(ds.GetNumberOfFields() == 2, "Wrong number of fields.");
+  VTKM_TEST_ASSERT(ds.GetNumberOfFields() == 3, "Wrong number of fields.");
   VTKM_TEST_ASSERT(ds.GetNumberOfCoordinateSystems() == 1, "Wrong number of coordinate systems.");
   VTKM_TEST_ASSERT(ds.GetNumberOfPoints() == numPoints, "Wrong number of coordinates.");
   VTKM_TEST_ASSERT(ds.GetNumberOfCells() == numCells, "Wrong number of cells.");

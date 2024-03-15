@@ -297,6 +297,10 @@ paraview_plugin_build(
 
   [PLUGINS_FILE_NAME <filename>]
   [DISABLE_XML_DOCUMENTATION <ON|OFF>])
+
+  [GENERATE_SPDX            <ON|OFF>]
+  [SPDX_DOCUMENT_NAMESPACE  <uri>]
+  [SPDX_DOWNLOAD_LOCATION   <url>]
 ```
 
   * `PLUGINS`: (Required) The list of plugins to build. May be empty.
@@ -334,11 +338,17 @@ paraview_plugin_build(
     the `plugin` component.
   * `DISABLE_XML_DOCUMENTATION`: (Defaults to `OFF`) Whether to forcefully
     disable XML documentation or not.
+  * ``GENERATE_SPDX``: (Defaults to ``OFF``) Whether or not to generate and install
+    SPDX file for each modules.
+  * ``SPDX_DOCUMENT_NAMESPACE``: (Defaults to ``""``) Document namespace to use when
+    generating SPDX files.
+  * ``SPDX_DOWNLOAD_LOCATION``: (Defaults to ``""``) Download location to use when
+    generating SPDX files.
 #]==]
 function (paraview_plugin_build)
   cmake_parse_arguments(_paraview_build
     ""
-    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS;DISABLE_XML_DOCUMENTATION"
+    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS;DISABLE_XML_DOCUMENTATION;GENERATE_SPDX;SPDX_DOCUMENT_NAMESPACE;SPDX_DOWNLOAD_LOCATION"
     "PLUGINS;AUTOLOAD"
     ${ARGN})
 
@@ -369,6 +379,18 @@ function (paraview_plugin_build)
 
   if (NOT _paraview_build_DISABLE_XML_DOCUMENTATION)
     set(_paraview_build_DISABLE_XML_DOCUMENTATION OFF)
+  endif ()
+
+  if (NOT DEFINED _paraview_build_GENERATE_SPDX)
+      set(_paraview_build_GENERATE_SPDX OFF)
+  endif ()
+
+  if (NOT _paraview_build_SPDX_DOCUMENT_NAMESPACE)
+    set(_paraview_build_SPDX_DOCUMENT_NAMESPACE "")
+  endif ()
+
+  if (NOT _paraview_build_SPDX_DOWNLOAD_LOCATION)
+    set(_paraview_build_SPDX_DOWNLOAD_LOCATION "")
   endif ()
 
   if (NOT DEFINED _paraview_build_INSTALL_HEADERS)
@@ -925,6 +947,9 @@ paraview_add_plugin(<name>
   [DOCUMENTATION_DEPENDENCIES <target>...]
 
   [FORCE_STATIC <ON|OFF>])
+
+  [TRANSLATIONS_DIRECTORY <directory>]
+  [TRANSLATIONS_TARGET    <target>]
 ```
 
   * `REQUIRED_ON_SERVER`: The plugin is required to be loaded on the server for
@@ -950,7 +975,7 @@ paraview_add_plugin(<name>
     if needed) to be invoked when the plugin is loaded. Each function must be
     callable with no arguments.
   * `EXTRA_INCLUDES`: Headers needed by the generated plugin code (such as `INITIALIZERS`).
-    Filename paths passed without quotes will be double-quoted (e.g., `#include "foo.h"`),
+    Filename paths passed without quotes will be double-quoted (e.g., \verbatim`#include "foo.h"`\endverbatim),
     while paths that start with angle- or double-quotes will not be.
   * `REQUIRED_PLUGINS`: Plugins which must be loaded for this plugin to
     function. These plugins do not need to be available at build time and are
@@ -971,6 +996,10 @@ paraview_add_plugin(<name>
   * `EXPORT`: (Deprecated) Use `paraview_plugin_build(INSTALL_EXPORT)` instead.
   * `FORCE_STATIC`: (Defaults to `OFF`) If set, the plugin will be built
     statically so that it can be embedded into an application.
+  * `TRANSLATIONS_DIRECTORY`: (Defaults to `${CMAKE_CURRENT_BINARY_DIR}/Translations`)
+    The path of the directory where translation source files are stored.
+  * `TRANSLATION_TARGET` : The name of the target on which to add the ts file as
+    dependency.
 #]==]
 function (paraview_add_plugin name)
   if (NOT name STREQUAL _paraview_build_plugin)
@@ -981,7 +1010,7 @@ function (paraview_add_plugin name)
 
   cmake_parse_arguments(_paraview_add_plugin
     "REQUIRED_ON_SERVER;REQUIRED_ON_CLIENT"
-    "VERSION;EULA;EXPORT;MODULE_INSTALL_EXPORT;XML_DOCUMENTATION;DOCUMENTATION_DIR;FORCE_STATIC;DOCUMENTATION_TOC"
+    "VERSION;EULA;EXPORT;MODULE_INSTALL_EXPORT;XML_DOCUMENTATION;DOCUMENTATION_DIR;FORCE_STATIC;DOCUMENTATION_TOC;TRANSLATIONS_DIRECTORY;TRANSLATIONS_TARGET"
     "REQUIRED_PLUGINS;SERVER_MANAGER_XML;SOURCES;MODULES;UI_INTERFACES;UI_RESOURCES;UI_FILES;PYTHON_MODULES;MODULE_FILES;MODULE_ARGS;DOCUMENTATION_ADD_PATTERNS;DOCUMENTATION_DEPENDENCIES;INITIALIZERS;EXTRA_INCLUDES"
     ${ARGN})
 
@@ -1026,6 +1055,12 @@ function (paraview_add_plugin name)
         "The `MODULE_ARGS` argument requires `MODULE_FILES` and `MODULES` to be provided.")
     endif ()
   endif ()
+
+  if (_paraview_add_plugin_UI_INTERFACES OR _paraview_add_plugin_UI_FILES OR _paraview_add_plugin_UI_RESOURCES)
+    if (NOT PARAVIEW_USE_QT)
+      message(FATAL_ERROR "UI_INTERFACES, UI_FILES and UI_RESOURCES require ParaView to be built with Qt enabled.")
+    endif()
+  endif()
 
   if (DEFINED _paraview_build_INSTALL_EXPORT AND
       NOT DEFINED _paraview_add_plugin_MODULE_INSTALL_EXPORT)
@@ -1105,7 +1140,10 @@ function (paraview_add_plugin name)
       LIBRARY_DESTINATION "${_paraview_plugin_subdir}"
       RUNTIME_DESTINATION "${_paraview_plugin_subdir}"
       CMAKE_DESTINATION   "${_paraview_build_CMAKE_DESTINATION}"
-      ${_paraview_add_plugin_MODULE_ARGS})
+      ${_paraview_add_plugin_MODULE_ARGS}
+      GENERATE_SPDX       "${_paraview_build_GENERATE_SPDX}"
+      SPDX_DOCUMENT_NAMESPACE "${_paraview_build_SPDX_DOCUMENT_NAMESPACE}"
+      SPDX_DOWNLOAD_LOCATION  "${_paraview_build_SPDX_DOWNLOAD_LOCATION}")
 
     set_property(GLOBAL APPEND
       PROPERTY
@@ -1169,11 +1207,25 @@ function (paraview_add_plugin name)
       MODULES ${_paraview_add_plugin_MODULES}
       TARGET  "${_paraview_build_plugin}_client_server"
       ${_paraview_add_plugin_install_export_args})
+
+    if (NOT DEFINED _paraview_add_plugin_TRANSLATIONS_DIRECTORY)
+      set(_paraview_add_plugin_TRANSLATIONS_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/Translations")
+    endif ()
+    set(_paraview_add_plugin_translation_args)
+    if (_paraview_add_plugin_TRANSLATIONS_DIRECTORY AND _paraview_add_plugin_TRANSLATIONS_TARGET)
+      list(APPEND _paraview_add_plugin_translation_args
+        TRANSLATIONS_DIRECTORY "${_paraview_add_plugin_TRANSLATIONS_DIRECTORY}")
+      list(APPEND _paraview_add_plugin_translation_args
+        TRANSLATIONS_TARGET "${_paraview_add_plugin_TRANSLATIONS_TARGET}")
+    endif ()
+
     paraview_server_manager_process(
       MODULES   ${_paraview_add_plugin_MODULES}
       TARGET    "${_paraview_build_plugin}_server_manager_modules"
       ${_paraview_add_plugin_install_export_args}
-      XML_FILES _paraview_add_plugin_module_xmls)
+      XML_FILES _paraview_add_plugin_module_xmls
+      ${_paraview_add_plugin_translation_args})
 
     list(APPEND _paraview_add_plugin_required_libraries
       "${_paraview_build_plugin}_client_server"
@@ -1205,65 +1257,74 @@ function (paraview_add_plugin name)
 
   if ((_paraview_add_plugin_module_xmls OR _paraview_add_plugin_xmls) AND
       PARAVIEW_USE_QT AND _paraview_add_plugin_XML_DOCUMENTATION)
-    set(_paraview_build_plugin_docdir
-      "${CMAKE_CURRENT_BINARY_DIR}/paraview_help")
 
-    paraview_client_documentation(
-      TARGET      "${_paraview_build_plugin}_doc"
-      OUTPUT_DIR  "${_paraview_build_plugin_docdir}"
-      XMLS        ${_paraview_add_plugin_module_xmls}
-                  ${_paraview_add_plugin_xmls})
+    if (PARAVIEW_QT_MAJOR_VERSION VERSION_GREATER "5")
+      # see https://gitlab.kitware.com/paraview/paraview/-/issues/19742
+      if (NOT DEFINED ENV{CI})
+        message(AUTHOR_WARNING "Building the plugin documentation with Qt6 is not supported")
+      endif ()
+    else ()
 
-    set(_paraview_build_plugin_doc_source_args)
-    if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR)
-      list(APPEND _paraview_build_plugin_doc_source_args
-        SOURCE_DIR "${_paraview_add_plugin_DOCUMENTATION_DIR}")
+      set(_paraview_build_plugin_docdir
+        "${CMAKE_CURRENT_BINARY_DIR}/paraview_help")
+
+      paraview_client_documentation(
+        TARGET      "${_paraview_build_plugin}_doc"
+        OUTPUT_DIR  "${_paraview_build_plugin_docdir}"
+        XMLS        ${_paraview_add_plugin_module_xmls}
+                    ${_paraview_add_plugin_xmls})
+
+      set(_paraview_build_plugin_doc_source_args)
+      if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR)
+        list(APPEND _paraview_build_plugin_doc_source_args
+          SOURCE_DIR "${_paraview_add_plugin_DOCUMENTATION_DIR}")
+      endif ()
+
+      paraview_client_generate_help(
+        NAME              "${_paraview_build_plugin}"
+        OUTPUT_PATH        _paraview_build_plugin_qch_path
+        OUTPUT_DIR        "${_paraview_build_plugin_docdir}"
+        TARGET            "${_paraview_build_plugin}_qch"
+                          ${_paraview_build_plugin_doc_source_args}
+        TABLE_OF_CONTENTS "${_paraview_add_plugin_DOCUMENTATION_TOC}"
+        DEPENDS           "${_paraview_build_plugin}_doc"
+                          "${_paraview_add_plugin_DOCUMENTATION_DEPENDENCIES}"
+        PATTERNS          "*.html" "*.css" "*.png" "*.jpg" "*.js"
+                          ${_paraview_add_plugin_DOCUMENTATION_ADD_PATTERNS})
+
+      list(APPEND _paraview_add_plugin_extra_include_dirs
+        "${CMAKE_CURRENT_BINARY_DIR}")
+      set(_paraview_add_plugin_qch_output
+        "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_build_plugin}_qch.h")
+      list(APPEND _paraview_add_plugin_binary_headers
+        "${_paraview_add_plugin_qch_output}")
+      add_custom_command(
+        OUTPUT "${_paraview_add_plugin_qch_output}"
+        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                $<TARGET_FILE:ParaView::ProcessXML>
+                -base64
+                "${_paraview_add_plugin_qch_output}"
+                \"\"
+                "_qch"
+                "_qch"
+                "${_paraview_build_plugin_qch_path}"
+        DEPENDS "${_paraview_build_plugin_qch_path}"
+                "${_paraview_build_plugin}_qch"
+                "$<TARGET_FILE:ParaView::ProcessXML>"
+        COMMENT "Generating header for ${_paraview_build_plugin} documentation")
+      set_property(SOURCE "${_paraview_add_plugin_qch_output}"
+        PROPERTY
+          SKIP_AUTOMOC 1)
+
+      string(APPEND _paraview_add_plugin_includes
+        "#include \"${_paraview_build_plugin}_qch.h\"\n")
+      string(APPEND _paraview_add_plugin_binary_resources
+        "  {
+      const char *text = ${_paraview_build_plugin}_qch();
+      resources.emplace_back(text);
+      delete [] text;
+    }\n")
     endif ()
-
-    paraview_client_generate_help(
-      NAME              "${_paraview_build_plugin}"
-      OUTPUT_PATH        _paraview_build_plugin_qch_path
-      OUTPUT_DIR        "${_paraview_build_plugin_docdir}"
-      TARGET            "${_paraview_build_plugin}_qch"
-                        ${_paraview_build_plugin_doc_source_args}
-      TABLE_OF_CONTENTS "${_paraview_add_plugin_DOCUMENTATION_TOC}"
-      DEPENDS           "${_paraview_build_plugin}_doc"
-                        "${_paraview_add_plugin_DOCUMENTATION_DEPENDENCIES}"
-      PATTERNS          "*.html" "*.css" "*.png" "*.jpg" "*.js"
-                        ${_paraview_add_plugin_DOCUMENTATION_ADD_PATTERNS})
-
-    list(APPEND _paraview_add_plugin_extra_include_dirs
-      "${CMAKE_CURRENT_BINARY_DIR}")
-    set(_paraview_add_plugin_qch_output
-      "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_build_plugin}_qch.h")
-    list(APPEND _paraview_add_plugin_binary_headers
-      "${_paraview_add_plugin_qch_output}")
-    add_custom_command(
-      OUTPUT "${_paraview_add_plugin_qch_output}"
-      COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
-              $<TARGET_FILE:ParaView::ProcessXML>
-              -base64
-              "${_paraview_add_plugin_qch_output}"
-              \"\"
-              "_qch"
-              "_qch"
-              "${_paraview_build_plugin_qch_path}"
-      DEPENDS "${_paraview_build_plugin_qch_path}"
-              "${_paraview_build_plugin}_qch"
-              "$<TARGET_FILE:ParaView::ProcessXML>"
-      COMMENT "Generating header for ${_paraview_build_plugin} documentation")
-    set_property(SOURCE "${_paraview_add_plugin_qch_output}"
-      PROPERTY
-        SKIP_AUTOMOC 1)
-
-    string(APPEND _paraview_add_plugin_includes
-      "#include \"${_paraview_build_plugin}_qch.h\"\n")
-    string(APPEND _paraview_add_plugin_binary_resources
-      "  {
-    const char *text = ${_paraview_build_plugin}_qch();
-    resources.emplace_back(text);
-    delete [] text;
-  }\n")
   endif ()
 
   set(_paraview_add_plugin_eula_sources)
@@ -1331,16 +1392,16 @@ function (paraview_add_plugin name)
     list(APPEND _paraview_add_plugin_qt_extra_components
       Widgets)
     list(APPEND _paraview_add_plugin_required_libraries
-      Qt5::Widgets)
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Widgets")
     list(APPEND _paraview_add_plugin_ui_sources
       ${_paraview_add_plugin_UI_FILES})
   endif ()
 
   if (_paraview_add_plugin_with_ui OR _paraview_add_plugin_with_resources)
     include("${_ParaViewPlugin_cmake_dir}/paraview-find-package-helpers.cmake" OPTIONAL)
-    find_package(Qt5 QUIET REQUIRED COMPONENTS Core ${_paraview_add_plugin_qt_extra_components})
+    find_package("Qt${PARAVIEW_QT_MAJOR_VERSION}" QUIET REQUIRED COMPONENTS Core ${_paraview_add_plugin_qt_extra_components})
     list(APPEND _paraview_add_plugin_required_libraries
-      Qt5::Core)
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Core")
     if (_paraview_add_plugin_with_ui)
       list(APPEND _paraview_add_plugin_required_libraries
         ParaView::pqCore)
@@ -1354,15 +1415,15 @@ function (paraview_add_plugin name)
 
     # Fix for 3.13.0–3.13.3. Does not work if `paraview_add_plugin` is called
     # from another function.
-    set(Qt5Core_VERSION_MAJOR "${Qt5Core_VERSION_MAJOR}" PARENT_SCOPE)
-    set(Qt5Core_VERSION_MINOR "${Qt5Core_VERSION_MINOR}" PARENT_SCOPE)
+    set("Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MAJOR" "${Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MAJOR}" PARENT_SCOPE)
+    set("Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MINOR" "${Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MINOR}" PARENT_SCOPE)
     # Fix for 3.13.4+.
     set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       PROPERTY
-        Qt5Core_VERSION_MAJOR "${Qt5Core_VERSION_MAJOR}")
+        "Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MAJOR" "${Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MAJOR}")
     set_property(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
       PROPERTY
-        Qt5Core_VERSION_MINOR "${Qt5Core_VERSION_MAJOR}")
+        "Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MINOR" "${Qt${PARAVIEW_QT_MAJOR_VERSION}Core_VERSION_MAJOR}")
   endif ()
 
   set(_paraview_add_plugin_with_python 0)

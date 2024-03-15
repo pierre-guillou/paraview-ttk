@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVXRInterfaceHelper
  * @brief   support for connecting PV and OpenVR/OpenXR
@@ -31,7 +20,6 @@
 // clang-format from "fixing" this for us or compilation will fail.
 // clang-format off
 #include "vtk_glew.h"
-#include "QVTKOpenGLWindow.h"
 #include <qdir.h>
 #include <qurl.h>
 // clang-format on
@@ -39,43 +27,43 @@
 
 #include "vtkNew.h" // for ivars
 #include "vtkObject.h"
-#include "vtkVRCamera.h" // for visibility of inner "Pose" class
+#include "vtkVRCamera.h"       // for visibility of enum Pose
+#include "vtkOpenGLRenderer.h" // TODO should not be needed
 
 #include <array>  // for method sig
-#include <map>    // for ivar
-#include <vector> // for ivar
+#include <map>    // for map
+#include <memory> // for unique_ptr
+#include <vector> // for vector
+
+#include <QStringList>
 
 class pqXRInterfaceControls;
-class QVTKOpenGLWindow;
-class vtkOpenGLCamera;
 class vtkOpenGLRenderer;
-class vtkOpenGLRenderWindow;
-class vtkXRInterfacePolyfill;
-class vtkPropCollection;
-class vtkPVXRInterfaceCollaborationClient;
-class vtkPVXRInterfaceExporter;
-class vtkPVXRInterfaceWidgets;
-class vtkPVRenderView;
 class vtkPVXMLElement;
-class vtkQWidgetWidget;
-class vtkVRRenderWindow;
-class vtkRenderWindowInteractor;
-class vtkSMProxy;
+class vtkPVXRInterfaceCollaborationClient;
+class vtkPVXRInterfaceWidgets;
+class vtkPropCollection;
 class vtkSMProxyLocator;
+class vtkSMProxy;
 class vtkSMViewProxy;
 class vtkTransform;
+class vtkVRRenderWindow;
+class vtkVRRenderer;
+class vtkXRInterfacePolyfill;
 
 // helper class to store information per location
-class vtkPVXRInterfaceHelperLocation
+struct vtkPVXRInterfaceHelperLocation
 {
-public:
-  vtkPVXRInterfaceHelperLocation();
-  ~vtkPVXRInterfaceHelperLocation();
+  vtkPVXRInterfaceHelperLocation()
+    : Pose{ new vtkVRCamera::Pose{} }
+  {
+  }
+
   int NavigationPanelVisibility;
   std::vector<std::pair<std::array<double, 3>, std::array<double, 3>>> CropPlaneStates;
   std::vector<std::array<double, 16>> ThickCropStates;
   std::map<vtkSMProxy*, bool> Visibility;
-  vtkVRCamera::Pose* Pose;
+  std::unique_ptr<vtkVRCamera::Pose> Pose;
 };
 
 class vtkPVXRInterfaceHelper : public vtkObject
@@ -94,8 +82,17 @@ public:
     GRAB,
     PICK,
     INTERACTIVE_CROP,
-    PROBE
+    PROBE,
+    TELEPORTATION
   };
+
+  /**
+   * Get OpenXR Runtime version.
+   * This function is affected by `UseOpenXR` and `UseOpenXRRemoting`
+   * If `UseOpenXR` is `false`, this function return an empty string.
+   * `UseOpenXRRemoting` is used to determine OpenXR connection strategy.
+   */
+  std::string GetOpenXRRuntimeVersionString() const;
 
   /**
    * Create an XR View (e.g. displayed in an HMD) with the actors
@@ -172,7 +169,7 @@ public:
   }
   bool CollaborationConnect();
   bool CollaborationDisconnect();
-  void GoToSavedLocation(int, double*, double*);
+  void GoToSavedLocation(std::size_t, double*, double*);
   ///@}
 
   ///@{
@@ -186,7 +183,7 @@ public:
   /**
    * Return true if XR is currently running.
    */
-  bool InVR() { return this->Interactor != nullptr; }
+  bool InVR();
 
   ///@{
   /**
@@ -198,8 +195,9 @@ public:
   void AddAThickCrop(vtkTransform* t);
   void collabRemoveAllThickCrops();
   void collabUpdateThickCrop(int count, double* matrix);
-  void SetCropSnapping(int val);
+  void SetCropSnapping(bool val);
   void RemoveAllCropPlanesAndThickCrops();
+  void ShowCropPlanes(bool visible);
   ///@}
 
   ///@{
@@ -238,16 +236,19 @@ public:
 
   ///@{
   /**
-   * Save/load a camera position.
+   * Save/load/remove a camera position.
    */
-  void SaveCameraPose(int loc);
-  void LoadCameraPose(int loc);
+  QStringList GetCustomViewpointToolTips();
+  std::size_t GetNextPoseIndex();
+  void SaveCameraPose(std::size_t index);
+  void LoadCameraPose(std::size_t index);
+  void ClearCameraPoses();
   ///@}
 
   /**
    * Load a saved location with the given index.
    */
-  void LoadLocationState(int slot);
+  void LoadLocationState(std::size_t slot);
 
   /**
    * Set whether to display the XR menu.
@@ -258,6 +259,11 @@ public:
    * Set whether to display the navigation panel.
    */
   void SetShowNavigationPanel(bool);
+
+  /**
+   * Set whether to display a white cross marker at the tip of the right controller.
+   */
+  void SetShowRightControllerMarker(bool visibility);
 
   /**
    * Set the right trigger action.
@@ -311,6 +317,31 @@ public:
    */
   void SetUseOpenXR(bool useOpenXr);
   vtkGetMacro(UseOpenXR, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get whether to use OpenXR Remoting for Hololens2.
+   * Default is false.
+   *
+   * @note as the remoting depends on OpenXR, this feature do nothing if the
+   * UseOpenXR isn't enabled.
+   *
+   * @warning This feature is currently experimental.
+   */
+  void SetUseOpenXRRemoting(bool useOpenXrRemoting);
+  vtkGetMacro(UseOpenXRRemoting, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get port used to link with the correct remote devices.
+   * Default is 127.0.0.1.
+   *
+   * Note that UseOpenXRRemoting needs to be set to true.
+   */
+  vtkSetMacro(RemotingAddress, std::string);
+  vtkGetMacro(RemotingAddress, std::string);
   ///@}
 
   ///@{
@@ -374,59 +405,48 @@ public:
 
 protected:
   vtkPVXRInterfaceHelper();
-  virtual ~vtkPVXRInterfaceHelper() = default;
+  ~vtkPVXRInterfaceHelper() override;
 
   void ApplyState();
-  void RecordState();
   bool InteractorEventCallback(vtkObject* object, unsigned long event, void* calldata);
   bool EventCallback(vtkObject* object, unsigned long event, void* calldata);
+
   void HandleDeleteEvent(vtkObject* caller);
   void UpdateBillboard(bool updatePosition);
-  void SaveLocationState(int slot);
-  void SavePoseInternal(vtkVRRenderWindow* vr_rw, int slot);
-  void LoadPoseInternal(vtkVRRenderWindow* vr_rw, int slot);
+
   void LoadNextCameraPose();
+
   void DoOneEvent();
   void RenderXRView();
-
-  vtkNew<vtkOpenGLCamera> ObserverCamera;
-  vtkNew<vtkPropCollection> AddedProps;
-  vtkNew<vtkPVXRInterfaceCollaborationClient> CollaborationClient;
-  vtkNew<vtkPVXRInterfaceExporter> Exporter;
-  vtkNew<vtkPVXRInterfaceWidgets> Widgets;
-  vtkNew<vtkXRInterfacePolyfill> XRInterfacePolyfill;
-
-  pqXRInterfaceControls* XRInterfaceControls = nullptr;
-  QVTKOpenGLWindow* ObserverWidget = nullptr;
-  vtkQWidgetWidget* QWidgetWidget = nullptr;
-  vtkPVRenderView* View = nullptr;
-  vtkSMViewProxy* SMView = nullptr;
-  vtkOpenGLRenderer* Renderer = nullptr;
-  vtkOpenGLRenderWindow* RenderWindow = nullptr;
-  vtkRenderWindowInteractor* Interactor = nullptr;
-  vtkTimeStamp PropUpdateTime;
-
-  bool MultiSample = false;
-  bool BaseStationVisibility = false;
-  bool NeedStillRender = false;
-  bool Done = true;
-  bool UseOpenXR = false;
-
-  RightTriggerAction RightTriggerMode = vtkPVXRInterfaceHelper::PICK;
-
-  // To simulate dpad with a trackpad on OpenXR we need to
-  // store the last position
-  double LeftTrackPadPosition[2];
-
-  std::map<int, vtkVRCamera::Pose> SavedCameraPoses;
-  int LastCameraPoseIndex = 0;
-
-  std::map<int, vtkPVXRInterfaceHelperLocation> Locations;
-  int LoadLocationValue = -1;
 
 private:
   vtkPVXRInterfaceHelper(const vtkPVXRInterfaceHelper&) = delete;
   void operator=(const vtkPVXRInterfaceHelper&) = delete;
+
+  void SaveLocationState(std::size_t slot);
+
+  void SavePoseInternal(vtkVRRenderWindow* vr_rw, std::size_t slot);
+  void LoadPoseInternal(vtkVRRenderWindow* vr_rw, std::size_t slot);
+
+  // state settings that the helper loads
+  bool MultiSample = false;
+  bool BaseStationVisibility = false;
+  bool NeedStillRender = false;
+  bool UseOpenXR = false;
+  bool UseOpenXRRemoting = false;
+  std::string RemotingAddress = "127.0.0.1";
+  RightTriggerAction RightTriggerMode = vtkPVXRInterfaceHelper::PICK;
+
+  vtkSMViewProxy* SMView = nullptr;
+  pqXRInterfaceControls* XRInterfaceControls = nullptr;
+  vtkSmartPointer<vtkOpenGLRenderer> Renderer;
+  vtkNew<vtkPVXRInterfaceCollaborationClient> CollaborationClient;
+  vtkNew<vtkPropCollection> AddedProps;
+  vtkNew<vtkXRInterfacePolyfill> XRInterfacePolyfill;
+  vtkNew<vtkPVXRInterfaceWidgets> Widgets;
+
+  struct vtkInternals;
+  std::unique_ptr<vtkInternals> Internals;
 };
 
 #endif

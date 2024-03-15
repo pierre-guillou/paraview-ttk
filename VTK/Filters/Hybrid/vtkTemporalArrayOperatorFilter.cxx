@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalArrayOperatorFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTemporalArrayOperatorFilter.h"
 
@@ -33,6 +21,7 @@
 #include <algorithm>
 #include <functional>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalArrayOperatorFilter);
 
 //------------------------------------------------------------------------------
@@ -198,6 +187,8 @@ int vtkTemporalArrayOperatorFilter::Execute(vtkInformation*,
   vtkDataObject* outData = vtkDataObject::GetData(outInfo);
   outData->ShallowCopy(newOutData);
 
+  this->CheckAbort();
+
   return newOutData != nullptr ? 1 : 0;
 }
 
@@ -220,12 +211,16 @@ vtkDataObject* vtkTemporalArrayOperatorFilter::Process(
     vtkCompositeDataSet* compositeDataSet1 = vtkCompositeDataSet::SafeDownCast(inputData1);
 
     vtkCompositeDataSet* outputCompositeDataSet = compositeDataSet0->NewInstance();
-    outputCompositeDataSet->ShallowCopy(inputData0);
+    outputCompositeDataSet->CompositeShallowCopy(compositeDataSet0);
 
     vtkSmartPointer<vtkCompositeDataIterator> iter;
     iter.TakeReference(compositeDataSet0->NewIterator());
     for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       vtkDataObject* dataObj0 = iter->GetCurrentDataObject();
       vtkDataObject* dataObj1 = compositeDataSet1->GetDataSet(iter);
       if (!dataObj0 || !dataObj1)
@@ -345,6 +340,8 @@ vtkDataObject* vtkTemporalArrayOperatorFilter::ProcessDataObject(
       break;
   }
 
+  this->CheckAbort();
+
   return outputDataObject;
 }
 
@@ -443,3 +440,4 @@ vtkDataArray* vtkTemporalArrayOperatorFilter::ProcessDataArray(
 
   return outputDataArray;
 }
+VTK_ABI_NAMESPACE_END

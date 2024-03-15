@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBox.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBox
  * @brief   implicit function for a bounding box
@@ -33,6 +21,7 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkImplicitFunction.h"
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkBox : public vtkImplicitFunction
@@ -97,7 +86,7 @@ public:
    * 0<=t<=1.)
    */
   static char IntersectBox(const double bounds[6], const double origin[3], const double dir[3],
-    double coord[3], double& t, const double tolerance = 0.0);
+    double coord[3], double& t, double tolerance = 0.0);
 
   /**
    * Intersect a line with the box.  Give the endpoints of the line in
@@ -181,4 +170,5 @@ inline void vtkBox::SetXMax(double p[3])
   this->SetXMax(p[0], p[1], p[2]);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

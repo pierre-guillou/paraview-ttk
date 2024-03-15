@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMPropertyLink.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPropertyLink
  *
@@ -37,7 +25,7 @@ public:
   vtkTypeMacro(vtkSMPropertyLink, vtkSMLink);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add a property to the link. updateDir determines whether a property of
    * the proxy is read or written. When a property of an input proxy
@@ -49,15 +37,15 @@ public:
    */
   void AddLinkedProperty(vtkSMProxy* proxy, const char* propertyname, int updateDir);
   void RemoveLinkedProperty(vtkSMProxy* proxy, const char* propertyname);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the number of properties that are involved in this link.
    */
   unsigned int GetNumberOfLinkedObjects() override;
   unsigned int GetNumberOfLinkedProperties();
-  //@}
+  ///@}
 
   /**
    * Get a proxy involved in this link.
@@ -69,14 +57,14 @@ public:
    */
   const char* GetLinkedPropertyName(int index);
 
-  //@{
+  ///@{
   /**
    * Get the direction of a property involved in this link
    * (see vtkSMLink::UpdateDirections)
    */
   int GetLinkedObjectDirection(int index) override;
   int GetLinkedPropertyDirection(int index);
-  //@}
+  ///@}
 
   /**
    * Remove all links.

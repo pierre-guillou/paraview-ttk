@@ -15,6 +15,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestBooleanOperationPolyDataFilter.cxx
   TestBooleanOperationPolyDataFilter2.cxx
   TestCellValidator.cxx,NO_VALID
+  TestCleanUnstructuredGridStrategies.cxx,NO_VALID
   TestContourTriangulator.cxx
   TestContourTriangulatorBadData.cxx
   TestContourTriangulatorCutter.cxx
@@ -26,9 +27,11 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestDeformPointSet.cxx
   TestDensifyPolyData.cxx
   TestDistancePolyDataFilter.cxx
+  TestDistancePolyDataFilter2.cxx
   TestExtractGhostCells.cxx,NO_VALID
   TestGraphWeightEuclideanDistanceFilter.cxx,NO_VALID
   TestGroupDataSetsFilter.cxx,NO_VALID
+  TestHOStableClip.cxx,NO_VALID
   TestImageDataToPointSet.cxx,NO_VALID
   TestIntersectionPolyDataFilter.cxx
   TestIntersectionPolyDataFilter2.cxx,NO_VALID
@@ -44,6 +47,7 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestPassThrough.cxx,NO_VALID
   TestRectilinearGridToPointSet.cxx,NO_VALID
   TestReflectionFilter.cxx,NO_VALID
+  TestSpatioTemporalHarmonicsAttribute.cxx
   TestSplitByCellScalarFilter.cxx,NO_VALID
   TestTableFFT.cxx,NO_VALID
   TestTableSplitColumnComponents.cxx,NO_VALID
@@ -52,13 +56,16 @@ vtk_add_test_cxx(vtkFiltersGeneralCxxTests tests
   TestTransformFilter.cxx,NO_VALID
   TestTransformPolyDataFilter.cxx,NO_VALID
   TestUncertaintyTubeFilter.cxx
+  TestWarpScalarGenerateEnclosure.cxx
   UnitTestMultiThreshold.cxx,NO_VALID
   expCos.cxx
   )
 # Tests with data
 vtk_add_test_cxx(vtkFiltersGeneralCxxTests data_tests
-  BoxClipPointData.cxx
   BoxClipOrientedPointData.cxx
+  BoxClipPointData.cxx
+  TestClipClosedSurface1.cxx
+  TestClipClosedSurface2.cxx
   TestDataSetGradient.cxx
   TestDataSetGradientPrecompute.cxx
   TestDateToNumeric.cxx

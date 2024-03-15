@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWebUtilities.h"
 #include "vtkPython.h" // Need to be first and used for Py_xxx macros
 
@@ -26,6 +14,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWebUtilities);
 //------------------------------------------------------------------------------
 vtkWebUtilities::vtkWebUtilities() = default;
@@ -126,3 +115,4 @@ void vtkWebUtilities::ProcessRMIs(int reportError, int dont_loop)
 
   Py_END_ALLOW_THREADS
 }
+VTK_ABI_NAMESPACE_END

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <vtkDataArray.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
@@ -11,7 +13,7 @@
 
 int TestSampleFunction(int, char*[])
 {
-  // First test for errors and warniongs
+  // First test for errors and warnings
   vtkSmartPointer<vtkTest::ErrorObserver> errorObserver =
     vtkSmartPointer<vtkTest::ErrorObserver>::New();
 

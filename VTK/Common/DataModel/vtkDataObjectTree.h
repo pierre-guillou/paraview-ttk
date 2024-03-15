@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectTree.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataObjectTree
  * @brief   provides implementation for most abstract
@@ -35,7 +23,9 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkCompositeDataSet.h"
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataIterator;
 class vtkDataObjectTreeIterator;
 class vtkDataObjectTreeInternals;
@@ -109,7 +99,7 @@ public:
    * be an iterator for composite dataset with similar structure (achieved by
    * using CopyStructure).
    */
-  virtual int HasMetaData(vtkCompositeDataIterator* iter);
+  virtual vtkTypeBool HasMetaData(vtkCompositeDataIterator* iter);
 
   /**
    * Return the actual size of the data in kibibytes (1024 bytes). This number
@@ -124,12 +114,18 @@ public:
 
   ///@{
   /**
-   * Shallow and Deep copy.
+   * CompositeShallow, Shallow and Deep copy.
    */
+  void CompositeShallowCopy(vtkCompositeDataSet* src) override;
   void ShallowCopy(vtkDataObject* src) override;
   void DeepCopy(vtkDataObject* src) override;
-  void RecursiveShallowCopy(vtkDataObject* src) override;
   ///@}
+
+  /**
+   * @deprecated RecursiveShallowCopy method, @see ShallowCopy
+   */
+  VTK_DEPRECATED_IN_9_3_0("Please use ShallowCopy instead.")
+  void RecursiveShallowCopy(vtkDataObject* src) override;
 
   /**
    * Returns the total number of points of all blocks. This will
@@ -204,7 +200,7 @@ protected:
    * Returns if meta-data information is available for the given child index.
    * Returns 1 is present, 0 otherwise.
    */
-  int HasChildMetaData(unsigned int index);
+  vtkTypeBool HasChildMetaData(unsigned int index);
 
   /**
    * When copying structure from another vtkDataObjectTree, this method gets
@@ -224,4 +220,5 @@ private:
   void operator=(const vtkDataObjectTree&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

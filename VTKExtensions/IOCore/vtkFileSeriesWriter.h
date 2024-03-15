@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkFileSeriesWriter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFileSeriesWriter
  * @brief   meta-writer for writing a file series using writers
@@ -35,42 +23,42 @@ public:
   vtkTypeMacro(vtkFileSeriesWriter, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the internal writer.
    */
   virtual void SetWriter(vtkAlgorithm*);
   vtkGetObjectMacro(Writer, vtkAlgorithm);
-  //@}
+  ///@}
 
   /**
    * Return the MTime also considering the internal writer.
    */
   vtkMTimeType GetMTime() override;
 
-  //@{
+  ///@{
   /**
    * Name of the method used to set the file name of the internal
    * writer. By default, this is SetFileName.
    */
   vtkSetStringMacro(FileNameMethod);
   vtkGetStringMacro(FileNameMethod);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the name of the output file.
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
   /**
    * Invoke the writer.  Returns 1 for success, 0 for failure.
    */
   int Write();
 
-  //@{
+  ///@{
   /**
    * If Off, which is the default, only the current timestep is written.
    * If true the writer will write every timestep, or at least those
@@ -79,9 +67,19 @@ public:
   vtkGetMacro(WriteAllTimeSteps, int);
   vtkSetMacro(WriteAllTimeSteps, int);
   vtkBooleanMacro(WriteAllTimeSteps, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * If true, write a .series json meta file when writing all time steps.
+   * Default is false.
+   */
+  vtkGetMacro(WriteJsonMetaFile, bool);
+  vtkSetMacro(WriteJsonMetaFile, bool);
+  vtkBooleanMacro(WriteJsonMetaFile, bool);
+  ///@}
+
+  ///@{
   /**
    * Provides an option to pad the time step when writing out time series data.
    * Only allow this format: ABC%.Xd where ABC is an arbitrary string which may
@@ -91,17 +89,17 @@ public:
    */
   vtkGetStringMacro(FileNameSuffix);
   vtkSetStringMacro(FileNameSuffix);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets a minimum timestep constraint on WriteAllTimeSteps.
    */
   vtkGetMacro(MinTimeStep, int);
   vtkSetClampMacro(MinTimeStep, int, 0, VTK_INT_MAX);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets a maximum timestep constraint on WriteAllTimeSteps. If less than
    * MinTimeStep, then the MaxTimeStep constraint is ignored (i.e. all time steps
@@ -109,15 +107,15 @@ public:
    */
   vtkGetMacro(MaxTimeStep, int);
   vtkSetMacro(MaxTimeStep, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets a stride to write out time series.
    */
   vtkGetMacro(TimeStepStride, int);
   vtkSetClampMacro(TimeStepStride, int, 1, VTK_INT_MAX);
-  //@}
+  ///@}
 
   /**
    * see vtkAlgorithm for details
@@ -151,23 +149,26 @@ private:
 
   void SetWriterFileName(const char* fname);
   bool WriteATimestep(vtkDataObject*, vtkInformation* inInfo);
+  bool WriteJsonFile(vtkInformation* inInfo);
   void WriteInternal();
+  bool AppendFileNameForTimeStep(std::ostringstream& fname, int timeIndex, bool appendPath = true);
 
-  vtkAlgorithm* Writer;
-  char* FileNameMethod;
+  vtkAlgorithm* Writer = nullptr;
+  char* FileNameMethod = nullptr;
 
-  int WriteAllTimeSteps;
-  char* FileNameSuffix;
-  int NumberOfTimeSteps;
-  int CurrentTimeIndex;
-  int MinTimeStep;
-  int MaxTimeStep;
-  int TimeStepStride;
+  int WriteAllTimeSteps = 0;
+  bool WriteJsonMetaFile = false;
+  char* FileNameSuffix = nullptr;
+  int NumberOfTimeSteps = 1;
+  int CurrentTimeIndex = 0;
+  int MinTimeStep = 0;
+  int MaxTimeStep = -1;
+  int TimeStepStride = 1;
 
   // The name of the output file.
-  char* FileName;
+  char* FileName = nullptr;
 
-  vtkClientServerInterpreter* Interpreter;
+  vtkClientServerInterpreter* Interpreter = nullptr;
 };
 
 #endif

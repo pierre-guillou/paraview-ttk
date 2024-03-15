@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWidgetRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWidgetRepresentation
  * @brief   abstract class defines interface between the widget and widget representation classes
@@ -31,6 +19,22 @@
  * way the representation responds to the registered widget events, so the API
  * may vary from widget to widget to reflect this complexity.
  *
+ * Clients of VTK, like ParaView, need a uniform way to set colors on widgets.
+ * Most widgets have standard color setters - new widgets should follow this pattern.
+ * The intended use of these colors is as follows:
+ * | Color       | Description |
+ * | ----------- | ----------- |
+ * | `HandleColor`      | Widget handles that are available to interact with via click+drag. | |
+ * `InteractionColor` | Widget handles the user is interacting with (via a click+drag) or hovering
+ * over.     | | `ForegroundColor`  | Widget elements meant to contrast with the background and
+ * which are not interactive. |
+ *
+ * When hovering, the `InteractionColor` can also be used to show which parts
+ * of the widget will change if this handle is dragged. For instance, using the
+ * `vtkDisplaySizedImplicitPlaneRepresentation`, hovering the axis also displays
+ * the plane disc in the `InteractionColor`, to show it will change when the
+ * axis is rotated.
+ *
  * @warning
  * The separation of the widget event handling and representation enables
  * users and developers to create new appearances for the widget. It also
@@ -47,6 +51,7 @@
 #include "vtkProp.h"
 #include "vtkWeakPointer.h" // needed for vtkWeakPointer iVar.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPropPicker;
 class vtkAbstractWidget;
 class vtkMatrix4x4;
@@ -321,4 +326,5 @@ private:
   void operator=(const vtkWidgetRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

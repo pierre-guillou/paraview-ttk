@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResampledAMRImageSource
  * @brief   image data source that resamples an AMR
@@ -52,15 +40,15 @@ public:
   vtkTypeMacro(vtkResampledAMRImageSource, vtkTrivialProducer);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the maximum number of samples along each axis.
    */
   vtkSetVector3Macro(MaxDimensions, int);
   vtkGetVector3Macro(MaxDimensions, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When provided, the resampled image is set up to cover these bounds. If not
    * provided, data bounds are used. If provided, these bounds *MUST* fit
@@ -69,7 +57,7 @@ public:
    */
   vtkSetVector6Macro(SpatialBounds, double);
   vtkGetVector6Macro(SpatialBounds, double);
-  //@}
+  ///@}
 
   /**
    * To restart the incremental resample process, call this method. The output

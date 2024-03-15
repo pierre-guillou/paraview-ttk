@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonOverload.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*
   When wrapping overloaded C++ methods, it is necessary to provide
   hints so that Python can choose which overload to call (see
@@ -97,7 +85,7 @@
 static char vtkWrapPython_FormatChar(unsigned int argtype);
 
 /* create a string for checking arguments against available signatures */
-static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* currentFunction);
+static char* vtkWrapPython_ArgCheckString(const ClassInfo* data, FunctionInfo* currentFunction);
 
 /* -------------------------------------------------------------------- */
 /* Get the python format char for the give type, after retrieving the
@@ -134,12 +122,10 @@ static char vtkWrapPython_FormatChar(unsigned int argtype)
       break;
     case VTK_PARSE_SIZE_T:
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       typeChar = 'K';
       break;
     case VTK_PARSE_SSIZE_T:
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
       typeChar = 'k';
       break;
     case VTK_PARSE_SIGNED_CHAR:
@@ -168,7 +154,7 @@ static char vtkWrapPython_FormatChar(unsigned int argtype)
 /* -------------------------------------------------------------------- */
 /* Create a string to describe the signature of a method. */
 
-static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* currentFunction)
+static char* vtkWrapPython_ArgCheckString(const ClassInfo* data, FunctionInfo* currentFunction)
 {
   static char result[2048]; /* max literal string length */
   char classname[1024];
@@ -326,6 +312,7 @@ static char* vtkWrapPython_ArgCheckString(ClassInfo* data, FunctionInfo* current
         /* for vectors of anything that isn't a vtkSmartPointer */
         result[endPos++] = vtkWrapPython_FormatChar(ttype);
       }
+      vtkParse_FreeTemplateDecomposition(tname, 2, targs);
     }
 
     /* add the format char to the string */
@@ -508,9 +495,10 @@ void vtkWrapPython_OverloadMethodDef(FILE* fp, const char* classname, ClassInfo*
     }
 
     fprintf(fp,
-      "  {nullptr, Py%s_%s%s, METH_VARARGS%s,\n"
+      "  {\"%s\", Py%s_%s%s, METH_VARARGS%s,\n"
       "   \"%s\"},\n",
-      classname, theOccurrence->Name, occSuffix, theOccurrence->IsStatic ? " | METH_STATIC" : "",
+      theOccurrence->Name, classname, theOccurrence->Name, occSuffix,
+      theOccurrence->IsStatic ? " | METH_STATIC" : "",
       vtkWrapPython_ArgCheckString(data, theOccurrence));
   }
 

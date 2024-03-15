@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOBJReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOBJReader
  * @brief   read Wavefront .obj files
@@ -27,7 +15,9 @@
 
 #include "vtkAbstractPolyDataReader.h"
 #include "vtkIOGeometryModule.h" // For export macro
+#include "vtkResourceStream.h"   // For vtkResourceStream
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOGEOMETRY_EXPORT vtkOBJReader : public vtkAbstractPolyDataReader
 {
 public:
@@ -35,12 +25,20 @@ public:
   vtkTypeMacro(vtkOBJReader, vtkAbstractPolyDataReader);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  ///@{
   /**
    * Get first comment in the file.
    * Comment may be multiple lines. # and leading spaces are removed.
    */
   vtkGetStringMacro(Comment);
+
+  ///@{
+  /**
+   * Specify stream to read from
+   * When selecting input method, `Stream` has an higher priority than `Filename`.
+   * If both are null, reader outputs nothing.
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
   ///@}
 
 protected:
@@ -55,10 +53,14 @@ protected:
   vtkSetStringMacro(Comment);
 
   char* Comment;
+  vtkSmartPointer<vtkResourceStream> Stream;
 
 private:
+  vtkSmartPointer<vtkResourceStream> Open();
+
   vtkOBJReader(const vtkOBJReader&) = delete;
   void operator=(const vtkOBJReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

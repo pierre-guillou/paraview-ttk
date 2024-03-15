@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporterFIWriterHelper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkX3DExporterFIWriterHelper
  *
@@ -30,6 +18,7 @@
 #ifndef max
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
+VTK_ABI_NAMESPACE_BEGIN
 class vtkX3DExporterFIWriterHelper
 {
 public:
@@ -296,7 +285,7 @@ public:
 
     size_t bufferSize = deltas.size() + static_cast<unsigned int>(ceil(deltas.size() * 0.001)) + 12;
     unsigned char* buffer = new unsigned char[bufferSize];
-    size_t newSize = compressor->Compress(&deltas[0], static_cast<unsigned long>(deltas.size()),
+    size_t newSize = compressor->Compress(deltas.data(), static_cast<unsigned long>(deltas.size()),
       buffer, static_cast<unsigned long>(bufferSize));
 
     std::string bytes;
@@ -396,5 +385,6 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkX3DExporterFIWriterHelper.h

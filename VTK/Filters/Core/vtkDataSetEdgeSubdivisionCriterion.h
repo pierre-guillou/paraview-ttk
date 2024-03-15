@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetEdgeSubdivisionCriterion.h
-  Language:  C++
-
-  Copyright 2003 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2003 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #ifndef vtkDataSetEdgeSubdivisionCriterion_h
 #define vtkDataSetEdgeSubdivisionCriterion_h
 /**
@@ -39,6 +28,7 @@
 #include "vtkEdgeSubdivisionCriterion.h"
 #include "vtkFiltersCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkDataSet;
 
@@ -201,4 +191,5 @@ inline const vtkCell* vtkDataSetEdgeSubdivisionCriterion::GetCell() const
   return this->CurrentCellData;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkDataSetEdgeSubdivisionCriterion_h

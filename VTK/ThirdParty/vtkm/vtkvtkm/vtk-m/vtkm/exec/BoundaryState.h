@@ -37,7 +37,12 @@ struct BoundaryState
   {
   }
 
-  //@{
+  /// Returns the center index of the neighborhood. This is typically the position of the
+  /// invocation of the worklet given this boundary condition.
+  ///
+  VTKM_EXEC const vtkm::Id3& GetCenterIndex() const { return this->IJK; }
+
+  ///@{
   /// Returns true if a neighborhood of the given radius is contained within the bounds of the cell
   /// set in the X, Y, or Z direction. Returns false if the neighborhood extends outside of the
   /// boundary of the data in the X, Y, or Z direction.
@@ -62,7 +67,7 @@ struct BoundaryState
     VTKM_ASSERT(radius >= 0);
     return (((this->IJK[2] - radius) >= 0) && ((this->IJK[2] + radius) < this->PointDimensions[2]));
   }
-  //@}
+  ///@}
 
   /// Returns true if a neighborhood of the given radius is contained within the bounds
   /// of the cell set. Returns false if the neighborhood extends outside of the boundary of the
@@ -79,7 +84,7 @@ struct BoundaryState
       this->IsRadiusInZBoundary(radius);
   }
 
-  //@{
+  ///@{
   /// Returns true if the neighbor at the specified @a offset is contained
   /// within the bounds of the cell set in the X, Y, or Z direction. Returns
   /// false if the neighbor falls outside of the boundary of the data in the X,
@@ -97,7 +102,7 @@ struct BoundaryState
   {
     return (((this->IJK[2] + offset) >= 0) && ((this->IJK[2] + offset) < this->PointDimensions[2]));
   }
-  //@}
+  ///@}
 
   /// Returns true if the neighbor at the specified offset vector is contained
   /// within the bounds of the cell set. Returns false if the neighbor falls
@@ -154,7 +159,7 @@ struct BoundaryState
     return maxIndices;
   }
 
-  //@{
+  ///@{
   /// Takes a local neighborhood index (in the ranges of -neighborhood size to neighborhood size)
   /// and returns the ijk of the equivalent point in the full data set. If the given value is out
   /// of range, the value is clamped to the nearest boundary. For example, if given a neighbor
@@ -174,9 +179,9 @@ struct BoundaryState
   {
     return this->NeighborIndexToFullIndexClamp(vtkm::make_Vec(neighborI, neighborJ, neighborK));
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Takes a local neighborhood index (in the ranges of -neighborhood size to neighborhood size)
   /// and returns the ijk of the equivalent point in the full data set. If the given value is out
   /// of range, the returned value is undefined.
@@ -192,9 +197,9 @@ struct BoundaryState
   {
     return this->NeighborIndexToFullIndex(vtkm::make_Vec(neighborI, neighborJ, neighborK));
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Takes a local neighborhood index (in the ranges of -neighborhood size to
   /// neighborhood size), clamps it to the dataset bounds, and returns a new
   /// neighborhood index. For example, if given a neighbor index that is past
@@ -215,9 +220,9 @@ struct BoundaryState
   {
     return this->ClampNeighborIndex(vtkm::make_Vec(neighborI, neighborJ, neighborK));
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Takes a local neighborhood index (in the ranges of -neighborhood size to neighborhood size)
   /// and returns the flat index of the equivalent point in the full data set. If the given value
   /// is out of range, the value is clamped to the nearest boundary. For example, if given a
@@ -237,9 +242,9 @@ struct BoundaryState
   {
     return this->NeighborIndexToFlatIndexClamp(vtkm::make_Vec(neighborI, neighborJ, neighborK));
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /// Takes a local neighborhood index (in the ranges of -neighborhood size to neighborhood size)
   /// and returns the flat index of the equivalent point in the full data set. If the given value
   /// is out of range, the result is undefined.
@@ -256,7 +261,7 @@ struct BoundaryState
   {
     return this->NeighborIndexToFlatIndex(vtkm::make_Vec(neighborI, neighborJ, neighborK));
   }
-  //@}
+  ///@}
   vtkm::Id3 IJK;
   vtkm::Id3 PointDimensions;
 };

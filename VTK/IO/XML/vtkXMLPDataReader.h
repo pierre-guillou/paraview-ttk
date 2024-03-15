@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPDataReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLPDataReader
  * @brief   Superclass for PVTK XML file readers that read vtkDataSets.
@@ -30,6 +18,7 @@
 #include "vtkIOXMLModule.h" // For export macro
 #include "vtkXMLPDataObjectReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataSet;
 class vtkXMLDataReader;
@@ -141,4 +130,5 @@ private:
   void operator=(const vtkXMLPDataReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

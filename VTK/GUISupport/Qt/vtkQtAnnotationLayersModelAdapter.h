@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtAnnotationLayersModelAdapter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkQtAnnotationLayersModelAdapter
  * @brief   Adapts annotations to a Qt item model.
@@ -35,6 +19,7 @@
 #include "vtkGUISupportQtModule.h" // For export macro
 #include "vtkQtAbstractModelAdapter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAnnotationLayers;
 class vtkSelection;
 
@@ -59,10 +44,9 @@ public:
   /**
    * Selection conversion from VTK land to Qt land
    */
-  virtual vtkAnnotationLayers* QModelIndexListToVTKAnnotationLayers(
-    const QModelIndexList qmil) const;
+  virtual vtkAnnotationLayers* QModelIndexListToVTKAnnotationLayers(QModelIndexList qmil) const;
   virtual QItemSelection VTKAnnotationLayersToQItemSelection(vtkAnnotationLayers* vtkann) const;
-  vtkSelection* QModelIndexListToVTKIndexSelection(const QModelIndexList qmil) const override;
+  vtkSelection* QModelIndexListToVTKIndexSelection(QModelIndexList qmil) const override;
   QItemSelection VTKIndexSelectionToQItemSelection(vtkSelection* vtksel) const override;
   ///@}
 
@@ -104,5 +88,6 @@ private:
   void operator=(const vtkQtAnnotationLayersModelAdapter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkQtAnnotationLayersModelAdapter.h

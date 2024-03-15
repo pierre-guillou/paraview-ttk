@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGL2PSExporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGL2PSExporter
  * @brief   export a scene as a PostScript file using GL2PS.
@@ -82,6 +70,7 @@
 
 #include "vtkNew.h" // For vtkNew
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPropCollection;
 
 class VTKIOEXPORTGL2PS_EXPORT vtkGL2PSExporter : public vtkExporter
@@ -373,7 +362,7 @@ private:
   void operator=(const vtkGL2PSExporter&) = delete;
 };
 
-inline const char* vtkGL2PSExporter::GetSortAsString(void)
+inline const char* vtkGL2PSExporter::GetSortAsString()
 {
   if (this->Sort == NO_SORT)
   {
@@ -389,7 +378,7 @@ inline const char* vtkGL2PSExporter::GetSortAsString(void)
   }
 }
 
-inline const char* vtkGL2PSExporter::GetFileFormatAsString(void)
+inline const char* vtkGL2PSExporter::GetFileFormatAsString()
 {
   if (this->FileFormat == PS_FILE)
   {
@@ -413,4 +402,5 @@ inline const char* vtkGL2PSExporter::GetFileFormatAsString(void)
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

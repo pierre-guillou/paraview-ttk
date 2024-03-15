@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGrid.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHyperTree.h"
 #include "vtkBitArray.h"
@@ -30,6 +18,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkHyperTree::vtkHyperTree()
 {
   this->InitializeBase(2, 3, 8);
@@ -60,6 +49,8 @@ void vtkHyperTree::PrintSelf(ostream& os, vtkIndent indent)
 
   this->PrintSelfPrivate(os, indent);
 }
+
+//------------------------------------------------------------------------------
 void vtkHyperTree::InitializeBase(
   unsigned char branchFactor, unsigned char dimension, unsigned char numberOfChildren)
 {
@@ -78,6 +69,7 @@ void vtkHyperTree::InitializeBase(
 
   this->Scales = nullptr;
 }
+
 //------------------------------------------------------------------------------
 void vtkHyperTree::Initialize(
   unsigned char branchFactor, unsigned char dimension, unsigned char numberOfChildren)
@@ -87,7 +79,6 @@ void vtkHyperTree::Initialize(
 }
 
 //------------------------------------------------------------------------------
-
 void vtkHyperTree::CopyStructure(vtkHyperTree* ht)
 {
   assert("pre: ht_exists" && ht != nullptr);
@@ -102,7 +93,6 @@ void vtkHyperTree::CopyStructure(vtkHyperTree* ht)
 }
 
 //------------------------------------------------------------------------------
-
 std::shared_ptr<vtkHyperTreeGridScales> vtkHyperTree::InitializeScales(
   const double* scales, bool reinitialize) const
 {
@@ -114,7 +104,6 @@ std::shared_ptr<vtkHyperTreeGridScales> vtkHyperTree::InitializeScales(
 }
 
 //------------------------------------------------------------------------------
-
 void vtkHyperTree::GetScale(double s[3]) const
 {
   assert("pre: scales_exists" && this->Scales != nullptr);
@@ -123,7 +112,6 @@ void vtkHyperTree::GetScale(double s[3]) const
 }
 
 //------------------------------------------------------------------------------
-
 double vtkHyperTree::GetScale(unsigned int d) const
 {
   assert("pre: scales_exists" && this->Scales != nullptr);
@@ -202,7 +190,8 @@ public:
     vtkIdType numberOfVertices = 1;
     if (!numberOfBits)
     {
-      this->CompactDatas->ParentToElderChild_stl.push_back(UINT_MAX);
+      this->CompactDatas->ParentToElderChild_stl.emplace_back(
+        std::numeric_limits<unsigned int>::max());
     }
     else
     {
@@ -213,14 +202,15 @@ public:
       {
         if (descriptor->GetValue(id))
         {
-          this->CompactDatas->ParentToElderChild_stl.push_back(numberOfVertices);
+          this->CompactDatas->ParentToElderChild_stl.emplace_back(numberOfVertices);
           numberOfVertices += this->NumberOfChildren;
           ++numberOfCoarseVertices;
           nextDepthSize += this->NumberOfChildren;
         }
         else
         {
-          this->CompactDatas->ParentToElderChild_stl.push_back(UINT_MAX);
+          this->CompactDatas->ParentToElderChild_stl.emplace_back(
+            std::numeric_limits<unsigned int>::max());
         }
         if (++currentPositionAtDepth == currentDepthSize)
         {
@@ -244,7 +234,7 @@ public:
     if (isParent == nullptr)
     {
       this->CompactDatas->ParentToElderChild_stl.resize(1);
-      this->CompactDatas->ParentToElderChild_stl[0] = UINT_MAX;
+      this->CompactDatas->ParentToElderChild_stl[0] = std::numeric_limits<unsigned int>::max();
       if (isMasked)
       {
         vtkIdType nbIsMasked = isMasked->GetNumberOfTuples();
@@ -284,14 +274,14 @@ public:
         }
         else
         {
-          this->CompactDatas->ParentToElderChild_stl[i] = UINT_MAX;
+          this->CompactDatas->ParentToElderChild_stl[i] = std::numeric_limits<unsigned int>::max();
         }
       }
     }
     else
     {
       this->CompactDatas->ParentToElderChild_stl.resize(1);
-      this->CompactDatas->ParentToElderChild_stl[0] = UINT_MAX;
+      this->CompactDatas->ParentToElderChild_stl[0] = std::numeric_limits<unsigned int>::max();
     }
 
     if (isMasked)
@@ -423,11 +413,13 @@ public:
     // Nodes get constructed with leaf flags set to 1.
     if (static_cast<vtkIdType>(this->CompactDatas->ParentToElderChild_stl.size()) <= index)
     {
-      this->CompactDatas->ParentToElderChild_stl.resize(index + 1, UINT_MAX);
+      this->CompactDatas->ParentToElderChild_stl.resize(
+        index + 1, std::numeric_limits<unsigned int>::max());
     }
     // The first new child
-    unsigned int nextLeaf = static_cast<unsigned int>(this->Datas->NumberOfVertices);
-    this->CompactDatas->ParentToElderChild_stl[index] = nextLeaf;
+
+    this->CompactDatas->ParentToElderChild_stl[index] =
+      static_cast<unsigned int>(this->Datas->NumberOfVertices);
     // Add the new leaves to the number of leaves at the next depth.
     if (depth + 1 == this->Datas->NumberOfLevels) // >=
     {
@@ -473,7 +465,8 @@ public:
   {
     assert("pre: valid_range" && index >= 0 && index < this->Datas->NumberOfVertices);
     return static_cast<unsigned long>(index) >= this->CompactDatas->ParentToElderChild_stl.size() ||
-      this->CompactDatas->ParentToElderChild_stl[index] == UINT_MAX ||
+      this->CompactDatas->ParentToElderChild_stl[index] ==
+      std::numeric_limits<unsigned int>::max() ||
       this->Datas->NumberOfVertices == 1;
   }
 
@@ -490,7 +483,8 @@ public:
     vtkIdType index_child = this->CompactDatas->ParentToElderChild_stl[index_parent] + ichild;
     return static_cast<unsigned long>(index_child) >=
       this->CompactDatas->ParentToElderChild_stl.size() ||
-      this->CompactDatas->ParentToElderChild_stl[index_child] == UINT_MAX;
+      this->CompactDatas->ParentToElderChild_stl[index_child] ==
+      std::numeric_limits<unsigned int>::max();
   }
 
   //---------------------------------------------------------------------------
@@ -585,6 +579,7 @@ private:
   vtkCompactHyperTree(const vtkCompactHyperTree&) = delete;
   void operator=(const vtkCompactHyperTree&) = delete;
 };
+
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkCompactHyperTree);
 //=============================================================================
@@ -605,3 +600,4 @@ vtkHyperTree* vtkHyperTree::CreateInstance(unsigned char factor, unsigned char d
   ht->Initialize(factor, dimension, pow(factor, dimension));
   return ht;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,35 +1,8 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqPropertyWidget.cxx
-
-   Copyright (c) 2005-2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPropertyWidget.h"
+#include <QCoreApplication>
 
 #include "pqPropertiesPanel.h"
 #include "pqPropertyWidgetDecorator.h"
@@ -37,10 +10,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTimer.h"
 #include "pqUndoStack.h"
 #include "pqView.h"
+#include "vtkCollection.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMDocumentation.h"
 #include "vtkSMDomain.h"
 #include "vtkSMProperty.h"
+
+#include <QRegularExpression>
 
 //-----------------------------------------------------------------------------
 pqPropertyWidget::pqPropertyWidget(vtkSMProxy* smProxy, QWidget* parentObject)
@@ -110,9 +86,10 @@ QString pqPropertyWidget::getTooltip(vtkSMProperty* smproperty)
 {
   if (smproperty && smproperty->GetDocumentation())
   {
-    QString doc = pqProxy::rstToHtml(smproperty->GetDocumentation()->GetDescription()).c_str();
+    QString doc = pqProxy::rstToHtml(QCoreApplication::translate(
+      "ServerManagerXML", smproperty->GetDocumentation()->GetDescription()));
     doc = doc.trimmed();
-    doc = doc.replace(QRegExp("\\s+"), " ");
+    doc = doc.replace(QRegularExpression("\\s+"), " ");
     return QString("<html><head/><body><p align=\"justify\">%1</p></body></html>").arg(doc);
   }
   return QString();
@@ -151,7 +128,7 @@ void pqPropertyWidget::setPanelVisibility(const char* vis)
 //-----------------------------------------------------------------------------
 void pqPropertyWidget::apply()
 {
-  BEGIN_UNDO_SET("Property Changed");
+  BEGIN_UNDO_SET(tr("Property Changed"));
   this->Links.accept();
   END_UNDO_SET();
 }
@@ -236,6 +213,42 @@ int pqPropertyWidget::hintsWidgetHeightNumberOfRows(vtkPVXMLElement* hints, int 
   return defaultValue;
 }
 
+//-----------------------------------------------------------------------------
+std::vector<std::string> pqPropertyWidget::parseComponentLabels(
+  vtkPVXMLElement* hints, unsigned int elemCount)
+{
+  if (hints == nullptr)
+  {
+    return {};
+  }
+
+  vtkNew<vtkCollection> elements;
+  hints->GetElementsByName("ComponentLabel", elements.GetPointer());
+
+  const int nbCompLabels = elements->GetNumberOfItems();
+  std::vector<std::string> componentLabels;
+  componentLabels.resize((elemCount != 0) ? elemCount : nbCompLabels);
+
+  for (int i = 0; i < nbCompLabels; ++i)
+  {
+    vtkPVXMLElement* labelElement = vtkPVXMLElement::SafeDownCast(elements->GetItemAsObject(i));
+    if (labelElement)
+    {
+      int component = 0;
+      if (labelElement->GetScalarAttribute("component", &component))
+      {
+        if (static_cast<std::size_t>(component) < componentLabels.size())
+        {
+          componentLabels[component] = labelElement->GetAttributeOrEmpty("label");
+        }
+      }
+    }
+  }
+
+  return componentLabels;
+}
+
+//-----------------------------------------------------------------------------
 bool pqPropertyWidget::isSingleRowItem() const
 {
   return false;

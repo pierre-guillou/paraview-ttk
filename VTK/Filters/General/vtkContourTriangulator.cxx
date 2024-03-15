@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourTriangulator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContourTriangulator.h"
 
 #include "vtkCellArray.h"
@@ -33,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContourTriangulator);
 
 //------------------------------------------------------------------------------
@@ -84,12 +73,14 @@ int vtkContourTriangulator::RequestData(vtkInformation* vtkNotUsed(request),
   output->GetPointData()->PassData(input->GetPointData());
 
   this->TriangulationError = !vtkContourTriangulator::TriangulateContours(
-    input, input->GetNumberOfVerts(), lines->GetNumberOfCells(), polys, nullptr);
+    input, input->GetNumberOfVerts(), lines->GetNumberOfCells(), polys, nullptr, this);
 
   if (this->TriangulationError && this->TriangulationErrorDisplay)
   {
     vtkErrorMacro("Triangulation failed, output might have holes.");
   }
+
+  this->CheckAbort();
 
   return 1;
 }
@@ -1602,6 +1593,14 @@ void vtkCCSPrepareForPolyInPoly(
   // Find the bounding box and tolerance for the polygon
   tol2 = (vtkCCSPolygonBounds(outerPoly, points, bounds) *
     (VTK_CCS_POLYGON_TOLERANCE * VTK_CCS_POLYGON_TOLERANCE));
+
+  // Expand the bounds
+  double tol = sqrt(tol2);
+  for (int i = 0; i < 3; i++)
+  {
+    bounds[2 * i] -= tol;
+    bounds[2 * i + 1] += tol;
+  }
 }
 
 // ---------------------------------------------------
@@ -2469,7 +2468,7 @@ int vtkCCSCutHoleyPolys(std::vector<vtkCCSPoly>& polys, vtkPoints* points,
 //#define VTK_CCS_SHOW_FAILED_POLYS
 
 int vtkContourTriangulator::TriangulateContours(vtkPolyData* data, vtkIdType firstLine,
-  vtkIdType numLines, vtkCellArray* polys, const double normal[3])
+  vtkIdType numLines, vtkCellArray* polys, const double normal[3], vtkPolyDataAlgorithm* self)
 {
   int triangulationFailure = 0;
 
@@ -2573,6 +2572,10 @@ int vtkContourTriangulator::TriangulateContours(vtkPolyData* data, vtkIdType fir
   // Go through all polys and triangulate them
   for (size_t polyId = 0; polyId < polyGroups.size(); polyId++)
   {
+    if (self && self->CheckAbort())
+    {
+      break;
+    }
     // If group is empty, then poly was a hole without a containing poly
     if (polyGroups[polyId].empty())
     {
@@ -2627,3 +2630,4 @@ int vtkContourTriangulator::TriangulatePolygon(
   }
   return success;
 }
+VTK_ABI_NAMESPACE_END

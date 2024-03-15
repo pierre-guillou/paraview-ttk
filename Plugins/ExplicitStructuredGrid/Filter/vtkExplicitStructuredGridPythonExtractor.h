@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExplicitStructuredGridPythonExtractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExplicitStructuredGridPythonExtractor
  *
@@ -40,15 +29,15 @@ public:
   vtkTypeMacro(vtkExplicitStructuredGridPythonExtractor, vtkExplicitStructuredGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set a Python expression to evaluate for grid extraction.
    */
   vtkGetStringMacro(PythonExpression);
   vtkSetStringMacro(PythonExpression);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether to pass data to the Python script or not.
    * Passing the data to the script performs a copy operation of the data.
@@ -57,7 +46,7 @@ public:
   vtkGetMacro(PassDataToScript, bool);
   vtkSetMacro(PassDataToScript, bool);
   vtkBooleanMacro(PassDataToScript, bool);
-  //@}
+  ///@}
 
 protected:
   vtkExplicitStructuredGridPythonExtractor();

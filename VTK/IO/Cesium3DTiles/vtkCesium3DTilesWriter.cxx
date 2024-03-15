@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCesium3DTilesWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCesium3DTilesWriter.h"
 
@@ -49,6 +37,7 @@
 
 using namespace vtksys;
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCesium3DTilesWriter);
 
 namespace
@@ -139,13 +128,27 @@ std::array<double, 6> TranslateBuildings(vtkMultiBlockDataSet* rootBuildings,
   buildingIt->TraverseSubTreeOff();
   for (buildingIt->InitTraversal(); !buildingIt->IsDoneWithTraversal(); buildingIt->GoToNextItem())
   {
-    auto building = vtkMultiBlockDataSet::SafeDownCast(buildingIt->GetCurrentDataObject());
-    if (!building)
+    auto mbBuilding = vtkMultiBlockDataSet::SafeDownCast(buildingIt->GetCurrentDataObject());
+    auto polyBuilding = vtkPolyData::SafeDownCast(buildingIt->GetCurrentDataObject());
+    if (!mbBuilding)
     {
-      buildings.clear();
-      return wholeBB;
+      if (polyBuilding)
+      {
+        auto newMbBuilding = vtkSmartPointer<vtkMultiBlockDataSet>::New();
+        newMbBuilding->SetNumberOfBlocks(1);
+        newMbBuilding->SetBlock(0, polyBuilding);
+        buildings.emplace_back(newMbBuilding);
+      }
+      else
+      {
+        buildings.clear();
+        return wholeBB;
+      }
     }
-    buildings.emplace_back(building);
+    else
+    {
+      buildings.emplace_back(mbBuilding);
+    }
   }
   return wholeBB;
 }
@@ -180,7 +183,7 @@ vtkPolyData* GetMesh(vtkMultiBlockDataSet* mbMesh)
   auto pd = vtkPolyData::SafeDownCast(it->GetCurrentDataObject());
   return pd;
 }
-};
+}
 
 //------------------------------------------------------------------------------
 vtkCesium3DTilesWriter::vtkCesium3DTilesWriter()
@@ -188,12 +191,16 @@ vtkCesium3DTilesWriter::vtkCesium3DTilesWriter()
   this->SetNumberOfInputPorts(1);
   this->DirectoryName = nullptr;
   this->TextureBaseDirectory = nullptr;
+  this->PropertyTextureFile = nullptr;
+  this->SetPropertyTextureFile("");
   std::fill(this->Offset, this->Offset + 3, 0);
   this->SaveTextures = true;
   this->SaveTiles = true;
   this->MergeTilePolyData = false;
+  this->MergedTextureWidth = std::numeric_limits<int>::max();
   this->InputType = Buildings;
   this->ContentGLTF = false;
+  this->ContentGLTFSaveGLB = true;
   this->NumberOfFeaturesPerTile = 100;
   this->CRS = nullptr;
 }
@@ -203,6 +210,7 @@ vtkCesium3DTilesWriter::~vtkCesium3DTilesWriter()
 {
   this->SetDirectoryName(nullptr);
   this->SetTextureBaseDirectory(nullptr);
+  this->SetPropertyTextureFile(nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -271,14 +279,14 @@ void vtkCesium3DTilesWriter::WriteData()
       vtkSmartPointer<vtkIncrementalOctreePointLocator> octree =
         BuildOctreeBuildings(buildings, wholeBB, this->NumberOfFeaturesPerTile);
       TreeInformation treeInformation(octree->GetRoot(), octree->GetNumberOfNodes(), &buildings,
-        this->TextureBaseDirectory, this->SaveTextures, this->ContentGLTF, this->CRS,
-        this->DirectoryName);
+        this->TextureBaseDirectory, this->PropertyTextureFile, this->SaveTextures,
+        this->ContentGLTF, this->ContentGLTFSaveGLB, this->CRS, this->DirectoryName);
       treeInformation.Compute();
       vtkLog(INFO, "Generating tileset.json for " << octree->GetNumberOfNodes() << " nodes...");
       treeInformation.SaveTileset(std::string(this->DirectoryName) + "/tileset.json");
       if (this->SaveTiles)
       {
-        treeInformation.SaveTilesBuildings(this->MergeTilePolyData);
+        treeInformation.SaveTilesBuildings(this->MergeTilePolyData, this->MergedTextureWidth);
       }
       vtkLog(INFO, "Deleting objects ...");
       break;
@@ -296,7 +304,7 @@ void vtkCesium3DTilesWriter::WriteData()
       vtkSmartPointer<vtkIncrementalOctreePointLocator> octree =
         BuildOctreePoints(pc, this->NumberOfFeaturesPerTile);
       TreeInformation treeInformation(octree->GetRoot(), octree->GetNumberOfNodes(), pc,
-        this->ContentGLTF, this->CRS, this->DirectoryName);
+        this->ContentGLTF, this->ContentGLTFSaveGLB, this->CRS, this->DirectoryName);
       treeInformation.Compute();
       vtkLog(INFO, "Generating tileset.json for " << octree->GetNumberOfNodes() << " nodes...");
       treeInformation.SaveTileset(std::string(this->DirectoryName) + "/tileset.json");
@@ -322,8 +330,8 @@ void vtkCesium3DTilesWriter::WriteData()
       vtkSmartPointer<vtkIncrementalOctreePointLocator> octree =
         BuildOctreeMesh(pc, this->NumberOfFeaturesPerTile);
       TreeInformation treeInformation(octree->GetRoot(), octree->GetNumberOfNodes(), pc,
-        this->TextureBaseDirectory, this->SaveTextures, this->ContentGLTF, this->CRS,
-        this->DirectoryName);
+        this->TextureBaseDirectory, this->PropertyTextureFile, this->SaveTextures,
+        this->ContentGLTF, this->ContentGLTFSaveGLB, this->CRS, this->DirectoryName);
       treeInformation.Compute();
       vtkLog(INFO, "Generating tileset.json for " << octree->GetNumberOfNodes() << " nodes...");
       treeInformation.SaveTileset(std::string(this->DirectoryName) + "/tileset.json");
@@ -336,3 +344,4 @@ void vtkCesium3DTilesWriter::WriteData()
     }
   }
 }
+VTK_ABI_NAMESPACE_END

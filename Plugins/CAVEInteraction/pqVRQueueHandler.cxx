@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqVRQueueHandler.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqVRQueueHandler.h"
 
 #include "vtkCollection.h"
@@ -36,11 +8,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMRenderViewProxy.h"
-#include "vtkVRGrabWorldStyle.h"
-#include "vtkVRInteractorStyle.h"
+#include "vtkSMVRInteractorStyleProxy.h"
 #include "vtkVRInteractorStyleFactory.h"
 #include "vtkVRQueue.h"
-#include "vtkVRTrackStyle.h"
 #include "vtkWeakPointer.h"
 
 #include "pqActiveObjects.h"
@@ -100,7 +70,7 @@ pqVRQueueHandler::~pqVRQueueHandler()
 }
 
 //----------------------------------------------------------------------------
-void pqVRQueueHandler::add(vtkVRInteractorStyle* style)
+void pqVRQueueHandler::add(vtkSMVRInteractorStyleProxy* style)
 {
   if (!this->Internals->Styles->IsItemPresent(style))
   {
@@ -111,7 +81,7 @@ void pqVRQueueHandler::add(vtkVRInteractorStyle* style)
 }
 
 //----------------------------------------------------------------------------
-void pqVRQueueHandler::remove(vtkVRInteractorStyle* style)
+void pqVRQueueHandler::remove(vtkSMVRInteractorStyleProxy* style)
 {
   this->Internals->Styles->RemoveItem(style);
   Q_EMIT stylesChanged();
@@ -128,13 +98,13 @@ void pqVRQueueHandler::clear()
 }
 
 //----------------------------------------------------------------------public
-QList<vtkVRInteractorStyle*> pqVRQueueHandler::styles()
+QList<vtkSMVRInteractorStyleProxy*> pqVRQueueHandler::styles()
 {
-  vtkVRInteractorStyle* style;
-  QList<vtkVRInteractorStyle*> result;
+  vtkSMVRInteractorStyleProxy* style;
+  QList<vtkSMVRInteractorStyleProxy*> result;
   for (this->Internals->Styles->InitTraversal();
-       (style =
-           vtkVRInteractorStyle::SafeDownCast(this->Internals->Styles->GetNextItemAsObject()));)
+       (style = vtkSMVRInteractorStyleProxy::SafeDownCast(
+          this->Internals->Styles->GetNextItemAsObject()));)
   {
     result << style;
   }
@@ -166,10 +136,10 @@ void pqVRQueueHandler::processEvents()
   {
     vtkVREvent event = events.front(); /* get first event on the queue */
     events.pop();
-    vtkVRInteractorStyle* style;
+    vtkSMVRInteractorStyleProxy* style;
     for (this->Internals->Styles->InitTraversal();
-         (style =
-             vtkVRInteractorStyle::SafeDownCast(this->Internals->Styles->GetNextItemAsObject()));)
+         (style = vtkSMVRInteractorStyleProxy::SafeDownCast(
+            this->Internals->Styles->GetNextItemAsObject()));)
     {
       if (style->HandleEvent(event))
       {
@@ -180,10 +150,10 @@ void pqVRQueueHandler::processEvents()
 
   // There should be an explicit update for each handler. Otherwise the server
   // side updates will not happen
-  vtkVRInteractorStyle* style;
+  vtkSMVRInteractorStyleProxy* style;
   for (this->Internals->Styles->InitTraversal();
-       (style =
-           vtkVRInteractorStyle::SafeDownCast(this->Internals->Styles->GetNextItemAsObject()));)
+       (style = vtkSMVRInteractorStyleProxy::SafeDownCast(
+          this->Internals->Styles->GetNextItemAsObject()));)
   {
     if (style->Update())
     {
@@ -243,17 +213,14 @@ void pqVRQueueHandler::configureStyles(vtkPVXMLElement* xml, vtkSMProxyLocator* 
       if (child && child->GetName() && strcmp(child->GetName(), "Style") == 0)
       {
         const char* class_name = child->GetAttributeOrEmpty("class");
-        vtkVRInteractorStyle* style = factory->NewInteractorStyleFromClassName(class_name);
+        vtkSMVRInteractorStyleProxy* style = factory->NewInteractorStyleFromClassName(class_name);
         if (style)
         {
           if (style->Configure(child, locator))
           {
             this->add(style);
           }
-          else
-          {
-            style->Delete();
-          }
+          style->Delete();
         }
         else
         {
@@ -277,10 +244,10 @@ void pqVRQueueHandler::saveStylesConfiguration(vtkPVXMLElement* root)
 
   vtkPVXMLElement* tempParent = vtkPVXMLElement::New();
   tempParent->SetName("VRInteractorStyles");
-  vtkVRInteractorStyle* style;
+  vtkSMVRInteractorStyleProxy* style;
   for (this->Internals->Styles->InitTraversal();
-       (style =
-           vtkVRInteractorStyle::SafeDownCast(this->Internals->Styles->GetNextItemAsObject()));)
+       (style = vtkSMVRInteractorStyleProxy::SafeDownCast(
+          this->Internals->Styles->GetNextItemAsObject()));)
   {
     vtkPVXMLElement* child = style->SaveConfiguration();
     if (child)

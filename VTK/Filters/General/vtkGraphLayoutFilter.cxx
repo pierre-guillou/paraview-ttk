@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGraphLayoutFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGraphLayoutFilter.h"
 
 #include "vtkCellArray.h"
@@ -23,6 +11,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGraphLayoutFilter);
 
 vtkGraphLayoutFilter::vtkGraphLayoutFilter()
@@ -162,6 +151,10 @@ int vtkGraphLayoutFilter::RequestData(vtkInformation* vtkNotUsed(request),
   double norm;
   for (i = 0; i < this->MaxNumberOfIterations; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Calculate the repulsive forces.
     for (j = 0; j < numPts; j++)
     {
@@ -282,3 +275,4 @@ void vtkGraphLayoutFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Three Dimensional Layout: " << (this->ThreeDimensionalLayout ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

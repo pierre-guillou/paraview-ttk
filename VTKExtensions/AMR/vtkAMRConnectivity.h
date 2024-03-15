@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAMRConnectivity.h
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  Copyright 2013 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright 2013 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkAMRConnectivity
  * @brief   Identify fragments in the grid
@@ -47,37 +36,37 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkAMRConnectivity* New();
 
-  //@{
+  ///@{
   /**
    * Add to list of volume arrays to find connected fragments
    */
   void AddInputVolumeArrayToProcess(const char* name);
   void ClearInputVolumeArrayToProcess();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get / Set volume fraction value.
    */
   vtkGetMacro(VolumeFractionSurfaceValue, double);
   vtkSetMacro(VolumeFractionSurfaceValue, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get / Set where to resolve the regions between blocks
    */
   vtkGetMacro(ResolveBlocks, bool);
   vtkSetMacro(ResolveBlocks, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get / Set where to resolve the regions between blocks
    */
   vtkGetMacro(PropagateGhosts, bool);
   vtkSetMacro(PropagateGhosts, bool);
-  //@}
+  ///@}
 
 protected:
   vtkAMRConnectivity();

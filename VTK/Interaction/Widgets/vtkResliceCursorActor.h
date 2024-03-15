@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResliceCursorActor
  * @brief   Represent a reslice cursor
@@ -30,6 +18,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkProp3D.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkResliceCursor;
 class vtkResliceCursorPolyDataAlgorithm;
 class vtkPolyDataMapper;
@@ -122,4 +111,5 @@ private:
   void operator=(const vtkResliceCursorActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

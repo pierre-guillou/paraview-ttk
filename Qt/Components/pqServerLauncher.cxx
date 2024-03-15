@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqServerLauncher.h"
 #include "ui_pqConnectIdDialog.h"
 #include "ui_pqServerLauncherDialog.h"
@@ -63,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QSpinBox>
 #include <QTimer>
 #include <QtDebug>
@@ -245,7 +218,9 @@ bool createWidgets(QMap<QString, pqWidget*>& widgets, QDialog& dialog,
 
   QFormLayout* formLayout = new QFormLayout();
   dialog.setLayout(formLayout);
-  dialog.setWindowTitle(QString("Connection Options for \"%1\"").arg(configuration.name()));
+  dialog.setWindowTitle(
+    QCoreApplication::translate("pqServerLauncher", "Connection Options for \"%1\"")
+      .arg(configuration.name()));
 
   pqSettings* settings = pqApplicationCore::instance()->settings();
 
@@ -633,18 +608,18 @@ bool pqServerLauncher::connectToPrelaunchedServer(bool showConnectionDialog)
 
       if (timeout < 0)
       {
-        ui.message->setText(QString("Establishing connection to '%1' \n"
-                                    "Waiting for server to connect.")
+        ui.message->setText(tr("Establishing connection to '%1'\n"
+                               "Waiting for server to connect.")
                               .arg(this->Internals->Configuration.name()));
-        dialog.setWindowTitle("Waiting for Server Connection");
+        dialog.setWindowTitle(tr("Waiting for Server Connection"));
       }
       else
       {
-        ui.message->setText(QString("Establishing connection to '%1' \n"
-                                    "Waiting %2 seconds for connection to server.")
+        ui.message->setText(tr("Establishing connection to '%1'\n"
+                               "Waiting %2 seconds for connection to server.")
                               .arg(this->Internals->Configuration.name())
                               .arg(timeout));
-        dialog.setWindowTitle("Waiting for Connection to Server");
+        dialog.setWindowTitle(tr("Waiting for Connection to Server"));
       }
 
       dialog.setModal(true);
@@ -660,8 +635,8 @@ bool pqServerLauncher::connectToPrelaunchedServer(bool showConnectionDialog)
     pqEventDispatcher::processEventsAndWait(100);
 
   } while (result == vtkNetworkAccessManager::ConnectionResult::CONNECTION_TIMEOUT &&
-    QMessageBox::question(pqCoreUtilities::mainWidget(), QString("Connection Failed"),
-      QString("Unable to connect sucessfully. Try again for %1 seconds ?").arg(timeout)) ==
+    QMessageBox::question(pqCoreUtilities::mainWidget(), tr("Connection Failed"),
+      tr("Unable to connect sucessfully. Try again for %1 seconds ?").arg(timeout)) ==
       QMessageBox::Yes);
 
   return this->Internals->Server != nullptr;
@@ -763,7 +738,7 @@ bool pqServerLauncher::launchServer(bool show_status_dialog)
   Ui::pqServerLauncherDialog ui;
   ui.setupUi(&dialog);
   ui.cancel->hide();
-  ui.message->setText(QString("Launching server '%1'").arg(this->Internals->Configuration.name()));
+  ui.message->setText(tr("Launching server '%1'").arg(this->Internals->Configuration.name()));
   if (show_status_dialog)
   {
     dialog.show();
@@ -772,15 +747,16 @@ bool pqServerLauncher::launchServer(bool show_status_dialog)
   }
 
   // replace all $FOO$ with values for QProcessEnvironment.
-  QRegExp regex("\\$([^$ ]*)\\$");
-
+  QRegularExpression regex("\\$([^$ ]*)\\$");
+  QRegularExpressionMatch match = regex.match(command);
   // Do string-substitution for the command line.
-  while (regex.indexIn(command) > -1)
+  while (match.hasMatch())
   {
-    QString before = regex.cap(0);
-    QString variable = regex.cap(1);
+    QString before = match.captured(0);
+    QString variable = match.captured(1);
     QString after = this->Internals->Options.value(variable, variable);
     command.replace(before, after);
+    match = regex.match(command);
   }
 
   return this->processCommand(command, processWait, delay, &this->Internals->Options);

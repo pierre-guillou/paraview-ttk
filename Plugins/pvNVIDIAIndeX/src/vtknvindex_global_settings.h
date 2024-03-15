@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtknvindex_global_settings_h
 #define vtknvindex_global_settings_h
@@ -44,7 +46,7 @@ class VTKINDEXREPRESENTATIONS_EXPORT vtknvindex_global_settings : public vtkObje
 public:
   static vtknvindex_global_settings* New();
   vtkTypeMacro(vtknvindex_global_settings, vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   static vtknvindex_global_settings* GetInstance();
   static void InitializeSettings(vtkObject*, unsigned long, void* clientdata, void*);
@@ -132,7 +134,7 @@ public:
 
 protected:
   vtknvindex_global_settings();
-  ~vtknvindex_global_settings();
+  ~vtknvindex_global_settings() override;
 
   int LogLevel = LOG_WARNING;
   int LogLevelStandardOutput = LOG_INFO;

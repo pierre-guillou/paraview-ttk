@@ -51,7 +51,10 @@
     <Proxy group="filters" name="HyperTreeGridCellCenters" />
     <Proxy group="filters" name="Contour" />
     <Proxy group="filters" name="HyperTreeGridDepthLimiter" />
+    <Proxy group="filters" name="HyperTreeGridGeometry" />
+    <Proxy group="filters" name="Gradient" />
     <Proxy group="filters" name="GroupDataSets" />
+    <Proxy group="filters" name="HyperTreeGridEvaluateCoarse" />
     <Proxy group="filters" name="HyperTreeGridGhostCellsGenerator" />
     <Proxy group="filters" name="Threshold" />
     <Proxy group="filters" name="HyperTreeGridToDualGrid" />
@@ -125,6 +128,7 @@
   <Category name="Annotation" menu_label="Annotation">
     <Proxy group="filters" name="AnnotateGlobalData" />
     <Proxy group="filters" name="AnnotateAttributeData" />
+    <Proxy group="filters" name="AnnotateSelection" />
     <Proxy group="filters" name="PythonAnnotation" />
     <Proxy group="filters" name="TimeToTextConvertor" />
     <Proxy group="filters" name="TimeStepProgressFilter" />
@@ -166,6 +170,7 @@
   <Proxy group="filters" name="AdaptiveResampleToImage" />
   <Proxy group="filters" name="AddFieldArrays" />
   <Proxy group="filters" name="AggregateDataSet" />
+  <Proxy group="filters" name="AlignImageOrigin" />
   <Proxy group="filters" name="AngularPeriodicFilter" />
   <Proxy group="filters" name="AnnotateAttributeData" />
   <Proxy group="filters" name="AnnotateGlobalData" />
@@ -178,6 +183,7 @@
   <Proxy group="filters" name="AppendReductionFilter" />
   <Proxy group="filters" name="ArbitrarySourceStreamTracer" />
   <Proxy group="filters" name="BlockIdScalars" />
+  <Proxy group="filters" name="BoundaryMeshQuality"/>
   <Proxy group="filters" name="BrownianPoints" />
   <Proxy group="filters" name="CTHPart" />
   <Proxy group="filters" name="Calculator" icon=":/pqWidgets/Icons/pqCalculator.svg" />
@@ -190,12 +196,14 @@
   <Proxy group="filters" name="CleanUnstructuredGridCells" />
   <Proxy group="filters" name="Clip" icon=":/pqWidgets/Icons/pqClip.svg" />
   <Proxy group="filters" name="ClipClosedSurface" />
+  <Proxy group="filters" name="ComputeCellGridSurface" />
   <Proxy group="filters" name="ComputeConnectedSurfaceProperties" />
   <Proxy group="filters" name="ComputeMoleculeBonds" />
   <Proxy group="filters" name="ComputeMoments" />
   <Proxy group="filters" name="ComputeQuartiles" icon=":/pqWidgets/Icons/pqBoxChart16.png" />
   <Proxy group="filters" name="ContingencyStatistics" />
   <Proxy group="filters" name="Contour" icon=":/pqWidgets/Icons/pqIsosurface.svg" />
+  <Proxy group="filters" name="ConvertToCellGrid" />
   <Proxy group="filters" name="ConvertPolyhedra" />
   <Proxy group="filters" name="ConvertToMultiBlock" />
   <Proxy group="filters" name="ConvertToPartitionedDataSetCollection" />
@@ -240,13 +248,16 @@
   <Proxy group="filters" name="ExtractSelectionOverTime" icon=":/pqWidgets/Icons/pqPlotSelectionOverTime.svg" />
   <Proxy group="filters" name="ExtractSubsetWithSeed" />
   <Proxy group="filters" name="ExtractTimeSteps" />
-  <Proxy group="filters" name="FiniteElementFieldDistributor" />
   <Proxy group="filters" name="FFTSelectionOverTime" />
   <Proxy group="filters" name="FeatureEdges" />
+  <Proxy group="filters" name="FieldDataToDataSetAttribute" />
+  <Proxy group="filters" name="FiniteElementFieldDistributor" />
   <Proxy group="filters" name="ForceTime" />
   <Proxy group="filters" name="GaussianSplatter" />
   <Proxy group="filters" name="GenerateGlobalIds" />
+  <Proxy group="filters" name="GenerateProcessIds" />
   <Proxy group="filters" name="GenerateIdScalars" />
+  <Proxy group="filters" name="GenerateSpatioTemporalHarmonics" />
   <Proxy group="filters" name="GenerateTimeSteps" />
   <Proxy group="filters" name="GenericClip" />
   <Proxy group="filters" name="GenericContour" />
@@ -262,6 +273,8 @@
   <Proxy group="filters" name="HyperTreeGridAxisReflection" />
   <Proxy group="filters" name="HyperTreeGridCellCenters" />
   <Proxy group="filters" name="HyperTreeGridDepthLimiter" />
+  <Proxy group="filters" name="HyperTreeGridEvaluateCoarse" />
+  <Proxy group="filters" name="HyperTreeGridGeometry" />
   <Proxy group="filters" name="HyperTreeGridGhostCellsGenerator" />
   <Proxy group="filters" name="HyperTreeGridToDualGrid" />
   <Proxy group="filters" name="HyperTreeGridToUnstructuredGrid" />
@@ -292,6 +305,7 @@
   <Proxy group="filters" name="MulticorrelativeStatistics" />
   <Proxy group="filters" name="NonOverlappingLevelIdScalars" />
   <Proxy group="filters" name="NormalGlyphs" />
+  <Proxy group="filters" name="OctreeImageToPointSet"/>
   <Proxy group="filters" name="OMETIFFChannelCalculator" />
   <Proxy group="filters" name="OTDensityMap" />
   <Proxy group="filters" name="OTKernelSmoothing" />
@@ -299,6 +313,7 @@
   <Proxy group="filters" name="OutlineFilter" />
   <Proxy group="filters" name="OverlappingCellsDetector" />
   <Proxy group="filters" name="OverlappingLevelIdScalars" />
+  <Proxy group="filters" name="PCANormalEstimation" />
   <Proxy group="filters" name="PCAStatistics" />
   <Proxy group="filters" name="PerlinNoise" />
   <Proxy group="filters" name="PMergeConnected" />
@@ -309,6 +324,7 @@
   <Proxy group="filters" name="ParticleTracer" />
   <Proxy group="filters" name="PartitionBalancer" />
   <Proxy group="filters" name="PassArrays" />
+  <Proxy group="filters" name="PointSetToOctreeImage" />
   <Proxy group="filters" name="PlotAttributes" />
   <Proxy group="filters" name="PlotDataOverTime" />
   <Proxy group="filters" name="PlotOnIntersectionCurves" />
@@ -373,6 +389,7 @@
   <Proxy group="filters" name="TemporalSnapToTimeStep" />
   <Proxy group="filters" name="TemporalStatistics" />
   <Proxy group="filters" name="TensorGlyph" />
+  <Proxy group="filters" name="TensorPrincipalInvariants" />
   <Proxy group="filters" name="TessellatorFilter" />
   <Proxy group="filters" name="TextureMapToCylinder" />
   <Proxy group="filters" name="TextureMapToPlane" />
@@ -386,8 +403,10 @@
   <Proxy group="filters" name="TriangleFilter" />
   <Proxy group="filters" name="TubeFilter" />
   <Proxy group="filters" name="ValidateCells" />
+  <Proxy group="filters" name="VolumeOfRevolution" />
   <Proxy group="filters" name="VortexCores" />
   <Proxy group="filters" name="WarpScalar" />
   <Proxy group="filters" name="WarpVector" icon=":/pqWidgets/Icons/pqWarp.svg" />
+  <Proxy group="filters" name="YieldCriteria" />
   <Proxy group="filters" name="YoungsMaterialInterface" icon=":/pqWidgets/Icons/pqYoungsMaterialInterface.svg" />
 </ParaViewFilters>

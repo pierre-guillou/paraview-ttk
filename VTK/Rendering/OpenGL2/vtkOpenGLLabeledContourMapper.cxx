@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLLabeledContourMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLLabeledContourMapper.h"
 
 #include "vtkActor.h"
@@ -31,6 +19,7 @@
 #include "vtkTextActor3D.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLLabeledContourMapper);
 
 //------------------------------------------------------------------------------
@@ -85,6 +74,11 @@ void vtkOpenGLLabeledContourMapper::ReleaseGraphicsResources(vtkWindow* win)
 //------------------------------------------------------------------------------
 bool vtkOpenGLLabeledContourMapper::ApplyStencil(vtkRenderer* ren, vtkActor* act)
 {
+  if (this->StencilQuadsSize == 0)
+  {
+    return true;
+  }
+
   // Draw stencil quads into stencil buffer:
   // compile and bind it if needed
   vtkOpenGLRenderWindow* renWin = vtkOpenGLRenderWindow::SafeDownCast(ren->GetVTKWindow());
@@ -173,3 +167,4 @@ bool vtkOpenGLLabeledContourMapper::RemoveStencil(vtkRenderer* ren)
   vtkOpenGLCheckErrorMacro("failed after RemoveStencil()");
   return this->Superclass::RemoveStencil(ren);
 }
+VTK_ABI_NAMESPACE_END

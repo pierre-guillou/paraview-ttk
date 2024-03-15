@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataArray.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataArray
  * @brief   abstract superclass for arrays of numeric data
@@ -39,6 +27,7 @@
 #include "vtkCommonCoreModule.h"          // For export macro
 #include "vtkVTK_USE_SCALED_SOA_ARRAYS.h" // For #define of VTK_USE_SCALED_SOA_ARRAYS
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkIdList;
 class vtkInformationStringKey;
@@ -539,7 +528,7 @@ public:
    * others must be. NOTE: Up to the implmenter to make sure that
    * keys not intended to be copied are excluded here.
    */
-  int CopyInformation(vtkInformation* infoFrom, int deep = 1) override;
+  int CopyInformation(vtkInformation* infoFrom, vtkTypeBool deep = 1) override;
 
   /**
    * Method for type-checking in FastDownCast implementations.
@@ -682,7 +671,6 @@ protected:
 private:
   double* GetTupleN(vtkIdType i, int n);
 
-private:
   vtkDataArray(const vtkDataArray&) = delete;
   void operator=(const vtkDataArray&) = delete;
 };
@@ -696,6 +684,7 @@ inline vtkDataArray* vtkDataArray::FastDownCast(vtkAbstractArray* source)
     {
       case AoSDataArrayTemplate:
       case SoADataArrayTemplate:
+      case ImplicitArray:
       case TypedDataArray:
       case DataArray:
       case MappedDataArray:
@@ -708,17 +697,20 @@ inline vtkDataArray* vtkDataArray::FastDownCast(vtkAbstractArray* source)
 }
 
 vtkArrayDownCast_FastCastMacro(vtkDataArray);
+VTK_ABI_NAMESPACE_END
 
 // These are used by vtkDataArrayPrivate.txx, but need to be available to
 // vtkGenericDataArray.h as well.
 namespace vtkDataArrayPrivate
 {
+VTK_ABI_NAMESPACE_BEGIN
 struct AllValues
 {
 };
 struct FiniteValues
 {
 };
+VTK_ABI_NAMESPACE_END
 }
 
 #endif

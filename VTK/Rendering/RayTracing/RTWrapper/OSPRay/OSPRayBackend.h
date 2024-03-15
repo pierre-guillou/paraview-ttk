@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include <ospray/ospray_util.h>
@@ -13,6 +15,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
 
   OSPFrameBufferFormat convert(RTWFrameBufferFormat format)
   {
@@ -360,4 +363,5 @@ namespace RTW
       return 0;
     }
   };
+VTK_ABI_NAMESPACE_END
 }

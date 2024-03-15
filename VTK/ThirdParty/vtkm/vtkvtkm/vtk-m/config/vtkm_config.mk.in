@@ -24,16 +24,7 @@ VTKm_ENABLE_OSMESA_CONTEXT = @VTKm_ENABLE_OSMESA_CONTEXT@
 VTKm_ENABLE_EGL_CONTEXT = @VTKm_ENABLE_EGL_CONTEXT@
 VTKm_ENABLE_MPI = @VTKm_ENABLE_MPI@
 
-VTKm_INCLUDE_FLAGS = -I $(VTKm_DIR)/include
-VTKm_LIB_FLAGS = -L $(VTKm_DIR)/lib \
-    -lvtkm_rendering-$(VTKM_VERSION) \
-    -lvtkm_filter_contour-$(VTKM_VERSION) \
-    -lvtkm_filter_gradient-$(VTKM_VERSION) \
-    -lvtkm_filter_extra-$(VTKM_VERSION) \
-    -lvtkm_filter_common-$(VTKM_VERSION) \
-    -lvtkm_worklet-$(VTKM_VERSION) \
-    -lvtkm_source-$(VTKM_VERSION) \
-    -lvtkm_io-$(VTKM_VERSION) \
-    -lvtkm_lodepng-$(VTKM_VERSION) \
-    -lvtkm_cont-$(VTKM_VERSION) \
-    -lvtkmdiympi_nompi
+VTKm_INCLUDE_DIR = $(VTKm_DIR)/include/vtkm-@VTKm_VERSION_MAJOR@.@VTKm_VERSION_MINOR@
+VTKm_INCLUDE_FLAGS = -I$(VTKm_INCLUDE_DIR) -I$(VTKm_INCLUDE_DIR)/vtkm/thirdparty/diy/vtkmdiy/include/ -I$(VTKm_INCLUDE_DIR)/vtkm/thirdparty/lcl/vtkmlcl/
+
+VTKm_LIB_FLAGS = -L $(VTKm_DIR)/lib@lib_args@

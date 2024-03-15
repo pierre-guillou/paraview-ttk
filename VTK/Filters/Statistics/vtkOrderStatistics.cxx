@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOrderStatistics.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkOrderStatistics.h"
 #include "vtkStatisticsAlgorithmPrivate.h"
@@ -79,6 +63,7 @@ struct GhostsCounter
 };
 } // anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOrderStatistics);
 
 //------------------------------------------------------------------------------
@@ -196,7 +181,7 @@ void vtkOrderStatistics::Learn(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    std::string col = *it;
+    std::string const& col = *it;
     if (!inData->GetColumnByName(col.c_str()))
     {
       vtkWarningMacro("InData table does not have a column " << col << ". Ignoring it.");
@@ -771,7 +756,7 @@ void vtkOrderStatistics::Test(vtkTable* inData, vtkMultiBlockDataSet* inMeta, vt
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    std::string varName = *it;
+    std::string const& varName = *it;
     if (!inData->GetColumnByName(varName.c_str()))
     {
       vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
@@ -1054,3 +1039,4 @@ void vtkOrderStatistics::SelectAssessFunctor(
       << quantiles->GetClassName() << ". Ignoring it.");
   }
 }
+VTK_ABI_NAMESPACE_END

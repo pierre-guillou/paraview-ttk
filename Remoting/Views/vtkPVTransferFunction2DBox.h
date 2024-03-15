@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVTransferFunction2DBox.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVTransferFunction2DBox
  * @brief Shape that represents an individual control node in a 2D transfer function
@@ -56,7 +44,7 @@ public:
   /**
    * Set position and width with respect to origin i.e. bottom left corner.
    */
-  virtual void SetBox(const double x, const double y, const double width, const double height);
+  virtual void SetBox(double x, double y, double width, double height);
   virtual void SetBox(const vtkRectd& b);
   ///@}
 

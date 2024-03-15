@@ -1,28 +1,16 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkConstrainedSmoothingFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkConstrainedSmoothingFilter
  * @brief   adjust point positions using constrained smoothing
  *
  * vtkConstrainedSmoothingFilter is a filter that adjusts point coordinates
  * using a modified Laplacian smoothing approach. The effect is to "relax"
- * the mesh, making the cells better shaped and the points more evenly
- * distributed. Note that this filter operates on any vtkPointSet and derived
- * classes. Cell topology is never modified; note however if the constraints
- * are too lax, cells may self-intersect or otherwise be deformed in
- * unfavorable ways.
+ * or "smooth" the mesh, making the cells better shaped and the points more
+ * evenly distributed. Note that this filter operates on any vtkPointSet and
+ * derived classes. Cell topology is never modified; note however if the
+ * constraints are too lax, cells may self-intersect or otherwise be deformed
+ * in unfavorable ways.
  *
  * A central concept of this filter is the point smoothing stencil. A
  * smoothing stencil for a point pi is the list of points pj which connect to
@@ -35,12 +23,14 @@
  * UseAllPoints enabled).
  *
  * To constrain the motion of the points, either set the filter's constraint
- * distance, or provide an input point data array (of type vtkDoubleArray)
- * named "SmoothingConstraints." The filter's constraint distance is applied
- * to all points; whereas the smoothing data array may have different
- * constraint values per point. If provided by the user, by default the
- * smoothing data array takes precedence over the filter's constraint
- * distance.
+ * distance or constraint box, or provide an input point data array (of type
+ * vtkDoubleArray) named "SmoothingConstraints." The filter's constraint
+ * distance (or constraint box if selected) defines a local sphere (or box)
+ * centered on each point to restrict point motion and is applied to all
+ * points; whereas the smoothing data array may have different constraint
+ * values per point. If provided by the user, by default the smoothing data
+ * array takes precedence over the filter's constraint distance and
+ * constraint box.
  *
  * @warning
  * The smoothing process reduces high frequency information in the geometry
@@ -48,9 +38,16 @@
  * the surface may shrink towards the centroid. The constraints on point
  * movement help significantly in preventing shrinkage from happening.
  *
+ * @warning
+ * This filter is used internally by the filters vtkSurfaceNets2D and
+ * vtkSurfaceNets3D. vtkConstrainedSmoothingFilter is used by these filters
+ * to smooth the extracted surface net, with the constraint distance and
+ * constraint box set in relation to a volume voxel.
+ *
  * @sa
  * vtkWindowedSincPolyDataFilter vtkSmoothPolyDataFilter
- * vtkExtractEdges
+ * vtkAttributeSmoothingFilter vtkExtractEdges vtkSurfaceNets2D
+ * vtkSurfaceNets3D
  */
 
 #ifndef vtkConstrainedSmoothingFilter_h
@@ -60,6 +57,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPointSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkConstrainedSmoothingFilter : public vtkPointSetAlgorithm
 {
 public:
@@ -110,18 +108,24 @@ public:
   {
     DEFAULT = 0,
     CONSTRAINT_DISTANCE = 1,
-    CONSTRAINT_ARRAY = 2
+    CONSTRAINT_BOX = 2,
+    CONSTRAINT_ARRAY = 3
   };
 
   ///@{
   /**
    * Indicate how to apply constraints. By default, a constraint array takes
-   * precedence over the filter's constraint distance, but if not available
-   * then the constraint distance is used. If a CONSTRAINT_ARRAY strategy is
-   * specified, and no constraint array is available from the point data,
-   * then no constraints are provided. Note that is also possible to turn off
-   * constraints completely by simply specifying a very large constraint
-   * distance. The default constraint strategy is DEFAULT.
+   * precedence over the filter's constraint distance or constraint box, but
+   * if not available then the constraint distance is used. If a
+   * CONSTRAINT_ARRAY strategy is specified, and no constraint array is
+   * available from the point data, then the points are unconstrained. If the
+   * strategy is set to CONSTRAINT_DISTANCE, then a constraint sphere defined
+   * by ConstraintDistance is used; while setting the strategy to
+   * CONSTRAINT_BOX an axis-aligned x-y-z box is used to constrain point
+   * motion (using constraint distance is slightly faster than using a
+   * constraint box). Note that is also possible to turn off constraints
+   * completely by simply specifying a very large constraint distance. The
+   * default constraint strategy is DEFAULT.
    */
   vtkSetClampMacro(ConstraintStrategy, int, DEFAULT, CONSTRAINT_ARRAY);
   vtkGetMacro(ConstraintStrategy, int);
@@ -130,18 +134,34 @@ public:
   {
     this->SetConstraintStrategy(CONSTRAINT_DISTANCE);
   }
+  void SetConstraintStrategyToConstraintBox() { this->SetConstraintStrategy(CONSTRAINT_BOX); }
   void SetConstraintStrategyToConstraintArray() { this->SetConstraintStrategy(CONSTRAINT_ARRAY); }
   ///@}
 
   ///@{
   /**
-   * Specify a constraint distance for point motion. By default, if a point
-   * data array constraint distance (named "SmoothingConstraints") is provided
-   * in the input point data, then the array takes precedence. By default, the
-   * constraint distance is 0.001.
+   * Specify a constraint distance for point motion (this defines a a local
+   * constraint sphere which is placed around each point to restrict its
+   * motion). By default, if a point data array constraint distance (named
+   * "SmoothingConstraints") is provided in the input point data, then the
+   * array takes precedence. By default, the constraint distance is
+   * 0.001. Setting the constraint strategy to CONSTRAINT_DISTANCE forces the
+   * box to be used.
    */
   vtkSetClampMacro(ConstraintDistance, double, 0.0, VTK_FLOAT_MAX);
   vtkGetMacro(ConstraintDistance, double);
+  ///@}
+
+  ///@{
+  /**
+   * Specify a constraint box for point motion. By default, if a point data
+   * array constraint distance (named "SmoothingConstraints") is provided in
+   * the input point data, then the array takes precedence. By default, the
+   * constraint box is (1,1,1). Setting the constraint strategy to
+   * CONSTRAINT_BOX forces the box to be used.
+   */
+  vtkSetVector3Macro(ConstraintBox, double);
+  vtkGetVectorMacro(ConstraintBox, double, 3);
   ///@}
 
   ///@{
@@ -196,6 +216,7 @@ protected:
 
   int ConstraintStrategy;
   double ConstraintDistance;
+  double ConstraintBox[3];
   vtkSmartPointer<vtkCellArray> SmoothingStencils;
 
   bool GenerateErrorScalars;
@@ -208,5 +229,6 @@ private:
   vtkConstrainedSmoothingFilter(const vtkConstrainedSmoothingFilter&) = delete;
   void operator=(const vtkConstrainedSmoothingFilter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

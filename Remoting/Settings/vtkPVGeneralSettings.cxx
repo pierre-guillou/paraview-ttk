@@ -1,31 +1,18 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGeneralSettings.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVGeneralSettings.h"
 
 #include "vtkAlgorithm.h"
 #include "vtkLegacy.h"
 #include "vtkObjectFactory.h"
+#include "vtkPVSession.h"
 #include "vtkProcessModule.h"
 #include "vtkSISourceProxy.h"
 #include "vtkSMArraySelectionDomain.h"
 #include "vtkSMInputArrayDomain.h"
 #include "vtkSMTrace.h"
+#include "vtkThreadedCallbackQueue.h"
 
 #if VTK_MODULE_ENABLE_ParaView_RemotingAnimation
 #include "vtkSMAnimationScene.h"
@@ -57,37 +44,6 @@ vtkPVGeneralSettings* vtkPVGeneralSettings::New()
 }
 
 //----------------------------------------------------------------------------
-vtkPVGeneralSettings::vtkPVGeneralSettings()
-  : BlockColorsDistinctValues(7)
-  , AutoApply(false)
-  , AutoApplyActiveOnly(false)
-  , DefaultViewType(nullptr)
-  , ScalarBarMode(vtkPVGeneralSettings::AUTOMATICALLY_HIDE_SCALAR_BARS)
-  , AnimationGeometryCacheLimit(0)
-  , AnimationTimePrecision(6)
-  , ShowAnimationShortcuts(0)
-  , RealNumberDisplayedNotation(vtkPVGeneralSettings::DISPLAY_REALNUMBERS_USING_FIXED_NOTATION)
-  , RealNumberDisplayedPrecision(6)
-  , ResetDisplayEmptyViews(0)
-  , PropertiesPanelMode(vtkPVGeneralSettings::ALL_IN_ONE)
-  , LockPanels(false)
-  , GUIFontSize(0)
-  , GUIOverrideFont(false)
-  , ColorByBlockColorsOnApply(true)
-  , AnimationTimeNotation(vtkPVGeneralSettings::MIXED)
-  , EnableStreaming(false)
-  , SelectOnClickMultiBlockInspector(true)
-{
-  this->SetDefaultViewType("RenderView");
-}
-
-//----------------------------------------------------------------------------
-vtkPVGeneralSettings::~vtkPVGeneralSettings()
-{
-  this->SetDefaultViewType(nullptr);
-}
-
-//----------------------------------------------------------------------------
 vtkPVGeneralSettings* vtkPVGeneralSettings::GetInstance()
 {
   if (!vtkPVGeneralSettings::Instance)
@@ -113,32 +69,6 @@ void vtkPVGeneralSettings::SetAutoConvertProperties(bool val)
 bool vtkPVGeneralSettings::GetAutoConvertProperties()
 {
   return vtkSMInputArrayDomain::GetAutomaticPropertyConversion();
-}
-
-//----------------------------------------------------------------------------
-void vtkPVGeneralSettings::SetEnableAutoMPI(bool)
-{
-  VTK_LEGACY_BODY(vtkPVGeneralSettings::SetEnableAutoMPI, "ParaView 5.10");
-}
-
-//----------------------------------------------------------------------------
-bool vtkPVGeneralSettings::GetEnableAutoMPI()
-{
-  VTK_LEGACY_BODY(vtkPVGeneralSettings::GetEnableAutoMPI, "ParaView 5.10");
-  return false;
-}
-
-//----------------------------------------------------------------------------
-void vtkPVGeneralSettings::SetAutoMPILimit(int)
-{
-  VTK_LEGACY_BODY(vtkPVGeneralSettings::SetAutoMPILimit, "ParaView 5.10");
-}
-
-//----------------------------------------------------------------------------
-int vtkPVGeneralSettings::GetAutoMPILimit()
-{
-  VTK_LEGACY_BODY(vtkPVGeneralSettings::GetAutoMPILimit, "ParaView 5.10");
-  return 1;
 }
 
 //----------------------------------------------------------------------------
@@ -313,6 +243,27 @@ bool vtkPVGeneralSettings::GetUseAcceleratedFilters()
 }
 
 //----------------------------------------------------------------------------
+int vtkPVGeneralSettings::GetNumberOfCallbackThreads()
+{
+  return vtkProcessModule::GetProcessModule()->GetCallbackQueue()->GetNumberOfThreads();
+}
+
+//----------------------------------------------------------------------------
+void vtkPVGeneralSettings::SetNumberOfCallbackThreads(int n)
+{
+  vtkProcessModule* processModule = vtkProcessModule::GetProcessModule();
+  auto session = vtkPVSession::SafeDownCast(processModule->GetSession());
+
+  // We change the number of threads in built-in mode or if current process is the root server node
+  if (session->GetProcessRoles() & vtkPVSession::DATA_SERVER ||
+    (session->GetProcessRoles() & vtkPVSession::CLIENT &&
+      !session->GetController(vtkPVSession::DATA_SERVER)))
+  {
+    processModule->GetCallbackQueue()->SetNumberOfThreads(n);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVGeneralSettings::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -321,6 +272,7 @@ void vtkPVGeneralSettings::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AutoApplyDelay: " << this->AutoApplyDelay << "\n";
   os << indent << "AutoApplyActiveOnly: " << this->AutoApplyActiveOnly << "\n";
   os << indent << "DefaultViewType: " << this->DefaultViewType << "\n";
+  os << indent << "InterfaceLanguage: " << this->InterfaceLanguage << "\n";
   os << indent << "ScalarBarMode: " << this->ScalarBarMode << "\n";
   os << indent << "CacheGeometryForAnimation: " << this->CacheGeometryForAnimation << "\n";
   os << indent << "AnimationGeometryCacheLimit: " << this->AnimationGeometryCacheLimit << "\n";

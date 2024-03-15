@@ -17,12 +17,12 @@ namespace
 bool DoMapField(vtkm::cont::DataSet& result, const vtkm::cont::Field& field)
 {
   // point data is copied as is because it was not collapsed
-  if (field.IsFieldPoint())
+  if (field.IsPointField())
   {
     result.AddField(field);
     return true;
   }
-  else if (field.IsFieldGlobal())
+  else if (field.IsWholeDataSetField())
   {
     result.AddField(field);
     return true;
@@ -59,8 +59,7 @@ vtkm::cont::DataSet ExtractPoints::DoExecute(const vtkm::cont::DataSet& input)
 
   // create the output dataset
   auto mapper = [&](auto& result, const auto& f) { DoMapField(result, f); };
-  vtkm::cont::DataSet output =
-    this->CreateResult(input, outCellSet, input.GetCoordinateSystems(), mapper);
+  vtkm::cont::DataSet output = this->CreateResult(input, outCellSet, mapper);
 
   // compact the unused points in the output dataset
   if (this->CompactPoints)

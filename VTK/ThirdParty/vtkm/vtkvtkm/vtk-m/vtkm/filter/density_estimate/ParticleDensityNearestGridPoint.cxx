@@ -54,20 +54,6 @@ namespace filter
 {
 namespace density_estimate
 {
-VTKM_CONT ParticleDensityNearestGridPoint::ParticleDensityNearestGridPoint(
-  const vtkm::Id3& dimension,
-  const vtkm::Vec3f& origin,
-  const vtkm::Vec3f& spacing)
-  : Superclass(dimension, origin, spacing)
-{
-}
-
-VTKM_CONT ParticleDensityNearestGridPoint::ParticleDensityNearestGridPoint(
-  const Id3& dimension,
-  const vtkm::Bounds& bounds)
-  : Superclass(dimension, bounds)
-{
-}
 
 VTKM_CONT vtkm::cont::DataSet ParticleDensityNearestGridPoint::DoExecute(
   const vtkm::cont::DataSet& input)
@@ -97,7 +83,7 @@ VTKM_CONT vtkm::cont::DataSet ParticleDensityNearestGridPoint::DoExecute(
     // We create an ArrayHandle and pass it to the Worklet as AtomicArrayInOut.
     // However, the ArrayHandle needs to be allocated and initialized first.
     vtkm::cont::ArrayHandle<T> density;
-    density.AllocateAndFill(uniform.GetNumberOfPoints(), 0);
+    density.AllocateAndFill(uniform.GetNumberOfCells(), 0);
 
     this->Invoke(vtkm::worklet::NGPWorklet{}, coords, concrete, locator, density);
 
@@ -109,25 +95,15 @@ VTKM_CONT vtkm::cont::DataSet ParticleDensityNearestGridPoint::DoExecute(
     uniform.AddField(vtkm::cont::make_FieldCell("density", density));
   };
 
-  // Note: This is the so called Immediately-Invoked Function Expression (IIFE). Here we define
-  // a lambda expression and immediately call it at the end. This allows us to not declare an
-  // UnknownArrayHandle first and then assign it in the if-else statement. If I really want to
-  // show-off, I can even inline the `fieldArray` variable and turn it into a long expression.
-  auto fieldArray = [&]() -> vtkm::cont::UnknownArrayHandle {
-    if (this->ComputeNumberDensity)
-    {
-      return vtkm::cont::make_ArrayHandleConstant(vtkm::FloatDefault{ 1 },
-                                                  input.GetNumberOfPoints());
-    }
-    else
-    {
-      return this->GetFieldFromDataSet(input).GetData();
-    }
-  }();
-  fieldArray.CastAndCallForTypes<
-    vtkm::TypeListFieldScalar,
-    vtkm::ListAppend<VTKM_DEFAULT_STORAGE_LIST, vtkm::List<vtkm::cont::StorageTagConstant>>>(
-    resolveType);
+  if (this->ComputeNumberDensity)
+  {
+    resolveType(
+      vtkm::cont::make_ArrayHandleConstant(vtkm::FloatDefault{ 1 }, input.GetNumberOfPoints()));
+  }
+  else
+  {
+    this->CastAndCallScalarField(this->GetFieldFromDataSet(input), resolveType);
+  }
 
   // Deposition of the input field to the output field is already mapping. No need to map other
   // fields.

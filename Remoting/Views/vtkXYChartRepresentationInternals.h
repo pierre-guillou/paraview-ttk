@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXYChartRepresentationInternals.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXYChartRepresentationInternals
  *
@@ -400,7 +388,7 @@ public:
   /**
    * Export visible plots to a CSV file.
    */
-  virtual bool Export(vtkXYChartRepresentation* self, vtkCSVExporter* exporter)
+  virtual bool Export(vtkXYChartRepresentation* self, vtkAbstractChartExporter* exporter)
   {
     for (PlotsMap::iterator iter1 = this->SeriesPlots.begin(); iter1 != this->SeriesPlots.end();
          ++iter1)
@@ -422,10 +410,15 @@ public:
         vtkAbstractArray* yarray = table->GetColumnByName(columnName.c_str());
         if (yarray != nullptr)
         {
-          exporter->AddColumn(yarray, plot->GetLabel().c_str(), xarray);
+          const std::string plotName = plot->GetLabel();
+          exporter->AddColumn(yarray, plotName.c_str(), xarray);
+          exporter->AddStyle(plot, plotName.c_str());
         }
       }
     }
+
+    vtkChartXY* chartXY = self->GetChart();
+    exporter->SetGlobalStyle(chartXY);
     return true;
   }
 

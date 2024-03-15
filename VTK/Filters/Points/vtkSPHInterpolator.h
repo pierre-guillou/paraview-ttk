@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSPHInterpolator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSPHInterpolator
  * @brief   interpolate over point cloud using SPH kernels
@@ -82,6 +70,7 @@
 #include "vtkStdString.h"           // For vtkStdString ivars
 #include <vector>                   //For STL vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractPointLocator;
 class vtkIdList;
 class vtkDoubleArray;
@@ -438,4 +427,5 @@ private:
   void operator=(const vtkSPHInterpolator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

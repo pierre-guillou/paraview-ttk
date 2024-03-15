@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMExporterProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMExporterProxy
  * @brief   proxy for view exporters.
@@ -37,13 +25,13 @@ public:
   vtkTypeMacro(vtkSMExporterProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the view proxy to export.
    */
   void SetView(vtkSMViewProxy* view);
   vtkGetObjectMacro(View, vtkSMViewProxy);
-  //@}
+  ///@}
 
   /**
    * Exports the view.
@@ -56,12 +44,12 @@ public:
    */
   virtual bool CanExport(vtkSMProxy*) = 0;
 
-  //@{
+  ///@{
   /**
    * Returns the suggested file extensions for this exporter.
    */
   const std::vector<std::string>& GetFileExtensions() const { return this->FileExtensions; };
-  //@}
+  ///@}
 
 protected:
   vtkSMExporterProxy();

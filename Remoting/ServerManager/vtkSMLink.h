@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMLink.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMLink
  * @brief Abstract base class for proxy/property links.
@@ -46,7 +34,7 @@ public:
     OUTPUT = 2
   };
 
-  //@{
+  ///@{
   /**
    * This flag determines if UpdateVTKObjects calls are to be propagated.
    * Set to 1 by default.
@@ -54,16 +42,16 @@ public:
   vtkSetMacro(PropagateUpdateVTKObjects, int);
   vtkGetMacro(PropagateUpdateVTKObjects, int);
   vtkBooleanMacro(PropagateUpdateVTKObjects, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set if the link is enabled.
    * (true by default).
    */
   vtkSetMacro(Enabled, bool);
   vtkGetMacro(Enabled, bool);
-  //@}
+  ///@}
 
   /**
    * Remove all links.

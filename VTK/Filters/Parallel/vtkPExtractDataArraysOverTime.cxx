@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPExtractDataArraysOverTime.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPExtractDataArraysOverTime.h"
 
 #include "vtkDataSetAttributes.h"
@@ -28,6 +17,7 @@
 #include <sstream>
 #include <string>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 vtkSmartPointer<vtkTable> vtkMergeTable(vtkTable* dest, vtkTable* src)
@@ -211,6 +201,7 @@ void vtkPExtractDataArraysOverTime::ReorganizeData(vtkMultiBlockDataSet* dataset
     }
 
     this->Controller->Broadcast(stream, 0);
-    dataset->ShallowCopy(mb);
+    dataset->CompositeShallowCopy(mb);
   } // end rank 0
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartXY.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChartXY.h"
 
@@ -65,6 +53,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChartXYPrivate
 {
 public:
@@ -1686,7 +1675,7 @@ bool vtkChartXY::Hit(const vtkContextMouseEvent& mouse)
   {
     return false;
   }
-  vtkVector2i pos(mouse.GetScreenPos());
+  vtkVector2f pos(mouse.GetScenePos());
   return pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
     pos[1] < this->Point2[1];
 }
@@ -1714,17 +1703,17 @@ bool vtkChartXY::MouseMoveEvent(const vtkContextMouseEvent& mouse)
   if (mouse.GetButton() == this->Actions.Pan())
   {
     // Figure out how much the mouse has moved by in plot coordinates - pan
-    vtkVector2d screenPos(mouse.GetScreenPos().Cast<double>().GetData());
-    vtkVector2d lastScreenPos(mouse.GetLastScreenPos().Cast<double>().GetData());
+    vtkVector2d scenePos(mouse.GetScenePos().Cast<double>().GetData());
+    vtkVector2d lastScenePos(mouse.GetLastScenePos().Cast<double>().GetData());
     vtkVector2d pos(0.0, 0.0);
     vtkVector2d last(0.0, 0.0);
 
-    // Go from screen to scene coordinates to work out the delta
+    // Go from scene to plot coordinates to work out the delta
     vtkAxis* xAxis = this->ChartPrivate->axes[vtkAxis::BOTTOM];
     vtkAxis* yAxis = this->ChartPrivate->axes[vtkAxis::LEFT];
     vtkTransform2D* transform = this->ChartPrivate->PlotCorners[0]->GetTransform();
-    transform->InverseTransformPoints(screenPos.GetData(), pos.GetData(), 1);
-    transform->InverseTransformPoints(lastScreenPos.GetData(), last.GetData(), 1);
+    transform->InverseTransformPoints(scenePos.GetData(), pos.GetData(), 1);
+    transform->InverseTransformPoints(lastScenePos.GetData(), last.GetData(), 1);
     vtkVector2d delta = last - pos;
     delta[0] /= xAxis->GetScalingFactor();
     delta[1] /= yAxis->GetScalingFactor();
@@ -1741,14 +1730,14 @@ bool vtkChartXY::MouseMoveEvent(const vtkContextMouseEvent& mouse)
     {
       // Figure out the right axis position, if greater than 2 both will be done
       // in the else if block below.
-      screenPos = vtkVector2d(mouse.GetScreenPos().Cast<double>().GetData());
-      lastScreenPos = vtkVector2d(mouse.GetLastScreenPos().Cast<double>().GetData());
+      scenePos = vtkVector2d(mouse.GetScenePos().Cast<double>().GetData());
+      lastScenePos = vtkVector2d(mouse.GetLastScenePos().Cast<double>().GetData());
       pos = vtkVector2d(0.0, 0.0);
       last = vtkVector2d(0.0, 0.0);
       yAxis = this->ChartPrivate->axes[vtkAxis::RIGHT];
       transform = this->ChartPrivate->PlotCorners[1]->GetTransform();
-      transform->InverseTransformPoints(screenPos.GetData(), pos.GetData(), 1);
-      transform->InverseTransformPoints(lastScreenPos.GetData(), last.GetData(), 1);
+      transform->InverseTransformPoints(scenePos.GetData(), pos.GetData(), 1);
+      transform->InverseTransformPoints(lastScenePos.GetData(), last.GetData(), 1);
       delta = last - pos;
       delta[0] /= xAxis->GetScalingFactor();
       delta[1] /= yAxis->GetScalingFactor();
@@ -1762,15 +1751,15 @@ bool vtkChartXY::MouseMoveEvent(const vtkContextMouseEvent& mouse)
     {
       // Figure out the right and top axis positions.
       // Go from screen to scene coordinates to work out the delta
-      screenPos = vtkVector2d(mouse.GetScreenPos().Cast<double>().GetData());
-      lastScreenPos = vtkVector2d(mouse.GetLastScreenPos().Cast<double>().GetData());
+      scenePos = vtkVector2d(mouse.GetScenePos().Cast<double>().GetData());
+      lastScenePos = vtkVector2d(mouse.GetLastScenePos().Cast<double>().GetData());
       pos = vtkVector2d(0.0, 0.0);
       last = vtkVector2d(0.0, 0.0);
       xAxis = this->ChartPrivate->axes[vtkAxis::TOP];
       yAxis = this->ChartPrivate->axes[vtkAxis::RIGHT];
       transform = this->ChartPrivate->PlotCorners[2]->GetTransform();
-      transform->InverseTransformPoints(screenPos.GetData(), pos.GetData(), 1);
-      transform->InverseTransformPoints(lastScreenPos.GetData(), last.GetData(), 1);
+      transform->InverseTransformPoints(scenePos.GetData(), pos.GetData(), 1);
+      transform->InverseTransformPoints(lastScenePos.GetData(), last.GetData(), 1);
       delta = last - pos;
       delta[0] /= xAxis->GetScalingFactor();
       delta[1] /= yAxis->GetScalingFactor();
@@ -1799,8 +1788,8 @@ bool vtkChartXY::MouseMoveEvent(const vtkContextMouseEvent& mouse)
   }
   else if (mouse.GetButton() == this->Actions.ZoomAxis())
   {
-    vtkVector2d screenPos(mouse.GetScreenPos().Cast<double>().GetData());
-    vtkVector2d lastScreenPos(mouse.GetLastScreenPos().Cast<double>().GetData());
+    vtkVector2d scenePos(mouse.GetScenePos().Cast<double>().GetData());
+    vtkVector2d lastScenePos(mouse.GetLastScenePos().Cast<double>().GetData());
 
     vtkAxis* axes[] = { this->ChartPrivate->axes[vtkAxis::BOTTOM],
       this->ChartPrivate->axes[vtkAxis::LEFT], this->ChartPrivate->axes[vtkAxis::TOP],
@@ -1818,7 +1807,7 @@ bool vtkChartXY::MouseMoveEvent(const vtkContextMouseEvent& mouse)
       int side = i % 2;
 
       // get mouse delta in the given direction for the axis
-      double delta = lastScreenPos[side] - screenPos[side];
+      double delta = lastScenePos[side] - scenePos[side];
       if (std::abs(delta) == 0)
       {
         continue;
@@ -1951,7 +1940,7 @@ int vtkChartXY::LocatePointInPlot(const vtkVector2f& position, const vtkVector2f
 bool vtkChartXY::LocatePointInPlots(const vtkContextMouseEvent& mouse, int invokeEvent)
 {
   size_t n = this->ChartPrivate->plots.size();
-  vtkVector2i pos(mouse.GetScreenPos());
+  vtkVector2f pos(mouse.GetScenePos());
   if (pos[0] > this->Point1[0] && pos[0] < this->Point2[0] && pos[1] > this->Point1[1] &&
     pos[1] < this->Point2[1] && n)
   {
@@ -2027,7 +2016,7 @@ void vtkChartXY::SetTooltipInfo(const vtkContextMouseEvent& mouse, const vtkVect
 
   // Set the tooltip
   this->Tooltip->SetText(tooltipLabel);
-  this->Tooltip->SetPosition(mouse.GetScreenPos()[0] + 2, mouse.GetScreenPos()[1] + 2);
+  this->Tooltip->SetPosition(mouse.GetScenePos()[0] + 2, mouse.GetScenePos()[1] + 2);
 }
 
 //------------------------------------------------------------------------------
@@ -2552,7 +2541,7 @@ bool vtkChartXY::RemovePlotFromCorners(vtkPlot* plot)
 }
 
 //------------------------------------------------------------------------------
-inline void vtkChartXY::TransformBoxOrPolygon(bool polygonMode, vtkTransform2D* transform,
+void vtkChartXY::TransformBoxOrPolygon(bool polygonMode, vtkTransform2D* transform,
   const vtkVector2f& mousePosition, vtkVector2f& min, vtkVector2f& max, vtkContextPolygon& polygon)
 {
   if (polygonMode)
@@ -2865,7 +2854,7 @@ void vtkChartXY::BuildSelection(
       {
         selection.insert(pair);
       }
-      // Remove selection not affecting old selected blocks because we're substracting
+      // Remove selection not affecting old selected blocks because we're subtracting
       std::set_difference(selection.begin(), selection.end(), oldSelection.begin(),
         oldSelection.end(), std::inserter(uniqueSelection, uniqueSelection.begin()), compKey);
       for (const auto& pair : uniqueSelection)
@@ -2911,3 +2900,4 @@ int vtkChartXY::GetMouseSelectionMode(const vtkContextMouseEvent& mouse, int sel
   }
   return selectionMode;
 }
+VTK_ABI_NAMESPACE_END

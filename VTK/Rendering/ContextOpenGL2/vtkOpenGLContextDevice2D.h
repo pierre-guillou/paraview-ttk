@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLContextDevice2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkOpenGLContextDevice2D
@@ -33,9 +21,11 @@
 #include "vtkContextDevice2D.h"
 #include "vtkRenderingContextOpenGL2Module.h" // For export macro
 
-#include <list>   // for std::list
-#include <vector> // STL Header
+#include <cstdint> // For std::uintptr_t
+#include <list>    // For std::list
+#include <vector>  // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkOpenGLExtensionManager;
 class vtkOpenGLHelper;
@@ -45,8 +35,10 @@ class vtkRenderer;
 class vtkShaderProgram;
 class vtkStringToImage;
 class vtkTransform;
+class vtkUnsignedCharArray;
 class vtkViewport;
 class vtkWindow;
+class vtkOpenGLContextDeviceBufferObjectBuilder;
 
 class VTKRENDERINGCONTEXTOPENGL2_EXPORT vtkOpenGLContextDevice2D : public vtkContextDevice2D
 {
@@ -80,6 +72,8 @@ public:
    * which has nc_comps components
    */
   void DrawPoints(float* points, int n, unsigned char* colors = nullptr, int nc_comps = 0) override;
+  void DrawPoints(
+    vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier) override;
 
   /**
    * Draw a series of point sprites, images centred at the points supplied.
@@ -89,6 +83,8 @@ public:
    */
   void DrawPointSprites(vtkImageData* sprite, float* points, int n, unsigned char* colors = nullptr,
     int nc_comps = 0) override;
+  void DrawPointSprites(vtkImageData* sprite, vtkDataArray* positions, vtkUnsignedCharArray* colors,
+    std::uintptr_t cacheIdentifier) override;
 
   /**
    * Draw a series of markers centered at the points supplied. The \a shape
@@ -107,6 +103,8 @@ public:
    */
   void DrawMarkers(int shape, bool highlight, float* points, int n, unsigned char* colors = nullptr,
     int nc_comps = 0) override;
+  void DrawMarkers(int shape, bool highlight, vtkDataArray* positions, vtkUnsignedCharArray* colors,
+    std::uintptr_t cacheIdentifier) override;
 
   ///@{
   /**
@@ -458,6 +456,11 @@ protected:
    */
   void TransformSize(float& dx, float& dy) const;
 
+  /**
+   * Ask the buffer object builder to erase cache entry for given identifier.
+   */
+  void ReleaseCache(std::uintptr_t cacheIdentifier) override;
+
 private:
   vtkOpenGLContextDevice2D(const vtkOpenGLContextDevice2D&) = delete;
   void operator=(const vtkOpenGLContextDevice2D&) = delete;
@@ -493,4 +496,5 @@ private:
   vtkImageData* GenerateMarker(int shape, int size, bool highlight);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkOpenGLContextDevice2D_h

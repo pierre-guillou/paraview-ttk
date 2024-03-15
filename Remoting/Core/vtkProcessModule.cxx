@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkProcessModule.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkProcessModule.h"
 #include "vtkProcessModuleInternals.h"
@@ -32,12 +17,12 @@
 #include "vtkObjectFactory.h"
 #include "vtkOutputWindow.h"
 #include "vtkPSystemTools.h"
-#include "vtkPVOptions.h"
 #include "vtkPolyData.h"
 #include "vtkProcessModuleConfiguration.h"
 #include "vtkSessionIterator.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkTCPNetworkAccessManager.h"
+#include "vtkThreadedCallbackQueue.h"
 #include "vtkUnstructuredGrid.h"
 
 #include <vtksys/SystemTools.hxx>
@@ -408,11 +393,15 @@ vtkProcessModule* vtkProcessModule::GetProcessModule()
 }
 
 //----------------------------------------------------------------------------
+vtkThreadedCallbackQueue* vtkProcessModule::GetCallbackQueue()
+{
+  return this->Internals->CallbackQueue;
+}
+
+//----------------------------------------------------------------------------
 // * vtkProcessModule non-static methods
 vtkStandardNewMacro(vtkProcessModule);
 vtkCxxSetObjectMacro(vtkProcessModule, NetworkAccessManager, vtkNetworkAccessManager);
-
-vtkCxxSetObjectMacro(vtkProcessModule, Options, vtkPVOptions);
 
 //----------------------------------------------------------------------------
 vtkProcessModule::vtkProcessModule()
@@ -423,14 +412,12 @@ vtkProcessModule::vtkProcessModule()
   this->ReportInterpreterErrors = true;
   this->MultipleSessionsSupport = false; // Set MULTI-SERVER to false as DEFAULT
   this->EventCallDataSessionId = 0;
-  this->Options = nullptr;
 }
 
 //----------------------------------------------------------------------------
 vtkProcessModule::~vtkProcessModule()
 {
   this->SetNetworkAccessManager(nullptr);
-  this->SetOptions(nullptr);
 
   delete this->Internals;
   this->Internals = nullptr;
@@ -684,17 +671,6 @@ void vtkProcessModule::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "NetworkAccessManager: " << endl;
   this->NetworkAccessManager->PrintSelf(os, indent.GetNextIndent());
-
-  if (this->Options)
-  {
-    os << indent << "Options: " << endl;
-    this->Options->PrintSelf(os, indent.GetNextIndent());
-  }
-  else
-  {
-    os << indent << "Options: "
-       << "(null)" << endl;
-  }
 }
 
 //----------------------------------------------------------------------------
@@ -752,11 +728,4 @@ int vtkProcessModule::GetNumberOfGhostLevelsToRequest(vtkInformation* info)
     // asking for ghost levels.
     return 0;
   }
-}
-
-//----------------------------------------------------------------------------
-vtkPVOptions* vtkProcessModule::GetOptions()
-{
-  VTK_LEGACY_BODY(vtkProcessModule::GetOptions, "ParaView 5.10");
-  return this->Options;
 }

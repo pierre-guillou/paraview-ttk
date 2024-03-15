@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridAxisClip.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridAxisClip.h"
 
 #include "vtkBitArray.h"
@@ -33,6 +21,7 @@
 
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridAxisClip);
 vtkCxxSetObjectMacro(vtkHyperTreeGridAxisClip, Quadric, vtkQuadric);
 
@@ -318,6 +307,10 @@ int vtkHyperTreeGridAxisClip::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObjec
   vtkNew<vtkHyperTreeGridNonOrientedGeometryCursor> inCursor;
   while (it.GetNextTree(inIndex))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new geometric cursor at root of current input tree
     input->InitializeNonOrientedGeometryCursor(inCursor, inIndex);
 
@@ -407,6 +400,10 @@ int vtkHyperTreeGridAxisClip::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObjec
   vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
   while (it.GetNextTree(inIndex))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new geometric cursor at root of current input tree
     input->InitializeNonOrientedGeometryCursor(inCursor, inIndex);
 
@@ -471,6 +468,10 @@ void vtkHyperTreeGridAxisClip::RecursivelyProcessTree(
     int numChildren = inCursor->GetNumberOfChildren();
     for (int inChild = 0; inChild < numChildren; ++inChild, ++outChild)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       inCursor->ToChild(inChild);
       // Child is not clipped out, descend into current child
       outCursor->ToChild(outChild);
@@ -490,3 +491,4 @@ void vtkHyperTreeGridAxisClip::RecursivelyProcessTree(
   // Mask output cell if necessary
   this->OutMask->InsertTuple1(outId, clipped);
 }
+VTK_ABI_NAMESPACE_END

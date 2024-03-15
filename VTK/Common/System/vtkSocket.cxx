@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSocket.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocket.h"
 
 #include "vtkObjectFactory.h"
@@ -90,6 +78,7 @@
 
 // on windows strerror doesn't handle socket error codes
 #if defined(_WIN32) && !defined(__CYGWIN__)
+VTK_ABI_NAMESPACE_BEGIN
 static const char* wsaStrerror(int wsaeid)
 {
   wchar_t wbuf[256];
@@ -113,9 +102,11 @@ static const char* wsaStrerror(int wsaeid)
 
   return buf;
 }
+VTK_ABI_NAMESPACE_END
 #endif
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkSocket::vtkSocket()
 {
   this->SocketDescriptor = -1;
@@ -616,3 +607,4 @@ void vtkSocket::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "SocketDescriptor: " << this->SocketDescriptor << endl;
 }
+VTK_ABI_NAMESPACE_END

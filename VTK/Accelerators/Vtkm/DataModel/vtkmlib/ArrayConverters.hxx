@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #ifndef vtkmlib_ArrayConverters_hxx
 #define vtkmlib_ArrayConverters_hxx
@@ -27,6 +16,7 @@
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename DataArrayType>
 vtkm::cont::Field Convert(DataArrayType* input, int association)
@@ -89,5 +79,6 @@ VTK_EXPORT_ARRAY_CONVERSION_TO_VTKM(vtkSOADataArrayTemplate)
 
 #endif // !defined(ArrayConverterExport_cxx)
 
+VTK_ABI_NAMESPACE_END
 } // tovtkm
 #endif

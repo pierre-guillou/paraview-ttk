@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedFrustum.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractSelectedFrustum
  * @brief   Returns the portion of the input dataset that
@@ -39,6 +27,7 @@
 #include "vtkExtractSelectionBase.h"
 #include "vtkFiltersGeneralModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPlanes;
 class vtkInformation;
 class vtkInformationVector;
@@ -144,7 +133,7 @@ protected:
 
   // used in CreateFrustum
   void ComputePlane(
-    int idx, double v0[3], double v1[2], double v2[3], vtkPoints* points, vtkDoubleArray* norms);
+    int idx, double v0[3], double v1[3], double v2[3], vtkPoints* points, vtkDoubleArray* norms);
 
   // modes
   int FieldType;
@@ -167,4 +156,5 @@ private:
   void operator=(const vtkExtractSelectedFrustum&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

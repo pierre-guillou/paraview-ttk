@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAlignImageDataSetFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkAlignImageDataSetFilter
  * @brief align collection of image datasets to use a global origin
@@ -33,6 +21,7 @@
 #include "vtkFiltersParallelModule.h" // for export macros
 #include "vtkPassInputTypeAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 
 class VTKFILTERSPARALLEL_EXPORT vtkAlignImageDataSetFilter : public vtkPassInputTypeAlgorithm
@@ -71,5 +60,6 @@ private:
   vtkMultiProcessController* Controller;
   int MinimumExtent[3];
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

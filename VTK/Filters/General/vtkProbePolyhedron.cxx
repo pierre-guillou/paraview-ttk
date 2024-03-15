@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProbePolyhedron.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProbePolyhedron.h"
 
 #include "vtkCellArray.h"
@@ -26,6 +14,7 @@
 #include "vtkPolyData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProbePolyhedron);
 
 //------------------------------------------------------------------------------
@@ -124,7 +113,7 @@ int vtkProbePolyhedron::RequestData(vtkInformation* vtkNotUsed(request),
 
   // Interpolate the point data (if requested)
   double x[3];
-  int abort = 0;
+  bool abort = false;
   vtkIdType idx = 0, progressInterval = (numInputCells + numInputPts) / 10 + 1;
   if (this->ProbePointData)
   {
@@ -134,7 +123,7 @@ int vtkProbePolyhedron::RequestData(vtkInformation* vtkNotUsed(request),
       {
         vtkDebugMacro(<< "Processing #" << idx);
         this->UpdateProgress(static_cast<double>(idx) / (numInputCells + numInputPts));
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
 
       input->GetPoint(ptId, x);
@@ -159,7 +148,7 @@ int vtkProbePolyhedron::RequestData(vtkInformation* vtkNotUsed(request),
       {
         vtkDebugMacro(<< "Processing #" << idx);
         this->UpdateProgress(static_cast<double>(idx) / (numInputCells + numInputPts));
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
 
       cell = input->GetCell(cellId);
@@ -252,3 +241,4 @@ void vtkProbePolyhedron::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Probe Cell Data: " << (this->ProbeCellData ? "true" : "false") << "\n";
 }
+VTK_ABI_NAMESPACE_END

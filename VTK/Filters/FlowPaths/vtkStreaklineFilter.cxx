@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkStreaklineFilter.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStreaklineFilter.h"
 #include "vtkCell.h"
 #include "vtkCellArray.h"
@@ -36,6 +24,7 @@ PURPOSE.  See the above copyright notice for more information.
 #define Assert(a)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class StreakParticle
 {
 public:
@@ -96,7 +85,7 @@ void StreaklineFilterInternal::Finalize()
       }
       Streak& streak = streaks[streakId];
       float age = particleAge->GetValue(i);
-      streak.push_back(StreakParticle(i, age));
+      streak.emplace_back(i, age);
     }
 
     // sort streaks based on age
@@ -151,3 +140,4 @@ void vtkStreaklineFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

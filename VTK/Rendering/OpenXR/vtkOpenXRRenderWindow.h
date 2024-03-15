@@ -1,16 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenXRRenderWindow
  * @brief   OpenXR rendering window
@@ -18,14 +7,6 @@ PURPOSE.  See the above copyright notice for more information.
  *
  * vtkOpenXRRenderWindow is a concrete implementation of the abstract
  * class vtkRenderWindow.
- *
- * This class and its similar classes are designed to be drop in
- * replacements for VTK. If you link to this module and turn on
- * the CMake option VTK_OPENXR_OBJECT_FACTORY, the object
- * factory mechanism should replace the core rendering classes such as
- * RenderWindow with OpenXR specialized versions. The goal is for VTK
- * programs to be able to use the OpenXR library with little to no
- * changes.
  *
  * This class handles the bulk of interfacing to OpenXR. It supports one
  * renderer currently. The renderer is assumed to cover the entire window
@@ -53,10 +34,10 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkVRRenderWindow.h"
 
 #include "vtkEventData.h" // for method sig
-#include "vtkOpenXR.h"
 
 #include <array> // array
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 
 class VTKRENDERINGOPENXR_EXPORT vtkOpenXRRenderWindow : public vtkVRRenderWindow
@@ -146,6 +127,11 @@ public:
    */
   void UpdateHMDMatrixPose() override;
 
+  /**
+   * Render the controllers
+   */
+  void RenderModels() override;
+
 protected:
   vtkOpenXRRenderWindow();
   ~vtkOpenXRRenderWindow() override;
@@ -154,11 +140,9 @@ protected:
   bool CreateFramebuffers(uint32_t viewCount = 2) override;
 
   bool BindTextureToFramebuffer(FramebufferDesc& framebufferDesc);
-  void RenderFramebuffer(FramebufferDesc& framebufferDesc);
+  void RenderFramebuffer(FramebufferDesc& framebufferDesc) override;
 
-  void RenderOneEye(const uint32_t eye);
-
-  void RenderModels();
+  virtual void RenderOneEye(uint32_t eye);
 
   vtkNew<vtkMatrix4x4> TempMatrix4x4;
 
@@ -171,5 +155,6 @@ private:
   void operator=(const vtkOpenXRRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkOpenXRRenderWindow.h

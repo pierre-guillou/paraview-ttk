@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqTextureSelectorPropertyWidget.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqTextureSelectorPropertyWidget.h"
 
@@ -57,10 +29,10 @@ pqTextureSelectorPropertyWidget::pqTextureSelectorPropertyWidget(
   : pqPropertyWidget(smProxy, pWidget)
 {
   this->setProperty(smProperty);
-  this->setToolTip("Select/Load texture to apply.");
+  this->setToolTip(tr("Select/Load texture to apply."));
 
   QVBoxLayout* l = new QVBoxLayout;
-  l->setMargin(0);
+  l->setContentsMargins(0, 0, 0, 0);
 
   // Create the combobox selector and set its value
   auto* domain = smProperty->FindDomain<vtkSMProxyGroupDomain>();
@@ -111,7 +83,7 @@ pqTextureSelectorPropertyWidget::pqTextureSelectorPropertyWidget(
 void pqTextureSelectorPropertyWidget::onTextureChanged(vtkSMProxy* texture)
 {
   SM_SCOPED_TRACE(ChooseTexture).arg(this->proxy()).arg(texture).arg(this->property());
-  BEGIN_UNDO_SET("Texture Change");
+  BEGIN_UNDO_SET(tr("Texture Change"));
   vtkSMPropertyHelper(this->property()).Set(texture);
   this->proxy()->UpdateVTKObjects();
   END_UNDO_SET();
@@ -142,13 +114,13 @@ void pqTextureSelectorPropertyWidget::checkAttributes(bool tcoords, bool tangent
       if (tcoords && pdInfo->GetAttributeInformation(vtkDataSetAttributes::TCOORDS) == nullptr)
       {
         enable = false;
-        this->setToolTip("No tcoords present in the data. Cannot apply texture.");
+        this->setToolTip(tr("No tcoords present in the data. Cannot apply texture."));
       }
       else if (tangents &&
         pdInfo->GetAttributeInformation(vtkDataSetAttributes::TANGENTS) == nullptr)
       {
         enable = false;
-        this->setToolTip("No tangents present in the data. Cannot apply texture.");
+        this->setToolTip(tr("No tangents present in the data. Cannot apply texture."));
       }
     }
   }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotSurface.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotSurface
@@ -29,6 +17,7 @@
 #include "vtkNew.h"              //  For vtkNew ivar
 #include "vtkPlot3D.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkLookupTable;
 class vtkTable;
@@ -112,7 +101,7 @@ protected:
   /**
    * Surface to render.
    */
-  std::vector<vtkVector3f> Surface;
+  vtkNew<vtkPoints> Surface;
 
   /**
    * The number of rows in the input table.
@@ -165,4 +154,5 @@ private:
   void operator=(const vtkPlotSurface&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotSurface_h

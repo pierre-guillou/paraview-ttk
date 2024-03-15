@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextDevice2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContextDevice2D
@@ -32,6 +20,9 @@
 #include "vtkRenderingCoreEnums.h"       // For marker enum
 #include "vtkVector.h"                   // For vtkVector2i ivar
 
+#include <cstdint> // For std::uintptr_t
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkWindow;
 class vtkViewport;
 class vtkStdString;
@@ -78,6 +69,8 @@ public:
    */
   virtual void DrawPoints(
     float* points, int n, unsigned char* colors = nullptr, int nc_comps = 0) = 0;
+  virtual void DrawPoints(vtkDataArray* positions, vtkUnsignedCharArray* colors,
+    std::uintptr_t vtkNotUsed(cacheIdentifier));
 
   /**
    * Draw a series of point sprites, images centred at the points supplied.
@@ -91,6 +84,8 @@ public:
    */
   virtual void DrawPointSprites(vtkImageData* sprite, float* points, int n,
     unsigned char* colors = nullptr, int nc_comps = 0) = 0;
+  virtual void DrawPointSprites(vtkImageData* sprite, vtkDataArray* positions,
+    vtkUnsignedCharArray* colors, std::uintptr_t vtkNotUsed(cacheIdentifier));
 
   /**
    * Draw a series of markers centered at the points supplied. The \a shape
@@ -109,6 +104,8 @@ public:
    */
   virtual void DrawMarkers(int shape, bool highlight, float* points, int n,
     unsigned char* colors = nullptr, int nc_comps = 0);
+  virtual void DrawMarkers(int shape, bool highlight, vtkDataArray* positions,
+    vtkUnsignedCharArray* colors, std::uintptr_t vtkNotUsed(cacheIdentifier));
 
   /**
    * Draw a quad using the specified number of points.
@@ -388,6 +385,13 @@ public:
   virtual void SetViewportRect(const vtkRecti& rect) { this->ViewportRect = rect; }
   vtkGetMacro(ViewportRect, vtkRecti);
 
+  /**
+   * Concrete graphics implementations maintain a cache of heavy-weight buffer objects
+   * to achieve higher interactive framerates.
+   * This method requests the devices to release the cached objects for a given cache identifier.
+   */
+  virtual void ReleaseCache(std::uintptr_t vtkNotUsed(cacheIdentifier)) {}
+
 protected:
   vtkContextDevice2D();
   ~vtkContextDevice2D() override;
@@ -418,4 +422,5 @@ private:
   void operator=(const vtkContextDevice2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkContextDevice2D_h

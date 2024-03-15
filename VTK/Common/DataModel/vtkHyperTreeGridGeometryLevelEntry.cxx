@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGridGeometryLevelEntry.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridGeometryLevelEntry.h"
 
 #include "vtkBitArray.h"
@@ -24,6 +12,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <cassert>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 void vtkHyperTreeGridGeometryLevelEntry::PrintSelf(ostream& os, vtkIndent indent)
 {
   os << indent << "--vtkHyperTreeGridGeometryLevelEntry--" << endl;
@@ -238,3 +227,4 @@ void vtkHyperTreeGridGeometryLevelEntry::GetPoint(double point[3]) const
   point[1] = this->Origin[1] + sizeChild[1] / 2.;
   point[2] = this->Origin[2] + sizeChild[2] / 2.;
 }
+VTK_ABI_NAMESPACE_END

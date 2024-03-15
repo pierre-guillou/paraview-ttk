@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRandomAttributeGenerator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRandomAttributeGenerator.h"
 
 #include "vtkBitArray.h"
@@ -41,6 +29,7 @@
 #include "vtkUnsignedLongLongArray.h"
 #include "vtkUnsignedShortArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRandomAttributeGenerator);
 
 //------------------------------------------------------------------------------
@@ -130,7 +119,7 @@ void vtkRandomAttributeGenerator::GenerateRandomTuples(
     if (!(i % tenth))
     {
       this->UpdateProgress(static_cast<double>(i) / total);
-      if (this->GetAbortExecute())
+      if (this->CheckAbort())
       {
         break;
       }
@@ -288,7 +277,7 @@ vtkDataArray* vtkRandomAttributeGenerator::GenerateData(
         if (!(i % tenth))
         {
           this->UpdateProgress(static_cast<double>(i) / total);
-          if (this->GetAbortExecute())
+          if (this->CheckAbort())
           {
             break;
           }
@@ -326,6 +315,10 @@ int vtkRandomAttributeGenerator::RequestData(
   it.TakeReference(input->NewIterator());
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextItem())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataSet* inputDS = vtkDataSet::SafeDownCast(it->GetCurrentDataObject());
     vtkSmartPointer<vtkDataSet> outputDS;
     outputDS.TakeReference(inputDS->NewInstance());
@@ -567,3 +560,4 @@ int vtkRandomAttributeGenerator::FillInputPortInformation(
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

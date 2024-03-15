@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBase64OutputStream.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBase64OutputStream
  * @brief   Writes base64-encoded output to a stream.
@@ -26,6 +14,7 @@
 #include "vtkIOCoreModule.h" // For export macro
 #include "vtkOutputStream.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOCORE_EXPORT vtkBase64OutputStream : public vtkOutputStream
 {
 public:
@@ -71,4 +60,5 @@ private:
   void operator=(const vtkBase64OutputStream&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

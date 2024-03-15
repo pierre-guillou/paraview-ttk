@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMRangedTransferFunctionDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMRangedTransferFunctionDomain
  * @brief   represents a ranged vtkSMTransferFunctionProxy
@@ -61,15 +49,15 @@ public:
    */
   double GetRangeMaximum(unsigned int idx, int& exists);
 
-  //@{
+  ///@{
   /**
    * Returns if range minimum/maximum bound is set for the domain.
    */
   bool GetRangeMinimumExists(unsigned int idx);
   bool GetRangeMaximumExists(unsigned int idx);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the range minimum/maximum value, is exists, otherwise
    * 0 is returned. Use GetMaximumExists() GetMaximumExists() to make sure that
@@ -85,7 +73,7 @@ public:
     int not_used;
     return this->GetRangeMaximum(idx, not_used);
   }
-  //@}
+  ///@}
 
   /**
    * If prop is a vtkSMProxyProperty containing a vtkSMTransferFunctionProxy

@@ -1,13 +1,20 @@
+# Build
+
 ```
-docker run --rm --entrypoint /bin/bash -v $PWD:/work -it dockcross/web-wasm:20200416-a6b6635
-
-cd /work/build-example
-
-cmake \
+emcmake cmake \
   -G Ninja \
-  -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} \
-  -DVTK_DIR=/work/build-vtk-wasm \
-  /work/src/Examples/Emscripten/Cxx/MultiCone
+  -S /path/to/vtk/Examples/Emscripten/Cxx/MultiCone \
+  -B out/build \
+  -DVTK_DIR=/path/to/where/vtk/wasm/was/built
 
-cmake --build .
+cmake --build out/build
 ```
+
+# Serve and test generated code
+
+```
+cd out/build
+python3 -m http.server 8000
+```
+
+Open your browser to http://localhost:8000

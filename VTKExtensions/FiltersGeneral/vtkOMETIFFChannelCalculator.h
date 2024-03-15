@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkOMETIFFChannelCalculator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkOMETIFFChannelCalculator
  * @brief filter to combine multiple channels into colors
@@ -41,14 +29,14 @@ public:
   vtkTypeMacro(vtkOMETIFFChannelCalculator, vtkPassInputTypeAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Choose the channels to combine in this calculator.
    */
   vtkGetObjectMacro(ChannelSelection, vtkDataArraySelection);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the transfer functions to use to map scalars to colors.
    */
@@ -63,9 +51,9 @@ public:
   void SetChannel9LUT(vtkScalarsToColors* stc) { this->SetLUT("Channel_9", stc); }
   void SetChannel10LUT(vtkScalarsToColors* stc) { this->SetLUT("Channel_10", stc); }
   void SetLUT(const char* channelName, vtkScalarsToColors*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set weights for each of the channels.
    */
@@ -80,7 +68,7 @@ public:
   void SetChannel9Weight(double wght) { this->SetWeight("Channel_9", wght); }
   void SetChannel10Weight(double wght) { this->SetWeight("Channel_10", wght); }
   void SetWeight(const char* channelName, double weight);
-  //@}
+  ///@}
   vtkMTimeType GetMTime() override;
 
 protected:

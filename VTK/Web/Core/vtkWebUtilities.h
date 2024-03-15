@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWebUtilities
  * @brief   collection of utility functions for ParaView Web.
@@ -27,6 +15,7 @@
 #include "vtkWebCoreModule.h" // needed for exports
 #include <string>             // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 
 class VTKWEBCORE_EXPORT vtkWebUtilities : public vtkObject
@@ -59,4 +48,5 @@ private:
   void operator=(const vtkWebUtilities&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

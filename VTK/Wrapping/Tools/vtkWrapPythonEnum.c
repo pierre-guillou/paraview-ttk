@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonEnum.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonEnum.h"
 
@@ -25,7 +13,7 @@
 
 /* -------------------------------------------------------------------- */
 /* check whether an enum type will be wrapped */
-int vtkWrapPython_IsEnumWrapped(HierarchyInfo* hinfo, const char* enumname)
+int vtkWrapPython_IsEnumWrapped(const HierarchyInfo* hinfo, const char* enumname)
 {
   int rval = 0;
   HierarchyEntry* entry;
@@ -44,7 +32,7 @@ int vtkWrapPython_IsEnumWrapped(HierarchyInfo* hinfo, const char* enumname)
 
 /* -------------------------------------------------------------------- */
 /* find and mark all enum parameters by setting IsEnum=1 */
-void vtkWrapPython_MarkAllEnums(NamespaceInfo* contents, HierarchyInfo* hinfo)
+void vtkWrapPython_MarkAllEnums(NamespaceInfo* contents, const HierarchyInfo* hinfo)
 {
   FunctionInfo* currentFunction;
   int i, j, n, m, ii, nn;
@@ -169,7 +157,7 @@ void vtkWrapPython_AddEnumType(FILE* fp, const char* indent, const char* dictvar
 /* -------------------------------------------------------------------- */
 /* write out an enum type object */
 void vtkWrapPython_GenerateEnumType(
-  FILE* fp, const char* module, const char* classname, EnumInfo* data)
+  FILE* fp, const char* module, const char* classname, const EnumInfo* data)
 {
   char enumname[512];
   char tpname[512];
@@ -197,7 +185,7 @@ void vtkWrapPython_GenerateEnumType(
     "static PyTypeObject Py%s_Type = {\n"
     "  PyVarObject_HEAD_INIT(&PyType_Type, 0)\n"
     "  PYTHON_PACKAGE_SCOPE \"%s.%s\", // tp_name\n"
-    "  sizeof(PyIntObject), // tp_basicsize\n"
+    "  sizeof(PyLongObject), // tp_basicsize\n"
     "  0, // tp_itemsize\n"
     "  nullptr, // tp_dealloc\n"
     "#if PY_VERSION_HEX >= 0x03080000\n"
@@ -221,7 +209,11 @@ void vtkWrapPython_GenerateEnumType(
     "  nullptr, // tp_getattro\n"
     "  nullptr, // tp_setattro\n"
     "  nullptr, // tp_as_buffer\n"
-    "  Py_TPFLAGS_DEFAULT, // tp_flags\n"
+    "  Py_TPFLAGS_DEFAULT\n"
+    "#if PY_VERSION_HEX >= 0x030A0000\n"
+    "    | Py_TPFLAGS_DISALLOW_INSTANTIATION\n"
+    "#endif\n"
+    "  , // tp_flags\n"
     "  nullptr, // tp_doc\n"
     "  nullptr, // tp_traverse\n"
     "  nullptr, // tp_clear\n"
@@ -234,7 +226,7 @@ void vtkWrapPython_GenerateEnumType(
     "  nullptr, // tp_methods\n"
     "  nullptr, // tp_members\n"
     "  nullptr, // tp_getset\n"
-    "  &PyInt_Type, // tp_base\n"
+    "  &PyLong_Type, // tp_base\n"
     "  nullptr, // tp_dict\n"
     "  nullptr, // tp_descr_get\n"
     "  nullptr, // tp_descr_set\n"

@@ -29,6 +29,7 @@ if (ParaView_BINARY_DIR)
               "-Dplatform=${CMAKE_GENERATOR_PLATFORM}"
               "-Dtoolset=${CMAKE_GENERATOR_TOOLSET}"
               "-Dparaview_binary_dir=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+              "-Dcatalyst_DIR=${catalyst_DIR}"
               "-Dparaview_catalyst_dir=${ParaView_BINARY_DIR}/${paraview_catalyst_directory}"
               -P "${CMAKE_CURRENT_LIST_DIR}/RunExample.cmake")
     set_property(TEST "ParaViewExample-${dir}" APPEND
@@ -64,15 +65,18 @@ add_example(Plugins/ComplexPluginArchitecture)
 add_example(Plugins/ContextMenu)
 add_example(Plugins/DynamicInitializer)
 add_example(Plugins/DockWidget)
+add_example(Plugins/DockWidgetCustomProxy)
 if (TARGET ParaView::RemotingMisc)
   add_example(Plugins/ElevationFilter)
 endif ()
 add_example(Plugins/GUIMyToolBar)
 add_example(Plugins/LagrangianIntegrationModel)
+add_example(Plugins/LiveSource)
 add_example(Plugins/MyPNGReader)
 add_example(Plugins/MyTiffWriter)
 add_example(Plugins/OverrideXMLOnly)
 add_example(Plugins/PropertyWidgets)
+add_example(Plugins/RegistrationName)
 add_example(Plugins/ReaderXMLOnly)
 add_example(Plugins/Representation)
 # TODO: update this plugin to use the pipeline controller instead.
@@ -100,10 +104,18 @@ if (TARGET VTK::IOCatalystConduit)
   add_example(Catalyst2/CxxFullExample)
   add_example(Catalyst2/CxxImageDataExample)
   add_example(Catalyst2/CxxMultiChannelInputExample)
+  add_example(Catalyst2/CxxOverlappingAMRExample)
   add_example(Catalyst2/CxxPolyhedra)
   add_example(Catalyst2/CxxMultimesh)
   add_example(Catalyst2/CxxSteeringExample)
+  add_example(Catalyst2/Fortran90FullExample)
+  if (Python3_EXECUTABLE)
+    add_example(Catalyst2/PythonFullExample)
+  endif ()
 endif ()
+
+add_example(UseParaView/Incubator)
+add_example(UseParaView/NoIncubator)
 
 add_custom_target(paraview-examples
   COMMAND

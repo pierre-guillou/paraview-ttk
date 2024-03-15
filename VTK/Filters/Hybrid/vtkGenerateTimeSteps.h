@@ -1,24 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenerateTimeSteps.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGenerateTimeSteps
  * @brief   Generate timesteps on any input
  *
  * A vtkPassInputTypeAlgorithm that add timesteps during the request information
  * pass and just shallow copy its input to its output. Input timesteps are completely
- * ignored and the first timestep will be requested if any.
+ * ignored.
  */
 
 #ifndef vtkGenerateTimeSteps_h
@@ -29,6 +17,7 @@
 
 #include <vector> // for time steps
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSHYBRID_EXPORT vtkGenerateTimeSteps : public vtkPassInputTypeAlgorithm
 {
 public:
@@ -78,7 +67,6 @@ protected:
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestInformation(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
-  int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   std::vector<double> TimeStepValues;
 
@@ -86,5 +74,6 @@ private:
   vtkGenerateTimeSteps(const vtkGenerateTimeSteps&) = delete;
   void operator=(const vtkGenerateTimeSteps&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkGenerateTimeSteps_h

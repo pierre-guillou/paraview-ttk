@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMContextViewProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMContextViewProxy
  * @brief   abstract base class for all Chart Views.
@@ -131,7 +119,7 @@ protected:
   /**
    * Overridden to return a location of vtkPVSession::CLIENT unless in
    * tile-display mode, in which case
-   * `vtkPVSession::CLIENT |vtkPVSession::RENDER_SERVER` is returned.
+   * `vtkPVSession::CLIENT | vtkPVSession::RENDER_SERVER` is returned.
    */
   vtkTypeUInt32 PreRender(bool interactive) override;
 

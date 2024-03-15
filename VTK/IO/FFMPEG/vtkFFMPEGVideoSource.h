@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFFMPEGVideoSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFFMPEGVideoSource
  * @brief   Reader for ffmpeg supported formats
@@ -35,6 +23,7 @@
 #include <functional>         // for audio callback
 #include <mutex>              // for std::mutex
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFFMPEGVideoSourceInternal;
 class vtkFFMPEGVideoSource;
 
@@ -223,4 +212,5 @@ private:
   void operator=(const vtkFFMPEGVideoSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

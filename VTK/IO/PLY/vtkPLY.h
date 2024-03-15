@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPLY.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 1994 The Board of Trustees of The Leland Stanford
+// SPDX-License-Identifier: BSD-3-Clause AND MIT
 /*
 
 The interface routines for reading and writing PLY polygon files.
@@ -29,20 +18,6 @@ Each type of element for a given object has one or more _properties_
 associated with the element type.  For instance, a vertex element may
 have as properties the floating-point values x,y,z and the three unsigned
 chars representing red, green and blue.
-
----------------------------------------------------------------
-
-Copyright (c) 1994 The Board of Trustees of The Leland Stanford
-Junior University.  All rights reserved.
-
-Permission to use, copy, modify and distribute this software and its
-documentation for any purpose is hereby granted without fee, provided
-that the above copyright notice and this permission notice appear in
-all copies of this software and that you do not sell the software.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTY OF ANY KIND,
-EXPRESS, IMPLIED OR OTHERWISE, INCLUDING WITHOUT LIMITATION, ANY
-WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 
 */
 
@@ -66,7 +41,7 @@ WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 #define vtkPLY_h
 
 #include "vtkIOPLYModule.h" // For export macro
-#include <istream>
+#include "vtkSmartPointer.h"
 #include <ostream>
 #include <vector>
 
@@ -100,6 +75,11 @@ WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
 
 #define PLY_SCALAR 0
 #define PLY_LIST 1
+
+VTK_ABI_NAMESPACE_BEGIN
+
+class vtkResourceStream;
+class vtkResourceParser;
 
 typedef struct PlyProperty
 { /* description of a property */
@@ -156,19 +136,20 @@ typedef struct PlyOtherElems
 } PlyOtherElems;
 
 typedef struct PlyFile
-{                             /* description of PLY file */
-  std::istream* is;           /* input stream */
-  std::ostream* os;           /* output stream */
-  int file_type;              /* ascii or binary */
-  float version;              /* version number of file */
-  int nelems;                 /* number of elements of object */
-  PlyElement** elems;         /* list of elements */
-  int num_comments;           /* number of comments */
-  char** comments;            /* list of comments */
-  int num_obj_info;           /* number of items of object information */
-  char** obj_info;            /* list of object info items */
-  PlyElement* which_elem;     /* which element we're currently writing */
-  PlyOtherElems* other_elems; /* "other" elements from a PLY file */
+{                                            /* description of PLY file */
+  vtkSmartPointer<vtkResourceStream> is;     /* input stream */
+  vtkSmartPointer<vtkResourceParser> parser; /* input stream parser */
+  std::ostream* os;                          /* output stream */
+  int file_type;                             /* ascii or binary */
+  float version;                             /* version number of file */
+  int nelems;                                /* number of elements of object */
+  PlyElement** elems;                        /* list of elements */
+  int num_comments;                          /* number of comments */
+  char** comments;                           /* list of comments */
+  int num_obj_info;                          /* number of items of object information */
+  char** obj_info;                           /* list of object info items */
+  PlyElement* which_elem;                    /* which element we're currently writing */
+  PlyOtherElems* other_elems;                /* "other" elements from a PLY file */
 } PlyFile;
 
 class VTKIOPLY_EXPORT vtkPLY
@@ -186,7 +167,7 @@ public:
   static void ply_put_element(PlyFile*, void*);
   static void ply_put_comment(PlyFile*, const char*);
   static void ply_put_obj_info(PlyFile*, const char*);
-  static PlyFile* ply_read(std::istream*, int*, char***);
+  static PlyFile* ply_read(vtkResourceStream*, int*, char***);
   static PlyFile* ply_open_for_reading(const char*, int*, char***);
   static PlyFile* ply_open_for_reading_from_string(const std::string&, int*, char***);
   static PlyElement* ply_get_element_description(PlyFile*, char*, int*, int*);
@@ -211,7 +192,7 @@ public:
   static PlyProperty* find_property(PlyElement*, const char*, int*);
   static void write_scalar_type(std::ostream*, int);
   static void get_words(
-    std::istream* is, std::vector<char*>* words, char line_words[], char orig_line[]);
+    vtkResourceParser* is, std::vector<char*>* words, char line_words[], char orig_line[]);
   static void write_binary_item(PlyFile*, int, unsigned int, double, int);
   static void write_ascii_item(std::ostream*, int, unsigned int, double, int);
   static double old_write_ascii_item(std::ostream*, char*, int);
@@ -223,7 +204,7 @@ public:
   static void store_item(char*, int, int, unsigned int, double);
   static void get_stored_item(const void*, int, int*, unsigned int*, double*);
   static double get_item_value(const char*, int);
-  static void get_ascii_item(const char*, int, int*, unsigned int*, double*);
+  static void get_ascii_item(vtkResourceParser*, int, int*, unsigned int*, double*);
   static bool get_binary_item(PlyFile*, int, int*, unsigned int*, double*);
   static bool ascii_get_element(PlyFile*, char*);
   static bool binary_get_element(PlyFile*, char*);
@@ -231,6 +212,7 @@ public:
   static int get_prop_type(const char*);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 
 // VTK-HeaderTest-Exclude: vtkPLY.h

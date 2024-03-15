@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNormalizeMatrixVectors.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-NVIDIA-USGov
 
 #include "vtkNormalizeMatrixVectors.h"
 #include "vtkArrayCoordinates.h"
@@ -35,6 +18,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // vtkNormalizeMatrixVectors
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkNormalizeMatrixVectors);
 
 vtkNormalizeMatrixVectors::vtkNormalizeMatrixVectors()
@@ -92,6 +76,10 @@ int vtkNormalizeMatrixVectors::RequestData(
   vtkArrayCoordinates coordinates;
   for (vtkIdType n = 0; n != value_count; ++n)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     output_array->GetCoordinatesN(n, coordinates);
     weight[coordinates[vector_dimension] - vectors.GetBegin()] +=
       pow(output_array->GetValueN(n), p_value);
@@ -100,6 +88,10 @@ int vtkNormalizeMatrixVectors::RequestData(
   // Convert the sums into weights, avoiding divide-by-zero ...
   for (vtkIdType i = 0; i != vectors.GetSize(); ++i)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     const double length = pow(weight[i], 1.0 / p_value);
     weight[i] = length ? 1.0 / length : 0.0;
   }
@@ -107,6 +99,10 @@ int vtkNormalizeMatrixVectors::RequestData(
   // Apply the weights to each vector ...
   for (vtkIdType n = 0; n != value_count; ++n)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     output_array->GetCoordinatesN(n, coordinates);
     output_array->SetValueN(
       n, output_array->GetValueN(n) * weight[coordinates[vector_dimension] - vectors.GetBegin()]);
@@ -119,3 +115,4 @@ int vtkNormalizeMatrixVectors::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

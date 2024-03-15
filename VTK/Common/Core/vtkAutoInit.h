@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAutoInit.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkAutoInit_h
 #define vtkAutoInit_h
 
+#include "vtkABINamespace.h"
 #include "vtkDebugLeaksManager.h" // DebugLeaks exists longer.
 #include "vtkTimeStamp.h"         // Here so that TimeStamp Schwarz initializer works
 
@@ -30,7 +19,7 @@
     {                                                                                              \
       /* Call every <mod>_AutoInit_Construct during initialization.  */                            \
       M##_AutoInit() { VTK_AUTOINIT_CONSTRUCT_##T }                                                \
-    } M##_AutoInit_Instance;                                                                       \
+    } M##_AutoInit_Instance; /* NOLINT(misc-definitions-in-headers) */                             \
   }
 
 #define VTK_AUTOINIT_DECLARE_0()
@@ -49,7 +38,9 @@
   VTK_AUTOINIT_DECLARE_7(t1, t2, t3, t4, t5, t6, t7) VTK_AUTOINIT_DECLARE(t8)
 #define VTK_AUTOINIT_DECLARE_9(t1, t2, t3, t4, t5, t6, t7, t8, t9)                                 \
   VTK_AUTOINIT_DECLARE_8(t1, t2, t3, t4, t5, t6, t7, t8) VTK_AUTOINIT_DECLARE(t9)
-#define VTK_AUTOINIT_DECLARE(M) void M##_AutoInit_Construct();
+#define VTK_AUTOINIT_DECLARE(M)                                                                    \
+  VTK_ABI_NAMESPACE_BEGIN void M##_AutoInit_Construct();                                           \
+  VTK_ABI_NAMESPACE_END
 
 #define VTK_AUTOINIT_CONSTRUCT_0()
 #define VTK_AUTOINIT_CONSTRUCT_1(t1) VTK_AUTOINIT_CONSTRUCT_0() VTK_AUTOINIT_CONSTRUCT(t1)
@@ -84,13 +75,14 @@
 // The above snippet if included in the global scope will ensure the object
 // factories for vtkRenderingOpenGL2 are correctly registered and unregistered.
 #define VTK_MODULE_INIT(M)                                                                         \
-  VTK_AUTOINIT_DECLARE(M) namespace                                                                \
+  VTK_AUTOINIT_DECLARE(M)                                                                          \
+  namespace                                                                                        \
   {                                                                                                \
-    static struct M##_ModuleInit                                                                   \
-    {                                                                                              \
-      /* Call <mod>_AutoInit_Construct during initialization.  */                                  \
-      M##_ModuleInit() { VTK_AUTOINIT_CONSTRUCT(M) }                                               \
-    } M##_ModuleInit_Instance;                                                                     \
+  static struct M##_ModuleInit                                                                     \
+  {                                                                                                \
+    /* Call <mod>_AutoInit_Construct during initialization.  */                                    \
+    M##_ModuleInit() { VTK_AUTOINIT_CONSTRUCT(M) }                                                 \
+  } M##_ModuleInit_Instance;                                                                       \
   }
 
 #endif

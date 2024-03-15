@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVeraOutReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkVeraOutReader - File reader for VERA OUT HDF5 format.
 
 #include "vtkVeraOutReader.h"
@@ -51,6 +39,8 @@
 
 #define VERA_MAX_DIMENSION 6
 #define DATASET_NAME_MAX_SIZE 1024
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //*****************************************************************************
 class vtkVeraOutReader::Internals
@@ -966,3 +956,4 @@ vtkMTimeType vtkVeraOutReader::GetMTime()
 
   return mTime;
 }
+VTK_ABI_NAMESPACE_END

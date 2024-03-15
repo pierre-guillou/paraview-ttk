@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChart.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkChart
@@ -31,6 +19,7 @@
 #include "vtkSmartPointer.h" // For SP ivars
 #include "vtkStdString.h"    // For vtkStdString ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransform2D;
 class vtkContextScene;
 class vtkPlot;
@@ -73,6 +62,8 @@ public:
    * SELECT - alias for SELECT_RECTANGLE
    * CLICKANDDRAG - move one point selected by a click
    * NOTIFY - Post vtkCommand::InteractionEvent on selection of a point
+   * ACTION_TYPES_COUNT - total action types count (needed in ParaView,
+   * see `pqChartSelectionReaction.h`)
    */
   enum
   {
@@ -83,7 +74,8 @@ public:
     SELECT_RECTANGLE = SELECT,
     SELECT_POLYGON,
     CLICK_AND_DRAG,
-    NOTIFY
+    NOTIFY,
+    ACTION_TYPES_COUNT
   };
 
   /**
@@ -495,4 +487,5 @@ private:
   void operator=(const vtkChart&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkChart_h

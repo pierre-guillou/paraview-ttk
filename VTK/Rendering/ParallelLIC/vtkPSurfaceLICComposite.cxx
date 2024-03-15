@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPSurfaceLICComposite.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPSurfaceLICComposite.h"
 
 #include "vtkMPI.h"
@@ -133,6 +121,7 @@ static void MPIAPI vtkPixelExtentUnion(void* in, void* out, int* len, MPI_Dataty
   }
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Description:
 // Container for our custom MPI_Op's
 class vtkPPixelExtentOps
@@ -194,6 +183,7 @@ void MPITypeFree(deque<MPI_Datatype>& types)
     MPI_Type_free(&types[i]);
   }
 }
+VTK_ABI_NAMESPACE_END
 
 // ****************************************************************************
 static size_t Size(deque<deque<vtkPixelExtent>> exts)
@@ -275,6 +265,7 @@ static int ScanMPIStatusForError(vector<MPI_Status>& stat)
 }
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkPSurfaceLICComposite);
 
@@ -1706,3 +1697,4 @@ ostream& operator<<(ostream& os, vtkPSurfaceLICComposite& ss)
   }
   return os;
 }
+VTK_ABI_NAMESPACE_END

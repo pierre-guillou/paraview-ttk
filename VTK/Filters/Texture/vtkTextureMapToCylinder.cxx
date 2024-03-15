@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTextureMapToCylinder.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTextureMapToCylinder.h"
 
 #include "vtkCellData.h"
@@ -26,6 +14,7 @@
 #include "vtkPointData.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTextureMapToCylinder);
 
 // Create object with cylinder axis parallel to z-axis (points (0,0,-0.5)
@@ -121,7 +110,7 @@ int vtkTextureMapToCylinder::RequestData(vtkInformation* vtkNotUsed(request),
   v[1] = v[2] = 0.0;
   vtkMath::Cross(axis, v, vP);
   if (vtkMath::Norm(vP) == 0.0)
-  { // must be prependicular
+  { // must be perpendicular
     v[1] = 1.0;
     v[0] = v[2] = 0.0;
     vtkMath::Cross(axis, v, vP);
@@ -191,3 +180,4 @@ void vtkTextureMapToCylinder::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Point2: (" << this->Point2[0] << ", " << this->Point2[1] << ", "
      << this->Point2[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

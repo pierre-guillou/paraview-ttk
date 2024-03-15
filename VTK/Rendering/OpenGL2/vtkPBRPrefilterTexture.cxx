@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPBRPrefilterTexture.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPBRPrefilterTexture.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLFramebufferObject.h"
@@ -27,6 +15,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPBRPrefilterTexture);
 
 vtkCxxSetObjectMacro(vtkPBRPrefilterTexture, InputTexture, vtkOpenGLTexture);
@@ -66,13 +55,20 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
   if (!renWin)
   {
     vtkErrorMacro("No render window.");
+    return;
   }
 
   if (!this->InputTexture)
   {
     vtkErrorMacro("No input cubemap specified.");
+    return;
   }
 
+#ifdef GL_ES_VERSION_3_0
+  // Mipmap generation is not supported for most texture formats (like GL_RGB32F)
+  this->InputTexture->MipmapOff();
+  this->InputTexture->InterpolateOff();
+#endif
   this->InputTexture->Render(ren);
   this->PrefilterSize = this->InputTexture->GetTextureObject()->GetHeight();
 
@@ -84,9 +80,6 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
       this->TextureObject = vtkTextureObject::New();
     }
     this->TextureObject->SetContext(renWin);
-    this->TextureObject->SetFormat(GL_RGB);
-    this->TextureObject->SetInternalFormat(this->HalfPrecision ? GL_RGB16F : GL_RGB32F);
-    this->TextureObject->SetDataType(GL_FLOAT);
     this->TextureObject->SetWrapS(vtkTextureObject::ClampToEdge);
     this->TextureObject->SetWrapT(vtkTextureObject::ClampToEdge);
     this->TextureObject->SetWrapR(vtkTextureObject::ClampToEdge);
@@ -94,8 +87,18 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
     this->TextureObject->SetMagnificationFilter(vtkTextureObject::Linear);
     this->TextureObject->SetGenerateMipmap(true);
     this->TextureObject->SetMaxLevel(this->PrefilterLevels - 1);
+#ifdef GL_ES_VERSION_3_0
+    this->TextureObject->SetFormat(GL_RGB);
+    this->TextureObject->SetDataType(GL_UNSIGNED_BYTE);
+    this->TextureObject->SetInternalFormat(GL_RGB8);
+    this->TextureObject->CreateCubeFromRaw(
+      this->PrefilterSize, this->PrefilterSize, 3, VTK_UNSIGNED_CHAR, nullptr);
+#else
+    this->TextureObject->SetFormat(GL_RGB);
+    this->TextureObject->SetInternalFormat(this->HalfPrecision ? GL_RGB16F : GL_RGB32F);
     this->TextureObject->CreateCubeFromRaw(
       this->PrefilterSize, this->PrefilterSize, 3, VTK_FLOAT, nullptr);
+#endif
 
     this->RenderWindow = renWin;
 
@@ -116,7 +119,7 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
       // We remove the 4, simplification with saSample
       "const float saTexel  = PI / (6.0 * " +
         std::to_string(this->PrefilterSize * this->PrefilterSize) +
-        ");\n"
+        ".0);\n"
         "vec3 GetSampleColor(vec3 dir, float mipLevel)\n"
         "{\n"
         "  //VTK::SAMPLING::Decl\n"
@@ -176,7 +179,8 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
         // we removed the 4, simplification with saTexel
         "    float pdf = D;\n"
         // The solid angle of the sample
-        "    float saSample = 1.0 / ( nbSamples * pdf);\n"
+        "    float nbSamplesF = float(nbSamples);"
+        "    float saSample = 1.0 / ( nbSamplesF * pdf);\n"
         // miplevel = 0.5 * (log2(K) + log2(saSample) - log2(saTexel))
         // K=4 so log2(K)=2
         "    float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * (2.0 + log2(saSample) - "
@@ -274,11 +278,14 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
     }
     else
     {
+#ifndef GL_ES_VERSION_3_0
+      // For GLES 3.0, we forcefully turn these off, so don't warn about it.
       if (!this->InputTexture->GetInterpolate() || !this->InputTexture->GetMipmap())
       {
         vtkWarningMacro("The input texture of vtkPBRPrefilterTexture should have mipmap and "
                         "interpolate set to ON.");
       }
+#endif
 
       this->InputTexture->GetTextureObject()->Activate();
       quadHelper.Program->SetUniformi("inputTex", this->InputTexture->GetTextureUnit());
@@ -338,3 +345,4 @@ void vtkPBRPrefilterTexture::Load(vtkRenderer* ren)
 
   this->TextureObject->Activate();
 }
+VTK_ABI_NAMESPACE_END

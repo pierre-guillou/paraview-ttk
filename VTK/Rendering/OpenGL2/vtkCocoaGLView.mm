@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCocoaGLView.mm
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #import "vtkCocoaMacOSXSDKCompatibility.h" // Needed to support old SDKs
 #import <Cocoa/Cocoa.h>
@@ -55,7 +43,19 @@
   {
     [NSThread detachNewThreadSelector:@selector(emptyMethod:) toTarget:self withObject:nil];
   }
-  [self registerForDraggedTypes:@[ (NSString*)kUTTypeFileURL ]];
+
+  // kUTTypeFileURL is deprecated starting with macOS 12.0 but its replacement,
+  // UTTypeFileURL, is in UniformTypeIdentfiers.framework which doesn't exist
+  // on older versions of macOS.  Conditionally using it would require conditionally
+  // linking to that new framework, which just isn't worth the hassle when both
+  // are just syntactic sugar for the string "public.file-url".
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  NSString* supportedDragType = (NSString*)kUTTypeFileURL;
+#pragma clang diagnostic pop
+
+  // Register the view for file drops.
+  [self registerForDraggedTypes:@[ supportedDragType ]];
 }
 
 //----------------------------------------------------------------------------
@@ -88,8 +88,8 @@
 #if !VTK_OBJC_IS_ARC
 - (void)dealloc
 {
-  [super dealloc];
   [_rolloverTrackingArea release];
+  [super dealloc];
 }
 #endif
 
@@ -505,7 +505,18 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
 - (NSDragOperation)draggingEntered:(id<NSDraggingInfo>)sender
 {
   NSArray* types = [[sender draggingPasteboard] types];
-  if ([types containsObject:(NSString*)kUTTypeFileURL])
+
+  // kUTTypeFileURL is deprecated starting with macOS 12.0 but its replacement,
+  // UTTypeFileURL, is in UniformTypeIdentfiers.framework which doesn't exist
+  // on older versions of macOS.  Conditionally using it would require conditionally
+  // linking to that new framework, which just isn't worth the hassle when both
+  // are just syntactic sugar for the string "public.file-url".
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+  NSString* supportedDragType = (NSString*)kUTTypeFileURL;
+#pragma clang diagnostic pop
+
+  if ([types containsObject:supportedDragType])
   {
     return NSDragOperationCopy;
   }

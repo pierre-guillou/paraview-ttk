@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSparseArray.h
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 /**
  * @class   vtkSparseArray
@@ -71,6 +54,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkTypedArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkSparseArray : public vtkTypedArray<T>
 {
@@ -87,7 +71,7 @@ public:
   bool IsDense() override;
   const vtkArrayExtents& GetExtents() override;
   SizeT GetNonNullSize() override;
-  void GetCoordinatesN(const SizeT n, vtkArrayCoordinates& coordinates) override;
+  void GetCoordinatesN(SizeT n, vtkArrayCoordinates& coordinates) override;
   vtkArray* DeepCopy() override;
 
   // vtkTypedArray API
@@ -95,12 +79,12 @@ public:
   const T& GetValue(CoordinateT i, CoordinateT j) override;
   const T& GetValue(CoordinateT i, CoordinateT j, CoordinateT k) override;
   const T& GetValue(const vtkArrayCoordinates& coordinates) override;
-  const T& GetValueN(const SizeT n) override;
+  const T& GetValueN(SizeT n) override;
   void SetValue(CoordinateT i, const T& value) override;
   void SetValue(CoordinateT i, CoordinateT j, const T& value) override;
   void SetValue(CoordinateT i, CoordinateT j, CoordinateT k, const T& value) override;
   void SetValue(const vtkArrayCoordinates& coordinates, const T& value) override;
-  void SetValueN(const SizeT n, const T& value) override;
+  void SetValueN(SizeT n, const T& value) override;
 
   // vtkSparseArray API
 
@@ -171,7 +155,7 @@ public:
    * ensure that every set of coordinates and values is overwritten.  It is the caller's
    * responsibility to ensure that duplicate coordinates are not inserted into the array.
    */
-  void ReserveStorage(const SizeT value_count);
+  void ReserveStorage(SizeT value_count);
 
   /**
    * Update the array extents to match its contents, so that the extent along each dimension
@@ -254,6 +238,7 @@ private:
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkSparseArray.txx"
 
 #endif

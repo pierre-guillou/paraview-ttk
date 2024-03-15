@@ -16,6 +16,8 @@ set(unit_tests
   UnitTestPointTransform.cxx
   UnitTestWarpScalarFilter.cxx
   UnitTestWarpVectorFilter.cxx
+  UnitTestLogValues.cxx
+  UnitTestCompositeVectors.cxx
   )
 
 set(libraries

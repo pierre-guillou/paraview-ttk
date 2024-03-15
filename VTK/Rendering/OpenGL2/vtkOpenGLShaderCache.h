@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLTexture.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLShaderCache
  * @brief   manage Shader Programs within a context
@@ -27,6 +15,7 @@
 #include "vtkShader.h"                 // for vtkShader::Type
 #include <map>                         // for methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransformFeedback;
 class vtkShaderProgram;
 class vtkWindow;
@@ -103,4 +92,5 @@ private:
   void operator=(const vtkOpenGLShaderCache&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

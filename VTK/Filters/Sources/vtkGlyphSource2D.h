@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGlyphSource2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGlyphSource2D
  * @brief   create 2D glyphs represented by vtkPolyData
@@ -25,6 +13,8 @@
  * color, and whether the symbol is filled or not (a polygon or closed line
  * sequence). You can also put a short line through the glyph running from -x
  * to +x (the glyph looks like it's on a line), or a cross.
+ *
+ * The simple arrow can also be double pointed and point inwards.
  */
 
 #ifndef vtkGlyphSource2D_h
@@ -49,6 +39,7 @@
 
 #define VTK_MAX_CIRCLE_RESOLUTION 1024
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkUnsignedCharArray;
 class vtkCellArray;
@@ -181,23 +172,58 @@ public:
   vtkGetMacro(OutputPointsPrecision, int);
   ///@}
 
+  ///@{
+  /**
+   * Set/get the length of the tip(s) for VTK_ARROW_GLYPH.
+   * If DoublePointed is on, the length is capped at 0.5.
+   * Default is 0.3.
+   */
+  vtkSetClampMacro(TipLength, double, 0.0, 1.0);
+  vtkGetMacro(TipLength, double);
+  ///@}
+
+  ///@{
+  /**
+   * Specify whether the arrow glyph should have two opposite tips.
+   * Only applicable for VTK_ARROW_GLYPH.
+   * Default is false.
+   */
+  vtkSetMacro(DoublePointed, bool);
+  vtkGetMacro(DoublePointed, bool);
+  vtkBooleanMacro(DoublePointed, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Specify whether the arrow glyph should have its tip(s) pointing inwards.
+   * Only applicable for VTK_ARROW_GLYPH.
+   * Default is false.
+   */
+  vtkSetMacro(PointInwards, bool);
+  vtkGetMacro(PointInwards, bool);
+  vtkBooleanMacro(PointInwards, bool);
+  ///@}
+
 protected:
   vtkGlyphSource2D();
   ~vtkGlyphSource2D() override = default;
 
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
-  double Center[3];
-  double Scale;
-  double Scale2;
-  double Color[3];
-  vtkTypeBool Filled;
-  vtkTypeBool Dash;
-  vtkTypeBool Cross;
-  int GlyphType;
-  double RotationAngle;
-  int Resolution;
-  int OutputPointsPrecision;
+  double Center[3] = { 0.0, 0.0, 0.0 };
+  double Scale = 1.0;
+  double Scale2 = 1.5;
+  double Color[3] = { 1.0, 1.0, 1.0 };
+  vtkTypeBool Filled = true;
+  vtkTypeBool Dash = false;
+  vtkTypeBool Cross = false;
+  int GlyphType = VTK_VERTEX_GLYPH;
+  double RotationAngle = 0.0;
+  int Resolution = 8;
+  int OutputPointsPrecision = SINGLE_PRECISION;
+  double TipLength = 0.3;
+  bool DoublePointed = false;
+  bool PointInwards = false;
 
   void TransformGlyph(vtkPoints* pts);
   void ConvertColor();
@@ -232,4 +258,5 @@ private:
   void operator=(const vtkGlyphSource2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

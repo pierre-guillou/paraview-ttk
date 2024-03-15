@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkControlPointsItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkControlPointsItem.h"
 #include "vtkAxis.h"
@@ -41,6 +29,7 @@
 // An internal class that is used as an item
 // to be placed below all other items
 // in order to hit when trying to add a point
+VTK_ABI_NAMESPACE_BEGIN
 class vtkControlPointsAddPointItem : public vtkPlot
 {
 public:
@@ -562,14 +551,14 @@ void vtkControlPointsItem::DrawPoint(vtkContext2D* painter, vtkIdType index)
       bounds[0] = vtkVector2f(-5 / scale[0], -3 / scale[1]);
       bounds[1] = vtkVector2f(bounds[1].GetX() + 10 / scale[0], bounds[1].GetY() + 10 / scale[1]);
 
-      // Pull the tooltip back in if it will go off the edge of the screen.
-      float maxX = (this->Scene->GetViewWidth() - position[0]) / scale[0];
+      // Pull the tooltip back in if it will go off the edge of the scene.
+      float maxX = (this->Scene->GetSceneWidth() - position[0]) / scale[0];
       if (bounds[0].GetX() >= maxX - bounds[1].GetX())
       {
         bounds[0].SetX(maxX - bounds[1].GetX());
       }
-      // Pull the tooltip down in if it will go off the edge of the screen.
-      float maxY = (this->Scene->GetViewHeight() - position[1]) / scale[1];
+      // Pull the tooltip down in if it will go off the edge of the scene.
+      float maxY = (this->Scene->GetSceneHeight() - position[1]) / scale[1];
       if (bounds[0].GetY() >= maxY - bounds[1].GetY())
       {
         bounds[0].SetY(maxY - bounds[1].GetY());
@@ -1753,3 +1742,4 @@ vtkVector2f vtkControlPointsItem::GetSelectionCenterOfMass() const
 {
   return this->GetCenterOfMass(this->Selection);
 }
+VTK_ABI_NAMESPACE_END

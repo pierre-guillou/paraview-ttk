@@ -2,6 +2,16 @@ NAME
   ParaView::VTKExtensionsFiltersGeneral
 LIBRARY_NAME
   vtkPVVTKExtensionsFiltersGeneral
+SPDX_LICENSE_IDENTIFIER
+  LicenseRef-BSD-3-Clause-Sandia-USGov
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
+SPDX_CUSTOM_LICENSE_FILE
+  LICENSE
+SPDX_CUSTOM_LICENSE_NAME
+  BSD-3-Clause-Sandia-USGov
+LICENSE_FILES
+  LICENSE
 GROUPS
   PARAVIEW_CANONICAL
 KIT
@@ -12,6 +22,8 @@ DEPENDS
   VTK::CommonExecutionModel
   VTK::FiltersGeneral
   VTK::FiltersParallel
+  VTK::FiltersGeometryPreview
+  ParaView::Versioning
 PRIVATE_DEPENDS
   ParaView::VTKExtensionsAMR
   ParaView::VTKExtensionsCore

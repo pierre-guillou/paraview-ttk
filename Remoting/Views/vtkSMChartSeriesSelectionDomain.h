@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMChartSeriesSelectionDomain
  * @brief   extends vtkSMChartSeriesListDomain to
@@ -41,6 +29,7 @@
 #ifndef vtkSMChartSeriesSelectionDomain_h
 #define vtkSMChartSeriesSelectionDomain_h
 
+#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" // needed for exports
 #include "vtkSMStringListDomain.h"
 
@@ -78,17 +67,21 @@ public:
    */
   int SetDefaultValues(vtkSMProperty*, bool use_unchecked_values) override;
 
-  //@{
+  ///@{
   /**
    * Get the default-mode that controls how SetDefaultValues() behaves.
    */
   vtkGetMacro(DefaultMode, int);
-  //@}
+  ///@}
 
   /**
    * Add/Remove series names to hide by default. These are regular expressions.
+   *
+   * @deprecated see vtkPVRepresentedArrayListSettings::SetChartsHiddenAttributes instead
    */
-  static void AddSeriesVisibilityDefault(const char* regex, bool value);
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "See vtkPVRepresentedArrayListSettings::SetChartsHiddenAttributes instead")
+  static void AddSeriesVisibilityDefault(const char*, bool) {}
 
   /**
    * Global flag to toggle between (a) the default behavior and
@@ -154,12 +147,12 @@ protected:
 
   int DefaultMode;
 
-  //@{
+  ///@{
   /**
    * Value used when DefaultMode==VALUE
    */
   char* DefaultValue;
-  //@}
+  ///@}
 
   /**
    * Specify if table components should be split.

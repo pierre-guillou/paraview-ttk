@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedPointVolumeRayCastMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFixedPointVolumeRayCastMapper
  * @brief   A fixed point mapper for volumes
@@ -65,6 +53,7 @@
 #define VTKKW_FP_MASK 0x7fff
 #define VTKKW_FP_SCALE 32767.0
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkMultiThreader;
 class vtkPlaneCollection;
@@ -741,4 +730,5 @@ inline int vtkFixedPointVolumeRayCastMapper::CheckIfCropped(unsigned int pos[3])
   return !(static_cast<unsigned int>(this->CroppingRegionFlags) & this->CroppingRegionMask[idx]);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

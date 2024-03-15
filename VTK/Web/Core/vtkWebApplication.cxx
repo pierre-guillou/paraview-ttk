@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWebApplication.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWebApplication.h"
 
 #include "vtkBase64Utilities.h"
@@ -41,6 +29,7 @@
 #include <map>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkWebApplication::vtkInternals
 {
 public:
@@ -205,7 +194,7 @@ vtkUnsignedCharArray* vtkWebApplication::StillRender(vtkRenderWindow* view, int 
   w2i->FixBoundaryOn();
   w2i->Update();
 
-  vtkImageData* image = vtkImageData::New();
+  auto image = vtkSmartPointer<vtkImageData>::New();
   image->ShallowCopy(w2i->GetOutput());
 
   // vtkTimerLog::MarkEndEvent("CaptureWindow");
@@ -472,3 +461,4 @@ std::string vtkWebApplication::GetObjectId(vtkObject* obj)
   oss << std::hex << static_cast<void*>(obj);
   return oss.str();
 }
+VTK_ABI_NAMESPACE_END

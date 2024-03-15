@@ -1,18 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    CustomLinkView.h
-  Language:  C++
-
-  Copyright 2007 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-=========================================================================*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2007 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 // .NAME CustomLinkView - Shows custom way of linking multiple views.
 //
 // .SECTION Description
@@ -36,6 +24,7 @@
 // Forward Qt class declarations
 class Ui_CustomLinkView;
 
+VTK_ABI_NAMESPACE_BEGIN
 // Forward VTK class declarations
 class vtkCommand;
 class vtkEventQtSlotConnect;
@@ -44,6 +33,7 @@ class vtkObject;
 class vtkQtTableView;
 class vtkQtTreeView;
 class vtkXMLTreeReader;
+VTK_ABI_NAMESPACE_END
 
 class CustomLinkView : public QMainWindow
 {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCompositeMultiProcessController.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeMultiProcessController
  *
@@ -126,7 +114,7 @@ public:
    */
   unsigned long AddRMICallback(vtkRMIFunctionType, void* localArg, int tag) override;
 
-  //@{
+  ///@{
   /**
    * These methods are a part of the newer API to add multiple rmi callbacks.
    * When the RMI is triggered, all the callbacks are called
@@ -140,7 +128,7 @@ public:
     return 1;
   }
   bool RemoveRMICallback(unsigned long observerTagId) override;
-  //@}
+  ///@}
 
   enum EventId
   {

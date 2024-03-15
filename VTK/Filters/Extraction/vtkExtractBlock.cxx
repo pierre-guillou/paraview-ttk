@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractBlock.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractBlock.h"
 
 #include "vtkDataObjectTreeIterator.h"
@@ -28,6 +16,7 @@
 #include <cassert>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkExtractBlock::vtkSet : public std::set<unsigned int>
 {
 };
@@ -114,7 +103,7 @@ int vtkExtractBlock::RequestData(vtkInformation* vtkNotUsed(request),
   if (this->Indices->find(0) != this->Indices->end())
   {
     // trivial case.
-    output->ShallowCopy(input);
+    output->CompositeShallowCopy(input);
     return 1;
   }
 
@@ -134,6 +123,10 @@ int vtkExtractBlock::RequestData(vtkInformation* vtkNotUsed(request),
   for (iter->InitTraversal(); !iter->IsDoneWithTraversal() && !activeIndices.empty();
        iter->GoToNextItem())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (activeIndices.find(iter->GetCurrentFlatIndex()) != activeIndices.end())
     {
       activeIndices.erase(iter->GetCurrentFlatIndex());
@@ -231,7 +224,7 @@ bool vtkExtractBlock::Prune(vtkMultiBlockDataSet* mblock)
       vtkMultiBlockDataSet::SafeDownCast(mblock->GetBlock(0));
     if (block0)
     {
-      mblock->ShallowCopy(block0);
+      mblock->CompositeShallowCopy(block0);
     }
   }
   return (oindex == 0);
@@ -251,3 +244,4 @@ void vtkExtractBlock::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PruneOutput: " << this->PruneOutput << endl;
   os << indent << "MaintainStructure: " << this->MaintainStructure << endl;
 }
+VTK_ABI_NAMESPACE_END

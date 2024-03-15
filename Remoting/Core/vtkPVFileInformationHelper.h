@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVFileInformationHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVFileInformationHelper
  * @brief   server side object used to gather information
@@ -40,7 +28,7 @@ public:
   vtkTypeMacro(vtkPVFileInformationHelper, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the path to the directory/file whose information we are
    * interested in. This is ignored when SpecialDirectories is set
@@ -48,9 +36,9 @@ public:
    */
   vtkSetStringMacro(Path);
   vtkGetStringMacro(Path);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the current working directory. This is needed if Path is
    * relative. The relative path will be converted to absolute path using the
@@ -60,9 +48,9 @@ public:
    */
   vtkSetStringMacro(WorkingDirectory);
   vtkGetStringMacro(WorkingDirectory);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set if the we should attempt to get the information
    * of contents if Path is a directory.
@@ -72,9 +60,9 @@ public:
   vtkGetMacro(DirectoryListing, int);
   vtkSetMacro(DirectoryListing, int);
   vtkBooleanMacro(DirectoryListing, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set if the query is for special directories.
    * Off by default. If set to true, Path and DirectoryListing
@@ -86,9 +74,19 @@ public:
   vtkGetMacro(SpecialDirectories, int);
   vtkSetMacro(SpecialDirectories, int);
   vtkBooleanMacro(SpecialDirectories, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Get/Set if special directories includes the Examples placeholder.
+   * On by default.
+   */
+  vtkGetMacro(ExamplesInSpecialDirectories, bool);
+  vtkSetMacro(ExamplesInSpecialDirectories, bool);
+  vtkBooleanMacro(ExamplesInSpecialDirectories, bool);
+  ///@}
+
+  ///@{
   /**
    * When on, while listing a directory,
    * whenever a group of files is encountered, we verify
@@ -98,7 +96,7 @@ public:
    */
   vtkGetMacro(FastFileTypeDetection, int);
   vtkSetMacro(FastFileTypeDetection, int);
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -112,12 +110,12 @@ public:
   vtkBooleanMacro(GroupFileSequences, bool);
   ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the platform specific path separator.
    */
   vtkGetStringMacro(PathSeparator);
-  //@}
+  ///@}
 
   /**
    * Returns if this->Path is a readable file.
@@ -129,7 +127,7 @@ public:
    */
   bool GetActiveFileIsDirectory();
 
-  //@{
+  ///@{
   /**
    * When off, while listing a directory we skip the expensive fstat call on every file
    * and instead return only their names and basic information about them. Defaults to off.
@@ -137,7 +135,7 @@ public:
    */
   vtkGetMacro(ReadDetailedFileInformation, bool);
   vtkSetMacro(ReadDetailedFileInformation, bool);
-  //@}
+  ///@}
 
 protected:
   vtkPVFileInformationHelper();
@@ -149,6 +147,7 @@ protected:
   int SpecialDirectories;
   int FastFileTypeDetection;
   bool GroupFileSequences;
+  bool ExamplesInSpecialDirectories;
 
   bool ReadDetailedFileInformation;
   char* PathSeparator;

@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTypedArray.h
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 /**
  * @class   vtkTypedArray
@@ -49,6 +32,7 @@
 
 #include "vtkArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkArrayCoordinates;
 
 template <typename T>
@@ -66,16 +50,16 @@ public:
 
   // vtkArray API
   inline vtkVariant GetVariantValue(const vtkArrayCoordinates& coordinates) override;
-  inline vtkVariant GetVariantValueN(const SizeT n) override;
+  inline vtkVariant GetVariantValueN(SizeT n) override;
   inline void SetVariantValue(
     const vtkArrayCoordinates& coordinates, const vtkVariant& value) override;
-  inline void SetVariantValueN(const SizeT n, const vtkVariant& value) override;
+  inline void SetVariantValueN(SizeT n, const vtkVariant& value) override;
   inline void CopyValue(vtkArray* source, const vtkArrayCoordinates& source_coordinates,
     const vtkArrayCoordinates& target_coordinates) override;
-  inline void CopyValue(vtkArray* source, const SizeT source_index,
-    const vtkArrayCoordinates& target_coordinates) override;
-  inline void CopyValue(vtkArray* source, const vtkArrayCoordinates& source_coordinates,
-    const SizeT target_index) override;
+  inline void CopyValue(
+    vtkArray* source, SizeT source_index, const vtkArrayCoordinates& target_coordinates) override;
+  inline void CopyValue(
+    vtkArray* source, const vtkArrayCoordinates& source_coordinates, SizeT target_index) override;
 
   ///@{
   /**
@@ -96,7 +80,7 @@ public:
    * values are visited is undefined, but is guaranteed to match the
    * order used by vtkArray::GetCoordinatesN().
    */
-  virtual const T& GetValueN(const SizeT n) = 0;
+  virtual const T& GetValueN(SizeT n) = 0;
 
   ///@{
   /**
@@ -117,7 +101,7 @@ public:
    * values are visited is undefined, but is guaranteed to match the
    * order used by vtkArray::GetCoordinatesN().
    */
-  virtual void SetValueN(const SizeT n, const T& value) = 0;
+  virtual void SetValueN(SizeT n, const T& value) = 0;
 
 protected:
   vtkTypedArray() = default;
@@ -128,6 +112,7 @@ private:
   void operator=(const vtkTypedArray&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkTypedArray.txx"
 
 #endif

@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRandomPool.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRandomPool.h"
 
 #include "vtkArrayDispatch.h"
@@ -27,8 +16,10 @@
 #include <algorithm>
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRandomPool);
 vtkCxxSetObjectMacro(vtkRandomPool, Sequence, vtkRandomSequence);
+VTK_ABI_NAMESPACE_END
 
 //------------------------------------------------------------------------------
 // Static methods to populate a data array.
@@ -137,6 +128,8 @@ struct PopulateDAComponentLauncher
 };
 
 } // anonymous namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 vtkRandomPool::vtkRandomPool()
@@ -362,3 +355,4 @@ void vtkRandomPool::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Number Of Components: " << this->NumberOfComponents << "\n";
   os << indent << "Chunk Size: " << this->ChunkSize << "\n";
 }
+VTK_ABI_NAMESPACE_END

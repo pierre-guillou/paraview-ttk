@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProp3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProp3D
  * @brief   represents an 3D object for placement in a rendered scene
@@ -38,6 +26,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkWeakPointer.h"         // For vtkWeakPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLinearTransform;
 class vtkMatrix4x4;
 class vtkRenderer;
@@ -70,7 +59,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   ///@}
 
   virtual void SetPosition(double pos[3]) { this->SetPosition(pos[0], pos[1], pos[2]); }
@@ -95,7 +84,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   virtual void SetOrigin(const double pos[3]) { this->SetOrigin(pos[0], pos[1], pos[2]); }
   vtkGetVectorMacro(Origin, double, 3);
   ///@}
@@ -117,7 +106,7 @@ public:
       this->Modified();
       this->IsIdentity = 0;
     }
-  };
+  }
   virtual void SetScale(double scale[3]) { this->SetScale(scale[0], scale[1], scale[2]); }
   vtkGetVectorMacro(Scale, double, 3);
   ///@}
@@ -344,7 +333,7 @@ public:
   /**
    * Is the matrix for this actor identity
    */
-  vtkGetMacro(IsIdentity, int);
+  vtkGetMacro(IsIdentity, vtkTypeBool);
   ///@}
 
   ///@{
@@ -404,7 +393,7 @@ protected:
   vtkTransform* Transform;
   double Bounds[6];
   vtkProp3D* CachedProp3D; // support the PokeMatrix() method
-  int IsIdentity;
+  vtkTypeBool IsIdentity;
 
   int CoordinateSystemDevice;
   CoordinateSystems CoordinateSystem = WORLD;
@@ -416,4 +405,5 @@ private:
   void operator=(const vtkProp3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWin32RenderWindowInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -49,10 +37,12 @@
 // sees it in the friend decl in vtkWin32RenderWindowInteractor, but
 // GCC needs to see the declaration beforehand. It has to do with the
 // CALLBACK attribute.
+VTK_ABI_NAMESPACE_BEGIN
 VTKRENDERINGUI_EXPORT LRESULT CALLBACK vtkHandleMessage(HWND, UINT, WPARAM, LPARAM);
 VTKRENDERINGUI_EXPORT LRESULT CALLBACK vtkHandleMessage2(
   HWND, UINT, WPARAM, LPARAM, class vtkWin32RenderWindowInteractor*);
 
+VTK_ABI_NAMESPACE_END
 #include "vtkActor.h"
 #include "vtkCommand.h"
 #include "vtkObjectFactory.h"
@@ -79,10 +69,11 @@ typedef bool(WINAPI* RegisterTouchWindowType)(HWND, ULONG);
 typedef bool(WINAPI* GetTouchInputInfoType)(HTOUCHINPUT, UINT, PTOUCHINPUT, int);
 typedef bool(WINAPI* CloseTouchInputHandleType)(HTOUCHINPUT);
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWin32RenderWindowInteractor);
 
 void (*vtkWin32RenderWindowInteractor::ClassExitMethod)(void*) = (void (*)(void*)) nullptr;
-void* vtkWin32RenderWindowInteractor::ClassExitMethodArg = (void*)nullptr;
+void* vtkWin32RenderWindowInteractor::ClassExitMethodArg = nullptr;
 void (*vtkWin32RenderWindowInteractor::ClassExitMethodArgDelete)(void*) = (void (*)(void*)) nullptr;
 
 //------------------------------------------------------------------------------
@@ -1056,3 +1047,4 @@ void vtkWin32RenderWindowInteractor::ExitCallback()
 
   this->TerminateApp();
 }
+VTK_ABI_NAMESPACE_END

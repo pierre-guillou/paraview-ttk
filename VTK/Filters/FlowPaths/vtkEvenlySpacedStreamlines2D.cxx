@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkEvenlySpacedStreamlines2D.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEvenlySpacedStreamlines2D.h"
 
 #include "vtkAMRInterpolatedVelocityField.h"
@@ -53,6 +41,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <iostream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkEvenlySpacedStreamlines2D);
 vtkCxxSetObjectMacro(vtkEvenlySpacedStreamlines2D, Integrator, vtkInitialValueProblemSolver);
 vtkCxxSetObjectMacro(
@@ -157,6 +146,7 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
   // we end streamlines after one loop iteration
   streamTracer->AddCustomTerminationCallback(&vtkEvenlySpacedStreamlines2D::IsStreamlineLooping,
     this, vtkStreamTracer::FIXED_REASONS_FOR_TERMINATION_COUNT);
+  streamTracer->SetContainerAlgorithm(this);
   streamTracer->Update();
 
   auto streamline = vtkSmartPointer<vtkPolyData>::New();
@@ -167,6 +157,7 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
   append->UserManagedInputsOn();
   append->SetNumberOfInputs(2);
   output->ShallowCopy(streamline);
+  append->SetContainerAlgorithm(this);
   int currentSeedId = 1;
   int processedSeedId = 0;
 
@@ -195,6 +186,10 @@ int vtkEvenlySpacedStreamlines2D::RequestData(vtkInformation* vtkNotUsed(request
       if (progress > lastProgress)
       {
         this->UpdateProgress(progress);
+        if (this->CheckAbort())
+        {
+          break;
+        }
         lastProgress = progress;
       }
     }
@@ -869,3 +864,4 @@ void vtkEvenlySpacedStreamlines2D::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Integrator: " << this->Integrator << endl;
   os << indent << "Vorticity computation: " << (this->ComputeVorticity ? " On" : " Off") << endl;
 }
+VTK_ABI_NAMESPACE_END

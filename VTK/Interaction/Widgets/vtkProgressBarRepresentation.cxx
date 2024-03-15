@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProgressBarRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProgressBarRepresentation.h"
 
 #include "vtkActor2D.h"
@@ -28,6 +16,7 @@
 #include "vtkTransformPolyDataFilter.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProgressBarRepresentation);
 
 vtkProgressBarRepresentation::vtkProgressBarRepresentation()
@@ -295,3 +284,4 @@ void vtkProgressBarRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BackgroundColor: " << this->BackgroundColor[0] << " " << this->BackgroundColor[1]
      << " " << this->BackgroundColor[2] << "\n";
 }
+VTK_ABI_NAMESPACE_END

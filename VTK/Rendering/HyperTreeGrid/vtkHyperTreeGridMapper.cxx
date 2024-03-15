@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridMapper.h"
 
 #include "vtkActor.h"
@@ -31,6 +19,7 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 vtkSmartPointer<vtkCompositeDataSet> EnsureComposite(vtkDataObject* dobj)
@@ -45,7 +34,7 @@ vtkSmartPointer<vtkCompositeDataSet> EnsureComposite(vtkDataObject* dobj)
   toComposite->Update();
   auto outCds = vtkCompositeDataSet::SafeDownCast(toComposite->GetOutputDataObject(0));
   auto cds = vtkSmartPointer<vtkCompositeDataSet>::Take(outCds->NewInstance());
-  cds->ShallowCopy(outCds);
+  cds->CompositeShallowCopy(outCds);
   return cds;
 }
 
@@ -217,3 +206,4 @@ int vtkHyperTreeGridMapper::FillInputPortInformation(int vtkNotUsed(port), vtkIn
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

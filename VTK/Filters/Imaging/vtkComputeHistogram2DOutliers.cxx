@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkComputeHistogram2DOutliers.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkComputeHistogram2DOutliers.h"
 //------------------------------------------------------------------------------
 #include "vtkCollection.h"
@@ -37,6 +21,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkSortDataArray.h"
 #include "vtkTable.h"
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkComputeHistogram2DOutliers);
 //------------------------------------------------------------------------------
 vtkComputeHistogram2DOutliers::vtkComputeHistogram2DOutliers()
@@ -128,7 +113,7 @@ int vtkComputeHistogram2DOutliers::RequestData(vtkInformation* vtkNotUsed(reques
 
   // compute the thresholds that contain outliers
   vtkSmartPointer<vtkCollection> outlierThresholds = vtkSmartPointer<vtkCollection>::New();
-  if (!this->ComputeOutlierThresholds(histograms, outlierThresholds))
+  if (!this->CheckAbort() && !this->ComputeOutlierThresholds(histograms, outlierThresholds))
   {
     vtkErrorMacro("Error during outlier bin computation.");
     return 0;
@@ -136,8 +121,9 @@ int vtkComputeHistogram2DOutliers::RequestData(vtkInformation* vtkNotUsed(reques
 
   // take the computed outlier thresholds and extract the input table rows that match
   vtkSmartPointer<vtkIdTypeArray> outlierRowIds = vtkSmartPointer<vtkIdTypeArray>::New();
-  if (outlierThresholds->GetNumberOfItems() >= 0 &&
-    !this->FillOutlierIds(inData, outlierThresholds, outlierRowIds, outputTable))
+  if (!this->CheckAbort() &&
+    (outlierThresholds->GetNumberOfItems() >= 0 &&
+      !this->FillOutlierIds(inData, outlierThresholds, outlierRowIds, outputTable)))
   {
     vtkErrorMacro("Error during outlier row retrieval.");
     return 0;
@@ -251,6 +237,10 @@ int vtkComputeHistogram2DOutliers::ComputeOutlierThresholds(
   int numOutliers = 0;
   while (pctThreshold < 1.0)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     int tmpNumOutliers = 0;
     vtkSmartPointer<vtkCollection> tmpThresholdCollection = vtkSmartPointer<vtkCollection>::New();
     // compute outlier ids in all of the histograms
@@ -364,6 +354,10 @@ int vtkComputeHistogram2DOutliers::FillOutlierIds(
   vtkSmartPointer<vtkIdList> uniqueRowIds = vtkSmartPointer<vtkIdList>::New();
   for (int i = 0; i < numColumns - 1; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* col1 = vtkArrayDownCast<vtkDataArray>(data->GetColumn(i));
     vtkDataArray* col2 = vtkArrayDownCast<vtkDataArray>(data->GetColumn(i + 1));
 
@@ -419,3 +413,4 @@ vtkTable* vtkComputeHistogram2DOutliers::GetOutputTable()
     this->Update();
   return vtkTable::SafeDownCast(this->GetOutputDataObject(OUTPUT_SELECTED_TABLE_DATA));
 }
+VTK_ABI_NAMESPACE_END

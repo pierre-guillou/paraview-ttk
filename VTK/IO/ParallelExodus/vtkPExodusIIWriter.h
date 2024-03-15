@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExodusIIWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPExodusIIWriter
@@ -76,6 +61,7 @@
 #include <string> // STL Header
 #include <vector> // STL Header
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkModelMetadata;
 class vtkDoubleArray;
 class vtkIntArray;
@@ -109,4 +95,5 @@ private:
   void operator=(const vtkPExodusIIWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

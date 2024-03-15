@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeoMapFetcherMesh.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGeoMapFetcherMesh
@@ -40,23 +28,23 @@ public:
   vtkTypeMacro(vtkGeoMapFetcherMesh, vtkStructuredGridAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the mesh projection.
    */
   vtkSetClampMacro(MeshProjection, int, 0, vtkGeoMapConvertFilter::Custom);
   vtkGetMacro(MeshProjection, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the custom PROJ.4 mesh projection string.
    */
   vtkGetMacro(CustomMeshProjection, std::string);
   vtkSetMacro(CustomMeshProjection, std::string);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forward setter to the internal vtkGeoMapFetcher object.
    */
@@ -106,7 +94,7 @@ public:
     this->Fetcher->SetAPIKey(_arg);
     this->Modified();
   }
-  //@}
+  ///@}
 
 protected:
   vtkGeoMapFetcherMesh() = default;

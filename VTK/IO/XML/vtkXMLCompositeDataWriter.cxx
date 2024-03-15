@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkXMLCompositeDataWriter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLCompositeDataWriter.h"
 
 #include "vtkCallbackCommand.h"
@@ -47,6 +36,7 @@
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLCompositeDataWriterInternals
 {
   // These are used to by GetDefaultFileExtension(). This helps us avoid
@@ -256,7 +246,7 @@ int vtkXMLCompositeDataWriter::WriteNonCompositeData(
   vtkXMLWriter* writer = this->GetWriter(myWriterIndex);
   if (!writer)
   {
-    return 0;
+    return 1;
   }
 
   vtkDataSet* curDS = vtkDataSet::SafeDownCast(dObj);
@@ -613,3 +603,4 @@ void vtkXMLCompositeDataWriter::RemoveWrittenFiles(const char* SubDirectory)
   this->DeleteAFile();
   this->InputInformation = nullptr;
 }
+VTK_ABI_NAMESPACE_END

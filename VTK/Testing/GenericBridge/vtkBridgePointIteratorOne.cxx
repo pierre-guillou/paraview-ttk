@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBridgePointIteratorOne.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkBridgePointIteratorOne - Implementation of vtkGenericPointIterator.
 // .SECTION Description
 // It is just an example that show how to implement the Generic. It is also
@@ -27,6 +15,7 @@
 #include "vtkDataSet.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBridgePointIteratorOne);
 
 //------------------------------------------------------------------------------
@@ -130,3 +119,4 @@ void vtkBridgePointIteratorOne::InitWithOnePoint(vtkBridgeDataSet* ds, vtkIdType
   vtkSetObjectBodyMacro(DataSet, vtkBridgeDataSet, ds);
   this->Id = id;
 }
+VTK_ABI_NAMESPACE_END

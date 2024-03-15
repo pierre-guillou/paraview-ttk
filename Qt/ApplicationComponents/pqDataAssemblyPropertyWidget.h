@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqDataAssemblyPropertyWidget.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqDataAssemblyPropertyWidget_h
 #define pqDataAssemblyPropertyWidget_h
 
@@ -84,8 +56,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * <Proxy ...>
  *   <StringVectorProperty name="Assembly"
  *                         command="SetAssemblyName"
- *                         number_of_elements="1"
- *                         default_values="Hierarchy">
+ *                         number_of_elements="1">
  *     <DataAssemblyListDomain name="data_assembly_list">
  *       <RequiredProperties>
  *         <Property function="Input" name="Input" />
@@ -207,7 +178,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqDataAssemblyPropertyWidget : public pqPro
   Q_PROPERTY(QList<QVariant> selectorOpacities READ selectorOpacitiesAsVariantList WRITE
       setSelectorOpacities NOTIFY opacitiesChanged);
 
-  //@{
+  ///@{
   /**
    * These are similar to the selector-based variants, except, instead of a
    * selector, the composite index is used. This is used when supported
@@ -219,7 +190,7 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqDataAssemblyPropertyWidget : public pqPro
       setCompositeIndexOpacities NOTIFY opacitiesChanged);
   Q_PROPERTY(QList<QVariant> compositeIndexColors READ compositeIndexColorsAsVariantList WRITE
       setCompositeIndexColors NOTIFY colorsChanged);
-  //@}
+  ///@}
 public:
   pqDataAssemblyPropertyWidget(
     vtkSMProxy* smproxy, vtkSMPropertyGroup* smgroup, QWidget* parent = nullptr);
@@ -227,7 +198,7 @@ public:
     vtkSMProxy* smproxy, vtkSMProperty* smproperty, QWidget* parent = nullptr);
   ~pqDataAssemblyPropertyWidget() override;
 
-  //@{
+  ///@{
   /**
    * API for getting/setting selected/chosen path strings.
    */
@@ -235,17 +206,17 @@ public:
   const QStringList& selectors() const;
   void setSelectors(const QList<QVariant>& paths);
   QList<QVariant> selectorsAsVariantList() const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * API for getting/settings composite indices.
    */
   void setCompositeIndices(const QList<QVariant>& values);
   QList<QVariant> compositeIndicesAsVariantList() const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * API to get/set colors. Colors are specified either as a list of selectors
    * followed by corresponding RGB color or list of composite indices followed by
@@ -256,9 +227,9 @@ public:
 
   void setSelectorColors(const QList<QVariant>& values);
   QList<QVariant> selectorColorsAsVariantList() const;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * API to get/set opacities. Opacities are specified either as a list of selectors
    * followed by corresponding opacity or list of composite indices followed by
@@ -269,7 +240,7 @@ public:
 
   void setSelectorOpacities(const QList<QVariant>& values);
   QList<QVariant> selectorOpacitiesAsVariantList() const;
-  //@}
+  ///@}
 
   void updateWidget(bool showing_advanced_properties) override;
 

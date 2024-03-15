@@ -1,18 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVRenderView.cxx
-
-  Copyright (c) Kitware, Inc.
-  Copyright (c) 2017, NVIDIA CORPORATION.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2017, NVIDIA CORPORATION
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVRenderView.h"
 
 #include "vtk3DWidgetRepresentation.h"
@@ -20,6 +8,8 @@
 #include "vtkAlgorithmOutput.h"
 #include "vtkBoundingBox.h"
 #include "vtkCamera.h"
+#include "vtkCameraOrientationRepresentation.h"
+#include "vtkCameraOrientationWidget.h"
 #include "vtkCollection.h"
 #include "vtkCommand.h"
 #include "vtkCommunicator.h"
@@ -39,6 +29,7 @@
 #include "vtkInteractorStyleDrawPolygon.h"
 #include "vtkInteractorStyleRubberBand3D.h"
 #include "vtkInteractorStyleRubberBandZoom.h"
+#include "vtkLegendScaleActor.h"
 #include "vtkLight.h"
 #include "vtkLightKit.h"
 #include "vtkMPIMoveData.h"
@@ -118,6 +109,7 @@ namespace
 {
 struct ValuePassStateT
 {
+  bool CameraOrientationWidgetVisibility;
   bool OrientationAxesVisibility;
   bool AnnotationVisibility;
   bool CenterAxesVisibility;
@@ -158,6 +150,7 @@ public:
     (void)prop;
     (void)rep;
   }
+  void ClearSelectionProps() { this->PropMap.clear(); }
 
   vtkPVDataRepresentation* GetRepresentationForPropId(int id)
   {
@@ -372,7 +365,7 @@ vtkPVRenderView::vtkPVRenderView()
   this->InteractionMode = INTERACTION_MODE_UNINTIALIZED;
   this->LastSelection = nullptr;
   this->UseInteractiveRenderingForScreenshots = false;
-  this->Selector = vtkPVHardwareSelector::New();
+  this->Selector = vtkSmartPointer<vtkPVHardwareSelector>::New();
   this->Selector->SetView(this); // not reference counted.
   this->NeedsOrderedCompositing = false;
   this->RenderEmptyImages = false;
@@ -482,6 +475,9 @@ vtkPVRenderView::vtkPVRenderView()
     observer3->Delete();
   }
 
+  this->CameraOrientationWidget->SetParentRenderer(this->GetRenderer());
+  this->CameraOrientationWidget->AnimateOff(); // animation doesn't work with QVTKOpenGL*Widget.
+
   this->OrientationWidget->SetParentRenderer(this->GetRenderer());
   this->OrientationWidget->SetViewport(0, 0, 0.25, 0.25);
 
@@ -533,7 +529,6 @@ vtkPVRenderView::~vtkPVRenderView()
   this->GetRenderer()->SetRenderWindow(nullptr);
 
   this->SetLastSelection(nullptr);
-  this->Selector->Delete();
   this->SynchronizedRenderers->Delete();
   this->NonCompositedRenderer->Delete();
   this->RenderView->Delete();
@@ -668,15 +663,25 @@ void vtkPVRenderView::SetupInteractor(vtkRenderWindowInteractor* iren)
   if (this->Interactor != iren)
   {
     this->Interactor = iren;
+
     this->OrientationWidget->SetInteractor(this->Interactor);
+    this->CameraOrientationWidget->SetInteractor(this->Interactor);
+
     if (this->Interactor)
     {
       this->Interactor->SetRenderWindow(this->GetRenderWindow());
+
+      // Enable camera manipulator
+      this->CameraOrientationWidget->On();
 
       // this will set the interactor style.
       int mode = this->InteractionMode;
       this->InteractionMode = INTERACTION_MODE_UNINTIALIZED;
       this->SetInteractionMode(mode);
+    }
+    else
+    {
+      this->CameraOrientationWidget->Off();
     }
 
     this->Modified();
@@ -731,6 +736,32 @@ void vtkPVRenderView::SetInteractionMode(int mode)
           this->Interactor->SetInteractorStyle(this->RubberBandZoom);
         }
         break;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetLegendGridActor(vtkLegendScaleActor* gridActor)
+{
+  if (this->LegendGridActor != gridActor)
+  {
+    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler.GetPointer());
+    if (this->LegendGridActor)
+    {
+      this->GetRenderer()->RemoveViewProp(this->LegendGridActor);
+      culler->DoNotCullList.erase(this->LegendGridActor);
+    }
+    this->LegendGridActor = gridActor;
+    if (this->LegendGridActor)
+    {
+      this->LegendGridActor->SetUseFontSizeFromProperty(true);
+      this->LegendGridActor->SetAdjustLabels(true);
+      this->LegendGridActor->SetLabelModeToXYCoordinates();
+      this->LegendGridActor->LegendVisibilityOff();
+      this->LegendGridActor->SetCornerOffsetFactor(1);
+
+      this->GetRenderer()->AddViewProp(this->LegendGridActor);
+      culler->DoNotCullList.insert(this->LegendGridActor);
     }
   }
 }
@@ -1162,12 +1193,7 @@ void vtkPVRenderView::ResetCamera()
   // vtkRenderer::ResetCameraClippingPlanes() with the given bounds.
   double bounds[6];
   this->GeometryBounds.GetBounds(bounds);
-  if (!this->LockBounds)
-  {
-    this->RenderView->GetRenderer()->ResetCamera(bounds);
-  }
-
-  this->InvokeEvent(vtkCommand::ResetCameraEvent);
+  this->ResetCamera(bounds);
 }
 
 //----------------------------------------------------------------------------
@@ -1185,7 +1211,7 @@ void vtkPVRenderView::ResetCamera(double bounds[6])
 
 //----------------------------------------------------------------------------
 // Note this is called on all processes.
-void vtkPVRenderView::ResetCameraScreenSpace()
+void vtkPVRenderView::ResetCameraScreenSpace(double offsetRatio)
 {
   // Since ResetCameraScreenSpace() is accessible via a property on the view proxy, this
   // method gets called directly (and on on the vtkSMRenderViewProxy). Hence
@@ -1197,21 +1223,17 @@ void vtkPVRenderView::ResetCameraScreenSpace()
   // vtkRenderer::ResetCameraClippingPlanes() with the given bounds.
   double bounds[6];
   this->GeometryBounds.GetBounds(bounds);
-  if (!this->LockBounds)
-  {
-    this->RenderView->GetRenderer()->ResetCameraScreenSpace(bounds);
-  }
-
-  this->InvokeEvent(vtkCommand::ResetCameraEvent);
+  this->ResetCameraScreenSpace(bounds, offsetRatio);
 }
 
 //----------------------------------------------------------------------------
 // Note this is called on all processes.
-void vtkPVRenderView::ResetCameraScreenSpace(double bounds[6])
+void vtkPVRenderView::ResetCameraScreenSpace(double* bounds, double offsetRatio)
 {
   if (!this->LockBounds)
   {
-    this->RenderView->GetRenderer()->ResetCameraScreenSpace(bounds);
+    this->RenderView->GetRenderer()->ResetCameraScreenSpace(
+      bounds, static_cast<double>(offsetRatio));
   }
   this->InvokeEvent(vtkCommand::ResetCameraEvent);
 }
@@ -1675,6 +1697,8 @@ void vtkPVRenderView::Render(bool interactive, bool skip_rendering)
   }
   this->OrientationWidget->GetRenderer()->SetUseFXAA(use_fxaa);
   this->OrientationWidget->GetRenderer()->SetFXAAOptions(this->FXAAOptions.Get());
+  this->CameraOrientationWidget->GetDefaultRenderer()->SetUseFXAA(use_fxaa);
+  this->CameraOrientationWidget->GetDefaultRenderer()->SetFXAAOptions(this->FXAAOptions.Get());
 
   // Configure SSAO
   this->RenderView->GetRenderer()->SetUseSSAO(this->UseSSAO);
@@ -2366,6 +2390,114 @@ void vtkPVRenderView::SetOrientationAxesOutlineColor(double r, double g, double 
   this->OrientationWidget->SetOutlineColor(r, g, b);
 }
 
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesXColor(double r, double g, double b)
+{
+  this->OrientationWidget->SetXAxisColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesYColor(double r, double g, double b)
+{
+  this->OrientationWidget->SetYAxisColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesZColor(double r, double g, double b)
+{
+  this->OrientationWidget->SetZAxisColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesXVisibility(bool vis)
+{
+  this->OrientationWidget->SetXAxisVisibility(vis);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesYVisibility(bool vis)
+{
+  this->OrientationWidget->SetYAxisVisibility(vis);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesZVisibility(bool vis)
+{
+  this->OrientationWidget->SetZAxisVisibility(vis);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesXLabelText(const char* text)
+{
+  this->OrientationWidget->SetXAxisLabelText(text);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesYLabelText(const char* text)
+{
+  this->OrientationWidget->SetYAxisLabelText(text);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetOrientationAxesZLabelText(const char* text)
+{
+  this->OrientationWidget->SetZAxisLabelText(text);
+}
+
+//*****************************************************************
+// Forwarded to camera orientation widget.
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCameraOrientationWidgetVisibility(bool visible)
+{
+  this->CameraOrientationWidget->GetRepresentation()->SetVisibility(visible);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCameraOrientationWidgetSize(int size)
+{
+  auto rep = vtkCameraOrientationRepresentation::SafeDownCast(
+    this->CameraOrientationWidget->GetRepresentation());
+  rep->SetSize(size, size);
+  this->CameraOrientationWidget->SquareResize();
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCameraOrientationWidgetPadding(int padding[2])
+{
+  auto rep = vtkCameraOrientationRepresentation::SafeDownCast(
+    this->CameraOrientationWidget->GetRepresentation());
+  rep->SetPadding(padding);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetCameraOrientationWidgetAnchor(int anchor)
+{
+  auto rep = vtkCameraOrientationRepresentation::SafeDownCast(
+    this->CameraOrientationWidget->GetRepresentation());
+  if (anchor >= 0 && anchor <= 3)
+  {
+    auto corner = static_cast<vtkCameraOrientationRepresentation::AnchorType>(anchor);
+    switch (corner)
+    {
+      case vtkCameraOrientationRepresentation::AnchorType::LowerLeft:
+        rep->AnchorToLowerLeft();
+        break;
+      case vtkCameraOrientationRepresentation::AnchorType::UpperLeft:
+        rep->AnchorToUpperLeft();
+        break;
+      case vtkCameraOrientationRepresentation::AnchorType::LowerRight:
+        rep->AnchorToLowerRight();
+        break;
+      case vtkCameraOrientationRepresentation::AnchorType::UpperRight:
+        rep->AnchorToUpperRight();
+        break;
+      default:
+        break;
+    }
+  }
+  this->CameraOrientationWidget->SquareResize();
+}
+
 //*****************************************************************
 // Forwarded to center axes.
 //----------------------------------------------------------------------------
@@ -2693,6 +2825,35 @@ void vtkPVRenderView::ConfigureTexture(vtkTexture* texture)
       texture->InterpolateOn();
     }
   }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetupAndSetRenderer(vtkRenderer* ren)
+{
+  // XXX We can consider to redesign the class in the future
+  // to find a cleaner way to change the renderer.
+  // All the following settings corresponds to those made on
+  // the initial renderer in the constructor.
+  ren->GetActiveCamera()->ParallelProjectionOff();
+  ren->SetUseDepthPeeling(1);
+  ren->SetUseDepthPeelingForVolumes(1);
+  ren->SetAutomaticLightCreation(0);
+
+  ren->AddCuller(this->Culler);
+  ren->AddActor(this->CenterAxes);
+  ren->AddActor(this->Skybox);
+
+  vtkMemberFunctionCommand<vtkPVRenderView>* observer =
+    vtkMemberFunctionCommand<vtkPVRenderView>::New();
+  observer->SetCallback(*this, &vtkPVRenderView::ResetCameraClippingRange);
+  ren->AddObserver(vtkCommand::ResetCameraClippingRangeEvent, observer);
+  observer->FastDelete();
+
+  this->RenderView->SetRenderer(ren);
+  this->SynchronizedRenderers->SetRenderer(ren);
+  this->CameraOrientationWidget->SetParentRenderer(ren);
+  this->OrientationWidget->SetParentRenderer(ren);
+  this->NonCompositedRenderer->SetActiveCamera(ren->GetActiveCamera());
 }
 
 //----------------------------------------------------------------------------
@@ -3136,6 +3297,8 @@ bool vtkPVRenderView::BeginValuePassForRendering(
   // hide various annotations since they interfere with value pass;
   // preserve state so we can store it.
   internals.ValuePassState.reset(new ValuePassStateT());
+  internals.ValuePassState->CameraOrientationWidgetVisibility =
+    this->CameraOrientationWidget->GetRepresentation()->GetVisibility();
   internals.ValuePassState->OrientationAxesVisibility = this->OrientationWidget->GetVisibility();
   internals.ValuePassState->CenterAxesVisibility = (this->CenterAxes->GetVisibility() != 0);
   internals.ValuePassState->AnnotationVisibility = this->ShowAnnotation;
@@ -3174,6 +3337,8 @@ void vtkPVRenderView::EndValuePassForRendering()
   internals.SavedRenderPass = nullptr;
 
   // restore annotation state
+  this->SetCameraOrientationWidgetVisibility(
+    internals.ValuePassState->CameraOrientationWidgetVisibility);
   this->SetOrientationAxesVisibility(internals.ValuePassState->OrientationAxesVisibility);
   this->SetCenterAxesVisibility(internals.ValuePassState->CenterAxesVisibility);
   this->SetShowAnnotation(internals.ValuePassState->AnnotationVisibility);
@@ -3648,4 +3813,14 @@ void vtkPVRenderView::SynchronizeMaximumIds(vtkIdType* maxPointId, vtkIdType* ma
     *maxPointId = static_cast<vtkIdType>(ptid);
     *maxCellId = static_cast<vtkIdType>(cellid);
   }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetHardwareSelector(vtkPVHardwareSelector* selector)
+{
+  // Clear selection props registered with the previous hardware selector
+  this->Internals->ClearSelectionProps();
+
+  this->Selector = selector;
+  this->Selector->SetView(this); // not reference counted.
 }

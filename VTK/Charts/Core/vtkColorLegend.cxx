@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkColorLegend.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkColorLegend.h"
 #include "vtkAxis.h"
@@ -29,6 +17,7 @@
 #include "vtkTransform2D.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkColorLegend);
 
 //------------------------------------------------------------------------------
@@ -367,3 +356,4 @@ bool vtkColorLegend::MouseMoveEvent(const vtkContextMouseEvent& mouse)
   this->UpdateAxisPosition();
   return retval;
 }
+VTK_ABI_NAMESPACE_END

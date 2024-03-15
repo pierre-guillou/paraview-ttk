@@ -26,12 +26,17 @@ for your operating system. It will be built with the Python wrapping, MPI capabi
 
  * If you are using a Linux distribution, please see [the Linux part](#linux),
  * If you are using Microsoft Windows, please see [the Windows part](#windows),
+ * If you are using macOS, please see [the macOS part](#macos),
  * If you are using another OS, feel free to provide compilation steps.
 
 ### Linux
 
 #### Dependencies
 Please run the command in a terminal to install the following dependencies depending of your linux distribution.
+
+##### Ubuntu 22.04 LTS / Debian 12
+
+`sudo apt-get install git cmake build-essential libgl1-mesa-dev libxt-dev libqt5x11extras5-dev libqt5help5 qttools5-dev qtxmlpatterns5-dev-tools libqt5svg5-dev python3-dev python3-numpy libopenmpi-dev libtbb-dev ninja-build qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools`
 
 ##### Ubuntu 18.04 LTS / Debian 10
 `sudo apt-get install git cmake build-essential libgl1-mesa-dev libxt-dev qt5-default libqt5x11extras5-dev libqt5help5 qttools5-dev qtxmlpatterns5-dev-tools libqt5svg5-dev python3-dev python3-numpy libopenmpi-dev libtbb-dev ninja-build`
@@ -86,6 +91,48 @@ Double click on the paraview executable in the `/bin` directory or run in the pr
 
 ```sh
 ./bin/paraview
+```
+
+### macOS
+These instructions have worked on a mid 2023 MacMini with an M2 chipset on macOS Ventura.
+
+#### Install Homebrew
+Please run the command in a terminal to install the following dependencies on your Mac via [Homebrew](https://brew.sh/) and add the relevant environment variables for brew.
+```zsh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+(echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
+```
+##### Install dependencies (largely following the Ubuntu steps for Linux)
+`brew install open-mpi cmake mesa tbb ninja gdal qt5`
+
+##### Set build environment
+```sh
+echo 'export PATH="/opt/homebrew/opt/qt@5/bin:$PATH"' >> ~/.zshrc
+echo 'export LDFLAGS="-L/opt/homebrew/opt/qt@5/lib"' >> ~/.zshrc
+echo 'export CPPFLAGS="-I/opt/homebrew/opt/qt@5/include"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+#### Build
+
+To build a specific ParaView version, eg: v5.11.1, please run the following commands in a terminal
+```sh
+git clone https://gitlab.kitware.com/paraview/paraview.git
+mkdir paraview_build
+cd paraview
+git checkout v5.11.1
+git submodule update --init --recursive
+cd ../paraview_build
+cmake -GNinja -DPARAVIEW_USE_PYTHON=ON -DPARAVIEW_USE_MPI=ON -DVTK_SMP_IMPLEMENTATION_TYPE=TBB -DCMAKE_BUILD_TYPE=Release -DPARAVIEW_ENABLE_GDAL=ON ../paraview
+ninja
+```
+
+#### Run
+Double click on the paraview executable in the `/bin` directory or run in the previous terminal
+
+```sh
+./bin/paraview.app/Contents/MacOS/paraview
 ```
 
 ### Windows
@@ -185,7 +232,7 @@ Optional dependencies:
   * [Python][python]
     - At least 3.3 is required
   * [Qt5][qt]
-    - Version 5.12 or newer. Qt6 is not supported.
+    - Version 5.12 or newer. Qt6 support is experimental and not tested yet.
 
 ##### Installing CMake
 
@@ -314,9 +361,10 @@ Less common, but variables which may be of interest to some:
   * `PARAVIEW_PLUGIN_DISABLE_XML_DOCUMENTATION` (default `OFF`): Whether
     plugin XML documentation is forcefully disabled.
   * `PARAVIEW_BUILD_TESTING` (default `OFF`): Whether to build tests or not.
-    Valid values are `OFF` (no testing), `WANT` (enable tests as possible), and
-    `ON` (enable all tests; may error out if features otherwise disabled are
-    required by test code).
+    Valid values are `OFF` (no testing), `DEFAULT` (enable tests which have all
+    test dependencies satisfied), `WANT` (enable test dependencies as possible;
+    see vtk/vtk#17509), and `ON` (enable all tests; may error out if features
+    otherwise disabled are required by test code).
   * `PARAVIEW_BUILD_VTK_TESTING` (default `OFF`): Whether to build tests for the
     VTK codebase built by ParaView. Valid values are same as
     `PARAVIEW_BUILD_TESTING`.
@@ -341,6 +389,9 @@ More advanced build options are:
   * `PARAVIEW_BUILD_ID` (default `""`): A build ID for the ParaView build. It
     can be any arbitrary value which can be used to indicate the provenance of
     ParaView.
+  * `PARAVIEW_GENERATE_SPDX` (default `OFF`): When compiling ParaView, generate
+    a SPDX file for each of ParaView modules containing license and copyright
+    information.
 
 #### Capability settings
 
@@ -361,6 +412,8 @@ Less common, but potentially useful variables are:
   * `PARAVIEW_USE_CUDA` (default `OFF`): Enable CUDA support in ParaView.
   * `PARAVIEW_USE_HIP` (default `OFF`, requires CMake >= 3.21 and NOT
     `PARAVIEW_USE_CUDA`): Enable HIP support in ParaView.
+  * `PARAVIEW_LOGGING_TIME_PRECISION` (default `3`): Change the precision of
+    times output. Possible values are 3 for ms, 6 for us, 9 for ns.
 
 #### Feature settings
 
@@ -372,6 +425,12 @@ These settings control optional features. These begin with the prefix
   * `PARAVIEW_ENABLE_WEB` (default `OFF`; requires `PARAVIEW_USE_PYTHON`):
     Whether ParaViewWeb support will be available or not.
 
+These settings are used for translating purpose:
+  * `PARAVIEW_BUILD_TRANSLATIONS` (default `OFF`): Enable translation
+    files update and generation.
+  * `PARAVIEW_TRANSLATIONS_DIRECTORY` (default `${CMAKE_BINARY_DIR}/Translations`):
+    Path where the translation files will be generated on build.
+
 More advanced / less common options include:
 
   * `PARAVIEW_ENABLE_VISITBRIDGE` (default `OFF`): Enable support for VisIt
@@ -382,6 +441,8 @@ More advanced / less common options include:
     files.
   * `PARAVIEW_ENABLE_LAS` (default `OFF`): Enable support for reading LAS
     files.
+  * `PARAVIEW_ENABLE_GEOVIS` (default `OFF`): Enable support for geographic
+    projections and transformations.
   * `PARAVIEW_ENABLE_OPENTURNS` (default `OFF`): Enable support for reading
     OpenTURNS files.
   * `PARAVIEW_ENABLE_PDAL` (default `OFF`): Enable support for reading PDAL
@@ -409,6 +470,8 @@ More advanced / less common options include:
     ParaView for e.g. CATALYST, this option allows building support for writing
     CGNS files. It will also build CGNSReader dependencies: HDF5 and CGNS. If
     `PARAVIEW_ENABLE_MPI` is `ON`, the parallel CGNS writer will also be built.
+  * `PARAVIEW_ENABLE_OCCT` (default `OFF`): Enable support for reading OpenCascade
+     file formats such as STEP and IGES.
 
 #### Plugin settings
 

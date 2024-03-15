@@ -1,24 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSLACParticleReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkSLACParticleReader.h"
 
@@ -73,6 +55,7 @@
 #define nc_get_vars_vtkIdType nc_get_vars_longlong
 #endif
 #else  // NC_INT64
+VTK_ABI_NAMESPACE_BEGIN
 static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], const size_t count[],
   const ptrdiff_t stride[], vtkIdType* ip)
 {
@@ -101,6 +84,7 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
 
   return NC_NOERR;
 }
+VTK_ABI_NAMESPACE_END
 #endif // NC_INT64
 #else  // VTK_USE_64_BIT_IDS
 #define nc_get_vars_vtkIdType nc_get_vars_int
@@ -128,6 +112,7 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
 // This class automatically closes a netCDF file descriptor when it goes out
 // of scope.  This allows us to exit on error without having to close the
 // file at every instance.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSLACParticleReaderAutoCloseNetCDF
 {
 public:
@@ -353,3 +338,4 @@ int vtkSLACParticleReader::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

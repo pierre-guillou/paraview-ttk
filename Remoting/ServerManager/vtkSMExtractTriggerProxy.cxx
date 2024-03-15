@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMExtractTriggerProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #if VTK_MODULE_ENABLE_VTK_PythonInterpreter
 #define vtkSMExtractTriggerProxy_ENABLE_PYTHON 1
 #else
@@ -60,15 +48,15 @@ bool IsActivatedPython(const std::string& script, vtkSMExtractsController* contr
     return false;
   }
 
-  vtkSmartPyObject load_method(PyString_FromString("module_from_string"));
+  vtkSmartPyObject load_method(PyUnicode_FromString("module_from_string"));
   vtkSmartPyObject module(PyObject_CallMethodObjArgs(
-    mdlParaView, load_method, PyString_FromString(script.c_str()), nullptr));
+    mdlParaView, load_method, PyUnicode_FromString(script.c_str()), nullptr));
   if (CheckAndFlushPythonErrors() || !module)
   {
     return false;
   }
 
-  vtkSmartPyObject function(PyString_FromString("is_activated"));
+  vtkSmartPyObject function(PyUnicode_FromString("is_activated"));
   vtkSmartPyObject self = vtkPythonUtil::GetObjectFromPointer(controller);
   vtkSmartPyObject result(PyObject_CallMethodObjArgs(module, function, self.GetPointer(), nullptr));
   if (CheckAndFlushPythonErrors() || !result)
@@ -169,7 +157,6 @@ bool vtkSMExtractTriggerProxy::IsActivated(vtkSMExtractsController* controller)
     }
     else if (doIt == true && (timevalue > (this->LastOutputTimeValue + length - .5 * average)))
     {
-      const int timestep = controller->GetTimeStep();
       this->LastOutputTimeValue = timevalue;
     }
     else

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAVSucdReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Thanks to Guenole Harel and Emmanuel Colin (Supelec engineering school,
 // France) and Jean M. Favre (CSCS, Switzerland) who co-developed this class.
 // Thanks to Isabelle Surin (isabelle.surin at cea.fr, CEA-DAM, France) who
@@ -40,6 +28,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAVSucdReader);
 
 // Internal Classes/Structures
@@ -1183,3 +1172,4 @@ int vtkAVSucdReader::ReadFloatBlock(int n, float* block)
     return count;
   }
 }
+VTK_ABI_NAMESPACE_END

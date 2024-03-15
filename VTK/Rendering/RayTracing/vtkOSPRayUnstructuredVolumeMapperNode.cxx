@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayUnstructuredVolumeMapperNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOSPRayUnstructuredVolumeMapperNode.h"
 
 #include "vtkCell.h"
@@ -39,6 +27,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOSPRayUnstructuredVolumeMapperNode);
 
 //------------------------------------------------------------------------------
@@ -95,7 +84,6 @@ void vtkOSPRayUnstructuredVolumeMapperNode::Render(bool prepass)
     RTW::Backend* backend = orn->GetBackend();
     if (backend == nullptr)
       return;
-    vtkRenderer* ren = vtkRenderer::SafeDownCast(orn->GetRenderable());
 
     vtkUnstructuredGrid* dataSet = vtkUnstructuredGrid::SafeDownCast(mapper->GetDataSetInput());
     if (!dataSet)
@@ -405,3 +393,4 @@ void vtkOSPRayUnstructuredVolumeMapperNode::Render(bool prepass)
     this->BuildTime.Modified();
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResliceCursorRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkResliceCursorRepresentation.h"
 
 #include "vtkActor.h"
@@ -51,6 +39,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkResliceCursorRepresentation, ColorMap, vtkImageMapToColors);
 
 //------------------------------------------------------------------------------
@@ -306,7 +295,7 @@ void vtkResliceCursorRepresentation::ResetCamera()
 
     this->Renderer->SetDisplayPoint(displayFocalPoint);
     this->Renderer->DisplayToWorld();
-    double worldFocalPoint[3];
+    double worldFocalPoint[4];
     this->Renderer->GetWorldPoint(worldFocalPoint);
 
     vtkNew<vtkPlane> plane;
@@ -1007,3 +996,4 @@ void vtkResliceCursorRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   // this->Texture;
   // this->TextActor;
 }
+VTK_ABI_NAMESPACE_END

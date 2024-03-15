@@ -1,27 +1,15 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCGNSWriter.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
-Copyright (c) Maritime Research Institute Netherlands (MARIN)
-See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Maritime Research Institute Netherlands (MARIN)
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkCGNSWriter
  * @brief Writes CGNS files
  *
  * This writer writes (composite) datasets that may consist of
+ *   - vtkImageData
+ *   - vtkRectilinearGrid
  *   - vtkStructuredGrid
  *   - vtkUnstructuredGrid
  *   - vtkPolydata
@@ -76,7 +64,19 @@ public:
   vtkBooleanMacro(WriteAllTimeSteps, bool);
   ///@}
 
-  //@{
+  ///@{
+  /**
+   * Sets the GhostLevel. Currently, this does
+   * nothing, but this property is present
+   * to ensure compatibility with ParaView.
+   *
+   * The Default is 0.
+   */
+  vtkSetMacro(GhostLevel, int);
+  vtkGetMacro(GhostLevel, int);
+  ///@}
+
+  ///@{
   /**
    * Provides an option to pad the time step when writing out time series data.
    * Only allow this format: ABC%.Xd where ABC is an arbitrary string which may
@@ -86,7 +86,7 @@ public:
    */
   vtkGetStringMacro(FileNameSuffix);
   vtkSetStringMacro(FileNameSuffix);
-  //@}
+  ///@}
 
 protected:
   vtkCGNSWriter();
@@ -113,6 +113,7 @@ protected:
   bool WriteAllTimeSteps = false;
   char* FileNameSuffix = nullptr;
 
+  int GhostLevel = 0;
   int NumberOfTimeSteps = 0;
   int CurrentTimeIndex = 0;
   vtkDoubleArray* TimeValues = nullptr;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageIterateFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageIterateFilter.h"
 
 #include "vtkDataSetAttributes.h"
@@ -22,6 +10,7 @@
 #include "vtkTrivialProducer.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkImageIterateFilter::vtkImageIterateFilter()
 {
   // for filters that execute multiple times
@@ -78,6 +67,7 @@ int vtkImageIterateFilter ::RequestInformation(vtkInformation* vtkNotUsed(reques
     out->CopyEntry(in, vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
 
     out->CopyEntry(in, vtkDataObject::ORIGIN());
+    out->CopyEntry(in, vtkDataObject::DIRECTION());
     out->CopyEntry(in, vtkDataObject::SPACING());
 
     vtkInformation* scalarInfo = vtkDataObject::GetActiveFieldInformation(
@@ -254,3 +244,4 @@ void vtkImageIterateFilter::SetNumberOfIterations(int num)
   this->NumberOfIterations = num;
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

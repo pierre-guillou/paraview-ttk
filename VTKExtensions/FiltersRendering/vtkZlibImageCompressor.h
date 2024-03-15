@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkZlibImageCompressor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkZlibImageCompressor
@@ -42,27 +31,27 @@ public:
   vtkTypeMacro(vtkZlibImageCompressor, vtkImageCompressor);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Compress/Decompress data array on the objects input with results
    * in the objects output. See also Set/GetInput/Output.
    */
   int Compress() override;
   int Decompress() override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Serialize/Restore compressor configuration (but not the data) into the stream.
    */
   void SaveConfiguration(vtkMultiProcessStream* stream) override;
   bool RestoreConfiguration(vtkMultiProcessStream* stream) override;
-  //@}
+  ///@}
 
   const char* SaveConfiguration() override;
   const char* RestoreConfiguration(const char* stream) override;
 
-  //@{
+  ///@{
   /**
    * Set compression level. A setting of 1 is the fastest producing the
    * smallest compression ratio while a setting of 9 is the slowest producing
@@ -73,18 +62,18 @@ public:
    */
   vtkSetClampMacro(CompressionLevel, int, 1, 9);
   vtkGetMacro(CompressionLevel, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set to an integer between 0 and 5. This uses the same color space reduction
    * as the squirt compressor. If set to 0 no colorspace reduction is performed.
    */
   void SetColorSpace(int csId);
   int GetColorSpace();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set to boolean value indicating whether alpha values
    * should be stripped prior to compression. Stripping alpha values will reduce
@@ -94,7 +83,7 @@ public:
    */
   void SetStripAlpha(int status);
   int GetStripAlpha();
-  //@}
+  ///@}
 
   /**
    * When set the implementation must use loss-less compression, otherwise

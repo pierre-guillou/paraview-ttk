@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkButterflySubdivisionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkButterflySubdivisionFilter.h"
 
 #include "vtkCellArray.h"
@@ -23,6 +11,7 @@
 #include "vtkPolyData.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkButterflySubdivisionFilter);
 
 void vtkButterflySubdivisionFilter::PrintSelf(ostream& os, vtkIndent indent)
@@ -59,15 +48,22 @@ int vtkButterflySubdivisionFilter::GenerateSubdivisionPoints(
 
   // Create an edge table to keep track of which edges we've processed
   edgeTable->InitEdgeInsertion(inputDS->GetNumberOfPoints());
+  bool abort = false;
 
   // Generate new points for subdivisions surface
-  for (cellId = 0, inputPolys->InitTraversal(); inputPolys->GetNextCell(npts, pts); cellId++)
+  for (cellId = 0, inputPolys->InitTraversal(); !abort && inputPolys->GetNextCell(npts, pts);
+       cellId++)
   {
     p1 = pts[2];
     p2 = pts[0];
 
     for (edgeId = 0; edgeId < 3; edgeId++)
     {
+      abort = this->CheckAbort();
+      if (abort)
+      {
+        break;
+      }
       // Do we need to create a point on this edge?
       if (edgeTable->IsEdge(p1, p2) == -1)
       {
@@ -477,3 +473,4 @@ void vtkButterflySubdivisionFilter::GenerateButterflyStencil(
     weights[i] = butterflyWeights[i];
   }
 }
+VTK_ABI_NAMESPACE_END

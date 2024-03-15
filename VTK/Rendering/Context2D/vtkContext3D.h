@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContext3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkContext3D
@@ -32,10 +20,15 @@
 #include "vtkSmartPointer.h"             // For SP ivars.
 #include "vtkVector.h"                   // For the vector coordinates.
 
+#include <cstdint> // For std::uintptr_t
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContextDevice3D;
 class vtkPen;
+class vtkDataArray;
 class vtkBrush;
 class vtkTransform;
+class vtkUnsignedCharArray;
 
 class VTKRENDERINGCONTEXT2D_EXPORT vtkContext3D : public vtkObject
 {
@@ -93,11 +86,15 @@ public:
    * (defining a single color).
    */
   void DrawPoints(const float* points, int n, unsigned char* colors, int nc_comps);
+  void DrawPoints(
+    vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier);
 
   /**
    * Draw triangles to generate the specified mesh.
    */
   void DrawTriangleMesh(const float* mesh, int n, const unsigned char* colors, int nc);
+  void DrawTriangleMesh(
+    vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier);
 
   /**
    * Apply the supplied pen which controls the outlines of shapes, as well as
@@ -166,4 +163,5 @@ private:
   void operator=(const vtkContext3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // VTKCONTEXT3D_H

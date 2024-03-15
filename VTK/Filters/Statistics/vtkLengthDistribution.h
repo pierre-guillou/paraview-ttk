@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLengthDistribution.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLengthDistribution
  * @brief   Sample the distribution of representative "cell lengths"
@@ -38,6 +26,7 @@
 #include "vtkFiltersStatisticsModule.h" // For export macro
 #include "vtkTableAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkDataArray;
 
@@ -93,5 +82,6 @@ private:
   vtkLengthDistribution(const vtkLengthDistribution&) = delete;
   void operator=(const vtkLengthDistribution&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkLengthDistribution_h

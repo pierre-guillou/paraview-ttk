@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqDataAssemblyPropertyWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDataAssemblyPropertyWidget.h"
 #include "ui_pqDataAssemblyPropertyWidget.h"
 
@@ -47,6 +19,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vtkPVGeneralSettings.h"
 
+#include "pqSMAdaptor.h"
 #include "vtkCommand.h"
 #include "vtkDataAssembly.h"
 #include "vtkDataAssemblyUtilities.h"
@@ -656,14 +629,15 @@ void hookupTableView(QTableView* view, TableModel* model, QAbstractButton* addBu
 //=================================================================================
 // Helper to create a selection for the producerPort to select blocks using the
 // specified selectors.
-void selectBlocks(vtkSMOutputPort* producerPort, const std::set<std::string>& selectors)
+void selectBlocks(vtkSMOutputPort* producerPort, const std::string& assemblyName,
+  const std::set<std::string>& selectors)
 {
   auto producer = producerPort->GetSourceProxy();
 
   vtkNew<vtkSelectionSource> selectionSource;
   selectionSource->SetFieldType(vtkSelectionNode::CELL);
   selectionSource->SetContentType(vtkSelectionNode::BLOCK_SELECTORS);
-  selectionSource->SetArrayName("Hierarchy");
+  selectionSource->SetArrayName(assemblyName.c_str());
   for (const auto& selector : selectors)
   {
     selectionSource->AddBlockSelector(selector.c_str());
@@ -743,7 +717,12 @@ void hookupActiveSelection(
       // make active selection.
       auto producerPort = vtkSMPropertyHelper(repr, "Input").GetAsOutputPort();
       selectionModel->setProperty("PQ_IGNORE_SELECTION_CHANGES", true);
-      selectBlocks(producerPort, selectors);
+      std::string assemblyName = "Hierarchy";
+      if (repr && repr->GetProperty("Assembly"))
+      {
+        assemblyName = vtkSMPropertyHelper(repr, "Assembly").GetAsString();
+      }
+      selectBlocks(producerPort, assemblyName, selectors);
       selectionModel->setProperty("PQ_IGNORE_SELECTION_CHANGES", false);
     });
 
@@ -875,7 +854,7 @@ public:
   QPointer<pqDataAssemblyTreeModel> AssemblyTreeModel;
   QPointer<pqDAPModel> ProxyModel;
 
-  //@{
+  ///@{
   /**
    * Table models for advanced editing of the selectors + properties.
    * This is not supported in composite-indices mode.
@@ -883,9 +862,9 @@ public:
   QPointer<TableModel> SelectorsTableModel;
   QPointer<TableModel> ColorsTableModel;
   QPointer<TableModel> OpacitiesTableModel;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   // Cached values.
   QStringList Selectors;
   QList<QVariant> Colors;
@@ -894,7 +873,7 @@ public:
   QList<QVariant> CompositeIndices;
   QList<QVariant> CompositeIndexColors;
   QList<QVariant> CompositeIndexOpacities;
-  //@}
+  ///@}
 
   bool BlockUpdates = false;
 
@@ -942,7 +921,8 @@ pqDataAssemblyPropertyWidget::pqDataAssemblyPropertyWidget(
   // Setup proxy model to add check-state support in the header.
   internals.ProxyModel = new pqDAPModel(iconSize, this);
   internals.ProxyModel->setSourceModel(internals.AssemblyTreeModel);
-  internals.ProxyModel->setHeaderText(smgroup->GetXMLLabel());
+  internals.ProxyModel->setHeaderText(
+    QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel()));
 
   int useInputNameAsHeader = 0;
   if (groupHints &&
@@ -1066,11 +1046,28 @@ pqDataAssemblyPropertyWidget::pqDataAssemblyPropertyWidget(
     internals.Ui.tabWidget->removeTab(internals.Ui.tabWidget->indexOf(internals.Ui.selectorsTab));
   }
 
-  if (auto smproperty = smgroup->GetProperty("ActiveAssembly"))
+  auto assemblyProp = smgroup->GetProperty("ActiveAssembly");
+  if (assemblyProp)
   {
-    auto adaptor = new pqSignalAdaptorComboBox(internals.Ui.assemblyCombo);
-    new pqComboBoxDomain(internals.Ui.assemblyCombo, smproperty);
-    this->addPropertyLink(adaptor, "currentText", SIGNAL(currentTextChanged(QString)), smproperty);
+    const std::string assemblyName = vtkSMPropertyHelper(assemblyProp).GetAsString();
+    const auto availableAssemblyChoices = pqSMAdaptor::getEnumerationPropertyDomain(assemblyProp);
+    const bool isFindDataHelper = strcmp(smproxy->GetXMLName(), "FindDataHelper") == 0;
+    // we create a property link in 2 cases:
+    // 1) if assembly name is not empty, which means we're showing a composite-dataset, and
+    //    there are choices available for the assembly.
+    // 2) if the proxy is a FindDataHelper, which is a special case because the assembly name is
+    //    empty initially but it will be populated in the future.
+    if ((!assemblyName.empty() && !availableAssemblyChoices.empty()) || isFindDataHelper)
+    {
+      auto adaptor = new pqSignalAdaptorComboBox(internals.Ui.assemblyCombo);
+      new pqComboBoxDomain(internals.Ui.assemblyCombo, assemblyProp);
+      this->addPropertyLink(
+        adaptor, "currentText", SIGNAL(currentTextChanged(QString)), assemblyProp);
+    }
+    else
+    {
+      internals.Ui.assemblyCombo->hide();
+    }
   }
   else
   {
@@ -1240,7 +1237,7 @@ pqDataAssemblyPropertyWidget::pqDataAssemblyPropertyWidget(
             }
             pqDoubleRangeDialog dialog("Opacity:", 0.0, 1.0, this);
             dialog.setObjectName("OpacityDialog");
-            dialog.setWindowTitle("Select Opacity");
+            dialog.setWindowTitle(tr("Select Opacity"));
             dialog.setValue(opacity);
             if (dialog.exec() == QDialog::Accepted)
             {

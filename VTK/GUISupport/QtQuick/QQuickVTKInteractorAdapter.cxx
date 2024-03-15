@@ -1,17 +1,8 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
+// this class is deprecated, don't warn about deprecated classes it uses
+#define VTK_DEPRECATION_LEVEL 0
 
-  Program:   Visualization Toolkit
-  Module:    QQuickVTKInteractorAdapter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
 #include "QQuickVTKInteractorAdapter.h"
 
 // Qt includes
@@ -23,6 +14,7 @@
 #include "vtkRenderWindowInteractor.h"
 
 //-------------------------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 QQuickVTKInteractorAdapter::QQuickVTKInteractorAdapter(QObject* parent)
   : Superclass(parent)
 {
@@ -54,8 +46,18 @@ QPointF QQuickVTKInteractorAdapter::mapEventPositionFlipY(QQuickItem* item, cons
 //-------------------------------------------------------------------------------------------------
 void QQuickVTKInteractorAdapter::QueueHoverEvent(QQuickItem* item, QHoverEvent* e)
 {
-  QHoverEvent* newEvent = new QHoverEvent(e->type(), this->mapEventPosition(item, e->posF()),
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  QPointF posf = e->posF();
+#else
+  QPointF posf = e->position();
+#endif
+#if QT_VERSION < QT_VERSION_CHECK(6, 3, 0)
+  QHoverEvent* newEvent = new QHoverEvent(e->type(), this->mapEventPosition(item, posf),
     this->mapEventPosition(item, e->oldPosF()), e->modifiers());
+#else
+  QHoverEvent* newEvent = new QHoverEvent(e->type(), this->mapEventPosition(item, posf),
+    e->globalPosition(), this->mapEventPosition(item, e->oldPosF()), e->modifiers());
+#endif
   QueueEvent(newEvent);
 }
 
@@ -79,9 +81,18 @@ void QQuickVTKInteractorAdapter::QueueFocusEvent(QQuickItem* item, QFocusEvent* 
 //-------------------------------------------------------------------------------------------------
 void QQuickVTKInteractorAdapter::QueueMouseEvent(QQuickItem* item, QMouseEvent* e)
 {
-  QMouseEvent* newEvent = new QMouseEvent(e->type(), this->mapEventPosition(item, e->localPos()),
-    this->mapEventPosition(item, e->windowPos()), this->mapEventPosition(item, e->screenPos()),
-    e->button(), e->buttons(), e->modifiers());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  QPointF localpos = e->localPos();
+  QPointF windowpos = e->windowPos();
+  QPointF screenpos = e->screenPos();
+#else
+  QPointF localpos = e->position();
+  QPointF windowpos = e->scenePosition();
+  QPointF screenpos = e->globalPosition();
+#endif
+  QMouseEvent* newEvent = new QMouseEvent(e->type(), this->mapEventPosition(item, localpos),
+    this->mapEventPosition(item, windowpos), this->mapEventPosition(item, screenpos), e->button(),
+    e->buttons(), e->modifiers());
   QueueEvent(newEvent);
 }
 
@@ -141,3 +152,4 @@ void QQuickVTKInteractorAdapter::ProcessEvents(vtkRenderWindowInteractor* intera
     m_queuedEvents.clear();
   }
 }
+VTK_ABI_NAMESPACE_END

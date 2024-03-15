@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkThreadedImageAlgorithm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkThreadedImageAlgorithm.h"
 
 #include "vtkCellData.h"
@@ -32,12 +20,17 @@
 // If SMP backend is Sequential then fall back to vtkMultiThreader,
 // else enable the newer vtkSMPTools code path by default.
 #ifdef VTK_SMP_Sequential
+VTK_ABI_NAMESPACE_BEGIN
 bool vtkThreadedImageAlgorithm::GlobalDefaultEnableSMP = false;
+VTK_ABI_NAMESPACE_END
 #else
+VTK_ABI_NAMESPACE_BEGIN
 bool vtkThreadedImageAlgorithm::GlobalDefaultEnableSMP = true;
+VTK_ABI_NAMESPACE_END
 #endif
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkThreadedImageAlgorithm::vtkThreadedImageAlgorithm()
 {
   this->Threader = vtkMultiThreader::New();
@@ -669,3 +662,4 @@ void vtkThreadedImageAlgorithm::ThreadedExecute(
   (void)threadId;
   vtkErrorMacro("Subclass should override this method!!!");
 }
+VTK_ABI_NAMESPACE_END

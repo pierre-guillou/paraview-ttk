@@ -4,10 +4,6 @@ vtk_object_factory_declare(
 vtk_object_factory_declare(
   BASE      vtkDistributedDataFilter
   OVERRIDE  vtkPDistributedDataFilter)
-vtk_object_factory_declare(
-  BASE      vtkUnstructuredGridGhostCellsGenerator
-  OVERRIDE  vtkPUnstructuredGridGhostCellsGenerator)
-
 
 vtk_object_factory_configure(
   SOURCE_FILE vtk_object_factory_source
@@ -17,10 +13,10 @@ vtk_object_factory_configure(
 set(classes
   vtkPConnectivityFilter
   vtkPDistributedDataFilter
-  vtkPStructuredGridConnectivity
-  vtkPUnstructuredGridGhostCellsGenerator)
+  vtkPStructuredGridConnectivity)
 
 vtk_module_add_module(VTK::FiltersParallelGeometry
   CLASSES ${classes}
   SOURCES ${vtk_object_factory_source}
   PRIVATE_HEADERS ${vtk_object_factory_header})
+vtk_add_test_mangling(VTK::FiltersParallelGeometry)

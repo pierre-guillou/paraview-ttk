@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestPParticleTracers.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAlgorithm.h"
 #include "vtkCellArray.h"
 #include "vtkFloatArray.h"
+#include "vtkGhostCellsGenerator.h"
 #include "vtkIdList.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
@@ -29,6 +18,7 @@
 #include "vtkPoints.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+
 #include <vector>
 
 #define EXPECT(expected, actual, msg, so)                                                          \
@@ -282,6 +272,9 @@ int TestPParticleTracer(vtkMPIController* c, int staticOption)
   imageSource->SetExtent(0, size - 1, 0, 1, 0, size - 1);
   imageSource->SetBoundingBox(-1, 1, -1, 1, -1, 1);
 
+  vtkNew<vtkGhostCellsGenerator> ghosts;
+  ghosts->SetInputConnection(0, imageSource->GetOutputPort());
+
   vtkNew<vtkPoints> points;
   points->InsertNextPoint(0.5, 0, 0.001);
   // points->InsertNextPoint(0.99,0,0.99);
@@ -292,7 +285,7 @@ int TestPParticleTracer(vtkMPIController* c, int staticOption)
   vtkNew<vtkPParticleTracer> filter;
   filter->SetMeshOverTime(staticOption);
   filter->SetStaticSeeds(staticOption);
-  filter->SetInputConnection(0, imageSource->GetOutputPort());
+  filter->SetInputConnection(0, ghosts->GetOutputPort());
   filter->SetInputData(1, ps);
   filter->SetStartTime(0.0);
 
@@ -321,6 +314,12 @@ int TestPParticleTracer(vtkMPIController* c, int staticOption)
     traceMapper->Update();
 
     vtkPolyData* out = filter->GetOutput();
+    if (out->GetPointData()->GetArray(vtkDataSetAttributes::GhostArrayName()))
+    {
+      vtkGenericWarningMacro("ParticleTracer generating a ghost array when it should not");
+      return EXIT_FAILURE;
+    }
+
     vtkPoints* pts = out->GetPoints();
 
     numTraced += pts->GetNumberOfPoints();

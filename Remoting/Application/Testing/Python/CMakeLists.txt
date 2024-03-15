@@ -30,6 +30,7 @@ set(PY_TESTS
   GhostCellsInMergeBlocks.py
   GradientBackwardsCompatibilityTest.py,NO_VALID
   IntegrateAttributes.py,NO_VALID
+  LocatorNonMergingBackwardsCompatibilityTest.py,NO_VALID
   LookupTable.py,NO_VALID
   MultiServer.py,NO_VALID
   PointGaussianProperties.py
@@ -53,6 +54,7 @@ set(PY_TESTS
   SaveAnimation.py
   SaveScreenshot.py,NO_VALID
   ScalarBarActorBackwardsCompatibility.py,NO_VALID
+  SliceBackwardsCompatibilityTest.py,NO_VALID
   StateWithHiddenRepresentations.py,NO_VALID
   TestFetchData.py,NO_VALID
   TestSAVGReader.py
@@ -65,7 +67,7 @@ set(PY_TESTS
 include(FindPythonModules)
 find_python_module(numpy numpy_found)
 if (numpy_found)
-  list(APPEND PY_TESTS PythonSelection.py)
+  list(APPEND PY_TESTS PythonSelection.py PythonSMTraceTest3.py)
 endif ()
 
 if (PARAVIEW_PLUGIN_ENABLE_SurfaceLIC AND PARAVIEW_PLUGIN_ENABLE_Moments)
@@ -225,6 +227,8 @@ endif()
 set(paraview_python_state_tests
   SavePythonState
   ScalarOpacityFunctionPythonState
+  SavePythonStateCameraAndTime
+  SavePythonStateSliceOffset
 )
 foreach(python_state_test ${paraview_python_state_tests})
   if (TARGET ParaView::paraview OR paraview_will_be_built)
@@ -237,6 +241,7 @@ foreach(python_state_test ${paraview_python_state_tests})
       -DTEST_DRIVER:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.py
       -DTEST_SCRIPT:FILEPATH=${CMAKE_CURRENT_SOURCE_DIR}/${python_state_test}.xml
       -DTEMPORARY_DIR:PATH=${CMAKE_BINARY_DIR}/Testing/Temporary
+      -DDATA_DIR:PATH=${paraview_test_data_directory_output}
       -DPYTHON_STATE_TEST_NAME:STRING=${python_state_test}
       -P ${CMAKE_CURRENT_SOURCE_DIR}/PythonStateTestDriver.cmake
       DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/Baseline/${python_state_test}.png}

@@ -1,18 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVClientServerSynchronizedRenderers.h
-
-  Copyright (c) Kitware, Inc.
-  Copyright (c) 2017, NVIDIA CORPORATION.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2017, NVIDIA CORPORATION
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVClientServerSynchronizedRenderers
  *
@@ -63,13 +51,13 @@ protected:
   vtkPVClientServerSynchronizedRenderers();
   ~vtkPVClientServerSynchronizedRenderers() override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the compressor object, it's setting can be manipulated directly.
    */
   void SetCompressor(vtkImageCompressor* comp);
   vtkGetObjectMacro(Compressor, vtkImageCompressor);
-  //@}
+  ///@}
 
   vtkUnsignedCharArray* Compress(vtkUnsignedCharArray*);
   void Decompress(vtkUnsignedCharArray* input, vtkUnsignedCharArray* outputBuffer);

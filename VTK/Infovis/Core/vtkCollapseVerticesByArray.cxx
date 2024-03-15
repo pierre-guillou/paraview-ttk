@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCollapseVerticesByArray.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCollapseVerticesByArray.h"
 
@@ -36,6 +24,7 @@
 #include <string> // Using STL.
 #include <vector> // Using STL.
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCollapseVerticesByArray);
 
 //------------------------------------------------------------------------------
@@ -387,7 +376,7 @@ vtkGraph* vtkCollapseVerticesByArray::Create(vtkGraph* inGraph)
   }
 
   // Now itereate over all the edges in the graph.
-  // Result vary dependeing on whether the input graph is
+  // Result vary depending on whether the input graph is
   // directed or not.
   vtkEdgeListIteratorRefPtr elItr(vtkEdgeListIteratorRefPtr::New());
   inGraph->GetEdges(elItr);
@@ -516,3 +505,4 @@ void vtkCollapseVerticesByArray::FindEdge(
     }
   }
 }
+VTK_ABI_NAMESPACE_END

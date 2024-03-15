@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractDataOverTime.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractDataOverTime.h"
 
 #include "vtkDoubleArray.h"
@@ -22,6 +10,7 @@
 #include "vtkPointSet.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractDataOverTime);
 
 //------------------------------------------------------------------------------
@@ -138,7 +127,7 @@ vtkTypeBool vtkExtractDataOverTime::ProcessRequest(
 
     // increment the time index
     this->CurrentTimeIndex++;
-    if (this->CurrentTimeIndex == this->NumberOfTimeSteps)
+    if (this->CheckAbort() || this->CurrentTimeIndex == this->NumberOfTimeSteps)
     {
       // Tell the pipeline to stop looping.
       request->Remove(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING());
@@ -191,3 +180,4 @@ int vtkExtractDataOverTime::AllocateOutputData(vtkPointSet* input, vtkPointSet* 
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

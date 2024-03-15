@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDistributedPointCloudFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkDistributedPointCloudFilter
@@ -19,7 +7,7 @@
  *
  * This filter distributes points among processors into spatially
  * contiguous point set, containing an equivalent number of points.
- * Algorithm: point set is recursively splitted in two, among MPI groups.
+ * Algorithm: point set is recursively split in two, among MPI groups.
  * Note: input cells are ignored. Output is a vtkPolyData.
  *
  * @par Thanks:
@@ -37,6 +25,7 @@
 
 #include <vector> // for vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMPIController;
 class vtkMultiProcessController;
 
@@ -94,4 +83,5 @@ private:
   vtkMultiProcessController* Controller;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

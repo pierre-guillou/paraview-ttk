@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVSinusoidKeyFrame.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVSinusoidKeyFrame
  *
@@ -42,30 +30,30 @@ public:
    */
   void UpdateValue(double currenttime, vtkPVAnimationCue* cue, vtkPVKeyFrame* next) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the phase for the sine wave.
    */
   vtkSetMacro(Phase, double);
   vtkGetMacro(Phase, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the frequency for the sine wave in number of cycles
    * for the entire length of this keyframe i.e. until the next key frame.
    */
   vtkSetMacro(Frequency, double);
   vtkGetMacro(Frequency, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the Wave offset.
    */
   vtkSetMacro(Offset, double);
   vtkGetMacro(Offset, double);
-  //@}
+  ///@}
 
 protected:
   vtkPVSinusoidKeyFrame();

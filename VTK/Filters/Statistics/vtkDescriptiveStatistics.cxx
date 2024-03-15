@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDescriptiveStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 // Hide VTK_DEPRECATED_IN_9_2_0() warnings for this class
 #define VTK_DEPRECATION_LEVEL 0
@@ -44,6 +28,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkDescriptiveStatistics);
 
 //------------------------------------------------------------------------------
@@ -281,7 +266,7 @@ void vtkDescriptiveStatistics::Aggregate(
       double M3_c = primM3->GetComponent(r, 0);
       double M4_c = primM4->GetComponent(r, 0);
 
-      // Update global statics
+      // Update global statistics
       double N = n + n_c;
 
       if (min_c < min)
@@ -413,7 +398,7 @@ void vtkDescriptiveStatistics::Learn(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    vtkStdString varName = *it;
+    vtkStdString const& varName = *it;
     if (!inData->GetColumnByName(varName.c_str()))
     {
       vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
@@ -729,7 +714,7 @@ void vtkDescriptiveStatistics::Test(
   {
     // Each request contains only one column of interest (if there are others, they are ignored)
     std::set<vtkStdString>::const_iterator it = rit->begin();
-    vtkStdString varName = *it;
+    vtkStdString const& varName = *it;
     if (!inData->GetColumnByName(varName.c_str()))
     {
       vtkWarningMacro("InData table does not have a column " << varName << ". Ignoring it.");
@@ -933,3 +918,4 @@ void vtkDescriptiveStatistics::SelectAssessFunctor(
 
   // If arrived here it means that the variable of interest was not found in the parameter table
 }
+VTK_ABI_NAMESPACE_END

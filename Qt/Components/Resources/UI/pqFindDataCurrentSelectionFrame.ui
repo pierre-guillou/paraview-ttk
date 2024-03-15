@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>FindDataCurrentSelectionFrame</class>
  <widget class="QWidget" name="FindDataCurrentSelectionFrame">
@@ -37,7 +39,7 @@
      </property>
     </widget>
    </item>
-   <item row="2" column="0" colspan="4">
+   <item row="2" column="0" colspan="5">
     <widget class="pqSpreadSheetViewWidget" name="spreadsheet">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
@@ -73,9 +75,6 @@
      <property name="statusTip">
       <string>Toggle column visibility</string>
      </property>
-     <property name="whatsThis">
-      <string>Toggle column visibility</string>
-     </property>
      <property name="text">
       <string>Toggle column visibility</string>
      </property>
@@ -89,6 +88,23 @@
     </widget>
    </item>
    <item row="0" column="3">
+    <widget class="QToolButton" name="ToggleFieldData">
+     <property name="toolTip">
+      <string>Toggle field data visibility</string>
+     </property>
+     <property name="text">
+      <string>...</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>:/pqWidgets/Icons/pqGlobalData.svg</normaloff>:/pqWidgets/Icons/pqGlobalData.svg</iconset>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="4">
     <widget class="QCheckBox" name="invertSelectionCheckBox">
      <property name="enabled">
       <bool>false</bool>

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqLoadDataReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqLoadDataReaction.h"
 
 #include "pqActiveObjects.h"
@@ -42,6 +14,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqStandardRecentlyUsedResourceLoaderImplementation.h"
 #include "pqUndoStack.h"
 #include "vtkFileSequenceParser.h"
+#include "vtkSMCoreUtilities.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyManager.h"
@@ -49,14 +22,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettings.h"
 #include "vtkSMSettingsProxy.h"
+#include "vtkSMSourceProxy.h"
+#include "vtkSMStringVectorProperty.h"
 #include "vtkStringList.h"
+#include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 
 #include <QDebug>
 #include <QInputDialog>
 #include <QMap>
+#include <QRegExp>
 
+#include <algorithm>
 #include <cassert>
+#include <string>
+#include <vector>
 
 //-----------------------------------------------------------------------------
 pqLoadDataReaction::pqLoadDataReaction(QAction* parentObject)
@@ -78,14 +58,14 @@ void pqLoadDataReaction::updateEnableState()
 }
 
 //-----------------------------------------------------------------------------
-QList<pqPipelineSource*> pqLoadDataReaction::loadData()
+QList<pqPipelineSource*> pqLoadDataReaction::loadData(bool groupFiles)
 {
   ReaderSet readerSet;
-  return pqLoadDataReaction::loadData(readerSet);
+  return pqLoadDataReaction::loadData(readerSet, groupFiles);
 }
 
 //-----------------------------------------------------------------------------
-QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet)
+QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet, bool groupFiles)
 {
   pqServer* server = pqActiveObjects::instance().activeServer();
   vtkSMReaderFactory* readerFactory = vtkSMProxyManager::GetProxyManager()->GetReaderFactory();
@@ -94,9 +74,21 @@ QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet
     readerFactory->GetSupportedFileTypesDetailed(server->session());
   QString filtersString;
 
+  // retrieve setting that limits the list of readers.
+  vtkSMSessionProxyManager* proxyManager =
+    vtkSMProxyManager::GetProxyManager()->GetActiveSessionProxyManager();
+  vtkSMProxy* ioSettings = proxyManager->GetProxy("settings", "IOSettings");
+  vtkSMStringVectorProperty* readerSelection =
+    vtkSMStringVectorProperty::SafeDownCast(ioSettings->GetProperty("ReaderSelection"));
+  std::vector<std::string> excludedList;
+  if (readerSelection)
+  {
+    excludedList = readerSelection->GetElements();
+  }
+
   // When using a readerSet, rewrite the Supported Types extensions to only list wanted
   // supported files
-  if (!readerSet.isEmpty())
+  if (!readerSet.isEmpty() || !excludedList.empty())
   {
     FileTypeDetailed* supportedTypesDetailed = nullptr;
     std::vector<std::string> supportedTypesPattern;
@@ -108,7 +100,16 @@ QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet
       {
         supportedTypesDetailed = &filterDetailed;
       }
-      else if (readerSet.contains(readerPair))
+      else if (!readerSet.isEmpty())
+      {
+        if (readerSet.contains(readerPair))
+        {
+          supportedTypesPattern.insert(supportedTypesPattern.end(),
+            filterDetailed.FilenamePatterns.begin(), filterDetailed.FilenamePatterns.end());
+        }
+      }
+      else if (std::find(excludedList.begin(), excludedList.end(), filterDetailed.Description) ==
+        excludedList.end())
       {
         supportedTypesPattern.insert(supportedTypesPattern.end(),
           filterDetailed.FilenamePatterns.begin(), filterDetailed.FilenamePatterns.end());
@@ -126,12 +127,16 @@ QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet
   {
     // Check if reader pair is part of provided reader pair list
     // only if list is not empty and not a standard description
+    // Perform same check with ReaderSelection setting
     ReaderPair readerPair(
       QString::fromStdString(filterDetailed.Group), QString::fromStdString(filterDetailed.Name));
-    if (readerSet.isEmpty() ||
+    if ((readerSet.isEmpty() && excludedList.empty()) ||
       filterDetailed.Description == vtkSMReaderFactory::SUPPORTED_TYPES_DESCRIPTION ||
       filterDetailed.Description == vtkSMReaderFactory::ALL_FILES_DESCRIPTION ||
-      readerSet.contains(readerPair))
+      (!readerSet.isEmpty() && readerSet.contains(readerPair)) ||
+      (!excludedList.empty() &&
+        (std::find(excludedList.begin(), excludedList.end(), filterDetailed.Description) ==
+          excludedList.end())))
     {
       if (!first)
       {
@@ -150,7 +155,7 @@ QList<pqPipelineSource*> pqLoadDataReaction::loadData(const ReaderSet& readerSet
   int constexpr AllFilesFilterIndex = 1;
 
   pqFileDialog fileDialog(
-    server, pqCoreUtilities::mainWidget(), tr("Open File:"), QString(), filtersString);
+    server, pqCoreUtilities::mainWidget(), tr("Open File:"), QString(), filtersString, groupFiles);
   fileDialog.setObjectName("FileOpenDialog");
   fileDialog.setFileMode(pqFileDialog::ExistingFilesAndDirectories);
   QList<pqPipelineSource*> sources;
@@ -196,7 +201,7 @@ QVector<pqPipelineSource*> pqLoadDataReaction::loadFilesForSupportedTypes(QList<
 {
   QVector<pqPipelineSource*> newSources;
   auto* settings = vtkSMSettings::GetInstance();
-  char const* settingName = ".settings.RepresentedArrayListSettings.ReaderDetails";
+  char const* settingName = ".settings.IOSettings.ReaderDetails";
 
   for (auto const& file : files)
   {
@@ -414,7 +419,7 @@ pqPipelineSource* pqLoadDataReaction::loadData(
     }
 
     // read the filegroup
-    BEGIN_UNDO_SET("Create 'Reader'");
+    BEGIN_UNDO_SET(tr("Create 'Reader'"));
     reader = pqLoadDataReaction::LoadFile(filegroup, server, readerInfo);
     END_UNDO_SET();
 
@@ -508,12 +513,11 @@ void pqLoadDataReaction::addReaderToDefaults(QString const& readerName, pqServer
   vtkSMReaderFactory* readerFactory, QString const& customPattern)
 {
   auto pxm = server ? server->proxyManager() : nullptr;
-  auto settingsProxy = pxm
-    ? vtkSMSettingsProxy::SafeDownCast(pxm->GetProxy("settings", "RepresentedArrayListSettings"))
-    : nullptr;
+  auto settingsProxy =
+    pxm ? vtkSMSettingsProxy::SafeDownCast(pxm->GetProxy("settings", "IOSettings")) : nullptr;
 
   auto* settings = vtkSMSettings::GetInstance();
-  char const* settingName = ".settings.RepresentedArrayListSettings.ReaderDetails";
+  char const* settingName = ".settings.IOSettings.ReaderDetails";
   unsigned int numberOfEntries = settings->GetSettingNumberOfElements(settingName) / 3;
 
   std::string const readerNameString = readerName.toStdString();

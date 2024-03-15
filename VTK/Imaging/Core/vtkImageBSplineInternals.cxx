@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageBSplineInternals.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // This code has been modified from the original C code from Thevenaz.
 // The functions have been converted into static C++ class methods,
@@ -43,11 +31,12 @@
 #include <cstddef>
 
 /*--------------------------------------------------------------------------*/
+VTK_ABI_NAMESPACE_BEGIN
 void vtkImageBSplineInternals::ConvertToInterpolationCoefficients(
   double c[],                /* input samples --> output coefficients */
   long DataLength,           /* number of samples or coefficients */
   vtkImageBorderMode Border, /* border mode */
-  double z[],                /* poles */
+  double z[4],               /* poles */
   long NbPoles,              /* number of poles */
   double Tolerance           /* admissible relative error */
 )
@@ -849,3 +838,4 @@ int vtkImageBSplineInternals::InterpolatedValue(const float* coeffs, float* valu
   return vtkImageBSplineInterpolatedValue(
     coeffs, value, width, height, slices, depth, x, y, z, degree, border);
 }
+VTK_ABI_NAMESPACE_END

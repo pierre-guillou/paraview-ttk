@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFLUENTReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFLUENTReader
  * @brief   reads a dataset in Fluent file format
@@ -38,6 +26,7 @@
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkPoints;
 class vtkTriangle;
@@ -164,7 +153,7 @@ protected:
   virtual int GetDataChunk();
   virtual void GetSpeciesVariableNames();
 
-  virtual void ParseCaseFile();
+  virtual bool ParseCaseFile();
   virtual int GetDimension();
   virtual void GetLittleEndianFlag();
   virtual void GetNodesAscii();
@@ -172,7 +161,7 @@ protected:
   virtual void GetNodesDoublePrecision();
   virtual void GetCellsAscii();
   virtual void GetCellsBinary();
-  virtual void GetFacesAscii();
+  virtual bool GetFacesAscii();
   virtual void GetFacesBinary();
   virtual void GetPeriodicShadowFacesAscii();
   virtual void GetPeriodicShadowFacesBinary();
@@ -251,5 +240,8 @@ protected:
 private:
   vtkFLUENTReader(const vtkFLUENTReader&) = delete;
   void operator=(const vtkFLUENTReader&) = delete;
+
+  bool Parsed = false;
 };
+VTK_ABI_NAMESPACE_END
 #endif

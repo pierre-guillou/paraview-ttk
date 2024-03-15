@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXOpenGLRenderWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Must be included first to avoid conflicts with X11's `Status` define.
 #include "vtksys/SystemTools.hxx"
@@ -76,6 +64,7 @@ typedef ptrdiff_t GLsizeiptr;
  * structs working. We do not want to include XUtil.h in the header as
  * it populates the global namespace.
  */
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkXVisualInfo : public XVisualInfo
 {
 };
@@ -579,7 +568,12 @@ void vtkXOpenGLRenderWindow::CreateAWindow()
         (const GLubyte*)"glXCreateContextAttribsARB");
 
     int context_attribs[] = { GLX_CONTEXT_MAJOR_VERSION_ARB, 3, GLX_CONTEXT_MINOR_VERSION_ARB, 2,
-      // GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+    // GLX_CONTEXT_FLAGS_ARB        , GLX_CONTEXT_FORWARD_COMPATIBLE_BIT_ARB,
+#ifdef GL_ES_VERSION_3_0
+      GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_ES_PROFILE_BIT_EXT,
+#else
+      GLX_CONTEXT_PROFILE_MASK_ARB, GLX_CONTEXT_CORE_PROFILE_BIT_ARB,
+#endif
       0 };
 
     if (glXCreateContextAttribsARB)
@@ -601,7 +595,12 @@ void vtkXOpenGLRenderWindow::CreateAWindow()
 
       // we believe that these later versions are all compatible with
       // OpenGL 3.2 so get a more recent context if we can.
+      // For GLES, version 3.0 is best supported by VTK shaders.
+#ifdef GL_ES_VERSION_3_0
+      int attemptedVersions[] = { 3, 0 };
+#else
       int attemptedVersions[] = { 4, 5, 4, 4, 4, 3, 4, 2, 4, 1, 4, 0, 3, 3, 3, 2 };
+#endif
 
       // try shared context first, the fallback to not shared
       bool done = false;
@@ -1016,14 +1015,13 @@ void vtkXOpenGLRenderWindow::SetSize(int width, int height)
             if (vtksys::SystemTools::GetTime() > maxtime)
             {
               vtkWarningMacro(<< "Timeout while waiting for response to XResizeWindow.");
-              break;
+              return;
             }
           }
+          XPutBackEvent(this->DisplayId, &e);
         }
       }
     }
-
-    this->Modified();
   }
 }
 
@@ -1512,9 +1510,11 @@ void vtkXOpenGLRenderWindow::CloseDisplay()
   if (this->OwnDisplay && this->DisplayId)
   {
     XCloseDisplay(this->DisplayId);
-    this->DisplayId = nullptr;
-    this->OwnDisplay = 0;
   }
+
+  // disconnect from the display, even if we didn't own it
+  this->DisplayId = nullptr;
+  this->OwnDisplay = false;
 }
 
 vtkTypeBool vtkXOpenGLRenderWindow::IsDirect()
@@ -1805,3 +1805,4 @@ void vtkXOpenGLRenderWindow::SetCurrentCursor(int shape)
       break;
   }
 }
+VTK_ABI_NAMESPACE_END

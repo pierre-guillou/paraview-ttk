@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeometryRepresentation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGeometryRepresentation.h"
 #include "vtkGeometryRepresentationInternal.h"
 
@@ -19,8 +7,10 @@
 #include "vtkBoundingBox.h"
 #include "vtkCallbackCommand.h"
 #include "vtkCommand.h"
+#include "vtkCompositeCellGridMapper.h"
 #include "vtkCompositeDataDisplayAttributes.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
+#include "vtkConvertToPartitionedDataSetCollection.h"
 #include "vtkDataAssembly.h"
 #include "vtkDataAssemblyUtilities.h"
 #include "vtkDataObjectTreeIterator.h"
@@ -41,6 +31,7 @@
 #include "vtkPVLogger.h"
 #include "vtkPVRenderView.h"
 #include "vtkPVTrivialProducer.h"
+#include "vtkPartitionedDataSetCollection.h"
 #include "vtkPointData.h"
 #include "vtkProcessModule.h"
 #include "vtkProperty.h"
@@ -48,8 +39,10 @@
 #include "vtkScalarsToColors.h"
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
+#include "vtkShader.h"
 #include "vtkShaderProperty.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtkStringToken.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
 #include "vtkUnstructuredGrid.h"
@@ -211,6 +204,7 @@ void vtkGeometryRepresentation::HandleGeometryRepresentationProgress(
 //----------------------------------------------------------------------------
 vtkGeometryRepresentation::vtkGeometryRepresentation()
 {
+  this->SetActiveAssembly("Hierarchy");
   this->GeometryFilter = vtkPVGeometryFilter::New();
   this->MultiBlockMaker = vtkGeometryRepresentationMultiBlockMaker::New();
   this->Decimator = vtkGeometryRepresentation_detail::DecimationFilterType::New();
@@ -228,7 +222,7 @@ vtkGeometryRepresentation::vtkGeometryRepresentation()
 
   // setup the selection mapper so that we don't need to make any selection
   // conversions after rendering.
-  vtkCompositePolyDataMapper2* mapper = vtkCompositePolyDataMapper2::New();
+  vtkCompositePolyDataMapper* mapper = vtkCompositePolyDataMapper::New();
   mapper->SetProcessIdArrayName("vtkProcessId");
   mapper->SetCompositeIdArrayName("vtkCompositeIndex");
 
@@ -236,7 +230,7 @@ vtkGeometryRepresentation::vtkGeometryRepresentation()
 
   this->SetArrayIdNames(nullptr, nullptr);
 
-  this->LODMapper = vtkCompositePolyDataMapper2::New();
+  this->LODMapper = vtkCompositePolyDataMapper::New();
   this->Actor = vtkPVLODActor::New();
   this->Property = vtkProperty::New();
 
@@ -269,9 +263,13 @@ vtkGeometryRepresentation::vtkGeometryRepresentation()
 //----------------------------------------------------------------------------
 vtkGeometryRepresentation::~vtkGeometryRepresentation()
 {
+  this->SetActiveAssembly(nullptr);
   this->GeometryFilter->Delete();
   this->MultiBlockMaker->Delete();
-  this->Decimator->Delete();
+  if (this->Decimator)
+  {
+    this->Decimator->Delete();
+  }
   this->LODOutlineFilter->Delete();
   this->Mapper->Delete();
   this->LODMapper->Delete();
@@ -283,13 +281,13 @@ vtkGeometryRepresentation::~vtkGeometryRepresentation()
 void vtkGeometryRepresentation::SetupDefaults()
 {
   // setup composite display attributes
-  if (auto cpdm = vtkCompositePolyDataMapper2::SafeDownCast(this->Mapper))
+  if (auto cpdm = vtkCompositePolyDataMapper::SafeDownCast(this->Mapper))
   {
     vtkNew<vtkCompositeDataDisplayAttributes> compositeAttributes;
     cpdm->SetCompositeDataDisplayAttributes(compositeAttributes);
   }
 
-  if (auto cpdm = vtkCompositePolyDataMapper2::SafeDownCast(this->LODMapper))
+  if (auto cpdm = vtkCompositePolyDataMapper::SafeDownCast(this->LODMapper))
   {
     vtkNew<vtkCompositeDataDisplayAttributes> compositeAttributesLOD;
     cpdm->SetCompositeDataDisplayAttributes(compositeAttributesLOD);
@@ -308,6 +306,7 @@ void vtkGeometryRepresentation::SetupDefaults()
     geomFilter->SetUseOutline(0);
     geomFilter->SetTriangulate(0);
     geomFilter->SetNonlinearSubdivisionLevel(1);
+    geomFilter->SetMatchBoundariesIgnoringCellOrder(0);
     geomFilter->SetPassThroughCellIds(1);
     geomFilter->SetPassThroughPointIds(1);
   }
@@ -444,10 +443,10 @@ int vtkGeometryRepresentation::ProcessViewRequest(
   }
   else if (request_type == vtkPVView::REQUEST_RENDER())
   {
-    auto data = vtkPVView::GetDeliveredPiece(inInfo, this);
+    auto outputData = vtkPVView::GetDeliveredPiece(inInfo, this);
     // vtkLogF(INFO, "%p: %s", (void*)data, this->GetLogName().c_str());
     auto dataLOD = vtkPVView::GetDeliveredPieceLOD(inInfo, this);
-    this->Mapper->SetInputDataObject(data);
+    this->Mapper->SetInputDataObject(outputData);
     this->LODMapper->SetInputDataObject(dataLOD);
 
     // This is called just before the vtk-level render. In this pass, we simply
@@ -456,11 +455,11 @@ int vtkGeometryRepresentation::ProcessViewRequest(
     this->Actor->SetEnableLOD(lod ? 1 : 0);
     this->UpdateColoringParameters();
 
-    if (data && (this->BlockAttributeTime < data->GetMTime() || this->BlockAttrChanged))
+    if (outputData && (this->BlockAttributeTime < outputData->GetMTime() || this->BlockAttrChanged))
     {
-      if (auto cmapper = vtkCompositePolyDataMapper2::SafeDownCast(this->Mapper))
+      if (auto cmapper = vtkCompositePolyDataMapper::SafeDownCast(this->Mapper))
       {
-        this->PopulateBlockAttributes(cmapper->GetCompositeDataDisplayAttributes(), data);
+        this->PopulateBlockAttributes(cmapper->GetCompositeDataDisplayAttributes(), outputData);
       }
       this->BlockAttributeTime.Modified();
       this->BlockAttrChanged = false;
@@ -472,7 +471,7 @@ int vtkGeometryRepresentation::ProcessViewRequest(
 
     if (lod && dataLOD && this->UpdateBlockAttrLOD)
     {
-      if (auto cmapper = vtkCompositePolyDataMapper2::SafeDownCast(this->LODMapper))
+      if (auto cmapper = vtkCompositePolyDataMapper::SafeDownCast(this->LODMapper))
       {
         this->PopulateBlockAttributes(cmapper->GetCompositeDataDisplayAttributes(), dataLOD);
       }
@@ -768,12 +767,7 @@ void vtkGeometryRepresentation::SetVisibility(bool val)
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetCoordinateShiftScaleMethod(int val)
 {
-  vtkOpenGLPolyDataMapper* mapper = vtkOpenGLPolyDataMapper::SafeDownCast(this->Mapper);
-  if (mapper)
-  {
-    mapper->SetVBOShiftScaleMethod(val);
-  }
-  mapper = vtkOpenGLPolyDataMapper::SafeDownCast(this->LODMapper);
+  vtkPolyDataMapper* mapper = vtkPolyDataMapper::SafeDownCast(this->Mapper);
   if (mapper)
   {
     mapper->SetVBOShiftScaleMethod(val);
@@ -782,7 +776,7 @@ void vtkGeometryRepresentation::SetCoordinateShiftScaleMethod(int val)
 
 int vtkGeometryRepresentation::GetCoordinateShiftScaleMethod()
 {
-  vtkOpenGLPolyDataMapper* mapper = vtkOpenGLPolyDataMapper::SafeDownCast(this->Mapper);
+  vtkPolyDataMapper* mapper = vtkPolyDataMapper::SafeDownCast(this->Mapper);
   if (mapper)
   {
     return mapper->GetVBOShiftScaleMethod();
@@ -877,6 +871,15 @@ void vtkGeometryRepresentation::SetLookupTable(vtkScalarsToColors* val)
 }
 
 //----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetColorMissingArraysWithNanColor(bool val)
+{
+  if (auto cpdm = vtkCompositePolyDataMapper::SafeDownCast(this->Mapper))
+  {
+    cpdm->SetColorMissingArraysWithNanColor(val);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetMapScalars(int val)
 {
   if (val < 0 || val > 1)
@@ -919,6 +922,12 @@ void vtkGeometryRepresentation::SetLineWidth(double val)
 void vtkGeometryRepresentation::SetOpacity(double val)
 {
   this->Property->SetOpacity(val);
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetEdgeOpacity(double val)
+{
+  this->Property->SetEdgeOpacity(val);
 }
 
 //----------------------------------------------------------------------------
@@ -1342,6 +1351,20 @@ void vtkGeometryRepresentation::SetNonlinearSubdivisionLevel(int val)
 }
 
 //----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetMatchBoundariesIgnoringCellOrder(int val)
+{
+  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  {
+    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)
+      ->SetMatchBoundariesIgnoringCellOrder(val);
+  }
+
+  // since geometry filter needs to execute, we need to mark the representation
+  // modified.
+  this->MarkModified();
+}
+
+//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetGenerateFeatureEdges(bool val)
 {
   if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
@@ -1433,13 +1456,13 @@ void vtkGeometryRepresentation::RemoveAllBlockOpacities()
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::PopulateBlockAttributes(
-  vtkCompositeDataDisplayAttributes* attrs, vtkDataObject* data) const
+  vtkCompositeDataDisplayAttributes* attrs, vtkDataObject* outputData)
 {
   attrs->RemoveBlockVisibilities();
   attrs->RemoveBlockOpacities();
   attrs->RemoveBlockColors();
 
-  auto dtree = vtkDataObjectTree::SafeDownCast(data);
+  auto dtree = vtkDataObjectTree::SafeDownCast(outputData);
   if (dtree == nullptr ||
     dtree->GetFieldData()->GetArray("vtkGeometryRepresentationMultiBlockMaker") != nullptr)
   {
@@ -1466,8 +1489,72 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
 
   // Handle visibilities.
   attrs->SetBlockVisibility(dtree, false); // start by marking root invisible first.
-  std::vector<std::string> selectors(this->BlockSelectors.begin(), this->BlockSelectors.end());
-  const auto cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectors, hierarchy);
+  // create a vector of selectors for block visibilities
+  const std::vector<std::string> blockVisibilitySelectors(
+    this->BlockSelectors.begin(), this->BlockSelectors.end());
+  // get the selectors for block colors and opacities
+  std::set<std::string> blockColorsAndOpacitiesSelectorsSet;
+  for (const auto& item : this->BlockColors)
+  {
+    blockColorsAndOpacitiesSelectorsSet.emplace(item.first);
+  }
+  for (const auto& item : this->BlockOpacities)
+  {
+    blockColorsAndOpacitiesSelectorsSet.emplace(item.first);
+  }
+  // create a vector of selectors for block colors and opacities
+  const std::vector<std::string> blockColorsAndOpacitiesSelectors(
+    blockColorsAndOpacitiesSelectorsSet.begin(), blockColorsAndOpacitiesSelectorsSet.end());
+
+  std::vector<unsigned int> cids;
+  std::map<std::string, std::vector<std::string>> selectorsMap;
+  const bool isAssembly =
+    this->ActiveAssembly != nullptr && strcmp(this->ActiveAssembly, "Assembly") == 0;
+  // TODO, in the future, when vtkPVGeometryFilter produces PDC, we won't need to read the
+  // vtkDataAssembly from the output data's field data and convert the output to a PDC.
+  if (isAssembly && outputData->GetFieldData()->HasArray("vtkDataAssembly"))
+  {
+    const auto dataAssemblyArray = outputData->GetFieldData()->GetAbstractArray("vtkDataAssembly");
+    const auto dataAssemblyString = dataAssemblyArray->GetVariantValue(0).ToString();
+    vtkNew<vtkConvertToPartitionedDataSetCollection> converter;
+    converter->SetInputDataObject(outputData);
+    converter->Update();
+    auto outputPDC =
+      vtkPartitionedDataSetCollection::SafeDownCast(converter->GetOutputDataObject(0));
+    vtkNew<vtkDataAssembly> dataAssembly;
+    dataAssembly->InitializeFromXML(dataAssemblyString.c_str());
+    outputPDC->SetDataAssembly(dataAssembly);
+    // construct a hierarchy for the input partitioned data set collection.
+    vtkNew<vtkDataAssembly> pdcHierarchy;
+    if (!vtkDataAssemblyUtilities::GenerateHierarchy(outputPDC, pdcHierarchy))
+    {
+      vtkErrorMacro("Failed to generate hierarchy for input partitioned data set collection.");
+      return;
+    }
+    // we need to convert assembly selectors to composite ids.
+    cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(
+      blockVisibilitySelectors, outputPDC->GetDataAssembly(), outputPDC);
+
+    for (auto& selector : blockColorsAndOpacitiesSelectors)
+    {
+      // compute the composite ids for the assembly selectors.
+      auto selectorCids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(
+        { selector }, outputPDC->GetDataAssembly(), outputPDC);
+      // compute the hierarchy selectors for the composite ids.
+      selectorsMap[selector] =
+        vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(selectorCids, pdcHierarchy);
+    }
+  }
+  else
+  {
+    // compute the composite ids for the hierarchy selectors
+    cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(blockVisibilitySelectors, hierarchy);
+    // set selectors map
+    for (const auto& selector : blockColorsAndOpacitiesSelectors)
+    {
+      selectorsMap[selector] = { selector };
+    }
+  }
   for (const auto& id : cids)
   {
     auto iter = cid_to_dobj.find(id);
@@ -1480,7 +1567,8 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
   // Handle color.
   for (const auto& item : this->BlockColors)
   {
-    const auto ids = vtkDataAssemblyUtilities::GetSelectedCompositeIds({ item.first }, hierarchy);
+    const auto ids =
+      vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectorsMap[item.first], hierarchy);
     for (const auto& id : ids)
     {
       auto iter = cid_to_dobj.find(id);
@@ -1493,7 +1581,8 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
 
   for (const auto& item : this->BlockOpacities)
   {
-    const auto ids = vtkDataAssemblyUtilities::GetSelectedCompositeIds({ item.first }, hierarchy);
+    const auto ids =
+      vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectorsMap[item.first], hierarchy);
     for (const auto& id : ids)
     {
       auto iter = cid_to_dobj.find(id);
@@ -1564,10 +1653,10 @@ void vtkGeometryRepresentation::ComputeVisibleDataBounds()
     // REQUEST_RENDER pass.  This constructs a dummy vtkCompositeDataDisplayAttributes
     // with only the visibilities set and calls the helper function to compute the visible
     // bounds with that.
-    vtkDataObject* dataObject = this->MultiBlockMaker->GetOutputDataObject(0);
+    vtkDataObject* outputData = this->MultiBlockMaker->GetOutputDataObject(0);
     vtkNew<vtkCompositeDataDisplayAttributes> cdAttributes;
-    this->PopulateBlockAttributes(cdAttributes, dataObject);
-    this->GetBounds(dataObject, this->VisibleDataBounds, cdAttributes);
+    this->PopulateBlockAttributes(cdAttributes, outputData);
+    this->GetBounds(outputData, this->VisibleDataBounds, cdAttributes);
     this->VisibleDataBoundsTime.Modified();
   }
 }
@@ -1693,7 +1782,16 @@ void vtkGeometryRepresentation::UpdateShaderReplacements()
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetArrayIdNames(const char* pointArray, const char* cellArray)
 {
-  vtkCompositePolyDataMapper2* mapper = vtkCompositePolyDataMapper2::SafeDownCast(this->Mapper);
-  mapper->SetPointIdArrayName(pointArray ? pointArray : "vtkOriginalPointIds");
-  mapper->SetCellIdArrayName(cellArray ? cellArray : "vtkOriginalCellIds");
+  using namespace vtk::literals;
+
+  if (auto* cpmapper = vtkCompositePolyDataMapper::SafeDownCast(this->Mapper))
+  {
+    cpmapper->SetPointIdArrayName(pointArray ? pointArray : "vtkOriginalPointIds");
+    cpmapper->SetCellIdArrayName(cellArray ? cellArray : "vtkOriginalCellIds");
+  }
+  else if (auto* cgmapper = vtkCompositeCellGridMapper::SafeDownCast(this->Mapper))
+  {
+    cgmapper->SetPointIdAttributeName(pointArray ? pointArray : "vtkOriginalPointIds"_token);
+    cgmapper->SetCellIdAttributeName(cellArray ? cellArray : "vtkOriginalCellIds"_token);
+  }
 }

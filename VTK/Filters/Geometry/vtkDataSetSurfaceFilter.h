@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSetSurfaceFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetSurfaceFilter
  * @brief   Extracts outer surface (as vtkPolyData) of any dataset
@@ -88,14 +76,15 @@
 #ifndef vtkDataSetSurfaceFilter_h
 #define vtkDataSetSurfaceFilter_h
 
+#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkFiltersGeometryModule.h" // For export macro
 #include "vtkGeometryFilter.h"        // To facilitate delegation
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename ArrayType>
 class vtkSmartPointer;
 
-class vtkCellIterator;
 class vtkPointData;
 class vtkPoints;
 class vtkIdTypeArray;
@@ -195,6 +184,17 @@ public:
    */
   vtkSetMacro(NonlinearSubdivisionLevel, int);
   vtkGetMacro(NonlinearSubdivisionLevel, int);
+  ///@}
+
+  ///@{
+  /**
+   * When two volumetric cells of different order are connected by their corners (for instance, a
+   * quadratic hexahedron next to a linear hexahedron ), the internal face is rendered and is not
+   * considered as a ghost cell. To remove these faces, switch MatchBoundariesIgnoringCellOrder to 1
+   * (default is 0).
+   */
+  vtkSetMacro(MatchBoundariesIgnoringCellOrder, int);
+  vtkGetMacro(MatchBoundariesIgnoringCellOrder, int);
   ///@}
 
   ///@{
@@ -316,6 +316,8 @@ protected:
   vtkIdType* PointMap;
   vtkIdType GetOutputPointId(
     vtkIdType inPtId, vtkDataSet* input, vtkPoints* outPts, vtkPointData* outPD);
+
+  VTK_DEPRECATED_IN_9_3_0("This function is deprecated since reserved for private usage.")
   vtkIdType GetOutputPointIdAndInterpolate(vtkIdType inPtId, vtkDataSet* input, vtkCell* cell,
     double* weights, vtkPoints* outPts, vtkPointData* outPD);
 
@@ -323,7 +325,7 @@ protected:
 
   vtkEdgeInterpolationMap* EdgeMap;
   vtkIdType GetInterpolatedPointId(vtkIdType edgePtA, vtkIdType edgePtB, vtkDataSet* input,
-    vtkCell* cell, double pcoords[3], double* weights, vtkPoints* outPts, vtkPointData* outPD);
+    vtkCell* cell, double* pcoords, double* weights, vtkPoints* outPts, vtkPointData* outPD);
   vtkIdType GetInterpolatedPointId(vtkDataSet* input, vtkCell* cell, double pcoords[3],
     double* weights, vtkPoints* outPts, vtkPointData* outPD);
   vtkIdType NumberOfNewCells;
@@ -354,19 +356,24 @@ protected:
   char* OriginalPointIdsName;
 
   int NonlinearSubdivisionLevel;
+  int MatchBoundariesIgnoringCellOrder;
   vtkTypeBool Delegation;
   bool FastMode;
 
 private:
   int UnstructuredGridBaseExecute(vtkDataSet* input, vtkPolyData* output);
-  int UnstructuredGridExecuteInternal(vtkUnstructuredGridBase* input, vtkPolyData* output,
-    bool handleSubdivision, vtkSmartPointer<vtkCellIterator> cellIter);
+  int UnstructuredGridExecuteInternal(
+    vtkUnstructuredGridBase* input, vtkPolyData* output, bool handleSubdivision);
 
   int StructuredExecuteNoBlanking(
     vtkDataSet* input, vtkPolyData* output, vtkIdType* ext, vtkIdType* wholeExt);
+
+  vtkIdType GetOutputPointIdAndInterpolate(vtkIdType inPtId, vtkDataSet* input, vtkCell* cell,
+    double* pc, double* weights, vtkPoints* outPts, vtkPointData* outPD);
 
   vtkDataSetSurfaceFilter(const vtkDataSetSurfaceFilter&) = delete;
   void operator=(const vtkDataSetSurfaceFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

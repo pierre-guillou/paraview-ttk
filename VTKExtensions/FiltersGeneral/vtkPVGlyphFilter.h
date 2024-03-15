@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGlyphFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVGlyphFilter
  * @brief   extended API for vtkGlyph3D for better control
@@ -87,7 +75,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPVGlyphFilter* New();
 
-  //@{
+  ///@{
   /**
    * Specify a source object at a specified table location. New style.
    * Source connection is stored in port 1. This method is equivalent
@@ -98,27 +86,27 @@ public:
   {
     this->SetSourceConnection(0, algOutput);
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the vtkMultiProcessController to use for parallel processing.
    * By default, the vtkMultiProcessController::GetGlobalController() will be used.
    */
   void SetController(vtkMultiProcessController*);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/set the vector scaling mode. This mode determines how glyphs are scaled when the
    * scale array has more than one component.
    */
-  //@}
+  ///@}
   vtkSetClampMacro(VectorScaleMode, int, SCALE_BY_MAGNITUDE, SCALE_BY_COMPONENTS);
   vtkGetMacro(VectorScaleMode, int);
 
-  //@{
+  ///@{
   /**
    * When set, this is use to transform the source polydata before using it to
    * generate the glyph. This is useful if one wanted to reorient the source,
@@ -126,14 +114,14 @@ public:
    */
   void SetSourceTransform(vtkTransform*);
   vtkGetObjectMacro(SourceTransform, vtkTransform);
-  //@}
+  ///@}
 
   /**
    * Overridden to include SourceTransform's MTime.
    */
   vtkMTimeType GetMTime() override;
 
-  //@{
+  ///@{
   /**
    * Set/get the desired precision for the output types. See the documentation
    * for the vtkAlgorithm::DesiredOutputPrecision enum for an explanation of
@@ -141,50 +129,50 @@ public:
    */
   vtkSetMacro(OutputPointsPrecision, int);
   vtkGetMacro(OutputPointsPrecision, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get scale factor used to change the size of glyphs. This factor is
    * applied uniformly in each dimension.
    */
-  //@}
+  ///@}
   vtkSetMacro(ScaleFactor, double);
   vtkGetMacro(ScaleFactor, double);
 
-  //@{
+  ///@{
   /**
    * Set/Get the mode at which glyphs will be generated.
    */
   vtkSetClampMacro(GlyphMode, int, ALL_POINTS, SPATIALLY_UNIFORM_INVERSE_TRANSFORM_SAMPLING_VOLUME);
   vtkGetMacro(GlyphMode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the stride at which to glyph the dataset.
    * Note, only applicable with EVERY_NTH_POINT GlyphMode.
    */
   vtkSetClampMacro(Stride, int, 1, VTK_INT_MAX);
   vtkGetMacro(Stride, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get Seed used for generating a spatially uniform distribution.
    */
   vtkSetMacro(Seed, int);
   vtkGetMacro(Seed, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get maximum number of sample points to use to sample the space when
    * GlyphMode is set to SPATIALLY_UNIFORM_*.
    */
   vtkSetClampMacro(MaximumNumberOfSamplePoints, int, 1, VTK_INT_MAX);
   vtkGetMacro(MaximumNumberOfSamplePoints, int);
-  //@}
+  ///@}
 
   /**
    * Overridden to create output data of appropriate type.
@@ -234,7 +222,7 @@ protected:
    */
   bool NeedsVectors();
 
-  //@{
+  ///@{
   /**
    * Method called in RequestData() to do the actual data processing. This will
    * glyph the \c input, filling up the \c output based on the filter
@@ -246,7 +234,7 @@ protected:
   virtual bool Execute(unsigned int index, vtkDataSet* input, vtkInformationVector* sourceVector,
     vtkPolyData* output, vtkDataArray* inSScalars, vtkDataArray* inVectors,
     bool cellCenters = false);
-  //@}
+  ///@}
 
   int VectorScaleMode;
   vtkTransform* SourceTransform;

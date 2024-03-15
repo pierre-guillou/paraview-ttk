@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkReverseSense.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkReverseSense.h"
 
 #include "vtkCellArray.h"
@@ -23,6 +11,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkReverseSense);
 
 // Construct object so that behavior is to reverse cell ordering and
@@ -54,7 +43,7 @@ int vtkReverseSense::RequestData(vtkInformation* vtkNotUsed(request),
   output->GetCellData()->PassData(input->GetCellData());
 
   // If specified, traverse all cells and reverse them
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval;
 
   if (this->ReverseCells)
@@ -87,7 +76,7 @@ int vtkReverseSense::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(cellId % progressInterval)) // manage progress / early abort
       {
         this->UpdateProgress(0.6 * cellId / numCells);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
       output->ReverseCell(cellId);
     }
@@ -111,7 +100,7 @@ int vtkReverseSense::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(ptId % progressInterval)) // manage progress / early abort
       {
         this->UpdateProgress(0.6 + 0.2 * ptId / numPoints);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
       normals->GetTuple(ptId, n);
       n[0] = -n[0];
@@ -140,7 +129,7 @@ int vtkReverseSense::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(cellId % progressInterval)) // manage progress / early abort
       {
         this->UpdateProgress(0.8 + 0.2 * cellId / numCells);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
 
       cellNormals->GetTuple(cellId, n);
@@ -164,3 +153,4 @@ void vtkReverseSense::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Reverse Cells: " << (this->ReverseCells ? "On\n" : "Off\n");
   os << indent << "Reverse Normals: " << (this->ReverseNormals ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

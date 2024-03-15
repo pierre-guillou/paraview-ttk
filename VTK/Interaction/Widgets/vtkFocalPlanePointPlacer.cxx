@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFocalPlanePointPlacer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFocalPlanePointPlacer.h"
 
 #include "vtkCamera.h"
@@ -22,6 +10,7 @@
 #include "vtkPlanes.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFocalPlanePointPlacer);
 
 //------------------------------------------------------------------------------
@@ -223,3 +212,4 @@ void vtkFocalPlanePointPlacer::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "  Zmin,Zmax: (" << this->PointBounds[4] << ", " << this->PointBounds[5] << ")\n";
   os << indent << "Offset: " << this->Offset << endl;
 }
+VTK_ABI_NAMESPACE_END

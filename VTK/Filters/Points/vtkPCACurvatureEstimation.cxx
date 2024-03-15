@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPCACurvatureEstimation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkPCACurvatureEstimation.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -27,6 +15,7 @@
 #include "vtkSMPTools.h"
 #include "vtkStaticPointLocator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPCACurvatureEstimation);
 vtkCxxSetObjectMacro(vtkPCACurvatureEstimation, Locator, vtkAbstractPointLocator);
 
@@ -239,3 +228,4 @@ void vtkPCACurvatureEstimation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Sample Size: " << this->SampleSize << "\n";
   os << indent << "Locator: " << this->Locator << "\n";
 }
+VTK_ABI_NAMESPACE_END

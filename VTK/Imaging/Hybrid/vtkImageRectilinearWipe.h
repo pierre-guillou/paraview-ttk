@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageRectilinearWipe.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageRectilinearWipe
  * @brief   make a rectilinear combination of two images.
@@ -58,6 +46,7 @@
 #define VTK_WIPE_UPPER_LEFT 5
 #define VTK_WIPE_UPPER_RIGHT 6
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIMAGINGHYBRID_EXPORT vtkImageRectilinearWipe : public vtkThreadedImageAlgorithm
 {
 public:
@@ -136,4 +125,5 @@ private:
   void operator=(const vtkImageRectilinearWipe&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

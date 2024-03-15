@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWindow.h"
 
 #include "vtkCommand.h"
@@ -20,6 +8,7 @@
 // Construct an instance of vtkRenderWindow with its screen size
 // set to 300x300, borders turned on, positioned at (0,0), double
 // buffering turned on.
+VTK_ABI_NAMESPACE_BEGIN
 vtkWindow::vtkWindow()
 {
   this->ShowWindow = true;
@@ -138,3 +127,4 @@ void vtkWindow::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TileViewport: (" << this->TileViewport[0] << ", " << this->TileViewport[1]
      << ", " << this->TileViewport[2] << ", " << this->TileViewport[3] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

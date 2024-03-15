@@ -1,37 +1,6 @@
-/*=========================================================================
-
-   Program:   ParaView
-   Module:    pqIntRangeWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqIntRangeWidget.h"
 
@@ -57,7 +26,7 @@ pqIntRangeWidget::pqIntRangeWidget(QWidget* p)
   this->DeferredValueEdited = false;
 
   QHBoxLayout* l = new QHBoxLayout(this);
-  l->setMargin(0);
+  l->setContentsMargins(0, 0, 0, 0);
   this->Slider = new QSlider(Qt::Horizontal, this);
   this->Slider->setRange(0, 1);
   l->addWidget(this->Slider);
@@ -152,29 +121,7 @@ void pqIntRangeWidget::setMinimum(int val)
 //-----------------------------------------------------------------------------
 void pqIntRangeWidget::updateValidator()
 {
-  if (this->StrictRange)
-  {
-    this->LineEdit->setValidator(
-      new QIntValidator(this->minimum(), this->maximum(), this->LineEdit));
-  }
-  else
-  {
-    this->LineEdit->setValidator(new QIntValidator(this->LineEdit));
-  }
-}
-
-//-----------------------------------------------------------------------------
-bool pqIntRangeWidget::strictRange() const
-{
-  const QIntValidator* dv = qobject_cast<const QIntValidator*>(this->LineEdit->validator());
-  return dv->bottom() == this->minimum() && dv->top() == this->maximum();
-}
-
-//-----------------------------------------------------------------------------
-void pqIntRangeWidget::setStrictRange(bool s)
-{
-  this->StrictRange = s;
-  this->updateValidator();
+  this->LineEdit->setValidator(new QIntValidator(this->LineEdit));
 }
 
 //-----------------------------------------------------------------------------

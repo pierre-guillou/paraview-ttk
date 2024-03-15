@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraturePointsGenerator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkQuadraturePointsGenerator.h"
 
@@ -45,6 +33,7 @@
 using std::ostringstream;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQuadraturePointsGenerator);
 
 //------------------------------------------------------------------------------
@@ -100,7 +89,8 @@ struct GenerateWorker
 {
   template <typename OffsetArrayT>
   void operator()(OffsetArrayT* offsetArray, vtkDataArray* data, vtkUnstructuredGrid* usgIn,
-    vtkPolyData* pdOut, std::vector<vtkQuadratureSchemeDefinition*>& dict)
+    vtkPolyData* pdOut, std::vector<vtkQuadratureSchemeDefinition*>& dict,
+    vtkQuadraturePointsGenerator* self)
   {
     const auto offsets = vtk::DataArrayValueRange<1>(offsetArray);
 
@@ -112,6 +102,10 @@ struct GenerateWorker
 
     for (vtkIdType cellId = 0; cellId < numCells; cellId++)
     {
+      if (self->CheckAbort())
+      {
+        break;
+      }
       vtkIdType offset = static_cast<vtkIdType>(offsets[cellId]);
 
       if (offset != previous + 1)
@@ -205,9 +199,9 @@ int vtkQuadraturePointsGenerator::GenerateField(
   using Dispatcher = vtkArrayDispatch::DispatchByValueType<Integrals>;
 
   GenerateWorker worker;
-  if (!Dispatcher::Execute(offsets, worker, data, usgIn, pdOut, dict))
+  if (!Dispatcher::Execute(offsets, worker, data, usgIn, pdOut, dict, this))
   { // Fallback to slow path for other arrays:
-    worker(offsets, data, usgIn, pdOut, dict);
+    worker(offsets, data, usgIn, pdOut, dict, this);
   }
 
   return 1;
@@ -264,9 +258,9 @@ int vtkQuadraturePointsGenerator::Generate(
   // For all cells interpolate.
   using Dispatcher = vtkArrayDispatch::Dispatch;
   vtkQuadraturePointsUtilities::InterpolateWorker worker;
-  if (!Dispatcher::Execute(X, worker, usgIn, nCells, dict, qPts))
+  if (!Dispatcher::Execute(X, worker, usgIn, nCells, dict, qPts, this))
   { // fall back to slow path:
-    worker(X, usgIn, nCells, dict, qPts);
+    worker(X, usgIn, nCells, dict, qPts, this);
   }
 
   // Add the interpolated quadrature points to the output
@@ -298,6 +292,10 @@ int vtkQuadraturePointsGenerator::Generate(
   int nArrays = usgIn->GetFieldData()->GetNumberOfArrays();
   for (int i = 0; i < nArrays; ++i)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkDataArray* array = usgIn->GetFieldData()->GetArray(i);
     if (array == nullptr)
       continue;
@@ -332,3 +330,4 @@ void vtkQuadraturePointsGenerator::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

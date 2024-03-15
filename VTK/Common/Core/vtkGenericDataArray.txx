@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericDataArray.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkGenericDataArray_txx
 #define vtkGenericDataArray_txx
 
@@ -22,6 +10,7 @@
 #include "vtkVariantCast.h"
 
 //-----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <class DerivedT, class ValueTypeT>
 double* vtkGenericDataArray<DerivedT, ValueTypeT>::GetTuple(vtkIdType tupleIdx)
 {
@@ -1034,9 +1023,11 @@ class vtkSOADataArrayTemplate;
 template <typename ValueType>
 class vtkScaledSOADataArrayTemplate;
 #endif
+VTK_ABI_NAMESPACE_END
 
 namespace vtk_GDA_detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // Arrays templates with compiled-in support for value ranges in
 // vtkGenericDataArray.cxx
@@ -1094,8 +1085,10 @@ struct IsSupported
 {
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk_GDA_detail
 
+VTK_ABI_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 template <class DerivedT, class ValueTypeT>
 void vtkGenericDataArray<DerivedT, ValueTypeT>::ComputeValueRange(
@@ -1219,9 +1212,11 @@ void vtkGenericDataArray<DerivedT, ValueTypeT>::ComputeFiniteValueRange(
     }
   }
 }
+VTK_ABI_NAMESPACE_END
 
 namespace vtk_GDA_detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename ArrayType, typename ValueType, typename Tag>
 bool ComputeScalarValueRangeImpl(ArrayType* array, ValueType* range, Tag tag, std::true_type,
@@ -1276,8 +1271,10 @@ bool ComputeVectorValueRangeImpl(ArrayType* array, ValueType range[2], Tag tag, 
   return true;
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace vtk_GDA_detail
 
+VTK_ABI_NAMESPACE_BEGIN
 //-----------------------------------------------------------------------------
 template <class DerivedT, class ValueTypeT>
 bool vtkGenericDataArray<DerivedT, ValueTypeT>::ComputeScalarValueRange(
@@ -1324,4 +1321,5 @@ bool vtkGenericDataArray<DerivedT, ValueTypeT>::ComputeFiniteVectorValueRange(
 
 #undef vtkGenericDataArrayT
 
+VTK_ABI_NAMESPACE_END
 #endif // header guard

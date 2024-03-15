@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkStreamingPriorityQueue
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamingPriorityQueue
  * @brief   provides a datastructure for building
@@ -214,7 +202,7 @@ class VTK_WRAPEXCLUDE vtkStreamingPriorityQueue
       std::vector<vtkStreamingPriorityQueueItem>, Comparator>
 {
 public:
-  //@{
+  ///@{
   /**
    * Updates the priorities of items in the queue.
    */
@@ -223,7 +211,7 @@ public:
     bool clamp_bounds_initialized =
       (vtkMath::AreBoundsInitialized(const_cast<double*>(clamp_bounds)) != 0);
     vtkBoundingBox clampBox(const_cast<double*>(clamp_bounds));
-    //@}
+    ///@}
 
     vtkStreamingPriorityQueue current_queue;
     std::swap(current_queue, *this);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMParaViewPipelineControllerWithRendering.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMParaViewPipelineControllerWithRendering
  *
@@ -34,6 +22,7 @@
 #ifndef vtkSMParaViewPipelineControllerWithRendering_h
 #define vtkSMParaViewPipelineControllerWithRendering_h
 
+#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSMParaViewPipelineController.h"
 
@@ -177,6 +166,7 @@ public:
    */
   virtual const char* GetPipelineIcon(vtkSMSourceProxy* producer, int outputPort);
 
+  using Superclass::RegisterRepresentationProxy;
   /**
    * Overridden to create color and opacity transfer functions if applicable.
    * While it is tempting to add any default property setup logic in such
@@ -190,7 +180,7 @@ public:
    */
   static void SetHideScalarBarOnHide(bool);
 
-  //@{
+  ///@{
   /**
    * Control whether representations try to maintain properties from an input
    * representation, if present. e.g. if you "Transform" the representation for
@@ -199,7 +189,7 @@ public:
    */
   static void SetInheritRepresentationProperties(bool);
   static bool GetInheritRepresentationProperties();
-  //@}
+  ///@}
 
   /**
    * Overridden to handle default ColorArrayName for representations correctly.
@@ -242,6 +232,8 @@ protected:
   /**
    * Overridden here where the library has link access to rendering classes.
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "Material setup is now handled by the RenderView proxy on raytracing back-end update")
   void DoMaterialSetup(vtkSMProxy* proxy) override;
 
 private:

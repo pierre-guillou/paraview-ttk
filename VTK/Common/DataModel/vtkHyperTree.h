@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTree.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTree
  * @brief   A data object structured as a tree.
@@ -141,6 +129,7 @@
 #include <cassert> // Used internally
 #include <memory>  // std::shared_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkIdList;
 class vtkHyperTreeGridScales;
@@ -177,7 +166,6 @@ class VTKCOMMONDATAMODEL_EXPORT vtkHyperTree : public vtkObject
 {
 public:
   vtkTypeMacro(vtkHyperTree, vtkObject);
-
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
@@ -470,7 +458,7 @@ public:
 
   /**
    * Return if a vertice identified by index in tree as a terminal node.
-   * For this, all childrens mus be all leaves.
+   * For this, all children must be all leaves.
    * \pre not_valid_index
    * \pre not_valid_child_index
    */
@@ -545,7 +533,7 @@ protected:
   // Storage of pre-computed per-level cell scales
   // In hypertree grid, one description by hypertree.
   // In Uniform hypertree grid, one description by hypertree grid
-  // (all cells, differents hypertree, are identicals by level).
+  // (all cells, different hypertree, are identical by level).
   mutable std::shared_ptr<vtkHyperTreeGridScales> Scales;
 
 private:
@@ -555,4 +543,5 @@ private:
   void operator=(const vtkHyperTree&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

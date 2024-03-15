@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMoleculeMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMoleculeMapper
  * @brief   Mapper that draws vtkMolecule objects
@@ -28,6 +16,7 @@
 #include "vtkMapper.h"
 #include "vtkNew.h" // For vtkNew
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkGlyph3DMapper;
 class vtkIdTypeArray;
@@ -278,7 +267,7 @@ public:
   void Render(vtkRenderer*, vtkActor*) override;
   void ReleaseGraphicsResources(vtkWindow*) override;
   double* GetBounds() override;
-  void GetBounds(double bounds[6]) override { vtkAbstractMapper3D::GetBounds(bounds); }
+  void GetBounds(double bounds[6]) override { Superclass::GetBounds(bounds); }
   int FillInputPortInformation(int port, vtkInformation* info) override;
   bool GetSupportsSelection() override { return true; }
   ///@}
@@ -374,4 +363,5 @@ private:
   void operator=(const vtkMoleculeMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPBRIrradianceTexture.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPBRIrradianceTexture.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLFramebufferObject.h"
@@ -27,6 +15,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPBRIrradianceTexture);
 
 vtkCxxSetObjectMacro(vtkPBRIrradianceTexture, InputTexture, vtkOpenGLTexture);
@@ -66,13 +55,20 @@ void vtkPBRIrradianceTexture::Load(vtkRenderer* ren)
   if (!renWin)
   {
     vtkErrorMacro("No render window.");
+    return;
   }
 
   if (!this->InputTexture)
   {
     vtkErrorMacro("No input cubemap specified.");
+    return;
   }
 
+#ifdef GL_ES_VERSION_3_0
+  // Mipmap generation is not supported for most texture formats (like GL_RGB32F)
+  this->InputTexture->MipmapOff();
+  this->InputTexture->InterpolateOff();
+#endif
   this->InputTexture->Render(ren);
 
   if (this->GetMTime() > this->LoadTime.GetMTime() ||
@@ -83,9 +79,6 @@ void vtkPBRIrradianceTexture::Load(vtkRenderer* ren)
       this->TextureObject = vtkTextureObject::New();
     }
     this->TextureObject->SetContext(renWin);
-    this->TextureObject->SetFormat(GL_RGB);
-    this->TextureObject->SetInternalFormat(GL_RGB16F);
-    this->TextureObject->SetDataType(GL_FLOAT);
     this->TextureObject->SetWrapS(vtkTextureObject::ClampToEdge);
     this->TextureObject->SetWrapT(vtkTextureObject::ClampToEdge);
     this->TextureObject->SetWrapR(vtkTextureObject::ClampToEdge);
@@ -93,6 +86,19 @@ void vtkPBRIrradianceTexture::Load(vtkRenderer* ren)
     this->TextureObject->SetMagnificationFilter(vtkTextureObject::Linear);
     this->TextureObject->CreateCubeFromRaw(
       this->IrradianceSize, this->IrradianceSize, 3, VTK_FLOAT, nullptr);
+#ifdef GL_ES_VERSION_3_0
+    this->TextureObject->SetFormat(GL_RGB);
+    this->TextureObject->SetDataType(GL_UNSIGNED_BYTE);
+    this->TextureObject->SetInternalFormat(GL_RGB8);
+    this->TextureObject->CreateCubeFromRaw(
+      this->IrradianceSize, this->IrradianceSize, 3, VTK_UNSIGNED_CHAR, nullptr);
+#else
+    this->TextureObject->SetFormat(GL_RGB);
+    this->TextureObject->SetDataType(GL_FLOAT);
+    this->TextureObject->SetInternalFormat(GL_RGB16F);
+    this->TextureObject->CreateCubeFromRaw(
+      this->IrradianceSize, this->IrradianceSize, 3, VTK_FLOAT, nullptr);
+#endif
 
     this->RenderWindow = renWin;
 
@@ -174,9 +180,10 @@ void vtkPBRIrradianceTexture::Load(vtkRenderer* ren)
       << this->IrradianceStep
       << ")\n"
          "    {\n"
-         "      vec3 sample = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), cos(theta));\n"
+         "      vec3 sampleValues = vec3(sin(theta) * cos(phi), sin(theta) * sin(phi), "
+         "cos(theta));\n"
          "      float factor = cos(theta) * sin(theta);\n"
-         "      acc += GetSampleColor(m * sample) * factor;\n"
+         "      acc += GetSampleColor(m * sampleValues) * factor;\n"
          "      nSamples = nSamples + 1.0;\n"
          "    }\n"
          "  }\n"
@@ -249,3 +256,4 @@ void vtkPBRIrradianceTexture::Load(vtkRenderer* ren)
 
   this->TextureObject->Activate();
 }
+VTK_ABI_NAMESPACE_END

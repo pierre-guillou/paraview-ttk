@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPThreadLocalBackend.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // Thread Specific Storage is implemented as a Hash Table, with the Thread Id
 // as the key and a Pointer to the data as the value. The Hash Table implements
@@ -51,6 +39,7 @@ namespace smp
 {
 namespace STDThread
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 typedef size_t ThreadIdType;
 typedef uint_fast32_t HashType;
@@ -178,9 +167,11 @@ private:
   size_t CurrentSlot;
 };
 
+VTK_ABI_NAMESPACE_END
 } // STDThread;
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 
 #endif
+/* VTK-HeaderTest-Exclude: INCLUDES:CLASSES */

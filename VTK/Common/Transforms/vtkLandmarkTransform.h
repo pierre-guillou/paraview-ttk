@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLandmarkTransform.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLandmarkTransform
  * @brief   a linear transform specified by two corresponding point sets
@@ -39,6 +27,7 @@
 #define VTK_LANDMARK_SIMILARITY 7
 #define VTK_LANDMARK_AFFINE 12
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONTRANSFORMS_EXPORT vtkLandmarkTransform : public vtkLinearTransform
 {
 public:
@@ -136,4 +125,5 @@ inline const char* vtkLandmarkTransform::GetModeAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearGridConnectivity.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRectilinearGridConnectivity
  * @brief   Extracts material fragments from
@@ -98,13 +87,13 @@ public:
   static vtkRectilinearGridConnectivity* New();
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set / get the volume fraction value [0, 1] used for extracting fragments.
    */
   vtkSetClampMacro(VolumeFractionSurfaceValue, double, 0.0, 1.0);
   vtkGetMacro(VolumeFractionSurfaceValue, double);
-  //@}
+  ///@}
 
   /**
    * Remove all volume array names.

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractPolyDataGeometry.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractPolyDataGeometry.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractPolyDataGeometry);
 vtkCxxSetObjectMacro(vtkExtractPolyDataGeometry, ImplicitFunction, vtkImplicitFunction);
 
@@ -176,11 +165,19 @@ int vtkExtractPolyDataGeometry::RequestData(vtkInformation* vtkNotUsed(request),
     newStrips->AllocateCopy(inStrips);
   }
 
+  vtkIdType checkAbortInterval = 0;
+  vtkIdType progressCounter = 0;
   // verts
-  if (newVerts && !this->GetAbortExecute())
+  if (newVerts && !this->CheckAbort())
   {
+    checkAbortInterval = std::min(inVerts->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inVerts->InitTraversal(); inVerts->GetNextCell(npts, pts);)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       for (numIn = 0, i = 0; i < npts; i++)
       {
         if (newScalars->GetValue(pts[i]) <= 0.0)
@@ -219,10 +216,16 @@ int vtkExtractPolyDataGeometry::RequestData(vtkInformation* vtkNotUsed(request),
   this->UpdateProgress(0.6);
 
   // lines
-  if (newLines && !this->GetAbortExecute())
+  if (newLines && !this->CheckAbort())
   {
+    checkAbortInterval = std::min(inLines->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts);)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+      progressCounter++;
       for (numIn = 0, i = 0; i < npts; i++)
       {
         if (newScalars->GetValue(pts[i]) <= 0.0)
@@ -261,10 +264,15 @@ int vtkExtractPolyDataGeometry::RequestData(vtkInformation* vtkNotUsed(request),
   this->UpdateProgress(0.75);
 
   // polys
-  if (newPolys && !this->GetAbortExecute())
+  if (newPolys && !this->CheckAbort())
   {
+    checkAbortInterval = std::min(inPolys->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inPolys->InitTraversal(); inPolys->GetNextCell(npts, pts);)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       for (numIn = 0, i = 0; i < npts; i++)
       {
         if (newScalars->GetValue(pts[i]) <= 0.0)
@@ -303,10 +311,15 @@ int vtkExtractPolyDataGeometry::RequestData(vtkInformation* vtkNotUsed(request),
   this->UpdateProgress(0.90);
 
   // strips
-  if (newStrips && !this->GetAbortExecute())
+  if (newStrips && !this->CheckAbort())
   {
+    checkAbortInterval = std::min(inStrips->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
     for (inStrips->InitTraversal(); inStrips->GetNextCell(npts, pts);)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       for (numIn = 0, i = 0; i < npts; i++)
       {
         if (newScalars->GetValue(pts[i]) <= 0.0)
@@ -383,6 +396,8 @@ int vtkExtractPolyDataGeometry::RequestData(vtkInformation* vtkNotUsed(request),
     newStrips->Delete();
   }
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -403,3 +418,4 @@ void vtkExtractPolyDataGeometry::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Extract Boundary Cells: " << (this->ExtractBoundaryCells ? "On\n" : "Off\n");
   os << indent << "Pass Points: " << (this->PassPoints ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

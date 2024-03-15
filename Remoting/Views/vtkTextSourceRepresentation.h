@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkTextSourceRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTextSourceRepresentation
  *
@@ -39,13 +27,13 @@ public:
   vtkTypeMacro(vtkTextSourceRepresentation, vtkPVDataRepresentation);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the text widget.
    */
   void SetTextWidgetRepresentation(vtk3DWidgetRepresentation* widget);
   vtkGetObjectMacro(TextWidgetRepresentation, vtk3DWidgetRepresentation);
-  //@}
+  ///@}
 
   /**
    * Set the visibility.
@@ -64,21 +52,21 @@ public:
    */
   void SetTextPropMode(int);
 
-  //@{
+  ///@{
   /**
    * Set the FlagpoleLabel
    */
   void SetFlagpoleLabel(vtkFlagpoleLabel* val);
   vtkGetObjectMacro(FlagpoleLabel, vtkFlagpoleLabel);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the BillboardTextActor
    */
   void SetBillboardTextActor(vtkBillboardTextActor3D* val);
   vtkGetObjectMacro(BillboardTextActor, vtkBillboardTextActor3D);
-  //@}
+  ///@}
 
   /**
    * vtkAlgorithm::ProcessRequest() equivalent for rendering passes. This is

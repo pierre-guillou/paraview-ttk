@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSet
  * @brief   abstract class to specify dataset behavior
@@ -44,6 +32,7 @@
 #include "vtkDataObject.h"
 #include "vtkDeprecation.h" // for VTK_DEPRECATED_IN_9_3_0
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCell;
 class vtkCellData;
 class vtkCellIterator;
@@ -163,7 +152,7 @@ public:
    * THE DATASET IS NOT MODIFIED
    *
    * @warning This method MUST be overridden for performance reasons.
-   * Default implementation is very unefficient.
+   * Default implementation is very inefficient.
    */
   virtual vtkIdType GetCellSize(vtkIdType cellId);
 
@@ -215,6 +204,17 @@ public:
    * THE DATASET IS NOT MODIFIED
    */
   virtual void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds);
+
+  /**
+   * Get the number of faces of a cell.
+   *
+   * Most of the times extracting the number of faces requires only extracting
+   * the cell type. However, for some cell types, the number of faces is not
+   * constant. For example, a vtkPolyhedron cell can have a different number of
+   * faces for each cell. That's why this method requires the cell id and the
+   * dataset.
+   */
+  int GetCellNumberOfFaces(vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell);
 
   ///@{
   /**
@@ -379,6 +379,15 @@ public:
   virtual int GetMaxCellSize() = 0;
 
   /**
+   * Get the maximum spatial dimensionality of the data
+   * which is the maximum dimension of all cells.
+   *
+   * @warning This method MUST be overridden for performance reasons.
+   * Default implementation is very inefficient.
+   */
+  virtual int GetMaxSpatialDimension();
+
+  /**
    * Return the actual size of the data in kibibytes (1024 bytes). This number
    * is valid only after the pipeline has updated. The memory size
    * returned is guaranteed to be greater than or equal to the
@@ -512,6 +521,11 @@ public:
    */
   vtkUnsignedCharArray* GetGhostArray(int type) override;
 
+  /**
+   * Returns true for POINT or CELL, false otherwise
+   */
+  bool SupportsGhostArray(int type) override;
+
 protected:
   // Constructor with default bounds (0,1, 0,1, 0,1).
   vtkDataSet();
@@ -560,7 +574,6 @@ private:
   static void OnDataModified(
     vtkObject* source, unsigned long eid, void* clientdata, void* calldata);
 
-private:
   vtkDataSet(const vtkDataSet&) = delete;
   void operator=(const vtkDataSet&) = delete;
 };
@@ -573,4 +586,5 @@ inline void vtkDataSet::GetPoint(vtkIdType id, double x[3])
   x[2] = pt[2];
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

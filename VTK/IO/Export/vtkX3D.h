@@ -1,25 +1,19 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkX3D_h
 #define vtkX3D_h
 
+#include "vtkABINamespace.h"
+
+VTK_ABI_NAMESPACE_BEGIN
 extern const char* x3dElementString[];
 extern const char* x3dAttributeString[];
+VTK_ABI_NAMESPACE_END
 
 namespace vtkX3D
 {
+VTK_ABI_NAMESPACE_BEGIN
+
 enum X3DTypes
 {
   SFVEC3F,
@@ -544,7 +538,9 @@ enum X3DAttribute
   zDimension = 326,
   zSpacing = 327
 };
-};
+
+VTK_ABI_NAMESPACE_END
+} // namespace vtkX3D
 
 #endif
 

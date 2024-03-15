@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSynchronizedTemplates2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSynchronizedTemplates2D.h"
 
 #include "vtkCellArray.h"
@@ -37,6 +25,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSynchronizedTemplates2D);
 
 //------------------------------------------------------------------------------
@@ -193,9 +182,15 @@ void vtkContourImage(vtkSynchronizedTemplates2D* self, T* scalars, vtkPoints* ne
   scalars += incs[0] * (updateExt[0] - ext[0]) + incs[1] * (updateExt[2] - ext[2]) +
     incs[2] * (updateExt[4] - ext[4]) + self->GetArrayComponent();
 
+  int checkAbortInterval = std::min(numContours / 10 + 1, (vtkIdType)1000);
+
   // for each contour
   for (vidx = 0; vidx < numContours; vidx++)
   {
+    if (vidx % checkAbortInterval == 0 && self->CheckAbort())
+    {
+      break;
+    }
     rowPtr = scalars;
 
     lineCases[13] = dim0 * 2;
@@ -520,3 +515,4 @@ void vtkSynchronizedTemplates2D::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "ArrayComponent: " << this->ArrayComponent << endl;
 }
+VTK_ABI_NAMESPACE_END

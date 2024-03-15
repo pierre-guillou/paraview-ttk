@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCocoaTkUtilities.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCocoaTkUtilities
  * @brief   Internal Tk Routines for Cocoa
@@ -36,6 +24,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 struct Tk_Window_;
 
 class vtkCocoaTkUtilities : public vtkObject
@@ -60,5 +49,6 @@ private:
   void operator=(const vtkCocoaTkUtilities&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkCocoaTkUtilities.h

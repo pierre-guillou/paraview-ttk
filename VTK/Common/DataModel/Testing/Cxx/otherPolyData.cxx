@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    otherPolyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME
 // .SECTION Description
@@ -31,6 +19,18 @@
 
 namespace
 {
+//------------------------------------------------------------------------------
+bool TestSupportsGhostArray()
+{
+  vtkNew<vtkPolyData> pd;
+  if (!pd->SupportsGhostArray(vtkDataObject::POINT) || !pd->SupportsGhostArray(vtkDataObject::CELL))
+  {
+    vtkLog(ERROR, "Unexpected results on SupportsGhostArray");
+    return false;
+  }
+  return true;
+}
+
 //------------------------------------------------------------------------------
 bool TestRemoveGhostCells()
 {
@@ -162,14 +162,14 @@ bool TestRemoveGhostCells()
   vtkAbstractArray* ptArray = pd->GetPointData()->GetAbstractArray(pointDataIds->GetName());
   if (!ptArray || ptArray->GetNumberOfValues() != 4)
   {
-    vtkLog(ERROR, "Removing ghosts failed... Unexepected point data content.");
+    vtkLog(ERROR, "Removing ghosts failed... Unexpected point data content.");
     return false;
   }
   vtkIdTypeArray* fArray =
     vtkArrayDownCast<vtkIdTypeArray>(pd->GetFieldData()->GetAbstractArray(field->GetName()));
   if (!fArray || fArray->GetNumberOfValues() != 1 || fArray->GetValue(0) != 17)
   {
-    vtkLog(ERROR, "Removing ghosts failed... Unexepected field data content.");
+    vtkLog(ERROR, "Removing ghosts failed... Unexpected field data content.");
     return false;
   }
 
@@ -180,12 +180,8 @@ bool TestRemoveGhostCells()
 //------------------------------------------------------------------------------
 int otherPolyData(int, char*[])
 {
-  int retVal = EXIT_SUCCESS;
-
-  if (!::TestRemoveGhostCells())
-  {
-    retVal = EXIT_FAILURE;
-  }
-
-  return retVal;
+  bool status = true;
+  status &= TestSupportsGhostArray();
+  status &= TestRemoveGhostCells();
+  return status ? EXIT_SUCCESS : EXIT_FAILURE;
 }

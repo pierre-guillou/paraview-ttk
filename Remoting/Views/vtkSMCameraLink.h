@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMCameraLink.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMCameraLink
  * @brief   creates a link between two cameras.
@@ -29,6 +17,8 @@
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSMProxyLink.h"
 
+#include <set>
+
 class VTKREMOTINGVIEWS_EXPORT vtkSMCameraLink : public vtkSMProxyLink
 {
 public:
@@ -36,7 +26,7 @@ public:
   vtkTypeMacro(vtkSMCameraLink, vtkSMProxyLink);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set if the link should synchronize interactive renders
    * as well. On by default.
@@ -44,7 +34,14 @@ public:
   vtkSetMacro(SynchronizeInteractiveRenders, int);
   vtkGetMacro(SynchronizeInteractiveRenders, int);
   vtkBooleanMacro(SynchronizeInteractiveRenders, int);
-  //@}
+  ///@}
+
+  /**
+   * Get the list of camera properties to link.
+   * For each pair, first item is the (information) property to read and
+   * the second is the property to set.
+   */
+  static std::set<std::pair<std::string, std::string>> CameraProperties();
 
   /**
    * Add a property to the link. updateDir determines whether a property of
@@ -100,9 +97,9 @@ protected:
   void UpdateProperty(vtkSMProxy*, const char*) override {}
 
   /**
-   * Save the state of the link.
+   * Override to ajust to this class name.
    */
-  void SaveXMLState(const char* linkname, vtkPVXMLElement* parent) override;
+  std::string GetXMLTagName() override { return "CameraLink"; }
 
   /**
    * Internal method to copy vtkSMproperty values from caller to all linked

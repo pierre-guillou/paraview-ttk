@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLGL2PSHelperImpl.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLGL2PSHelperImpl.h"
 
@@ -39,6 +27,7 @@
 #include <cassert>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLGL2PSHelperImpl);
 
 namespace
@@ -701,7 +690,7 @@ void vtkOpenGLGL2PSHelperImpl::GetTransformParameters(vtkRenderer* ren, vtkMatri
 }
 
 //------------------------------------------------------------------------------
-inline void vtkOpenGLGL2PSHelperImpl::ProjectPoint(
+void vtkOpenGLGL2PSHelperImpl::ProjectPoint(
   double point[3], vtkRenderer* ren, vtkMatrix4x4* actorMatrix)
 {
   vtkNew<vtkMatrix4x4> xform;
@@ -717,7 +706,7 @@ inline void vtkOpenGLGL2PSHelperImpl::ProjectPoint(
 }
 
 //------------------------------------------------------------------------------
-inline void vtkOpenGLGL2PSHelperImpl::ProjectPoint(double point[4], vtkMatrix4x4* transformMatrix,
+void vtkOpenGLGL2PSHelperImpl::ProjectPoint(double point[4], vtkMatrix4x4* transformMatrix,
   double viewportOrigin[2], double halfWidth, double halfHeight, double zfact1, double zfact2)
 {
   // Convert world to clip coordinates:
@@ -735,7 +724,7 @@ inline void vtkOpenGLGL2PSHelperImpl::ProjectPoint(double point[4], vtkMatrix4x4
 }
 
 //------------------------------------------------------------------------------
-inline void vtkOpenGLGL2PSHelperImpl::ProjectPoints(
+void vtkOpenGLGL2PSHelperImpl::ProjectPoints(
   vtkPoints* points, vtkRenderer* ren, vtkMatrix4x4* actorMatrix)
 {
   vtkNew<vtkMatrix4x4> xform;
@@ -757,9 +746,8 @@ inline void vtkOpenGLGL2PSHelperImpl::ProjectPoints(
 }
 
 //------------------------------------------------------------------------------
-inline void vtkOpenGLGL2PSHelperImpl::UnprojectPoint(double point[4],
-  vtkMatrix4x4* invTransformMatrix, double viewportOrigin[2], double halfWidth, double halfHeight,
-  double zfact1, double zfact2)
+void vtkOpenGLGL2PSHelperImpl::UnprojectPoint(double point[4], vtkMatrix4x4* invTransformMatrix,
+  double viewportOrigin[2], double halfWidth, double halfHeight, double zfact1, double zfact2)
 {
   point[0] = (point[0] - viewportOrigin[0] - halfWidth) / halfWidth;
   point[1] = (point[1] - viewportOrigin[1] - halfHeight) / halfHeight;
@@ -773,7 +761,7 @@ inline void vtkOpenGLGL2PSHelperImpl::UnprojectPoint(double point[4],
 }
 
 //------------------------------------------------------------------------------
-inline void vtkOpenGLGL2PSHelperImpl::UnprojectPoints(
+void vtkOpenGLGL2PSHelperImpl::UnprojectPoints(
   double* points3D, vtkIdType numPoints, vtkRenderer* ren, vtkMatrix4x4* actorMatrix)
 {
   vtkNew<vtkMatrix4x4> xform;
@@ -1241,3 +1229,4 @@ void vtkOpenGLGL2PSHelperImpl::DrawPathSVG(vtkPath* path, double rasterPos[3], d
   gl2psForceRasterPos(&gl2psRasterPos);
   gl2psSpecial(gl2psGetFileFormat(), out.str().c_str());
 }
+VTK_ABI_NAMESPACE_END

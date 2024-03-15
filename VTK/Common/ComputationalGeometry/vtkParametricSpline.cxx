@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParametricSpline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParametricSpline.h"
 #include "vtkCardinalSpline.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkParametricSpline);
 
 //------------------------------------------------------------------------------
@@ -405,3 +394,4 @@ void vtkParametricSpline::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Right Value: " << this->RightValue << "\n";
   os << indent << "Parameterize by length: " << (this->ParameterizeByLength ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

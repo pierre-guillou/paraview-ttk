@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericDataSetTessellator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGenericDataSetTessellator.h"
 
@@ -35,6 +23,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericDataSetTessellator);
 
 vtkCxxSetObjectMacro(vtkGenericDataSetTessellator, Locator, vtkIncrementalPointLocator);
@@ -85,7 +74,7 @@ int vtkGenericDataSetTessellator::RequestData(vtkInformation* vtkNotUsed(request
   vtkCellData* outputCD = output->GetCellData();
   vtkGenericAdaptorCell* cell;
   vtkIdType numInserted = 0, numNew, i;
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   // Copy original points and point data
   vtkPoints* newPts = vtkPoints::New();
@@ -174,7 +163,7 @@ int vtkGenericDataSetTessellator::RequestData(vtkInformation* vtkNotUsed(request
     if (!(count % updateCount))
     {
       this->UpdateProgress(static_cast<double>(count) / numCells);
-      abortExecute = this->GetAbortExecute();
+      abortExecute = this->CheckAbort();
     }
 
     cell = cellIt->GetCell();
@@ -281,3 +270,4 @@ vtkMTimeType vtkGenericDataSetTessellator::GetMTime()
   }
   return mTime;
 }
+VTK_ABI_NAMESPACE_END

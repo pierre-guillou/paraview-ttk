@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSubPixelPositionEdgels.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSubPixelPositionEdgels.h"
 
 #include "vtkDoubleArray.h"
@@ -25,6 +13,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSubPixelPositionEdgels);
 
 vtkSubPixelPositionEdgels::vtkSubPixelPositionEdgels()
@@ -102,6 +91,10 @@ int vtkSubPixelPositionEdgels::RequestData(vtkInformation* vtkNotUsed(request),
   //
   for (ptId = 0; ptId < inPts->GetNumberOfPoints(); ptId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     inPts->GetPoint(ptId, pnt);
     pnt[0] = (pnt[0] - origin[0]) / spacing[0];
     pnt[1] = (pnt[1] - origin[1]) / spacing[1];
@@ -710,3 +703,4 @@ void vtkSubPixelPositionEdgels::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TargetFlag: " << this->TargetFlag << endl;
   os << indent << "TargetValue: " << this->TargetValue << endl;
 }
+VTK_ABI_NAMESPACE_END

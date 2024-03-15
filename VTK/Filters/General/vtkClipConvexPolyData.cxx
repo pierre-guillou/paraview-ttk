@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClipConvexPolyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkClipConvexPolyData.h"
 
 #include "vtkCellArray.h"
@@ -28,6 +16,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkClipConvexPolyData);
 
 vtkCxxSetObjectMacro(vtkClipConvexPolyData, Planes, vtkPlaneCollection);
@@ -204,6 +193,10 @@ int vtkClipConvexPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   polys->InitTraversal();
   while (polys->GetNextCell(npts, pts))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkCCPDPolygon* polygon = new vtkCCPDPolygon;
     for (i = 0; i < static_cast<size_t>(npts); i++)
     {
@@ -220,6 +213,10 @@ int vtkClipConvexPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   // For each plane in the collection, clip the polygons with the plane.
   while ((plane = this->Planes->GetNextItem()))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (!this->HasDegeneracies(plane))
     {
       this->ClipWithPlane(plane, tolerance);
@@ -234,6 +231,10 @@ int vtkClipConvexPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   std::vector<vtkIdType> polyPts(32);
   for (i = 0; i < this->Internal->Polygons.size(); i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     size_t numPoints = this->Internal->Polygons[i]->Vertices.size();
     if (numPoints > polyPts.size())
     {
@@ -616,3 +617,4 @@ void vtkClipConvexPolyData::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Planes: " << this->Planes << endl;
 }
+VTK_ABI_NAMESPACE_END

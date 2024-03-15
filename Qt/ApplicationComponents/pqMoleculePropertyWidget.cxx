@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqMoleculePropertyWidget.h"
 #include "ui_pqMoleculePropertyWidget.h"
 
@@ -57,7 +29,9 @@ public:
     , showAdvancedProperties(false)
   {
     this->Ui.setupUi(self);
-    this->Ui.wdgLayout->setMargin(pqPropertiesPanel::suggestedMargin());
+    this->Ui.wdgLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->Ui.wdgLayout->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
   }
 };
@@ -83,7 +57,7 @@ pqMoleculePropertyWidget::pqMoleculePropertyWidget(
   QObject::connect(ui.resetAtomicRadiusFactor, &QToolButton::released, this,
     &pqMoleculePropertyWidget::onResetAtomFactorToggled);
   QAction* resetAtomicRadiusAction = new QAction(ui.resetAtomicRadiusFactor);
-  resetAtomicRadiusAction->setToolTip("Reset the range values");
+  resetAtomicRadiusAction->setToolTip(tr("Reset the range values"));
   resetAtomicRadiusAction->setIcon(QIcon(":/pqWidgets/Icons/pqReset.svg"));
   ui.resetAtomicRadiusFactor->addAction(resetAtomicRadiusAction);
   ui.resetAtomicRadiusFactor->setDefaultAction(resetAtomicRadiusAction);
@@ -97,7 +71,8 @@ pqMoleculePropertyWidget::pqMoleculePropertyWidget(
   auto enumDomain = prop->FindDomain<vtkSMEnumerationDomain>();
   for (unsigned int i = 0; i < enumDomain->GetNumberOfEntries(); i++)
   {
-    ui.atomicRadiusType->addItem(enumDomain->GetEntryText(i));
+    ui.atomicRadiusType->addItem(
+      QCoreApplication::translate("ServerManagerXML", enumDomain->GetEntryText(i)));
   }
   this->addPropertyLink(ui.atomicRadiusType, "AtomicRadiusType");
   QObject::connect(ui.atomicRadiusType, &QComboBox::currentTextChanged, this,
@@ -120,7 +95,7 @@ pqMoleculePropertyWidget::pqMoleculePropertyWidget(
     ui.preset->addItem(molproxy->GetPresetDisplayName(i));
   }
   QObject::connect(ui.preset, SIGNAL(currentIndexChanged(int)), this, SLOT(onPresetChanged(int)));
-  ui.preset->setToolTip("Apply a preset to display properties, including advanced ones.");
+  ui.preset->setToolTip(tr("Apply a preset to display properties, including advanced ones."));
 
   this->addPropertyLink(ui.showBonds, "RenderBonds");
   this->setDocumentationAsTooltip(smgroup->GetProperty("RenderBonds"), ui.showBonds);
@@ -141,7 +116,7 @@ pqMoleculePropertyWidget::pqMoleculePropertyWidget(
   QObject::connect(ui.resetBondRadius, &QToolButton::released, this,
     &pqMoleculePropertyWidget::onResetBondRadiusToggled);
   QAction* resetBondRadiusAction = new QAction(ui.resetBondRadius);
-  resetBondRadiusAction->setToolTip("Reset the range values");
+  resetBondRadiusAction->setToolTip(tr("Reset the range values"));
   resetBondRadiusAction->setIcon(
     ui.resetBondRadius->style()->standardIcon(QStyle::SP_BrowserReload));
   ui.resetBondRadius->addAction(resetBondRadiusAction);
@@ -278,7 +253,7 @@ void pqMoleculePropertyWidget::setDocumentationAsTooltip(vtkSMProperty* prop, QW
 
   if (doc != nullptr && widget != nullptr && doc->GetDescription())
   {
-    widget->setToolTip(doc->GetDescription());
+    widget->setToolTip(QCoreApplication::translate("ServerManagerXML", doc->GetDescription()));
   }
 }
 

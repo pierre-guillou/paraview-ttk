@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVBox
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVBox
  * @brief extends vtkBox to add ParaView specific API.
@@ -34,7 +22,7 @@ public:
   vtkTypeMacro(vtkPVBox, vtkBox);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * These bounds are used when `UseReferenceBounds` is set to true.
    * In that case, the position, rotation and scale is assumed to be relative
@@ -49,18 +37,18 @@ public:
     this->SetReferenceBounds(bds);
   }
   vtkGetVector6Macro(ReferenceBounds, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set to true to use ReferenceBounds as the basis for the transformation
    * instead of unit box.
    */
   void SetUseReferenceBounds(bool val);
   vtkGetMacro(UseReferenceBounds, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set Position of the box.
    */
@@ -71,9 +59,9 @@ public:
   }
   void SetPosition(const double pos[3]);
   vtkGetVector3Macro(Position, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set Rotation for the box.
    */
@@ -84,9 +72,9 @@ public:
   }
   void SetRotation(const double pos[3]);
   vtkGetVector3Macro(Rotation, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set Scale for the box.
    */
@@ -97,7 +85,7 @@ public:
   }
   void SetScale(const double pos[3]);
   vtkGetVector3Macro(Scale, double);
-  //@}
+  ///@}
 
 protected:
   vtkPVBox();

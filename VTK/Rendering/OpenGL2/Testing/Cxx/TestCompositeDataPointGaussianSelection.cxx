@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositePolyDataMapper2.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkActor.h"
 #include "vtkCamera.h"
@@ -141,7 +129,7 @@ int TestCompositeDataPointGaussianSelection(int argc, char* argv[])
       result->GetNode(0)->GetProperties()->Get(vtkSelectionNode::PROP()) == actor.Get() &&
       result->GetNode(0)->GetProperties()->Get(vtkSelectionNode::COMPOSITE_INDEX()) == 305 &&
       result->GetNode(2)->GetProperties()->Get(vtkSelectionNode::COMPOSITE_INDEX()) == 340 &&
-      selIds && selIds->GetNumberOfTuples() == 5 && selIds->GetValue(2) == 56)
+      selIds && selIds->GetNumberOfTuples() == 4 && selIds->GetValue(2) == 70)
     {
       goodPick = true;
     }

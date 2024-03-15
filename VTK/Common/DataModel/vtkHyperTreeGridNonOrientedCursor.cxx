@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkHyperTreeGridNonOrientedCursor.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 
 #include "vtkHyperTree.h"
@@ -22,6 +10,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridNonOrientedCursor);
 
 //------------------------------------------------------------------------------
@@ -176,6 +165,7 @@ void vtkHyperTreeGridNonOrientedCursor::ToChild(unsigned char ichild)
 {
   unsigned int oldLastValidEntry = this->LastValidEntry;
   this->LastValidEntry++;
+
   //
   if (this->Entries.size() == static_cast<size_t>(this->LastValidEntry))
   {
@@ -191,7 +181,7 @@ void vtkHyperTreeGridNonOrientedCursor::ToChild(unsigned char ichild)
 //------------------------------------------------------------------------------
 void vtkHyperTreeGridNonOrientedCursor::ToRoot()
 {
-  assert("pre: hypertree_exist" && this->Entries.size() > 0);
+  assert("pre: hypertree_exist" && !this->Entries.empty());
   this->LastValidEntry = 0;
   this->Level = 0;
 }
@@ -234,3 +224,4 @@ vtkHyperTreeGridNonOrientedCursor::vtkHyperTreeGridNonOrientedCursor()
 vtkHyperTreeGridNonOrientedCursor::~vtkHyperTreeGridNonOrientedCursor() = default;
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

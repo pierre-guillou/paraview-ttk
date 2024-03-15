@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLookupTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLookupTable.h"
 
 #include "vtkAbstractArray.h"
@@ -24,6 +12,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 const vtkIdType vtkLookupTable::REPEATED_LAST_COLOR_INDEX = 0;
 const vtkIdType vtkLookupTable::BELOW_RANGE_COLOR_INDEX = 1;
 const vtkIdType vtkLookupTable::ABOVE_RANGE_COLOR_INDEX = 2;
@@ -95,11 +84,11 @@ vtkLookupTable::~vtkLookupTable()
 // Description:
 // Return true if all of the values defining the mapping have an opacity
 // equal to 1. Default implementation returns true.
-int vtkLookupTable::IsOpaque()
+vtkTypeBool vtkLookupTable::IsOpaque()
 {
   if (this->OpaqueFlagBuildTime < this->GetMTime())
   {
-    int opaque = 1;
+    vtkTypeBool opaque = 1;
     if (this->NanColor[3] < 1.0)
     {
       opaque = 0;
@@ -129,13 +118,13 @@ int vtkLookupTable::IsOpaque()
 }
 
 //------------------------------------------------------------------------------
-int vtkLookupTable::IsOpaque(vtkAbstractArray* scalars, int colorMode, int component)
+vtkTypeBool vtkLookupTable::IsOpaque(vtkAbstractArray* scalars, int colorMode, int component)
 {
   return this->IsOpaque(scalars, colorMode, component, nullptr);
 }
 
 //------------------------------------------------------------------------------
-int vtkLookupTable::IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
+vtkTypeBool vtkLookupTable::IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
   vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip)
 {
   // use superclass logic?
@@ -424,6 +413,7 @@ double vtkLookupTable::GetOpacity(double v)
 
   return rgb8[3] / 255.0;
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -639,6 +629,7 @@ inline void vtkLookupShiftAndScale(
 
 } // end anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkLookupTable::GetLogRange(const double range[2], double log_range[2])
 {
@@ -798,6 +789,7 @@ const unsigned char* vtkLookupTable::MapValue(double v)
 
   return this->Table->GetPointer(0) + 4 * index;
 }
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -1190,6 +1182,7 @@ void vtkLookupTableIndexedMapData(vtkLookupTable* self, const T* input, unsigned
 
 } // end anonymous namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 void vtkLookupTable::MapScalarsThroughTable2(void* input, unsigned char* output, int inputDataType,
   int numberOfValues, int inputIncrement, int outputFormat)
@@ -1465,3 +1458,4 @@ void vtkLookupTable::ResizeTableForSpecialColors()
     this->Table->Resize(neededColors);
   }
 }
+VTK_ABI_NAMESPACE_END

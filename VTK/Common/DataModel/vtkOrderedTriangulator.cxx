@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrderedTriangulator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOrderedTriangulator.h"
 
@@ -34,6 +22,10 @@
 #include <stack>
 #include <vector>
 
+// Dumps insertion cavity when the cavity is invalid.
+// #define DEBUG_vtkOrderedTriangulator
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOrderedTriangulator);
 
 #ifdef _WIN32_WCE
@@ -49,12 +41,14 @@ inline void __cdecl operator delete(void*, void*)
 }
 #endif
 #else
+VTK_ABI_NAMESPACE_END
 #include <new>
 #endif
 
 // Classes are used to represent points, faces, and tetras-------------------
 // This data structure consists of points and tetras, with the face used
 // temporarily as a place holder during triangulation.
+VTK_ABI_NAMESPACE_BEGIN
 struct OTPoint;
 struct OTFace;
 struct OTTetra;
@@ -855,7 +849,10 @@ int vtkOTMesh::CreateInsertionCavity(OTPoint* p, OTTetra* initialTet, double[4])
   // Process queue of tetras until exhausted
   //
   int i, valid;
+#ifdef DEBUG_vtkOrderedTriangulator
+  // please leave this for debugging purposes
   int somethingNotValid = 0;
+#endif
   OTTetra *nei, *tetra;
   TetraQueueIterator t;
   for (int numCycles = 0; !this->TetraStack.empty(); numCycles++)
@@ -911,7 +908,10 @@ int vtkOTMesh::CreateInsertionCavity(OTPoint* p, OTTetra* initialTet, double[4])
     // check for validity
     if (!valid) // broke out due to invalid face
     {
+#ifdef DEBUG_vtkOrderedTriangulator
+      // please leave this for debugging purposes
       somethingNotValid++;
+#endif
       // add this tetra to queue
       this->DegenerateQueue.push_back(tetra);
 
@@ -965,12 +965,12 @@ int vtkOTMesh::CreateInsertionCavity(OTPoint* p, OTTetra* initialTet, double[4])
     }
   }
 
-#if 0
-  //please leave this for debugging purposes
-  if ( somethingNotValid )
+#ifdef DEBUG_vtkOrderedTriangulator
+  // please leave this for debugging purposes
+  if (somethingNotValid)
   {
     this->DumpInsertionCavity(p->P);
-//    exit(1);
+    //    exit(1);
   }
 #endif
 
@@ -1038,7 +1038,7 @@ void vtkOTMesh::DumpInsertionCavity(double x[3])
 }
 
 //------------------------------------------------------------------------------
-// Walk to the tetra tha contains this point. Walking is done by moving
+// Walk to the tetra that contains this point. Walking is done by moving
 // in the direction of the most negative barycentric coordinate (i.e.,
 // into the face neighbor).
 OTTetra* vtkOTMesh::WalkToTetra(OTTetra* tetra, double x[3], int depth, double bc[4])
@@ -1423,6 +1423,33 @@ vtkIdType vtkOrderedTriangulator::AddTetras(int classification, vtkIdList* ptIds
 }
 
 //------------------------------------------------------------------------------
+// Add the tetras classified as specified to a list of point ids
+vtkIdType vtkOrderedTriangulator::AddTetras(int classification, vtkIdList* ptIds)
+{
+  TetraListIterator t;
+  OTTetra* tetra;
+  vtkIdType numTetras = 0;
+  int i;
+
+  // loop over all tetras getting the ones with the classification requested
+  for (t = this->Mesh->Tetras.begin(); t != this->Mesh->Tetras.end(); ++t)
+  {
+    tetra = *t;
+
+    if (tetra->Type == classification || classification == OTTetra::All)
+    {
+      numTetras++;
+      for (i = 0; i < 4; i++)
+      {
+        ptIds->InsertNextId(tetra->Points[i]->Id);
+      }
+    }
+  } // for all tetras
+
+  return numTetras;
+}
+
+//------------------------------------------------------------------------------
 // Add the tetras classified as specified to an unstructured grid
 vtkIdType vtkOrderedTriangulator::AddTetras(int classification, vtkUnstructuredGrid* ugrid)
 
@@ -1669,3 +1696,4 @@ void vtkOrderedTriangulator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "UseTemplates: " << (this->UseTemplates ? "On\n" : "Off\n");
   os << indent << "NumberOfPoints: " << this->NumberOfPoints << endl;
 }
+VTK_ABI_NAMESPACE_END

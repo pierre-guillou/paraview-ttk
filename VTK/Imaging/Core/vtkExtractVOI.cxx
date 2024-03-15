@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractVOI.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractVOI.h"
 
 #include "vtkCellData.h"
@@ -24,6 +12,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractVOI);
 
 // Construct object to extract all of the input data.
@@ -150,7 +139,7 @@ int vtkExtractVOI::RequestInformation(vtkInformation* vtkNotUsed(request),
 
   if (!this->Internal->IsValid())
   {
-    vtkWarningMacro("Error while initializing filter.");
+    vtkDebugMacro("Error while initializing filter.");
     return 0;
   }
 
@@ -311,3 +300,4 @@ void vtkExtractVOI::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Include Boundary: " << (this->IncludeBoundary ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

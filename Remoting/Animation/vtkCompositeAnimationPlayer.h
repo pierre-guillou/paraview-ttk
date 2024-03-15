@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCompositeAnimationPlayer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeAnimationPlayer
  *
@@ -26,8 +14,9 @@
 #include "vtkAnimationPlayer.h"
 #include "vtkRemotingAnimationModule.h" // needed for export macro
 
+#include "vtkParaViewDeprecation.h"
+
 class vtkSequenceAnimationPlayer;
-class vtkRealtimeAnimationPlayer;
 class vtkTimestepsAnimationPlayer;
 
 class VTKREMOTINGANIMATION_EXPORT vtkCompositeAnimationPlayer : public vtkAnimationPlayer
@@ -40,17 +29,16 @@ public:
   enum Modes
   {
     SEQUENCE = 0,
-    REAL_TIME = 1,
     SNAP_TO_TIMESTEPS = 2
   };
 
-  //@{
+  ///@{
   /**
    * Get/Set the play mode
    */
   vtkSetMacro(PlayMode, int);
   vtkGetMacro(PlayMode, int);
-  //@}
+  ///@}
 
   /**
    * Forwarded to vtkSequenceAnimationPlayer
@@ -60,29 +48,30 @@ public:
   /**
    * Forwarded to vtkRealtimeAnimationPlayer.
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0("Use `SetStride` and vtkSequenceAnimationPlayer instead")
   void SetDuration(int val);
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkTimestepsAnimationPlayer.
    */
   void AddTimeStep(double val);
   void RemoveAllTimeSteps();
   void SetFramesPerTimestep(int val);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkTimestepsAnimationPlayer.and vtkSequenceAnimationPlayer.
    */
   void SetStride(int _val) override;
-  //@}
+  ///@}
 
 protected:
   vtkCompositeAnimationPlayer();
   ~vtkCompositeAnimationPlayer() override;
 
-  //@{
+  ///@{
   /**
    * Delegated to the active animation player.
    */
@@ -90,15 +79,13 @@ protected:
   void EndLoop() override;
   double GetNextTime(double currentime) override;
   double GetPreviousTime(double currenttime) override;
-  //@}
-
   double GoToNext(double start, double end, double currenttime) override;
   double GoToPrevious(double start, double end, double currenttime) override;
+  ///@}
 
   vtkAnimationPlayer* GetActivePlayer();
 
   vtkSequenceAnimationPlayer* SequenceAnimationPlayer;
-  vtkRealtimeAnimationPlayer* RealtimeAnimationPlayer;
   vtkTimestepsAnimationPlayer* TimestepsAnimationPlayer;
 
   int PlayMode;

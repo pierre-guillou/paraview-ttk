@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSIObject.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSIObject
  *
@@ -82,13 +70,13 @@ public:
    */
   vtkObject* GetRemoteObject(vtkTypeUInt32 globalid);
 
-  //@{
+  ///@{
   /**
    * Get/Set the global id for this object.
    */
   vtkSetMacro(GlobalID, vtkTypeUInt32);
   vtkGetMacro(GlobalID, vtkTypeUInt32);
-  //@}
+  ///@}
 
 protected:
   vtkSIObject();

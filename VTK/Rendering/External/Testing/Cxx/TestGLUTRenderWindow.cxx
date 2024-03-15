@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGLUTRenderWindow.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // This example tests the vtkRenderingExternal module by drawing a GLUT window
 // and rendering a VTK cube in it. It uses an ExternalVTKWidget and sets a
 // vtkExternalOpenGLRenderWindow to it.
@@ -56,7 +44,7 @@ namespace
 {
 
 // Global variables used by the glutDisplayFunc and glutIdleFunc
-vtkNew<ExternalVTKWidget> externalVTKWidget;
+ExternalVTKWidget* externalVTKWidget = nullptr;
 bool initialized = false;
 int NumArgs;
 char** ArgV;
@@ -188,6 +176,8 @@ void onexit()
 /* Main function: GLUT runs as a console application starting at main()  */
 int TestGLUTRenderWindow(int argc, char* argv[])
 {
+  vtkNew<ExternalVTKWidget> staticExternalVTKWidget;
+  externalVTKWidget = staticExternalVTKWidget;
   NumArgs = argc;
   ArgV = argv;
   glutInit(&argc, argv); // Initialize GLUT

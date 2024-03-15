@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMPVMoleculeRepresentationProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPVMoleculeRepresentationProxy
  * @brief vtkSMPVMoleculeRepresentationProxy is a representation proxy used for molecules.
@@ -59,13 +47,13 @@ public:
     NbOfPresets
   };
 
-  //@{
+  ///@{
   /**
    * Set Preset onto properties. If preset is None or 0, does nothing.
    */
   void SetPreset(int preset);
   void SetPreset(const char* name);
-  //@}
+  ///@}
 
   /**
    * Get the preset name. This name can be used with `SetPreset()` method.

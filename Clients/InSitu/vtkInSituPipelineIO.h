@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkInSituPipelineIO.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkInSituPipelineIO
  * @brief insitu pipeline for IO
@@ -39,30 +27,30 @@ public:
   vtkTypeMacro(vtkInSituPipelineIO, vtkInSituPipeline);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the filename.
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the channel name.
    */
   vtkSetStringMacro(ChannelName);
   vtkGetStringMacro(ChannelName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * vtkInSituPipeline API implementaton
    */
   bool Initialize() override;
   bool Execute(int timestep, double time) override;
   bool Finalize() override;
-  //@}
+  ///@}
 
   /**
    * Helper function to format a filename using current timestep and

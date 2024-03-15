@@ -13,6 +13,7 @@
 #include <vtkm/cont/ErrorBadValue.h>
 
 #include <algorithm>
+#include <array>
 #include <map>
 #include <mutex>
 #include <sstream>
@@ -28,8 +29,15 @@ namespace detail
 
 struct RuntimeDeviceTrackerInternals
 {
-  bool RuntimeAllowed[VTKM_MAX_DEVICE_ADAPTER_ID];
+  void ResetRuntimeAllowed() { this->RuntimeAllowed.fill(false); }
+
+  void Reset() { this->ResetRuntimeAllowed(); }
+
+  std::array<bool, VTKM_MAX_DEVICE_ADAPTER_ID> RuntimeAllowed;
+  bool ThreadFriendlyMemAlloc = false;
+  std::function<bool()> AbortChecker;
 };
+
 }
 
 VTKM_CONT
@@ -75,8 +83,14 @@ bool RuntimeDeviceTracker::CanRunOn(vtkm::cont::DeviceAdapterId deviceId) const
   else
   {
     this->CheckDevice(deviceId);
-    return this->Internals->RuntimeAllowed[deviceId.GetValue()];
+    return this->Internals->RuntimeAllowed[static_cast<std::size_t>(deviceId.GetValue())];
   }
+}
+
+VTKM_CONT
+bool RuntimeDeviceTracker::GetThreadFriendlyMemAlloc() const
+{
+  return this->Internals->ThreadFriendlyMemAlloc;
 }
 
 VTKM_CONT
@@ -84,9 +98,14 @@ void RuntimeDeviceTracker::SetDeviceState(vtkm::cont::DeviceAdapterId deviceId, 
 {
   this->CheckDevice(deviceId);
 
-  this->Internals->RuntimeAllowed[deviceId.GetValue()] = state;
+  this->Internals->RuntimeAllowed[static_cast<std::size_t>(deviceId.GetValue())] = state;
 }
 
+VTKM_CONT
+void RuntimeDeviceTracker::SetThreadFriendlyMemAlloc(bool state)
+{
+  this->Internals->ThreadFriendlyMemAlloc = state;
+}
 
 VTKM_CONT void RuntimeDeviceTracker::ResetDevice(vtkm::cont::DeviceAdapterId deviceId)
 {
@@ -106,7 +125,7 @@ VTKM_CONT void RuntimeDeviceTracker::ResetDevice(vtkm::cont::DeviceAdapterId dev
 VTKM_CONT
 void RuntimeDeviceTracker::Reset()
 {
-  std::fill_n(this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, false);
+  this->Internals->Reset();
 
   // We use this instead of calling CheckDevice/SetDeviceState so that
   // when we use logging we get better messages stating we are reseting
@@ -118,7 +137,7 @@ void RuntimeDeviceTracker::Reset()
     if (device.IsValueValid())
     {
       const bool state = runtimeDevice.Exists(device);
-      this->Internals->RuntimeAllowed[device.GetValue()] = state;
+      this->Internals->RuntimeAllowed[static_cast<std::size_t>(device.GetValue())] = state;
     }
   }
   this->LogEnabledDevices();
@@ -128,7 +147,7 @@ VTKM_CONT void RuntimeDeviceTracker::DisableDevice(vtkm::cont::DeviceAdapterId d
 {
   if (deviceId == vtkm::cont::DeviceAdapterTagAny{})
   {
-    std::fill_n(this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, false);
+    this->Internals->ResetRuntimeAllowed();
   }
   else
   {
@@ -157,18 +176,37 @@ void RuntimeDeviceTracker::ForceDevice(DeviceAdapterId deviceId)
       throw vtkm::cont::ErrorBadValue(message.str());
     }
 
-    std::fill_n(this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, false);
-
-    this->Internals->RuntimeAllowed[deviceId.GetValue()] = runtimeExists;
+    this->Internals->ResetRuntimeAllowed();
+    this->Internals->RuntimeAllowed[static_cast<std::size_t>(deviceId.GetValue())] = runtimeExists;
     this->LogEnabledDevices();
   }
 }
 
 VTKM_CONT void RuntimeDeviceTracker::CopyStateFrom(const vtkm::cont::RuntimeDeviceTracker& tracker)
 {
-  std::copy(std::cbegin(tracker.Internals->RuntimeAllowed),
-            std::cend(tracker.Internals->RuntimeAllowed),
-            std::begin(this->Internals->RuntimeAllowed));
+  *(this->Internals) = *tracker.Internals;
+}
+
+VTKM_CONT
+void RuntimeDeviceTracker::SetAbortChecker(const std::function<bool()>& func)
+{
+  this->Internals->AbortChecker = func;
+}
+
+VTKM_CONT
+bool RuntimeDeviceTracker::CheckForAbortRequest() const
+{
+  if (this->Internals->AbortChecker)
+  {
+    return this->Internals->AbortChecker();
+  }
+  return false;
+}
+
+VTKM_CONT
+void RuntimeDeviceTracker::ClearAbortChecker()
+{
+  this->Internals->AbortChecker = nullptr;
 }
 
 VTKM_CONT
@@ -205,27 +243,12 @@ void RuntimeDeviceTracker::LogEnabledDevices() const
 }
 
 VTKM_CONT
-ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(vtkm::cont::DeviceAdapterId device,
-                                                       RuntimeDeviceTrackerMode mode)
-  : RuntimeDeviceTracker(GetRuntimeDeviceTracker().Internals, false)
-  , SavedState(new detail::RuntimeDeviceTrackerInternals())
+ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(
+  const vtkm::cont::RuntimeDeviceTracker& tracker)
+  : RuntimeDeviceTracker(tracker.Internals, false)
+  , SavedState(new detail::RuntimeDeviceTrackerInternals(*this->Internals))
 {
   VTKM_LOG_S(vtkm::cont::LogLevel::DevicesEnabled, "Entering scoped runtime region");
-  std::copy_n(
-    this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, this->SavedState->RuntimeAllowed);
-
-  if (mode == RuntimeDeviceTrackerMode::Force)
-  {
-    this->ForceDevice(device);
-  }
-  else if (mode == RuntimeDeviceTrackerMode::Enable)
-  {
-    this->ResetDevice(device);
-  }
-  else if (mode == RuntimeDeviceTrackerMode::Disable)
-  {
-    this->DisableDevice(device);
-  }
 }
 
 VTKM_CONT
@@ -233,12 +256,8 @@ ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(
   vtkm::cont::DeviceAdapterId device,
   RuntimeDeviceTrackerMode mode,
   const vtkm::cont::RuntimeDeviceTracker& tracker)
-  : RuntimeDeviceTracker(tracker.Internals, false)
-  , SavedState(new detail::RuntimeDeviceTrackerInternals())
+  : ScopedRuntimeDeviceTracker(tracker)
 {
-  VTKM_LOG_S(vtkm::cont::LogLevel::DevicesEnabled, "Entering scoped runtime region");
-  std::copy_n(
-    this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, this->SavedState->RuntimeAllowed);
   if (mode == RuntimeDeviceTrackerMode::Force)
   {
     this->ForceDevice(device);
@@ -253,23 +272,20 @@ ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(
   }
 }
 
-VTKM_CONT
-ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(
+VTKM_CONT ScopedRuntimeDeviceTracker::ScopedRuntimeDeviceTracker(
+  const std::function<bool()>& abortChecker,
   const vtkm::cont::RuntimeDeviceTracker& tracker)
-  : RuntimeDeviceTracker(tracker.Internals, false)
-  , SavedState(new detail::RuntimeDeviceTrackerInternals())
+  : ScopedRuntimeDeviceTracker(tracker)
 {
-  VTKM_LOG_S(vtkm::cont::LogLevel::DevicesEnabled, "Entering scoped runtime region");
-  std::copy_n(
-    this->Internals->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, this->SavedState->RuntimeAllowed);
+  this->SetAbortChecker(abortChecker);
 }
 
 VTKM_CONT
 ScopedRuntimeDeviceTracker::~ScopedRuntimeDeviceTracker()
 {
   VTKM_LOG_S(vtkm::cont::LogLevel::DevicesEnabled, "Leaving scoped runtime region");
-  std::copy_n(
-    this->SavedState->RuntimeAllowed, VTKM_MAX_DEVICE_ADAPTER_ID, this->Internals->RuntimeAllowed);
+  *(this->Internals) = *this->SavedState;
+
   this->LogEnabledDevices();
 }
 

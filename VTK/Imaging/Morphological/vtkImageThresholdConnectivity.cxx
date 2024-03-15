@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageThresholdConnectivity.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkImageThresholdConnectivity.h"
 
@@ -29,6 +17,7 @@
 
 #include <stack>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageThresholdConnectivity);
 vtkCxxSetObjectMacro(vtkImageThresholdConnectivity, SeedPoints, vtkPoints);
 
@@ -643,27 +632,27 @@ void vtkImageThresholdConnectivityExecute(vtkImageThresholdConnectivity* self, v
       // push the new seeds
       if (seed[2] > 0 && *(maskPtr1 - maskInc[2]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] - 1));
+        seedStack.emplace(seed[0], seed[1], seed[2] - 1);
       }
       if (seed[2] < maxIdZ && *(maskPtr1 + maskInc[2]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1], seed[2] + 1));
+        seedStack.emplace(seed[0], seed[1], seed[2] + 1);
       }
       if (seed[1] > 0 && *(maskPtr1 - maskInc[1]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] - 1, seed[2]));
+        seedStack.emplace(seed[0], seed[1] - 1, seed[2]);
       }
       if (seed[1] < maxIdY && *(maskPtr1 + maskInc[1]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0], seed[1] + 1, seed[2]));
+        seedStack.emplace(seed[0], seed[1] + 1, seed[2]);
       }
       if (seed[0] > 0 && *(maskPtr1 - maskInc[0]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0] - 1, seed[1], seed[2]));
+        seedStack.emplace(seed[0] - 1, seed[1], seed[2]);
       }
       if (seed[0] < maxIdX && *(maskPtr1 + maskInc[0]) == 0)
       {
-        seedStack.push(vtkFloodFillSeed(seed[0] + 1, seed[1], seed[2]));
+        seedStack.emplace(seed[0] + 1, seed[1], seed[2]);
       }
     }
   }
@@ -789,3 +778,4 @@ void vtkImageThresholdConnectivity::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Stencil: " << this->GetStencil() << "\n";
   os << indent << "ActiveComponent: " << this->ActiveComponent << "\n";
 }
+VTK_ABI_NAMESPACE_END

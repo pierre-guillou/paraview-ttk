@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPKdTree.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPKdTree.h"
 #include "vtkCellCenters.h"
@@ -39,6 +24,7 @@
 #include <cassert>
 #include <queue>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 class TimeLog // Similar to vtkTimerLogScope, but can be disabled at runtime.
@@ -3785,3 +3771,4 @@ void vtkPKdTree::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NextPtArray: " << this->NextPtArray << endl;
   os << indent << "SelectBuffer (size): " << this->SelectBuffer.size() << endl;
 }
+VTK_ABI_NAMESPACE_END

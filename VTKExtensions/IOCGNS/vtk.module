@@ -2,23 +2,29 @@ NAME
   ParaView::VTKExtensionsIOCGNSWriter
 LIBRARY_NAME
   vtkPVVTKExtensionsIOCGNSWriter
+SPDX_LICENSE_IDENTIFIER
+  BSD-3-Clause
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
 IMPLEMENTABLE
 KIT
   ParaView::CoreKit
 GROUPS
-  IO
+  VTK::IO
 DEPENDS
   VTK::IOCore
 PRIVATE_DEPENDS
   VTK::cgns
   VTK::CommonCore
   VTK::CommonDataModel
+  VTK::FiltersGeneral
   VTK::CommonExecutionModel
   VTK::FiltersCore
 TEST_DEPENDS
   VTK::CommonCore
   VTK::CommonDataModel
   VTK::TestingCore
+  VTK::FiltersGeneral
   VTK::TestingDataModel
   ParaView::VTKExtensionsCore
 TEST_OPTIONAL_DEPENDS

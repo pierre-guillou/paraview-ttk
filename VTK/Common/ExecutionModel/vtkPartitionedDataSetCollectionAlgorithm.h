@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPartitionedDataSetCollectionCollectionAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPartitionedDataSetCollectionAlgorithm
  * @brief Superclass for algorithms that produce vtkPartitionedDataSetCollectionAlgorithm
@@ -26,6 +14,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkCommonExecutionModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPartitionedDataSetCollection;
 
 class VTKCOMMONEXECUTIONMODEL_EXPORT vtkPartitionedDataSetCollectionAlgorithm : public vtkAlgorithm
@@ -69,6 +58,10 @@ protected:
   {
     return 1;
   }
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
   ///@}
 
   int FillOutputPortInformation(int port, vtkInformation* info) override;
@@ -80,4 +73,5 @@ private:
   void operator=(const vtkPartitionedDataSetCollectionAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

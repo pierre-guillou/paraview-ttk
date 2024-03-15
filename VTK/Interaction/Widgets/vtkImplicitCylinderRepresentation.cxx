@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitCylinderRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitCylinderRepresentation.h"
 
 #include "vtkActor.h"
@@ -53,6 +41,7 @@
 #include <algorithm>
 #include <cfloat> //for FLT_EPSILON
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitCylinderRepresentation);
 
 //------------------------------------------------------------------------------
@@ -121,6 +110,8 @@ vtkImplicitCylinderRepresentation::vtkImplicitCylinderRepresentation()
   this->EdgesActor = vtkActor::New();
   this->EdgesActor->SetMapper(this->EdgesMapper);
   this->Tubing = 1; // control whether tubing is on
+  // The feature edges or tuber turns on scalar viz - we need it off.
+  this->EdgesMapper->ScalarVisibilityOff();
 
   // Create the + cylinder axis
   this->LineSource = vtkLineSource::New();
@@ -204,6 +195,7 @@ vtkImplicitCylinderRepresentation::vtkImplicitCylinderRepresentation()
   this->ConeActor2->SetProperty(this->AxisProperty);
   this->SphereActor->SetProperty(this->AxisProperty);
   this->CylActor->SetProperty(this->CylinderProperty);
+  this->EdgesActor->SetProperty(this->EdgesProperty);
   this->OutlineActor->SetProperty(this->OutlineProperty);
 
   // The bounding box
@@ -355,6 +347,9 @@ void vtkImplicitCylinderRepresentation::SetRepresentationState(int state)
   this->RepresentationState = state;
   this->Modified();
 
+  this->HighlightNormal(0);
+  this->HighlightCylinder(0);
+  this->HighlightOutline(0);
   if (state == vtkImplicitCylinderRepresentation::RotatingAxis)
   {
     this->HighlightNormal(1);
@@ -381,12 +376,6 @@ void vtkImplicitCylinderRepresentation::SetRepresentationState(int state)
   else if (state == vtkImplicitCylinderRepresentation::TranslatingCenter)
   {
     this->HighlightNormal(1);
-  }
-  else
-  {
-    this->HighlightNormal(0);
-    this->HighlightCylinder(0);
-    this->HighlightOutline(0);
   }
 }
 
@@ -715,10 +704,12 @@ void vtkImplicitCylinderRepresentation::HighlightCylinder(int highlight)
   if (highlight)
   {
     this->CylActor->SetProperty(this->SelectedCylinderProperty);
+    this->EdgesActor->SetProperty(this->SelectedCylinderProperty);
   }
   else
   {
     this->CylActor->SetProperty(this->CylinderProperty);
+    this->EdgesActor->SetProperty(this->EdgesProperty);
   }
 }
 
@@ -985,41 +976,38 @@ void vtkImplicitCylinderRepresentation::CreateDefaultProperties()
   // Outline properties
   this->OutlineProperty = vtkProperty::New();
   this->OutlineProperty->SetAmbient(1.0);
-  this->OutlineProperty->SetAmbientColor(1.0, 1.0, 1.0);
+  this->OutlineProperty->SetColor(1.0, 1.0, 1.0);
 
   this->SelectedOutlineProperty = vtkProperty::New();
   this->SelectedOutlineProperty->SetAmbient(1.0);
-  this->SelectedOutlineProperty->SetAmbientColor(0.0, 1.0, 0.0);
+  this->SelectedOutlineProperty->SetColor(0.0, 1.0, 0.0);
 
   // Edge property
   this->EdgesProperty = vtkProperty::New();
-  this->EdgesProperty->SetAmbient(1.0);
-  this->EdgesProperty->SetAmbientColor(1.0, 1.0, 1.0);
+  // don't want for 3D tubes: this->EdgesProperty->SetAmbient(1.0);
+  this->EdgesProperty->SetColor(1.0, 0.0, 0.0);
 }
 
 //------------------------------------------------------------------------------
-void vtkImplicitCylinderRepresentation::SetEdgeColor(vtkLookupTable* lut)
+void vtkImplicitCylinderRepresentation::SetInteractionColor(double r, double g, double b)
 {
-  this->EdgesMapper->SetLookupTable(lut);
+  this->SelectedAxisProperty->SetColor(r, g, b);
+  this->SelectedOutlineProperty->SetColor(r, g, b);
+  this->SelectedCylinderProperty->SetAmbientColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkImplicitCylinderRepresentation::SetEdgeColor(double r, double g, double b)
+void vtkImplicitCylinderRepresentation::SetHandleColor(double r, double g, double b)
 {
-  vtkSmartPointer<vtkLookupTable> lookupTable = vtkSmartPointer<vtkLookupTable>::New();
-
-  lookupTable->SetTableRange(0.0, 1.0);
-  lookupTable->SetNumberOfTableValues(1);
-  lookupTable->SetTableValue(0, r, g, b);
-  lookupTable->Build();
-
-  this->SetEdgeColor(lookupTable);
+  this->AxisProperty->SetColor(r, g, b);
+  this->EdgesProperty->SetColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkImplicitCylinderRepresentation::SetEdgeColor(double c[3])
+void vtkImplicitCylinderRepresentation::SetForegroundColor(double r, double g, double b)
 {
-  this->SetEdgeColor(c[0], c[1], c[2]);
+  this->CylinderProperty->SetAmbientColor(r, g, b);
+  this->OutlineProperty->SetColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
@@ -1546,3 +1534,4 @@ void vtkImplicitCylinderRepresentation::RegisterPickers()
   }
   pm->AddPicker(this->Picker, this);
 }
+VTK_ABI_NAMESPACE_END

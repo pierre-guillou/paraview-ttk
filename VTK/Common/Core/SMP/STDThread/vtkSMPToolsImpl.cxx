@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsImpl.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "SMP/Common/vtkSMPToolsImpl.h"
 #include "SMP/STDThread/vtkSMPToolsImpl.txx"
@@ -25,7 +13,14 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 static int specifiedNumThreads = 0;
+
+//------------------------------------------------------------------------------
+int GetNumberOfThreadsSTDThread()
+{
+  return specifiedNumThreads ? specifiedNumThreads : std::thread::hardware_concurrency();
+}
 
 //------------------------------------------------------------------------------
 template <>
@@ -52,18 +47,27 @@ void vtkSMPToolsImpl<BackendType::STDThread>::Initialize(int numThreads)
 }
 
 //------------------------------------------------------------------------------
-int GetNumberOfThreadsSTDThread()
+template <>
+int vtkSMPToolsImpl<BackendType::STDThread>::GetEstimatedNumberOfThreads()
 {
-  return specifiedNumThreads ? specifiedNumThreads : std::thread::hardware_concurrency();
+  return specifiedNumThreads > 0 ? specifiedNumThreads : std::thread::hardware_concurrency();
 }
 
 //------------------------------------------------------------------------------
 template <>
-int vtkSMPToolsImpl<BackendType::STDThread>::GetEstimatedNumberOfThreads()
+bool vtkSMPToolsImpl<BackendType::STDThread>::GetSingleThread()
 {
-  return GetNumberOfThreadsSTDThread();
+  return vtkSMPThreadPool::GetInstance().GetSingleThread();
 }
 
+//------------------------------------------------------------------------------
+template <>
+bool vtkSMPToolsImpl<BackendType::STDThread>::IsParallelScope()
+{
+  return vtkSMPThreadPool::GetInstance().IsParallelScope();
+}
+
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk

@@ -10,7 +10,11 @@
 #ifndef vtk_m_rendering_testing_RenderTest_h
 #define vtk_m_rendering_testing_RenderTest_h
 
-#include <vtkm/rendering/testing/vtkm_rendering_testing_export.h>
+// Because the testing directory is reserved for test executables and not
+// libraries, the vtkm_rendering_testing module has to put this file in
+// vtkm/rendering/testlib instead of vtkm/rendering/testing where you normally
+// would expect it.
+#include <vtkm/rendering/testlib/vtkm_rendering_testing_export.h>
 
 #include <vtkm/Bounds.h>
 #include <vtkm/cont/DeviceAdapterTag.h>
@@ -94,7 +98,7 @@ struct RenderTestOptions
   bool LogX = false;
   bool LogY = false;
 
-  std::string Title = "";
+  std::string Title;
   vtkm::Float32 TitleScale = 0.075f;
   vtkm::Vec2f_32 TitlePosition = { -0.11f, 0.92f };
   vtkm::Float32 TitleAngle = 0;

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqDisplayRepresentationWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDisplayRepresentationWidget.h"
 #include "ui_pqDisplayRepresentationWidget.h"
 
@@ -39,6 +11,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPropertyLinks.h"
 #include "pqUndoStack.h"
 #include "vtkPVXMLElement.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMRepresentationProxy.h"
 #include "vtkSMViewProxy.h"
@@ -71,7 +44,8 @@ protected:
     assert(use_unchecked == false);
     Q_UNUSED(use_unchecked);
 
-    BEGIN_UNDO_SET("Change representation type");
+    BEGIN_UNDO_SET(
+      QCoreApplication::translate("PropertyLinksConnection", "Change representation type"));
     vtkSMProxy* reprProxy = this->proxySM();
     auto widget = qobject_cast<pqDisplayRepresentationWidget*>(this->objectQt());
     vtkSMViewProxy* view = widget->viewProxy();
@@ -83,7 +57,7 @@ protected:
       // (it means that the user clicked on `Volume` while no array was selected)
       // This needs to be done before calling SetRepresentationType, as this method
       // will setup a LUT proxy.
-      vtkSMProxy* lutProxy = reprPVProxy->GetLUTProxy(view);
+      vtkSMProxy* lutProxy = vtkSMColorMapEditorHelper::GetLUTProxy(reprPVProxy, view);
       const QString& type = value.toString();
 
       // Let'set the new representation
@@ -185,7 +159,7 @@ void pqDisplayRepresentationWidget::setRepresentation(vtkSMProxy* proxy)
   this->Internal->comboBox->setEnabled(smproperty != nullptr);
   if (!smproperty)
   {
-    this->Internal->comboBox->addItem("Representation");
+    this->Internal->comboBox->addItem(tr("Representation"));
     this->Internal->comboBox->blockSignals(prev);
     return;
   }
@@ -252,7 +226,7 @@ pqDisplayRepresentationPropertyWidget::pqDisplayRepresentationPropertyWidget(
   : pqPropertyWidget(smProxy, parentObject)
 {
   QVBoxLayout* layoutLocal = new QVBoxLayout;
-  layoutLocal->setMargin(0);
+  layoutLocal->setContentsMargins(0, 0, 0, 0);
   this->Widget = new pqDisplayRepresentationWidget(this);
   layoutLocal->addWidget(this->Widget);
   setLayout(layoutLocal);

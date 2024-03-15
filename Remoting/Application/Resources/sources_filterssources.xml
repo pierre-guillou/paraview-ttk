@@ -134,14 +134,24 @@
                  value="5" />
           <Entry text="Quad"
                  value="9" />
+          <Entry text="Pixel"
+                 value="8" />
+          <Entry text="Polygon"
+                 value="7" />
           <Entry text="Quadratic Triangle"
                  value="22" />
           <Entry text="Quadratic Quad"
                  value="23" />
+          <Entry text="Bi-Quadratic Quad"
+                 value="28" />
           <Entry text="Tet"
                  value="10" />
           <Entry text="Hex"
                  value="12" />
+          <Entry text="Polyhedron"
+                 value="42" />
+          <Entry text="Voxel"
+                 value="11" />
           <Entry text="Wedge"
                  value="13" />
           <Entry text="Pyramid"
@@ -150,6 +160,8 @@
                  value="24" />
           <Entry text="Quadratic Hex"
                  value="25" />
+          <Entry text="Tri-Quadratic Hexahedron"
+                 value="29" />
           <Entry text="Quadratic Wedge"
                  value="26" />
           <Entry text="Quadratic Pyramid"
@@ -656,6 +668,58 @@
         <Documentation>Set the x, y, z coordinates of the origin of the 2D
         glyph.</Documentation>
       </DoubleVectorProperty>
+
+      <DoubleVectorProperty command="SetTipLength"
+                            default_values="0.3"
+                            name="TipLength"
+                            number_of_elements="1"
+                            panel_visibility="default">
+        <DoubleRangeDomain max="1.0"
+                           min="0.0"
+                           name="range" />
+        <Documentation>
+          Length of the arrow tip.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="GlyphType"
+                                   value="9" />
+        </Hints>
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetDoublePointed"
+                         default_values="0"
+                         name="DoublePointed"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Display double pointed arrow.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="GlyphType"
+                                   value="9" />
+        </Hints>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetPointInwards"
+                         default_values="0"
+                         name="PointInwards"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Make the arrow tip point inwards.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="GlyphType"
+                                   value="9" />
+        </Hints>
+      </IntVectorProperty>
+
       <!-- End 2DGlyph -->
     </SourceProxy>
 
@@ -832,6 +896,34 @@
       </PropertyGroup>
       <Hints>
         <Representation view="RenderView" type="RulerSourceRepresentation" />
+      </Hints>
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkPolyLineSource"
+                 name="Protractor">
+                 <Documentation long_help="This is a poly-line source that can be used to measure an angle between 3 points"
+                 short_help="Create a protractor">The protractor can be used to
+                 interactively (using a 3D widget) or manually (using the
+                 entries on the user interface) specify 3 points and then
+                 determine the angle between these three. To place
+                 points on the surface of any dataset, one can use the 'p'
+                 key shortcut.</Documentation>
+      <DoubleVectorProperty command="SetPoint"
+                            default_values="0 0 0 1 0 0"
+                            name="Points"
+                            number_of_elements="6"
+                            number_of_elements_per_command="3"
+                            repeat_command="1"
+                            set_number_command="SetNumberOfPoints"
+                            use_index="1">
+      </DoubleVectorProperty>
+      <PropertyGroup label="Angle Parameters" panel_widget="InteractiveAngle">
+        <Property function="HandlePositions" name="Points" />
+      </PropertyGroup>
+
+      <Hints>
+        <Representation view="RenderView" type="ProtractorRepresentation" />
       </Hints>
     </SourceProxy>
 
@@ -1096,6 +1188,93 @@
         number of levels in the hyper tree grid.</Documentation>
       </IntVectorProperty>
       <!-- End Random Hyper Tree Grid -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkSpatioTemporalHarmonicsSource"
+                 name="SpatioTemporalHarmonicsSource"
+                 label="Spatio Temporal Harmonics Uniform Grid">
+      <Documentation short_help="Create a 3D uniform grid with a spatio-temporal harmonics array.">
+                     Creates a 3D uniform grid with point data. The values are
+                     computed for each point with the harmonics defined in the
+                     source. Harmonics are defined by their amplitude, temporal
+                     frequency, wave vector, and phase. The grid is defined by
+                     its extent.
+      </Documentation>
+
+      <IntVectorProperty name="WholeExtent"
+                         command="SetWholeExtent"
+                         default_values="-10 10 -10 10 -10 10"
+                         number_of_elements="6">
+        <IntRangeDomain name="range" />
+        <Documentation>The six values in the property indicate the X, Y, and Z
+        extent of the output data. The first two numbers are the minimum and
+        maximum X extent; the next two are the minimum and maximum Y extent;
+        and the final two are the minimum and maximum Z extent. The numbers are
+        inclusive, so values of -10, 10, -10, 10, -10, 10 indicate that the
+        dimensions of the output will be 21 x 21 x 21.</Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty animateable="1"
+                            command="AddTimeStepValue"
+                            clean_command="ClearTimeStepValues"
+                            label="Time Step Values"
+                            name="TimeStepValuesToGenerate"
+                            default_values="0.0 0.3141 0.6283 0.9425 1.2566 1.5708 1.885 2.1991 2.5133 2.8274 3.1416 3.4558 3.7699 4.0841 4.3982 4.7124 5.0266 5.3407 5.6549 5.969"
+                            number_of_elements="20"
+                            number_of_elements_per_command="1"
+                            repeat_command="1">
+        <!-- Using a range domain will add the "Generate Values" button to the widget -->
+        <DoubleRangeDomain name="range" min="0" max="6.2832"/>
+        <Documentation>
+          This property specifies the timestep values to generate.
+          When generating a range, make sure to remove the max value for the
+          loop to avoid time value duplication (0 == 2*Pi).
+          By default, it generates 20 timesteps from [0;2*Pi[ for data loop.
+        </Documentation>
+        <Hints>
+          <AllowRestoreDefaults />
+          <ShowLabel />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty information_only="1"
+                            name="TimestepValues">
+        <TimeStepsInformationHelper/>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="Harmonics"
+                            command="AddHarmonic"
+                            clean_command="ClearHarmonics"
+                            default_values="1.0 1.0 0.6283 0.6283 0.6283 0.0 3.0 1.0 0.6283 0.0 0.0 1.5708 2.0 2.0 0.0 0.6283 0.0 3.1416 1.0 3.0 0.0 0.0 0.6283 4.7124"
+                            number_of_elements="24"
+                            number_of_elements_per_command="6"
+                            repeat_command="1">
+        <Documentation>
+          This property defines the harmonics that will be computed
+          and summed on each point.
+          By default, it generates harmonics in each direction, with parameters
+          adapted to the default extent.
+        </Documentation>
+        <Hints>
+          <AllowRestoreDefaults />
+          <ShowComponentLabels>
+            <ComponentLabel component="0" label="Amplitude"/>
+            <ComponentLabel component="1" label="Temporal Frequency"/>
+            <ComponentLabel component="2" label="X Wave Vector"/>
+            <ComponentLabel component="3" label="Y Wave Vector"/>
+            <ComponentLabel component="4" label="Z Wave Vector"/>
+            <ComponentLabel component="5" label="Phase"/>
+          </ShowComponentLabels>
+        </Hints>
+      </DoubleVectorProperty>
+
+      <PropertyGroup label="Time Settings">
+        <Property name="TimeStepValuesToGenerate" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Harmonics Settings">
+        <Property name="Harmonics" />
+      </PropertyGroup>
     </SourceProxy>
 
     <!-- ==================================================================== -->

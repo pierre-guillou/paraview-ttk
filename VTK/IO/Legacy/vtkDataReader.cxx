@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDataReader.h"
 
@@ -71,6 +59,7 @@
 // myself.
 // This function is also defined in Infovis/vtkDelimitedTextReader.cxx,
 // so it would be nice to put this in a common file.
+VTK_ABI_NAMESPACE_BEGIN
 static int my_getline(istream& in, std::string& output, char delim = '\n');
 
 vtkStandardNewMacro(vtkDataReader);
@@ -3420,7 +3409,7 @@ vtkFieldData* vtkDataReader::ReadFieldData(FieldType fieldType)
 }
 
 //------------------------------------------------------------------------------
-char* vtkDataReader::LowerCase(char* str, const size_t len)
+char* vtkDataReader::LowerCase(char* str, size_t len)
 {
   size_t i;
   char* s;
@@ -3902,3 +3891,4 @@ void vtkDataReader::SetScalarLut(const char* lut)
     } while (--n);
   }
 }
+VTK_ABI_NAMESPACE_END

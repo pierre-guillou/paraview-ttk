@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkX3DExporter
  * @brief   create an x3d file
@@ -30,6 +18,7 @@
 #include "vtkExporter.h"
 #include "vtkIOExportModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkActor2D;
 class vtkDataArray;
@@ -138,7 +127,7 @@ protected:
   // Default implementation does nothing.
   virtual void WriteAdditionalNodes(vtkX3DExporterWriter* vtkNotUsed(writer)) {}
 
-  int HasHeadLight(vtkRenderer* ren);
+  vtkTypeBool HasHeadLight(vtkRenderer* ren);
 
   char* FileName;
   double Speed;
@@ -150,4 +139,5 @@ private:
   void operator=(const vtkX3DExporter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

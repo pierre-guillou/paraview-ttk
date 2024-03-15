@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkShaderProgram.h"
 #include "vtkObjectFactory.h"
 
@@ -29,6 +18,7 @@
 #include <sstream>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -648,7 +638,7 @@ bool vtkShaderProgram::SetUniformMatrix4x4(const char* name, float* matrix)
   return this->SetUniformMatrix4x4v(name, 1, matrix);
 }
 
-bool vtkShaderProgram::SetUniformMatrix4x4v(const char* name, const int count, float* matrix)
+bool vtkShaderProgram::SetUniformMatrix4x4v(const char* name, int count, float* matrix)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -679,7 +669,7 @@ bool vtkShaderProgram::SetUniformMatrix(const char* name, vtkMatrix3x3* matrix)
   return true;
 }
 
-bool vtkShaderProgram::SetUniform1fv(const char* name, const int count, const float* v)
+bool vtkShaderProgram::SetUniform1fv(const char* name, int count, const float* v)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -692,7 +682,7 @@ bool vtkShaderProgram::SetUniform1fv(const char* name, const int count, const fl
   return true;
 }
 
-bool vtkShaderProgram::SetUniform1iv(const char* name, const int count, const int* v)
+bool vtkShaderProgram::SetUniform1iv(const char* name, int count, const int* v)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -705,7 +695,7 @@ bool vtkShaderProgram::SetUniform1iv(const char* name, const int count, const in
   return true;
 }
 
-bool vtkShaderProgram::SetUniform3fv(const char* name, const int count, const float* f)
+bool vtkShaderProgram::SetUniform3fv(const char* name, int count, const float* f)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -718,7 +708,7 @@ bool vtkShaderProgram::SetUniform3fv(const char* name, const int count, const fl
   return true;
 }
 
-bool vtkShaderProgram::SetUniform3fv(const char* name, const int count, const float (*v)[3])
+bool vtkShaderProgram::SetUniform3fv(const char* name, int count, const float (*v)[3])
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -731,7 +721,7 @@ bool vtkShaderProgram::SetUniform3fv(const char* name, const int count, const fl
   return true;
 }
 
-bool vtkShaderProgram::SetUniform4fv(const char* name, const int count, const float* f)
+bool vtkShaderProgram::SetUniform4fv(const char* name, int count, const float* f)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -744,7 +734,7 @@ bool vtkShaderProgram::SetUniform4fv(const char* name, const int count, const fl
   return true;
 }
 
-bool vtkShaderProgram::SetUniform4fv(const char* name, const int count, const float (*v)[4])
+bool vtkShaderProgram::SetUniform4fv(const char* name, int count, const float (*v)[4])
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -770,7 +760,7 @@ bool vtkShaderProgram::SetUniform2f(const char* name, const float v[2])
   return true;
 }
 
-bool vtkShaderProgram::SetUniform2fv(const char* name, const int count, const float* f)
+bool vtkShaderProgram::SetUniform2fv(const char* name, int count, const float* f)
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -783,7 +773,7 @@ bool vtkShaderProgram::SetUniform2fv(const char* name, const int count, const fl
   return true;
 }
 
-bool vtkShaderProgram::SetUniform2fv(const char* name, const int count, const float (*f)[2])
+bool vtkShaderProgram::SetUniform2fv(const char* name, int count, const float (*f)[2])
 {
   GLint location = static_cast<GLint>(this->FindUniform(name));
   if (location == -1)
@@ -977,3 +967,4 @@ void vtkShaderProgram::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "FileNamePrefixForDebugging: "
      << (this->FileNamePrefixForDebugging ? this->FileNamePrefixForDebugging : "(null)") << endl;
 }
+VTK_ABI_NAMESPACE_END

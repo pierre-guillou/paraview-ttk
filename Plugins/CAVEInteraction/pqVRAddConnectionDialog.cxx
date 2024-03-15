@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqVRAddConnectionDialog.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqVRAddConnectionDialog.h"
 #include "ui_pqVRAddConnectionDialog.h"
 
@@ -56,12 +28,12 @@ class pqVRAddConnectionDialog::pqInternals : public Ui::VRAddConnectionDialog
 public:
   enum InputType
   {
-    Analog = 0,
+    Valuator = 0,
     Button,
     Tracker
   };
 
-  std::map<std::string, std::string> AnalogMapping;
+  std::map<std::string, std::string> ValuatorMapping;
   std::map<std::string, std::string> ButtonMapping;
   std::map<std::string, std::string> TrackerMapping;
 
@@ -159,7 +131,7 @@ pqVRAddConnectionDialog::pqVRAddConnectionDialog(QWidget* parentObject, Qt::Wind
   // Restrict input in some line edits
   QRegExpValidator* connNameValidator = new QRegExpValidator(QRegExp("[0-9a-zA-Z]+"), this);
   QRegExpValidator* addressValidator =
-    new QRegExpValidator(QRegExp("([0-9a-zA-Z.]+@)?[0-9a-zA-Z.:]+"), this);
+    new QRegExpValidator(QRegExp("([0-9a-zA-Z.]+@)?([a-zA-Z]+://)?[0-9a-zA-Z.:]+"), this);
   QRegExpValidator* inputIdValidator = new QRegExpValidator(QRegExp("[0-9]+"), this);
   QRegExpValidator* inputNameValidator = new QRegExpValidator(QRegExp("[0-9a-zA-Z]+"), this);
   this->Internals->connectionName->setValidator(connNameValidator);
@@ -189,7 +161,7 @@ void pqVRAddConnectionDialog::setConnection(pqVRPNConnection* conn)
   this->Internals->connectionAddress->setText(QString::fromStdString(conn->address()));
   this->Internals->SetSelectedConnectionType(pqInternals::VRPN);
   this->Internals->connectionType->setEnabled(false);
-  this->Internals->AnalogMapping = conn->analogMap();
+  this->Internals->ValuatorMapping = conn->valuatorMap();
   this->Internals->ButtonMapping = conn->buttonMap();
   this->Internals->TrackerMapping = conn->trackerMap();
   this->Internals->updateUi();
@@ -223,7 +195,7 @@ void pqVRAddConnectionDialog::setConnection(pqVRUIConnection* conn)
   this->Internals->connectionPort->setValue(QString::fromStdString(conn->port()).toInt());
   this->Internals->SetSelectedConnectionType(pqInternals::VRUI);
   this->Internals->connectionType->setEnabled(false);
-  this->Internals->AnalogMapping = conn->analogMap();
+  this->Internals->ValuatorMapping = conn->valuatorMap();
   this->Internals->ButtonMapping = conn->buttonMap();
   this->Internals->TrackerMapping = conn->trackerMap();
   this->Internals->updateUi();
@@ -284,21 +256,18 @@ void pqVRAddConnectionDialog::updateConnection()
 
 void pqVRAddConnectionDialog::accept()
 {
-  QString missingVar;
   if (this->Internals->connectionName->text().isEmpty())
   {
-    missingVar = "Connection name";
+    QMessageBox::critical(this, tr("Missing connection name"), tr("Connection name is not set!"));
+    return;
   }
   if (this->Internals->connectionAddress->text().isEmpty())
   {
-    missingVar = "Connection address";
-  }
-
-  if (!missingVar.isEmpty())
-  {
-    QMessageBox::critical(this, "Missing value", QString("%1 is not set!").arg(missingVar));
+    QMessageBox::critical(
+      this, tr("Missing connection adress"), tr("Connection address is not set!"));
     return;
   }
+
   this->Superclass::accept();
 }
 
@@ -328,20 +297,14 @@ void pqVRAddConnectionDialog::keyPressEvent(QKeyEvent* event)
 //-----------------------------------------------------------------------------
 void pqVRAddConnectionDialog::addInput()
 {
-
-  QString missingVar;
   if (this->Internals->inputName->text().isEmpty())
   {
-    missingVar = "Input name";
+    QMessageBox::critical(this, tr("Missing input name"), tr("Input name is not set!"));
+    return;
   }
   if (this->Internals->inputId->text().isEmpty())
   {
-    missingVar = "Input id";
-  }
-
-  if (!missingVar.isEmpty())
-  {
-    QMessageBox::critical(this, "Missing value", QString("%1 is not set!").arg(missingVar));
+    QMessageBox::critical(this, tr("Missing input id"), tr("Input id is not set!"));
     return;
   }
 
@@ -388,7 +351,7 @@ void pqVRAddConnectionDialog::pqInternals::updateVRPNConnection()
 
   this->VRPNConn->setName(this->connectionName->text().toStdString());
   this->VRPNConn->setAddress(this->connectionAddress->text().toStdString());
-  this->VRPNConn->setAnalogMap(this->AnalogMapping);
+  this->VRPNConn->setValuatorMap(this->ValuatorMapping);
   this->VRPNConn->setButtonMap(this->ButtonMapping);
   this->VRPNConn->setTrackerMap(this->TrackerMapping);
 }
@@ -407,7 +370,7 @@ void pqVRAddConnectionDialog::pqInternals::updateVRUIConnection()
   this->VRUIConn->setName(this->connectionName->text().toStdString());
   this->VRUIConn->setAddress(this->connectionAddress->text().toStdString());
   this->VRUIConn->setPort(QString::number(this->connectionPort->value()).toStdString());
-  this->VRUIConn->setAnalogMap(this->AnalogMapping);
+  this->VRUIConn->setValuatorMap(this->ValuatorMapping);
   this->VRUIConn->setButtonMap(this->ButtonMapping);
   this->VRUIConn->setTrackerMap(this->TrackerMapping);
 }
@@ -419,7 +382,7 @@ void pqVRAddConnectionDialog::pqInternals::updateUi()
   this->listWidget->clear();
   std::map<std::string, std::string>::const_iterator it;
   std::map<std::string, std::string>::const_iterator it_end;
-  for (it = this->AnalogMapping.begin(), it_end = this->AnalogMapping.end(); it != it_end; ++it)
+  for (it = this->ValuatorMapping.begin(), it_end = this->ValuatorMapping.end(); it != it_end; ++it)
   {
     this->listWidget->addItem(QString("%1: %2")
                                 .arg(QString::fromStdString(it->first))
@@ -461,9 +424,9 @@ void pqVRAddConnectionDialog::pqInternals::addInput()
   const char* idPrefix;
   switch (this->inputType->currentIndex())
   {
-    case Analog:
-      targetMap = &this->AnalogMapping;
-      idPrefix = "analog.";
+    case Valuator:
+      targetMap = &this->ValuatorMapping;
+      idPrefix = "valuator.";
       break;
     case Button:
       targetMap = &this->ButtonMapping;
@@ -495,9 +458,9 @@ void pqVRAddConnectionDialog::pqInternals::removeInput()
       continue;
     }
 
-    if (id.startsWith("analog."))
+    if (id.startsWith("valuator."))
     {
-      this->AnalogMapping.erase(id.toStdString());
+      this->ValuatorMapping.erase(id.toStdString());
     }
     else if (id.startsWith("button."))
     {

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGmshWriter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGmshWriter
@@ -31,6 +19,7 @@ struct GmshWriterInternal;
 class vtkUnstructuredGrid;
 class vtkDataSetAttributes;
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKGMSHIO_EXPORT vtkGmshWriter : public vtkWriter
 {
 public:
@@ -38,37 +27,53 @@ public:
   vtkTypeMacro(vtkGmshWriter, vtkWriter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Specify the file name to be written.
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if we write data arrays starting by "gmsh" (usually created by the Gmsh reader).
    */
   vtkSetMacro(WriteGmshSpecificArray, bool);
   vtkGetMacro(WriteGmshSpecificArray, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify if all timesteps have to be saved for temporal data.
    */
   vtkSetMacro(WriteAllTimeSteps, bool);
   vtkGetMacro(WriteAllTimeSteps, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the input of this writer as an unstructured grid.
    */
   vtkUnstructuredGrid* GetInput();
   vtkUnstructuredGrid* GetInput(int port);
-  //@}
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set the name of the elementary entity ID cell field if there is one
+   */
+  vtkGetStringMacro(ElementaryEntityIDFieldName);
+  vtkSetStringMacro(ElementaryEntityIDFieldName);
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set the name of the physical group ID cell field if there is one
+   */
+  vtkGetStringMacro(PhysicalGroupIDFieldName);
+  vtkSetStringMacro(PhysicalGroupIDFieldName);
+  ///@}
 
 protected:
   vtkGmshWriter();
@@ -85,7 +90,12 @@ protected:
   bool WriteAllTimeSteps = false;
   bool WriteGmshSpecificArray = false;
 
+  char* ElementaryEntityIDFieldName = nullptr;
+  char* PhysicalGroupIDFieldName = nullptr;
+
 private:
+  void SetUpEntities();
+  bool SetUpPhysicalGroups();
   void LoadNodes();
   void LoadCells();
   void InitViews();
@@ -98,5 +108,6 @@ private:
   vtkGmshWriter(const vtkGmshWriter&) = delete;
   void operator=(const vtkGmshWriter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkGmshWriter_h

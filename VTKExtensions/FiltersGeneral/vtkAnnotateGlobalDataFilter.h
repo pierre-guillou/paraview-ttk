@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAnnotateGlobalDataFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkAnnotateGlobalDataFilter
  * @brief filter for annotating with global / field data
@@ -39,45 +27,45 @@ public:
   vtkTypeMacro(vtkAnnotateGlobalDataFilter, vtkTableAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Name of the field to display
    */
   vtkSetStringMacro(FieldArrayName);
   vtkGetStringMacro(FieldArrayName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text prefix to display in front of the Field value
    */
   vtkSetStringMacro(Prefix);
   vtkGetStringMacro(Prefix);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text prefix to display in front of the Field value
    */
   vtkSetStringMacro(Postfix);
   vtkGetStringMacro(Postfix);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the format to use when displaying the field value
    */
   vtkSetStringMacro(Format);
   vtkGetStringMacro(Format);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the controller to use.
    */
   void SetController(vtkMultiProcessController*);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 protected:
   vtkAnnotateGlobalDataFilter();
   ~vtkAnnotateGlobalDataFilter() override;

@@ -1,35 +1,8 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    ParaViewMainWindow.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #if PARAVIEW_USE_PYTHON
+#include "pvincubatorpythonmodules.h"
 #include "pvpythonmodules.h"
 #endif
 
@@ -112,6 +85,7 @@ ParaViewMainWindow::ParaViewMainWindow()
 
 #if PARAVIEW_USE_PYTHON
   pvpythonmodules_load();
+  pvincubatorpythonmodules_load();
 #endif
 
 #if PARAVIEW_ENABLE_EMBEDDED_DOCUMENTATION
@@ -135,7 +109,8 @@ ParaViewMainWindow::ParaViewMainWindow()
 #endif
 
 #if PARAVIEW_USE_MATERIALEDITOR
-  pqMaterialEditor* materialEditor = new pqMaterialEditor(this);
+  pqMaterialEditor* materialEditor =
+    new pqMaterialEditor(this, this->Internals->materialEditorDock);
   materialEditor->setObjectName("materialEditorPanel");
   this->Internals->materialEditorDock->setWidget(materialEditor);
 #endif
@@ -162,21 +137,19 @@ ParaViewMainWindow::ParaViewMainWindow()
     this->Internals->colorMapEditorDock, this->Internals->multiBlockInspectorDock);
 
   this->Internals->findDataDock->hide();
-  this->Internals->animationViewDock->hide();
   this->Internals->statisticsDock->hide();
   this->Internals->comparativePanelDock->hide();
   this->Internals->collaborationPanelDock->hide();
   this->Internals->memoryInspectorDock->hide();
   this->Internals->multiBlockInspectorDock->hide();
   this->Internals->colorMapEditorDock->hide();
-  this->Internals->timeInspectorDock->hide();
+  this->Internals->timeManagerDock->hide();
   this->Internals->lightInspectorDock->hide();
   this->Internals->selectionEditorDock->hide();
 
-  this->tabifyDockWidget(this->Internals->animationViewDock, this->Internals->statisticsDock);
-  this->tabifyDockWidget(this->Internals->animationViewDock, this->Internals->outputWidgetDock);
-  this->tabifyDockWidget(this->Internals->animationViewDock, this->Internals->pythonShellDock);
-  this->tabifyDockWidget(this->Internals->animationViewDock, this->Internals->timeInspectorDock);
+  this->tabifyDockWidget(this->Internals->timeManagerDock, this->Internals->statisticsDock);
+  this->tabifyDockWidget(this->Internals->timeManagerDock, this->Internals->outputWidgetDock);
+  this->tabifyDockWidget(this->Internals->timeManagerDock, this->Internals->pythonShellDock);
 
   // setup properties dock
   this->tabifyDockWidget(this->Internals->propertiesDock, this->Internals->viewPropertiesDock);

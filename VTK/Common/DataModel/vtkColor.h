@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkColor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkColor
@@ -30,6 +18,7 @@
 
 // .NAME vtkColor3 - templated base type for storage of 3 component colors.
 //
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkColor3 : public vtkTuple<T, 3>
 {
@@ -338,5 +327,6 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkColor_h
 // VTK-HeaderTest-Exclude: vtkColor.h

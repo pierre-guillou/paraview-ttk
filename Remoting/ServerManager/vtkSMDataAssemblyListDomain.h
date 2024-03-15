@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDataAssemblyListDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMDataAssemblyListDomain
  * @brief domain listing available assembly types in the input
@@ -25,8 +13,7 @@
  * <SourceProxy ...>
  *   <StringVectorProperty name="BlockAssembly"
  *      command="SetSelectorAssembly"
- *      number_of_elements="1"
- *      default_values="Hierarchy">
+ *      number_of_elements="1">
  *      <DataAssemblyListDomain name="data_assembly_list">
  *        <RequiredProperties>
  *          <Property function="Input" name="Input" />
@@ -52,9 +39,23 @@ public:
 
   void Update(vtkSMProperty* requestingProperty) override;
 
+  int SetDefaultValues(vtkSMProperty*, bool use_unchecked_values) override;
+
+  ///@{
+  /**
+   * When set to true, the domain will use the old functionality setting the
+   * assembly default value. This is useful for backwards compatibility.
+   */
+  vtkSetMacro(BackwardCompatibilityMode, bool);
+  vtkGetMacro(BackwardCompatibilityMode, bool);
+  vtkBooleanMacro(BackwardCompatibilityMode, bool);
+  ///@}
+
 protected:
   vtkSMDataAssemblyListDomain();
   ~vtkSMDataAssemblyListDomain() override;
+
+  bool BackwardCompatibilityMode = false;
 
 private:
   vtkSMDataAssemblyListDomain(const vtkSMDataAssemblyListDomain&) = delete;

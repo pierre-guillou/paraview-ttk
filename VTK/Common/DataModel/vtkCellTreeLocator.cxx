@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellTreeLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -30,12 +18,15 @@
 #include <stack>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkCellTreeLocator);
+VTK_ABI_NAMESPACE_END
 
 //------------------------------------------------------------------------------
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 enum
 {
   POS_X,
@@ -468,25 +459,14 @@ private:
 
     buckets.Reset();
 
-    double cen;
-    int ind;
-
     for (const CellInfo* pc = begin; pc != end; ++pc)
     {
       for (uint8_t d = 0; d < 3; ++d)
       {
-        cen = (pc->Min[d] + pc->Max[d]) / 2.0;
-        ind = (int)((cen - min[d]) * iext[d]);
-
-        if (ind < 0)
-        {
-          ind = 0;
-        }
-
-        if (ind >= this->NumberOfBuckets)
-        {
-          ind = this->NumberOfBuckets - 1;
-        }
+        double cen = (pc->Min[d] + pc->Max[d]) / 2.0;
+        double dblIdx = (cen - min[d]) * iext[d];
+        dblIdx = vtkMath::ClampValue(dblIdx, 0.0, static_cast<double>(this->NumberOfBuckets - 1));
+        size_t ind = static_cast<size_t>(dblIdx);
 
         buckets[d][ind].Add(pc->Min[d], pc->Max[d]);
       }
@@ -887,7 +867,7 @@ struct IntersectionInfo
 
 //------------------------------------------------------------------------------
 template <typename T>
-int CellTree<T>::IntersectWithLine(const double p1[3], const double p2[3], const double tol,
+int CellTree<T>::IntersectWithLine(const double p1[3], const double p2[3], double tol,
   vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell)
 {
   using TIntersectionInfo = IntersectionInfo<T>;
@@ -1284,8 +1264,10 @@ void CellTree<T>::FindCellsWithinBounds(double* bbox, vtkIdList* cells)
     }
   }
 }
+VTK_ABI_NAMESPACE_END
 } // namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkCellTreeLocator::vtkCellTreeLocator()
 {
@@ -1488,3 +1470,4 @@ void vtkCellTreeLocator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "NumberOfBuckets: " << this->NumberOfBuckets << "\n";
   os << indent << "LargeIds: " << this->LargeIds << "\n";
 }
+VTK_ABI_NAMESPACE_END

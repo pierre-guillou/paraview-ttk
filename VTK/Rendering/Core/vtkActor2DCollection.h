@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkActor2DCollection.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkActor2DCollection
  * @brief    a list of 2D actors
@@ -33,6 +21,7 @@
 
 #include "vtkActor2D.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkViewport;
 
 class VTKRENDERINGCORE_EXPORT vtkActor2DCollection : public vtkPropCollection
@@ -64,6 +53,7 @@ public:
    * Standard Collection methods
    */
   int IsItemPresent(vtkActor2D* a);
+  int IndexOfFirstOccurence(vtkActor2D* a);
   vtkActor2D* GetNextActor2D();
   vtkActor2D* GetLastActor2D();
   ///@}
@@ -103,8 +93,8 @@ private:
   void AddItem(vtkObject* o) { this->vtkCollection::AddItem(o); }
   void AddItem(vtkProp* o) { this->vtkPropCollection::AddItem(o); }
   int IsItemPresent(vtkObject* o) { return this->vtkCollection::IsItemPresent(o); }
+  int IndexOfFirstOccurence(vtkObject* o) { return this->vtkCollection::IndexOfFirstOccurence(o); }
 
-private:
   vtkActor2DCollection(const vtkActor2DCollection&) = delete;
   void operator=(const vtkActor2DCollection&) = delete;
 };
@@ -112,6 +102,11 @@ private:
 inline int vtkActor2DCollection::IsItemPresent(vtkActor2D* a)
 {
   return this->vtkCollection::IsItemPresent(a);
+}
+
+inline int vtkActor2DCollection::IndexOfFirstOccurence(vtkActor2D* a)
+{
+  return this->vtkCollection::IndexOfFirstOccurence(a);
 }
 
 inline vtkActor2D* vtkActor2DCollection::GetNextActor2D()
@@ -141,4 +136,5 @@ inline vtkActor2D* vtkActor2DCollection::GetLastItem()
   return this->GetLastActor2D();
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

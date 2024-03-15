@@ -1,25 +1,16 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridContour.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHyperTreeGridContour.h"
 
 #include "vtkBitArray.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
+#include "vtkCellIterator.h"
 #include "vtkContourHelper.h"
 #include "vtkContourValues.h"
+#include "vtkDoubleArray.h"
+#include "vtkGenericCell.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridNonOrientedCursor.h"
@@ -35,23 +26,53 @@
 #include "vtkPixel.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
+#include "vtkPolyhedron.h"
+#include "vtkPolyhedronUtilities.h"
 #include "vtkUnsignedCharArray.h"
+#include "vtkUnstructuredGrid.h"
 #include "vtkVoxel.h"
 
-static const unsigned int MooreCursors1D[2] = { 0, 2 };
-static const unsigned int MooreCursors2D[8] = { 0, 1, 2, 3, 5, 6, 7, 8 };
-static const unsigned int MooreCursors3D[26] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15,
-  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26 };
-static const unsigned int* MooreCursors[3] = {
+#include <memory>
+
+VTK_ABI_NAMESPACE_BEGIN
+
+namespace
+{
+const unsigned int MooreCursors1D[2] = { 0, 2 };
+const unsigned int MooreCursors2D[8] = { 0, 1, 2, 3, 5, 6, 7, 8 };
+const unsigned int MooreCursors3D[26] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 15, 16, 17,
+  18, 19, 20, 21, 22, 23, 24, 25, 26 };
+const unsigned int* MooreCursors[3] = {
   MooreCursors1D,
   MooreCursors2D,
   MooreCursors3D,
 };
 
+// Conversion table of canonical ids from voxel to polyhedron
+constexpr vtkIdType CANONICAL_FACES[24] = { 2, 3, 1, 0, 1, 5, 4, 0, 4, 6, 2, 0, 3, 7, 5, 1, 2, 6, 7,
+  3, 5, 7, 6, 4 };
+constexpr std::size_t POLY_FACES_SIZE = 31;
+constexpr vtkIdType POLY_FACES_NB = 6;
+constexpr vtkIdType POLY_FACES_POINTS_NB = 4;
+constexpr vtkIdType POLY_POINTS_NB = 8;
+}
+
+//------------------------------------------------------------------------------
+struct vtkHyperTreeGridContour::vtkInternals
+{
+  // Temporary data structures related to USE_DECOMPOSED_POLYHEDRA strategy
+  std::vector<vtkIdType> Faces;
+  vtkNew<vtkPolyhedron> Polyhedron;
+  vtkNew<vtkGenericCell> Tetra;
+  vtkNew<vtkDoubleArray> TetraScalars;
+};
+
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkHyperTreeGridContour);
 
 //------------------------------------------------------------------------------
 vtkHyperTreeGridContour::vtkHyperTreeGridContour()
+  : Internals(new vtkHyperTreeGridContour::vtkInternals())
 {
   // Initialize storage for contour values
   this->ContourValues = vtkContourValues::New();
@@ -82,6 +103,11 @@ vtkHyperTreeGridContour::vtkHyperTreeGridContour()
 
   // Input scalars point to null by default
   this->InScalars = nullptr;
+
+  // Initialize temporal structures related to USE_DECOMPOSED_POLYHEDRA strategy
+  this->Internals->Polyhedron->GetPointIds()->SetNumberOfIds(::POLY_POINTS_NB);
+  this->Internals->Polyhedron->GetPoints()->SetNumberOfPoints(::POLY_POINTS_NB);
+  this->Internals->Faces.reserve(::POLY_FACES_SIZE);
 }
 
 //------------------------------------------------------------------------------
@@ -304,15 +330,15 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   newPts->Allocate(estimatedSize, estimatedSize);
 
   // Create storage for output vertices
-  vtkCellArray* newVerts = vtkCellArray::New();
+  vtkNew<vtkCellArray> newVerts;
   newVerts->AllocateExact(estimatedSize, estimatedSize);
 
   // Create storage for output lines
-  vtkCellArray* newLines = vtkCellArray::New();
+  vtkNew<vtkCellArray> newLines;
   newLines->AllocateExact(estimatedSize, estimatedSize);
 
   // Create storage for output polygons
-  vtkCellArray* newPolys = vtkCellArray::New();
+  vtkNew<vtkCellArray> newPolys;
   newPolys->AllocateExact(estimatedSize, estimatedSize);
 
   // Create storage for output scalar values
@@ -328,11 +354,13 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   }
   this->Locator->InitPointInsertion(newPts, input->GetBounds(), estimatedSize);
 
-  vtkNew<vtkPointData> inPointData;
-  inPointData->PassData(input->GetCellData());
+  // Used to store the input cell data (hyper tree grid cells)
+  // as point data (dual mesh point data), the two being equivalent.
+  vtkNew<vtkPointData> dualPointData;
+  dualPointData->PassData(input->GetCellData());
 
   // Instantiate a contour helper for convenience, with triangle generation on
-  this->Helper = new vtkContourHelper(this->Locator, newVerts, newLines, newPolys, inPointData,
+  this->Helper = new vtkContourHelper(this->Locator, newVerts, newLines, newPolys, dualPointData,
     nullptr, output->GetPointData(), nullptr, estimatedSize, true);
 
   // Create storage to keep track of selected cells
@@ -356,6 +384,10 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   vtkNew<vtkHyperTreeGridNonOrientedCursor> cursor;
   while (it.GetNextTree(index))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new grid cursor at root of current input tree
     input->InitializeNonOrientedCursor(cursor, index);
     // Pre-process tree recursively
@@ -367,10 +399,14 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   vtkNew<vtkHyperTreeGridNonOrientedMooreSuperCursor> supercursor;
   while (it.GetNextTree(index))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new Moore cursor at root of current tree
     input->InitializeNonOrientedMooreSuperCursor(supercursor, index);
     // Compute contours recursively
-    this->RecursivelyProcessTree(supercursor);
+    this->RecursivelyProcessTree(supercursor, newVerts, newLines, newPolys, dualPointData);
   } // it
 
   // Set output
@@ -387,7 +423,6 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   {
     output->SetPolys(newPolys);
   }
-  newPolys->Delete();
 
   // Clean up
   this->SelectedCells->Delete();
@@ -402,8 +437,6 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
   delete this->Helper;
   this->CellScalars->Delete();
   newPts->Delete();
-  newVerts->Delete();
-  newLines->Delete();
   this->Locator->Initialize();
 
   // Squeeze output
@@ -434,6 +467,10 @@ bool vtkHyperTreeGridContour::RecursivelyPreProcessTree(vtkHyperTreeGridNonOrien
     int numChildren = cursor->GetNumberOfChildren();
     for (int child = 0; child < numChildren; ++child)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       // Create storage for signs relative to contour values
       std::vector<bool> signs(numContours);
 
@@ -501,7 +538,8 @@ bool vtkHyperTreeGridContour::RecursivelyPreProcessTree(vtkHyperTreeGridNonOrien
 
 //------------------------------------------------------------------------------
 void vtkHyperTreeGridContour::RecursivelyProcessTree(
-  vtkHyperTreeGridNonOrientedMooreSuperCursor* supercursor)
+  vtkHyperTreeGridNonOrientedMooreSuperCursor* supercursor, vtkCellArray* newVerts,
+  vtkCellArray* newLines, vtkCellArray* newPolys, vtkPointData* inPd)
 {
   // Retrieve global index of input cursor
   vtkIdType id = supercursor->GetGlobalNodeIndex();
@@ -516,8 +554,8 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
   // Descend further into input trees only if cursor is not a leaf
   if (!supercursor->IsLeaf())
   {
-    // Cell is not selected until proven otherwise
-    bool selected = false;
+    // Selected cells are determined in RecursivelyPreProcessTree
+    bool selected = (this->SelectedCells->GetTuple1(id) == 1.0);
 
     // Iterate over contours
     for (vtkIdType c = 0; c < this->ContourValues->GetNumberOfContours() && !selected; ++c)
@@ -556,7 +594,7 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
         // Create child cursor from parent in input grid
         supercursor->ToChild(child);
         // Recurse
-        this->RecursivelyProcessTree(supercursor);
+        this->RecursivelyProcessTree(supercursor, newVerts, newLines, newPolys, inPd);
         supercursor->ToParent();
       }
     }
@@ -582,7 +620,11 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
         vtkIdType numContours = this->ContourValues->GetNumberOfContours();
         double* values = this->ContourValues->GetValues();
 
-        // Generate contour topology depending on dimensionality
+        /* Generate contour topology depending on dimensionality
+         * XXX: please note that the generated dual vtkPixel / vtkVoxel do not meet the criteria
+         * defined in their respective classes (orthogonal quadrilaterals / parallelepipeds) and
+         * seems only used here for convenience (reasons needs to be determined explicitly).
+         */
         vtkCell* cell = nullptr;
         switch (dim)
         {
@@ -594,11 +636,16 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
             break;
           case 3:
             cell = this->Voxel;
+            break;
+          default:
+            vtkErrorMacro("Unsupported cell dimension had been encountered (must be 1, 2 or 3).");
+            return;
         } // switch ( dim )
 
         // Iterate over cell corners
         double x[3];
         supercursor->GetPoint(x);
+
         for (unsigned int _cornerIdx = 0; _cornerIdx < numLeavesCorners; ++_cornerIdx)
         {
           // Get cursor corresponding to this corner
@@ -615,11 +662,103 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
           // Assign scalar value attached to this contour item
           this->CellScalars->SetTuple(_cornerIdx, this->InScalars->GetTuple(idN));
         } // cornerIdx
-        // Compute cell isocontour for each isovalue
-        for (int c = 0; c < numContours; ++c)
+
+        /* If we are in 3D and the contour strategy is set to USE_DECOMPOSED_POLYHEDRA,
+         * convert each voxel to polyhedron, decompose them and apply the contour on
+         * resulting tetrahedrons to give better results in the concave case.
+         * XXX: Here we assume that voxels are valid when converting them to polyhedrons.
+         * Highly degenerated voxels (faces having duplicated points) will lead to degenerated
+         * polyhedrons. However the computation of the contour after the decomposition seems to
+         * be insensitive to this issue for now (edge cases are still possible and should be
+         * reported if encountered).
+         */
+        if (this->Strategy3D == USE_DECOMPOSED_POLYHEDRA && dim == 3)
         {
-          this->Helper->Contour(cell, values[c], this->CellScalars, this->CurrentId);
-        } // c
+          // Insert points and global point IDs
+          for (int i = 0; i < ::POLY_POINTS_NB; ++i)
+          {
+            this->Internals->Polyhedron->GetPointIds()->SetId(i, cell->GetPointId(i));
+            this->Internals->Polyhedron->GetPoints()->SetPoint(i, cell->GetPoints()->GetPoint(i));
+          }
+
+          // Construct faces from voxel point ids (global ids)
+          this->Internals->Faces.clear();
+          this->Internals->Faces.emplace_back(::POLY_FACES_NB);
+          for (int faceId = 0, canonicalId = 0; faceId < ::POLY_FACES_NB; faceId++)
+          {
+            this->Internals->Faces.emplace_back(::POLY_FACES_POINTS_NB);
+            for (int i = 0; i < ::POLY_FACES_POINTS_NB; i++, canonicalId++)
+            {
+              this->Internals->Faces.emplace_back(cell->GetPointId(::CANONICAL_FACES[canonicalId]));
+            }
+          }
+
+          this->Internals->Polyhedron->SetFaces(this->Internals->Faces.data());
+          this->Internals->Polyhedron->Initialize();
+
+          // Decompose the this->Internals->Polyhedron
+          auto resultUG = vtkPolyhedronUtilities::Decompose(
+            this->Internals->Polyhedron, inPd, this->CurrentId, nullptr);
+
+          auto outPointData = vtkPointData::SafeDownCast(this->OutData);
+          if (!outPointData)
+          {
+            vtkErrorMacro("Unable to retrieve the output point data.");
+            return;
+          }
+
+          /* Estimated size: estimated number of generated triangles (before merging them).
+           * Only used in that case. Unused here because we choose to output triangles.
+           */
+          constexpr int estimatedSize = 0;
+
+          /* Instantiate a new contour helper
+           * Needed because we have to change the input point data (now indexed on resultUG point
+           * ids)
+           */
+          vtkContourHelper helper(this->Locator, newVerts, newLines, newPolys,
+            resultUG->GetPointData(), nullptr, outPointData, nullptr, estimatedSize, true);
+
+          // Retrieve the contouring array in the resultUG
+          auto contourScalars = resultUG->GetPointData()->GetArray(this->InScalars->GetName());
+          if (!contourScalars)
+          {
+            vtkErrorMacro(
+              "Unable to find the scalars used for contouring in decomposed dual cell.");
+            return;
+          }
+
+          // Compute polyhedron isocontour for each isovalue
+          for (int c = 0; c < numContours; ++c)
+          {
+            // Iterate on each tetrahedron of resultUG
+            vtkSmartPointer<vtkCellIterator> iter;
+            iter.TakeReference(resultUG->NewCellIterator());
+            for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextCell())
+            {
+              iter->GetCell(this->Internals->Tetra);
+
+              // Scalars used for contouring need to be indexed on tetrahedron local ids
+              this->Internals->TetraScalars->Reset();
+              this->Internals->TetraScalars->SetNumberOfComponents(
+                contourScalars->GetNumberOfComponents());
+              this->Internals->TetraScalars->SetNumberOfTuples(iter->GetNumberOfPoints());
+              contourScalars->GetTuples(iter->GetPointIds(), this->Internals->TetraScalars);
+
+              vtkIdType cellId = iter->GetCellId();
+              helper.Contour(
+                this->Internals->Tetra, values[c], this->Internals->TetraScalars, cellId);
+            }
+          }
+        }
+        else // USE_VOXELS || dim != 3
+        {
+          // Compute cell isocontour for each isovalue
+          for (int c = 0; c < numContours; ++c)
+          {
+            this->Helper->Contour(cell, values[c], this->CellScalars, this->CurrentId);
+          }
+        }
 
         // Increment output cell counter
         ++this->CurrentId;
@@ -627,3 +766,4 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
     }   // cornerIdx
   }     // else if ( ! this->InMask || this->InMask->GetTuple1( id ) )
 }
+VTK_ABI_NAMESPACE_END

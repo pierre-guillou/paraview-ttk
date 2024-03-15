@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRPanelWidget.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRPanelWidget
  * @brief   3D widget to display a panel/billboard
@@ -29,6 +17,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkDeprecation.h"       // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkRenderingVRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVRPanelRepresentation;
 
 class VTKRENDERINGVR_EXPORT vtkVRPanelWidget : public vtkAbstractWidget
@@ -86,4 +75,5 @@ private:
   vtkVRPanelWidget(const vtkVRPanelWidget&) = delete;
   void operator=(const vtkVRPanelWidget&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

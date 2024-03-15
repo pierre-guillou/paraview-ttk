@@ -1,14 +1,22 @@
 import unittest
 
-from vtk.vtkCommonCore import vtkPoints, vtkDoubleArray, vtkIdList
-from vtk.vtkCommonDataModel import vtkPlane,\
-                                   vtkUnstructuredGrid,\
-                                   vtkStructuredGrid,\
-                                   vtkPolyData
-from vtk.vtkFiltersCore import vtkCutter,\
-                               vtkContourFilter,\
-                               vtkThreshold
-import vtk.util.vtkConstants as vtk_const
+from vtkmodules.vtkCommonCore import (
+    vtkPoints,
+    vtkDoubleArray,
+    vtkIdList,
+)
+from vtkmodules.vtkCommonDataModel import (
+    vtkPlane,
+    vtkUnstructuredGrid,
+    vtkStructuredGrid,
+    vtkPolyData,
+)
+from vtkmodules.vtkFiltersCore import (
+    vtkCutter,
+    vtkContourFilter,
+    vtkThreshold,
+)
+import vtkmodules.util.vtkConstants as vtk_const
 
 class FiltersLosingPrecisionBase:
     def test_contour(self):
@@ -125,7 +133,7 @@ class TestPolyDataFiltersLosingPrecision(unittest.TestCase, FiltersLosingPrecisi
         self.cell.InsertNextCell(vtk_const.VTK_QUAD, ids)
         scalar = vtkDoubleArray()
         scalar.SetName('scalar')
-        scalar.SetNumberOfTuples(8)
+        scalar.SetNumberOfTuples(4)
         scalar.SetValue(0, 0.0)
         scalar.SetValue(1, 0.0)
         scalar.SetValue(2, 1.0)

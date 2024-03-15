@@ -101,6 +101,20 @@
         </Documentation>
       </StringVectorProperty>
 
+      <StringVectorProperty name="InterfaceLanguage"
+        number_of_elements="1"
+        default_values="en"
+        command="SetInterfaceLanguage"
+        panel_widget="language_selector">
+        <Documentation>
+          Set ParaView language.
+        </Documentation>
+        <Hints>
+          <SaveInQSettings />
+          <RestartRequired />
+        </Hints>
+      </StringVectorProperty>
+
       <IntVectorProperty name="ScreenPixelsPerInch"
         number_of_elements="1"
         default_values="72"
@@ -287,7 +301,26 @@
           <Entry text="Mixed" value="0" />
           <Entry text="Scientific" value="1" />
           <Entry text="Fixed" value="2" />
+          <Entry text="Full" value="3" />
         </EnumerationDomain>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="AnimationTimeShortestAccuratePrecision"
+        number_of_elements="1"
+        default_values="0"
+        command="SetAnimationTimeShortestAccuratePrecision"
+        panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Set to use shortest accurate precision instead of actual precision to display animation time.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+            mode="enabled_state"
+            property="AnimationTimeNotation"
+            value="3"
+            inverse="1" />
+        </Hints>
       </IntVectorProperty>
 
       <IntVectorProperty name="AnimationTimePrecision"
@@ -299,7 +332,15 @@
           Set the number of significant digits displayed for the time in the animation
           toolbar. Should be in the range [1,17].
         </Documentation>
-        <IntRangeDomain min="1" max="17" />
+        <IntRangeDomain name="range" min="1" max="17" />
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state" property="AnimationTimeShortestAccuratePrecision" value="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state" property="AnimationTimeNotation" value="3" inverse="1" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
       </IntVectorProperty>
 
       <IntVectorProperty name="ShowAnimationShortcuts"
@@ -338,7 +379,26 @@
           <Entry text="Mixed" value="0" />
           <Entry text="Scientific" value="1" />
           <Entry text="Fixed" value="2" />
+          <Entry text="Full" value="3" />
         </EnumerationDomain>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="RealNumberDisplayedShortestAccuratePrecision"
+        number_of_elements="1"
+        default_values="0"
+        command="SetRealNumberDisplayedShortestAccuratePrecision"
+        panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Set to use shortest accurate precision instead of actual precision to display real numbers.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+            mode="enabled_state"
+            property="RealNumberDisplayedNotation"
+            value="3"
+            inverse="1" />
+        </Hints>
       </IntVectorProperty>
 
       <IntVectorProperty name="RealNumberDisplayedPrecision"
@@ -350,7 +410,39 @@
           Set the number of significant digits to display in real numbers.
           This does NOT affect the values used in computation.
         </Documentation>
-        <IntRangeDomain min="1" max="17" />
+        <IntRangeDomain name="range" min="1" max="17" />
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state" property="RealNumberDisplayedShortestAccuratePrecision" value="0" />
+              <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state" property="RealNumberDisplayedNotation" value="3" inverse="1" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="FullNotationLowExponent"
+        number_of_elements="1"
+        default_values="-6"
+        command="SetFullNotationLowExponent"
+        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="-30" max="0" />
+        <Documentation>
+          When showing an accurate, full precision, real number, scientific or fixed notation can be used. This setting is the lowest exponent value
+          that will be represented with a fixed notation instead of a scientific notation.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="FullNotationHighExponent"
+        number_of_elements="1"
+        default_values="20"
+        command="SetFullNotationHighExponent"
+        panel_visibility="advanced">
+        <IntRangeDomain name="range" min="0" max="30" />
+        <Documentation>
+          When showing an accurate, full precision, real number, scientific or fixed notation can be used. This setting is the highest exponent value
+          that will be represented with a fixed notation instead of a scientific notation.
+        </Documentation>
       </IntVectorProperty>
 
       <IntVectorProperty name="InheritRepresentationProperties"
@@ -365,6 +457,19 @@
            a source, then any filter that you connect to it and show in the same view
            should be transformed using the same transformation as well.
         </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty name="NumberOfCallbackThreads"
+        command="SetNumberOfCallbackThreads"
+        number_of_elements="1"
+        default_values="1"
+        panel_visibility="advanced">
+        <Documentation>
+          Set the number of threads that are spawned to run certain jobs asynchronously
+          on the root data server rank, or in the client in built-in mode.
+          Saving screenshot is typically delegated to those threads.
+        </Documentation>
+        <IntRangeDomain min="1" />
       </IntVectorProperty>
 
       <IntVectorProperty name="DefaultTimeStep"
@@ -495,17 +600,31 @@
         <!--
         <Property name="AnimationGeometryCacheLimit" />
         -->
-        <Property name="AnimationTimePrecision" />
         <Property name="AnimationTimeNotation" />
+        <Property name="AnimationTimeShortestAccuratePrecision" />
+        <Property name="AnimationTimePrecision" />
         <Property name="ShowAnimationShortcuts" />
+        <Property name="DefaultTimeStep" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Real Number Display">
+        <Property name="RealNumberDisplayedNotation" />
+        <Property name="RealNumberDisplayedShortestAccuratePrecision" />
+        <Property name="RealNumberDisplayedPrecision" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Full Notation">
+        <Property name="FullNotationLowExponent" />
+        <Property name="FullNotationHighExponent" />
+      </PropertyGroup>
+
+      <PropertyGroup label="Interface language">
+        <Property name="InterfaceLanguage" />
       </PropertyGroup>
 
       <PropertyGroup label="Miscellaneous">
         <Property name="ResetDisplayEmptyViews" />
-        <Property name="RealNumberDisplayedNotation" />
-        <Property name="RealNumberDisplayedPrecision" />
         <Property name="InheritRepresentationProperties" />
-        <Property name="DefaultTimeStep" />
         <Property name="MaximumNumberOfDataRepresentationLabels" />
         <Property name="IgnoreNegativeLogAxisWarning" />
         <Property name="SelectOnClickInMultiBlockInspector" />

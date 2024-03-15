@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataObjectAlgorithm
  * @brief   Superclass for algorithms that produce only data object as output
@@ -37,6 +25,7 @@
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkDataObject.h"                 // makes things a bit easier
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkDataObject;
 
@@ -113,6 +102,11 @@ protected:
     return 1;
   }
 
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
+
   virtual int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
   {
     return 1;
@@ -138,4 +132,5 @@ private:
   void operator=(const vtkDataObjectAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

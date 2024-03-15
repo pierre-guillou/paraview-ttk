@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSurfaceLICInterface.h"
 
 #include "vtkFloatArray.h"
@@ -61,14 +50,17 @@ typedef vtkLineIntegralConvolution2D vtkLIC2D;
 #include <sstream>
 using std::ostringstream;
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 static std::string mpifn(vtkPainterCommunicator* comm, const char* fn)
 {
   ostringstream oss;
   oss << comm->GetRank() << "_" << fn;
   return oss.str();
 }
+VTK_ABI_NAMESPACE_END
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkSurfaceLICInterface);
 
 //------------------------------------------------------------------------------
@@ -1172,3 +1164,4 @@ void vtkSurfaceLICInterface::PrintSelf(ostream& os, vtkIndent indent)
      << indent << "AlwaysUpdate=" << this->AlwaysUpdate << endl
      << indent << "CompositeStrategy=" << this->CompositeStrategy << endl;
 }
+VTK_ABI_NAMESPACE_END

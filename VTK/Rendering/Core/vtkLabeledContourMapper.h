@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLabeledContourMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLabeledContourMapper
  * @brief   Draw labeled isolines.
@@ -35,6 +23,7 @@
 #include "vtkNew.h"          // For vtkNew
 #include "vtkSmartPointer.h" // For vtkSmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkTextActor3D;
 class vtkTextProperty;
@@ -164,21 +153,21 @@ protected:
   bool AllocateTextActors(vtkIdType num);
   bool FreeTextActors();
 
-  double SkipDistance;
+  double SkipDistance = false;
 
-  bool LabelVisibility;
-  vtkIdType NumberOfTextActors;
-  vtkIdType NumberOfUsedTextActors;
-  vtkTextActor3D** TextActors;
+  bool LabelVisibility = true;
+  vtkIdType NumberOfTextActors = 0;
+  vtkIdType NumberOfUsedTextActors = 0;
+  vtkTextActor3D** TextActors = nullptr;
 
   vtkNew<vtkPolyDataMapper> PolyDataMapper;
   vtkSmartPointer<vtkTextPropertyCollection> TextProperties;
   vtkSmartPointer<vtkDoubleArray> TextPropertyMapping;
 
-  float* StencilQuads;
-  vtkIdType StencilQuadsSize;
-  unsigned int* StencilQuadIndices;
-  vtkIdType StencilQuadIndicesSize;
+  float* StencilQuads = nullptr;
+  vtkIdType StencilQuadsSize = 0;
+  unsigned int* StencilQuadIndices = nullptr;
+  vtkIdType StencilQuadIndicesSize = 0;
   void FreeStencilQuads();
 
   vtkTimeStamp LabelBuildTime;
@@ -191,4 +180,5 @@ private:
   Private* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

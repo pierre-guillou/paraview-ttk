@@ -1,23 +1,7 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    pqBlotDialog.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "pqBlotDialog.h"
 
@@ -96,9 +80,9 @@ void pqBlotDialog::open(const QStringList& filenames)
 //-----------------------------------------------------------------------------
 void pqBlotDialog::runScript()
 {
-  QString filters = tr("BLOT Script (*.blot *.bl);;All files (*)");
+  QString filters = QString("%1 (*.blot *.bl);;%2 (*)").arg(tr("BLOT Script")).arg(tr("All files"));
   pqFileDialog* const dialog =
-    new pqFileDialog(nullptr, this, tr("Run BLOT Script"), QString(), filters);
+    new pqFileDialog(nullptr, this, tr("Run BLOT Script"), QString(), filters, false);
 
   dialog->setObjectName("BLOTShellRunScriptDialog");
   dialog->setFileMode(pqFileDialog::ExistingFile);

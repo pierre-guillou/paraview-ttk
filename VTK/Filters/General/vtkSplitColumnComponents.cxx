@@ -1,18 +1,5 @@
-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSplitColumnComponents.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSplitColumnComponents.h"
 
 #include "vtkAbstractArray.h"
@@ -32,6 +19,7 @@
 #include <cmath>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSplitColumnComponents);
 vtkInformationKeyMacro(vtkSplitColumnComponents, ORIGINAL_ARRAY_NAME, String);
 vtkInformationKeyMacro(vtkSplitColumnComponents, ORIGINAL_COMPONENT_NUMBER, Integer);
@@ -67,6 +55,10 @@ int vtkSplitColumnComponents::RequestData(
   // Add columns from table, split multiple component columns as necessary
   for (int i = 0; i < table->GetNumberOfColumns(); ++i)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkAbstractArray* col = table->GetColumn(i);
     if (col->GetName() == nullptr)
     {
@@ -222,7 +214,7 @@ std::string vtkGetComponentName(vtkAbstractArray* array, int component_no)
   }
   return vtkDefaultComponentName(component_no, array->GetNumberOfComponents());
 }
-};
+}
 
 //------------------------------------------------------------------------------
 std::string vtkSplitColumnComponents::GetComponentLabel(vtkAbstractArray* array, int component_no)
@@ -290,3 +282,4 @@ void vtkSplitColumnComponents::PrintSelf(ostream& os, vtkIndent indent)
       os << "INVALID" << endl;
   }
 }
+VTK_ABI_NAMESPACE_END

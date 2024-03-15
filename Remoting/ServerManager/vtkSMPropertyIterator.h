@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMPropertyIterator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPropertyIterator
  * @brief   iterates over the properties of a proxy
@@ -45,12 +33,12 @@ public:
    */
   virtual void SetProxy(vtkSMProxy* proxy);
 
-  //@{
+  ///@{
   /**
    * Return the proxy.
    */
   vtkGetObjectMacro(Proxy, vtkSMProxy);
-  //@}
+  ///@}
 
   /**
    * Go to the first property.
@@ -83,14 +71,14 @@ public:
    */
   virtual vtkSMProperty* GetProperty();
 
-  //@{
+  ///@{
   /**
    * If TraverseSubProxies is false, only the properties belonging
    * to the root proxy are returned. Default is true.
    */
   vtkSetMacro(TraverseSubProxies, int);
   vtkGetMacro(TraverseSubProxies, int);
-  //@}
+  ///@}
 
 protected:
   vtkSMPropertyIterator();

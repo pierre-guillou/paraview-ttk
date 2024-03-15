@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIOSSModel.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkIOSSModel
  * @brief internal class used by vtkIOSSWriter
@@ -33,6 +21,7 @@
 #include VTK_IOSS(Ioss_Region.h)
 // clang-format on
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIOSSWriter;
 class vtkPartitionedDataSetCollection;
 
@@ -55,6 +44,35 @@ public:
    */
   std::string MD5() const;
 
+  /**
+   * Returns true if the global ids have been created for this model,
+   * because they were not present in the input data.
+   */
+  bool GlobalIdsCreated() const;
+
+  /**
+   * Returns true if the global ids have been modified for this model,
+   * because they were invalid in the input data.
+   */
+  bool GlobalIdsModified() const;
+
+  /**
+   * Returns true if the element_side was not present for this model.
+   */
+  bool ElementSideCouldNotBeCreated() const;
+
+  /**
+   * Returns true if the element_side has been modified for this model,
+   * because it was invalid
+   */
+  bool ElementSideModified() const;
+
+  /**
+   * Returns true if the element_side was invalid, and therefore could
+   * not be modified for this model.
+   */
+  bool ElementSideCouldNotBeModified() const;
+
 private:
   vtkIOSSModel(const vtkIOSSModel&) = delete;
   void operator=(const vtkIOSSModel&) = delete;
@@ -62,6 +80,7 @@ private:
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif
 // VTK-HeaderTest-Exclude: vtkIOSSModel.h

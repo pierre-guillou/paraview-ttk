@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianParticleTracker.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLagrangianParticleTracker
  * @brief   Filter to inject and track particles in a flow
@@ -36,7 +24,7 @@
  * * port 1 : ParticleInteractions : empty if no surface input, contains a
  *     a multiblock with as many children as the number of threads, each children containing a
  * multiblock with the same structure as the surfaces. The leafs of these structures contain a
- * polydata of vertexes corresponding to the interactions. with the same composite layout of surface
+ * polydata of vertices corresponding to the interactions. with the same composite layout of surface
  * input if any, showing all interactions between particles and the surface input.
  *
  * It has a parallel implementation which streams particle between domains.
@@ -97,6 +85,7 @@
 #include <mutex>  // for mutexes
 #include <queue>  // for particle queue
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 class vtkCellArray;
 class vtkDataSet;
@@ -413,4 +402,5 @@ private:
   void operator=(const vtkLagrangianParticleTracker&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

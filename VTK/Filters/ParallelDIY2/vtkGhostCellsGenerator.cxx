@@ -1,18 +1,5 @@
-/*=========================================================================
-      </ProxyProperty>
-
-  Program:   Visualization Toolkit
-  Module:    vtkGhostCellsGenerator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGhostCellsGenerator.h"
 
@@ -22,12 +9,15 @@
 #include "vtkDataObjectTreeIterator.h"
 #include "vtkDataObjectTreeRange.h"
 #include "vtkExplicitStructuredGrid.h"
+#include "vtkGenerateGlobalIds.h"
+#include "vtkGenerateProcessIds.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLogger.h"
 #include "vtkMultiProcessController.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
@@ -40,14 +30,12 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGhostCellsGenerator);
 vtkCxxSetObjectMacro(vtkGhostCellsGenerator, Controller, vtkMultiProcessController);
 
 //----------------------------------------------------------------------------
 vtkGhostCellsGenerator::vtkGhostCellsGenerator()
-  : Controller(nullptr)
-  , NumberOfGhostLayers(1)
-  , BuildIfRequired(true)
 {
   this->SetController(vtkMultiProcessController::GetGlobalController());
 }
@@ -64,6 +52,12 @@ void vtkGhostCellsGenerator::Initialize()
   this->NumberOfGhostLayers = 1;
   this->BuildIfRequired = true;
   this->SetController(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkGhostCellsGenerator::GetController()
+{
+  return this->Controller.Get();
 }
 
 //------------------------------------------------------------------------------
@@ -86,14 +80,29 @@ int vtkGhostCellsGenerator::RequestData(
   bool error = false;
   int retVal = 1;
 
-  int reqGhostLayers =
-    outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
-  int numberOfGhostLayersToCompute =
-    this->BuildIfRequired ? reqGhostLayers : std::max(reqGhostLayers, this->NumberOfGhostLayers);
+  vtkSmartPointer<vtkDataObject> modifInputDO =
+    vtkSmartPointer<vtkDataObject>::Take(inputDO->NewInstance());
+  modifInputDO->ShallowCopy(inputDO);
+  if (this->GenerateProcessIds)
+  {
+    vtkNew<vtkGenerateProcessIds> pidGenerator;
+    pidGenerator->SetInputData(modifInputDO);
+    pidGenerator->GenerateCellDataOn();
+    pidGenerator->GeneratePointDataOn();
+    pidGenerator->Update();
+    modifInputDO->ShallowCopy(pidGenerator->GetOutputDataObject(0));
+  }
+  if (this->GenerateGlobalIds)
+  {
+    vtkNew<vtkGenerateGlobalIds> gidGenerator;
+    gidGenerator->SetInputData(modifInputDO);
+    gidGenerator->Update();
+    modifInputDO->ShallowCopy(gidGenerator->GetOutputDataObject(0));
+  }
 
   std::vector<vtkDataObject*> inputPDSs, outputPDSs;
 
-  if (auto inputPDSC = vtkPartitionedDataSetCollection::SafeDownCast(inputDO))
+  if (auto inputPDSC = vtkPartitionedDataSetCollection::SafeDownCast(modifInputDO))
   {
     auto outputPDSC = vtkPartitionedDataSetCollection::SafeDownCast(outputDO);
     outputPDSC->CopyStructure(inputPDSC);
@@ -106,7 +115,7 @@ int vtkGhostCellsGenerator::RequestData(
   }
   else
   {
-    inputPDSs.emplace_back(inputDO);
+    inputPDSs.emplace_back(modifInputDO);
     outputPDSs.emplace_back(outputDO);
   }
 
@@ -162,47 +171,71 @@ int vtkGhostCellsGenerator::RequestData(
       continue;
     }
 
-    std::vector<vtkImageData*> inputsID =
-      vtkCompositeDataSet::GetDataSets<vtkImageData>(inputPartition);
-    std::vector<vtkImageData*> outputsID =
-      vtkCompositeDataSet::GetDataSets<vtkImageData>(outputPartition);
-
-    std::vector<vtkRectilinearGrid*> inputsRG =
-      vtkCompositeDataSet::GetDataSets<vtkRectilinearGrid>(inputPartition);
-    std::vector<vtkRectilinearGrid*> outputsRG =
-      vtkCompositeDataSet::GetDataSets<vtkRectilinearGrid>(outputPartition);
-
-    std::vector<vtkStructuredGrid*> inputsSG =
-      vtkCompositeDataSet::GetDataSets<vtkStructuredGrid>(inputPartition);
-    std::vector<vtkStructuredGrid*> outputsSG =
-      vtkCompositeDataSet::GetDataSets<vtkStructuredGrid>(outputPartition);
-
-    std::vector<vtkUnstructuredGrid*> inputsUG =
-      vtkCompositeDataSet::GetDataSets<vtkUnstructuredGrid>(inputPartition);
-    std::vector<vtkUnstructuredGrid*> outputsUG =
-      vtkCompositeDataSet::GetDataSets<vtkUnstructuredGrid>(outputPartition);
-
-    std::vector<vtkPolyData*> inputsPD =
-      vtkCompositeDataSet::GetDataSets<vtkPolyData>(inputPartition);
-    std::vector<vtkPolyData*> outputsPD =
-      vtkCompositeDataSet::GetDataSets<vtkPolyData>(outputPartition);
-
-    if (!inputsID.empty() && !inputsRG.empty() && !inputsSG.empty() && !inputsUG.empty())
+    // Note: We synchronize only if both points AND cells can be synchronized, it would be possible
+    // to improve that if the generating part is able to generate only cells or points at some
+    // point.
+    bool canSyncCell = false;
+    bool canSyncPoint = false;
+    if (this->SynchronizeOnly &&
+      vtkGhostCellsGenerator::CanSynchronize(inputPartition, canSyncCell, canSyncPoint))
     {
-      vtkWarningMacro(<< "Ghost cell generator called with mixed types."
-                      << "Ghosts are not exchanged between data sets of different types.");
+      std::vector<vtkDataSet*> inputsDS =
+        vtkCompositeDataSet::GetDataSets<vtkDataSet>(inputPartition);
+      std::vector<vtkDataSet*> outputsDS =
+        vtkCompositeDataSet::GetDataSets<vtkDataSet>(outputPartition);
+      retVal &= vtkDIYGhostUtilities::SynchronizeGhostData(
+        inputsDS, outputsDS, this->Controller, canSyncCell, canSyncPoint);
     }
+    else
+    {
+      int reqGhostLayers =
+        outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_NUMBER_OF_GHOST_LEVELS());
+      int numberOfGhostLayersToCompute = this->BuildIfRequired
+        ? reqGhostLayers
+        : std::max(reqGhostLayers, this->NumberOfGhostLayers);
 
-    retVal &= vtkDIYGhostUtilities::GenerateGhostCellsImageData(
-                inputsID, outputsID, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCellsRectilinearGrid(
-        inputsRG, outputsRG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCellsStructuredGrid(
-        inputsSG, outputsSG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCellsUnstructuredGrid(
-        inputsUG, outputsUG, numberOfGhostLayersToCompute, this->Controller) &&
-      vtkDIYGhostUtilities::GenerateGhostCellsPolyData(
-        inputsPD, outputsPD, numberOfGhostLayersToCompute, this->Controller);
+      std::vector<vtkImageData*> inputsID =
+        vtkCompositeDataSet::GetDataSets<vtkImageData>(inputPartition);
+      std::vector<vtkImageData*> outputsID =
+        vtkCompositeDataSet::GetDataSets<vtkImageData>(outputPartition);
+
+      std::vector<vtkRectilinearGrid*> inputsRG =
+        vtkCompositeDataSet::GetDataSets<vtkRectilinearGrid>(inputPartition);
+      std::vector<vtkRectilinearGrid*> outputsRG =
+        vtkCompositeDataSet::GetDataSets<vtkRectilinearGrid>(outputPartition);
+
+      std::vector<vtkStructuredGrid*> inputsSG =
+        vtkCompositeDataSet::GetDataSets<vtkStructuredGrid>(inputPartition);
+      std::vector<vtkStructuredGrid*> outputsSG =
+        vtkCompositeDataSet::GetDataSets<vtkStructuredGrid>(outputPartition);
+
+      std::vector<vtkUnstructuredGrid*> inputsUG =
+        vtkCompositeDataSet::GetDataSets<vtkUnstructuredGrid>(inputPartition);
+      std::vector<vtkUnstructuredGrid*> outputsUG =
+        vtkCompositeDataSet::GetDataSets<vtkUnstructuredGrid>(outputPartition);
+
+      std::vector<vtkPolyData*> inputsPD =
+        vtkCompositeDataSet::GetDataSets<vtkPolyData>(inputPartition);
+      std::vector<vtkPolyData*> outputsPD =
+        vtkCompositeDataSet::GetDataSets<vtkPolyData>(outputPartition);
+
+      if (!inputsID.empty() && !inputsRG.empty() && !inputsSG.empty() && !inputsUG.empty())
+      {
+        vtkWarningMacro(<< "Ghost cell generator called with mixed types."
+                        << "Ghosts are not exchanged between data sets of different types.");
+      }
+
+      retVal &= vtkDIYGhostUtilities::GenerateGhostCellsImageData(
+                  inputsID, outputsID, numberOfGhostLayersToCompute, this->Controller) &&
+        vtkDIYGhostUtilities::GenerateGhostCellsRectilinearGrid(
+          inputsRG, outputsRG, numberOfGhostLayersToCompute, this->Controller) &&
+        vtkDIYGhostUtilities::GenerateGhostCellsStructuredGrid(
+          inputsSG, outputsSG, numberOfGhostLayersToCompute, this->Controller) &&
+        vtkDIYGhostUtilities::GenerateGhostCellsUnstructuredGrid(
+          inputsUG, outputsUG, numberOfGhostLayersToCompute, this->Controller) &&
+        vtkDIYGhostUtilities::GenerateGhostCellsPolyData(
+          inputsPD, outputsPD, numberOfGhostLayersToCompute, this->Controller);
+    }
   }
 
   return retVal && !error;
@@ -220,8 +253,23 @@ int vtkGhostCellsGenerator::RequestUpdateExtent(
 }
 
 //----------------------------------------------------------------------------
+bool vtkGhostCellsGenerator::CanSynchronize(
+  vtkDataObject* input, bool& canSyncCell, bool& canSyncPoint)
+{
+  vtkDataSetAttributes* inputCell = input->GetAttributes(vtkDataObject::AttributeTypes::CELL);
+  vtkDataSetAttributes* inputPoint = input->GetAttributes(vtkDataObject::AttributeTypes::POINT);
+  canSyncCell = inputCell && inputCell->GetGhostArray() && inputCell->GetGlobalIds() &&
+    inputCell->GetProcessIds();
+  canSyncPoint = inputPoint && inputPoint->GetGhostArray() && inputPoint->GetGlobalIds() &&
+    inputPoint->GetProcessIds();
+
+  return canSyncCell && canSyncPoint;
+}
+
+//----------------------------------------------------------------------------
 void vtkGhostCellsGenerator::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Controller: " << this->Controller << endl;
 }
+VTK_ABI_NAMESPACE_END

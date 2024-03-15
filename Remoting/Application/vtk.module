@@ -4,13 +4,17 @@ GROUPS
   PARAVIEW_CORE
 LIBRARY_NAME
   vtkRemotingApplication
+SPDX_LICENSE_IDENTIFIER
+  BSD-3-Clause
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
 DEPENDS
-  ParaView::RemotingCore
   ParaView::RemotingServerManager
 #KIT
 #  This module cannot be part of a kit because it links to ClientServer
 #  wrappings of all modules. This ends up with a cycle in a shared kit build.
 PRIVATE_DEPENDS
+  ParaView::RemotingCore
   ParaView::RemotingSettings
   VTK::vtksys
 OPTIONAL_DEPENDS
@@ -52,6 +56,7 @@ OPTIONAL_DEPENDS
   VTK::IOADIOS2
   VTK::IOCGNSReader
   VTK::IOFides
+  VTK::IOFLUENTCFF
   VTK::IOCatalystConduit
   VTK::IOChemistry
   VTK::IOCityGML

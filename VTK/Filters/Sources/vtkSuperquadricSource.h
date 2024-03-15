@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSuperquadricSource.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSuperquadricSource
  * @brief   create a polygonal superquadric centered
@@ -58,6 +46,7 @@
 #define VTK_MIN_SUPERQUADRIC_THICKNESS 1e-4
 #define VTK_MIN_SUPERQUADRIC_ROUNDNESS 1e-24
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSSOURCES_EXPORT vtkSuperquadricSource : public vtkPolyDataAlgorithm
 {
 public:
@@ -196,4 +185,5 @@ private:
   void operator=(const vtkSuperquadricSource&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

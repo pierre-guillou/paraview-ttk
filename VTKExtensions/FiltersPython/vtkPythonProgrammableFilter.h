@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonProgrammableFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonProgrammableFilter
  * @brief   Executes a user supplied python script
@@ -54,40 +43,40 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPythonProgrammableFilter* New();
 
-  //@{
+  ///@{
   /**
    * Set the text of the python script to execute.
    */
   vtkSetStringMacro(Script);
   vtkGetStringMacro(Script);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text of the python script to execute in RequestInformation().
    */
   vtkSetStringMacro(InformationScript);
   vtkGetStringMacro(InformationScript);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text of the python script to execute in RequestUpdateExtent().
    */
   vtkSetStringMacro(UpdateExtentScript);
   vtkGetStringMacro(UpdateExtentScript);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * For "live" sources, this script, if provided, if used to determine
    * if the source needs an update.
    */
   vtkSetStringMacro(CheckNeedsUpdateScript);
   vtkGetStringMacro(CheckNeedsUpdateScript);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set a name-value parameter that will be available to the script
    * when it is run
@@ -98,15 +87,15 @@ public:
   void SetParameter(const char* name, double value);
   void SetParameter(const char* name, double value1, double value2);
   void SetParameter(const char* name, double value1, double value2, double value3);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * To support repeatable-parameters.
    */
   void AddParameter(const char* name, const char* value);
   void ClearParameter(const char* name);
-  //@}
+  ///@}
 
   /**
    * Clear all name-value parameters
@@ -118,23 +107,23 @@ public:
    */
   static void ExecuteScript(void*);
 
-  //@{
+  ///@{
   /**
    * Changes the output data set type.
    * Allowable values are defined in vtkType.h
    */
   vtkSetMacro(OutputDataSetType, int);
   vtkGetMacro(OutputDataSetType, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * A semi-colon (;) separated list of directories to add to the python library
    * search path.
    */
   vtkSetStringMacro(PythonPath);
   vtkGetStringMacro(PythonPath);
-  //@}
+  ///@}
 
   /**
    * Set the number of input ports

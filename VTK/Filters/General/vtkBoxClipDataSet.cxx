@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoxClipDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBoxClipDataSet.h"
 
 #include "vtkCellArray.h"
@@ -38,6 +23,7 @@
 #include <cmath>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBoxClipDataSet);
 vtkCxxSetObjectMacro(vtkBoxClipDataSet, Locator, vtkIncrementalPointLocator);
 //------------------------------------------------------------------------------
@@ -196,21 +182,6 @@ int vtkBoxClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   int j;
   int cellType = 0;
   int numOutputs = 1;
-  int inputObjectType = input->GetDataObjectType();
-
-  // if we have volumes
-  if (inputObjectType == VTK_STRUCTURED_POINTS || inputObjectType == VTK_IMAGE_DATA)
-  {
-    int dimension;
-    int* dims = vtkImageData::SafeDownCast(input)->GetDimensions();
-    for (dimension = 3, i = 0; i < 3; i++)
-    {
-      if (dims[i] <= 1)
-      {
-        dimension--;
-      }
-    }
-  }
 
   // Initialize self; create output objects
   //
@@ -294,7 +265,7 @@ int vtkBoxClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   vtkGenericCell* cell = vtkGenericCell::New();
   vtkIdType cellId;
 
-  int abort = 0;
+  bool abort = false;
   int num[2];
   int numNew[2];
 
@@ -309,7 +280,7 @@ int vtkBoxClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(cellId % updateTime))
     {
       this->UpdateProgress(static_cast<float>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     input->GetCell(cellId, cell);
@@ -6657,3 +6628,4 @@ void vtkBoxClipDataSet::ClipHexahedronInOut0D(vtkGenericCell* cell,
   }
   arrayvert->Delete();
 }
+VTK_ABI_NAMESPACE_END

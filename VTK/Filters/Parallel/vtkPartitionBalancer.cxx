@@ -1,18 +1,5 @@
-/*=========================================================================
-      </ProxyProperty>
-
-  Program:   Visualization Toolkit
-  Module:    vtkPartitionBalancer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPartitionBalancer.h"
 
@@ -30,13 +17,14 @@
 #include <numeric>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPartitionBalancer);
 vtkCxxSetObjectMacro(vtkPartitionBalancer, Controller, vtkMultiProcessController);
 
 namespace
 {
 //------------------------------------------------------------------------------
-void ShallowCopy(vtkPartitionedDataSet* inputPDS, vtkPartitionedDataSet* outputPDS,
+void CompositeShallowCopy(vtkPartitionedDataSet* inputPDS, vtkPartitionedDataSet* outputPDS,
   int numberOfNonNullPartitionsInInput, int offset = 0)
 {
   for (int outPartitionId = 0, inPartitionId = 0; outPartitionId < numberOfNonNullPartitionsInInput;
@@ -86,7 +74,7 @@ int vtkPartitionBalancer::RequestData(
 
   if (!this->Controller)
   {
-    outputPDS->ShallowCopy(inputPDS);
+    outputPDS->CompositeShallowCopy(inputPDS);
     outputPDS->RemoveNullPartitions();
     return 1;
   }
@@ -102,14 +90,14 @@ int vtkPartitionBalancer::RequestData(
     const int offset = std::accumulate(recvBuf.begin(), recvBuf.begin() + localProcessId, 0);
 
     outputPDS->SetNumberOfPartitions(numberOfPartitions);
-    ShallowCopy(inputPDS, outputPDS, numberOfNonNullPartitionsInInput, offset);
+    ::CompositeShallowCopy(inputPDS, outputPDS, numberOfNonNullPartitionsInInput, offset);
   }
   else if (this->Mode == vtkPartitionBalancer::Squash)
   {
     const int numberOfPartitions = *std::max_element(recvBuf.begin(), recvBuf.end());
 
     outputPDS->SetNumberOfPartitions(numberOfPartitions);
-    ShallowCopy(inputPDS, outputPDS, numberOfNonNullPartitionsInInput);
+    ::CompositeShallowCopy(inputPDS, outputPDS, numberOfNonNullPartitionsInInput);
   }
   else
   {
@@ -138,3 +126,4 @@ void vtkPartitionBalancer::PrintSelf(ostream& os, vtkIndent indent)
       break;
   }
 }
+VTK_ABI_NAMESPACE_END

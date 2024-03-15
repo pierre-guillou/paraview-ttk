@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMergeArrays.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMergeArrays
  * @brief   Multiple inputs with one output.
@@ -36,6 +25,7 @@
 
 #include <string> // Needed for protected method argument
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkFieldData;
 
@@ -86,4 +76,5 @@ private:
   void operator=(const vtkMergeArrays&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

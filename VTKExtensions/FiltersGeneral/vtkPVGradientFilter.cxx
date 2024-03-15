@@ -1,23 +1,10 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGradientFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVGradientFilter.h"
 
 #include "vtkDemandDrivenPipeline.h"
 #include "vtkHyperTreeGrid.h"
-#include "vtkHyperTreeGridGradient.h"
 #include "vtkImageData.h"
 #include "vtkImageGradient.h"
 #include "vtkInformation.h"
@@ -31,7 +18,9 @@ vtkStandardNewMacro(vtkPVGradientFilter);
 void vtkPVGradientFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
-  os << indent << "Dimensionality: " << this->Dimensionality << "\n";
+  os << indent << "Dimensionality: " << this->Dimensionality << std::endl;
+  os << indent << "HTG Mode: " << this->HTGMode << std::endl;
+  os << indent << "HTG Extensive Computation: " << this->HTGExtensiveComputation << std::endl;
 }
 
 //----------------------------------------------------------------------------
@@ -116,8 +105,19 @@ int vtkPVGradientFilter::RequestData(
   {
     vtkNew<vtkHyperTreeGridGradient> htgGradient;
     htgGradient->SetInputData(0, inHTG);
-    htgGradient->SetResultArrayName(this->ResultArrayName);
     htgGradient->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+    htgGradient->SetMode(this->HTGMode);
+    htgGradient->SetExtensiveComputation(this->HTGExtensiveComputation);
+
+    htgGradient->SetComputeGradient(this->GetComputeGradient());
+    htgGradient->SetGradientArrayName(this->GetResultArrayName());
+    htgGradient->SetComputeDivergence(this->GetComputeDivergence());
+    htgGradient->SetDivergenceArrayName(this->GetDivergenceArrayName());
+    htgGradient->SetComputeVorticity(this->GetComputeVorticity());
+    htgGradient->SetVorticityArrayName(this->GetVorticityArrayName());
+    htgGradient->SetComputeQCriterion(this->GetComputeQCriterion());
+    htgGradient->SetQCriterionArrayName(this->GetQCriterionArrayName());
+
     htgGradient->Update();
     outDataObj->ShallowCopy(htgGradient->GetOutput(0));
 

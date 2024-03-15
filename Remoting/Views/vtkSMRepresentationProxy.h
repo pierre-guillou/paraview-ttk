@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkSMRepresentationProxy
  * @brief Proxy for a representations
@@ -144,7 +132,7 @@ public:
    */
   vtkTypeUInt32 GetGlobalID() override;
 
-  //@{
+  ///@{
   /**
    * Set the representation type. Default implementation simply updates the
    * "Representation" property, if present with the value provided. Subclasses
@@ -159,7 +147,32 @@ public:
     vtkSMRepresentationProxy* self = vtkSMRepresentationProxy::SafeDownCast(repr);
     return self ? self->SetRepresentationType(type) : false;
   }
-  //@}
+  const char* GetRepresentationType();
+  static const char* GetRepresentationType(vtkSMProxy* repr)
+  {
+    vtkSMRepresentationProxy* self = vtkSMRepresentationProxy::SafeDownCast(repr);
+    return self ? self->GetRepresentationType() : nullptr;
+  }
+  ///@}
+
+  ///@{
+  /**
+   * Convenient method to check if this representation is currently rendering volumes, using 2D
+   * Transfer function.
+   */
+  static bool IsVolumeRendering(vtkSMProxy* repr)
+  {
+    vtkSMRepresentationProxy* self = vtkSMRepresentationProxy::SafeDownCast(repr);
+    return self ? self->IsVolumeRendering() : false;
+  }
+  bool IsVolumeRendering();
+  static bool GetUsing2DTransferFunction(vtkSMProxy* repr)
+  {
+    vtkSMRepresentationProxy* self = vtkSMRepresentationProxy::SafeDownCast(repr);
+    return self ? self->GetUsing2DTransferFunction() : false;
+  }
+  bool GetUsing2DTransferFunction();
+  ///@}
 
   void MarkDirty(vtkSMProxy* modifiedProxy) override;
 

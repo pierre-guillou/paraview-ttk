@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeoProjection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkGeoProjection.h"
 
@@ -29,6 +13,7 @@
 
 #include "vtk_libproj.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeoProjection);
 
 static int vtkGeoProjectionNumProj = -1;
@@ -70,9 +55,7 @@ public:
   }
 
   std::map<std::string, std::string> OptionalParameters;
-#if PROJ_VERSION_MAJOR >= 5
   PJ_PROJ_INFO ProjInfo;
-#endif
 };
 
 //------------------------------------------------------------------------------
@@ -121,11 +104,7 @@ vtkGeoProjection::~vtkGeoProjection()
   this->SetPROJ4String(nullptr);
   if (this->Projection)
   {
-#if PROJ_VERSION_MAJOR >= 5
     proj_destroy(this->Projection);
-#else
-    pj_free(this->Projection);
-#endif
   }
   delete this->Internals;
   this->Internals = nullptr;
@@ -166,11 +145,7 @@ const char* vtkGeoProjection::GetDescription()
   {
     return nullptr;
   }
-#if PROJ_VERSION_MAJOR >= 5
   return this->Internals->ProjInfo.description;
-#else
-  return this->Projection->descr;
-#endif
 }
 //------------------------------------------------------------------------------
 projPJ vtkGeoProjection::GetProjection()
@@ -189,21 +164,13 @@ int vtkGeoProjection::UpdateProjection()
 
   if (this->Projection)
   {
-#if PROJ_VERSION_MAJOR >= 5
     proj_destroy(this->Projection);
-#else
-    pj_free(this->Projection);
-#endif
     this->Projection = nullptr;
   }
 
   if (this->PROJ4String && strlen(this->PROJ4String))
   {
-#if PROJ_VERSION_MAJOR >= 5
     this->Projection = proj_create(PJ_DEFAULT_CTX, this->PROJ4String);
-#else
-    this->Projection = pj_init_plus(this->PROJ4String);
-#endif
     if (!this->Projection)
     {
       vtkErrorMacro("Cannot set projection with string " << this->PROJ4String);
@@ -246,19 +213,13 @@ int vtkGeoProjection::UpdateProjection()
       stringHolder[i] = param.str();
       pjArgs[3 + i] = stringHolder[i].c_str();
     }
-#if PROJ_VERSION_MAJOR >= 5
     this->Projection = proj_create_argv(PJ_DEFAULT_CTX, argSize, const_cast<char**>(pjArgs));
-#else
-    this->Projection = pj_init(argSize, const_cast<char**>(pjArgs));
-#endif
     delete[] pjArgs;
   }
   this->ProjectionMTime = this->GetMTime();
   if (this->Projection)
   {
-#if PROJ_VERSION_MAJOR >= 5
     this->Internals->ProjInfo = proj_pj_info(this->Projection);
-#endif
     return 0;
   }
   return 1;
@@ -305,3 +266,4 @@ void vtkGeoProjection::ClearOptionalParameters()
   this->Internals->OptionalParameters.clear();
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

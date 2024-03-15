@@ -13,6 +13,7 @@ set(classes
   vtkExtractPolyDataPiece
   vtkExtractUnstructuredGridPiece
   vtkExtractUserDefinedPiece
+  vtkGenerateProcessIds
   vtkHyperTreeGridGhostCellsGenerator
   vtkPHyperTreeGridProbeFilter
   vtkIntegrateAttributes
@@ -48,8 +49,7 @@ set(classes
   vtkTransmitRectilinearGridPiece
   vtkTransmitStructuredDataPiece
   vtkTransmitStructuredGridPiece
-  vtkTransmitUnstructuredGridPiece
-  vtkUnstructuredGridGhostCellsGenerator)
+  vtkTransmitUnstructuredGridPiece)
 
 set(headers
   vtkBlockDistribution.h)
@@ -71,3 +71,4 @@ vtk_module_add_module(VTK::FiltersParallel
   SOURCES ${vtk_object_factory_source}
   PRIVATE_HEADERS ${vtk_object_factory_header}
   )
+vtk_add_test_mangling(VTK::FiltersParallel)

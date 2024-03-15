@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTkWidgetsInit.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTcl.h"
 #include "vtkTk.h"
 
@@ -23,6 +11,7 @@
 //------------------------------------------------------------------------------
 // Vtkrenderingtk_Init
 // Called upon system startup to create the widget commands.
+VTK_ABI_NAMESPACE_BEGIN
 extern "C"
 {
   VTK_EXPORT int Vtkrenderingtk_Init(Tcl_Interp* interp);
@@ -56,3 +45,4 @@ int Vtkrenderingtk_Init(Tcl_Interp* interp)
     return TCL_ERROR;
   }
 }
+VTK_ABI_NAMESPACE_END

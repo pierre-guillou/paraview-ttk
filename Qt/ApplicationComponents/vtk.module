@@ -2,6 +2,10 @@ NAME
   ParaView::pqApplicationComponents
 LIBRARY_NAME
   pqApplicationComponents
+SPDX_LICENSE_IDENTIFIER
+  BSD-3-Clause
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) Kitware Inc.
 CONDITION
   PARAVIEW_USE_QT
 GROUPS
@@ -9,10 +13,12 @@ GROUPS
 DEPENDS
   ParaView::pqComponents
   ParaView::qttesting
+  ParaView::Versioning
   VTK::GUISupportQt
 PRIVATE_DEPENDS
   ParaView::RemotingAnimation
   ParaView::RemotingApplication
+  ParaView::RemotingCore
   ParaView::RemotingExport
   ParaView::RemotingLive
   ParaView::RemotingMisc
@@ -22,6 +28,7 @@ PRIVATE_DEPENDS
   VTK::IOCore
 OPTIONAL_DEPENDS
   ParaView::nvpipe
+  ParaView::VTKExtensionsShaderBall
   VTK::PythonInterpreter
   VTK::RenderingRayTracing
 

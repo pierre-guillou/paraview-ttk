@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAssignAttribute.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAssignAttribute.h"
 
 #include "vtkCellData.h"
@@ -27,6 +15,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 static int vtkGetArrayIndex(vtkDataSetAttributes* dsa, vtkAbstractArray* array)
 {
   for (int cc = 0; cc < dsa->GetNumberOfArrays(); cc++)
@@ -342,6 +331,8 @@ int vtkAssignAttribute::RequestData(vtkInformation* vtkNotUsed(request),
     }
   }
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -371,3 +362,4 @@ void vtkAssignAttribute::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Input attribute type: " << this->InputAttributeType << endl;
   os << indent << "Attribute location: " << this->AttributeLocationAssignment << endl;
 }
+VTK_ABI_NAMESPACE_END

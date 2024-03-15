@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProgrammableAttributeDataFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkProgrammableAttributeDataFilter
  * @brief   manipulate attribute (cell and point) data via a user-specified function
@@ -80,6 +68,7 @@
 #include "vtkDataSetAlgorithm.h"
 #include "vtkFiltersProgrammableModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSetCollection;
 
 class VTKFILTERSPROGRAMMABLE_EXPORT vtkProgrammableAttributeDataFilter : public vtkDataSetAlgorithm
@@ -145,9 +134,9 @@ private:
     vtkErrorMacro(<< "AddInput() must be called with a vtkDataSet not a vtkDataObject.");
   }
 
-private:
   vtkProgrammableAttributeDataFilter(const vtkProgrammableAttributeDataFilter&) = delete;
   void operator=(const vtkProgrammableAttributeDataFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

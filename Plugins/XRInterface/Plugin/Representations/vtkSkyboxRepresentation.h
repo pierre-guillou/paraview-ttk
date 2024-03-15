@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSkyboxRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSkyboxRepresentation
  * @brief   representation for showing slices from a
@@ -58,14 +46,14 @@ public:
    */
   vtkSkybox* GetActor() { return this->Actor; }
 
-  //@{
+  ///@{
   /**
    * Methods forwarded to the skybox instance
    */
   virtual void SetFloorPlane(float, float, float, float);
   virtual void SetFloorRight(float, float, float);
   virtual void SetProjection(int);
-  //@}
+  ///@}
 
 protected:
   vtkSkyboxRepresentation();

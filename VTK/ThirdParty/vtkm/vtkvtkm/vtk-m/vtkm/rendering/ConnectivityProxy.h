@@ -11,7 +11,6 @@
 #define vtk_m_rendering_ConnectivityProxy_h
 
 #include <memory>
-#include <vtkm/Deprecated.h>
 #include <vtkm/cont/DataSet.h>
 #include <vtkm/rendering/CanvasRayTracer.h>
 #include <vtkm/rendering/Mapper.h>
@@ -31,31 +30,29 @@ using PartialVector32 = std::vector<vtkm::rendering::raytracing::PartialComposit
 class VTKM_RENDERING_EXPORT ConnectivityProxy
 {
 public:
-  ConnectivityProxy(vtkm::cont::DataSet& dataset);
+  ConnectivityProxy(const vtkm::cont::DataSet& dataset, const std::string& fieldName);
   ConnectivityProxy(const vtkm::cont::UnknownCellSet& cellset,
                     const vtkm::cont::CoordinateSystem& coords,
                     const vtkm::cont::Field& scalarField);
-  // Do not allow the default constructor
-  ConnectivityProxy() = delete;
+
+  ConnectivityProxy(const ConnectivityProxy&);
+  ConnectivityProxy& operator=(const ConnectivityProxy&);
+
+  ConnectivityProxy(ConnectivityProxy&&) noexcept;
+  ConnectivityProxy& operator=(ConnectivityProxy&&) noexcept;
+
   ~ConnectivityProxy();
+
   enum struct RenderMode
   {
     Volume,
     Energy,
-    VOLUME_MODE VTKM_DEPRECATED(1.8, "Use Volume.") = Volume,
-    ENERGY_MODE VTKM_DEPRECATED(1.8, "Use Energy.") = Energy
   };
-  VTKM_DEPRECATED(1.8, "Use ConnectivityProxy::RenderMode::Volume")
-  static constexpr RenderMode VOLUME_MODE = RenderMode::Volume;
-  VTKM_DEPRECATED(1.8, "Use ConnectivityProxy::RenderMode::Energy")
-  static constexpr RenderMode ENERGY_MODE = RenderMode::Energy;
 
   void SetRenderMode(RenderMode mode);
   void SetSampleDistance(const vtkm::Float32&);
-  void SetCanvas(vtkm::rendering::Canvas* canvas);
   void SetScalarField(const std::string& fieldName);
   void SetEmissionField(const std::string& fieldName);
-  void SetCamera(const vtkm::rendering::Camera& camera);
   void SetScalarRange(const vtkm::Range& range);
   void SetColorMap(vtkm::cont::ArrayHandle<vtkm::Vec4f_32>& colormap);
   void SetCompositeBackground(bool on);
@@ -76,9 +73,8 @@ public:
 
 protected:
   struct InternalsType;
-  struct BoundsFunctor;
-  std::shared_ptr<InternalsType> Internals;
+  std::unique_ptr<InternalsType> Internals;
 };
 }
 } //namespace vtkm::rendering
-#endif //vtk_m_rendering_SceneRendererVolume_h
+#endif //vtk_m_rendering_ConnectivityProxy_h

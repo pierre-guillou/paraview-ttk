@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqVRAddStyleDialog.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqVRAddStyleDialog.h"
 #include "ui_pqVRAddStyleDialog.h"
 
@@ -42,8 +14,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "vtkNew.h"
 #include "vtkSMProxy.h"
+#include "vtkSMVRInteractorStyleProxy.h"
 #include "vtkStringList.h"
-#include "vtkVRInteractorStyle.h"
 
 #include <QComboBox>
 
@@ -58,11 +30,11 @@ class pqVRAddStyleDialog::pqInternals : public Ui::VRAddStyleDialog
 {
 public:
   bool CanConfigure;
-  vtkVRInteractorStyle* Style;
+  vtkSMVRInteractorStyleProxy* Style;
 
   enum InputType
   {
-    Analog = 0,
+    Valuator = 0,
     Button,
     Tracker
   };
@@ -77,7 +49,7 @@ public:
   void AddInput(QWidget* parent, InputType type, const std::string& role, const std::string& name);
   QList<InputGui> Inputs;
 
-  QStringList AnalogNames;
+  QStringList ValuatorNames;
   QStringList ButtonNames;
   QStringList TrackerNames;
 };
@@ -93,13 +65,13 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
   // Populate input lists
   pqVRConnectionManager* mgr = pqVRConnectionManager::instance();
 
-  std::map<std::string, std::string> analogs;
+  std::map<std::string, std::string> valuators;
   std::map<std::string, std::string> buttons;
   std::map<std::string, std::string> trackers;
 
   Q_FOREACH (const QString& connName, mgr->connectionNames())
   {
-    analogs.clear();
+    valuators.clear();
     buttons.clear();
     trackers.clear();
     // Lookup connection
@@ -107,7 +79,7 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
 #if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN
     if (pqVRPNConnection* conn = mgr->GetVRPNConnection(connName))
     {
-      analogs = conn->analogMap();
+      valuators = conn->valuatorMap();
       buttons = conn->buttonMap();
       trackers = conn->trackerMap();
       found = true;
@@ -118,7 +90,7 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
     {
       if (!found)
       {
-        analogs = conn->analogMap();
+        valuators = conn->valuatorMap();
         buttons = conn->buttonMap();
         trackers = conn->trackerMap();
         found = true;
@@ -133,9 +105,9 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
 
     std::map<std::string, std::string>::const_iterator it;
     std::map<std::string, std::string>::const_iterator it_end;
-    for (it = analogs.begin(), it_end = analogs.end(); it != it_end; ++it)
+    for (it = valuators.begin(), it_end = valuators.end(); it != it_end; ++it)
     {
-      this->Internals->AnalogNames.append(
+      this->Internals->ValuatorNames.append(
         QString("%1.%2").arg(connName).arg(QString::fromStdString(it->second)));
     }
     for (it = buttons.begin(), it_end = buttons.end(); it != it_end; ++it)
@@ -150,7 +122,7 @@ pqVRAddStyleDialog::pqVRAddStyleDialog(QWidget* parentObject, Qt::WindowFlags f)
     }
   }
 
-  std::sort(this->Internals->AnalogNames.begin(), this->Internals->AnalogNames.end());
+  std::sort(this->Internals->ValuatorNames.begin(), this->Internals->ValuatorNames.end());
   std::sort(this->Internals->ButtonNames.begin(), this->Internals->ButtonNames.end());
   std::sort(this->Internals->TrackerNames.begin(), this->Internals->TrackerNames.end());
 }
@@ -162,19 +134,19 @@ pqVRAddStyleDialog::~pqVRAddStyleDialog()
 }
 
 //-----------------------------------------------------------------------------
-void pqVRAddStyleDialog::setInteractorStyle(vtkVRInteractorStyle* style, const QString& name)
+void pqVRAddStyleDialog::setInteractorStyle(vtkSMVRInteractorStyleProxy* style, const QString& name)
 {
   this->Internals->Style = style;
-  this->Internals->infoLabel->setText(QString("Configuring style %1.").arg(name));
+  this->Internals->infoLabel->setText(tr("Configuring style %1.").arg(name));
 
   // Create gui
   vtkNew<vtkStringList> roles;
-  style->GetAnalogRoles(roles.GetPointer());
+  style->GetValuatorRoles(roles.GetPointer());
   for (int i = 0; i < roles->GetNumberOfStrings(); ++i)
   {
     std::string role(roles->GetString(i));
-    std::string analogName(style->GetAnalogName(role));
-    this->Internals->AddInput(this, pqInternals::Analog, role, analogName);
+    std::string valuatorName(style->GetValuatorName(role));
+    this->Internals->AddInput(this, pqInternals::Valuator, role, valuatorName);
   }
   style->GetButtonRoles(roles.GetPointer());
   for (int i = 0; i < roles->GetNumberOfStrings(); ++i)
@@ -208,8 +180,8 @@ void pqVRAddStyleDialog::updateInteractorStyle()
     const std::string& name = gui.combo->currentText().toStdString();
     switch (gui.type)
     {
-      case pqInternals::Analog:
-        this->Internals->Style->SetAnalogName(role, name);
+      case pqInternals::Valuator:
+        this->Internals->Style->SetValuatorName(role, name);
         break;
       case pqInternals::Button:
         this->Internals->Style->SetButtonName(role, name);
@@ -241,8 +213,8 @@ void pqVRAddStyleDialog::pqInternals::AddInput(
   gui.combo = new QComboBox(parent);
   switch (type)
   {
-    case Analog:
-      gui.combo->addItems(this->AnalogNames);
+    case Valuator:
+      gui.combo->addItems(this->ValuatorNames);
       break;
     case Button:
       gui.combo->addItems(this->ButtonNames);

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPixelExtenth.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPixelExtent
  *
@@ -35,6 +23,7 @@
 #include <deque>     // for inline impl
 #include <iostream>  // for inline impl
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkPixelExtent
 {
 public:
@@ -266,7 +255,7 @@ public:
 
   /**
    * Merge compatible extents in the list. Extents are compatible
-   * if they are directly adjacent nad have the same extent along
+   * if they are directly adjacent and have the same extent along
    * the adjacent edge.
    */
   static void Merge(std::deque<vtkPixelExtent>& exts);
@@ -632,5 +621,6 @@ inline bool operator<(const vtkPixelExtent& l, const vtkPixelExtent& r)
   return l.Size() < r.Size();
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkPixelExtent.h

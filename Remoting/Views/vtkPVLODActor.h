@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVLODActor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVLODActor
  * @brief   an actor that supports multiple levels of detail
@@ -61,13 +49,13 @@ public:
    */
   void ReleaseGraphicsResources(vtkWindow*) override;
 
-  //@{
+  ///@{
   /**
    * This sets the low res input.
    */
   virtual void SetLODMapper(vtkMapper*);
   vtkGetObjectMacro(LODMapper, vtkMapper);
-  //@}
+  ///@}
 
   /**
    * This is a bit of a hack.  This returns the last mapper used to render.
@@ -98,7 +86,7 @@ public:
   void SetEnableLOD(int val) { this->EnableLOD = val; }
   vtkGetMacro(EnableLOD, int);
 
-  //@{
+  ///@{
   /**
    * For OSPRay controls sizing of implicit spheres (points) and
    * cylinders (lines)
@@ -106,7 +94,7 @@ public:
   virtual void SetEnableScaling(int v);
   virtual void SetScalingArrayName(const char*);
   virtual void SetScalingFunction(vtkPiecewiseFunction* pwf);
-  //@}
+  ///@}
 
 protected:
   vtkPVLODActor();

@@ -2,6 +2,13 @@ NAME
   ParaView::IOVisItBridge
 LIBRARY_NAME
   vtkIOVisItBridge
+SPDX_LICENSE_IDENTIFIER
+  BSD-3-Clause
+SPDX_COPYRIGHT_TEXT
+  Copyright (c) 2000 - 2020, Lawrence Livermore National Security, LLC
+  Copyright (c) Kitware Inc.
+  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+  Copyright © Tech-X Corporation
 LICENSE_FILES
   ../LICENSE
 DEPENDS

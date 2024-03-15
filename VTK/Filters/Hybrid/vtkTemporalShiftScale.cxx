@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalShiftScale.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTemporalShiftScale.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkDataObject.h"
@@ -24,6 +12,7 @@
 #include <cmath>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalShiftScale);
 
 //------------------------------------------------------------------------------
@@ -141,12 +130,12 @@ int vtkTemporalShiftScale::RequestDataObject(
 }
 
 //------------------------------------------------------------------------------
-inline double vtkTemporalShiftScale::ForwardConvert(double T0)
+double vtkTemporalShiftScale::ForwardConvert(double T0)
 {
   return (T0 + this->PreShift) * this->Scale + this->PostShift;
 }
 //------------------------------------------------------------------------------
-inline double vtkTemporalShiftScale::BackwardConvert(double T1)
+double vtkTemporalShiftScale::BackwardConvert(double T1)
 {
   return (T1 - this->PostShift) / this->Scale - this->PreShift;
 }
@@ -304,6 +293,8 @@ int vtkTemporalShiftScale::RequestData(vtkInformation* vtkNotUsed(request),
   }
   outData->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(), outTime);
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -344,3 +335,4 @@ int vtkTemporalShiftScale::RequestUpdateExtent(vtkInformation* vtkNotUsed(reques
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAlgorithm.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAlgorithm.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -49,6 +37,7 @@
 #include <vector>
 #include <vtksys/SystemTools.hxx>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAlgorithm);
 
 vtkCxxSetObjectMacro(vtkAlgorithm, Information, vtkInformation);
@@ -66,7 +55,7 @@ vtkInformationKeyMacro(vtkAlgorithm, CAN_HANDLE_PIECE_REQUEST, Integer);
 vtkInformationKeyMacro(vtkAlgorithm, ABORTED, Integer);
 
 vtkExecutive* vtkAlgorithm::DefaultExecutivePrototype = nullptr;
-vtkTimeStamp* vtkAlgorithm::LastAbortTime = vtkTimeStamp::New();
+vtkTimeStamp vtkAlgorithm::LastAbortTime;
 
 //------------------------------------------------------------------------------
 class vtkAlgorithmInternals
@@ -202,7 +191,7 @@ bool vtkAlgorithm::CheckAbort()
     return containerResult;
   }
 
-  if (this->LastAbortTime->GetMTime() > this->LastAbortCheckTime.GetMTime())
+  if (this->LastAbortTime.GetMTime() > this->LastAbortCheckTime.GetMTime())
   {
     this->LastAbortCheckTime.Modified();
     for (int port = 0; port < this->GetNumberOfInputPorts(); port++)
@@ -226,7 +215,7 @@ bool vtkAlgorithm::CheckAbort()
 void vtkAlgorithm::SetAbortExecuteAndUpdateTime()
 {
   this->AbortExecute = 1;
-  this->LastAbortTime->Modified();
+  this->LastAbortTime.Modified();
 }
 
 //------------------------------------------------------------------------------
@@ -242,7 +231,7 @@ bool vtkAlgorithm::CheckUpstreamAbort()
     return true;
   }
 
-  if (this->LastAbortTime->GetMTime() > this->LastAbortCheckTime.GetMTime())
+  if (this->LastAbortTime.GetMTime() > this->LastAbortCheckTime.GetMTime())
   {
     this->LastAbortCheckTime.Modified();
     for (int port = 0; port < this->GetNumberOfInputPorts(); port++)
@@ -258,6 +247,49 @@ bool vtkAlgorithm::CheckUpstreamAbort()
   }
 
   return this->GetAbortOutput();
+}
+
+//------------------------------------------------------------------------------
+void vtkAlgorithm::SetNoPriorTemporalAccessInformationKey()
+{
+  this->SetNoPriorTemporalAccessInformationKey(
+    vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_RESET);
+}
+
+//------------------------------------------------------------------------------
+void vtkAlgorithm::SetNoPriorTemporalAccessInformationKey(int key)
+{
+  using vtkSDDP = vtkStreamingDemandDrivenPipeline;
+
+  if (key != vtkSDDP::NO_PRIOR_TEMPORAL_ACCESS_CONTINUE &&
+    key != vtkSDDP::NO_PRIOR_TEMPORAL_ACCESS_RESET)
+  {
+    vtkWarningMacro("Setting vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS() with"
+                    " unsupported value, setting it to"
+                    " vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_RESET by default");
+    key = vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS_RESET;
+  }
+
+  for (int port = 0; port < this->GetNumberOfOutputPorts(); ++port)
+  {
+    if (vtkInformation* outputInfo = this->GetOutputInformation(port))
+    {
+      outputInfo->Set(vtkSDDP::NO_PRIOR_TEMPORAL_ACCESS(), key);
+    }
+  }
+  this->Modified();
+}
+
+//------------------------------------------------------------------------------
+void vtkAlgorithm::RemoveNoPriorTemporalAccessInformationKey()
+{
+  for (int port = 0; this->GetNumberOfOutputPorts(); ++port)
+  {
+    if (vtkInformation* outputInfo = this->GetOutputInformation(port))
+    {
+      outputInfo->Remove(vtkStreamingDemandDrivenPipeline::NO_PRIOR_TEMPORAL_ACCESS());
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -725,7 +757,7 @@ void vtkAlgorithm::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-int vtkAlgorithm::HasExecutive()
+vtkTypeBool vtkAlgorithm::HasExecutive()
 {
   return this->Executive ? 1 : 0;
 }
@@ -1655,7 +1687,7 @@ void vtkAlgorithm::ReleaseDataFlagOff()
 }
 
 //------------------------------------------------------------------------------
-void vtkAlgorithm::SetReleaseDataFlag(int val)
+void vtkAlgorithm::SetReleaseDataFlag(vtkTypeBool val)
 {
   if (vtkDemandDrivenPipeline* ddp = vtkDemandDrivenPipeline::SafeDownCast(this->GetExecutive()))
   {
@@ -1667,7 +1699,7 @@ void vtkAlgorithm::SetReleaseDataFlag(int val)
 }
 
 //------------------------------------------------------------------------------
-int vtkAlgorithm::GetReleaseDataFlag()
+vtkTypeBool vtkAlgorithm::GetReleaseDataFlag()
 {
   if (vtkDemandDrivenPipeline* ddp = vtkDemandDrivenPipeline::SafeDownCast(this->GetExecutive()))
   {
@@ -1866,3 +1898,4 @@ void vtkAlgorithm::AddInputDataObject(int port, vtkDataObject* input)
     tp->Delete();
   }
 }
+VTK_ABI_NAMESPACE_END

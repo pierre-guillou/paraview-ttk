@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DLinearGridInternal.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtk3DLinearGridInternal
  * @brief   fast access and processing of 3D linear grids
@@ -89,9 +77,10 @@ struct BaseCell
   void BuildCases(int numCases, const vtkIdType** edges, int** cases, unsigned short* caseArray);
 };
 // Used to generate case mask
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned char BaseCell::Mask[MAX_CELL_VERTS] = { 1, 2, 4, 8, 16, 32, 64, 128 };
 // Build repackaged case table and place into cases array.
-void BaseCell::BuildCases(
+inline void BaseCell::BuildCases(
   int numCases, const vtkIdType** edges, int** cases, unsigned short* caseArray)
 {
   int caseOffset = numCases;
@@ -127,17 +116,18 @@ struct TetraCell : public BaseCell
     this->NumVerts = 4;
     this->NumEdges = 6;
     this->BuildCases();
-    this->Cases = this->TetraCases;
+    this->Cases = TetraCell::TetraCases;
   }
   ~TetraCell() override = default;
   void BuildCases() override;
 };
 // Dummy initialization filled in later at initialization. The lengtth of the
 // array is determined from the equation length=(2*NumCases + 3*2*NumTris).
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short TetraCell::TetraCases[152] = { 0 };
 // Load and transform vtkTetra case table. The case tables are repackaged for
 // efficiency (e.g., support the GetCase() method).
-void TetraCell::BuildCases()
+inline void TetraCell::BuildCases()
 {
   const vtkIdType** edges = new const vtkIdType*[this->NumEdges];
   int numCases = std::pow(2, this->NumVerts);
@@ -151,7 +141,7 @@ void TetraCell::BuildCases()
     cases[i] = vtkTetra::GetTriangleCases(i);
   }
 
-  BaseCell::BuildCases(numCases, edges, cases, this->TetraCases);
+  BaseCell::BuildCases(numCases, edges, cases, TetraCell::TetraCases);
 
   delete[] edges;
   delete[] cases;
@@ -168,16 +158,17 @@ struct HexahedronCell : public BaseCell
     this->NumVerts = 8;
     this->NumEdges = 12;
     this->BuildCases();
-    this->Cases = this->HexahedronCases;
+    this->Cases = HexahedronCell::HexahedronCases;
   }
   ~HexahedronCell() override = default;
   void BuildCases() override;
 };
 // Dummy initialization filled in later at instantiation
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short HexahedronCell::HexahedronCases[5432] = { 0 };
 // Load and transform marching cubes case table. The case tables are
 // repackaged for efficiency (e.g., support the GetCase() method).
-void HexahedronCell::BuildCases()
+inline void HexahedronCell::BuildCases()
 {
   const vtkIdType** edges = new const vtkIdType*[this->NumEdges];
   int numCases = std::pow(2, this->NumVerts);
@@ -191,7 +182,7 @@ void HexahedronCell::BuildCases()
     cases[i] = vtkHexahedron::GetTriangleCases(i);
   }
 
-  BaseCell::BuildCases(numCases, edges, cases, this->HexahedronCases);
+  BaseCell::BuildCases(numCases, edges, cases, HexahedronCell::HexahedronCases);
 
   delete[] edges;
   delete[] cases;
@@ -208,16 +199,17 @@ struct WedgeCell : public BaseCell
     this->NumVerts = 6;
     this->NumEdges = 9;
     this->BuildCases();
-    this->Cases = this->WedgeCases;
+    this->Cases = WedgeCell::WedgeCases;
   }
   ~WedgeCell() override = default;
   void BuildCases() override;
 };
 // Dummy initialization filled in later at instantiation
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short WedgeCell::WedgeCases[968] = { 0 };
 // Load and transform marching cubes case table. The case tables are
 // repackaged for efficiency (e.g., support the GetCase() method).
-void WedgeCell::BuildCases()
+inline void WedgeCell::BuildCases()
 {
   const vtkIdType** edges = new const vtkIdType*[this->NumEdges];
   int numCases = std::pow(2, this->NumVerts);
@@ -231,7 +223,7 @@ void WedgeCell::BuildCases()
     cases[i] = vtkWedge::GetTriangleCases(i);
   }
 
-  BaseCell::BuildCases(numCases, edges, cases, this->WedgeCases);
+  BaseCell::BuildCases(numCases, edges, cases, WedgeCell::WedgeCases);
 
   delete[] edges;
   delete[] cases;
@@ -248,16 +240,17 @@ struct PyramidCell : public BaseCell
     this->NumVerts = 5;
     this->NumEdges = 8;
     this->BuildCases();
-    this->Cases = this->PyramidCases;
+    this->Cases = PyramidCell::PyramidCases;
   }
   ~PyramidCell() override = default;
   void BuildCases() override;
 };
 // Dummy initialization filled in later at instantiation
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short PyramidCell::PyramidCases[448] = { 0 };
 // Load and transform marching cubes case table. The case tables are
 // repackaged for efficiency (e.g., support the GetCase() method).
-void PyramidCell::BuildCases()
+inline void PyramidCell::BuildCases()
 {
   const vtkIdType** edges = new const vtkIdType*[this->NumEdges];
   int numCases = std::pow(2, this->NumVerts);
@@ -271,7 +264,7 @@ void PyramidCell::BuildCases()
     cases[i] = vtkPyramid::GetTriangleCases(i);
   }
 
-  BaseCell::BuildCases(numCases, edges, cases, this->PyramidCases);
+  BaseCell::BuildCases(numCases, edges, cases, PyramidCell::PyramidCases);
 
   delete[] edges;
   delete[] cases;
@@ -288,18 +281,19 @@ struct VoxelCell : public BaseCell
     this->NumVerts = 8;
     this->NumEdges = 12;
     this->BuildCases();
-    this->Cases = this->VoxCases;
+    this->Cases = VoxelCell::VoxCases;
   }
   ~VoxelCell() override = default;
   void BuildCases() override;
 };
 // Dummy initialization filled in later at instantiation
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short VoxelCell::VoxCases[5432] = { 0 };
 // Load and transform marching cubes case table. The case tables are
 // repackaged for efficiency (e.g., support the GetCase() method). Note that
 // the MC cases (vtkMarchingCubesTriangleCases) are specified for the
 // hexahedron; voxels require a transformation to produce correct output.
-void VoxelCell::BuildCases()
+inline void VoxelCell::BuildCases()
 {
   // Map the voxel points consistent with the hex edges and cases, Basically
   // the hex points (2,3,6,7) are ordered (3,2,7,6) on the voxel.
@@ -330,7 +324,7 @@ void VoxelCell::BuildCases()
     cases[voxCase] = vtkHexahedron::GetTriangleCases(hexCase);
   }
 
-  BaseCell::BuildCases(numCases, edges, cases, this->VoxCases);
+  BaseCell::BuildCases(numCases, edges, cases, VoxelCell::VoxCases);
 
   delete[] edges;
   delete[] cases;
@@ -346,12 +340,13 @@ struct EmptyCell : public BaseCell
   {
     this->NumVerts = 0;
     this->NumEdges = 0;
-    this->Cases = this->EmptyCases;
+    this->Cases = EmptyCell::EmptyCases;
   }
   ~EmptyCell() override = default;
   void BuildCases() override {}
 };
 // No triangles generated
+// NOLINTNEXTLINE(misc-definitions-in-headers)
 unsigned short EmptyCell::EmptyCases[2] = { 0, 0 };
 
 // This is a general iterator which assumes that the unstructured grid has a

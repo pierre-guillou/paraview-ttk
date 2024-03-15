@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPExtractSelectedArraysOverTime.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPExtractSelectedArraysOverTime
  * @brief   extracts a selection over time.
@@ -31,6 +19,7 @@
 #include "vtkExtractSelectedArraysOverTime.h"
 #include "vtkFiltersParallelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 class VTKFILTERSPARALLEL_EXPORT vtkPExtractSelectedArraysOverTime
   : public vtkExtractSelectedArraysOverTime
@@ -57,4 +46,5 @@ private:
   void operator=(const vtkPExtractSelectedArraysOverTime&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestComputeBoundingSphere.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include <vtkMath.h>
 #include <vtkSmartPointer.h>
@@ -245,6 +233,11 @@ int TestComputeBoundingSphere(int, char*[])
     std::cout << "sphere: " << sphere[0] << ", " << sphere[1] << ", " << sphere[2] << ": "
               << sphere[3] << " ";
     std::cout << "Passed" << std::endl;
+  }
+
+  if (status > 0)
+  {
+    return EXIT_FAILURE;
   }
 
   return EXIT_SUCCESS;

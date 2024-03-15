@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVRRenderWindowInteractor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRRenderWindowInteractor
  * @brief   Implements VR specific functions required by vtkRenderWindowInteractor.
@@ -27,6 +15,7 @@
 
 #include <string> // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkVRRenderWindow;
 
@@ -122,8 +111,9 @@ public:
 
   ///@{
   /**
-   * Set/Get the .json file describing action bindings for events.
+   * Set/Get the .json filename describing action bindings for events.
    * Based on https://github.com/ValveSoftware/openvr/wiki/Action-manifest
+   * Default is empty.
    */
   vtkGetMacro(ActionManifestFileName, std::string);
   vtkSetMacro(ActionManifestFileName, std::string);
@@ -131,7 +121,16 @@ public:
 
   ///@{
   /**
-   * Set/Get the .json file describing the action set to use.
+   * Set/Get the path to the directory to search for the ActionManifestFileName
+   * Default is empty.
+   */
+  vtkGetMacro(ActionManifestDirectory, std::string);
+  vtkSetMacro(ActionManifestDirectory, std::string);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get the name of the action set to use from the action manifest
    */
   vtkGetMacro(ActionSetName, std::string);
   vtkSetMacro(ActionSetName, std::string);
@@ -158,11 +157,23 @@ protected:
 
   ///@{
   /**
-   * Handle multitouch events. Multitouch events recognition starts when
-   * both controllers triggers are pressed.
+   * Handle complex gesture events. Complex gesture events recognition starts when
+   * both buttons mapped to the ComplexGesture action are pressed.
+   *
+   * To differentiate the Rotate, Pinch and Pan gestures, the default implementation
+   * is based on the following heuristic:
+   * - Pinch is a move to/from the center point.
+   * - Rotate is a move along the circumference.
+   * - Pan is a move of the center point.
+   *
+   * After computing the distance along each of these axes in meters, the first
+   * to break the hard-coded threshold wins.
+   *
+   * Overriding both HandleComplexGestureEvents() and RecognizeComplexGesture() allows to define
+   * a different heuristic.
    */
-  void HandleGripEvents(vtkEventData* ed);
-  void RecognizeComplexGesture(vtkEventDataDevice3D* edata);
+  virtual void HandleComplexGestureEvents(vtkEventData* ed);
+  virtual void RecognizeComplexGesture(vtkEventDataDevice3D* edata);
   ///@}
 
   ///@{
@@ -176,11 +187,15 @@ protected:
   ///@}
 
   /**
-   * Store physical to world matrix at the start of a multitouch gesture.
+   * Store physical to world matrix at the start of a complex gesture.
    */
   vtkNew<vtkMatrix4x4> StartingPhysicalToWorldMatrix;
+
   int DeviceInputDownCount[vtkEventDataNumberOfDevices];
+
   std::string ActionManifestFileName;
+  std::string ActionManifestDirectory;
+
   std::string ActionSetName;
 
 private:
@@ -188,4 +203,5 @@ private:
   void operator=(const vtkVRRenderWindowInteractor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

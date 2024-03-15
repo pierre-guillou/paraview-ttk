@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "VisRTXBackend.h"
 
 #include "vtkLogger.h"
@@ -24,6 +26,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     RTWError VisRTXBackend::Init()
     {
 #ifdef VISRTX_DYNLOAD
@@ -346,4 +349,5 @@ namespace RTW
 
         return reinterpret_cast<FrameBuffer*>(frameBuffer)->GetDepthTextureGL();
     }
+VTK_ABI_NAMESPACE_END
 }

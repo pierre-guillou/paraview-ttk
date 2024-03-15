@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkOpenGLVertexArrayObject_h
 #define vtkOpenGLVertexArrayObject_h
 
@@ -18,6 +7,7 @@
 #include "vtkRenderingOpenGL2Module.h" // for export macro
 #include <string>                      // For API.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkShaderProgram;
 class vtkOpenGLBufferObject;
 class vtkOpenGLVertexBufferObject;
@@ -85,4 +75,5 @@ private:
   Private* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkOpenGLVertexArrayObject_h

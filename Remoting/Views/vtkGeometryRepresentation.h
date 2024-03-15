@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkGeometryRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGeometryRepresentation
  * @brief   representation for showing any datasets as
@@ -38,7 +26,6 @@
 #include <unordered_map> // needed for std::unordered_map
 
 class vtkCompositeDataDisplayAttributes;
-class vtkCompositePolyDataMapper2;
 class vtkMapper;
 class vtkPiecewiseFunction;
 class vtkPVGeometryFilter;
@@ -76,21 +63,21 @@ public:
    */
   void SetVisibility(bool val) override;
 
-  //@{
+  ///@{
   /**
    * Determines the number of distinct values in vtkBlockColors
    * See also vtkPVGeometryFilter
    */
   void SetBlockColorsDistinctValues(int distinctValues);
   int GetBlockColorsDistinctValues();
-  //@}
+  ///@}
 
   /**
    * Enable/Disable LOD;
    */
   virtual void SetSuppressLOD(bool suppress) { this->SuppressLOD = suppress; }
 
-  //@{
+  ///@{
   /**
    * Set the lighting properties of the object. vtkGeometryRepresentation
    * overrides these based of the following conditions:
@@ -104,7 +91,7 @@ public:
   vtkGetMacro(Ambient, double);
   vtkGetMacro(Diffuse, double);
   vtkGetMacro(Specular, double);
-  //@}
+  ///@}
 
   enum RepresentationTypes
   {
@@ -114,23 +101,23 @@ public:
     SURFACE_WITH_EDGES = 3
   };
 
-  //@{
+  ///@{
   /**
    * Set the shift scale method for the point coordinates
    * see vtkOpenGLVertexBufferObject.h for more information.
    */
   void SetCoordinateShiftScaleMethod(int val);
   int GetCoordinateShiftScaleMethod();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the representation type. This adds VTK_SURFACE_WITH_EDGES to those
    * defined in vtkProperty.
    */
   vtkSetClampMacro(Representation, int, POINTS, SURFACE_WITH_EDGES);
   vtkGetMacro(Representation, int);
-  //@}
+  ///@}
 
   /**
    * Overload to set representation type using string. Accepted strings are:
@@ -143,7 +130,7 @@ public:
    */
   vtkDataObject* GetRenderedDataObject(int port) override;
 
-  //@{
+  ///@{
   /**
    * Representations that use geometry representation as the internal
    * representation should turn this flag off so that we don't end up requesting
@@ -152,7 +139,7 @@ public:
   vtkSetMacro(RequestGhostCellsIfNeeded, bool);
   vtkGetMacro(RequestGhostCellsIfNeeded, bool);
   vtkBooleanMacro(RequestGhostCellsIfNeeded, bool);
-  //@}
+  ///@}
 
   /**
    * Set the normal array used for smooth shading.
@@ -177,6 +164,7 @@ public:
   virtual void SetUseOutline(int);
   void SetTriangulate(int);
   void SetNonlinearSubdivisionLevel(int);
+  void SetMatchBoundariesIgnoringCellOrder(int);
   virtual void SetGenerateFeatureEdges(bool);
 
   //***************************************************************************
@@ -189,6 +177,7 @@ public:
   virtual void SetInterpolation(int val);
   virtual void SetLineWidth(double val);
   virtual void SetOpacity(double val);
+  virtual void SetEdgeOpacity(double val);
   virtual void SetPointSize(double val);
   virtual void SetSpecularColor(double r, double g, double b);
   virtual void SetSpecularPower(double val);
@@ -241,9 +230,10 @@ public:
   // Forwarded to Mapper and LODMapper.
   virtual void SetInterpolateScalarsBeforeMapping(int val);
   virtual void SetLookupTable(vtkScalarsToColors* val);
+  virtual void SetColorMissingArraysWithNanColor(bool val);
   virtual void SetSeamlessU(bool);
   virtual void SetSeamlessV(bool);
-  //@{
+  ///@{
   /**
    * Sets if scalars are mapped through a color-map or are used
    * directly as colors.
@@ -253,7 +243,7 @@ public:
    */
   virtual void SetMapScalars(int val);
   virtual void SetStatic(int val);
-  //@}
+  ///@}
 
   /**
    * Sets the selection used by the mapper.
@@ -265,42 +255,40 @@ public:
    */
   vtkPVLODActor* GetActor() { return this->GetRenderedProp(); }
 
-  //@{
+  ///@{
   /**
    * Get/Set the name of the assembly to use for mapping block visibilities,
    * colors and opacities.
    *
-   * TODO: this is simply a placeholder for the future. Since this
-   * representation doesn't really support PartitionedDataSetCollections and
-   * hence assembly, the only assembly supported is the
-   * `vtkDataAssemblyUtilities::HierarchyName`. All others are simply ignored.
+   * The default is Hierarchy.
    */
-  void SetActiveAssembly(const char*){};
-  //@}
+  vtkSetStringMacro(ActiveAssembly);
+  vtkGetStringMacro(ActiveAssembly);
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Update list of selectors that determine the selected blocks.
    */
   void AddBlockSelector(const char*);
   void RemoveAllBlockSelectors();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the color for a single block.
    */
   void SetBlockColor(const char*, double, double, double);
   void RemoveAllBlockColors();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the opacityfor a single block.
    */
   void SetBlockOpacity(const char*, double);
   void RemoveAllBlockOpacities();
-  //@}
+  ///@}
 
   /**
    * Convenience method to get the array name used to scalar color with.
@@ -317,7 +305,7 @@ public:
   static bool GetBounds(
     vtkDataObject* dataObject, double bounds[6], vtkCompositeDataDisplayAttributes* cdAttributes);
 
-  //@{
+  ///@{
   /**
    * For OSPRay controls sizing of implicit spheres (points) and
    * cylinders (lines)
@@ -325,14 +313,14 @@ public:
   virtual void SetEnableScaling(int v);
   virtual void SetScalingArrayName(const char*);
   virtual void SetScalingFunction(vtkPiecewiseFunction* pwf);
-  //@}
+  ///@}
 
   /**
    * For OSPRay, choose from among available materials.
    */
   virtual void SetMaterial(const char*);
 
-  //@{
+  ///@{
   /**
    * Specify whether or not to redistribute the data. The default is false
    * since that is the only way in general to guarantee correct rendering.
@@ -341,15 +329,15 @@ public:
    */
   vtkSetMacro(UseDataPartitions, bool);
   vtkGetMacro(UseDataPartitions, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Specify whether or not to shader replacements string must be used.
    */
   virtual void SetUseShaderReplacements(bool);
   vtkGetMacro(UseShaderReplacements, bool);
-  //@}
+  ///@}
 
   /**
    * Specify shader replacements using a Json string.
@@ -433,7 +421,7 @@ protected:
    * the mapper's attributes with those cached in this representation; This is done
    * after the data has updated (multi-block nodes change after an update).
    */
-  void PopulateBlockAttributes(vtkCompositeDataDisplayAttributes* attrs, vtkDataObject* data) const;
+  void PopulateBlockAttributes(vtkCompositeDataDisplayAttributes* attrs, vtkDataObject* outputData);
 
   /**
    * Computes the bounds of the visible data based on the block visibilities in the
@@ -469,6 +457,7 @@ protected:
   vtkPVLODActor* Actor;
   vtkProperty* Property;
 
+  char* ActiveAssembly = nullptr;
   bool RepeatTextures;
   bool InterpolateTextures;
   bool UseMipmapTextures;

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqColorOpacityEditorWidget.h"
 #include "ui_pqColorOpacityEditorWidget.h"
 #include "ui_pqSavePresetOptions.h"
@@ -44,12 +16,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPresetToPixmap.h"
 #include "pqPropertiesPanel.h"
 #include "pqPropertyWidgetDecorator.h"
-#include "pqResetScalarRangeReaction.h"
+#include "pqRescaleScalarRangeReaction.h"
+#include "pqRescaleScalarRangeToCustomDialog.h"
+#include "pqRescaleScalarRangeToDataOverTimeDialog.h"
 #include "pqSettings.h"
 #include "pqSignalsBlocker.h"
 #include "pqTimer.h"
 #include "pqTransferFunctionWidget.h"
 #include "pqUndoStack.h"
+#include "vtkCallbackCommand.h"
 #include "vtkCommand.h"
 #include "vtkDiscretizableColorTransferFunction.h"
 #include "vtkEventQtSlotConnect.h"
@@ -59,12 +34,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVTransferFunction2DBox.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPiecewiseFunction.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMCoreUtilities.h"
 #include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyGroup.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMRenderViewProxy.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMTransferFunction2DProxy.h"
 #include "vtkSMTransferFunctionPresets.h"
@@ -93,38 +70,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace
 {
-//-----------------------------------------------------------------------------
-// Decorator used to hide the widget when using IndexedLookup.
-class pqColorOpacityEditorWidgetDecorator : public pqPropertyWidgetDecorator
-{
-  typedef pqPropertyWidgetDecorator Superclass;
-  bool Hidden;
-
-public:
-  pqColorOpacityEditorWidgetDecorator(vtkPVXMLElement* xmlArg, pqPropertyWidget* parentArg)
-    : Superclass(xmlArg, parentArg)
-    , Hidden(false)
-  {
-  }
-  ~pqColorOpacityEditorWidgetDecorator() override = default;
-
-  void setHidden(bool val)
-  {
-    if (val != this->Hidden)
-    {
-      this->Hidden = val;
-      Q_EMIT this->visibilityChanged();
-    }
-  }
-  bool canShowWidget(bool show_advanced) const override
-  {
-    Q_UNUSED(show_advanced);
-    return !this->Hidden;
-  }
-
-private:
-  Q_DISABLE_COPY(pqColorOpacityEditorWidgetDecorator)
-};
 
 class pqColorMapDelegate : public QStyledItemDelegate
 {
@@ -202,26 +147,24 @@ public:
   Ui::ColorOpacityEditorWidget Ui;
   pqColorTableModel ColorTableModel;
   pqOpacityTableModel OpacityTableModel;
-  QPointer<pqColorOpacityEditorWidgetDecorator> Decorator;
   vtkWeakPointer<vtkSMPropertyGroup> PropertyGroup;
   vtkWeakPointer<vtkSMProxy> ScalarOpacityFunctionProxy;
   vtkWeakPointer<vtkSMProxy> TransferFunction2DProxy;
-  vtkWeakPointer<vtkSMProxy> TransferFunction2DRepProxy;
   QScopedPointer<QAction> TempAction;
   QScopedPointer<pqChooseColorPresetReaction> ChoosePresetReaction;
   QScopedPointer<pqSignalsBlocker> SignalsBlocker;
 
-  // We use this pqPropertyLinks instance to simply monitor smproperty changes.
-  pqPropertyLinks LinksForMonitoringChanges;
   vtkNew<vtkEventQtSlotConnect> TransferFunctionConnector;
   vtkNew<vtkEventQtSlotConnect> TransferFunctionModifiedConnector;
   vtkNew<vtkEventQtSlotConnect> RangeConnector;
   vtkNew<vtkEventQtSlotConnect> ConsumerConnector;
   vtkNew<vtkEventQtSlotConnect> TransferFunction2DConnector;
+  vtkNew<vtkEventQtSlotConnect> OpacityFunctionConnector;
 
   pqTimer HistogramTimer;
   pqTimer Histogram2DTimer;
   bool HistogramOutdated = true;
+  int Using2DTFObserver = -1;
 
   pqInternals(pqColorOpacityEditorWidget* self, vtkSMPropertyGroup* group)
     : ColorTableModel(self)
@@ -232,10 +175,9 @@ public:
     , SignalsBlocker(new pqSignalsBlocker(self))
   {
     this->Ui.setupUi(self);
-    this->Ui.mainLayout->setMargin(pqPropertiesPanel::suggestedMargin());
-
-    this->Decorator = new pqColorOpacityEditorWidgetDecorator(nullptr, self);
-
+    this->Ui.mainLayout->setContentsMargins(pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin(), pqPropertiesPanel::suggestedMargin(),
+      pqPropertiesPanel::suggestedMargin());
     this->Ui.ColorTable->setModel(&this->ColorTableModel);
     this->Ui.ColorTable->horizontalHeader()->setHighlightSections(false);
     this->Ui.ColorTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
@@ -383,19 +325,9 @@ pqColorOpacityEditorWidget::pqColorOpacityEditorWidget(
 
   QObject::connect(ui.ChoosePreset, SIGNAL(clicked()), this, SLOT(choosePreset()));
   QObject::connect(ui.SaveAsPreset, SIGNAL(clicked()), this, SLOT(saveAsPreset()));
-  QObject::connect(ui.ComputeDataHistogram, &QAbstractButton::clicked, this, [=]() {
-    if (ui.Use2DTransferFunction->isChecked())
-    {
-      this->show2DHistogram(true);
-    }
-    else
-    {
-      this->showDataHistogramClicked(true);
-    }
-  });
+  QObject::connect(ui.ComputeDataHistogram, SIGNAL(clicked()), this, SLOT(computeDataHistogram()));
   QObject::connect(ui.ChooseBoxColor, &QAbstractButton::clicked, this,
     &pqColorOpacityEditorWidget::chooseBoxColorAlpha);
-  QObject::connect(ui.AdvancedButton, SIGNAL(clicked()), this, SLOT(updatePanel()));
 
   QObject::connect(
     ui.OpacityEditor, SIGNAL(chartRangeModified()), this, SLOT(setHistogramOutdated()));
@@ -517,24 +449,28 @@ pqColorOpacityEditorWidget::pqColorOpacityEditorWidget(
       this, "transferFunction2DProxy", SIGNAL(transferFunction2DProxyChanged()), smproperty);
   }
 
-  smproperty = smgroup->GetProperty("Use2DTransferFunction");
+  smproperty = smproxy->GetProperty("Using2DTransferFunction");
   if (smproperty)
   {
-    this->addPropertyLink(
-      this, "use2DTransferFunction", SIGNAL(use2DTransferFunctionChanged()), smproperty);
-    QObject::connect(ui.Use2DTransferFunction, &QCheckBox::toggled, this,
-      &pqColorOpacityEditorWidget::show2DHistogram);
-  }
-  else
-  {
-    ui.Use2DTransferFunction->hide();
+    vtkNew<vtkCallbackCommand> show2DTfCmd;
+    show2DTfCmd->SetClientData(this);
+    show2DTfCmd->SetCallback(
+      [](vtkObject* using2DTFProperty, unsigned long, void* clientData, void*) -> void {
+        if (auto prop = vtkSMProperty::SafeDownCast(using2DTFProperty))
+        {
+          auto self = reinterpret_cast<pqColorOpacityEditorWidget*>(clientData);
+          self->show2DHistogram(vtkSMPropertyHelper(prop).GetAsInt() == 1);
+        }
+      });
+    this->Internals->Using2DTFObserver =
+      smproperty->AddObserver(vtkCommand::ModifiedEvent, show2DTfCmd);
   }
 
   // Manage histogram computation if enabled
   // When creating the widget, we consider that the cost of recomputing the histogram table
   // can be paid systematically
   // We hide it to avoid seeing it before the timer ends and triggers the actual computation
-  if (this->Internals->Ui.Use2DTransferFunction->isChecked())
+  if (this->using2DTransferFunction())
   {
     this->show2DHistogram(true);
   }
@@ -542,22 +478,8 @@ pqColorOpacityEditorWidget::pqColorOpacityEditorWidget(
   {
     this->updateDataHistogramEnableState();
     this->Internals->Ui.OpacityEditor->setVisible(!ui.ShowDataHistogram->isChecked());
+    this->Internals->Ui.ChooseBoxColor->setVisible(false);
     this->showDataHistogramClicked(ui.ShowDataHistogram->isChecked());
-  }
-
-  // if proxy has a property named IndexedLookup, we hide this entire widget
-  // when IndexedLookup is ON.
-  if (smproxy->GetProperty("IndexedLookup"))
-  {
-    // we are not controlling the IndexedLookup property, we are merely
-    // observing it to ensure the UI is updated correctly. Hence we don't fire
-    // any signal to update the smproperty.
-    this->Internals->TransferFunctionConnector->Connect(smproxy->GetProperty("IndexedLookup"),
-      vtkCommand::ModifiedEvent, this, SLOT(updateIndexedLookupState()));
-    this->updateIndexedLookupState();
-
-    // Add decorator so the widget can be hidden when IndexedLookup is ON.
-    this->addDecorator(this->Internals->Decorator);
   }
 
   if (smproxy->GetProperty("VectorMode"))
@@ -571,13 +493,6 @@ pqColorOpacityEditorWidget::pqColorOpacityEditorWidget(
       vtkCommand::ModifiedEvent, this, SLOT(setHistogramOutdated()));
   }
 
-  pqSettings* settings = pqApplicationCore::instance()->settings();
-  if (settings)
-  {
-    this->Internals->Ui.AdvancedButton->setChecked(
-      settings->value("showAdvancedPropertiesColorOpacityEditorWidget", false).toBool());
-  }
-
   // Connect with the SignalsBlocker in between to be able to call QObject::blockSignals on it
   // because otherwise no QObject would be emiting a signal, meaning it could not be blocked
   // to avoid loops
@@ -587,22 +502,50 @@ pqColorOpacityEditorWidget::pqColorOpacityEditorWidget(
     &pqColorOpacityEditorWidget::resetColorMapComboBox);
 
   this->updateCurrentData();
-  this->updatePanel();
 }
 
 //-----------------------------------------------------------------------------
 pqColorOpacityEditorWidget::~pqColorOpacityEditorWidget()
 {
-  pqSettings* settings = pqApplicationCore::instance()->settings();
-  if (settings)
+  if (this->proxy() != nullptr)
   {
-    // save the state of the advanced button in the widget
-    settings->setValue("showAdvancedPropertiesColorOpacityEditorWidget",
-      this->Internals->Ui.AdvancedButton->isChecked());
+    auto smproperty = this->proxy()->GetProperty("Using2DTransferFunction");
+    smproperty->RemoveObserver(this->Internals->Using2DTFObserver);
   }
-
   delete this->Internals;
   this->Internals = nullptr;
+}
+
+//-----------------------------------------------------------------------------
+void pqColorOpacityEditorWidget::observeRepresentationModified(
+  vtkSMProxy* reprProxy, vtkPiecewiseFunction* pwf)
+{
+  vtkSMProperty* msProp = reprProxy->GetProperty("MapScalars");
+  vtkSMProperty* mcmProp = reprProxy->GetProperty("MultiComponentsMapping");
+  vtkSMProperty* uoaProperty = reprProxy->GetProperty("UseSeparateOpacityArray");
+  if (msProp && (mcmProp || uoaProperty))
+  {
+    this->Internals->RangeConnector->Connect(msProp, vtkCommand::ModifiedEvent, this,
+      SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
+
+    if (mcmProp)
+    {
+      this->Internals->RangeConnector->Connect(mcmProp, vtkCommand::ModifiedEvent, this,
+        SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
+    }
+
+    if (uoaProperty)
+    {
+      this->Internals->RangeConnector->Connect(uoaProperty, vtkCommand::ModifiedEvent, this,
+        SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+bool pqColorOpacityEditorWidget::using2DTransferFunction() const
+{
+  return vtkSMPropertyHelper(this->proxy(), "Using2DTransferFunction", true).GetAsInt() == 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -636,32 +579,12 @@ void pqColorOpacityEditorWidget::setScalarOpacityFunctionProxy(pqSMProxy sofProx
   if (internals.ScalarOpacityFunctionProxy)
   {
     pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
-    vtkSMPVRepresentationProxy* proxy = vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+    vtkSMRepresentationProxy* proxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
 
     // When representation changes, we have to initialize the opacity widget when
     // "MultiComponentsMapping" is modified
     this->Internals->RangeConnector->Disconnect();
-    vtkSMProperty* msProp = proxy->GetProperty("MapScalars");
-    vtkSMProperty* mcmProp = proxy->GetProperty("MultiComponentsMapping");
-    vtkSMProperty* uoaProperty = proxy->GetProperty("UseSeparateOpacityArray");
-    if (msProp && (mcmProp || uoaProperty))
-    {
-      this->Internals->RangeConnector->Connect(msProp, vtkCommand::ModifiedEvent, this,
-        SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-
-      if (mcmProp)
-      {
-        this->Internals->RangeConnector->Connect(mcmProp, vtkCommand::ModifiedEvent, this,
-          SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-      }
-
-      if (uoaProperty)
-      {
-        this->Internals->RangeConnector->Connect(uoaProperty, vtkCommand::ModifiedEvent, this,
-          SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-      }
-    }
-
+    this->observeRepresentationModified(proxy, pwf);
     this->initializeOpacityEditor(pwf);
 
     // add new property links.
@@ -672,7 +595,7 @@ void pqColorOpacityEditorWidget::setScalarOpacityFunctionProxy(pqSMProxy sofProx
       internals.ScalarOpacityFunctionProxy,
       internals.ScalarOpacityFunctionProxy->GetProperty("UseLogScale"));
   }
-  ui.OpacityEditor->setVisible(newSofProxy != nullptr && !ui.Use2DTransferFunction->isChecked());
+  ui.OpacityEditor->setVisible(newSofProxy != nullptr && !this->using2DTransferFunction());
 }
 
 //-----------------------------------------------------------------------------
@@ -704,18 +627,11 @@ void pqColorOpacityEditorWidget::setTransferFunction2DProxy(pqSMProxy tf2dProxy)
     this->links().removePropertyLink(this, "transfer2DBoxes", SIGNAL(transfer2DBoxesChanged()),
       internals.TransferFunction2DProxy, internals.TransferFunction2DProxy->GetProperty("Boxes"));
   }
-  if (internals.TransferFunction2DRepProxy)
-  {
-    this->links().removePropertyLink(this, "use2DTransferFunction",
-      SIGNAL(use2DTransferFunctionChanged()), internals.TransferFunction2DRepProxy,
-      internals.TransferFunction2DRepProxy->GetProperty("UseTransfer2D"));
-  }
   internals.TransferFunction2DProxy = newtf2dProxy;
   if (internals.TransferFunction2DProxy)
   {
     pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
-    vtkSMPVRepresentationProxy* reprProxy =
-      vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+    vtkSMRepresentationProxy* reprProxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
 
     this->Internals->TransferFunction2DConnector->Disconnect();
     vtkSMProperty* colorArray2Property = reprProxy->GetProperty("ColorArray2Name");
@@ -736,14 +652,6 @@ void pqColorOpacityEditorWidget::setTransferFunction2DProxy(pqSMProxy tf2dProxy)
     // add new property links.
     this->links().addPropertyLink(this, "transfer2DBoxes", SIGNAL(transfer2DBoxesChanged()),
       internals.TransferFunction2DProxy, internals.TransferFunction2DProxy->GetProperty("Boxes"));
-    vtkSMProperty* useTF2DProperty = reprProxy->GetProperty("UseTransfer2D");
-    if (useTF2DProperty)
-    {
-      internals.TransferFunction2DRepProxy = reprProxy;
-      this->links().addPropertyLink(this, "use2DTransferFunction",
-        SIGNAL(use2DTransferFunctionChanged()), internals.TransferFunction2DRepProxy,
-        useTF2DProperty);
-    }
   }
 }
 
@@ -757,25 +665,14 @@ pqSMProxy pqColorOpacityEditorWidget::transferFunction2DProxy() const
 void pqColorOpacityEditorWidget::updateTransferFunction2DProxy()
 {
   pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
-  vtkSMPVRepresentationProxy* reprProxy =
-    vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMRepresentationProxy* reprProxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
   vtkSMProperty* colorArrayProperty = reprProxy->GetProperty("ColorArrayName");
   if (colorArrayProperty)
   {
     vtkSMPropertyHelper colorArrayHelper(colorArrayProperty);
     std::string arrayName(colorArrayHelper.GetInputArrayNameToProcess());
     int association = colorArrayHelper.GetInputArrayAssociation();
-    vtkSMPVRepresentationProxy::SetScalarColoring(reprProxy, arrayName.c_str(), association);
-  }
-}
-
-//-----------------------------------------------------------------------------
-void pqColorOpacityEditorWidget::updateIndexedLookupState()
-{
-  if (this->proxy()->GetProperty("IndexedLookup"))
-  {
-    bool val = vtkSMPropertyHelper(this->proxy(), "IndexedLookup").GetAsInt() != 0;
-    this->Internals->Decorator->setHidden(val);
+    vtkSMColorMapEditorHelper::SetScalarColoring(reprProxy, arrayName.c_str(), association);
   }
 }
 
@@ -784,9 +681,10 @@ void pqColorOpacityEditorWidget::multiComponentsMappingChanged(vtkObject* vtkNot
   unsigned long vtkNotUsed(event), void* clientData, void* vtkNotUsed(callData))
 {
   pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
-  vtkSMPVRepresentationProxy* proxy = vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMRepresentationProxy* proxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMPVRepresentationProxy* pvProxy = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
 
-  if (proxy->GetVolumeIndependentRanges())
+  if (pvProxy && pvProxy->GetVolumeIndependentRanges())
   {
     // force separate color map
     vtkSMProperty* separateProperty = proxy->GetProperty("UseSeparateColorMap");
@@ -794,15 +692,16 @@ void pqColorOpacityEditorWidget::multiComponentsMappingChanged(vtkObject* vtkNot
     if (!sepEnabled)
     {
       vtkSMPropertyHelper(separateProperty).Set(1);
-      vtkSMPropertyHelper helper(proxy->GetProperty("ColorArrayName"));
-      proxy->SetScalarColoring(helper.GetAsString(4), vtkDataObject::POINT);
-      proxy->RescaleTransferFunctionToDataRange();
+      vtkSMPropertyHelper helper(pvProxy->GetProperty("ColorArrayName"));
+      vtkSMColorMapEditorHelper::SetScalarColoring(
+        pvProxy, helper.GetAsString(4), vtkDataObject::POINT);
+      vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(pvProxy);
       return;
     }
   }
 
   this->initializeOpacityEditor(static_cast<vtkPiecewiseFunction*>(clientData));
-  proxy->RescaleTransferFunctionToDataRange();
+  vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(proxy);
 }
 
 //-----------------------------------------------------------------------------
@@ -810,15 +709,22 @@ void pqColorOpacityEditorWidget::initializeOpacityEditor(vtkPiecewiseFunction* p
 {
   Ui::ColorOpacityEditorWidget& ui = this->Internals->Ui;
   pqDataRepresentation* repr = pqActiveObjects::instance().activeRepresentation();
-  vtkSMPVRepresentationProxy* proxy = vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMRepresentationProxy* proxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMPVRepresentationProxy* pvProxy = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
   vtkScalarsToColors* stc = nullptr;
   vtkSMProperty* separateProperty = proxy->GetProperty("UseSeparateColorMap");
   bool sepEnabled = vtkSMPropertyHelper(separateProperty).GetAsInt() != 0;
-  if (!proxy->GetVolumeIndependentRanges() || !sepEnabled)
+  if (!pvProxy || !pvProxy->GetVolumeIndependentRanges() || !sepEnabled)
   {
     stc = vtkScalarsToColors::SafeDownCast(this->proxy()->GetClientSideObject());
   }
   ui.OpacityEditor->initialize(stc, false, pwf, true);
+  if (pwf != nullptr)
+  {
+    this->Internals->OpacityFunctionConnector->Disconnect();
+    this->Internals->OpacityFunctionConnector->Connect(
+      pwf, vtkCommand::ModifiedEvent, this, SLOT(opacityFunctionModified()));
+  }
 
   // The opacity editor has been initialized, set the data histogram table if needed
   this->showDataHistogramClicked(this->Internals->Ui.ShowDataHistogram->isChecked());
@@ -847,15 +753,15 @@ void pqColorOpacityEditorWidget::colorCurrentChanged(vtkIdType index)
 }
 
 //-----------------------------------------------------------------------------
-void pqColorOpacityEditorWidget::updatePanel()
+void pqColorOpacityEditorWidget::updateWidget(bool showing_advanced_properties)
 {
   if (this->Internals)
   {
-    bool advancedVisible = this->Internals->Ui.AdvancedButton->isChecked();
-    this->Internals->Ui.ColorLabel->setVisible(advancedVisible);
-    this->Internals->Ui.ColorTable->setVisible(advancedVisible);
-    this->Internals->Ui.OpacityLabel->setVisible(advancedVisible);
-    this->Internals->Ui.OpacityTable->setVisible(advancedVisible);
+    bool show = showing_advanced_properties && !this->using2DTransferFunction();
+    this->Internals->Ui.ColorLabel->setVisible(show);
+    this->Internals->Ui.ColorTable->setVisible(show);
+    this->Internals->Ui.OpacityLabel->setVisible(show);
+    this->Internals->Ui.OpacityTable->setVisible(show);
   }
 }
 
@@ -873,7 +779,7 @@ void pqColorOpacityEditorWidget::updateCurrentData()
   {
     double xrgbms[6];
     stc->GetNodeValue(ui.ColorEditor->currentPoint(), xrgbms);
-    ui.CurrentDataValue->setText(pqCoreUtilities::number(xrgbms[0]));
+    ui.CurrentDataValue->setText(pqCoreUtilities::formatFullNumber(xrgbms[0]));
 
     // Don't enable widget for first/last control point. For those, users must
     // rescale the transfer function manually
@@ -884,7 +790,7 @@ void pqColorOpacityEditorWidget::updateCurrentData()
   {
     double xvms[4];
     pwf->GetNodeValue(ui.OpacityEditor->currentPoint(), xvms);
-    ui.CurrentDataValue->setText(pqCoreUtilities::number(xvms[0]));
+    ui.CurrentDataValue->setText(pqCoreUtilities::formatFullNumber(xvms[0]));
 
     // Don't enable widget for first/last control point. For those, users must
     // rescale the transfer function manually
@@ -1081,26 +987,7 @@ void pqColorOpacityEditorWidget::representationOrViewChanged()
   // When representation changes, we have to initialize the opacity widget when
   // "MultiComponentsMapping" is modified
   this->Internals->RangeConnector->Disconnect();
-  vtkSMProperty* msProp = repr->getProxy()->GetProperty("MapScalars");
-  vtkSMProperty* mcmProp = repr->getProxy()->GetProperty("MultiComponentsMapping");
-  vtkSMProperty* uoaProp = repr->getProxy()->GetProperty("UseSeparateOpacityArray");
-  if (msProp && (mcmProp || uoaProp))
-  {
-    this->Internals->RangeConnector->Connect(msProp, vtkCommand::ModifiedEvent, this,
-      SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-
-    if (mcmProp)
-    {
-      this->Internals->RangeConnector->Connect(mcmProp, vtkCommand::ModifiedEvent, this,
-        SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-    }
-
-    if (uoaProp)
-    {
-      this->Internals->RangeConnector->Connect(uoaProp, vtkCommand::ModifiedEvent, this,
-        SLOT(multiComponentsMappingChanged(vtkObject*, unsigned long, void*, void*)), pwf);
-    }
-  }
+  this->observeRepresentationModified(repr->getProxy(), pwf);
   this->initializeOpacityEditor(pwf);
 }
 
@@ -1127,8 +1014,8 @@ void pqColorOpacityEditorWidget::prepareRangeForLogScaling()
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::resetRangeToData()
 {
-  // passing in nullptr ensure pqResetScalarRangeReaction simply uses active representation.
-  if (pqResetScalarRangeReaction::resetScalarRangeToData(nullptr))
+  // passing in nullptr ensure pqRescaleScalarRangeReaction simply uses active representation.
+  if (pqRescaleScalarRangeReaction::rescaleScalarRangeToData(nullptr))
   {
     this->setHistogramOutdated();
     this->Internals->render();
@@ -1139,11 +1026,15 @@ void pqColorOpacityEditorWidget::resetRangeToData()
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::resetRangeToDataOverTime()
 {
-  // passing in nullptr ensure pqResetScalarRangeReaction simply uses active representation.
-  if (pqResetScalarRangeReaction::resetScalarRangeToDataOverTime(nullptr))
+  // passing in nullptr ensure pqRescaleScalarRangeReaction simply uses active representation.
+  pqRescaleScalarRangeToDataOverTimeDialog* dialog =
+    pqRescaleScalarRangeReaction::rescaleScalarRangeToDataOverTime(nullptr);
+  if (dialog)
   {
-    this->Internals->render();
-    Q_EMIT this->changeFinished();
+    QObject::connect(dialog, &pqRescaleScalarRangeToDataOverTimeDialog::apply, [=]() {
+      this->Internals->render();
+      Q_EMIT this->changeFinished();
+    });
   }
 }
 
@@ -1158,7 +1049,7 @@ void pqColorOpacityEditorWidget::resetRangeToVisibleData()
     return;
   }
 
-  vtkSMPVRepresentationProxy* repProxy = vtkSMPVRepresentationProxy::SafeDownCast(repr->getProxy());
+  vtkSMRepresentationProxy* repProxy = vtkSMRepresentationProxy::SafeDownCast(repr->getProxy());
   if (!repProxy)
   {
     return;
@@ -1177,8 +1068,8 @@ void pqColorOpacityEditorWidget::resetRangeToVisibleData()
     return;
   }
 
-  BEGIN_UNDO_SET("Reset transfer function ranges using visible data");
-  vtkSMPVRepresentationProxy::RescaleTransferFunctionToVisibleRange(repProxy, rvproxy);
+  BEGIN_UNDO_SET(tr("Reset transfer function ranges using visible data"));
+  vtkSMColorMapEditorHelper::RescaleTransferFunctionToVisibleRange(repProxy, rvproxy);
   this->Internals->render();
   END_UNDO_SET();
 }
@@ -1186,31 +1077,33 @@ void pqColorOpacityEditorWidget::resetRangeToVisibleData()
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::resetRangeToCustom()
 {
-  bool changed = false;
+  pqRescaleScalarRangeToCustomDialog* dialog;
   pqPipelineRepresentation* repr =
     qobject_cast<pqPipelineRepresentation*>(pqActiveObjects::instance().activeRepresentation());
   if (repr)
   {
-    changed = pqResetScalarRangeReaction::resetScalarRangeToCustom(repr);
+    dialog = pqRescaleScalarRangeReaction::rescaleScalarRangeToCustom(repr);
   }
   else
   {
     // Shouldn't happen, but fall back to the active lut if there is no active representation
-    changed = pqResetScalarRangeReaction::resetScalarRangeToCustom(this->proxy());
+    dialog = pqRescaleScalarRangeReaction::rescaleScalarRangeToCustom(this->proxy());
   }
 
-  if (changed)
+  if (dialog)
   {
-    this->setHistogramOutdated();
-    this->Internals->render();
-    Q_EMIT this->changeFinished();
+    QObject::connect(dialog, &pqRescaleScalarRangeToCustomDialog::apply, [=]() {
+      this->setHistogramOutdated();
+      this->Internals->render();
+      Q_EMIT this->changeFinished();
+    });
   }
 }
 
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::invertTransferFunctions()
 {
-  BEGIN_UNDO_SET("Invert transfer function");
+  BEGIN_UNDO_SET(tr("Invert transfer function"));
   vtkSMTransferFunctionProxy::InvertTransferFunction(this->proxy());
 
   Q_EMIT this->changeFinished();
@@ -1247,7 +1140,7 @@ void pqColorOpacityEditorWidget::updateDefaultPresetsList()
   defaultPresetsComboBox->clear();
   // QComboBox::setPlaceHolder is a Qt5.15 function, so until the
   // minimum version is upgraded, we have to do this workaround.
-  defaultPresetsComboBox->addItem("Select a color map from default presets", -1);
+  defaultPresetsComboBox->addItem(tr("Select a color map from default presets"), -1);
   QStandardItemModel* model = qobject_cast<QStandardItemModel*>(defaultPresetsComboBox->model());
   QStandardItem* item = model->item(0);
   // Disable the "placeholder"
@@ -1310,6 +1203,19 @@ void pqColorOpacityEditorWidget::saveAsPreset()
 }
 
 //-----------------------------------------------------------------------------
+void pqColorOpacityEditorWidget::computeDataHistogram()
+{
+  if (this->using2DTransferFunction())
+  {
+    this->show2DHistogram(true);
+  }
+  else
+  {
+    this->showDataHistogramClicked(true);
+  }
+}
+
+//-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::resetColorMapComboBox()
 {
   this->Internals->Ui.DefaultPresetsComboBox->setCurrentIndex(0);
@@ -1355,19 +1261,6 @@ void pqColorOpacityEditorWidget::setDataHistogramNumberOfBins(int val)
 }
 
 //-----------------------------------------------------------------------------
-bool pqColorOpacityEditorWidget::use2DTransferFunction() const
-{
-  return this->Internals->Ui.Use2DTransferFunction->isChecked();
-}
-
-//-----------------------------------------------------------------------------
-void pqColorOpacityEditorWidget::setUse2DTransferFunction(bool val)
-{
-  Ui::ColorOpacityEditorWidget& ui = this->Internals->Ui;
-  ui.Use2DTransferFunction->setChecked(val);
-}
-
-//-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::show2DHistogram(bool show)
 {
   if (show)
@@ -1379,26 +1272,30 @@ void pqColorOpacityEditorWidget::show2DHistogram(bool show)
     this->Internals->Ui.Transfer2DEditor->setHistogram(nullptr);
   }
   Ui::ColorOpacityEditorWidget& ui = this->Internals->Ui;
+
+  ui.ShowDataHistogram->setVisible(!show);
+  ui.AutomaticDataHistogramComputation->setVisible(show || ui.ShowDataHistogram->isChecked());
+  ui.DataHistogramNumberOfBins->setVisible(show || ui.ShowDataHistogram->isChecked());
+  ui.NumBinsLabel->setVisible(show || ui.ShowDataHistogram->isChecked());
+  ui.DefaultPresetsComboBox->setVisible(!show);
+  ui.CurrentDataLabel->setVisible(!show);
+  ui.CurrentDataValue->setVisible(!show);
   ui.ColorEditor->setVisible(!show);
+  ui.OpacityEditor->setVisible(!show);
+  ui.UseLogScale->setVisible(!show);
   ui.ColorTable->setEnabled(!show);
   ui.OpacityTable->setEnabled(!show);
-  ui.OpacityEditor->setVisible(!show);
-  ui.UseLogScale->setEnabled(!show);
-  ui.UseLogScaleOpacity->setEnabled(!show);
-  ui.UseOpacityControlPointsFreehandDrawing->setEnabled(!show);
-  ui.EnableOpacityMapping->setEnabled(!show);
+  ui.UseLogScaleOpacity->setVisible(!show);
+  ui.UseOpacityControlPointsFreehandDrawing->setVisible(!show);
+  ui.EnableOpacityMapping->setVisible(!show);
   ui.ChoosePreset->setEnabled(!show);
   ui.SaveAsPreset->setEnabled(!show);
   ui.InvertTransferFunctions->setEnabled(!show);
   ui.ChooseBoxColor->setVisible(show);
-
-  ui.AutomaticDataHistogramComputation->setEnabled(show);
   ui.Transfer2DEditor->setVisible(show);
-  ui.ShowDataHistogram->setEnabled(!show);
-  ui.DataHistogramNumberOfBins->setEnabled(show);
   ui.ComputeDataHistogram->setEnabled(!ui.AutomaticDataHistogramComputation->isChecked());
 
-  Q_EMIT this->use2DTransferFunctionChanged();
+  this->Internals->render();
 }
 
 //-----------------------------------------------------------------------------
@@ -1442,7 +1339,7 @@ void pqColorOpacityEditorWidget::realShowDataHistogram()
     {
       vtkSMProxy* proxy = tfProxy->GetConsumerProxy(cc);
       proxy = proxy ? proxy->GetTrueParentProxy() : nullptr;
-      vtkSMPVRepresentationProxy* consumer = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
+      vtkSMRepresentationProxy* consumer = vtkSMRepresentationProxy::SafeDownCast(proxy);
       if (consumer && usedProxy.find(consumer) == usedProxy.end())
       {
         this->Internals->ConsumerConnector->Connect(consumer->GetProperty("Visibility"),
@@ -1478,7 +1375,7 @@ void pqColorOpacityEditorWidget::realShow2DHistogram()
     {
       vtkSMProxy* proxy = tfProxy->GetConsumerProxy(cc);
       proxy = proxy ? proxy->GetTrueParentProxy() : nullptr;
-      vtkSMPVRepresentationProxy* consumer = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
+      vtkSMRepresentationProxy* consumer = vtkSMRepresentationProxy::SafeDownCast(proxy);
       if (consumer && usedProxy.find(consumer) == usedProxy.end())
       {
         this->Internals->ConsumerConnector->Connect(consumer->GetProperty("Visibility"),
@@ -1498,7 +1395,7 @@ void pqColorOpacityEditorWidget::automaticDataHistogramComputationClicked(bool v
 {
   if (val)
   {
-    if (this->Internals->Ui.Use2DTransferFunction->isChecked())
+    if (this->using2DTransferFunction())
     {
       this->show2DHistogram(true);
     }
@@ -1524,7 +1421,7 @@ void pqColorOpacityEditorWidget::setHistogramOutdated()
   this->Internals->HistogramOutdated = true;
   if (this->Internals->Ui.AutomaticDataHistogramComputation->isChecked())
   {
-    if (this->Internals->Ui.Use2DTransferFunction->isChecked())
+    if (this->using2DTransferFunction())
     {
       this->show2DHistogram(true);
     }
@@ -1542,13 +1439,14 @@ void pqColorOpacityEditorWidget::setHistogramOutdated()
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::updateDataHistogramEnableState()
 {
-  if (this->Internals->Ui.Use2DTransferFunction->isChecked())
+  if (this->using2DTransferFunction())
   {
     return;
   }
   bool showDataHistogram = this->Internals->Ui.ShowDataHistogram->isChecked();
-  this->Internals->Ui.AutomaticDataHistogramComputation->setEnabled(showDataHistogram);
-  this->Internals->Ui.DataHistogramNumberOfBins->setEnabled(showDataHistogram);
+  this->Internals->Ui.AutomaticDataHistogramComputation->setVisible(showDataHistogram);
+  this->Internals->Ui.DataHistogramNumberOfBins->setVisible(showDataHistogram);
+  this->Internals->Ui.NumBinsLabel->setVisible(showDataHistogram);
   this->Internals->Ui.ComputeDataHistogram->setEnabled(
     showDataHistogram && !this->Internals->Ui.AutomaticDataHistogramComputation->isChecked());
 }
@@ -1577,6 +1475,12 @@ void pqColorOpacityEditorWidget::initializeTransfer2DEditor(vtkPVTransferFunctio
 
 //-----------------------------------------------------------------------------
 void pqColorOpacityEditorWidget::transfer2DChanged()
+{
+  this->Internals->render();
+}
+
+//-----------------------------------------------------------------------------
+void pqColorOpacityEditorWidget::opacityFunctionModified()
 {
   this->Internals->render();
 }

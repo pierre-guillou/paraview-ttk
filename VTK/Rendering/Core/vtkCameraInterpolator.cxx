@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCameraInterpolator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCameraInterpolator.h"
 #include "vtkCamera.h"
 #include "vtkObjectFactory.h"
@@ -19,6 +7,7 @@
 #include "vtkTupleInterpolator.h"
 #include <list>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCameraInterpolator);
 
 // PIMPL STL encapsulation for list of cameras. This just keeps track of all
@@ -335,15 +324,15 @@ void vtkCameraInterpolator::SetParallelScaleInterpolator(vtkTupleInterpolator* p
 }
 
 //------------------------------------------------------------------------------
-void vtkCameraInterpolator::SetViewAngleInterpolator(vtkTupleInterpolator* vai)
+void vtkCameraInterpolator::SetViewAngleInterpolator(vtkTupleInterpolator* interpolator)
 {
-  if (this->ViewAngleInterpolator != vai)
+  if (this->ViewAngleInterpolator != interpolator)
   {
     if (this->ViewAngleInterpolator != nullptr)
     {
       this->ViewAngleInterpolator->Delete();
     }
-    this->ViewAngleInterpolator = vai;
+    this->ViewAngleInterpolator = interpolator;
     if (this->ViewAngleInterpolator != nullptr)
     {
       this->ViewAngleInterpolator->Register(this);
@@ -561,3 +550,4 @@ void vtkCameraInterpolator::PrintSelf(ostream& os, vtkIndent indent)
     os << "(null)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

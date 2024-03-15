@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBrownianPoints.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBrownianPoints.h"
 
 #include "vtkCellData.h"
@@ -24,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBrownianPoints);
 
 vtkBrownianPoints::vtkBrownianPoints()
@@ -79,7 +68,7 @@ int vtkBrownianPoints::RequestData(vtkInformation* vtkNotUsed(request),
     if (!(i % tenth))
     {
       this->UpdateProgress(static_cast<double>(i) / numPts);
-      if (this->GetAbortExecute())
+      if (this->CheckAbort())
       {
         break;
       }
@@ -128,3 +117,4 @@ void vtkBrownianPoints::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Minimum Speed: " << this->MinimumSpeed << "\n";
   os << indent << "Maximum Speed: " << this->MaximumSpeed << "\n";
 }
+VTK_ABI_NAMESPACE_END

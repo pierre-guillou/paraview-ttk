@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSight6BinaryReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkEnSight6BinaryReader
  * @brief   class to read binary EnSight6 files
@@ -41,6 +29,7 @@
 #include "vtkEnSightReader.h"
 #include "vtkIOEnSightModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiBlockDataSet;
 class vtkIdTypeArray;
 class vtkPoints;
@@ -133,20 +122,20 @@ protected:
    * vtkUnstructuredGrid output.  Return 0 if EOF reached.
    */
   int CreateUnstructuredGridOutput(
-    int partId, char line[256], const char* name, vtkMultiBlockDataSet* output) override;
+    int partId, char line[81], const char* name, vtkMultiBlockDataSet* output) override;
 
   /**
    * Read a structured part from the geometry file and create a
    * vtkStructuredGridOutput.  Return 0 if EOF reached.
    */
   int CreateStructuredGridOutput(
-    int partId, char line[256], const char* name, vtkMultiBlockDataSet* output) override;
+    int partId, char line[81], const char* name, vtkMultiBlockDataSet* output) override;
 
   /**
-   * Internal function to read in a line up to 80 characters.
+   * Internal function to read in a line up to 80 characters. Adds NUL char at index 80.
    * Returns zero if there was an error.
    */
-  int ReadLine(char result[80]);
+  int ReadLine(char result[81]);
 
   /**
    * Internal function to read in a single integer.
@@ -176,6 +165,11 @@ protected:
   int SkipUnstructuredGrid(char line[256]);
   ///@}
 
+  /**
+   * Clean up the internal cached data
+   */
+  virtual void CleanUpCache();
+
   // global list of points for the unstructured parts of the model
   int NumberOfUnstructuredPoints;
   vtkPoints* UnstructuredPoints;
@@ -193,4 +187,5 @@ private:
   void operator=(const vtkEnSight6BinaryReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

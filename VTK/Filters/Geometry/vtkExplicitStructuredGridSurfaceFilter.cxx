@@ -1,8 +1,6 @@
-/*=========================================================================
- Copyright (c) Kitware SAS 2014
- All rights reserved.
- More information http://www.kitware.fr
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware SAS 2014
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExplicitStructuredGridSurfaceFilter.h"
 
 #include "vtkCellData.h"
@@ -19,6 +17,7 @@
 
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExplicitStructuredGridSurfaceFilter);
 
 //------------------------------------------------------------------------------
@@ -173,7 +172,7 @@ int vtkExplicitStructuredGridSurfaceFilter::ExtractSurface(
   outputCD->CopyAllocate(cd, numCells);
 
   // Traverse cells to extract geometry
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numCells / 20 + 1;
   vtkIdType npts;
   const vtkIdType* pts;
@@ -189,7 +188,7 @@ int vtkExplicitStructuredGridSurfaceFilter::ExtractSurface(
     {
       vtkDebugMacro(<< "Process cell #" << cellId);
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
     }
 
     // Ignore blank cells and ghost cells
@@ -266,3 +265,4 @@ void vtkExplicitStructuredGridSurfaceFilter::PrintSelf(ostream& os, vtkIndent in
   os << indent << "OriginalCellIdsName: " << this->GetOriginalCellIdsName() << endl;
   os << indent << "OriginalPointIdsName: " << this->GetOriginalPointIdsName() << endl;
 }
+VTK_ABI_NAMESPACE_END

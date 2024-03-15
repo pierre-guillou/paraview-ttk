@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    ParallelIso.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // This example demonstrates the use of data parallelism in VTK. The
 // pipeline ( vtkImageReader -> vtkContourFilter -> vtkElevationFilter )
 // is created in parallel and each process is assigned 1 piece to process.
@@ -73,16 +61,16 @@ void SetIsoValueRMI(
 
   float val;
 
-  vtkMultiProcessController* contrl = args->Controller;
-  int myid = contrl->GetLocalProcessId();
-  int numProcs = contrl->GetNumberOfProcesses();
+  vtkMultiProcessController* controller = args->Controller;
+  int myid = controller->GetLocalProcessId();
+  int numProcs = controller->GetNumberOfProcesses();
 
   vtkContourFilter* iso = args->ContourFilter;
   val = iso->GetValue(0);
   iso->SetValue(0, val + ISO_STEP);
   args->Elevation->UpdatePiece(myid, numProcs, 0);
 
-  contrl->Send(args->Elevation->GetOutput(), 0, ISO_OUTPUT_TAG);
+  controller->Send(args->Elevation->GetOutput(), 0, ISO_OUTPUT_TAG);
 }
 
 // This will be called by all processes

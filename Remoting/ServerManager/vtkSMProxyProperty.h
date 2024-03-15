@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyProperty.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyProperty
  * @brief   property representing pointer(s) to vtkObject(s)
@@ -69,7 +57,7 @@ class vtkSMStateLocator;
 class VTKREMOTINGSERVERMANAGER_EXPORT vtkSMProxyProperty : public vtkSMProperty
 {
 public:
-  //@{
+  ///@{
   /**
    * When we load ProxyManager state we want Proxy/InputProperty to be able to
    * create the corresponding missing proxy. Although when the goal is to load
@@ -79,13 +67,13 @@ public:
   static void EnableProxyCreation();
   static void DisableProxyCreation();
   static bool CanCreateProxy();
-  //@}
+  ///@}
 
   static vtkSMProxyProperty* New();
   vtkTypeMacro(vtkSMProxyProperty, vtkSMProperty);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add/remove/set a proxy to the list of proxies. For SetProxy, the property
    * automatically resizes to accommodate the index specified.
@@ -94,7 +82,7 @@ public:
   virtual void SetProxy(unsigned int idx, vtkSMProxy* proxy);
   virtual void RemoveProxy(vtkSMProxy* proxy);
   virtual void RemoveAllProxies();
-  //@}
+  ///@}
 
   /**
    * Sets the value of the property to the list of proxies specified.
@@ -106,7 +94,7 @@ public:
    */
   bool IsProxyAdded(vtkSMProxy* proxy);
 
-  //@{
+  ///@{
   /**
    * Add an unchecked proxy. Does not modify the property.
    * Unchecked proxies are used by domains when verifying whether
@@ -120,7 +108,7 @@ public:
    */
   virtual void AddUncheckedProxy(vtkSMProxy* proxy);
   virtual void SetUncheckedProxy(unsigned int idx, vtkSMProxy* proxy);
-  //@}
+  ///@}
 
   /**
    * Removes all unchecked proxies.
@@ -138,13 +126,13 @@ public:
    */
   unsigned int GetNumberOfUncheckedProxies();
 
-  //@{
+  ///@{
   /**
    * Set the number of proxies.
    */
   void SetNumberOfProxies(unsigned int count);
   void SetNumberOfUncheckedProxies(unsigned int count);
-  //@}
+  ///@}
 
   /**
    * Return a proxy. No bounds check is performed.

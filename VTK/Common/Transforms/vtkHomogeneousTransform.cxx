@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHomogeneousTransform.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHomogeneousTransform.h"
 
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 void TransformVector(double M[4][4], double* outPnt, double f, double* inVec, double* outVec)
@@ -223,3 +212,4 @@ void vtkHomogeneousTransform::InternalDeepCopy(vtkAbstractTransform* transform)
 
   this->Matrix->DeepCopy(t->Matrix);
 }
+VTK_ABI_NAMESPACE_END

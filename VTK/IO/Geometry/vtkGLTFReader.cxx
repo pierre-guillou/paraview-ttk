@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGLTFReader.h"
 
@@ -27,6 +15,7 @@
 #include "vtkInformationVector.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkPointData.h"
+#include "vtkResourceStream.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 #include "vtkTransform.h"
@@ -37,6 +26,7 @@
 #include <array>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 //------------------------------------------------------------------------------
@@ -685,47 +675,28 @@ int vtkGLTFReader::RequestInformation(
   }
 
   // Read file metadata
-  // Make sure we have a file to read.
-  if (!this->FileName)
-  {
-    vtkErrorMacro("A FileName must be specified.");
-    return 0;
-  }
+  // Make sure we have a file to read
 
-  std::string fileNameAsString(this->FileName);
-
-  if (fileNameAsString.find('\\') != std::string::npos)
+  if (this->Stream)
   {
-    vtksys::SystemTools::ConvertToUnixSlashes(fileNameAsString);
-  }
-
-  if (!vtksys::SystemTools::FileIsFullPath(fileNameAsString))
-  {
-    fileNameAsString = vtksys::SystemTools::CollapseFullPath(fileNameAsString);
-  }
-
-  if (this->FileName != fileNameAsString)
-  {
-    this->SetFileName(fileNameAsString.c_str());
-  }
-
-  // Check for filename change in case the loader was already created
-  if (this->Loader != nullptr && this->Loader->GetInternalModel()->FileName != this->FileName)
-  {
-    this->IsMetaDataLoaded = false;
-    this->IsModelLoaded = false;
-    this->Textures.clear();
-  }
-
-  // Load model metadata if not done previously
-  if (!this->IsMetaDataLoaded)
-  {
-    this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
-    if (!this->Loader->LoadModelMetaDataFromFile(this->FileName))
+    // Check for stream change in case the loader was already created
+    if (this->Loader != nullptr && this->Loader->GetInternalModel() &&
+      (this->Loader->GetInternalModel()->Stream != this->Stream ||
+        this->Stream->GetMTime() != this->LastStreamTimeStamp))
     {
-      vtkErrorMacro("Error loading model metadata from file " << this->FileName);
+      this->IsMetaDataLoaded = false;
+      this->IsModelLoaded = false;
+      this->Textures.clear();
+    }
+
+    this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
+    if (!this->Loader->LoadModelMetaDataFromStream(this->Stream, this->URILoader))
+    {
+      vtkErrorMacro("Error loading model metadata from stream");
       return 0;
     }
+
+    this->LastStreamTimeStamp = this->Stream->GetMTime();
 
     vtkNew<vtkEventForwarderCommand> forwarder;
     forwarder->SetTarget(this);
@@ -735,6 +706,59 @@ int vtkGLTFReader::RequestInformation(
     this->CreateSceneNamesArray();
     this->SetCurrentScene(this->Loader->GetInternalModel()->DefaultScene);
     this->IsMetaDataLoaded = true;
+  }
+  else if (this->FileName)
+  {
+    std::string fileNameAsString(this->FileName);
+
+    if (fileNameAsString.find('\\') != std::string::npos)
+    {
+      vtksys::SystemTools::ConvertToUnixSlashes(fileNameAsString);
+    }
+
+    if (!vtksys::SystemTools::FileIsFullPath(fileNameAsString))
+    {
+      fileNameAsString = vtksys::SystemTools::CollapseFullPath(fileNameAsString);
+    }
+
+    if (this->FileName != fileNameAsString)
+    {
+      this->SetFileName(fileNameAsString.c_str());
+    }
+
+    // Check for filename change in case the loader was already created
+    if (this->Loader != nullptr && this->Loader->GetInternalModel() &&
+      this->Loader->GetInternalModel()->FileName != this->FileName)
+    {
+      this->IsMetaDataLoaded = false;
+      this->IsModelLoaded = false;
+      this->Textures.clear();
+    }
+
+    // Load model metadata if not done previously
+    if (!this->IsMetaDataLoaded)
+    {
+      this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
+      if (!this->Loader->LoadModelMetaDataFromFile(this->FileName))
+      {
+        vtkErrorMacro("Error loading model metadata from file " << this->FileName);
+        return 0;
+      }
+
+      vtkNew<vtkEventForwarderCommand> forwarder;
+      forwarder->SetTarget(this);
+      this->Loader->AddObserver(vtkCommand::ProgressEvent, forwarder);
+
+      this->CreateAnimationSelection();
+      this->CreateSceneNamesArray();
+      this->SetCurrentScene(this->Loader->GetInternalModel()->DefaultScene);
+      this->IsMetaDataLoaded = true;
+    }
+  }
+  else
+  {
+    vtkErrorMacro("A FileName or a Stream must be specified.");
+    return 0;
   }
 
   // Get model information (numbers and names of animations and scenes, time range of animations)
@@ -760,33 +784,41 @@ int vtkGLTFReader::RequestInformation(
     }
   }
 
-  // Append TIME_STEPS
-  if (this->GetFrameRate() > 0 && maxDuration > 0.0)
+  // Append TIME_STEPS and/or TIME_RANGE
+  if (maxDuration == 0.0)
   {
-    int maxFrameIndex = vtkMath::Floor(this->GetFrameRate() * maxDuration);
-    if (info->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
+    info->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+  }
+  else
+  {
+    // Add TIME_RANGE
+    std::array<double, 2> timeRange = { { 0.0, maxDuration } };
+    info->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange.data(), 2);
+
+    // If a framerate is set, TIME_STEPS are expected
+    if (this->GetFrameRate() > 0)
+    {
+      int maxFrameIndex = vtkMath::Floor(this->GetFrameRate() * maxDuration);
+      if (info->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
+      {
+        info->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+      }
+      double period = 1.0 / this->GetFrameRate();
+      // Append sampled time steps
+      for (int i = 0; i <= maxFrameIndex; i++)
+      {
+        info->Append(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), i * period);
+      }
+      // Append the last step of the animation, if it doesn't match with the last sampled step
+      if (maxDuration != maxFrameIndex * period)
+      {
+        info->Append(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), maxDuration);
+      }
+    }
+    else if (info->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
     {
       info->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
     }
-    double period = 1.0 / this->GetFrameRate();
-    // Append sampled time steps
-    for (int i = 0; i <= maxFrameIndex; i++)
-    {
-      info->Append(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), i * period);
-    }
-    // Append the last step of the animation, if it doesn't match with the last sampled step
-    if (maxDuration != maxFrameIndex * period)
-    {
-      info->Append(vtkStreamingDemandDrivenPipeline::TIME_STEPS(), maxDuration);
-    }
-
-    // Add TIME_RANGE()
-    std::array<double, 2> timeRange = { { 0.0, maxDuration } };
-    info->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(), timeRange.data(), 2);
-  }
-  else if (info->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
-  {
-    info->Remove(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
   }
 
   this->NumberOfAnimations = static_cast<vtkIdType>(model->Animations.size());
@@ -804,23 +836,20 @@ int vtkGLTFReader::RequestData(
   auto model = this->Loader->GetInternalModel();
   if (!this->IsModelLoaded)
   {
-    // Make sure we have a file to read.
-    if (!this->FileName)
-    {
-      vtkErrorMacro("A FileName must be specified.");
-      return 0;
-    }
-    // Attempt to load binary buffer in case the file is binary-glTF
-    // Check extension
-    std::string extension = vtksys::SystemTools::GetFilenameLastExtension(this->FileName);
     std::vector<char> glbBuffer;
-    if (extension == ".glb")
+
+    if (this->Stream)
     {
-      if (!this->Loader->LoadFileBuffer(this->FileName, glbBuffer))
-      {
-        vtkErrorMacro("Error loading binary data");
-        return 0;
-      }
+      this->Loader->LoadStreamBuffer(this->Stream, glbBuffer);
+    }
+    else if (this->FileName)
+    {
+      this->Loader->LoadFileBuffer(this->FileName, glbBuffer);
+    }
+    else
+    {
+      vtkErrorMacro("A FileName or a Stream must be specified.");
+      return 0;
     }
 
     // Load buffer data
@@ -847,7 +876,7 @@ int vtkGLTFReader::RequestData(
   // Apply selected animations on specified time step to the model's transforms
   vtkInformation* info = outputVector->GetInformationObject(0);
 
-  if (this->FrameRate > 0)
+  if (info->Has(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP()))
   {
     double time = info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
     for (vtkIdType i = 0; i < this->NumberOfAnimations; i++)
@@ -881,7 +910,7 @@ int vtkGLTFReader::RequestData(
   // Save current animations
   this->PreviousAnimationSelection->CopySelections(this->AnimationSelection);
 
-  output->ShallowCopy(this->OutputDataSet);
+  output->CompositeShallowCopy(this->OutputDataSet);
   return 1;
 }
 
@@ -1092,3 +1121,4 @@ void vtkGLTFReader::SetApplyDeformationsToGeometry(bool flag)
   }
   this->ApplyDeformationsToGeometry = flag;
 }
+VTK_ABI_NAMESPACE_END

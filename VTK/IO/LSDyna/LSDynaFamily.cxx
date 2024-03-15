@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    LSDynaFamily.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "LSDynaFamily.h"
 #include <vtksys/SystemTools.hxx>
@@ -30,6 +15,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // Decide which of 3 stat varieties to use: stat, stat64, __stat64
@@ -38,7 +24,15 @@ namespace
 #if (VTK_SIZEOF_ID_TYPE == 8) && !defined(_DARWIN_FEATURE_64_BIT_INODE) &&                         \
   !defined(__FreeBSD__) && !defined(__NetBSD__) && !defined(__OpenBSD__)
 #ifndef _WIN32
+#if defined __EMSCRIPTEN__
+#if defined _LARGEFILE64_SOURCE
 #define USE_STAT_64
+#else
+#define USE_STAT
+#endif
+#else
+#define USE_STAT_64
+#endif
 #else
 #define USE_WIN_STAT_64
 #endif
@@ -799,3 +793,4 @@ void LSDynaFamily::OpenFileHandles()
     this->FileHandlesClosed = false;
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericAttributeCollection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkGenericAttributeCollection.h"
 
@@ -21,6 +9,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericAttributeCollection);
 
 class vtkGenericAttributeInternalVector
@@ -453,7 +442,7 @@ int* vtkGenericAttributeCollection::GetAttributesToInterpolate()
 //------------------------------------------------------------------------------
 // Description
 // Does the array `attributes' of size `size' have `attribute'?
-int vtkGenericAttributeCollection::HasAttribute(int size, int* attributes, int attribute)
+vtkTypeBool vtkGenericAttributeCollection::HasAttribute(int size, int* attributes, int attribute)
 {
   assert("pre: positive_size" && size >= 0);
   assert("pre: valid_attributes" &&
@@ -518,3 +507,4 @@ void vtkGenericAttributeCollection::SetAttributesToInterpolateToAll()
 // *** ALL THE PREVIOUS METHODS SHOULD BE REMOVED WHEN vtkInformation
 // will be ready.
 // *** END
+VTK_ABI_NAMESPACE_END

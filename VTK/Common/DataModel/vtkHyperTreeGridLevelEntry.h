@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridLevelEntry.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridLevelEntry
  * @brief   LevelEntry is a cache data for cursors requiring level info
@@ -39,6 +27,7 @@
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // Used internally
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTree;
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridNonOrientedCursor;
@@ -65,6 +54,9 @@ public:
     , Index(0)
   {
   }
+
+  vtkHyperTreeGridLevelEntry(vtkHyperTreeGridLevelEntry const&) = default;
+  vtkHyperTreeGridLevelEntry& operator=(vtkHyperTreeGridLevelEntry const&) = default;
 
   /**
    * Constructor
@@ -190,7 +182,7 @@ public:
   void SubdivideLeaf(const vtkHyperTreeGrid* grid);
 
   /**
-   * Is the cursor pointing to a coarse with all childrens being leaves ?
+   * Is the cursor pointing to a coarse with all children being leaves ?
    * \pre not_tree: tree
    */
   bool IsTerminalNode(const vtkHyperTreeGrid* grid) const;
@@ -237,5 +229,6 @@ protected:
   vtkIdType Index;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHyperTreeGridLevelEntry_h
 // VTK-HeaderTest-Exclude: vtkHyperTreeGridLevelEntry.h

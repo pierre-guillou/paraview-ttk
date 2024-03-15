@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkNewickTreeWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkNewickTreeWriter.h"
 
 #include "vtkDataSetAttributes.h"
@@ -19,6 +7,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkTree.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkNewickTreeWriter);
 
 //------------------------------------------------------------------------------
@@ -60,7 +49,7 @@ void vtkNewickTreeWriter::WriteData()
 }
 
 //------------------------------------------------------------------------------
-void vtkNewickTreeWriter::WriteVertex(ostream* fp, vtkTree* const input, vtkIdType vertex)
+void vtkNewickTreeWriter::WriteVertex(ostream* fp, vtkTree* input, vtkIdType vertex)
 {
   vtkIdType numChildren = input->GetNumberOfChildren(vertex);
   if (numChildren > 0)
@@ -127,3 +116,4 @@ void vtkNewickTreeWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "EdgeWeightArrayName: " << this->EdgeWeightArrayName << endl;
   os << indent << "NodeNameArrayName: " << this->NodeNameArrayName << endl;
 }
+VTK_ABI_NAMESPACE_END

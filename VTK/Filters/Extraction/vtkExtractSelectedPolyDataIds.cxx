@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedPolyDataIds.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -29,6 +17,7 @@
 #include "vtkSelection.h"
 #include "vtkSelectionNode.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedPolyDataIds);
 
 //------------------------------------------------------------------------------
@@ -109,8 +98,13 @@ int vtkExtractSelectedPolyDataIds::RequestData(vtkInformation* vtkNotUsed(reques
   vtkIdList* ids = vtkIdList::New();
 
   vtkIdType numInputCells = input->GetNumberOfCells();
+  vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
   for (vtkIdType i = 0; i < numCells; i++)
   {
+    if (i % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     vtkIdType cellId = idArray->GetValue(i);
     if (cellId >= numInputCells)
     {
@@ -145,3 +139,4 @@ int vtkExtractSelectedPolyDataIds::FillInputPortInformation(int port, vtkInforma
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

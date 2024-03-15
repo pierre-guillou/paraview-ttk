@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkContourFilter
  * @brief   generate isosurfaces/isolines from scalar values
@@ -40,15 +28,9 @@
  * normals.
  *
  * @sa
- * Much faster implementations for isocontouring are available. In
- * particular, vtkFlyingEdges3D and vtkFlyingEdges2D are much faster
- * and if built with the right options, multithreaded, and scale well
- * with additional processors.
- *
- * @sa
  * vtkFlyingEdges3D vtkFlyingEdges2D vtkDiscreteFlyingEdges3D
  * vtkDiscreteFlyingEdges2D vtkMarchingContourFilter vtkMarchingCubes
- * vtkSliceCubes vtkMarchingSquares vtkImageMarchingCubes
+ * vtkSliceCubes vtkMarchingSquares vtkImageMarchingCubes vtkContour3DLinearGrid
  */
 
 #ifndef vtkContourFilter_h
@@ -59,13 +41,19 @@
 
 #include "vtkContourValues.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
+
+class vtkCallbackCommand;
+class vtkContour3DLinearGrid;
+class vtkContourGrid;
+class vtkFlyingEdges2D;
+class vtkFlyingEdges3D;
+class vtkGridSynchronizedTemplates3D;
 class vtkIncrementalPointLocator;
+class vtkRectilinearSynchronizedTemplates;
 class vtkScalarTree;
 class vtkSynchronizedTemplates2D;
 class vtkSynchronizedTemplates3D;
-class vtkGridSynchronizedTemplates3D;
-class vtkRectilinearSynchronizedTemplates;
-class vtkCallbackCommand;
 
 class VTKFILTERSCORE_EXPORT vtkContourFilter : public vtkPolyDataAlgorithm
 {
@@ -105,13 +93,15 @@ public:
    * processed by filters that modify topology or geometry, it may be
    * wise to turn Normals and Gradients off.
    * This setting defaults to On for vtkImageData, vtkRectilinearGrid,
-   * vtkStructuredGrid, and vtkUnstructuredGrid inputs, and Off for all others.
-   * This default behavior is to preserve the behavior of an older version of
-   * this filter, which would ignore this setting for certain inputs.
+   * vtkStructuredGrid, and vtkUnstructuredGrid inputs.
+   * For others, it defaults to the special value -1 which indicates
+   * that the caller has made no explicit choice and will result in
+   * the normals being computed. This behaviour is a holdover for
+   * backwards compatibility and you really should set this to 0 or 1.
    */
-  vtkSetMacro(ComputeNormals, vtkTypeBool);
-  vtkGetMacro(ComputeNormals, vtkTypeBool);
-  vtkBooleanMacro(ComputeNormals, vtkTypeBool);
+  vtkSetMacro(ComputeNormals, int);
+  vtkGetMacro(ComputeNormals, int);
+  vtkBooleanMacro(ComputeNormals, int);
   ///@}
 
   ///@{
@@ -175,8 +165,8 @@ public:
    * Set/get which component of the scalar array to contour on; defaults to 0.
    * Currently this feature only works if the input is a vtkImageData.
    */
-  void SetArrayComponent(int);
-  int GetArrayComponent();
+  vtkSetMacro(ArrayComponent, int);
+  vtkGetMacro(ArrayComponent, int);
   ///@}
 
   ///@{
@@ -198,8 +188,22 @@ public:
    * for the vtkAlgorithm::Precision enum for an explanation of the available
    * precision settings.
    */
-  void SetOutputPointsPrecision(int precision);
-  int GetOutputPointsPrecision() const;
+  vtkSetMacro(OutputPointsPrecision, int);
+  vtkGetMacro(OutputPointsPrecision, int);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off fast mode execution. If enabled, fast mode typically runs
+   * way faster because the internal algorithm FlyingEdges is multithreaded and the algorithm has
+   * performance optimizations, but is does not remove degenerate triangles. FastMode is only
+   * meaningful when the input is vtkImageData and GenerateTriangles is on.
+   *
+   * Default is off.
+   */
+  vtkSetMacro(FastMode, bool);
+  vtkGetMacro(FastMode, bool);
+  vtkBooleanMacro(FastMode, bool);
   ///@}
 
 protected:
@@ -213,21 +217,27 @@ protected:
   int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int FillInputPortInformation(int port, vtkInformation* info) override;
 
-  vtkContourValues* ContourValues;
-  vtkTypeBool ComputeNormals;
+  vtkNew<vtkContourValues> ContourValues;
+  int ComputeNormals;
   vtkTypeBool ComputeGradients;
   vtkTypeBool ComputeScalars;
   vtkIncrementalPointLocator* Locator;
   vtkTypeBool UseScalarTree;
   vtkScalarTree* ScalarTree;
   int OutputPointsPrecision;
+  int ArrayComponent;
   vtkTypeBool GenerateTriangles;
+  bool FastMode;
 
-  vtkSynchronizedTemplates2D* SynchronizedTemplates2D;
-  vtkSynchronizedTemplates3D* SynchronizedTemplates3D;
-  vtkGridSynchronizedTemplates3D* GridSynchronizedTemplates;
-  vtkRectilinearSynchronizedTemplates* RectilinearSynchronizedTemplates;
-  vtkCallbackCommand* InternalProgressCallbackCommand;
+  vtkNew<vtkContourGrid> ContourGrid;
+  vtkNew<vtkContour3DLinearGrid> Contour3DLinearGrid;
+  vtkNew<vtkFlyingEdges2D> FlyingEdges2D;
+  vtkNew<vtkFlyingEdges3D> FlyingEdges3D;
+  vtkNew<vtkGridSynchronizedTemplates3D> GridSynchronizedTemplates;
+  vtkNew<vtkRectilinearSynchronizedTemplates> RectilinearSynchronizedTemplates;
+  vtkNew<vtkSynchronizedTemplates2D> SynchronizedTemplates2D;
+  vtkNew<vtkSynchronizedTemplates3D> SynchronizedTemplates3D;
+  vtkNew<vtkCallbackCommand> InternalProgressCallbackCommand;
 
   static void InternalProgressCallbackFunction(
     vtkObject* caller, unsigned long eid, void* clientData, void* callData);
@@ -309,4 +319,5 @@ inline void vtkContourFilter::GenerateValues(int numContours, double rangeStart,
   this->ContourValues->GenerateValues(numContours, rangeStart, rangeEnd);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

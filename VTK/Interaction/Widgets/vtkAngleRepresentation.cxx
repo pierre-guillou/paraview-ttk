@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAngleRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAngleRepresentation.h"
 #include "vtkActor2D.h"
 #include "vtkCoordinate.h"
@@ -25,6 +13,7 @@
 #include "vtkTextProperty.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkAngleRepresentation, HandleRepresentation, vtkHandleRepresentation);
 
 //------------------------------------------------------------------------------
@@ -159,6 +148,30 @@ void vtkAngleRepresentation::WidgetInteraction(double e[2])
 }
 
 //------------------------------------------------------------------------------
+void vtkAngleRepresentation::SetRenderer(vtkRenderer* ren)
+{
+  if (ren == this->Renderer)
+  {
+    return;
+  }
+
+  this->Superclass::SetRenderer(ren);
+  if (this->Point1Representation)
+  {
+    this->Point1Representation->SetRenderer(ren);
+  }
+  if (this->CenterRepresentation)
+  {
+    this->CenterRepresentation->SetRenderer(ren);
+  }
+  if (this->Point2Representation)
+  {
+    this->Point2Representation->SetRenderer(ren);
+  }
+  this->Modified();
+}
+
+//------------------------------------------------------------------------------
 void vtkAngleRepresentation::BuildRepresentation()
 {
   // Make sure that tolerance is consistent between handles and this representation
@@ -220,3 +233,4 @@ void vtkAngleRepresentation::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

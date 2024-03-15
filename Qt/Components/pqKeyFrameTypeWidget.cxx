@@ -1,36 +1,10 @@
-/*=========================================================================
-
-   Program:   ParaView
-   Module:    pqKeyFrameTypeWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqKeyFrameTypeWidget.h"
 #include "ui_pqKeyFrameTypeWidget.h"
+
+#include "vtk_jsoncpp.h"
 
 class pqKeyFrameTypeWidget::pqInternal : public Ui::pqKeyFrameTypeWidget
 {
@@ -53,12 +27,12 @@ pqKeyFrameTypeWidget::pqKeyFrameTypeWidget(QWidget* p)
   this->Internal->Offset->setValidator(validator);
   this->Internal->Frequency->setValidator(validator);
 
-  this->Internal->Type->addItem(QIcon(":pqWidgets/Icons/pqRamp24.png"), "Ramp", "Ramp");
+  this->Internal->Type->addItem(QIcon(":pqWidgets/Icons/pqRamp24.png"), "Ramp", tr("Ramp"));
   this->Internal->Type->addItem(
-    QIcon(":pqWidgets/Icons/pqExponential24.png"), "Exponential", "Exponential");
+    QIcon(":pqWidgets/Icons/pqExponential24.png"), "Exponential", tr("Exponential"));
   this->Internal->Type->addItem(
-    QIcon(":pqWidgets/Icons/pqSinusoidal24.png"), "Sinusoid", "Sinusoid");
-  this->Internal->Type->addItem(QIcon(":pqWidgets/Icons/pqStep24.png"), "Step", "Boolean");
+    QIcon(":pqWidgets/Icons/pqSinusoidal24.png"), "Sinusoid", tr("Sinusoid"));
+  this->Internal->Type->addItem(QIcon(":pqWidgets/Icons/pqStep24.png"), "Step", tr("Boolean"));
 
   QObject::connect(
     this->Internal->Type, SIGNAL(currentIndexChanged(int)), this, SLOT(onTypeChanged()));
@@ -82,6 +56,69 @@ pqKeyFrameTypeWidget::pqKeyFrameTypeWidget(QWidget* p)
 pqKeyFrameTypeWidget::~pqKeyFrameTypeWidget()
 {
   delete this->Internal;
+}
+
+//-----------------------------------------------------------------------------
+void pqKeyFrameTypeWidget::initializeUsingJSON(const Json::Value& json)
+{
+  if (json["type"].isString())
+  {
+    this->setType(json["type"].asCString());
+  }
+
+  QString interpolationType = this->type();
+  if (interpolationType == "Exponential")
+  {
+    if (json["base"].isInt())
+    {
+      this->setBase(QString::number(json["base"].asInt()));
+    }
+    if (json["startPower"].isInt())
+    {
+      this->setStartPower(QString::number(json["startPower"].asInt()));
+    }
+    if (json["endPower"].isInt())
+    {
+      this->setEndPower(QString::number(json["endPower"].asInt()));
+    }
+  }
+  else if (interpolationType == "Sinusoid")
+  {
+    if (json["phase"].isDouble())
+    {
+      this->setPhase(json["phase"].asDouble());
+    }
+    if (json["frequency"].isInt())
+    {
+      this->setFrequency(QString::number(json["frequency"].asInt()));
+    }
+    if (json["offset"].isInt())
+    {
+      this->setOffset(QString::number(json["offset"].asInt()));
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+Json::Value pqKeyFrameTypeWidget::serializeToJSON() const
+{
+  Json::Value keyFrame;
+
+  QString interpolationType = this->type();
+  keyFrame["type"] = interpolationType.toStdString();
+  if (interpolationType == "Exponential")
+  {
+    keyFrame["base"] = this->base().toInt();
+    keyFrame["startPower"] = this->startPower().toInt();
+    keyFrame["endPower"] = this->endPower().toInt();
+  }
+  else if (interpolationType == "Sinusoid")
+  {
+    keyFrame["phase"] = this->phase();
+    keyFrame["frequency"] = this->frequency().toInt();
+    keyFrame["offset"] = this->offset().toInt();
+  }
+  return keyFrame;
 }
 
 void pqKeyFrameTypeWidget::setType(const QString& text)

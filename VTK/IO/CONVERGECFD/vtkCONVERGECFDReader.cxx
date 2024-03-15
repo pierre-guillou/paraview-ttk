@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCONVERGECFDReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCONVERGECFDReader.h"
 
 #include "vtkBuffer.h"
@@ -45,6 +33,7 @@
 
 #include "vtkHDF5ScopedHandle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCONVERGECFDReader);
 
 namespace
@@ -195,7 +184,7 @@ bool ReadStrings(hid_t fileId, const char* path, std::vector<std::string>& strin
   strings.clear();
   for (hsize_t i = 0; i < dim; ++i)
   {
-    strings.emplace_back(std::string(rdata[i]));
+    strings.emplace_back(rdata[i]);
   }
 
   delete[] rdata[0];
@@ -246,6 +235,7 @@ class vtkCONVERGECFDReader::vtkInternal
 {
 public:
   vtkCONVERGECFDReader* Self;
+  std::vector<std::string> StreamObjNames;
   std::vector<std::string> CellDataScalarVariables;
   std::vector<std::string> CellDataVectorVariables;
   std::vector<std::string> ParcelDataTypes;
@@ -255,6 +245,7 @@ public:
   // Clears out variable info
   void Reset()
   {
+    this->StreamObjNames.clear();
     this->CellDataScalarVariables.clear();
     this->CellDataVectorVariables.clear();
     this->ParcelDataTypes.clear();
@@ -445,28 +436,46 @@ int vtkCONVERGECFDReader::RequestInformation(
     return 0;
   }
 
+  // collect stream names
+  hsize_t numObjects;
+  if (H5Gget_num_objs(fileId, &numObjects) < 0)
+  {
+    return 0;
+  }
+  char objName[1024];
+  vtksys::RegularExpression regex("^STREAM_[0-9]+$");
+  for (hsize_t i = 0; i < numObjects; ++i)
+  {
+    if (H5Gget_objname_by_idx(fileId, i, objName, sizeof(objName)) < 0)
+    {
+      return 0;
+    }
+    if (regex.find(objName))
+    {
+      this->Internal->StreamObjNames.emplace_back(objName);
+    }
+  }
+
   // Iterate over all streams to find available cell data arrays and parcel data arrays
   std::set<std::string> cellVariables;
   std::set<std::string> parcelVariables;
-  int streamCount = 0;
-  do
+  for (const auto& streamObjName : this->Internal->StreamObjNames)
   {
     herr_t status = 0;
-    std::ostringstream streamName;
-    streamName << "/STREAM_" << std::setw(2) << std::setfill('0') << streamCount;
+    std::string streamName = "/" + streamObjName;
     H5Eset_auto(nullptr, nullptr);
-    status = H5Gget_objinfo(fileId, streamName.str().c_str(), false, nullptr);
+    status = H5Gget_objinfo(fileId, streamName.c_str(), false, nullptr);
     if (status < 0)
     {
       break;
     }
 
     // Open the group
-    vtkHDF::ScopedH5GHandle streamId = H5Gopen(fileId, streamName.str().c_str());
+    vtkHDF::ScopedH5GHandle streamId = H5Gopen(fileId, streamName.c_str());
     if (streamId < 0)
     {
       // Group exists, but could not be opened
-      vtkErrorMacro("Could not open stream " << streamName.str());
+      vtkErrorMacro("Could not open stream " << streamName);
       break;
     }
 
@@ -563,8 +572,7 @@ int vtkCONVERGECFDReader::RequestInformation(
       }
     }
 
-    streamCount++;
-  } while (true); // end iterating over streams
+  } // end iterating over streams
 
   constexpr bool defaultEnabledState = true;
 
@@ -689,24 +697,22 @@ int vtkCONVERGECFDReader::RequestData(
     return 0;
   }
 
-  int streamCount = 0;
-  do
+  for (const auto& streamObjName : this->Internal->StreamObjNames)
   {
     herr_t status = 0;
-    std::ostringstream streamName;
-    streamName << "/STREAM_" << std::setw(2) << std::setfill('0') << streamCount;
+    std::string streamName = "/" + streamObjName;
     H5Eset_auto(nullptr, nullptr);
-    status = H5Gget_objinfo(fileId, streamName.str().c_str(), false, nullptr);
+    status = H5Gget_objinfo(fileId, streamName.c_str(), false, nullptr);
     if (status < 0)
     {
       break;
     }
 
     // Open the group
-    vtkHDF::ScopedH5GHandle streamId = H5Gopen(fileId, streamName.str().c_str());
+    vtkHDF::ScopedH5GHandle streamId = H5Gopen(fileId, streamName.c_str());
     if (streamId < 0)
     {
-      vtkErrorMacro("Could not open stream " << streamName.str());
+      vtkErrorMacro("Could not open stream " << streamName);
       break;
     }
 
@@ -716,9 +722,7 @@ int vtkCONVERGECFDReader::RequestData(
       break;
     }
 
-    std::stringstream streamss;
-    streamss << "STREAM_" << std::setw(2) << std::setfill('0') << streamCount;
-    int streamNodeId = hierarchy->AddNode(streamss.str().c_str(), 0 /* root */);
+    int streamNodeId = hierarchy->AddNode(streamObjName.c_str(), 0 /* root */);
 
     hsize_t xCoordsLength = GetDataLength(streamId, "VERTEX_COORDINATES/X");
 
@@ -740,7 +744,7 @@ int vtkCONVERGECFDReader::RequestData(
       if (!ReadArray(streamId, name.str().c_str(), floatBuffer->GetBuffer(), xCoordsLength))
       {
         vtkErrorMacro(
-          "No coordinate array " << name.str() << " dataset available in " << streamName.str());
+          "No coordinate array " << name.str() << " dataset available in " << streamName);
         return 0;
       }
 
@@ -1135,7 +1139,6 @@ int vtkCONVERGECFDReader::RequestData(
         int parcelsNodeId = hierarchy->AddNode("Parcels", streamNodeId);
 
         // Iterate over the parcel data types/data sets
-        unsigned int parcelDataTypeCount = 0;
         for (hsize_t parcelDataTypeIndex = 0; parcelDataTypeIndex < numParcelDataTypes;
              ++parcelDataTypeIndex)
         {
@@ -1171,8 +1174,6 @@ int vtkCONVERGECFDReader::RequestData(
 
           std::string dataTypeNodeName = vtkDataAssembly::MakeValidNodeName(dataType.c_str());
           int parcelDataTypeNodeId = hierarchy->AddNode(dataTypeNodeName.c_str(), parcelsNodeId);
-
-          parcelDataTypeCount++;
 
           // Iterate over the datasets in the dataset type group
           for (hsize_t i = 0; i < numDataSets; ++i)
@@ -1211,8 +1212,7 @@ int vtkCONVERGECFDReader::RequestData(
         hierarchy->AddDataSetIndex(parcelNodeId, parcelsId);
       }
     }
-    streamCount++;
-  } while (true);
+  }
 
   // Everything succeeded
   return 1;
@@ -1289,7 +1289,7 @@ void vtkCONVERGECFDReader::ReadTimeSteps(vtkInformation* outInfo)
     bool timeRead = this->ReadOutputTime(file, time);
     if (timeRead)
     {
-      timesAndFiles.emplace_back(std::make_pair(time, file));
+      timesAndFiles.emplace_back(time, file);
     }
   }
 
@@ -1391,9 +1391,33 @@ int vtkCONVERGECFDReader::CanReadFile(const char* fname)
     return 0;
   }
 
-  // Require a /BOUNDARIES group and at least one STREAM_00 group
-  if (H5Lexists(fileId, "/BOUNDARIES", H5P_DEFAULT) == 0 ||
-    H5Lexists(fileId, "/STREAM_00", H5P_DEFAULT) == 0)
+  // Require a /BOUNDARIES group
+  if (H5Lexists(fileId, "/BOUNDARIES", H5P_DEFAULT) == 0)
+  {
+    return 0;
+  }
+  //  and at least one STREAM_XX group
+  hsize_t numObjects;
+  if (H5Gget_num_objs(fileId, &numObjects) < 0)
+  {
+    return 0;
+  }
+  bool foundSTREAM = false;
+  char objName[1024];
+  vtksys::RegularExpression regex("^STREAM_[0-9]+$");
+  for (hsize_t i = 0; i < numObjects; ++i)
+  {
+    if (H5Gget_objname_by_idx(fileId, i, objName, sizeof(objName)) < 0)
+    {
+      return 0;
+    }
+    if (regex.find(objName))
+    {
+      foundSTREAM = true;
+      break;
+    }
+  }
+  if (!foundSTREAM)
   {
     return 0;
   }
@@ -1401,3 +1425,4 @@ int vtkCONVERGECFDReader::CanReadFile(const char* fname)
   // Everything succeeded
   return 1;
 }
+VTK_ABI_NAMESPACE_END

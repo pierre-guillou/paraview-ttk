@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVAnimationCue.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVAnimationCue
  * @brief   proxy for vtkAnimationCue.
@@ -41,7 +29,7 @@ public:
   vtkTypeMacro(vtkPVAnimationCue, vtkAnimationCue);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * The index of the element of the property this cue animates.
    * If the index is -1, the cue will animate all the elements
@@ -49,9 +37,9 @@ public:
    */
   vtkSetMacro(AnimatedElement, int);
   vtkGetMacro(AnimatedElement, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the manipulator used to compute values
    * for each instance in the animation.
@@ -60,18 +48,18 @@ public:
    */
   void SetManipulator(vtkPVCueManipulator*);
   vtkGetObjectMacro(Manipulator, vtkPVCueManipulator);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Enable/Disable this cue.
    */
   vtkSetMacro(Enabled, int);
   vtkGetMacro(Enabled, int);
   vtkBooleanMacro(Enabled, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Used to update the animated item. This API makes it possible for vtk-level
    * classes to update properties without actually linking with the
@@ -81,35 +69,35 @@ public:
   virtual void BeginUpdateAnimationValues() = 0;
   virtual void SetAnimationValue(int index, double value) = 0;
   virtual void EndUpdateAnimationValues() = 0;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set to true, the manipulator is skipped and the key frame value is set
    * by using the ClockTime directly. false by default.
    */
   vtkSetMacro(UseAnimationTime, bool);
   vtkGetMacro(UseAnimationTime, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Overridden to ignore the calls when this->Enabled == false.
    */
   void Initialize() override;
   void Tick(double currenttime, double deltatime, double clocktime) override;
   void Finalize() override;
-  //@}
+  ///@}
 
 protected:
   vtkPVAnimationCue();
   ~vtkPVAnimationCue() override;
 
-  //@{
+  ///@{
   void StartCueInternal() override;
   void TickInternal(double currenttime, double deltatime, double clocktime) override;
   void EndCueInternal() override;
-  //@}
+  ///@}
 
   friend class vtkSMAnimationSceneProxy;
 

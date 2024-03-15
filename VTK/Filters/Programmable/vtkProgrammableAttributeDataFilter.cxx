@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProgrammableAttributeDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProgrammableAttributeDataFilter.h"
 
 #include "vtkCellData.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkProgrammableAttributeDataFilter);
 
 vtkProgrammableAttributeDataFilter::vtkProgrammableAttributeDataFilter()
@@ -49,7 +38,7 @@ vtkProgrammableAttributeDataFilter::~vtkProgrammableAttributeDataFilter()
 // Add a dataset to the list of data to process.
 void vtkProgrammableAttributeDataFilter::AddInput(vtkDataSet* ds)
 {
-  if (!this->InputList->IsItemPresent(ds))
+  if (this->InputList->IndexOfFirstOccurence(ds) < 0)
   {
     this->Modified();
     this->InputList->AddItem(ds);
@@ -59,7 +48,7 @@ void vtkProgrammableAttributeDataFilter::AddInput(vtkDataSet* ds)
 // Remove a dataset from the list of data to process.
 void vtkProgrammableAttributeDataFilter::RemoveInput(vtkDataSet* ds)
 {
-  if (this->InputList->IsItemPresent(ds))
+  if (this->InputList->IndexOfFirstOccurence(ds) >= 0)
   {
     this->Modified();
     this->InputList->RemoveItem(ds);
@@ -145,3 +134,4 @@ void vtkProgrammableAttributeDataFilter ::ReportReferences(vtkGarbageCollector* 
   this->Superclass::ReportReferences(collector);
   vtkGarbageCollectorReport(collector, this->InputList, "InputList");
 }
+VTK_ABI_NAMESPACE_END

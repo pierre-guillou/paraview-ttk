@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericEdgeTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGenericEdgeTable.h"
 #include "vtkObjectFactory.h"
 
@@ -19,6 +7,7 @@
 #include <cmath>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGenericEdgeTable);
 
 static int PRIME_NUMBERS[] = { 1, 3, 7, 13, 31, 61, 127, 251, 509, 1021, 2039, 4093 };
@@ -642,14 +631,6 @@ void vtkGenericEdgeTable::InsertPointAndScalar(vtkIdType ptId, double pt[3], dou
   // sizeof(s)=this->NumberOfComponents
   vtkIdType pos = this->HashFunction(ptId);
 
-  // Need to check size first
-  // this->HashPoints->Resize( pos );
-  if (!(static_cast<unsigned>(pos) < this->HashPoints->PointVector.size()))
-  {
-    int kk = 2;
-    kk++;
-  }
-
   // Be careful with reference the equal is not overloaded
   vtkEdgeTablePoints::VectorPointTableType& vect = this->HashPoints->PointVector[pos];
 
@@ -742,3 +723,4 @@ void vtkGenericEdgeTable::LoadFactor()
   this->EdgeTable->LoadFactor();
   this->HashPoints->LoadFactor();
 }
+VTK_ABI_NAMESPACE_END

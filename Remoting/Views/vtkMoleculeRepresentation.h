@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDataRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkMoleculeRepresentation
@@ -48,14 +36,14 @@ public:
 
   void SetLookupTable(vtkScalarsToColors* lut);
 
-  //@{
+  ///@{
   /**
    * Forward corresponding actor property controls down.
    */
   virtual void SetOpacity(double val);
   virtual void SetSpecular(double val);
   virtual void SetSpecularPower(double val);
-  //@}
+  ///@}
 
   /**
    * Set if scalars are mapped through a color-map or are used directly as colors.
@@ -79,7 +67,7 @@ public:
    */
   vtkGetMacro(Actor, vtkActor*);
 
-  //@{
+  ///@{
   /**
    * Forward custom atom/bonds rendering parameters to the mapper.
    */
@@ -93,7 +81,7 @@ public:
   void SetRenderAtoms(bool render);
   void SetRenderBonds(bool render);
   void SetAtomicRadiusArray(const char* name);
-  //@}
+  ///@}
 
 protected:
   vtkMoleculeRepresentation();

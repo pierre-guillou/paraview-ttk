@@ -1,11 +1,6 @@
-/*
- * Copyright 2011 Sandia Corporation.
- * Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
- * license for use of this work by or on behalf of the
- * U.S. Government. Redistribution and use in source and binary forms, with
- * or without modification, are permitted provided that this Notice and any
- * statement of authorship are reproduced on all copies.
- */
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkMath.h"
 #include "vtkPolynomialSolversUnivariate.h"
 #include "vtkTimerLog.h"
@@ -90,7 +85,7 @@ static int vtkRunPolynomial(double* poly, int degree, double* rootInt, double* u
 
 //=============================================================================
 static int vtkTestPolynomials(double* poly, int degree, double* rootInt, double* upperBnds,
-  double tolSturm, double* divtols, int len, double* expectd, int expectedLength, double expectTol,
+  double tolSturm, double* divtols, int len, double* expected, int expectedLength, double expectTol,
   const char* name, bool divideGCD, int methods = 3, int intType = 0)
 {
   int rval = 0;
@@ -99,7 +94,7 @@ static int vtkTestPolynomials(double* poly, int degree, double* rootInt, double*
     cout << endl << name << " (Sturm)" << endl;
     for (int i = 0; i < len; ++i)
     {
-      rval |= vtkRunPolynomial(poly, degree, rootInt, upperBnds, tolSturm, divtols[i], expectd,
+      rval |= vtkRunPolynomial(poly, degree, rootInt, upperBnds, tolSturm, divtols[i], expected,
         expectedLength, expectTol, name, divideGCD, false, intType);
     }
   }
@@ -109,7 +104,7 @@ static int vtkTestPolynomials(double* poly, int degree, double* rootInt, double*
     cout << endl << name << " (Habicht)" << endl;
     for (int i = 0; i < len; ++i)
     {
-      rval |= vtkRunPolynomial(poly, degree, rootInt, upperBnds, tolSturm, divtols[i], expectd,
+      rval |= vtkRunPolynomial(poly, degree, rootInt, upperBnds, tolSturm, divtols[i], expected,
         expectedLength, expectTol, name, divideGCD, true, intType);
     }
   }

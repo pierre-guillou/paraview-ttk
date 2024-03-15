@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVLinearExtrusionFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVLinearExtrusionFilter
  * @brief   change a default value
@@ -37,7 +25,7 @@ public:
 
 protected:
   vtkPVLinearExtrusionFilter();
-  ~vtkPVLinearExtrusionFilter() override{};
+  ~vtkPVLinearExtrusionFilter() override = default;
 
 private:
   vtkPVLinearExtrusionFilter(const vtkPVLinearExtrusionFilter&) = delete;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInteractorStyle.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInteractorStyle.h"
 
 #include "vtkActor.h"
@@ -33,6 +21,7 @@
 #include "vtkRenderer.h"
 #include "vtkTDxInteractorStyleCamera.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkInteractorStyle);
 vtkCxxSetObjectMacro(vtkInteractorStyle, TDxStyle, vtkTDxInteractorStyle);
 
@@ -768,6 +757,11 @@ void vtkInteractorStyle::OnChar()
 {
   vtkRenderWindowInteractor* rwi = this->Interactor;
 
+  if (rwi->GetControlKey() || rwi->GetAltKey())
+  {
+    // Ignore keys when modifiers (other than shift) are pressed.
+    return;
+  }
   switch (rwi->GetKeyCode())
   {
     case 'm':
@@ -1505,3 +1499,4 @@ void vtkInteractorStyle::ProcessEvents(
       break;
   }
 }
+VTK_ABI_NAMESPACE_END

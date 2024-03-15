@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationStringKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationStringKey.h"
 
 #include "vtkInformation.h"
@@ -19,6 +7,7 @@
 #include <string>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkInformationStringKey::vtkInformationStringKey(const char* name, const char* location)
   : vtkInformationKey(name, location)
 {
@@ -105,3 +94,4 @@ void vtkInformationStringKey::Print(ostream& os, vtkInformation* info)
     os << this->Get(info);
   }
 }
+VTK_ABI_NAMESPACE_END

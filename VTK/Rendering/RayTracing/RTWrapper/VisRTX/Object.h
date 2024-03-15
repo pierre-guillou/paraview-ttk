@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "../RTWrapper.h"
@@ -13,6 +15,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Data;
 
     class Object
@@ -362,4 +365,5 @@ namespace RTW
 
         RTWDataType dataType;
     };
+VTK_ABI_NAMESPACE_END
 }

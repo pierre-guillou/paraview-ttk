@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellTypes.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellTypes
  * @brief   object provides direct access to cells in vtkCellArray and type information
@@ -45,6 +33,7 @@
 #include "vtkSmartPointer.h"      // Needed for internals
 #include "vtkUnsignedCharArray.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIntArray;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkCellTypes : public vtkObject
@@ -218,4 +207,5 @@ inline int vtkCellTypes::IsLinear(unsigned char type)
   return ((type <= 20) || (type == VTK_CONVEX_POINT_SET) || (type == VTK_POLYHEDRON));
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

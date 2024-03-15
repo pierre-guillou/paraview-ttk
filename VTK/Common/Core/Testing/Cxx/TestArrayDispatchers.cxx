@@ -1,17 +1,5 @@
-/*==============================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestArrayDispatchers.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-==============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // We define our own set of arrays for the dispatch list. This allows the test
 // to run regardless of the compiled dispatch configuration. Note that this is
@@ -41,6 +29,7 @@ typedef vtkTypeList::Unique<                //
     vtkSOADataArrayTemplate<unsigned char>, //
     vtkSOADataArrayTemplate<vtkIdType>      //
     >>::Result Arrays;
+typedef Arrays AllArrays;
 } // end namespace vtkArrayDispatch
 
 #include "vtkArrayDispatch.h"

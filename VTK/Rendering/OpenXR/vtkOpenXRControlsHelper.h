@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenXRControlsHelper.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenXRControlsHelper
  * @brief   Tooltip helper explaining controls
@@ -27,6 +15,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkRenderingOpenXRModule.h" // For export macro
 #include "vtkVRControlsHelper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKRENDERINGOPENXR_EXPORT vtkOpenXRControlsHelper : public vtkVRControlsHelper
 {
 public:
@@ -48,4 +37,5 @@ private:
   void operator=(const vtkOpenXRControlsHelper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

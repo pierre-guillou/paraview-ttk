@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    PyVTKReference.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /*-----------------------------------------------------------------------
   The PyVTKReference was created in Sep 2010 by David Gobbi.
 
@@ -21,6 +9,7 @@
 -----------------------------------------------------------------------*/
 
 #include "PyVTKReference.h"
+#include "vtkABINamespace.h"
 #include "vtkPythonUtil.h"
 
 // Silence warning like
@@ -84,38 +73,39 @@ static PyObject* PyVTKReference_CompatibleObject(PyObject* self, PyObject* opn)
   // check if it is a number
   if (self == nullptr || Py_TYPE(self) == &PyVTKNumberReference_Type)
   {
-    if (PyFloat_Check(opn) ||
-#ifndef VTK_PY3K
-      PyInt_Check(opn) ||
-#endif
-      PyLong_Check(opn))
+    if (PyFloat_Check(opn) || PyLong_Check(opn))
     {
       Py_INCREF(opn);
       return opn;
     }
 
     // check if it has number protocol and suitable methods
+#if PY_VERSION_HEX < 0x030A0000
     PyNumberMethods* nb = Py_TYPE(opn)->tp_as_number;
     if (nb)
-    {
-      if (nb->nb_index)
-      {
-        opn = nb->nb_index(opn);
-        if (opn == nullptr ||
-          (!PyLong_Check(opn)
-#ifndef VTK_PY3K
-            && !PyInt_Check(opn)
 #endif
-              ))
+    {
+#if PY_VERSION_HEX >= 0x030A0000
+      if (unaryfunc nb_index = (unaryfunc)PyType_GetSlot(Py_TYPE(opn), Py_nb_index))
+#else
+      if (unaryfunc nb_index = nb->nb_index)
+#endif
+      {
+        opn = nb_index(opn);
+        if (opn == nullptr || !PyLong_Check(opn))
         {
           PyErr_SetString(PyExc_TypeError, "nb_index should return integer object");
           return nullptr;
         }
         return opn;
       }
-      else if (nb->nb_float)
+#if PY_VERSION_HEX >= 0x030A0000
+      else if (unaryfunc nb_float = (unaryfunc)PyType_GetSlot(Py_TYPE(opn), Py_nb_float))
+#else
+      else if (unaryfunc nb_float = nb->nb_float)
+#endif
       {
-        opn = nb->nb_float(opn);
+        opn = nb_float(opn);
         if (opn == nullptr || !PyFloat_Check(opn))
         {
           PyErr_SetString(PyExc_TypeError, "nb_float should return float object");
@@ -225,7 +215,6 @@ static PyObject* PyVTKReference_Set(PyObject* self, PyObject* args)
   return nullptr;
 }
 
-#ifdef VTK_PY3K
 static PyObject* PyVTKReference_Trunc(PyObject* self, PyObject* args)
 {
   PyObject* opn;
@@ -237,8 +226,8 @@ static PyObject* PyVTKReference_Trunc(PyObject* self, PyObject* args)
     PyObject* meth = _PyType_Lookup(Py_TYPE(ob), attr);
     if (meth == nullptr)
     {
-      PyErr_Format(
-        PyExc_TypeError, "type %.100s doesn't define __trunc__ method", Py_TYPE(ob)->tp_name);
+      PyErr_Format(PyExc_TypeError, "type %.100s doesn't define __trunc__ method",
+        vtkPythonUtil::GetTypeNameForObject(ob));
       return nullptr;
     }
     return PyObject_CallFunction(meth, "O", ob);
@@ -258,8 +247,8 @@ static PyObject* PyVTKReference_Round(PyObject* self, PyObject* args)
     PyObject* meth = _PyType_Lookup(Py_TYPE(ob), attr);
     if (meth == nullptr)
     {
-      PyErr_Format(
-        PyExc_TypeError, "type %.100s doesn't define __round__ method", Py_TYPE(ob)->tp_name);
+      PyErr_Format(PyExc_TypeError, "type %.100s doesn't define __round__ method",
+        vtkPythonUtil::GetTypeNameForObject(ob));
       return nullptr;
     }
     if (opn)
@@ -271,17 +260,14 @@ static PyObject* PyVTKReference_Round(PyObject* self, PyObject* args)
 
   return nullptr;
 }
-#endif
 
 static PyMethodDef PyVTKReference_Methods[] = { { "get", PyVTKReference_Get, METH_VARARGS,
                                                   "get() -> object\n\nGet the stored value." },
   { "set", PyVTKReference_Set, METH_VARARGS, "set(value:object) -> None\n\nSet the stored value." },
-#ifdef VTK_PY3K
   { "__trunc__", PyVTKReference_Trunc, METH_VARARGS,
     "__trunc__() -> int\n\nReturns the Integral closest to x between 0 and x." },
   { "__round__", PyVTKReference_Round, METH_VARARGS,
     "__round__() -> int\n\nReturns the Integral closest to x, rounding half toward even.\n" },
-#endif
   { nullptr, nullptr, 0, nullptr } };
 
 //------------------------------------------------------------------------------
@@ -447,36 +433,9 @@ static int PyVTKReference_NonZero(PyObject* ob)
   return PyObject_IsTrue(ob);
 }
 
-#ifndef VTK_PY3K
-static int PyVTKReference_Coerce(PyObject** ob1, PyObject** ob2)
-{
-  *ob1 = ((PyVTKReference*)*ob1)->value;
-  if (PyVTKReference_Check(*ob2))
-  {
-    *ob2 = ((PyVTKReference*)*ob2)->value;
-  }
-  return PyNumber_CoerceEx(ob1, ob2);
-}
-
-static PyObject* PyVTKReference_Hex(PyObject* ob)
-{
-  ob = ((PyVTKReference*)ob)->value;
-  return PyNumber_ToBase(ob, 16);
-}
-
-static PyObject* PyVTKReference_Oct(PyObject* ob)
-{
-  ob = ((PyVTKReference*)ob)->value;
-  return PyNumber_ToBase(ob, 8);
-}
-#endif
-
 REFOBJECT_BINARYFUNC(Number, Add)
 REFOBJECT_BINARYFUNC(Number, Subtract)
 REFOBJECT_BINARYFUNC(Number, Multiply)
-#ifndef VTK_PY3K
-REFOBJECT_BINARYFUNC(Number, Divide)
-#endif
 REFOBJECT_BINARYFUNC(Number, Remainder)
 REFOBJECT_BINARYFUNC(Number, Divmod)
 REFOBJECT_TERNARYFUNC(Number, Power)
@@ -491,18 +450,12 @@ REFOBJECT_BINARYFUNC(Number, And)
 REFOBJECT_BINARYFUNC(Number, Or)
 REFOBJECT_BINARYFUNC(Number, Xor)
 // Coerce
-#ifndef VTK_PY3K
-REFOBJECT_UNARYFUNC(Number, Int)
-#endif
 REFOBJECT_UNARYFUNC(Number, Long)
 REFOBJECT_UNARYFUNC(Number, Float)
 
 REFOBJECT_INPLACEFUNC(Number, Add)
 REFOBJECT_INPLACEFUNC(Number, Subtract)
 REFOBJECT_INPLACEFUNC(Number, Multiply)
-#ifndef VTK_PY3K
-REFOBJECT_INPLACEFUNC(Number, Divide)
-#endif
 REFOBJECT_INPLACEFUNC(Number, Remainder)
 REFOBJECT_INPLACETFUNC(Number, Power)
 REFOBJECT_INPLACEFUNC(Number, Lshift)
@@ -520,44 +473,28 @@ REFOBJECT_UNARYFUNC(Number, Index)
 
 //------------------------------------------------------------------------------
 static PyNumberMethods PyVTKReference_AsNumber = {
-  PyVTKReference_Add,      // nb_add
-  PyVTKReference_Subtract, // nb_subtract
-  PyVTKReference_Multiply, // nb_multiply
-#ifndef VTK_PY3K
-  PyVTKReference_Divide, // nb_divide
-#endif
-  PyVTKReference_Remainder, // nb_remainder
-  PyVTKReference_Divmod,    // nb_divmod
-  PyVTKReference_Power,     // nb_power
-  PyVTKReference_Negative,  // nb_negative
-  PyVTKReference_Positive,  // nb_positive
-  PyVTKReference_Absolute,  // nb_absolute
-  PyVTKReference_NonZero,   // nb_nonzero
-  PyVTKReference_Invert,    // nb_invert
-  PyVTKReference_Lshift,    // nb_lshift
-  PyVTKReference_Rshift,    // nb_rshift
-  PyVTKReference_And,       // nb_and
-  PyVTKReference_Xor,       // nb_xor
-  PyVTKReference_Or,        // nb_or
-#ifndef VTK_PY3K
-  PyVTKReference_Coerce, // nb_coerce
-  PyVTKReference_Int,    // nb_int
-  PyVTKReference_Long,   // nb_long
-#else
-  PyVTKReference_Long, // nb_int
-  nullptr,             // nb_reserved
-#endif
-  PyVTKReference_Float, // nb_float
-#ifndef VTK_PY3K
-  PyVTKReference_Oct, // nb_oct
-  PyVTKReference_Hex, // nb_hex
-#endif
-  PyVTKReference_InPlaceAdd,      // nb_inplace_add
-  PyVTKReference_InPlaceSubtract, // nb_inplace_subtract
-  PyVTKReference_InPlaceMultiply, // nb_inplace_multiply
-#ifndef VTK_PY3K
-  PyVTKReference_InPlaceDivide, // nb_inplace_divide
-#endif
+  PyVTKReference_Add,                // nb_add
+  PyVTKReference_Subtract,           // nb_subtract
+  PyVTKReference_Multiply,           // nb_multiply
+  PyVTKReference_Remainder,          // nb_remainder
+  PyVTKReference_Divmod,             // nb_divmod
+  PyVTKReference_Power,              // nb_power
+  PyVTKReference_Negative,           // nb_negative
+  PyVTKReference_Positive,           // nb_positive
+  PyVTKReference_Absolute,           // nb_absolute
+  PyVTKReference_NonZero,            // nb_nonzero
+  PyVTKReference_Invert,             // nb_invert
+  PyVTKReference_Lshift,             // nb_lshift
+  PyVTKReference_Rshift,             // nb_rshift
+  PyVTKReference_And,                // nb_and
+  PyVTKReference_Xor,                // nb_xor
+  PyVTKReference_Or,                 // nb_or
+  PyVTKReference_Long,               // nb_int
+  nullptr,                           // nb_reserved
+  PyVTKReference_Float,              // nb_float
+  PyVTKReference_InPlaceAdd,         // nb_inplace_add
+  PyVTKReference_InPlaceSubtract,    // nb_inplace_subtract
+  PyVTKReference_InPlaceMultiply,    // nb_inplace_multiply
   PyVTKReference_InPlaceRemainder,   // nb_inplace_remainder
   PyVTKReference_InPlacePower,       // nb_inplace_power
   PyVTKReference_InPlaceLshift,      // nb_inplace_lshift
@@ -578,12 +515,9 @@ static PyNumberMethods PyVTKReference_AsNumber = {
 
 //------------------------------------------------------------------------------
 static PyNumberMethods PyVTKStringReference_AsNumber = {
-  nullptr, // nb_add
-  nullptr, // nb_subtract
-  nullptr, // nb_multiply
-#ifndef VTK_PY3K
-  nullptr, // nb_divide
-#endif
+  nullptr,                  // nb_add
+  nullptr,                  // nb_subtract
+  nullptr,                  // nb_multiply
   PyVTKReference_Remainder, // nb_remainder
   nullptr,                  // nb_divmod
   nullptr,                  // nb_power
@@ -597,37 +531,24 @@ static PyNumberMethods PyVTKStringReference_AsNumber = {
   nullptr,                  // nb_and
   nullptr,                  // nb_xor
   nullptr,                  // nb_or
-#ifndef VTK_PY3K
-  nullptr, // nb_coerce
-  nullptr, // nb_int
-  nullptr, // nb_long
-#else
-  nullptr,             // nb_int
-  nullptr,             // nb_reserved
-#endif
-  nullptr, // nb_float
-#ifndef VTK_PY3K
-  nullptr, // nb_oct
-  nullptr, // nb_hex
-#endif
-  nullptr, // nb_inplace_add
-  nullptr, // nb_inplace_subtract
-  nullptr, // nb_inplace_multiply
-#ifndef VTK_PY3K
-  nullptr, // nb_inplace_divide
-#endif
-  nullptr, // nb_inplace_remainder
-  nullptr, // nb_inplace_power
-  nullptr, // nb_inplace_lshift
-  nullptr, // nb_inplace_rshift
-  nullptr, // nb_inplace_and
-  nullptr, // nb_inplace_xor
-  nullptr, // nb_inplace_or
-  nullptr, // nb_floor_divide
-  nullptr, // nb_true_divide
-  nullptr, // nb_inplace_floor_divide
-  nullptr, // nb_inplace_true_divide
-  nullptr, // nb_index
+  nullptr,                  // nb_int
+  nullptr,                  // nb_reserved
+  nullptr,                  // nb_float
+  nullptr,                  // nb_inplace_add
+  nullptr,                  // nb_inplace_subtract
+  nullptr,                  // nb_inplace_multiply
+  nullptr,                  // nb_inplace_remainder
+  nullptr,                  // nb_inplace_power
+  nullptr,                  // nb_inplace_lshift
+  nullptr,                  // nb_inplace_rshift
+  nullptr,                  // nb_inplace_and
+  nullptr,                  // nb_inplace_xor
+  nullptr,                  // nb_inplace_or
+  nullptr,                  // nb_floor_divide
+  nullptr,                  // nb_true_divide
+  nullptr,                  // nb_inplace_floor_divide
+  nullptr,                  // nb_inplace_true_divide
+  nullptr,                  // nb_index
 #if PY_VERSION_HEX >= 0x03050000
   nullptr, // nb_matrix_multiply
   nullptr, // nb_inplace_matrix_multiply
@@ -641,22 +562,15 @@ REFOBJECT_SIZEFUNC(Sequence, Size)
 REFOBJECT_BINARYFUNC(Sequence, Concat)
 REFOBJECT_INDEXFUNC(Sequence, Repeat)
 REFOBJECT_INDEXFUNC(Sequence, GetItem)
-#ifndef VTK_PY3K
-REFOBJECT_SLICEFUNC(Sequence, GetSlice)
-#endif
 REFOBJECT_INTFUNC2(Sequence, Contains)
 
 //------------------------------------------------------------------------------
 static PySequenceMethods PyVTKReference_AsSequence = {
-  PyVTKReference_Size,    // sq_length
-  PyVTKReference_Concat,  // sq_concat
-  PyVTKReference_Repeat,  // sq_repeat
-  PyVTKReference_GetItem, // sq_item
-#ifndef VTK_PY3K
-  PyVTKReference_GetSlice, // sq_slice
-#else
-  nullptr,             // sq_slice
-#endif
+  PyVTKReference_Size,     // sq_length
+  PyVTKReference_Concat,   // sq_concat
+  PyVTKReference_Repeat,   // sq_repeat
+  PyVTKReference_GetItem,  // sq_item
+  nullptr,                 // sq_slice
   nullptr,                 // sq_ass_item
   nullptr,                 // sq_ass_slice
   PyVTKReference_Contains, // sq_contains
@@ -683,85 +597,6 @@ static PyMappingMethods PyVTKReference_AsMapping = {
 //------------------------------------------------------------------------------
 // Buffer protocol
 
-#ifndef VTK_PY3K
-// old buffer protocol
-static Py_ssize_t PyVTKReference_GetReadBuf(PyObject* op, Py_ssize_t segment, void** ptrptr)
-{
-  char text[80];
-  PyBufferProcs* pb;
-  op = ((PyVTKReference*)op)->value;
-  pb = Py_TYPE(op)->tp_as_buffer;
-
-  if (pb && pb->bf_getreadbuffer)
-  {
-    return Py_TYPE(op)->tp_as_buffer->bf_getreadbuffer(op, segment, ptrptr);
-  }
-
-  snprintf(text, sizeof(text), "type \'%.20s\' does not support readable buffer access",
-    Py_TYPE(op)->tp_name);
-  PyErr_SetString(PyExc_TypeError, text);
-
-  return -1;
-}
-
-static Py_ssize_t PyVTKReference_GetWriteBuf(PyObject* op, Py_ssize_t segment, void** ptrptr)
-{
-  char text[80];
-  PyBufferProcs* pb;
-  op = ((PyVTKReference*)op)->value;
-  pb = Py_TYPE(op)->tp_as_buffer;
-
-  if (pb && pb->bf_getwritebuffer)
-  {
-    return Py_TYPE(op)->tp_as_buffer->bf_getwritebuffer(op, segment, ptrptr);
-  }
-
-  snprintf(text, sizeof(text), "type \'%.20s\' does not support writeable buffer access",
-    Py_TYPE(op)->tp_name);
-  PyErr_SetString(PyExc_TypeError, text);
-
-  return -1;
-}
-
-static Py_ssize_t PyVTKReference_GetSegCount(PyObject* op, Py_ssize_t* lenp)
-{
-  char text[80];
-  PyBufferProcs* pb;
-  op = ((PyVTKReference*)op)->value;
-  pb = Py_TYPE(op)->tp_as_buffer;
-
-  if (pb && pb->bf_getsegcount)
-  {
-    return Py_TYPE(op)->tp_as_buffer->bf_getsegcount(op, lenp);
-  }
-
-  snprintf(
-    text, sizeof(text), "type \'%.20s\' does not support buffer access", Py_TYPE(op)->tp_name);
-  PyErr_SetString(PyExc_TypeError, text);
-
-  return -1;
-}
-
-static Py_ssize_t PyVTKReference_GetCharBuf(PyObject* op, Py_ssize_t segment, char** ptrptr)
-{
-  char text[80];
-  PyBufferProcs* pb;
-  op = ((PyVTKReference*)op)->value;
-  pb = Py_TYPE(op)->tp_as_buffer;
-
-  if (pb && pb->bf_getcharbuffer)
-  {
-    return Py_TYPE(op)->tp_as_buffer->bf_getcharbuffer(op, segment, ptrptr);
-  }
-
-  snprintf(text, sizeof(text), "type \'%.20s\' does not support character buffer access",
-    Py_TYPE(op)->tp_name);
-  PyErr_SetString(PyExc_TypeError, text);
-
-  return -1;
-}
-#endif
-
 // new buffer protocol
 static int PyVTKReference_GetBuffer(PyObject* self, Py_buffer* view, int flags)
 {
@@ -775,12 +610,6 @@ static void PyVTKReference_ReleaseBuffer(PyObject*, Py_buffer* view)
 }
 
 static PyBufferProcs PyVTKReference_AsBuffer = {
-#ifndef VTK_PY3K
-  PyVTKReference_GetReadBuf,  // bf_getreadbuffer
-  PyVTKReference_GetWriteBuf, // bf_getwritebuffer
-  PyVTKReference_GetSegCount, // bf_getsegcount
-  PyVTKReference_GetCharBuf,  // bf_getcharbuffer
-#endif
   PyVTKReference_GetBuffer,    // bf_getbuffer
   PyVTKReference_ReleaseBuffer // bf_releasebuffer
 };
@@ -797,29 +626,11 @@ static void PyVTKReference_Delete(PyObject* ob)
 static PyObject* PyVTKReference_Repr(PyObject* ob)
 {
   PyObject* r = nullptr;
-  const char* name = Py_TYPE(ob)->tp_name;
+  const char* name = vtkPythonUtil::GetTypeNameForObject(ob);
   PyObject* s = PyObject_Repr(((PyVTKReference*)ob)->value);
   if (s)
   {
-#ifdef VTK_PY3K
     r = PyUnicode_FromFormat("%s(%U)", name, s);
-#else
-    const char* text = PyString_AsString(s);
-    size_t n = strlen(name) + strlen(text) + 3; // for '(', ')', null
-    if (n > 128)
-    {
-      char* cp = (char*)malloc(n);
-      snprintf(cp, n, "%s(%s)", name, text);
-      r = PyString_FromString(cp);
-      free(cp);
-    }
-    else
-    {
-      char textspace[128];
-      snprintf(textspace, sizeof(textspace), "%s(%s)", name, text);
-      r = PyString_FromString(textspace);
-    }
-#endif
     Py_DECREF(s);
   }
   return r;
@@ -857,16 +668,11 @@ static PyObject* PyVTKReference_GetAttr(PyObject* self, PyObject* attr)
   }
   PyErr_Clear();
 
-#ifndef VTK_PY3K
-  char* name = PyString_AsString(attr);
-  int firstchar = name[0];
-#else
   int firstchar = '\0';
   if (PyUnicode_GetLength(attr) > 0)
   {
     firstchar = PyUnicode_ReadChar(attr, 0);
   }
-#endif
   if (firstchar != '_')
   {
     a = PyObject_GetAttr(((PyVTKReference*)self)->value, attr);
@@ -878,13 +684,8 @@ static PyObject* PyVTKReference_GetAttr(PyObject* self, PyObject* attr)
     PyErr_Clear();
   }
 
-#ifdef VTK_PY3K
-  PyErr_Format(
-    PyExc_AttributeError, "'%.50s' object has no attribute '%U'", Py_TYPE(self)->tp_name, attr);
-#else
-  PyErr_Format(
-    PyExc_AttributeError, "'%.50s' object has no attribute '%.80s'", Py_TYPE(self)->tp_name, name);
-#endif
+  PyErr_Format(PyExc_AttributeError, "'%.50s' object has no attribute '%U'",
+    vtkPythonUtil::GetTypeNameForObject(self), attr);
   return nullptr;
 }
 
@@ -955,10 +756,7 @@ PyTypeObject PyVTKReference_Type = {
   PyVTKReference_GetAttr, // tp_getattro
   nullptr,                // tp_setattro
   nullptr,                // tp_as_buffer
-#ifndef VTK_PY3K
-  Py_TPFLAGS_CHECKTYPES |
-#endif
-    Py_TPFLAGS_DEFAULT,       // tp_flags
+  Py_TPFLAGS_DEFAULT,       // tp_flags
   PyVTKReference_Doc,         // tp_doc
   nullptr,                    // tp_traverse
   nullptr,                    // tp_clear
@@ -1011,10 +809,7 @@ PyTypeObject PyVTKNumberReference_Type = {
   PyVTKReference_GetAttr,   // tp_getattro
   nullptr,                  // tp_setattro
   nullptr,                  // tp_as_buffer
-#ifndef VTK_PY3K
-  Py_TPFLAGS_CHECKTYPES |
-#endif
-    Py_TPFLAGS_DEFAULT,                // tp_flags
+  Py_TPFLAGS_DEFAULT,                // tp_flags
   PyVTKReference_Doc,                  // tp_doc
   nullptr,                             // tp_traverse
   nullptr,                             // tp_clear
@@ -1067,10 +862,7 @@ PyTypeObject PyVTKStringReference_Type = {
   PyVTKReference_GetAttr,         // tp_getattro
   nullptr,                        // tp_setattro
   &PyVTKReference_AsBuffer,       // tp_as_buffer
-#ifndef VTK_PY3K
-  Py_TPFLAGS_CHECKTYPES |
-#endif
-    Py_TPFLAGS_DEFAULT,                // tp_flags
+  Py_TPFLAGS_DEFAULT,                // tp_flags
   PyVTKReference_Doc,                  // tp_doc
   nullptr,                             // tp_traverse
   nullptr,                             // tp_clear
@@ -1123,10 +915,7 @@ PyTypeObject PyVTKTupleReference_Type = {
   PyVTKReference_GetAttr,     // tp_getattro
   nullptr,                    // tp_setattro
   nullptr,                    // tp_as_buffer
-#ifndef VTK_PY3K
-  Py_TPFLAGS_CHECKTYPES |
-#endif
-    Py_TPFLAGS_DEFAULT,                // tp_flags
+  Py_TPFLAGS_DEFAULT,                // tp_flags
   PyVTKReference_Doc,                  // tp_doc
   nullptr,                             // tp_traverse
   nullptr,                             // tp_clear

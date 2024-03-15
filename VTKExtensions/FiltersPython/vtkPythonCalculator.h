@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonCalculator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonCalculator
  * @brief   Evaluates a Python expression
@@ -33,6 +22,7 @@
 #ifndef vtkPythonCalculator_h
 #define vtkPythonCalculator_h
 
+#include "vtkDataObject.h"                         // for FIELD_ASSOCIATION_POINTS
 #include "vtkPVVTKExtensionsFiltersPythonModule.h" //needed for exports
 #include "vtkProgrammableFilter.h"
 
@@ -43,7 +33,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
   static vtkPythonCalculator* New();
 
-  //@{
+  ///@{
   /**
    * Which field data to get the arrays from. See
    * vtkDataObject::FieldAssociations for choices. The default
@@ -51,25 +41,53 @@ public:
    */
   vtkSetMacro(ArrayAssociation, int);
   vtkGetMacro(ArrayAssociation, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text of the python expression to execute. This expression
    * must return a scalar value (which is converted to an array) or a
    * numpy array.
    */
-  vtkSetStringMacro(Expression);
-  vtkGetStringMacro(Expression);
-  //@}
+  vtkSetMacro(Expression, std::string);
+  vtkGetMacro(Expression, std::string);
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * Set the text of the python multiline expression. The expression must use an explicit return
+   * statement for the result scalar value or numpy array.
+   */
+  vtkSetMacro(MultilineExpression, std::string);
+  vtkGetMacro(MultilineExpression, std::string);
+  ///@}
+
+  ///@{
   /**
    * Set the name of the output array.
    */
   vtkSetStringMacro(ArrayName);
   vtkGetStringMacro(ArrayName);
-  //@}
+  ///@}
+
+  ///@{
+  /**
+   * Type of the result array.
+   * Initial value is VTK_DOUBLE.
+   */
+  vtkGetMacro(ResultArrayType, int);
+  vtkSetMacro(ResultArrayType, int);
+  ///@}
+
+  ///@{
+  /**
+   * If true, executes `MultilineExpression`, which is a multiline string representing a Python
+   * script, ending by a return statement. Otherwise, evaluates `Expression`, a python expression.
+   * Initial value is false.
+   */
+  vtkGetMacro(UseMultilineExpression, bool);
+  vtkSetMacro(UseMultilineExpression, bool);
+  ///@}
 
   /**
    * For internal use only.
@@ -83,7 +101,7 @@ protected:
   /**
    * For internal use only.
    */
-  void Exec(const char*);
+  void Exec(const std::string&);
 
   int FillOutputPortInformation(int port, vtkInformation* info) override;
 
@@ -98,9 +116,13 @@ protected:
   int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
-  char* Expression;
-  char* ArrayName;
-  int ArrayAssociation;
+  std::string Expression;
+  std::string MultilineExpression;
+  bool UseMultilineExpression = false;
+
+  char* ArrayName = nullptr;
+  int ArrayAssociation = vtkDataObject::FIELD_ASSOCIATION_POINTS;
+  int ResultArrayType = VTK_DOUBLE;
 
 private:
   vtkPythonCalculator(const vtkPythonCalculator&) = delete;

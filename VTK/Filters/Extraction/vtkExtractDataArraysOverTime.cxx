@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractDataArraysOverTime.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractDataArraysOverTime.h"
 
 #include "vtkArrayDispatch.h"
@@ -42,6 +30,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 struct ClearInvalidElementsWorker
@@ -531,20 +520,20 @@ void vtkExtractDataArraysOverTime::vtkInternal::AddTimeStepInternal(
     return;
   }
 
-  vtkIdTypeArray* indexArray = nullptr;
+  vtkIdTypeArray::Superclass* indexArray = nullptr;
   if (!statsOnly)
   {
     if (this->Self->GetUseGlobalIDs())
     {
-      indexArray = vtkIdTypeArray::SafeDownCast(inDSA->GetGlobalIds());
+      indexArray = vtkIdTypeArray::Superclass::FastDownCast(inDSA->GetGlobalIds());
     }
     else
     {
       // when not reporting stats, user can specify which array to use to index
       // elements.
       int association;
-      indexArray =
-        vtkIdTypeArray::SafeDownCast(this->Self->GetInputArrayToProcess(0, data, association));
+      indexArray = vtkIdTypeArray::Superclass::FastDownCast(
+        this->Self->GetInputArrayToProcess(0, data, association));
       if (indexArray != nullptr && association != attributeType)
       {
         indexArray = nullptr;
@@ -783,7 +772,7 @@ int vtkExtractDataArraysOverTime::RequestData(
 
   // increment the time index
   this->CurrentTimeIndex++;
-  if (this->CurrentTimeIndex == this->NumberOfTimeSteps)
+  if (this->CheckAbort() || this->CurrentTimeIndex == this->NumberOfTimeSteps)
   {
     this->PostExecute(request, inputVector, outputVector);
     delete this->Internal;
@@ -815,3 +804,4 @@ vtkSmartPointer<vtkOrderStatistics> vtkExtractDataArraysOverTime::NewOrderStatis
 {
   return vtkSmartPointer<vtkOrderStatistics>::New();
 }
+VTK_ABI_NAMESPACE_END

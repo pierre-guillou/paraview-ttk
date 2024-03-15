@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIOSSReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class vtkIOSSReader
@@ -165,7 +150,10 @@
  * `{NP}` is the number of spatial partitions and `{RANK}` is the spatial partition number.
  *
  * @section References References
- * * [Sierra IO System](http://gsjaardema.github.io/seacas/)
+ * * [Sierra IO System](https://sandialabs.github.io/seacas-docs)
+ *
+ * @sa
+ * vtkIOSSWriter, vtkExodusIIReader, vtkCGNSReader
  */
 
 #ifndef vtkIOSSReader_h
@@ -177,6 +165,7 @@
 
 #include <map> // for std::map
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkDataAssembly;
 class vtkMultiProcessController;
@@ -228,7 +217,7 @@ public:
    * By default, this property is off.
    * Example: DENSITY_1, DENSITY_2, DENSITY_3, DENSITY_4
    * If the property is true, those fields will be parsed as a 4-component vtkDataArray
-   * named DESNITY.
+   * named DENSITY.
    * When turned off, DENSITY_1, DENSITY_2, DENSITY_3, DENSITY_4 fields will be parsed as 4
    * vtkDataArrays with 1 component each.
    */
@@ -272,6 +261,33 @@ public:
   vtkGetVector2Macro(FileRange, int);
   vtkSetClampMacro(FileStride, int, 1, VTK_INT_MAX);
   vtkGetMacro(FileStride, int);
+  ///@}
+
+  ///@{
+  /**
+   * When this flag is on, blocks/sets of like exodus types will be merged.
+   *
+   * Note: This flag is ignored for non-exodus data.
+   */
+  void SetMergeExodusEntityBlocks(bool value);
+  vtkGetMacro(MergeExodusEntityBlocks, bool);
+  vtkBooleanMacro(MergeExodusEntityBlocks, bool);
+  ///@}
+
+  ///@{
+  /**
+   * When this flag is on and MergeExodusEntityBlocks is off,
+   * side sets of exodus data will be annotated with field-data
+   * arrays holding the element-id and side-id for each output cell.
+   *
+   * This flag is true/on by default.
+   *
+   * Note: This flag is ignored for non-exodus data and when
+   * MergeExodusEntityBlocks is enabled.
+   */
+  void SetElementAndSideIds(bool value);
+  vtkGetMacro(ElementAndSideIds, bool);
+  vtkBooleanMacro(ElementAndSideIds, bool);
   ///@}
 
   ///@{
@@ -328,6 +344,20 @@ public:
   vtkSetMacro(ReadGlobalFields, bool);
   vtkGetMacro(ReadGlobalFields, bool);
   vtkBooleanMacro(ReadGlobalFields, bool);
+  ///@}
+
+  ///@{
+  /**
+   * When set to true (default), the reader will read all files to determine structure of the
+   * dataset because some files might have certain blocks that other files don't have.
+   * Set to false if you are sure that all files have the same structure, i.e. same blocks and sets.
+   *
+   * @note When set to false, the reader will only read the first file to determine the structure.
+   * which is faster than reading all files.
+   */
+  void SetReadAllFilesToDetermineStructure(bool);
+  vtkGetMacro(ReadAllFilesToDetermineStructure, bool);
+  vtkBooleanMacro(ReadAllFilesToDetermineStructure, bool);
   ///@}
 
   ///@{
@@ -396,6 +426,7 @@ public:
   static bool GetEntityTypeIsBlock(int type) { return (type >= BLOCK_START && type < BLOCK_END); }
   static bool GetEntityTypeIsSet(int type) { return (type >= SET_START && type < SET_END); }
   static const char* GetDataAssemblyNodeNameForEntityType(int type);
+  static const char* GetMergedEntityNameForEntityType(int type);
 
   vtkDataArraySelection* GetEntitySelection(int type);
   vtkDataArraySelection* GetNodeBlockSelection() { return this->GetEntitySelection(NODEBLOCK); }
@@ -598,6 +629,8 @@ public:
   vtkTypeBool ProcessRequest(
     vtkInformation* request, vtkInformationVector** inInfo, vtkInformationVector* outInfo) override;
 
+  static vtkInformationIntegerKey* ENTITY_ID();
+
 protected:
   vtkIOSSReader();
   ~vtkIOSSReader() override;
@@ -613,11 +646,14 @@ private:
   vtkNew<vtkStringArray> EntityIdMapStrings[NUMBER_OF_ENTITY_TYPES + 1];
 
   vtkMultiProcessController* Controller;
+  bool MergeExodusEntityBlocks;
+  bool ElementAndSideIds;
   bool GenerateFileId;
   bool ScanForRelatedFiles;
   bool ReadIds;
   bool RemoveUnusedPoints;
   bool ApplyDisplacements;
+  bool ReadAllFilesToDetermineStructure;
   bool ReadGlobalFields;
   bool ReadQAAndInformationRecords;
   char* DatabaseTypeOverride;
@@ -631,4 +667,5 @@ private:
   static vtkInformationIntegerKey* ENTITY_TYPE();
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,12 +1,6 @@
-//=========================================================================
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataSetRegionSurfaceFilter
  * @brief   Extract surface of materials.
@@ -25,6 +19,7 @@
 
 #include "vtkDataSetSurfaceFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCharArray;
 
 class VTKFILTERSGEOMETRY_EXPORT vtkDataSetRegionSurfaceFilter : public vtkDataSetSurfaceFilter
@@ -140,4 +135,5 @@ private:
   Internals* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

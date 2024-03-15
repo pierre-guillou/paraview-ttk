@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMSettings.h"
 
 #include "vtkMultiProcessController.h"
@@ -293,14 +282,17 @@ public:
       }
     }
     std::vector<int> vector;
-    if (!this->GetSetting(settingName, vector, maxPriority) ||
-      vector.size() != property->GetNumberOfElements())
+    if (!this->GetSetting(settingName, vector, maxPriority))
     {
       return false;
     }
     if (property->GetRepeatable())
     {
       property->SetNumberOfElements(static_cast<unsigned int>(vector.size()));
+    }
+    if (vector.size() != property->GetNumberOfElements())
+    {
+      return false;
     }
 
     property->SetElements(&vector[0]);

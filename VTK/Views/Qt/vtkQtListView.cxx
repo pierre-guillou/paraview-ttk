@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtListView.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkQtListView.h"
 
@@ -32,8 +16,8 @@
 #include "vtkAnnotationLayers.h"
 #include "vtkAnnotationLink.h"
 #include "vtkApplyColors.h"
+#include "vtkAttributeDataToTableFilter.h"
 #include "vtkConvertSelection.h"
-#include "vtkDataObjectToTable.h"
 #include "vtkDataRepresentation.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkGraph.h"
@@ -49,16 +33,28 @@
 #include "vtkTable.h"
 #include "vtkViewTheme.h"
 
+namespace
+{
+const std::map<int, int> FIELD_ASSOCIATION_MAP = { { vtkQtListView::FIELD_DATA,
+                                                     vtkDataObject::FIELD_ASSOCIATION_NONE },
+  { vtkQtListView::POINT_DATA, vtkDataObject::FIELD_ASSOCIATION_POINTS },
+  { vtkQtListView::CELL_DATA, vtkDataObject::FIELD_ASSOCIATION_CELLS },
+  { vtkQtListView::VERTEX_DATA, vtkDataObject::FIELD_ASSOCIATION_VERTICES },
+  { vtkQtListView::EDGE_DATA, vtkDataObject::FIELD_ASSOCIATION_EDGES },
+  { vtkQtListView::ROW_DATA, vtkDataObject::FIELD_ASSOCIATION_ROWS } };
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQtListView);
 
 //------------------------------------------------------------------------------
 vtkQtListView::vtkQtListView()
 {
   this->ApplyColors = vtkSmartPointer<vtkApplyColors>::New();
-  this->DataObjectToTable = vtkSmartPointer<vtkDataObjectToTable>::New();
+  this->DataObjectToTable = vtkSmartPointer<vtkAttributeDataToTableFilter>::New();
   this->ApplyColors->SetInputConnection(0, this->DataObjectToTable->GetOutputPort(0));
 
-  this->DataObjectToTable->SetFieldType(vtkDataObjectToTable::VERTEX_DATA);
+  this->DataObjectToTable->SetFieldAssociation(vtkDataObject::FIELD_ASSOCIATION_VERTICES);
   this->FieldType = vtkQtListView::VERTEX_DATA;
 
   this->ListView = new QListView();
@@ -124,7 +120,7 @@ void vtkQtListView::SetEnableDragDrop(bool state)
 //------------------------------------------------------------------------------
 void vtkQtListView::SetFieldType(int type)
 {
-  this->DataObjectToTable->SetFieldType(type);
+  this->DataObjectToTable->SetFieldAssociation(::FIELD_ASSOCIATION_MAP.at(type));
   if (this->FieldType != type)
   {
     this->FieldType = type;
@@ -374,3 +370,4 @@ void vtkQtListView::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "ApplyRowColors: " << (this->ApplyRowColors ? "true" : "false") << endl;
 }
+VTK_ABI_NAMESPACE_END

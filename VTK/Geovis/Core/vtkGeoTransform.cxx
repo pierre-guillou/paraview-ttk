@@ -1,34 +1,18 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGeoTransform.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkGeoTransform.h"
 
 #include "vtkDoubleArray.h"
 #include "vtkGeoProjection.h"
 #include "vtkMath.h"
-#include "vtkObjectFactory.h"
 #include "vtkPoints.h"
 
 #include "vtk_libproj.h"
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeoTransform);
 vtkCxxSetObjectMacro(vtkGeoTransform, SourceProjection, vtkGeoProjection);
 vtkCxxSetObjectMacro(vtkGeoTransform, DestinationProjection, vtkGeoProjection);
@@ -37,6 +21,7 @@ vtkGeoTransform::vtkGeoTransform()
 {
   this->SourceProjection = nullptr;
   this->DestinationProjection = nullptr;
+  this->TransformZCoordinate = false;
 }
 
 vtkGeoTransform::~vtkGeoTransform()
@@ -49,6 +34,26 @@ vtkGeoTransform::~vtkGeoTransform()
   {
     this->DestinationProjection->Delete();
   }
+}
+
+void vtkGeoTransform::SetSourceProjection(const char* proj)
+{
+  if (this->SourceProjection)
+  {
+    this->SourceProjection->Delete();
+  }
+  this->SourceProjection = vtkGeoProjection::New();
+  this->SourceProjection->SetPROJ4String(proj);
+}
+
+void vtkGeoTransform::SetDestinationProjection(const char* proj)
+{
+  if (this->DestinationProjection)
+  {
+    this->DestinationProjection->Delete();
+  }
+  this->DestinationProjection = vtkGeoProjection::New();
+  this->DestinationProjection->SetPROJ4String(proj);
 }
 
 void vtkGeoTransform::PrintSelf(ostream& os, vtkIndent indent)
@@ -150,6 +155,8 @@ void vtkGeoTransform::InternalTransformDerivative(
   (void)in;
   (void)out;
   (void)derivative;
+  vtkErrorMacro("Error: Normal transfomation is not implemented. Please remove normals"
+                " using vtkPassSelectedArrays and regenerate normals after the transform.");
 }
 
 vtkAbstractTransform* vtkGeoTransform::MakeTransform()
@@ -160,84 +167,101 @@ vtkAbstractTransform* vtkGeoTransform::MakeTransform()
 
 void vtkGeoTransform::InternalTransformPoints(double* x, vtkIdType numPts, int stride)
 {
+#if PROJ_VERSION_MAJOR < 5
+  vtkErrorMacro("VTK requires proj version >= 5.0.0 ");
+#else
   projPJ src = this->SourceProjection ? this->SourceProjection->GetProjection() : nullptr;
   projPJ dst = this->DestinationProjection ? this->DestinationProjection->GetProjection() : nullptr;
   int delta = stride - 2;
-#if PROJ_VERSION_MAJOR >= 5
-  PJ_COORD c, c_out;
-#else
-  projLP lp;
-  projXY xy;
-#endif
-  if (src)
+  if (!this->TransformZCoordinate)
   {
-    // Convert from src system to lat/long using inverse of src transform
-    double* coord = x;
-    for (vtkIdType i = 0; i < numPts; ++i)
+    PJ_COORD c, c_out;
+    if (src)
     {
-#if PROJ_VERSION_MAJOR >= 5
-      c.xy.x = coord[0];
-      c.xy.y = coord[1];
-      c_out = proj_trans(src, PJ_INV, c);
-      coord[0] = c_out.lp.lam;
-      coord[1] = c_out.lp.phi;
-#else
-      xy.u = coord[0];
-      xy.v = coord[1];
-      lp = pj_inv(xy, src);
-      coord[0] = lp.u;
-      coord[1] = lp.v;
-#endif
-      coord += stride;
-    }
-  }
-  else // ! src
-  {
-    // src coords are in degrees, convert to radians
-    double* coord = x;
-    for (vtkIdType i = 0; i < numPts; ++i)
-    {
-      for (int j = 0; j < 2; ++j, ++coord)
+      // Convert from src system to lat/long using inverse of src transform
+      double* coord = x;
+      for (vtkIdType i = 0; i < numPts; ++i)
       {
-        *coord = vtkMath::RadiansFromDegrees(*coord);
+        c.xy.x = coord[0];
+        c.xy.y = coord[1];
+        c_out = proj_trans(src, PJ_INV, c);
+        coord[0] = c_out.lp.lam;
+        coord[1] = c_out.lp.phi;
+        coord += stride;
       }
-      coord += delta;
     }
-  }
-  if (dst)
-  {
-    double* coord = x;
-    for (vtkIdType i = 0; i < numPts; ++i)
+    else // ! src
     {
-#if PROJ_VERSION_MAJOR >= 5
-      c.lp.lam = coord[0];
-      c.lp.phi = coord[1];
-      c_out = proj_trans(dst, PJ_FWD, c);
-      coord[0] = c_out.xy.x;
-      coord[1] = c_out.xy.y;
-#else
-      lp.u = coord[0];
-      lp.v = coord[1];
-      xy = pj_fwd(lp, dst);
-      coord[0] = xy.u;
-      coord[1] = xy.v;
-#endif
-      coord += stride;
-    }
-  }
-  else // ! dst
-  {
-    // dst coords are in radians, convert to degrees
-    double* coord = x;
-    for (vtkIdType i = 0; i < numPts; ++i)
-    {
-      for (int j = 0; j < 2; ++j, ++coord)
+      // src coords are in degrees, convert to radians
+      double* coord = x;
+      for (vtkIdType i = 0; i < numPts; ++i)
       {
-        *coord = vtkMath::DegreesFromRadians(*coord);
+        for (int j = 0; j < 2; ++j, ++coord)
+        {
+          *coord = vtkMath::RadiansFromDegrees(*coord);
+        }
+        coord += delta;
       }
-      coord += delta;
+    }
+    if (dst)
+    {
+      double* coord = x;
+      for (vtkIdType i = 0; i < numPts; ++i)
+      {
+        c.lp.lam = coord[0];
+        c.lp.phi = coord[1];
+        c_out = proj_trans(dst, PJ_FWD, c);
+        coord[0] = c_out.xy.x;
+        coord[1] = c_out.xy.y;
+        coord += stride;
+      }
+    }
+    else // ! dst
+    {
+      // dst coords are in radians, convert to degrees
+      double* coord = x;
+      for (vtkIdType i = 0; i < numPts; ++i)
+      {
+        for (int j = 0; j < 2; ++j, ++coord)
+        {
+          *coord = vtkMath::DegreesFromRadians(*coord);
+        }
+        coord += delta;
+      }
     }
   }
+  else
+  {
+    PJ* P;
+    P = proj_create_crs_to_crs(PJ_DEFAULT_CTX, this->SourceProjection->GetPROJ4String(),
+      this->DestinationProjection->GetPROJ4String(), nullptr);
+    if (P == nullptr)
+    {
+      vtkErrorMacro("proj_create_crs_to_crs failed: " << proj_errno_string(proj_errno(nullptr)));
+      return;
+    }
+    /* For that particular use case, this is not needed. */
+    /* proj_normalize_for_visualization() ensures that the coordinate */
+    /* order expected and returned by proj_trans() will be longitude, */
+    /* latitude for geographic CRS, and easting, northing for projected */
+    /* CRS. If instead of using PROJ strings as above, "EPSG:XXXX" codes */
+    /* had been used, this might had been necessary. */
+    PJ* P_for_GIS = proj_normalize_for_visualization(PJ_DEFAULT_CTX, P);
+    if (P_for_GIS == nullptr)
+    {
+      proj_destroy(P);
+      vtkErrorMacro(
+        "proj_normalize_for_visualization failed: " << proj_errno_string(proj_errno(nullptr)));
+      return;
+    }
+    proj_destroy(P);
+    P = P_for_GIS;
+
+    proj_trans_generic(P, PJ_FWD, x, sizeof(*x) * stride, numPts, x + 1, sizeof(*x) * stride,
+      numPts, x + 2, sizeof(*x) * stride, numPts, nullptr, 0, 0);
+    proj_destroy(P);
+  }
+#endif
 }
 
 int vtkGeoTransform::ComputeUTMZone(double lon, double lat)
@@ -288,3 +312,4 @@ int vtkGeoTransform::ComputeUTMZone(double lon, double lat)
   }
   return result;
 }
+VTK_ABI_NAMESPACE_END

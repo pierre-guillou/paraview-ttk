@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGaussianSplatter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGaussianSplatter
  * @brief   splat points into a volume with an elliptical, Gaussian distribution
@@ -43,7 +31,7 @@
  * where E is a user-defined eccentricity factor that controls the elliptical
  * shape of the splat; z is the distance of the current voxel sample point
  * along normal N; and rxy is the distance of x in the direction
- * prependicular to N.
+ * perpendicular to N.
  *
  * This class is typically used to convert point-valued distributions into
  * a volume representation. The volume is then usually iso-surfaced or
@@ -82,6 +70,7 @@
 #define VTK_ACCUMULATION_MODE_MAX 1
 #define VTK_ACCUMULATION_MODE_SUM 2
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDoubleArray;
 class vtkCompositeDataSet;
 class vtkGaussianSplatterAlgorithm;
@@ -321,9 +310,9 @@ private:
   double SplatDistance[3];
   double NullValue;
 
-private:
   vtkGaussianSplatter(const vtkGaussianSplatter&) = delete;
   void operator=(const vtkGaussianSplatter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

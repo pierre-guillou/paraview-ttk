@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImporter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImporter
  * @brief   importer abstract class
@@ -50,6 +38,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataSet;
 class vtkDoubleArray;
@@ -138,18 +127,23 @@ public:
   virtual void SetCamera(vtkIdType vtkNotUsed(camIndex)) {}
 
   /**
-   * Get temporal information for the currently enabled animations.
-   * the three return arguments can be defined or not.
-   * Return true in case of success, false otherwise.
+   * Get temporal information for the provided animationIndex and frameRate.
+   * This implementation return false, but concrete class implementation
+   * behavior is as follows.
+   * frameRate is used to define the number of frames for one second of simulation,
+   * set to zero if timeSteps are not needed.
+   * If animation is present in the dataset, timeRange should be set by this method, return true.
+   * If animation is present and frameRate > 0, nbTimeSteps and timeSteps should also be set, return
+   * true. If animation is not present, return false.
    */
   virtual bool GetTemporalInformation(vtkIdType animationIndex, double frameRate, int& nbTimeSteps,
     double timeRange[2], vtkDoubleArray* timeSteps);
 
   /**
-   * Import the actors, camera, lights and properties at a specific timestep.
+   * Import the actors, camera, lights and properties at a specific time value.
    * If not reimplemented, only call Update().
    */
-  virtual void UpdateTimeStep(double timeStep);
+  virtual void UpdateTimeStep(double timeValue);
 
 protected:
   vtkImporter();
@@ -175,4 +169,5 @@ private:
   void operator=(const vtkImporter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

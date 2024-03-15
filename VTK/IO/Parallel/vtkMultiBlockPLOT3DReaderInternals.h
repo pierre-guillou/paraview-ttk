@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiBlockPLOT3DReaderInternals.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkMultiBlockPLOT3DReaderInternals_h
 #define vtkMultiBlockPLOT3DReaderInternals_h
 
@@ -24,17 +12,8 @@
 #include <exception>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
-
-#ifdef _WIN64
-#define vtk_fseek _fseeki64
-#define vtk_ftell _ftelli64
-#define vtk_off_t __int64
-#else
-#define vtk_fseek fseek
-#define vtk_ftell ftell
-#define vtk_off_t long
-#endif
 
 struct vtkMultiBlockPLOT3DReaderInternals
 {
@@ -53,7 +32,7 @@ struct vtkMultiBlockPLOT3DReaderInternals
   {
     int BinaryFile;
     int ByteOrder;
-    int HasByteCount;
+    vtkTypeBool HasByteCount;
     int MultiGrid;
     int NumberOfDimensions;
     int Precision; // in bytes
@@ -100,6 +79,7 @@ struct vtkMultiBlockPLOT3DReaderInternals
     postskip = nPtsInPlane * (wextent[5] - extent[5]);
   }
 };
+VTK_ABI_NAMESPACE_END
 
 namespace
 {
@@ -108,6 +88,7 @@ class Plot3DException : public std::exception
 };
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Description:
 // vtkMultiBlockPLOT3DReaderRecord represents a data record in the file. For
 // binary Plot3D files with record separators (i.e. leading and trailing length
@@ -193,9 +174,11 @@ public:
   std::vector<std::pair<vtkTypeUInt64, vtkTypeUInt64>> GetChunksToRead(
     vtkTypeUInt64 start, vtkTypeUInt64 length) const
   {
-    return this->GetChunksToRead(start, length, this->GetSubRecordSeparators(start, length));
+    return vtkMultiBlockPLOT3DReaderRecord::GetChunksToRead(
+      start, length, this->GetSubRecordSeparators(start, length));
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkMultiBlockPLOT3DReaderInternals.h

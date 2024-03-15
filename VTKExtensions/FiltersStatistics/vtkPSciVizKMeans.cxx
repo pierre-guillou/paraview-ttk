@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPSciVizKMeans.h"
 #include "vtkSciVizStatisticsPrivate.h"
 
@@ -49,7 +51,8 @@ int vtkPSciVizKMeans::LearnAndDerive(vtkMultiBlockDataSet* modelDO, vtkTable* in
   stats->Update();
 
   // Copy the output of the statistics filter to our output
-  modelDO->ShallowCopy(stats->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL));
+  modelDO->CompositeShallowCopy(vtkMultiBlockDataSet::SafeDownCast(
+    stats->GetOutputDataObject(vtkStatisticsAlgorithm::OUTPUT_MODEL)));
   stats->Delete();
 
   return 1;

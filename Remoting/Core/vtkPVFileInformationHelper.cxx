@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVFileInformationHelper.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVFileInformationHelper.h"
 
 #include "vtkObjectFactory.h"
@@ -30,6 +18,7 @@ vtkPVFileInformationHelper::vtkPVFileInformationHelper()
   , WorkingDirectory(nullptr)
   , DirectoryListing(0)
   , SpecialDirectories(0)
+  , ExamplesInSpecialDirectories(true)
   , FastFileTypeDetection(1)
   , GroupFileSequences(true)
   , ReadDetailedFileInformation(false)
@@ -73,6 +62,7 @@ void vtkPVFileInformationHelper::PrintSelf(ostream& os, vtkIndent indent)
      << endl;
   os << indent << "DirectoryListing: " << this->DirectoryListing << endl;
   os << indent << "SpecialDirectories: " << this->SpecialDirectories << endl;
+  os << indent << "ExamplesInSpecialDirectories: " << this->ExamplesInSpecialDirectories << endl;
   os << indent << "PathSeparator: " << (this->PathSeparator ? this->PathSeparator : "(null)")
      << endl;
   os << indent << "FastFileTypeDetection: " << this->FastFileTypeDetection << endl;

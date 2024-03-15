@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkNetCDFCFWriter.h"
 
 #include "vtkArrayDispatch.h"
@@ -34,6 +36,7 @@
 #include "vtk_libproj.h"
 #include "vtk_netcdf.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 std::array<std::string, 3> COORD_NAME = { { "x", "y", "z" } };
@@ -425,7 +428,7 @@ public:
     int status, dimidOrder[3];
     int fillValue = this->Obj->GetFillValue();
 
-    // How the array is layed out in memory
+    // How the array is laid out in memory
     dimidOrder[0] = dimid[2];
     dimidOrder[1] = dimid[1];
     dimidOrder[2] = dimid[0];
@@ -770,3 +773,4 @@ void vtkNetCDFCFWriter::AddGridMappingAttribute(const char* name, double value)
   }
   this->Impl->DoubleAttributes[name] = value;
 }
+VTK_ABI_NAMESPACE_END

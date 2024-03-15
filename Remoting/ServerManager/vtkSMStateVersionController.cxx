@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMStateVersionController.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMStateVersionController.h"
 
 // Don't include vtkAxis. Cannot add dependency on vtkChartsCore in
@@ -60,13 +48,6 @@ public:
 
   vtkTypeUInt32 GetNextUniqueId() { return (++this->LastUniqueId); }
 };
-
-string toString(int i)
-{
-  ostringstream ostr;
-  ostr << i;
-  return ostr.str();
-}
 
 class vtkSMVersion
 {
@@ -1456,6 +1437,253 @@ struct Process_5_10_to_5_11
   }
 };
 
+struct Process_5_11_to_5_12
+{
+  bool operator()(xml_document& document)
+  {
+    return ConvertTableFFT(document) && HandleSlice(document) && HandlePolarAxes(document);
+  }
+
+  static bool ConvertTableFFT(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set =
+      document.select_nodes("//ServerManagerState/Proxy[@group='filters' and @type='TableFFT']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+
+      if (auto averageNode = node.find_child_by_attribute("name", "AverageFft"))
+      {
+        averageNode.attribute("name").set_value("UseWelchMethod");
+      }
+
+      if (auto optimizeNode = node.find_child_by_attribute("name", "OptimizeForRealInput"))
+      {
+        optimizeNode.attribute("name").set_value("OneSidedSpectrum");
+      }
+
+      if (auto nblockNode = node.find_child_by_attribute("name", "NumberOfBlock"))
+      {
+        node.remove_child(nblockNode);
+      }
+    }
+
+    return true;
+  }
+
+  // RealTime is replaced by sequence
+  static bool HandlePlayMode(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='animation' and @type='AnimationScene']");
+
+    if (xpath_set.empty())
+    {
+      return true;
+    }
+
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+
+      if (auto playmodeNode = node.find_child_by_attribute("name", "PlayMode"))
+      {
+        if (playmodeNode.child("Element").attribute("value").as_int() == 1)
+        {
+          playmodeNode.child("Element").attribute("value").set_value("0");
+        }
+      }
+    }
+
+    return true;
+  }
+
+  static bool HandleSlice(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set =
+      document.select_nodes("//ServerManagerState/Proxy[@group='filters' and @type='Cut']");
+
+    if (xpath_set.empty())
+    {
+      return true;
+    }
+
+    // generate missing proxies
+    pugi::xml_node smstate = document.root().child("ServerManagerState");
+    UniqueIdGenerator generator(document);
+
+    const vtkTypeUInt32 mergeId = generator.GetNextUniqueId();
+    const vtkTypeUInt32 octreeMergeId = generator.GetNextUniqueId();
+    const vtkTypeUInt32 nonMergeId = generator.GetNextUniqueId();
+
+    std::ostringstream stream;
+    stream << "<Proxy group=\"incremental_point_locators\" type=\"MergePoints\" id=\"" << mergeId
+           << "\" servers=\"1\" >\n";
+    stream << "  <Property name=\"Divisions\" id=\"" << mergeId
+           << ".Divisions\" number_of_elements=\"3\" >\n";
+    stream << "    <Element index=\"0\" value=\"50\"/>\n";
+    stream << "    <Element index=\"1\" value=\"50\"/>\n";
+    stream << "    <Element index=\"2\" value=\"50\"/>\n";
+    stream << "  </Property>\n";
+    stream << "  <Property name=\"NumberOfPointsPerBucket\" id=\"" << mergeId
+           << ".NumberOfPointsPerBucket\" number_of_elements=\"1\" >\n";
+    stream << "    <Element index=\"0\" value=\"8\"/>\n";
+    stream << "  </Property>\n";
+    stream << "</Proxy>\n";
+
+    stream
+      << "<Proxy group=\"incremental_point_locators\" type=\"IncrementalOctreeMergePoints\" id=\""
+      << octreeMergeId << "\" servers=\"1\" >\n";
+    stream << "  <Property name=\"MaxPointsPerLeaf\" id=\"" << octreeMergeId
+           << ".MaxPointsPerLeaf\" number_of_elements=\"1\" >\n";
+    stream << "    <Element index=\"0\" value=\"128\"/>\n";
+    stream << "    <Domain name=\"range\" id=\"" << octreeMergeId
+           << ".MaxPointsPerLeaf.range\"/>\n";
+    stream << "  </Property>\n";
+    stream << "  <Property name=\"Tolerance\" id=\"" << octreeMergeId
+           << ".Tolerance\" number_of_elements=\"1\" >\n";
+    stream << "    <Element index=\"0\" value=\"0\"/>\n";
+    stream << "  </Property>\n";
+    stream << "</Proxy>\n";
+
+    stream << "<Proxy group=\"incremental_point_locators\" type=\"NonMergingPointLocator\" id=\""
+           << nonMergeId << "\" servers=\"1\" >\n";
+    stream << "  <Property name=\"Divisions\" id=\"" << nonMergeId
+           << ".Divisions\" number_of_elements=\"3\" >\n";
+    stream << "    <Element index=\"0\" value=\"50\"/>\n";
+    stream << "    <Element index=\"1\" value=\"50\"/>\n";
+    stream << "    <Element index=\"2\" value=\"50\"/>\n";
+    stream << "  </Property>\n";
+    stream << "  <Property name=\"NumberOfPointsPerBucket\" id=\"" << nonMergeId
+           << ".NumberOfPointsPerBucket\" number_of_elements=\"1\" >\n";
+    stream << "    <Element index=\"0\" value=\"8\"/>\n";
+    stream << "  </Property>\n";
+    stream << "</Proxy>\n";
+
+    std::string buffer = stream.str();
+    if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
+    {
+      vtkGenericWarningMacro("Unable to add locators to match deprecated merge points.");
+    }
+
+    // replace property
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+      const std::string id(node.attribute("id").value());
+      bool mergePoints = true;
+
+      // remove MergePoints property
+      if (auto mergeNode = node.find_child_by_attribute("name", "MergePoints"))
+      {
+        mergePoints = mergeNode.child("Element").attribute("value").as_int() == 1;
+        node.remove_child(mergeNode);
+      }
+
+      // add Locator property
+      auto locatorNode = node.append_child("Property");
+      locatorNode.append_attribute("name").set_value("Locator");
+      locatorNode.append_attribute("id").set_value((id + ".Locator").c_str());
+      locatorNode.append_attribute("number_of_elements").set_value(1);
+
+      locatorNode.append_child("Proxy").append_attribute("value").set_value(
+        mergePoints ? mergeId : nonMergeId);
+
+      auto domainGroupsNode = locatorNode.append_child("Domain");
+      domainGroupsNode.append_attribute("name").set_value("groups");
+      domainGroupsNode.append_attribute("id").set_value((id + ".Locator.groups").c_str());
+
+      auto domainListNode = locatorNode.append_child("Domain");
+      domainListNode.append_attribute("name").set_value("proxy_list");
+      domainListNode.append_attribute("id").set_value((id + ".Locator.proxy_list").c_str());
+      domainListNode.append_child("Proxy").append_attribute("value").set_value(mergeId);
+      domainListNode.append_child("Proxy").append_attribute("value").set_value(octreeMergeId);
+      domainListNode.append_child("Proxy").append_attribute("value").set_value(nonMergeId);
+    }
+
+    return true;
+  }
+
+  static bool HandlePolarAxes(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='representations' and @type='PolarAxesRepresentation']");
+
+    // replace and add properties
+    // adding only properties that shouldn't have default values
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+      const std::string id(node.attribute("id").value());
+
+      // update and rename NumberOfPolarAxes
+      if (auto nbPolarAxesNode = node.find_child_by_attribute("name", "NumberOfPolarAxis"))
+      {
+        auto autoNode = node.find_child_by_attribute("name", "AutoSubdividePolarAxis");
+        bool isAuto = autoNode.child("Element").attribute("value").as_bool();
+        if (isAuto)
+        {
+          nbPolarAxesNode.child("Element").attribute("value").set_value(5);
+        }
+        nbPolarAxesNode.attribute("name").set_value("NumberOfPolarAxes");
+      }
+
+      // add DeltaAngleRadialAxes if NumberOfRadialAxes is specified
+      if (auto nbRadialAxesNode = node.find_child_by_attribute("name", "NumberOfRadialAxes"))
+      {
+        bool isNotAuto = nbRadialAxesNode.child("Element").attribute("value").as_int() > 0;
+        if (isNotAuto)
+        {
+          // add DeltaAngleRadialAxes property
+          auto propertyNode = node.append_child("Property");
+          propertyNode.append_attribute("name").set_value("DeltaAngleRadialAxes");
+          propertyNode.append_attribute("id").set_value((id + ".DeltaAngleRadialAxes").c_str());
+          propertyNode.append_attribute("number_of_elements").set_value(1);
+
+          auto elementNode = propertyNode.append_child("Element");
+          elementNode.append_attribute("index").set_value(0);
+          elementNode.append_attribute("value").set_value(0.0);
+
+          auto domainNode = propertyNode.append_child("Domain");
+          domainNode.append_attribute("name").set_value("range");
+          domainNode.append_attribute("id").set_value((id + ".DeltaAngleRadialAxes.range").c_str());
+        }
+      }
+
+      // add ArcTickMatchesRadialAxes property
+      auto propertyNode = node.append_child("Property");
+      propertyNode.append_attribute("name").set_value("ArcTickMatchesRadialAxes");
+      propertyNode.append_attribute("id").set_value((id + ".ArcTickMatchesRadialAxes").c_str());
+      propertyNode.append_attribute("number_of_elements").set_value(1);
+
+      auto elementNode = propertyNode.append_child("Element");
+      elementNode.append_attribute("index").set_value(0);
+      elementNode.append_attribute("value").set_value(false);
+
+      auto domainNode = propertyNode.append_child("Domain");
+      domainNode.append_attribute("name").set_value("bool");
+      domainNode.append_attribute("id").set_value((id + ".ArcTickMatchesRadialAxes.bool").c_str());
+
+      // add EnableOverallColor property
+      propertyNode = node.append_child("Property");
+      propertyNode.append_attribute("name").set_value("EnableOverallColor");
+      propertyNode.append_attribute("id").set_value((id + ".EnableOverallColor").c_str());
+      propertyNode.append_attribute("number_of_elements").set_value(1);
+
+      elementNode = propertyNode.append_child("Element");
+      elementNode.append_attribute("index").set_value(0);
+      elementNode.append_attribute("value").set_value(false);
+
+      domainNode = propertyNode.append_child("Domain");
+      domainNode.append_attribute("name").set_value("bool");
+      domainNode.append_attribute("id").set_value((id + ".EnableOverallColor.bool").c_str());
+    }
+
+    return true;
+  }
+};
+
 } // end of namespace
 
 vtkStandardNewMacro(vtkSMStateVersionController);
@@ -1568,6 +1796,13 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
     Process_5_10_to_5_11 converter;
     status = converter(document);
     version = vtkSMVersion(5, 11, 0);
+  }
+
+  if (status && (version < vtkSMVersion(5, 12, 0)))
+  {
+    Process_5_11_to_5_12 converter;
+    status = converter(document);
+    version = vtkSMVersion(5, 12, 0);
   }
 
   if (status)

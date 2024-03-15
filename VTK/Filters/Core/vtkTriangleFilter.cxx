@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTriangleFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTriangleFilter.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPolygon.h"
 #include "vtkTriangleStrip.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTriangleFilter);
 
 //-------------------------------------------------------------------------
@@ -50,7 +39,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkCellArray* cells;
   vtkPoints* inPts = input->GetPoints();
 
-  int abort = 0;
+  bool abort = false;
   updateInterval = numCells / 100 + 1;
   outCD->CopyAllocate(inCD, numCells);
 
@@ -69,7 +58,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
         if (!(cellNum % updateInterval)) // manage progress reports / early abort
         {
           this->UpdateProgress((float)cellNum / numCells);
-          abort = this->GetAbortExecute();
+          abort = this->CheckAbort();
         }
         if (npts > 1)
         {
@@ -107,7 +96,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
         if (!(cellNum % updateInterval)) // manage progress reports / early abort
         {
           this->UpdateProgress((float)cellNum / numCells);
-          abort = this->GetAbortExecute();
+          abort = this->CheckAbort();
         }
         if (npts > 2)
         {
@@ -158,7 +147,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(cellNum % updateInterval)) // manage progress reports / early abort
       {
         this->UpdateProgress((float)cellNum / numCells);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
       if (npts == 0)
       {
@@ -179,7 +168,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
           poly->PointIds->SetId(i, pts[i]);
           poly->Points->SetPoint(i, inPts->GetPoint(pts[i]));
         }
-        poly->Triangulate(ptIds);
+        poly->TriangulateLocalIds(0, ptIds);
         numPts = ptIds->GetNumberOfIds();
         numSimplices = numPts / 3;
         for (i = 0; i < numSimplices; i++)
@@ -211,7 +200,7 @@ int vtkTriangleFilter::RequestData(vtkInformation* vtkNotUsed(request),
       if (!(cellNum % updateInterval)) // manage progress reports / early abort
       {
         this->UpdateProgress((float)cellNum / numCells);
-        abort = this->GetAbortExecute();
+        abort = this->CheckAbort();
       }
       vtkTriangleStrip::DecomposeStrip(npts, pts, newPolys);
       for (i = 0; i < (npts - 2); i++)
@@ -240,3 +229,4 @@ void vtkTriangleFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Pass Verts: " << (this->PassVerts ? "On\n" : "Off\n");
   os << indent << "Pass Lines: " << (this->PassLines ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

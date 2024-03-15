@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCGMWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause AND GD
 #include "vtkCGMWriter.h"
 #include "vtkMath.h"
 #include "vtkUnsignedCharArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPolyData.h"
 #include "vtkViewport.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCGMWriter);
 
 vtkCxxSetObjectMacro(vtkCGMWriter, Viewport, vtkViewport);
@@ -2818,7 +2807,7 @@ static int cgmImageDestroy(cgmImagePtr im)
 
 #ifdef VTK_NOT_DEFINED
 static int cgmImageColorClosest(cgmImagePtr im, int r, int g, int b)
-/* From gd library, see README file for copyright information */
+/* From gd library */
 /* gej: should work unchanged */
 /* gej: 5/96, changed the colors to use short int */
 {
@@ -2860,7 +2849,7 @@ static int cgmImageColorClear(cgmImagePtr im)
 
 #ifdef VTK_NOT_DEFINED
 static int cgmImageColorExact(cgmImagePtr im, int r, int g, int b)
-/* From gd library, see README file for copyright information */
+/* From gd library */
 /* gej: should work unchanged */
 /* gej: 5/96, changed colors to work with short ints */
 {
@@ -3008,7 +2997,7 @@ static int cgmImageAddColor(cgmImagePtr im, int si, int ei)
 }
 
 static int cgmImageColorAllocate(cgmImagePtr im, int r, int g, int b)
-/* From gd library, see README file for copyright information
+/* From gd library
  * gej: modified to allocate the color in the CGM buffer as well
  * as the color table */
 /* gej: 5/96, modified to use short ints for colors */
@@ -3132,7 +3121,7 @@ static int cgmImageColor16(cgmImagePtr im)
 
 static int cgmImageColorDeallocate(cgmImagePtr vtkNotUsed(im), int vtkNotUsed(color))
 /* wogl: the parameter names are commented to avoid compiler warnings */
-/* From gd library, see README file for copyright information */
+/* From gd library */
 /* gej: should work unchanged */
 {
   /* Mark it open. */
@@ -4234,7 +4223,7 @@ static int cgmImageDashedLine(cgmImagePtr im, int x1, int y1, int x2, int y2, in
 }
 
 static int cgmImageBoundsSafe(cgmImagePtr im, int x, int y)
-/* From gd library, see README file for copyright information */
+/* From gd library */
 /* gej: this should work unchanged */
 {
   return (!(((y < 0) || (y >= im->sy)) || ((x < 0) || (x >= im->sx))));
@@ -4571,3 +4560,4 @@ static int cgmImageEndCgm(cgmImagePtr im)
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

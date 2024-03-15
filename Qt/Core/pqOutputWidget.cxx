@@ -1,55 +1,30 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqOutputWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqOutputWidget.h"
 #include "ui_pqOutputWidget.h"
 
 #include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqFileDialog.h"
+#include "pqServer.h"
 #include "pqSettings.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOutputWindow.h"
 
+#include "vtkSMSessionProxyManager.h"
+
 #include <QClipboard>
+#include <QDebug>
 #include <QDockWidget>
 #include <QMutexLocker>
 #include <QPointer>
+#include <QRegularExpression>
 #include <QScopedValueRollback>
 #include <QStandardItemModel>
 #include <QStringList>
 #include <QStyle>
-
-#include <fstream>
 
 namespace OutputWidgetInternals
 {
@@ -274,13 +249,13 @@ public:
       }
     }
 
-    QStandardItem* summaryItem = new QStandardItem(tr(summary));
+    QStandardItem* summaryItem = new QStandardItem(summary);
     summaryItem->setFlags(summaryItem->flags() ^ Qt::ItemIsEditable);
     summaryItem->setForeground(this->foregroundColor(type));
     summaryItem->setIcon(this->icon(type));
     summaryItem->setData(QVariant(Qt::AlignLeft | Qt::AlignTop), Qt::TextAlignmentRole);
 
-    QStandardItem* messageItem = new QStandardItem(tr(message));
+    QStandardItem* messageItem = new QStandardItem(message);
     messageItem->setFlags(messageItem->flags() ^ Qt::ItemIsEditable);
     messageItem->setForeground(this->foregroundColor(type));
     messageItem->setData(QVariant(Qt::AlignLeft | Qt::AlignTop), Qt::TextAlignmentRole);
@@ -401,10 +376,6 @@ public:
   }
 
 private:
-  QString tr(const QString& sourceText) const
-  {
-    return QApplication::translate("pqOutputWidget", sourceText.toUtf8().data());
-  }
   QString SettingsKey;
   QMutex SuppressionMutex;
 };
@@ -452,8 +423,9 @@ void pqOutputWidget::suppress(const QStringList& substrs)
 void pqOutputWidget::saveToFile()
 {
   QString text = this->Internals->Ui.consoleWidget->text();
-  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(), "Save output", QString(),
-    "Text Files (*.txt);;All Files (*)");
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  pqFileDialog fileDialog(server, pqCoreUtilities::mainWidget(), tr("Save output"), QString(),
+    tr("Text Files") + " (*.txt);;" + tr("All Files") + " (*)", false, false);
   fileDialog.setFileMode(pqFileDialog::AnyFile);
   if (fileDialog.exec() != pqFileDialog::Accepted)
   {
@@ -461,14 +433,13 @@ void pqOutputWidget::saveToFile()
     return;
   }
 
-  QString filename = fileDialog.getSelectedFiles().first();
+  QString filename = fileDialog.getSelectedFiles()[0];
   QByteArray filename_ba = filename.toUtf8();
-  std::ofstream fileStream;
-  fileStream.open(filename_ba.data());
-  if (fileStream.is_open())
+  vtkTypeUInt32 location = fileDialog.getSelectedLocation();
+  auto pxm = server->proxyManager();
+  if (!pxm->SaveString(text.toStdString().c_str(), filename_ba.data(), location))
   {
-    fileStream << text.toStdString();
-    fileStream.close();
+    qCritical() << tr("Failed to save output to ") << filename;
   }
 }
 
@@ -518,11 +489,13 @@ QString pqOutputWidget::extractSummary(const QString& message, QtMsgType)
     return message.section('\n', -1);
   }
 
-  QRegExp vtkMessage("^(?:error|warning|debug|generic warning): In (.*), line (\\d+)\n[^:]*:(.*)$",
-    Qt::CaseInsensitive);
-  if (vtkMessage.exactMatch(message))
+  QRegularExpression vtkMessage(
+    "^(?:error|warning|debug|generic warning): In (.*), line (\\d+)\n[^:]*:(.*)$",
+    QRegularExpression::CaseInsensitiveOption);
+  auto match = vtkMessage.match(message);
+  if (match.hasMatch())
   {
-    QString summary = vtkMessage.cap(3);
+    QString summary = match.captured(3);
     summary.replace('\n', ' ');
     return summary;
   }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRGaussianPulseSource.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRGaussianPulseSource.h"
 #include "vtkAMRBox.h"
 #include "vtkAMRUtilities.h"
@@ -30,6 +18,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRGaussianPulseSource);
 
 //------------------------------------------------------------------------------
@@ -93,8 +82,13 @@ void vtkAMRGaussianPulseSource::GeneratePulseField(vtkUniformGrid* grid)
 
   double centroid[3];
   vtkIdType cellIdx = 0;
+  vtkIdType checkAbortInterval = std::min(grid->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
   for (; cellIdx < grid->GetNumberOfCells(); ++cellIdx)
   {
+    if (cellIdx % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     this->ComputeCellCenter(grid, cellIdx, centroid);
     centroidArray->SetComponent(cellIdx, 0, centroid[0]);
     centroidArray->SetComponent(cellIdx, 1, centroid[1]);
@@ -344,6 +338,11 @@ int vtkAMRGaussianPulseSource::RequestData(vtkInformation* vtkNotUsed(request),
       vtkErrorMacro("Dimensions must be either 2 or 3!");
   }
 
-  vtkAMRUtilities::BlankCells(output);
+  // Skipping BlankCells in case output is empty
+  if (!this->CheckAbort())
+  {
+    vtkAMRUtilities::BlankCells(output);
+  }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

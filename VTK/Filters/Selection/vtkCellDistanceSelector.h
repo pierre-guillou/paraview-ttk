@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkCellDistanceSelector
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellDistanceSelector
  * @brief   select neighbor cells up to a distance
@@ -38,6 +26,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkSelectionAlgorithm.h"
 #include "vtkSmartPointer.h" // For smart pointers
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkSelection;
 class vtkAlgorithmOutput;
@@ -148,4 +137,5 @@ private:
   void operator=(const vtkCellDistanceSelector&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkCellDistanceSelector_h */

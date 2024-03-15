@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridNonOrientedMooreSuperCursorLight.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridNonOrientedMooreSuperCursorLight
  * @brief   Objects for traversal a HyperTreeGrid.
@@ -42,6 +30,7 @@
 
 #include "vtkHyperTreeGridNonOrientedSuperCursorLight.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkHyperTree;
 class vtkHyperTreeGrid;
@@ -74,7 +63,6 @@ protected:
    * Constructor
    */
   vtkHyperTreeGridNonOrientedMooreSuperCursorLight() = default;
-  ;
 
   /**
    * Destructor
@@ -87,4 +75,5 @@ private:
   void operator=(const vtkHyperTreeGridNonOrientedMooreSuperCursorLight&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk2DHistogramItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtk2DHistogramItem
@@ -25,10 +13,15 @@
 #define vtkPlotHistogram2D_h
 
 #include "vtkChartsCoreModule.h" // For export macro
+#include "vtkNew.h"              // For vtkNew
 #include "vtkPlot.h"
-#include "vtkRect.h"         // Needed for vtkRectf
-#include "vtkSmartPointer.h" // Needed for SP ivars
+#include "vtkRect.h" // Needed for vtkRectf
 
+#include <string> // Needed for std::string
+
+VTK_ABI_NAMESPACE_BEGIN
+
+class vtkDoubleArray;
 class vtkImageData;
 class vtkScalarsToColors;
 
@@ -56,9 +49,8 @@ public:
   bool Paint(vtkContext2D* painter) override;
 
   /**
-   * Set the input, we are expecting a vtkImageData with just one component,
-   * this would normally be a float or a double. It will be passed to the other
-   * functions as a double to generate a color.
+   * Set the input. The image data is supposed to have scalars attribute set,
+   * if no array name is set.
    */
   virtual void SetInputData(vtkImageData* data, vtkIdType z = 0);
   void SetInputData(vtkTable*) override {}
@@ -85,6 +77,16 @@ public:
   virtual void SetPosition(const vtkRectf& pos);
   virtual vtkRectf GetPosition();
 
+  ///@{
+  /**
+   * Set/get the selected array name.
+   * When empty, plot using SCALARS attribute.
+   * Default: empty string (use SCALARS).
+   */
+  vtkSetMacro(ArrayName, std::string);
+  vtkGetMacro(ArrayName, std::string);
+  ///@}
+
   /**
    * Generate and return the tooltip label string for this plot
    * The segmentIndex parameter is ignored.
@@ -96,8 +98,6 @@ public:
    * '%x' The X position of the histogram cell
    * '%y' The Y position of the histogram cell
    * '%v' The scalar value of the histogram cell
-   * Note: the %i and %j tags are valid only if there is a 1:1 correspondence
-   * between individual histogram cells and axis tick marks
    * '%i' The X axis tick label for the histogram cell
    * '%j' The Y axis tick label for the histogram cell
    * Any other characters or unrecognized format tags are printed in the
@@ -110,7 +110,7 @@ public:
    * Function to query a plot for the nearest point to the specified coordinate.
    * Returns an index between 0 and (number of histogram cells - 1), or -1.
    * The index 0 is at cell x=0, y=0 of the histogram, and the index increases
-   * in a minor fashon with x and in a major fashon with y.
+   * in a minor fashion with x and in a major fashion with y.
    * The referent of "location" is set to the x and y integer indices of the
    * histogram cell.
    */
@@ -138,6 +138,40 @@ protected:
 private:
   vtkPlotHistogram2D(const vtkPlotHistogram2D&) = delete;
   void operator=(const vtkPlotHistogram2D&) = delete;
+
+  /**
+   * Returns the index of the label of an axis, depending on a
+   * position on the axis.
+   */
+  static vtkIdType GetLabelIndexFromValue(double value, vtkAxis* axis);
+  /**
+   * Returns whether an array is compatible with magnitude computation,
+   * ie. its number of component is 2 or 3.
+   */
+  static inline bool CanComputeMagnitude(vtkDataArray* array);
+
+  /**
+   * Returns the selected data array. Does not return magnitude
+   * array, but the associated array of the input.
+   */
+  inline vtkDataArray* GetSelectedArray();
+  /**
+   * Returns the void pointer to the selected array. If the transfer
+   * function is set to magnitude mode, it will return the cached
+   * magnitude array. Also set the vtkDataArray pointer in parameter.
+   */
+  void* GetInputArrayPointer(vtkDataArray*& inputArray);
+  /**
+   * Returns the value of the selected array at the coordinates given
+   * in parameters. The value is casted to double. It takes magnitude
+   * array into account, so as component, for n-components arrays.
+   * Returns NaN when something goes wrong.
+   */
+  double GetInputArrayValue(int x, int y, int z);
+
+  std::string ArrayName;
+  vtkNew<vtkDoubleArray> MagnitudeArray;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotHistogram2D_h

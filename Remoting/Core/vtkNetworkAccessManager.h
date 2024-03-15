@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkNetworkAccessManager.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkNetworkAccessManager
  *
@@ -52,7 +40,7 @@ public:
     CONNECTION_FAILURE
   };
 
-  //@{
+  ///@{
   /**
    * Creates a new connection given the url.
    * This call may block until the connection can be established. To keep
@@ -87,7 +75,7 @@ public:
     return this->NewConnection(url, result);
   }
   virtual vtkMultiProcessController* NewConnection(const char* url, ConnectionResult& result) = 0;
-  //@}
+  ///@}
 
   /**
    * Used to abort pending connection creation, if any. Refer to

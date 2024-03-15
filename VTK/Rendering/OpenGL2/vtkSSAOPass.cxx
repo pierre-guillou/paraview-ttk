@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSSAOPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSSAOPass.h"
 
@@ -35,6 +23,7 @@
 
 #include <random>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSSAOPass);
 
 //------------------------------------------------------------------------------
@@ -228,13 +217,28 @@ void vtkSSAOPass::RenderDelegate(const vtkRenderState* s, int w, int h)
   this->FrameBufferObject->AddDepthAttachment(this->DepthTexture);
   this->FrameBufferObject->StartNonOrtho(w, h);
 
+  // Clear color and depth.
+  // This is only required for the vtkRenderer built-in UseSSAO feature
+  // where the DelegatePass does not use a vtkCameraPass for clearing.
   vtkOpenGLRenderer* glRen = vtkOpenGLRenderer::SafeDownCast(s->GetRenderer());
+  if (glRen && glRen->GetUseSSAO() && glRen->GetErase())
+  {
+    vtkOpenGLState* ostate = glRen->GetState();
+    GLbitfield clear_mask = 0;
+    if (!glRen->Transparent())
+    {
+      clear_mask |= GL_COLOR_BUFFER_BIT;
+    }
 
-  vtkOpenGLState* ostate = glRen->GetState();
-  ostate->vtkglClear(GL_COLOR_BUFFER_BIT);
-  ostate->vtkglDepthMask(GL_TRUE);
-  ostate->vtkglClearDepth(1.0);
-  ostate->vtkglClear(GL_DEPTH_BUFFER_BIT);
+    if (!glRen->GetPreserveDepthBuffer())
+    {
+      ostate->vtkglClearDepth(static_cast<GLclampf>(1.0));
+      clear_mask |= GL_DEPTH_BUFFER_BIT;
+      ostate->vtkglDepthMask(GL_TRUE);
+    }
+
+    ostate->vtkglClear(clear_mask);
+  }
 
   this->DelegatePass->Render(s);
   this->NumberOfRenderedProps += this->DelegatePass->GetNumberOfRenderedProps();
@@ -519,7 +523,10 @@ bool vtkSSAOPass::PreReplaceShaderValues(std::string& vtkNotUsed(vertexShader),
   std::string& vtkNotUsed(geometryShader), std::string& fragmentShader, vtkAbstractMapper* mapper,
   vtkProp* vtkNotUsed(prop))
 {
-  if (vtkOpenGLPolyDataMapper::SafeDownCast(mapper) != nullptr)
+  // The mapper may be a vtkCompositePolyDataMapper, in that case, we should not return.
+  // It is hard to determine if that CPDM uses OpenGL delegates. But if execution reaches
+  // here, it is very likely that OpenGL classes are used.
+  if (vtkPolyDataMapper::SafeDownCast(mapper) != nullptr)
   {
     // apply SSAO after lighting
     vtkShaderProgram::Substitute(fragmentShader, "//VTK::Light::Impl",
@@ -536,7 +543,10 @@ bool vtkSSAOPass::PostReplaceShaderValues(std::string& vtkNotUsed(vertexShader),
   std::string& vtkNotUsed(geometryShader), std::string& fragmentShader, vtkAbstractMapper* mapper,
   vtkProp* vtkNotUsed(prop))
 {
-  if (vtkOpenGLPolyDataMapper::SafeDownCast(mapper) != nullptr)
+  // The mapper may be a vtkCompositePolyDataMapper, in that case, we should not return.
+  // It is hard to determine if that CPDM uses OpenGL delegates. But if execution reaches
+  // here, it is very likely that OpenGL classes are used.
+  if (vtkPolyDataMapper::SafeDownCast(mapper) != nullptr)
   {
     if (fragmentShader.find("vertexVC") != std::string::npos &&
       fragmentShader.find("normalVCVSOutput") != std::string::npos)
@@ -606,3 +616,4 @@ void vtkSSAOPass::ReleaseGraphicsResources(vtkWindow* w)
     this->DepthTexture = nullptr;
   }
 }
+VTK_ABI_NAMESPACE_END

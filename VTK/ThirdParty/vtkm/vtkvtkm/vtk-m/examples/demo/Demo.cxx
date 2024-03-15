@@ -34,7 +34,8 @@ int main(int argc, char* argv[])
 {
   vtkm::cont::Initialize(argc, argv, vtkm::cont::InitializeOptions::Strict);
 
-  auto tangle = vtkm::source::Tangle(vtkm::Id3{ 50, 50, 50 });
+  vtkm::source::Tangle tangle;
+  tangle.SetPointDimensions({ 50, 50, 50 });
   vtkm::cont::DataSet tangleData = tangle.Execute();
   std::string fieldName = "tangle";
 
@@ -77,7 +78,7 @@ int main(int argc, char* argv[])
   // from, so we want the scalar range to match that of the previous image.
   isoActor.SetScalarRange(actor.GetScalarRange());
   vtkm::rendering::Scene isoScene;
-  isoScene.AddActor(isoActor);
+  isoScene.AddActor(std::move(isoActor));
 
   // Wireframe surface:
   vtkm::rendering::View3D isoView(isoScene, MapperWireframer(), canvas, camera, bg);

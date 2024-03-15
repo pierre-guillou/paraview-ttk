@@ -1,19 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCGNSReaderInternal.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-//  Copyright (c) 2013-2014 Mickael Philit
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2013-2014 Mickael Philit
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCGNSReaderInternal
  *
@@ -47,9 +34,9 @@
 
 namespace CGNSRead
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 struct is_double
 {
@@ -73,10 +60,12 @@ struct is_float<float>
 {
   static const bool value = true;
 };
+VTK_ABI_NAMESPACE_END
 }
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 constexpr const char* cgns_type_name() noexcept
 {
@@ -106,9 +95,36 @@ constexpr const char* cgns_type_name<vtkTypeInt64>() noexcept
 {
   return "I8";
 }
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 typedef char char_33[33];
+
+//------------------------------------------------------------------------------
+// Cell type to cell dimension
+const std::map<CGNS_ENUMT(ElementType_t), int> CellDimensions = {
+  { CGNS_ENUMV(ElementTypeUserDefined), -1 }, { CGNS_ENUMV(ElementTypeNull), -1 },
+  { CGNS_ENUMV(NODE), 0 }, { CGNS_ENUMV(BAR_2), 1 }, { CGNS_ENUMV(BAR_3), 1 },
+  { CGNS_ENUMV(TRI_3), 2 }, { CGNS_ENUMV(TRI_6), 2 }, { CGNS_ENUMV(QUAD_4), 2 },
+  { CGNS_ENUMV(QUAD_8), 2 }, { CGNS_ENUMV(QUAD_9), 2 }, { CGNS_ENUMV(TETRA_4), 3 },
+  { CGNS_ENUMV(TETRA_10), 3 }, { CGNS_ENUMV(PYRA_5), 3 }, { CGNS_ENUMV(PYRA_14), 3 },
+  { CGNS_ENUMV(PENTA_6), 3 }, { CGNS_ENUMV(PENTA_15), 3 }, { CGNS_ENUMV(PENTA_18), 3 },
+  { CGNS_ENUMV(HEXA_8), 3 }, { CGNS_ENUMV(HEXA_20), 3 }, { CGNS_ENUMV(HEXA_27), 3 },
+  { CGNS_ENUMV(MIXED), -1 }, { CGNS_ENUMV(PYRA_13), 3 }, { CGNS_ENUMV(NGON_n), 2 },
+  { CGNS_ENUMV(NFACE_n), 3 }, { CGNS_ENUMV(BAR_4), 1 }, { CGNS_ENUMV(TRI_9), 2 },
+  { CGNS_ENUMV(TRI_10), 2 }, { CGNS_ENUMV(QUAD_12), 2 }, { CGNS_ENUMV(QUAD_16), 2 },
+  { CGNS_ENUMV(TETRA_16), 3 }, { CGNS_ENUMV(TETRA_20), 3 }, { CGNS_ENUMV(PYRA_21), 3 },
+  { CGNS_ENUMV(PYRA_29), 3 }, { CGNS_ENUMV(PYRA_30), 3 }, { CGNS_ENUMV(PENTA_24), 3 },
+  { CGNS_ENUMV(PENTA_38), 3 }, { CGNS_ENUMV(PENTA_40), 3 }, { CGNS_ENUMV(HEXA_32), 3 },
+  { CGNS_ENUMV(HEXA_56), 3 }, { CGNS_ENUMV(HEXA_64), 3 }, { CGNS_ENUMV(BAR_5), 1 },
+  { CGNS_ENUMV(TRI_12), 2 }, { CGNS_ENUMV(TRI_15), 2 }, { CGNS_ENUMV(QUAD_P4_16), 2 },
+  { CGNS_ENUMV(QUAD_25), 2 }, { CGNS_ENUMV(TETRA_22), 3 }, { CGNS_ENUMV(TETRA_34), 3 },
+  { CGNS_ENUMV(TETRA_35), 3 }, { CGNS_ENUMV(PYRA_P4_29), 3 }, { CGNS_ENUMV(PYRA_50), 3 },
+  { CGNS_ENUMV(PYRA_55), 3 }, { CGNS_ENUMV(PENTA_33), 3 }, { CGNS_ENUMV(PENTA_66), 3 },
+  { CGNS_ENUMV(PENTA_75), 3 }, { CGNS_ENUMV(HEXA_44), 3 }, { CGNS_ENUMV(HEXA_98), 3 },
+  { CGNS_ENUMV(HEXA_125), 3 }
+};
 
 //------------------------------------------------------------------------------
 class vtkCGNSArraySelection : public std::map<std::string, bool>
@@ -403,28 +419,28 @@ inline bool isACGNSVariable(const std::vector<CGNSVariable>& varList, const char
 
 //------------------------------------------------------------------------------
 void fillVectorsFromVars(std::vector<CGNSRead::CGNSVariable>& vars,
-  std::vector<CGNSRead::CGNSVector>& vectors, const int physicalDim);
+  std::vector<CGNSRead::CGNSVector>& vectors, int physicalDim);
 //------------------------------------------------------------------------------
-int setUpRind(const int cgioNum, const double rindId, int* rind);
+int setUpRind(int cgioNum, double rindId, int* rind);
 //------------------------------------------------------------------------------
 /**
  * Find the first node with the given `label`. If `name` is non-NULL, then the
  * first node with given `label` that has the given `name` as well.
  */
-int getFirstNodeId(const int cgioNum, const double parentId, const char* label, double* id,
-  const char* name = nullptr);
+int getFirstNodeId(
+  int cgioNum, double parentId, const char* label, double* id, const char* name = nullptr);
 //------------------------------------------------------------------------------
-int get_section_connectivity(const int cgioNum, const double cgioSectionId, const int dim,
-  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
-  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
-  const cgsize_t* memDim, vtkIdType* localElements);
+int get_section_connectivity(int cgioNum, double cgioSectionId, int dim, const cgsize_t* srcStart,
+  const cgsize_t* srcEnd, const cgsize_t* srcStride, const cgsize_t* memStart,
+  const cgsize_t* memEnd, const cgsize_t* memStride, const cgsize_t* memDim,
+  vtkIdType* localElements);
 //------------------------------------------------------------------------------
-int get_section_start_offset(const int cgioNum, const double cgioSectionId, const int dim,
-  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
-  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
-  const cgsize_t* memDim, vtkIdType* localElementsIdx);
+int get_section_start_offset(int cgioNum, double cgioSectionId, int dim, const cgsize_t* srcStart,
+  const cgsize_t* srcEnd, const cgsize_t* srcStride, const cgsize_t* memStart,
+  const cgsize_t* memEnd, const cgsize_t* memStride, const cgsize_t* memDim,
+  vtkIdType* localElementsIdx);
 //------------------------------------------------------------------------------
-int get_section_parent_elements(const int cgioNum, const double cgioSectionId, const int dim,
+int get_section_parent_elements(int cgioNum, double cgioSectionId, int dim,
   const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
   const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
   const cgsize_t* memDim, vtkIdType* localElementsIdx);
@@ -432,16 +448,16 @@ int get_section_parent_elements(const int cgioNum, const double cgioSectionId, c
 int GetVTKElemType(
   CGNS_ENUMT(ElementType_t) elemType, bool& higherOrderWarning, bool& cgnsOrderFlag);
 //------------------------------------------------------------------------------
-void CGNS2VTKorder(const vtkIdType size, const int* cells_types, vtkIdType* elements);
+void CGNS2VTKorder(vtkIdType size, const int* cells_types, vtkIdType* elements);
 //------------------------------------------------------------------------------
-void CGNS2VTKorderMonoElem(const vtkIdType size, const int cell_type, vtkIdType* elements);
+void ReorderMonoCellPointsCGNS2VTK(
+  vtkIdType size, int cell_type, vtkIdType numPointsPerCell, vtkIdType* elements);
 //------------------------------------------------------------------------------
 template <typename T, typename Y>
-int get_XYZ_mesh(const int cgioNum, const std::vector<double>& gridChildId,
-  const std::size_t& nCoordsArray, const int cellDim, const vtkIdType nPts,
-  const cgsize_t* srcStart, const cgsize_t* srcEnd, const cgsize_t* srcStride,
-  const cgsize_t* memStart, const cgsize_t* memEnd, const cgsize_t* memStride,
-  const cgsize_t* memDims, vtkPoints* points)
+int get_XYZ_mesh(int cgioNum, const std::vector<double>& gridChildId,
+  const std::size_t& nCoordsArray, int cellDim, vtkIdType nPts, const cgsize_t* srcStart,
+  const cgsize_t* srcEnd, const cgsize_t* srcStride, const cgsize_t* memStart,
+  const cgsize_t* memEnd, const cgsize_t* memStride, const cgsize_t* memDims, vtkPoints* points)
 {
   T* coords = static_cast<T*>(points->GetVoidPointer(0));
   T* currentCoord = static_cast<T*>(&(coords[0]));
@@ -546,6 +562,7 @@ int get_XYZ_mesh(const int cgioNum, const std::vector<double>& gridChildId,
   }
   return 0;
 }
+VTK_ABI_NAMESPACE_END
 }
 
 #endif // vtkCGNSReaderInternal_h

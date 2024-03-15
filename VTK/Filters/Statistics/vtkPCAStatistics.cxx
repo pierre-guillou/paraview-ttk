@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPCAStatistics.h"
 
 #include "vtkDoubleArray.h"
@@ -26,6 +28,7 @@
 #define VTK_PCA_NORMCOLUMN "PCA Cov Norm"
 #define VTK_PCA_COMPCOLUMN "PCA"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkPCAStatistics);
 
 const char* vtkPCAStatistics::NormalizationSchemeEnumNames[NUM_NORMALIZATION_SCHEMES + 1] = {
@@ -1022,3 +1025,4 @@ void vtkPCAStatistics::SelectAssessFunctor(vtkTable* inData, vtkDataObject* inMe
 
   dfunc = pcafunc;
 }
+VTK_ABI_NAMESPACE_END

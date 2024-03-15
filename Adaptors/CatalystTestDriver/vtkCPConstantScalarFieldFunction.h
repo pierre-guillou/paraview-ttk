@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPConstantScalarFieldFunction.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPConstantScalarFieldFunction
  * @brief   Class for specifying constant scalars at points.
@@ -39,13 +27,13 @@ public:
   double ComputeComponenentAtPoint(
     unsigned int component, double* point, unsigned long timeStep, double time) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the constant value for the field.
    */
   vtkSetMacro(Constant, double);
   vtkGetMacro(Constant, double);
-  //@}
+  ///@}
 
 protected:
   vtkCPConstantScalarFieldFunction();
@@ -55,7 +43,7 @@ private:
   vtkCPConstantScalarFieldFunction(const vtkCPConstantScalarFieldFunction&) = delete;
   void operator=(const vtkCPConstantScalarFieldFunction&) = delete;
 
-  //@{
+  ///@{
   /**
    * The constant value for the scalar field.
    */

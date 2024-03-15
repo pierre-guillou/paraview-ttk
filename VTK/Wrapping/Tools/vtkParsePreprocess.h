@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParsePreprocess.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in June 2010
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 /**
   This file provides subroutines to assist in preprocessing
   C/C++ header files.  It evaluates preprocessor directives
@@ -94,7 +76,7 @@ typedef struct PreprocessInfo_
   int MacroCounter;         /* for ordering macro definitions */
   int NumberOfMissingFiles; /* include files that cannot be found */
   const char** MissingFiles;
-  SystemInfo* System; /* for cacheing the file system directory */
+  SystemInfo* System; /* for caching the file system directory */
 } PreprocessInfo;
 
 /**
@@ -222,7 +204,7 @@ extern "C"
    */
   VTKWRAPPINGTOOLS_EXPORT
   void vtkParsePreprocess_FreeMacroExpansion(
-    const PreprocessInfo* info, MacroInfo* macro, const char* text);
+    const PreprocessInfo* info, const MacroInfo* macro, const char* text);
 
   /**
    * Fully process a string with the preprocessor, and

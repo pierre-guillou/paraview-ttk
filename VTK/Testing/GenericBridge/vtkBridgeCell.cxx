@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBridgeCell.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkBridgeCell - Implementation of vtkGenericAdaptorCell
 // .SECTION Description
 // It is just an example that show how to implement the Generic. It is also
@@ -66,6 +54,7 @@
 #include "vtkQuadraticTriangle.h"
 #include "vtkQuadraticWedge.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBridgeCell);
 
 //------------------------------------------------------------------------------
@@ -1035,3 +1024,4 @@ void vtkBridgeCell::InterpolationFunctions(const double pcoords[3], double* weig
 {
   this->Cell->InterpolateFunctions(pcoords, weights);
 }
+VTK_ABI_NAMESPACE_END

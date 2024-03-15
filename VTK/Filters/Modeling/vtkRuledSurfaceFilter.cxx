@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRuledSurfaceFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRuledSurfaceFilter.h"
 
 #include "vtkCellArray.h"
@@ -23,6 +11,7 @@
 #include "vtkPolyData.h"
 #include "vtkPolyLine.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRuledSurfaceFilter);
 
 //------------------------------------------------------------------------------
@@ -125,7 +114,7 @@ int vtkRuledSurfaceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   {
     // abort/progress methods
     this->UpdateProgress((double)i / numLines);
-    if (this->GetAbortExecute())
+    if (this->CheckAbort())
     {
       break; // out of line loop
     }
@@ -557,3 +546,4 @@ void vtkRuledSurfaceFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Orient Loops: " << (this->OrientLoops ? "On\n" : "Off\n");
   os << indent << "Pass Lines: " << (this->PassLines ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

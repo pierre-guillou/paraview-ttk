@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMTimeKeeper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMTimeKeeper
  * @brief   a time keeper is used to keep track of the
@@ -55,24 +43,24 @@ public:
   vtkTypeMacro(vtkSMTimeKeeper, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the pipeline time.
    */
   void SetTime(double time);
   vtkGetMacro(Time, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Add/Remove view proxy linked to this time keeper.
    */
   void AddView(vtkSMProxy*);
   void RemoveView(vtkSMProxy*);
   void RemoveAllViews();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * List of proxies that provide time. TimestepValues property has a set of
    * timesteps provided by all the sources added to this property alone.
@@ -80,25 +68,25 @@ public:
   void AddTimeSource(vtkSMSourceProxy*);
   void RemoveTimeSource(vtkSMSourceProxy*);
   void RemoveAllTimeSources();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * List of proxies that provide time. TimestepValues property has a set of
    * timesteps provided by all the sources added to this property alone.
    */
   void AddSuppressedTimeSource(vtkSMSourceProxy*);
   void RemoveSuppressedTimeSource(vtkSMSourceProxy*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Iterates over all sources providing time and calls
    * `vtkSMSourceProxy::UpdatePipelineInformation` on them. That ensures that
    * timekeeper is using the latest time information available to it.
    */
   void UpdateTimeInformation();
-  //@}
+  ///@}
 
 protected:
   vtkSMTimeKeeper();

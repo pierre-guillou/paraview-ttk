@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef octree_iterator_
 #define octree_iterator_
 
@@ -15,6 +17,7 @@
  *
  *\bug Const octree iterators don't seem to work -- comparison operators aren't defined properly?
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, typename R_, typename P_, typename O_, typename OP_, int d_ = 3>
 class octree_iterator : public octree_path<T_, R_, P_, O_, OP_, d_>
 {
@@ -69,4 +72,5 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // octree_iterator_

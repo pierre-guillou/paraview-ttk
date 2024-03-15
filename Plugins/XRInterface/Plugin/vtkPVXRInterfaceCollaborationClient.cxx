@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVXRInterfaceCollaborationClient.h"
 
 #include "vtkBoxRepresentation.h"
@@ -23,6 +12,7 @@
 #include "vtkVRModel.h"
 #include "vtkVRRay.h"
 #include "vtkVRRenderWindow.h"
+
 #include <sstream>
 
 #if XRINTERFACE_HAS_COLLABORATION
@@ -30,14 +20,15 @@
 #include "vtkVRCollaborationClient.h"
 #include "vtkXRInterfacePolyfill.h"
 
-class vtkPVOpenVRCollaborationClientInternal : public vtkVRCollaborationClient
+class vtkPVXRInterfaceCollaborationClient::vtkPVXRCollaborationClientInternal
+  : public vtkVRCollaborationClient
 {
 public:
-  static vtkPVOpenVRCollaborationClientInternal* New();
-  vtkTypeMacro(vtkPVOpenVRCollaborationClientInternal, vtkVRCollaborationClient);
+  static vtkPVXRCollaborationClientInternal* New();
+  vtkTypeMacro(vtkPVXRCollaborationClientInternal, vtkVRCollaborationClient);
   void SetHelper(vtkPVXRInterfaceHelper* l) { this->Helper = l; }
 
-  vtkPVOpenVRCollaborationClientInternal()
+  vtkPVXRCollaborationClientInternal()
   {
     // override the scale callback to use polyfill
     // so that desktop views look reasonable
@@ -253,30 +244,28 @@ protected:
   vtkPVXRInterfaceHelper* Helper;
 };
 #else
-class vtkPVOpenVRCollaborationClientInternal : public vtkObject
+class vtkPVXRInterfaceCollaborationClient::vtkPVXRCollaborationClientInternal : public vtkObject
 {
 public:
-  static vtkPVOpenVRCollaborationClientInternal* New();
-  vtkTypeMacro(vtkPVOpenVRCollaborationClientInternal, vtkObject);
+  static vtkPVXRCollaborationClientInternal* New();
+  vtkTypeMacro(vtkPVXRCollaborationClientInternal, vtkObject);
 };
 #endif
 
-vtkStandardNewMacro(vtkPVOpenVRCollaborationClientInternal);
+vtkStandardNewMacro(vtkPVXRInterfaceCollaborationClient::vtkPVXRCollaborationClientInternal);
 vtkStandardNewMacro(vtkPVXRInterfaceCollaborationClient);
 
 //----------------------------------------------------------------------------
 vtkPVXRInterfaceCollaborationClient::vtkPVXRInterfaceCollaborationClient()
-  : CurrentLocation(-1)
+  : Internal(vtkSmartPointer<
+      vtkPVXRInterfaceCollaborationClient::vtkPVXRCollaborationClientInternal>::New())
 {
-  this->Internal = vtkPVOpenVRCollaborationClientInternal::New();
 }
 
 //----------------------------------------------------------------------------
-vtkPVXRInterfaceCollaborationClient::~vtkPVXRInterfaceCollaborationClient()
-{
-  this->Internal->Delete();
-}
+vtkPVXRInterfaceCollaborationClient::~vtkPVXRInterfaceCollaborationClient() = default;
 
+//-----------------------------------------------------------------------------
 bool vtkPVXRInterfaceCollaborationClient::SupportsCollaboration()
 {
 #if XRINTERFACE_HAS_COLLABORATION
@@ -286,6 +275,7 @@ bool vtkPVXRInterfaceCollaborationClient::SupportsCollaboration()
 #endif
 }
 
+//-----------------------------------------------------------------------------
 #if XRINTERFACE_HAS_COLLABORATION
 bool vtkPVXRInterfaceCollaborationClient::Connect(vtkOpenGLRenderer* ren)
 {
@@ -297,6 +287,7 @@ bool vtkPVXRInterfaceCollaborationClient::Connect(vtkOpenGLRenderer*)
 #endif
 }
 
+//-----------------------------------------------------------------------------
 bool vtkPVXRInterfaceCollaborationClient::Disconnect()
 {
 #if XRINTERFACE_HAS_COLLABORATION
@@ -305,6 +296,7 @@ bool vtkPVXRInterfaceCollaborationClient::Disconnect()
   return true;
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::Render()
 {
 #if XRINTERFACE_HAS_COLLABORATION
@@ -313,27 +305,38 @@ void vtkPVXRInterfaceCollaborationClient::Render()
 }
 
 #if XRINTERFACE_HAS_COLLABORATION
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetCollabHost(std::string const& val)
 {
   this->Internal->SetCollabHost(val);
 }
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetCollabSession(std::string const& val)
 {
   this->Internal->SetCollabSession(val);
 }
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetCollabName(std::string const& val)
 {
   this->Internal->SetCollabName(val);
 }
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetCollabPort(int val)
 {
   this->Internal->SetCollabPort(val);
 }
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetLogCallback(
   std::function<void(std::string const& data, vtkLogger::Verbosity verbosity)> cb)
 {
   this->Internal->SetLogCallback(cb);
 }
+
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::GoToSavedLocation(int index)
 {
   // only send if we need to
@@ -353,11 +356,13 @@ void vtkPVXRInterfaceCollaborationClient::GoToSavedLocation(int index)
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::SetHelper(vtkPVXRInterfaceHelper* val)
 {
   this->Internal->SetHelper(val);
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::GoToPose(
   vtkVRCamera::Pose const& pose, double* collabTrans, double* collabDir)
 {
@@ -379,6 +384,7 @@ void vtkPVXRInterfaceCollaborationClient::GoToPose(
   this->Internal->SendAMessage("PO", args);
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::RemoveAllCropPlanes()
 {
   if (this->Internal->GetConnected())
@@ -387,6 +393,7 @@ void vtkPVXRInterfaceCollaborationClient::RemoveAllCropPlanes()
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::RemoveAllThickCrops()
 {
   if (this->Internal->GetConnected())
@@ -395,6 +402,7 @@ void vtkPVXRInterfaceCollaborationClient::RemoveAllThickCrops()
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::UpdateCropPlane(size_t i, vtkImplicitPlaneWidget2* widget)
 {
   if (this->Internal->GetConnected())
@@ -411,6 +419,7 @@ void vtkPVXRInterfaceCollaborationClient::UpdateCropPlane(size_t i, vtkImplicitP
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::UpdateThickCrop(size_t i, vtkBoxWidget2* widget)
 {
   if (this->Internal->GetConnected())
@@ -427,6 +436,7 @@ void vtkPVXRInterfaceCollaborationClient::UpdateThickCrop(size_t i, vtkBoxWidget
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::UpdateRay(vtkVRModel* model, vtkEventDataDevice dev)
 {
   if (this->Internal->GetConnected())
@@ -438,6 +448,7 @@ void vtkPVXRInterfaceCollaborationClient::UpdateRay(vtkVRModel* model, vtkEventD
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::ShowBillboard(std::vector<std::string> const& vals)
 {
   std::vector<vtkVRCollaborationClient::Argument> args;
@@ -446,11 +457,13 @@ void vtkPVXRInterfaceCollaborationClient::ShowBillboard(std::vector<std::string>
   this->Internal->SendAMessage("SB", args);
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::HideBillboard()
 {
   this->Internal->SendAMessage("HB");
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::AddPointToSource(
   std::string const& name, double const* pt)
 {
@@ -464,6 +477,7 @@ void vtkPVXRInterfaceCollaborationClient::AddPointToSource(
   }
 }
 
+//-----------------------------------------------------------------------------
 void vtkPVXRInterfaceCollaborationClient::ClearPointSource()
 {
   if (this->Internal->GetConnected())

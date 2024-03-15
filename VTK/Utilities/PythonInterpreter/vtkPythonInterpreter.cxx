@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonInterpreter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPythonInterpreter.h"
 #include "vtkPython.h" // this must be the first include.
 
@@ -67,11 +55,7 @@ public:
   {
     for (T* astring : this->Strings)
     {
-#if PY_VERSION_HEX >= 0x03000000
       PyMem_RawFree(astring);
-#else
-      PyMem_Free(astring);
-#endif
     }
   }
 
@@ -94,11 +78,8 @@ public:
 };
 
 using StringPool = PoolT<char>;
-#if PY_VERSION_HEX >= 0x03000000
 using WCharStringPool = PoolT<wchar_t>;
-#endif
 
-#if PY_VERSION_HEX >= 0x03000000
 wchar_t* vtk_Py_UTF8ToWide(const char* arg)
 {
   wchar_t* result = nullptr;
@@ -128,7 +109,6 @@ std::string vtk_Py_WideToUTF8(const wchar_t* arg)
 
   return result;
 }
-#endif
 
 std::vector<vtkWeakPointer<vtkPythonInterpreter>>* GlobalInterpreters;
 std::vector<std::string> PythonPaths;
@@ -149,12 +129,8 @@ inline void vtkPrependPythonPath(const char* pathtoadd)
 {
   VTKPY_DEBUG_MESSAGE("adding module search path " << pathtoadd);
   vtkPythonScopeGilEnsurer gilEnsurer;
-  PyObject* path = PySys_GetObject(const_cast<char*>("path"));
-#if PY_VERSION_HEX >= 0x03000000
+  PyObject* path = PySys_GetObject("path");
   PyObject* newpath = PyUnicode_FromString(pathtoadd);
-#else
-  PyObject* newpath = PyString_FromString(pathtoadd);
-#endif
 
   // avoid adding duplicate paths.
   if (PySequence_Contains(path, newpath) == 0)
@@ -163,9 +139,9 @@ inline void vtkPrependPythonPath(const char* pathtoadd)
   }
   Py_DECREF(newpath);
 }
-
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // Schwarz counter idiom for GlobalInterpreters object
 static unsigned int vtkPythonInterpretersCounter;
 vtkPythonGlobalInterpreters::vtkPythonGlobalInterpreters()
@@ -255,13 +231,13 @@ static WCharStringPool PythonProgramName;
 //------------------------------------------------------------------------------
 // Ensure that Python is pre-initialized enough for VTK to do its
 // initialization. Must be called before any `PyMem_*` calls are made.
-static void vtkPythonPreConfig()
+static bool vtkPythonPreConfig()
 {
   // Guard against doing this multiple times.
   static bool done = false;
   if (done)
   {
-    return;
+    return false;
   }
   done = true;
 
@@ -278,21 +254,157 @@ static void vtkPythonPreConfig()
   {
     Py_ExitStatusException(status);
   }
+
+  return preconfig.isolated;
+#else
+  return Py_FrozenFlag;
 #endif
+}
+
+//------------------------------------------------------------------------------
+namespace
+{
+/**
+ * Since vtkPythonInterpreter is often used outside CPython executable, e.g.
+ * vtkpython, the default logic to locate Python standard libraries used by
+ * Python (which depends on the executable path) may fail or pickup incorrect
+ * Python libs. This methods address the issue by setting program name to help
+ * guide Python's default prefix/exec_prefix searching logic.
+ */
+void SetupPythonPrefix(bool isolated)
+{
+  using systools = vtksys::SystemTools;
+
+  // Check if we're using an isolated Python.
+  if (isolated)
+  {
+    VTKPY_DEBUG_MESSAGE("Isolated Python detected; skipping setting up of program path.");
+    return;
+  }
+
+  std::string pythonlib = vtkGetLibraryPathForSymbol(Py_InitializeEx);
+  if (pythonlib.empty())
+  {
+    VTKPY_DEBUG_MESSAGE("static Python build or `Py_InitializeEx` library couldn't be found. "
+                        "Set `PYTHONHOME` if Python standard library fails to load.");
+    return;
+  }
+
+  const std::string newprogramname =
+    systools::GetFilenamePath(pythonlib) + VTK_PATH_SEPARATOR "vtkpython";
+  VTKPY_DEBUG_MESSAGE("calling vtkPythonInterpreter::SetProgramName("
+    << newprogramname << ") to aid in setup of Python prefix.");
+  vtkPythonInterpreter::SetProgramName(newprogramname.c_str());
+}
+
+#ifdef vtkPythonInterpreter_USE_DIRECTORY_COOKIE
+PyObject* DLLDirectoryCookie = nullptr;
+
+void CloseDLLDirectoryCookie()
+{
+  if (DLLDirectoryCookie)
+  {
+    if (PyObject_HasAttrString(DLLDirectoryCookie, "close"))
+    {
+      PyObject* result = PyObject_CallMethod(DLLDirectoryCookie, "close", nullptr);
+      Py_XDECREF(result);
+    }
+    Py_XDECREF(DLLDirectoryCookie);
+    DLLDirectoryCookie = nullptr;
+  }
+}
+#endif
+
+//------------------------------------------------------------------------------
+/**
+ * Add paths to VTK's Python modules.
+ */
+void SetupVTKPythonPaths(bool isolated)
+{
+  // Check if we're using an isolated Python.
+  if (isolated)
+  {
+    VTKPY_DEBUG_MESSAGE("Isolated Python detected; skipping setting up of `vtk` package.");
+    return;
+  }
+
+  using systools = vtksys::SystemTools;
+  std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
+  if (vtklib.empty())
+  {
+    VTKPY_DEBUG_MESSAGE(
+      "`GetVTKVersion` library couldn't be found. Will use `Py_GetProgramName` next.");
+  }
+
+  if (vtklib.empty())
+  {
+    vtklib = vtk_Py_WideToUTF8(Py_GetProgramName());
+  }
+
+  vtklib = systools::CollapseFullPath(vtklib);
+  const std::string vtkdir = systools::GetFilenamePath(vtklib);
+
+#if defined(_WIN32) && !defined(__CYGWIN__) && defined(VTK_BUILD_SHARED_LIBS)
+  // On Windows, based on how the executable is run, we end up failing to load
+  // pyd files due to inability to load dependent dlls. This seems to overcome
+  // the issue.
+  if (!vtkdir.empty())
+  {
+#if PY_VERSION_HEX >= 0x03080000
+    vtkPythonScopeGilEnsurer gilEnsurer(false, true);
+    CloseDLLDirectoryCookie();
+    PyObject* os = PyImport_ImportModule("os");
+    if (os)
+    {
+      PyObject* add_dll_directory = PyObject_GetAttrString(os, "add_dll_directory");
+      if (add_dll_directory && PyCallable_Check(add_dll_directory))
+      {
+        PyObject* newpath = PyUnicode_FromString(vtkdir.c_str());
+        DLLDirectoryCookie = PyObject_CallFunctionObjArgs(add_dll_directory, newpath, nullptr);
+        Py_XDECREF(newpath);
+      }
+
+      Py_XDECREF(add_dll_directory);
+    }
+
+    Py_XDECREF(os);
+#else
+    std::string env_path;
+    if (systools::GetEnv("PATH", env_path))
+    {
+      env_path = vtkdir + ";" + env_path;
+    }
+    else
+    {
+      env_path = vtkdir;
+    }
+    systools::PutEnv(std::string("PATH=") + env_path);
+#endif
+  }
+#endif
+
+#if defined(VTK_BUILD_SHARED_LIBS)
+  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "vtkmodules/__init__.py");
+#else
+  // since there may be other packages not zipped (e.g. mpi4py), we added path to _vtk.zip
+  // to the search path as well.
+  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "_vtk.zip", /*add_landmark*/ false);
+  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "_vtk.zip", /*add_landmark*/ true);
+#endif
+}
 }
 
 //------------------------------------------------------------------------------
 bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv[])
 {
-  vtkPythonPreConfig();
+  bool isolated = vtkPythonPreConfig();
 
   if (Py_IsInitialized() == 0)
   {
     // guide the mechanism to locate Python standard library, if possible.
-    vtkPythonInterpreter::SetupPythonPrefix();
+    SetupPythonPrefix(isolated);
     bool signals_installed = initsigs != 0;
 
-#if PY_VERSION_HEX >= 0x03000000
     // Need two copies of args, because programs might modify the first
     using OwnedWideString = std::unique_ptr<wchar_t, CharDeleter>;
     std::vector<wchar_t*> argvForPython;
@@ -312,13 +424,6 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
       argvForPython.push_back(argCopy.get());
       argvCleanup.emplace_back(std::move(argCopy));
     }
-#else // Python 2.x
-    std::vector<char*> argvForPython;
-    for (int i = 0; i < argc; i++)
-    {
-      argvForPython.push_back(argv[i]);
-    }
-#endif
     argvForPython.push_back(nullptr);
 
 #if PY_VERSION_HEX < 0x03080000
@@ -326,6 +431,8 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
     // setup default argv. Without this, code snippets that check `sys.argv` may
     // fail when run in embedded VTK Python environment.
     PySys_SetArgvEx(argc, argvForPython.data(), 0);
+
+    isolated = Py_FrozenFlag;
 #else
     PyConfig config;
     PyStatus status;
@@ -345,6 +452,7 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
       PyConfig_Clear(&config);
       return false;
     }
+    isolated = config.pathconfig_warnings == 0;
     PyConfig_Clear(&config);
 #endif
 
@@ -390,9 +498,9 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
       vtkPythonStdStreamCaptureHelper* wrapperOut = NewPythonStdStreamCaptureHelper(false);
       vtkPythonStdStreamCaptureHelper* wrapperErr = NewPythonStdStreamCaptureHelper(true);
       vtkPythonScopeGilEnsurer gilEnsurer;
-      PySys_SetObject(const_cast<char*>("stdout"), reinterpret_cast<PyObject*>(wrapperOut));
-      PySys_SetObject(const_cast<char*>("stderr"), reinterpret_cast<PyObject*>(wrapperErr));
-      PySys_SetObject(const_cast<char*>("stdin"), reinterpret_cast<PyObject*>(wrapperOut));
+      PySys_SetObject("stdout", reinterpret_cast<PyObject*>(wrapperOut));
+      PySys_SetObject("stderr", reinterpret_cast<PyObject*>(wrapperErr));
+      PySys_SetObject("stdin", reinterpret_cast<PyObject*>(wrapperOut));
       Py_DECREF(wrapperOut);
       Py_DECREF(wrapperErr);
     }
@@ -400,7 +508,7 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
     // We call this before processing any of Python paths added by the
     // application using `PrependPythonPath`. This ensures that application
     // specified paths are preferred to the ones `vtkPythonInterpreter` adds.
-    vtkPythonInterpreter::SetupVTKPythonPaths();
+    SetupVTKPythonPaths(isolated);
 
     for (size_t cc = 0; cc < PythonPaths.size(); cc++)
     {
@@ -413,24 +521,6 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
 
   return false;
 }
-
-#ifdef vtkPythonInterpreter_USE_DIRECTORY_COOKIE
-static PyObject* DLLDirectoryCookie = nullptr;
-
-static void CloseDLLDirectoryCookie()
-{
-  if (DLLDirectoryCookie)
-  {
-    if (PyObject_HasAttrString(DLLDirectoryCookie, "close"))
-    {
-      PyObject* result = PyObject_CallMethod(DLLDirectoryCookie, "close", nullptr);
-      Py_XDECREF(result);
-    }
-    Py_XDECREF(DLLDirectoryCookie);
-    DLLDirectoryCookie = nullptr;
-  }
-}
-#endif
 
 //------------------------------------------------------------------------------
 void vtkPythonInterpreter::Finalize()
@@ -467,11 +557,11 @@ void vtkPythonInterpreter::SetProgramName(const char* programname)
       empty[0] = 0;
       PythonProgramName.push_back(empty);
     }
-// From Python Docs: The argument should point to a zero-terminated character
-// string in static storage whose contents will not change for the duration of
-// the program's execution. No code in the Python interpreter will change the
-// contents of this storage.
-#elif PY_VERSION_HEX >= 0x03000000
+#else
+    // From Python Docs: The argument should point to a zero-terminated character
+    // string in static storage whose contents will not change for the duration of
+    // the program's execution. No code in the Python interpreter will change the
+    // contents of this storage.
     wchar_t* argv0 = vtk_Py_UTF8ToWide(programname);
     if (argv0 == nullptr)
     {
@@ -487,12 +577,6 @@ void vtkPythonInterpreter::SetProgramName(const char* programname)
       static WCharStringPool wpool;
       Py_SetProgramName(wpool.push_back(argv0));
     }
-#else
-    static StringPool pool;
-    size_t length = strlen(programname);
-    char* dupe = (char*)PyMem_Malloc(sizeof(char) * (length + 1));
-    strcpy(dupe, programname);
-    Py_SetProgramName(pool.push_back(dupe));
 #endif
   }
 }
@@ -671,7 +755,6 @@ int vtkPythonInterpreter::PyMain(int argc, char** argv)
 #endif
 
 #if PY_VERSION_HEX < 0x03080000
-#if PY_VERSION_HEX >= 0x03000000
   // Need two copies of args, because programs might modify the first
   using OwnedWideString = std::unique_ptr<wchar_t, CharDeleter>;
   std::vector<wchar_t*> argvForPythonWide;
@@ -696,10 +779,6 @@ int vtkPythonInterpreter::PyMain(int argc, char** argv)
 
   vtkPythonScopeGilEnsurer gilEnsurer(false, true);
   return Py_Main(argvForPythonWideSize, argvForPythonWide.data());
-#else // Python 2.x
-  vtkPythonScopeGilEnsurer gilEnsurer(false, true);
-  return Py_Main(argvForPythonSize, argvForPython.data());
-#endif
 #else
   vtkPythonScopeGilEnsurer gilEnsurer(false, true);
   return Py_RunMain();
@@ -721,7 +800,7 @@ int vtkPythonInterpreter::RunSimpleString(const char* script)
   int pyReturn;
   {
     vtkPythonScopeGilEnsurer gilEnsurer;
-    pyReturn = PyRun_SimpleString(const_cast<char*>(buffer.c_str()));
+    pyReturn = PyRun_SimpleString(buffer.c_str());
   }
 
   vtkPythonInterpreter::ConsoleBuffering = false;
@@ -816,114 +895,6 @@ vtkStdString vtkPythonInterpreter::ReadStdin()
 }
 
 //------------------------------------------------------------------------------
-void vtkPythonInterpreter::SetupPythonPrefix()
-{
-  using systools = vtksys::SystemTools;
-
-  // Check Py_FrozenFlag global variable defined by Python to see if we're using
-  // frozen Python.
-  if (Py_FrozenFlag)
-  {
-    VTKPY_DEBUG_MESSAGE("`Py_FrozenFlag` is set. Skipping setting up of program path.");
-    return;
-  }
-
-  std::string pythonlib = vtkGetLibraryPathForSymbol(Py_InitializeEx);
-  if (pythonlib.empty())
-  {
-    VTKPY_DEBUG_MESSAGE("static Python build or `Py_InitializeEx` library couldn't be found. "
-                        "Set `PYTHONHOME` if Python standard library fails to load.");
-    return;
-  }
-
-  const std::string newprogramname =
-    systools::GetFilenamePath(pythonlib) + VTK_PATH_SEPARATOR "vtkpython";
-  VTKPY_DEBUG_MESSAGE("calling vtkPythonInterpreter::SetProgramName("
-    << newprogramname << ") to aid in setup of Python prefix.");
-  vtkPythonInterpreter::SetProgramName(newprogramname.c_str());
-}
-
-//------------------------------------------------------------------------------
-void vtkPythonInterpreter::SetupVTKPythonPaths()
-{
-  // Check Py_FrozenFlag global variable defined by Python to see if we're using
-  // frozen Python.
-  if (Py_FrozenFlag)
-  {
-    VTKPY_DEBUG_MESSAGE("`Py_FrozenFlag` is set. Skipping locating of `vtk` package.");
-    return;
-  }
-
-  using systools = vtksys::SystemTools;
-  std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
-  if (vtklib.empty())
-  {
-    VTKPY_DEBUG_MESSAGE(
-      "`GetVTKVersion` library couldn't be found. Will use `Py_GetProgramName` next.");
-  }
-
-  if (vtklib.empty())
-  {
-#if PY_VERSION_HEX >= 0x03000000
-    vtklib = vtk_Py_WideToUTF8(Py_GetProgramName());
-#else
-    vtklib = Py_GetProgramName();
-#endif
-  }
-
-  vtklib = systools::CollapseFullPath(vtklib);
-  const std::string vtkdir = systools::GetFilenamePath(vtklib);
-
-#if defined(_WIN32) && !defined(__CYGWIN__) && defined(VTK_BUILD_SHARED_LIBS)
-  // On Windows, based on how the executable is run, we end up failing to load
-  // pyd files due to inability to load dependent dlls. This seems to overcome
-  // the issue.
-  if (!vtkdir.empty())
-  {
-#if PY_VERSION_HEX >= 0x03080000
-    vtkPythonScopeGilEnsurer gilEnsurer(false, true);
-    CloseDLLDirectoryCookie();
-    PyObject* os = PyImport_ImportModule("os");
-    if (os)
-    {
-      PyObject* add_dll_directory = PyObject_GetAttrString(os, "add_dll_directory");
-      if (add_dll_directory && PyCallable_Check(add_dll_directory))
-      {
-        PyObject* newpath = PyUnicode_FromString(vtkdir.c_str());
-        DLLDirectoryCookie = PyObject_CallFunctionObjArgs(add_dll_directory, newpath, nullptr);
-        Py_XDECREF(newpath);
-      }
-
-      Py_XDECREF(add_dll_directory);
-    }
-
-    Py_XDECREF(os);
-#else
-    std::string env_path;
-    if (systools::GetEnv("PATH", env_path))
-    {
-      env_path = vtkdir + ";" + env_path;
-    }
-    else
-    {
-      env_path = vtkdir;
-    }
-    systools::PutEnv(std::string("PATH=") + env_path);
-#endif
-  }
-#endif
-
-#if defined(VTK_BUILD_SHARED_LIBS)
-  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "vtkmodules/__init__.py");
-#else
-  // since there may be other packages not zipped (e.g. mpi4py), we added path to _vtk.zip
-  // to the search path as well.
-  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "_vtk.zip", /*add_landmark*/ false);
-  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "_vtk.zip", /*add_landmark*/ true);
-#endif
-}
-
-//------------------------------------------------------------------------------
 void vtkPythonInterpreter::SetLogVerbosity(int val)
 {
   vtkPythonInterpreter::LogVerbosity = vtkLogger::ConvertToVerbosity(val);
@@ -959,3 +930,4 @@ vtkWideArgsConverter::~vtkWideArgsConverter()
   }
 }
 #endif
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCameraInterpolator2.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCameraInterpolator2
  *
@@ -51,7 +39,7 @@ public:
     ORTHOGONAL
   };
 
-  //@{
+  ///@{
   /**
    * Mode for managing the focal point.
    * At least one of the two modes FocalPointMode or PositionMode must be PATH
@@ -59,9 +47,9 @@ public:
    */
   vtkSetClampMacro(FocalPointMode, int, PATH, ORTHOGONAL);
   vtkGetMacro(FocalPointMode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Mode for managing the camera position.
    * At least one of the two modes FocalPointMode or PositionMode must be PATH
@@ -69,7 +57,7 @@ public:
    */
   vtkSetClampMacro(PositionMode, int, PATH, ORTHOGONAL);
   vtkGetMacro(PositionMode, int);
-  //@}
+  ///@}
 
   enum PathInterpolationModes
   {
@@ -85,23 +73,23 @@ public:
   vtkSetClampMacro(FocalPathInterpolationMode, int, LINEAR, SPLINE);
   vtkGetMacro(FocalPathInterpolationMode, int);
 
-  //@{
+  ///@{
   /**
    * When set, the FocalPointPath is treated as a closed path.
    */
   vtkSetMacro(ClosedFocalPath, bool);
   vtkGetMacro(ClosedFocalPath, bool);
   vtkBooleanMacro(ClosedFocalPath, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set, the PositionPath is treated as a closed path.
    */
   vtkSetMacro(ClosedPositionPath, bool);
   vtkGetMacro(ClosedPositionPath, bool);
   vtkBooleanMacro(ClosedPositionPath, bool);
-  //@}
+  ///@}
 
   /**
    * \c u has to be in the range [0, 1].

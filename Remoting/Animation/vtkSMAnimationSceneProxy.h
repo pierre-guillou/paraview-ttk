@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMAnimationSceneProxy
  *
@@ -33,7 +21,7 @@ public:
   vtkTypeMacro(vtkSMAnimationSceneProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Setups the animation scene's playback mode and time-ranges based on the
    * timesteps available on the time-keeper proxy set on the animation scene.
@@ -44,9 +32,9 @@ public:
     vtkSMAnimationSceneProxy* self = vtkSMAnimationSceneProxy::SafeDownCast(scene);
     return self ? self->UpdateAnimationUsingDataTimeSteps() : false;
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the first animation cue (enabled or otherwise) that animates the
    * given property on the proxy. This will return nullptr if none such cue exists.
@@ -58,7 +46,7 @@ public:
     vtkSMAnimationSceneProxy* self = vtkSMAnimationSceneProxy::SafeDownCast(scene);
     return self ? self->FindAnimationCue(animatedProxy, animatedPropertyName) : nullptr;
   }
-  //@}
+  ///@}
 
 protected:
   vtkSMAnimationSceneProxy();

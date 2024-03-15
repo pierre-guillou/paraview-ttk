@@ -1,22 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkPairwiseExtractHistogram2D.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkPairwiseExtractHistogram2D.h"
 //------------------------------------------------------------------------------
@@ -44,6 +28,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include <string>
 #include <vector>
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPairwiseExtractHistogram2D);
 //------------------------------------------------------------------------------
 class vtkPairwiseExtractHistogram2D::Internals
@@ -140,6 +125,7 @@ void vtkPairwiseExtractHistogram2D::Learn(
       f.TakeReference(this->NewHistogramFilter());
       f->SetInputData(inDataCopy);
       f->SetNumberOfBins(this->NumberOfBins);
+      f->SetContainerAlgorithm(this);
       std::pair<std::string, std::string> colpair(
         inData->GetColumn(i)->GetName(), inData->GetColumn(i + 1)->GetName());
       f->AddColumnPair(colpair.first.c_str(), colpair.second.c_str());
@@ -172,6 +158,11 @@ void vtkPairwiseExtractHistogram2D::Learn(
   {
     for (int i = 0; i < numHistograms; i++)
     {
+
+      if (this->CheckAbort())
+      {
+        break;
+      }
 
       vtkExtractHistogram2D* f = this->GetHistogramFilter(i);
 
@@ -228,6 +219,10 @@ void vtkPairwiseExtractHistogram2D::Learn(
   // update the filters as necessary
   for (int i = 0; i < numHistograms; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkExtractHistogram2D* f = this->GetHistogramFilter(i);
     if (f &&
       (f->GetMTime() > this->BuildTime || inData->GetColumn(i)->GetMTime() > this->BuildTime ||
@@ -431,3 +426,4 @@ int vtkPairwiseExtractHistogram2D::FillOutputPortInformation(int port, vtkInform
     return this->Superclass::FillOutputPortInformation(port, info);
   }
 }
+VTK_ABI_NAMESPACE_END

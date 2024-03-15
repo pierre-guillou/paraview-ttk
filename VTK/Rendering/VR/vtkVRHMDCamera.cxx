@@ -1,22 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRHMDCamera.h"
 
 #include "vtkMatrix3x3.h"
 #include "vtkMatrix4x4.h"
 #include "vtkOpenGLError.h"
 #include "vtkOpenGLState.h"
+#include "vtkPerspectiveTransform.h"
 #include "vtkRenderer.h"
 #include "vtkTransform.h"
 #include "vtkVRRenderWindow.h"
@@ -24,6 +14,7 @@
 #include <cmath>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkVRHMDCamera::vtkVRHMDCamera()
 {
   // approximate for Vive
@@ -160,6 +151,30 @@ void vtkVRHMDCamera::GetPhysicalToProjectionMatrix(vtkMatrix4x4*& physToProjecti
 }
 
 //------------------------------------------------------------------------------
+void vtkVRHMDCamera::ComputeProjectionTransform(double aspect, double nearz, double farz)
+{
+  if (this->GetTrackHMD())
+  {
+    // Use the left and right matrices explicitly created
+    this->ProjectionTransform->Identity();
+    if (this->LeftEye)
+    {
+      this->ProjectionTransform->Concatenate(this->LeftEyeToProjectionMatrix);
+    }
+    else
+    {
+      this->ProjectionTransform->Concatenate(this->RightEyeToProjectionMatrix);
+    }
+  }
+  else
+  {
+    // TrackHMD is disabled for picking (see vtkVRHardwarePicker::PickProp). In this case, we can
+    // use the default projection transform computation done by vtkCamera.
+    this->Superclass::ComputeProjectionTransform(aspect, nearz, farz);
+  }
+}
+
+//------------------------------------------------------------------------------
 void vtkVRHMDCamera::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -184,3 +199,4 @@ void vtkVRHMDCamera::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PhysicalToProjectionMatrixForRightEye: ";
   this->PhysicalToProjectionMatrixForRightEye->PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

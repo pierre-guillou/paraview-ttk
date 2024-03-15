@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMInputArrayDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMInputArrayDomain
  * @brief   domain to ensure that input has required types
@@ -97,14 +85,14 @@ public:
    */
   int IsInDomain(vtkSMSourceProxy* proxy, unsigned int outputport = 0);
 
-  //@{
+  ///@{
   /**
    * Get the attribute type. Valid values are defined in AttributeTypes which
    * map to vtkDataObject::AttributeTypes.
    */
   vtkGetMacro(AttributeType, int);
   const char* GetAttributeTypeAsString();
-  //@}
+  ///@}
 
   /**
    * Get the AcceptableNumberOfComponents vector

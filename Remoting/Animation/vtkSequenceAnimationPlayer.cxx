@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSequenceAnimationPlayer.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSequenceAnimationPlayer.h"
 
 #include "vtkObjectFactory.h"
@@ -75,9 +63,7 @@ double vtkSequenceAnimationPlayer::GetNextTime(double curtime)
     return VTK_DOUBLE_MAX;
   }
 
-  double time = this->StartTime +
-    ((this->EndTime - this->StartTime) * this->FrameNo) / (this->NumberOfFrames - 1);
-  return time;
+  return this->GetTimeFromTimestep(this->StartTime, this->EndTime, this->FrameNo);
 }
 
 //----------------------------------------------------------------------------
@@ -96,24 +82,40 @@ double vtkSequenceAnimationPlayer::GetPreviousTime(double curtime)
     return VTK_DOUBLE_MIN;
   }
 
-  double time = this->StartTime +
-    ((this->EndTime - this->StartTime) * this->FrameNo) / (this->NumberOfFrames - 1);
-  return time;
+  return this->GetTimeFromTimestep(this->StartTime, this->EndTime, this->FrameNo);
+}
+
+//----------------------------------------------------------------------------
+int vtkSequenceAnimationPlayer::GetTimestep(double start, double end, double current)
+{
+  if (start == end)
+  {
+    return start;
+  }
+
+  return static_cast<int>((current - start) * (this->NumberOfFrames - 1) / (end - start) + 0.5);
+}
+
+//----------------------------------------------------------------------------
+double vtkSequenceAnimationPlayer::GetTimeFromTimestep(double start, double end, int timestep)
+{
+  double delta = static_cast<double>(end - start) / (this->NumberOfFrames - 1);
+  return start + timestep * delta;
 }
 
 //----------------------------------------------------------------------------
 double vtkSequenceAnimationPlayer::GoToNext(double start, double end, double curtime)
 {
-  double delta = static_cast<double>(end - start) / (this->NumberOfFrames - 1);
-  double res = curtime + delta * this->GetStride();
+  int curTimestep = this->GetTimestep(start, end, curtime);
+  double res = this->GetTimeFromTimestep(start, end, curTimestep + this->GetStride());
   return (res > end) ? curtime : res;
 }
 
 //----------------------------------------------------------------------------
 double vtkSequenceAnimationPlayer::GoToPrevious(double start, double end, double curtime)
 {
-  double delta = static_cast<double>(end - start) / (this->NumberOfFrames - 1);
-  double res = curtime - delta * this->GetStride();
+  int curTimestep = this->GetTimestep(start, end, curtime);
+  double res = this->GetTimeFromTimestep(start, end, curTimestep - this->GetStride());
   return (res < start) ? curtime : res;
 }
 

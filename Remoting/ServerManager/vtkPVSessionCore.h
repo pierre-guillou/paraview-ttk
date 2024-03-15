@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVSessionCore.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVSessionCore
  *
@@ -46,19 +34,19 @@ public:
   vtkTypeMacro(vtkPVSessionCore, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Provides access to the interpreter.
    */
   vtkGetObjectMacro(Interpreter, vtkClientServerInterpreter);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Provides access to the proxy definition manager.
    */
   vtkGetObjectMacro(ProxyDefinitionManager, vtkSIProxyDefinitionManager);
-  //@}
+  ///@}
 
   /**
    * Push the state message.
@@ -133,7 +121,7 @@ public:
    */
   int GetNumberOfProcesses();
 
-  //@{
+  ///@{
   /**
    * Get/Set the socket connection used to communicate between data=server and
    * render-server processes. This is valid only on data-server and
@@ -141,7 +129,7 @@ public:
    */
   void SetMPIMToNSocketConnection(vtkMPIMToNSocketConnection*);
   vtkGetObjectMacro(MPIMToNSocketConnection, vtkMPIMToNSocketConnection);
-  //@}
+  ///@}
 
   /**
    * Provides the next available identifier. This implementation works locally.

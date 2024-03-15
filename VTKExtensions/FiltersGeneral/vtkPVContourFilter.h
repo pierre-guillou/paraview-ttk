@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVContourFilter
  * @brief   generate isosurfaces/isolines from scalar values
@@ -26,13 +15,6 @@
  * points generated from a particular contour value, the scalar array will have
  * exactly the same value.
  *
- * For certain inputs, this filter delegates operation to vtkContour3DLinearGrid.
- * The input must meet the following conditions for this filter to be used:
- *
- * - all cells in the input are linear (i.e., not higher order)
- * - the contour array is one of the types supported by the vtkContour3DLinearGrid
- * - the ComputeScalars option is off
- *
  * @warning
  * Certain flags in vtkAMRDualContour are assumed to be ON.
  *
@@ -44,7 +26,8 @@
 #define vtkPVContourFilter_h
 
 #include "vtkContourFilter.h"
-#include "vtkPVVTKExtensionsFiltersGeneralModule.h" //needed for exports
+#include "vtkHyperTreeGridContour.h"                // for vtkHyperTreeGridContour
+#include "vtkPVVTKExtensionsFiltersGeneralModule.h" // needed for exports
 
 class VTKPVVTKEXTENSIONSFILTERSGENERAL_EXPORT vtkPVContourFilter : public vtkContourFilter
 {
@@ -55,7 +38,21 @@ public:
 
   static vtkPVContourFilter* New();
 
-  int ProcessRequest(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+  ///@{
+  /**
+   * Get/set the contour strategy to apply in case of a HTG input.
+   * By default, the strategy is vtkHyperTreeGridContour::USE_VOXELS.
+   * This method is time-efficient but can lead to bad results in the 3D case, where generated dual
+   * cells can be concave.
+   * vtkHyperTreeGridContour::USE_DECOMPOSED_POLYHEDRA allows better results in such cases (3D HTGs
+   * only). It takes advantage of the vtkPolyhedronUtilities::Decompose method to generate better
+   * contours. The dowside is that this method is much slower than
+   * vtkHyperTreeGridContour::USE_VOXELS.
+   */
+  vtkGetMacro(HTGStrategy3D, int);
+  vtkSetClampMacro(HTGStrategy3D, int, vtkHyperTreeGridContour::USE_VOXELS,
+    vtkHyperTreeGridContour::USE_DECOMPOSED_POLYHEDRA);
+  ///@}
 
 protected:
   vtkPVContourFilter();
@@ -64,11 +61,7 @@ protected:
   int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
-  virtual int RequestDataObject(vtkInformation* request, vtkInformationVector** inputVector,
-    vtkInformationVector* outputVector);
-
   int FillInputPortInformation(int port, vtkInformation* info) override;
-  int FillOutputPortInformation(int port, vtkInformation* info) override;
 
   /**
    * Class superclass request data. Also handles iterating over
@@ -90,6 +83,9 @@ protected:
 private:
   vtkPVContourFilter(const vtkPVContourFilter&) = delete;
   void operator=(const vtkPVContourFilter&) = delete;
+
+  // Strategy used to represent HTG dual cells in 3D
+  int HTGStrategy3D = vtkHyperTreeGridContour::USE_VOXELS;
 };
 
 #endif // vtkPVContourFilter_h

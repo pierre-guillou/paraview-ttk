@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkViewport.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkViewport.h"
 
 #include "vtkActor2DCollection.h"
@@ -22,11 +10,13 @@
 #include "vtkWindow.h"
 
 #include <algorithm>
+#include <type_traits>
 
 //------------------------------------------------------------------------------
 // Create a vtkViewport with a black background, a white ambient light,
 // two-sided lighting turned on, a viewport of (0,0,1,1), and backface culling
 // turned off.
+VTK_ABI_NAMESPACE_BEGIN
 vtkViewport::vtkViewport()
 {
   this->VTKWindow = nullptr;
@@ -42,6 +32,7 @@ vtkViewport::vtkViewport()
   this->BackgroundAlpha = 0.0;
 
   this->GradientBackground = false;
+  this->DitherGradient = true;
 
   this->EnvironmentalBG[0] = 0;
   this->EnvironmentalBG[1] = 0;
@@ -141,9 +132,9 @@ void vtkViewport::RemoveActor2D(vtkProp* p)
 }
 
 //------------------------------------------------------------------------------
-int vtkViewport::HasViewProp(vtkProp* p)
+vtkTypeBool vtkViewport::HasViewProp(vtkProp* p)
 {
-  return (p && this->Props->IsItemPresent(p));
+  return (p && this->Props->IndexOfFirstOccurence(p) >= 0);
 }
 
 //------------------------------------------------------------------------------
@@ -370,7 +361,7 @@ double* vtkViewport::GetCenter()
 
 //------------------------------------------------------------------------------
 // Is a given display point in this Viewport's viewport.
-int vtkViewport::IsInViewport(int x, int y)
+vtkTypeBool vtkViewport::IsInViewport(int x, int y)
 {
   if (this->VTKWindow)
   {
@@ -387,6 +378,24 @@ int vtkViewport::IsInViewport(int x, int y)
   }
 
   return 0;
+}
+
+namespace
+{
+const char* gradModeEnum2str_data[] = {
+  // clang-format off
+  "VTK_GRADIENT_VERTICAL", // 0
+  "VTK_GRADIENT_HORIZONTAL", // 1
+  "VTK_GRADIENT_RADIAL_VIEWPORT_FARTHEST_SIDE", // 2
+  "VTK_GRADIENT_RADIAL_VIEWPORT_FARTHEST_CORNER", // 3
+  // clang-format on
+};
+const char* gradModeEnum2Str(vtkViewport::GradientModes& mode)
+{
+  using ul_type = std::underlying_type<vtkViewport::GradientModes>::type;
+  static_assert(std::is_integral<ul_type>::value, "GradientModes is integral.");
+  return gradModeEnum2str_data[static_cast<ul_type>(mode)];
+}
 }
 
 //------------------------------------------------------------------------------
@@ -407,6 +416,7 @@ void vtkViewport::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BackgroundAlpha: " << this->BackgroundAlpha << "\n";
 
   os << indent << "GradientBackground: " << (this->GradientBackground ? "On" : "Off") << "\n";
+  os << indent << "GradientMode: " << gradModeEnum2Str(this->GradientMode) << "\n";
 
   os << indent << "Viewport: (" << this->Viewport[0] << ", " << this->Viewport[1] << ", "
      << this->Viewport[2] << ", " << this->Viewport[3] << ")\n";
@@ -817,3 +827,4 @@ void vtkViewport::GetTiledSizeAndOrigin(int* usize, int* vsize, int* lowerLeftU,
     *vsize = 0;
   }
 }
+VTK_ABI_NAMESPACE_END

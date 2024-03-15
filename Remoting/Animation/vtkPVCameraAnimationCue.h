@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCameraAnimationCue.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCameraAnimationCue
  *
@@ -37,34 +25,34 @@ public:
   vtkTypeMacro(vtkPVCameraAnimationCue, vtkPVKeyFrameAnimationCue);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the render view.
    */
   void SetView(vtkPVRenderView*);
   vtkGetObjectMacro(View, vtkPVRenderView);
-  //@}
+  ///@}
 
   /**
    * Returns the animated camera, if any.
    */
   vtkCamera* GetCamera();
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkPVCameraCueManipulator.
    */
   void SetMode(int mode);
   void SetInterpolationMode(int mode);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the animation timekeeper
    */
   vtkGetObjectMacro(TimeKeeper, vtkSMProxy);
   void SetTimeKeeper(vtkSMProxy*);
-  //@}
+  ///@}
 
   void BeginUpdateAnimationValues() override {}
   void SetAnimationValue(int, double) override {}

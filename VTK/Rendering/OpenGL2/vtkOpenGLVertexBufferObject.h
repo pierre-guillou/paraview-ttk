@@ -1,23 +1,14 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkOpenGLVertexBufferObject_h
 #define vtkOpenGLVertexBufferObject_h
 
 #include "vtkOpenGLBufferObject.h"
+#include "vtkPolyDataMapper.h"         // for ShiftScaleMethodType
 #include "vtkRenderingOpenGL2Module.h" // for export macro
 #include "vtkWeakPointer.h"            // For vtkWeakPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLVertexBufferObjectCache;
 
 /**
@@ -56,36 +47,20 @@ public:
   // Get the mtime when this VBO was loaded
   vtkGetMacro(UploadTime, vtkTimeStamp);
 
-  /**\brief Methods for VBO coordinate shift+scale-computation.
-   *
-   * By default, shift and scale vectors are enabled
-   * whenever CreateVBO is called with points whose
-   * bounds are many bbox-lengths away from the origin.
-   *
-   * Shifting and scaling may be completely disabled,
-   * or manually specified, or left at the default.
-   *
-   * Manual specification is for the case when you
-   * will be calling AppendVBO instead of just CreateVBO
-   * and know better bounds than the what CreateVBO
-   * might produce.
-   *
-   * The automatic method tells CreatVBO to compute shift and
-   * scale vectors that remap the points to the unit cube.
-   *
-   * The camera method will shift scale the VBO so that the visible
-   * part of the data has reasonable values.
+  using ShiftScaleMethod = vtkPolyDataMapper::ShiftScaleMethodType;
+
+  ///@{
+  /**
+   * These typed enums are available in class scope for convenience and backward compatibility.
    */
-  enum ShiftScaleMethod
-  {
-    DISABLE_SHIFT_SCALE,     //!< Do not shift/scale point coordinates. Ever!
-    AUTO_SHIFT_SCALE,        //!< The default, automatic computation.
-    ALWAYS_AUTO_SHIFT_SCALE, //!< Always shift scale using auto computed values
-    MANUAL_SHIFT_SCALE,      //!< Manual shift/scale (for use with AppendVBO)
-    AUTO_SHIFT,              //!< Only Apply the shift
-    NEAR_PLANE_SHIFT_SCALE,  //!< Shift scale based on camera settings
-    FOCAL_POINT_SHIFT_SCALE  //!< Shift scale based on camera settings
-  };
+  static constexpr int DISABLE_SHIFT_SCALE = ShiftScaleMethod::DISABLE_SHIFT_SCALE;
+  static constexpr int AUTO_SHIFT_SCALE = ShiftScaleMethod::AUTO_SHIFT_SCALE;
+  static constexpr int ALWAYS_AUTO_SHIFT_SCALE = ShiftScaleMethod::ALWAYS_AUTO_SHIFT_SCALE;
+  static constexpr int MANUAL_SHIFT_SCALE = ShiftScaleMethod::MANUAL_SHIFT_SCALE;
+  static constexpr int AUTO_SHIFT = ShiftScaleMethod::AUTO_SHIFT;
+  static constexpr int NEAR_PLANE_SHIFT_SCALE = ShiftScaleMethod::NEAR_PLANE_SHIFT_SCALE;
+  static constexpr int FOCAL_POINT_SHIFT_SCALE = ShiftScaleMethod::FOCAL_POINT_SHIFT_SCALE;
+  ///@}
 
   // Description:
   // Get the shift and scale vectors computed by CreateVBO;
@@ -119,8 +94,8 @@ public:
   // These methods are used by the mapper to determine the
   // additional transform (if any) to apply to the rendering transform.
   virtual bool GetCoordShiftAndScaleEnabled();
-  virtual ShiftScaleMethod GetCoordShiftAndScaleMethod();
-  virtual void SetCoordShiftAndScaleMethod(ShiftScaleMethod meth);
+  virtual int GetCoordShiftAndScaleMethod();
+  virtual void SetCoordShiftAndScaleMethod(int meth);
   virtual void SetShift(const std::vector<double>& shift);
   virtual void SetShift(double x, double y, double z);
   virtual void SetScale(const std::vector<double>& scale);
@@ -140,8 +115,8 @@ public:
   // so allow applications to turn all these shifts off and manage the
   // float imprecision on their own.
   static void SetGlobalCoordShiftAndScaleEnabled(vtkTypeBool val);
-  static void GlobalCoordShiftAndScaleEnabledOn() { SetGlobalCoordShiftAndScaleEnabled(1); };
-  static void GlobalCoordShiftAndScaleEnabledOff() { SetGlobalCoordShiftAndScaleEnabled(0); };
+  static void GlobalCoordShiftAndScaleEnabledOn() { SetGlobalCoordShiftAndScaleEnabled(1); }
+  static void GlobalCoordShiftAndScaleEnabledOff() { SetGlobalCoordShiftAndScaleEnabled(0); }
   static vtkTypeBool GetGlobalCoordShiftAndScaleEnabled();
 
   // Set/Get the DataType to use for the VBO
@@ -190,7 +165,7 @@ protected:
   int DataType;
   unsigned int DataTypeSize;
 
-  ShiftScaleMethod CoordShiftAndScaleMethod;
+  int CoordShiftAndScaleMethod;
   bool CoordShiftAndScaleEnabled;
   std::vector<double> Shift;
   std::vector<double> Scale;
@@ -208,4 +183,5 @@ private:
   static vtkTypeBool GlobalCoordShiftAndScaleEnabled;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

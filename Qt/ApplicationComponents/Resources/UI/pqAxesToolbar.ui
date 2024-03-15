@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>pqAxesToolbar</class>
  <widget class="QToolBar" name="axesToolbar" >
@@ -90,7 +92,7 @@
     <string>Reset center of rotation</string>
    </property>
   </action>
- 
+
   <addaction name="actionShowOrientationAxes" />
   <addaction name="actionShowCenterAxes" />
   <addaction name="actionResetCenter" />

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkJPEGWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkJPEGWriter.h"
 
 #include "vtkErrorCode.h"
@@ -27,6 +15,7 @@ extern "C"
 #include "vtk_jpeg.h"
 #include <csetjmp>
 }
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkJPEGWriter);
 
@@ -124,6 +113,7 @@ void vtkJPEGWriter::Write()
   delete[] this->InternalFileName;
   this->InternalFileName = nullptr;
 }
+VTK_ABI_NAMESPACE_END
 
 // these three routines are for writing into memory
 extern "C"
@@ -191,6 +181,8 @@ extern "C"
 #endif
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
+
 struct VTK_JPEG_ERROR_MANAGER
 {
   struct jpeg_error_mgr pub;
@@ -198,18 +190,20 @@ struct VTK_JPEG_ERROR_MANAGER
 };
 
 typedef struct VTK_JPEG_ERROR_MANAGER* VTK_JPEG_ERROR_PTR;
+VTK_ABI_NAMESPACE_END
 
-extern "C"
+namespace
 {
-  /* The JPEG library does not expect the error function to return.
-     Therefore we must use this ugly longjmp call.  */
-  void VTK_JPEG_ERROR_EXIT(j_common_ptr cinfo)
-  {
-    VTK_JPEG_ERROR_PTR jpegErr = reinterpret_cast<VTK_JPEG_ERROR_PTR>(cinfo->err);
-    longjmp(jpegErr->setjmp_buffer, 1);
-  }
+/* The JPEG library does not expect the error function to return.
+   Therefore we must use this ugly longjmp call.  */
+void VTK_JPEG_ERROR_EXIT(j_common_ptr cinfo)
+{
+  VTK_JPEG_ERROR_PTR jpegErr = reinterpret_cast<VTK_JPEG_ERROR_PTR>(cinfo->err);
+  longjmp(jpegErr->setjmp_buffer, 1);
+}
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 // we disable this warning because even though this is a C++ file, between
 // the setjmp and resulting longjmp there should not be any C++ constructors
 // or destructors.
@@ -360,3 +354,4 @@ void vtkJPEGWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Progressive: " << (this->Progressive ? "On" : "Off") << "\n";
   os << indent << "Result: " << this->Result << "\n";
 }
+VTK_ABI_NAMESPACE_END

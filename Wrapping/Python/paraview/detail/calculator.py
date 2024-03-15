@@ -15,8 +15,9 @@ from vtkmodules.numpy_interface.algorithms import *
 
 from paraview.vtk import vtkDataObject, vtkDoubleArray, vtkSelectionNode, vtkSelection, vtkStreamingDemandDrivenPipeline
 from paraview.modules import vtkPVVTKExtensionsFiltersPython
-
+from paraview.vtk.util.numpy_support import get_numpy_array_type
 import sys
+import textwrap
 
 if sys.version_info >= (3,):
     xrange = range
@@ -134,7 +135,7 @@ def cellContainsPoint(inputs, locations):
     return output.CellData.GetArray('vtkInsidedness')
 
 
-def compute(inputs, expression, ns=None):
+def compute(inputs, expression, ns=None, multiline=False):
     #  build the locals environment used to eval the expression.
     mylocals = dict()
     if ns:
@@ -145,16 +146,30 @@ def compute(inputs, expression, ns=None):
     except AttributeError:
         pass
 
-    finalRet = None
-    for subEx in expression.split(' and '):
-        retVal = eval(subEx, globals(), mylocals)
-        if finalRet is None:
-            finalRet = retVal
-        else:
-            finalRet = dsa.VTKArray([a & b for a, b in zip(finalRet, retVal)])
+    if multiline:
+        # Wrap multiline expressions returning a value in a function, and evaluate it.
+        if "return" not in expression:
+            raise ValueError(
+                "Multiline expression does not contain a return statement.")
 
-    return finalRet
+        multilineFunction = f'def func():\n' \
+                    f'{textwrap.indent(expression, " "*4)}\n' \
+                    f'result = func()\n'
+        returnValueDict = {}
 
+        # `mylocals` need to be in the global `exec` scope, otherwise it would not be accessible inside the `func` scope
+        exec(multilineFunction, dict(globals(), **mylocals), returnValueDict)
+
+        return returnValueDict['result']
+    else:
+        finalRet = None
+        for subEx in expression.split(' and '): # Used in 'extract_selection' to find data matching multiple criteria
+            retVal = eval(subEx, globals(), mylocals)
+            if finalRet is None:
+                finalRet = retVal
+            else:
+                finalRet = dsa.VTKArray([a & b for a, b in zip(finalRet, retVal)])
+        return finalRet
 
 def get_data_time(self, do, ininfo):
     dinfo = do.GetInformation()
@@ -174,12 +189,18 @@ def get_data_time(self, do, ininfo):
     return (t, t_index)
 
 
-def execute(self, expression):
+def execute(self, expression, multiline=False):
     """
     **Internal Method**
     Called by vtkPythonCalculator in its RequestData(...) method. This is not
     intended for use externally except from within
     vtkPythonCalculator::RequestData(...).
+
+    Note: by default, the output attribute respect `self.GetArrayAssociation()`.
+    As some exposed methods (defined by the VTK numpy wrapping) can change the shape,
+    they can also override the output attribute.
+    For instance, `volume()` will target CellData attribute.
+    FieldData cannot be overridden, as it always can handle any shape of arrays.
     """
 
     # Add inputs.
@@ -209,12 +230,29 @@ def execute(self, expression):
                       "t_value": inputs[0].t_value,
                       "time_index": inputs[0].time_index,
                       "t_index": inputs[0].t_index})
-    retVal = compute(inputs, expression, ns=variables)
+    retVal = compute(inputs, expression, ns=variables, multiline=multiline)
 
     if retVal is not None:
-        if hasattr(retVal, "Association") and retVal.Association is not None:
-            output.GetAttributes(retVal.Association).append(retVal, self.GetArrayName())
-        else:
-            # if somehow the association was removed we
-            # fall back to the input array association
-            output.GetAttributes(self.GetArrayAssociation()).append(retVal, self.GetArrayName())
+        vtkRet = retVal
+        # Convert the result array type if requested.
+        if self.GetResultArrayType() != -1:
+            # handles VTKArray and VTKCompositeDataArray
+            if hasattr(retVal, "astype"):
+                vtkRet = retVal.astype(get_numpy_array_type(self.GetResultArrayType()))
+            else:
+                # we can also get a scalar, convert to single element array of correct type
+                vtkRet = numpy.asarray(retVal, get_numpy_array_type(self.GetResultArrayType()))
+
+        # by default, use filter ArrayAssociation for output attribute.
+        outputAttribute = output.GetAttributes(self.GetArrayAssociation())
+        outputToFieldData = self.GetArrayAssociation() == dsa.ArrayAssociation.FIELD
+
+        # if the computation changes this association for anything other than FIELD, use it instead.
+        # this is useful for some custom methods, like `volume` that apply only for some Array Association (CELL in the example)
+        if not outputToFieldData \
+           and hasattr(retVal, "Association") \
+           and retVal.Association not in [None, dsa.ArrayAssociation.FIELD]:
+
+            outputAttribute = output.GetAttributes(retVal.Association)
+
+        outputAttribute.append(vtkRet, self.GetArrayName())

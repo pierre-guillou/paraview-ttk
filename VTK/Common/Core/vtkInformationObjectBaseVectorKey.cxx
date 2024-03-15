@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationObjectBaseVectorKey.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkInformationObjectBaseVectorKey.h"
 #include "vtkInformation.h" // For vtkErrorWithObjectMacro
 #include "vtkSmartPointer.h"
@@ -19,6 +7,7 @@
 #include <vector>
 
 //============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationObjectBaseVectorValue : public vtkObjectBase
 {
 public:
@@ -221,7 +210,7 @@ void vtkInformationObjectBaseVectorKey::GetRange(
     return;
   }
 
-  // limit copy to whats there.
+  // limit copy to what's there.
   if (n > m - from + 1)
   {
     vtkErrorWithObjectMacro(info, "Copy past the end of the vector has been requested.");
@@ -327,3 +316,4 @@ void vtkInformationObjectBaseVectorKey::Print(ostream& os, vtkInformation* info)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

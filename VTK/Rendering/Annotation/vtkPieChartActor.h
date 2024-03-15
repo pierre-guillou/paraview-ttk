@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPieChartActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPieChartActor
  * @brief   create a pie chart from an array
@@ -37,6 +25,7 @@
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithmOutput;
 class vtkAxisActor2D;
 class vtkDataObject;
@@ -142,7 +131,7 @@ public:
    * Specify the names for each piece of pie.  not specified, then an integer
    * number is automatically generated.
    */
-  void SetPieceLabel(const int i, const char*);
+  void SetPieceLabel(int i, const char*);
   const char* GetPieceLabel(int i);
   ///@}
 
@@ -238,9 +227,9 @@ private:
   int PlaceAxes(vtkViewport* viewport, const int* size);
   int BuildPlot(vtkViewport*);
 
-private:
   vtkPieChartActor(const vtkPieChartActor&) = delete;
   void operator=(const vtkPieChartActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

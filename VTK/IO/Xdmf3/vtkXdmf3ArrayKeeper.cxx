@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3ArrayKeeper.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmf3ArrayKeeper.h"
 
@@ -22,6 +9,7 @@
 // clang-format on
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkXdmf3ArrayKeeper::vtkXdmf3ArrayKeeper()
 {
   generation = 0;
@@ -65,3 +53,4 @@ void vtkXdmf3ArrayKeeper::Release(bool force)
   }
   // cerr << "released " << cnt << "/" << total << " arrays" << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -4,10 +4,16 @@ vtk_module_test_data(
   Data/blowGeom.vtk
   Data/headsq/,REGEX:.*
   Data/nonWatertightPolyhedron.vtu
+  Data/poly_lines.vtu
   Data/quadraticTetra01.vtu)
 
-add_subdirectory(Cxx)
+if (NOT vtk_testing_cxx_disabled)
+  add_subdirectory(Cxx)
+endif ()
 
 if (VTK_WRAP_PYTHON)
+  vtk_module_test_data(
+    Data/dgHexahedra.dg
+  )
   add_subdirectory(Python)
 endif ()

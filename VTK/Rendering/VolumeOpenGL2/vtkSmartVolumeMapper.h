@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSmartVolumeMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSmartVolumeMapper
  * @brief   Adaptive volume mapper
@@ -77,6 +65,7 @@
 #include "vtkRenderingVolumeOpenGL2Module.h" // For export macro
 #include "vtkVolumeMapper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFixedPointVolumeRayCastMapper;
 class vtkGPUVolumeRayCastMapper;
 class vtkImageResample;
@@ -235,6 +224,17 @@ public:
 
   ///@{
   /**
+   * If UseJittering is on, each ray traversal direction will be
+   * perturbed slightly using a noise-texture to get rid of wood-grain
+   * effect. This is only used by the GPU mapper.
+   */
+  vtkSetClampMacro(UseJittering, vtkTypeBool, 0, 1);
+  vtkGetMacro(UseJittering, vtkTypeBool);
+  vtkBooleanMacro(UseJittering, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
    * If the DesiredUpdateRate of the vtkRenderWindow that caused the Render
    * falls at or above this rate, the render is considered interactive and
    * the mapper may be adjusted (depending on the render mode).
@@ -375,9 +375,10 @@ public:
 
   vtkSetMacro(LowResMode, int);
   vtkGetMacro(LowResMode, int)
-    ///@}
+  ///@}
 
-    protected : vtkSmartVolumeMapper();
+protected:
+  vtkSmartVolumeMapper();
   ~vtkSmartVolumeMapper() override;
 
   /**
@@ -491,6 +492,11 @@ public:
   int InitializedBlendMode;
 
   /**
+   * Enable / disable stochastic jittering
+   */
+  vtkTypeBool UseJittering;
+
+  /**
    * The distance between sample points along the ray
    */
   float SampleDistance;
@@ -580,4 +586,5 @@ private:
   vtkOSPRayVolumeInterface* OSPRayMapper;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

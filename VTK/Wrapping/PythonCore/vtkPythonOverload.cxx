@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonOverload.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * Created in June 2010 by David Gobbi, originally in vtkPythonUtil.
  *
@@ -24,6 +12,7 @@
 
 #include "vtkPythonOverload.h"
 #include "PyVTKReference.h"
+#include "vtkABINamespace.h"
 #include "vtkPythonUtil.h"
 
 #include "vtkObject.h"
@@ -37,6 +26,7 @@
 // are reserved for checking how many generations a vtkObject arg is from
 // the requested arg type.
 
+VTK_ABI_NAMESPACE_BEGIN
 enum vtkPythonArgPenalties
 {
   VTK_PYTHON_EXACT_MATCH = 0,
@@ -242,12 +232,16 @@ static int vtkPythonIntPenalty(PY_LONG_LONG tmpi, int penalty, char format)
   return penalty;
 }
 
-#ifdef VTK_PY3K
 //------------------------------------------------------------------------------
 // Check if object supports conversion to integer
 
 static bool vtkPythonCanConvertToInt(PyObject* arg)
 {
+#if PY_VERSION_HEX >= 0x030A0000
+  unaryfunc asint = (unaryfunc)PyType_GetSlot(Py_TYPE(arg), Py_nb_int);
+  unaryfunc asindex = (unaryfunc)PyType_GetSlot(Py_TYPE(arg), Py_nb_index);
+  return (asint || asindex);
+#else
   // Python 3.8 deprecated implicit conversions via __int__, so we must
   // check for the existence of the __int__ and __index__ slots ourselves
   // instead of simply attempting a conversion.
@@ -257,8 +251,8 @@ static bool vtkPythonCanConvertToInt(PyObject* arg)
 #else
   return (nb && nb->nb_int);
 #endif
-}
 #endif
+}
 
 //------------------------------------------------------------------------------
 // This must check the same format chars that are used by
@@ -320,10 +314,8 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
     case 'L':
     case 'i':
     case 'I':
-#ifdef VTK_PY3K
     case 'k':
     case 'K':
-#endif
       // integer types
       if (PyBool_Check(arg))
       {
@@ -333,24 +325,8 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
           penalty++;
         }
       }
-#ifndef VTK_PY3K
-      else if (PyInt_Check(arg))
-      {
-#if VTK_SIZEOF_LONG == VTK_SIZEOF_INT
-        if (*format != 'i')
-        {
-          penalty = VTK_PYTHON_GOOD_MATCH;
-        }
-#else
-        penalty = vtkPythonIntPenalty(PyInt_AsLong(arg), penalty, *format);
-#endif
-      }
-#endif /* VTK_PY3K */
       else if (PyLong_Check(arg))
       {
-#ifndef VTK_PY3K
-        penalty = VTK_PYTHON_GOOD_MATCH;
-#endif
         PY_LONG_LONG tmpi = PyLong_AsLongLong(arg);
         if (PyErr_Occurred())
         {
@@ -360,24 +336,15 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
 
         penalty = vtkPythonIntPenalty(tmpi, penalty, *format);
       }
-      else // not PyInt or PyLong
+      else // not PyLong
       {
         if (level == 0)
         {
           penalty = VTK_PYTHON_NEEDS_CONVERSION;
-#ifdef VTK_PY3K
           if (!vtkPythonCanConvertToInt(arg))
           {
             penalty = VTK_PYTHON_INCOMPATIBLE;
           }
-#else
-          long tmpi = PyInt_AsLong(arg);
-          if (tmpi == -1 || PyErr_Occurred())
-          {
-            PyErr_Clear();
-            penalty = VTK_PYTHON_INCOMPATIBLE;
-          }
-#endif
         }
         else
         {
@@ -385,40 +352,6 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
         }
       }
       break;
-
-#ifndef VTK_PY3K
-    case 'k':
-    case 'K':
-      if (!PyLong_Check(arg))
-      {
-        penalty = VTK_PYTHON_GOOD_MATCH;
-        if (!PyInt_Check(arg))
-        {
-          if (level == 0)
-          {
-            penalty = VTK_PYTHON_NEEDS_CONVERSION;
-#ifdef VTK_PY3K
-            if (!vtkPythonCanConvertToInt(arg))
-            {
-              penalty = VTK_PYTHON_INCOMPATIBLE;
-            }
-#else
-            PyLong_AsLongLong(arg);
-            if (PyErr_Occurred())
-            {
-              PyErr_Clear();
-              penalty = VTK_PYTHON_INCOMPATIBLE;
-            }
-#endif
-          }
-          else
-          {
-            penalty = VTK_PYTHON_INCOMPATIBLE;
-          }
-        }
-      }
-      break;
-#endif
 
     case 'f':
     case 'd':
@@ -451,11 +384,7 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
 
     case 'c':
       // penalize chars, they must be converted from strings
-#ifdef VTK_PY3K
       if (PyUnicode_Check(arg) && PyUnicode_GetLength(arg) == 1)
-#else
-      if (PyUnicode_Check(arg) && PyUnicode_GetSize(arg) == 1)
-#endif
       {
         penalty = VTK_PYTHON_NEEDS_CONVERSION;
       }
@@ -501,7 +430,7 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
         penalty = VTK_PYTHON_NEEDS_CONVERSION;
       }
       // make sure that arg can act as a buffer
-      else if (Py_TYPE(arg)->tp_as_buffer == nullptr)
+      else if (!PyObject_CheckBuffer(arg))
       {
         penalty = VTK_PYTHON_INCOMPATIBLE;
       }
@@ -546,12 +475,22 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
           if (Py_TYPE(arg) != pytype)
           {
             // Check superclasses
-            PyTypeObject* basetype = Py_TYPE(arg)->tp_base;
+            PyTypeObject* basetype =
+#if PY_VERSION_HEX >= 0x030A0000
+              (PyTypeObject*)PyType_GetSlot(Py_TYPE(arg), Py_tp_base)
+#else
+              Py_TYPE(arg)->tp_base
+#endif
+              ;
             penalty = VTK_PYTHON_GOOD_MATCH;
             while (basetype && basetype != pytype)
             {
               penalty++;
+#if PY_VERSION_HEX >= 0x030A0000
+              basetype = (PyTypeObject*)PyType_GetSlot(basetype, Py_tp_base);
+#else
               basetype = basetype->tp_base;
+#endif
             }
             if (!basetype)
             {
@@ -582,12 +521,22 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
         if (Py_TYPE(arg) != pytype)
         {
           // Check superclasses
-          PyTypeObject* basetype = Py_TYPE(arg)->tp_base;
+          PyTypeObject* basetype =
+#if PY_VERSION_HEX >= 0x030A0000
+            (PyTypeObject*)PyType_GetSlot(Py_TYPE(arg), Py_tp_base)
+#else
+            Py_TYPE(arg)->tp_base
+#endif
+            ;
           penalty = VTK_PYTHON_GOOD_MATCH;
           while (basetype && basetype != pytype)
           {
             penalty++;
+#if PY_VERSION_HEX >= 0x030A0000
+            basetype = (PyTypeObject*)PyType_GetSlot(basetype, Py_tp_base);
+#else
             basetype = basetype->tp_base;
+#endif
           }
           if (!basetype)
           {
@@ -623,12 +572,22 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
         if (Py_TYPE(arg) != pytype)
         {
           // Check superclasses
-          PyTypeObject* basetype = Py_TYPE(arg)->tp_base;
+          PyTypeObject* basetype =
+#if PY_VERSION_HEX >= 0x030A0000
+            (PyTypeObject*)PyType_GetSlot(Py_TYPE(arg), Py_tp_base)
+#else
+            Py_TYPE(arg)->tp_base
+#endif
+            ;
           penalty = VTK_PYTHON_GOOD_MATCH;
           while (basetype && basetype != pytype)
           {
             penalty++;
+#if PY_VERSION_HEX >= 0x030A0000
+            basetype = (PyTypeObject*)PyType_GetSlot(basetype, Py_tp_base);
+#else
             basetype = basetype->tp_base;
+#endif
           }
           if (!basetype)
           {
@@ -687,7 +646,7 @@ int vtkPythonOverload::CheckArg(PyObject* arg, const char* format, const char* n
         {
           classname++;
         }
-        if (PyInt_Check(arg))
+        if (PyLong_Check(arg))
         {
           PyTypeObject* pytype = vtkPythonUtil::FindEnum(classname);
           if (pytype && PyObject_TypeCheck(arg, pytype))
@@ -869,10 +828,10 @@ PyObject* vtkPythonOverload::CallMethod(PyMethodDef* methods, PyObject* self, Py
     // 2) other conversions third, e.g. double to int
 
     // Loop through args
-    Py_ssize_t n = PyTuple_GET_SIZE(args);
+    Py_ssize_t n = PyTuple_Size(args);
     for (Py_ssize_t i = 0; i < n; i++)
     {
-      PyObject* arg = PyTuple_GET_ITEM(args, i);
+      PyObject* arg = PyTuple_GetItem(args, i);
 
       for (sig = 0; sig < nsig; sig++)
       {
@@ -942,7 +901,14 @@ PyObject* vtkPythonOverload::CallMethod(PyMethodDef* methods, PyObject* self, Py
 
   if (meth)
   {
-    return meth->ml_meth(self, args);
+    PyObject* func = PyCFunction_New(meth, self);
+    PyObject* sobj = nullptr;
+    if (func)
+    {
+      sobj = PyObject_Call(func, args, nullptr);
+      Py_DECREF(func);
+    }
+    return sobj;
   }
 
   PyErr_SetString(PyExc_TypeError, "arguments do not match any overloaded methods");
@@ -993,6 +959,11 @@ PyMethodDef* vtkPythonOverload::FindConversionMethod(PyMethodDef* methods, PyObj
 
   // if matchCount > 1, there was ambiguity, but we silently use
   // the first match that was found instead of raising an error
+  if (matchCount > 1)
+  {
+    // TODO: possible warning?
+  }
 
   return method;
 }
+VTK_ABI_NAMESPACE_END

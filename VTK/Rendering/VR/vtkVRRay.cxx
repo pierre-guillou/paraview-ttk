@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRRay.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVRRay.h"
 
 #include "vtkMatrix4x4.h"
@@ -29,6 +17,7 @@ PURPOSE.  See the above copyright notice for more information.
 /*=========================================================================
 vtkVRRay
 =========================================================================*/
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVRRay);
 
 //------------------------------------------------------------------------------
@@ -147,3 +136,4 @@ void vtkVRRay::Render(vtkOpenGLRenderWindow* win, vtkMatrix4x4* poseMatrix)
 
   glDrawArrays(GL_LINES, 0, 6);
 }
+VTK_ABI_NAMESPACE_END

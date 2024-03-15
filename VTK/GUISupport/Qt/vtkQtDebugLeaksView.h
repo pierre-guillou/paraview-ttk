@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtDebugLeaksView.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQtDebugLeaksView
  * @brief   view class to display contents of vtkQtDebugLeaksModel
@@ -30,6 +18,8 @@
 #include <QWidget>
 
 class QModelIndex;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObjectBase;
 class vtkQtDebugLeaksModel;
 
@@ -67,7 +57,7 @@ protected:
   virtual void onObjectDoubleClicked(vtkObjectBase* object);
   virtual void onClassNameDoubleClicked(const QString& className);
 
-protected Q_SLOTS:
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
 
   void onCurrentRowChanged(const QModelIndex& current);
   void onRowDoubleClicked(const QModelIndex&);
@@ -82,5 +72,6 @@ private:
   Q_DISABLE_COPY(vtkQtDebugLeaksView);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkQtDebugLeaksView.h

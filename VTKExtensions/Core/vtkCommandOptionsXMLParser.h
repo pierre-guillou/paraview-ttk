@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCommandOptionsXMLParser.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCommandOptionsXMLParser
  * @brief   ParaView options storage
@@ -20,6 +8,10 @@
  *
  * These options can be retrieved during run-time, set using configuration file
  * or using Command Line Arguments.
+ *
+ * @deprecated in ParaView 5.12.0. See `vtkCLIOptions` instead.
+ * See https://gitlab.kitware.com/paraview/paraview/-/merge_requests/4951 for
+ * developer guidelines.
  */
 
 #ifndef vtkCommandOptionsXMLParser_h
@@ -27,6 +19,7 @@
 
 #include "vtkCommandOptions.h"            // for enum
 #include "vtkPVVTKExtensionsCoreModule.h" // needed for export macro
+#include "vtkParaViewDeprecation.h"       // for PARAVIEW_DEPRECATED_IN_5_12_0
 #include "vtkXMLParser.h"
 
 class vtkCommandOptionsXMLParserInternal;
@@ -35,11 +28,12 @@ class vtkCommandOptions;
 class VTKPVVTKEXTENSIONSCORE_EXPORT vtkCommandOptionsXMLParser : public vtkXMLParser
 {
 public:
+  PARAVIEW_DEPRECATED_IN_5_12_0("Use `vtkCLIOptions` instead")
   static vtkCommandOptionsXMLParser* New();
   vtkTypeMacro(vtkCommandOptionsXMLParser, vtkXMLParser);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Add arguments to the xml parser.  These should be the
    * long arguments from the vtkCommandOptions class of the form
@@ -51,7 +45,7 @@ public:
   void SetPVOptions(vtkCommandOptions* o) { this->PVOptions = o; }
 
 protected:
-  //@}
+  ///@}
   /**
    * Default constructor.
    */
@@ -76,7 +70,6 @@ protected:
   void HandleOption(const char** atts);
   // Call to process the .. of  <Option>...</>
   void HandleProcessType(const char** atts);
-
   virtual void SetProcessType(const char* ptype);
   void SetProcessTypeInt(int ptype);
 

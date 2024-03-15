@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // Included by octree.h
 
 /**\typedef template<typename T_,typename R_,typename P_,typename O_,typename OP_,int d_> \
@@ -55,6 +57,7 @@
 
 /**\brief Default constructor.
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T_, typename R_, typename P_, typename O_, typename OP_, int d_>
 octree_iterator<T_, R_, P_, O_, OP_, d_>::octree_iterator()
 {
@@ -137,7 +140,7 @@ octree_iterator<T_, R_, P_, O_, OP_, d_>::check_incr()
   }
   else if (this->m_current_node->is_leaf_node())
   {
-    while (1)
+    while (true)
     {
       if (this->m_indices.empty())
       {
@@ -200,7 +203,7 @@ octree_iterator<T_, R_, P_, O_, OP_, d_>::check_decr()
   }
   int child = (1 << d_) - 1;
   // Uptown. (Climb upwards to the first non-traversed node)
-  while (1)
+  while (true)
   {
     if (this->m_indices.empty())
     { // Last node is root node. Report it if we should.
@@ -291,3 +294,4 @@ void octree_iterator<T_, R_, P_, O_, OP_, d_>::immediate_family(bool val)
  *    self_iterator  octree_iterator<T_,R_,P_,O_,OP_,d_>::operator -- ( int )
  *\brief Move to the previous node in the octree that satisfied the traversal criteria.
  */
+VTK_ABI_NAMESPACE_END

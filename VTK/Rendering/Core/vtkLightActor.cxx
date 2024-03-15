@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLightActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLightActor.h"
 
 #include "vtkActor.h"
@@ -25,6 +13,7 @@
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLightActor);
 vtkCxxSetObjectMacro(vtkLightActor, Light, vtkLight);
 
@@ -181,7 +170,7 @@ double* vtkLightActor::GetBounds()
     // vtkProp3D::GetLength() does not check if the Bounds are initialized or
     // not and makes a call to sqrt(). This call to sqrt with invalid values
     // would raise a floating-point overflow exception (notably on BCC).
-    // As vtkMath::UninitializeBounds initialized finite unvalid bounds, it
+    // As vtkMath::UninitializeBounds initialized finite invalid bounds, it
     // passes silently and GetLength() returns 0.
     vtkMath::UninitializeBounds(this->Bounds);
   }
@@ -325,3 +314,4 @@ void vtkLightActor::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ClippingRange: " << this->ClippingRange[0] << "," << this->ClippingRange[1]
      << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVThreshold.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVThreshold.h"
 
@@ -34,6 +22,36 @@ vtkStandardNewMacro(vtkPVThreshold);
 void vtkPVThreshold::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
+}
+
+//----------------------------------------------------------------------------
+int vtkPVThreshold::ThresholdUsingSuperclassInstance(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  vtkNew<Superclass> instance;
+
+  instance->SetThresholdFunction(this->GetThresholdFunction());
+  instance->SetUpperThreshold(this->GetUpperThreshold());
+  instance->SetLowerThreshold(this->GetLowerThreshold());
+  instance->SetComponentMode(this->GetComponentMode());
+  instance->SetSelectedComponent(this->GetSelectedComponent());
+  instance->SetAllScalars(this->GetAllScalars());
+  instance->SetUseContinuousCellRange(this->GetUseContinuousCellRange());
+  instance->SetInvert(this->GetInvert());
+  instance->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+
+  vtkDataObject* inputDO = vtkDataObject::GetData(inputVector[0], 0);
+  vtkDataObject* outputDO = vtkDataObject::GetData(outputVector, 0);
+
+  instance->SetInputDataObject(inputDO);
+  instance->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+  if (instance->GetExecutive()->Update())
+  {
+    outputDO->ShallowCopy(instance->GetOutput());
+    return 1;
+  }
+
+  return 0;
 }
 
 //----------------------------------------------------------------------------
@@ -70,8 +88,18 @@ int vtkPVThreshold::RequestData(
 
   if (vtkHyperTreeGrid::SafeDownCast(inDataObj))
   {
+    vtkDataArray* inScalars = this->GetInputArrayToProcess(0, inputVector);
+    if (inScalars && inScalars->GetNumberOfComponents() > 1)
+    {
+      outDataObj->ShallowCopy(inDataObj);
+      vtkWarningMacro(
+        << "Hyper Tree Grid does not support multi-components arrays: copying input.");
+      return 1;
+    }
+
     // Match behavior from vtkThreshold
     vtkNew<vtkHyperTreeGridThreshold> thresholdFilter;
+    thresholdFilter->SetMemoryStrategy(this->MemoryStrategy);
     if (this->ThresholdFunction == &vtkThreshold::Lower)
     {
       thresholdFilter->ThresholdBetween(
@@ -102,7 +130,8 @@ int vtkPVThreshold::RequestData(
 
     return 1;
   }
-  return this->Superclass::RequestData(request, inputVector, outputVector);
+
+  return this->ThresholdUsingSuperclassInstance(request, inputVector, outputVector);
 }
 
 //----------------------------------------------------------------------------

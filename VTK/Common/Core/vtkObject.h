@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkObject
  * @brief   abstract base class for most VTK objects
@@ -47,6 +35,7 @@
 #include "vtkTimeStamp.h"
 #include "vtkWeakPointerBase.h" // needed for vtkWeakPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSubjectHelper;
 class vtkCommand;
 
@@ -119,10 +108,10 @@ public:
    * This is a global flag that controls whether any debug, warning
    * or error messages are displayed.
    */
-  static void SetGlobalWarningDisplay(int val);
+  static void SetGlobalWarningDisplay(vtkTypeBool val);
   static void GlobalWarningDisplayOn() { vtkObject::SetGlobalWarningDisplay(1); }
   static void GlobalWarningDisplayOff() { vtkObject::SetGlobalWarningDisplay(0); }
-  static int GetGlobalWarningDisplay();
+  static vtkTypeBool GetGlobalWarningDisplay();
   ///@}
 
   ///@{
@@ -161,7 +150,7 @@ public:
    * functions as callbacks for events.  The callback function can
    * be one of these two types:
    * \code
-   * void foo(void);\n
+   * void foo();\n
    * void foo(vtkObject*, unsigned long, void*);
    * \endcode
    * If the callback is a member of a vtkObjectBase-derived object,
@@ -223,12 +212,12 @@ public:
    * aborted or not. If the event was aborted, the return value is 1,
    * otherwise it is 0.
    */
-  int InvokeEvent(unsigned long event, void* callData);
-  int InvokeEvent(const char* event, void* callData);
+  vtkTypeBool InvokeEvent(unsigned long event, void* callData);
+  vtkTypeBool InvokeEvent(const char* event, void* callData);
   ///@}
 
-  int InvokeEvent(unsigned long event) { return this->InvokeEvent(event, nullptr); }
-  int InvokeEvent(const char* event) { return this->InvokeEvent(event, nullptr); }
+  vtkTypeBool InvokeEvent(unsigned long event) { return this->InvokeEvent(event, nullptr); }
+  vtkTypeBool InvokeEvent(const char* event) { return this->InvokeEvent(event, nullptr); }
 
   ///@{
   /**
@@ -420,5 +409,6 @@ private:
   ///@}
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkObject.h

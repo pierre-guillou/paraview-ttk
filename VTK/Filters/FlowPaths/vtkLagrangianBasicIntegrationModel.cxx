@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangianBasicIntegrationModel.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangianBasicIntegrationModel.h"
 
 #include "vtkBilinearQuadIntersection.h"
@@ -49,6 +37,7 @@
 
 //------------------------------------------------------------------------------
 typedef std::vector<vtkSmartPointer<vtkAbstractCellLocator>> LocatorsTypeBase;
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLocatorsType : public LocatorsTypeBase
 {
 };
@@ -390,14 +379,14 @@ vtkLagrangianParticle* vtkLagrangianBasicIntegrationModel::ComputeSurfaceInterac
     // As one cas see in the test above, if a pass through surface intersects at the exact
     // same location than the point computed using the intersection factor,
     // we do not store the intersection.
-    // pass through are considered non prioritary, and do not intersects
+    // pass through are considered non priority, and do not intersects
     // when at the exact the same place as the main intersection
     if (item.second < interFactor)
     {
       vtkLagrangianParticle* clone = particle->CloneParticle();
       clone->SetInteraction(vtkLagrangianParticle::SURFACE_INTERACTION_PASS);
       this->InterpolateNextParticleVariables(clone, item.second);
-      passThroughParticles.push(std::make_pair(item.first, clone));
+      passThroughParticles.emplace(item.first, clone);
     }
   }
 
@@ -1353,3 +1342,4 @@ void vtkLagrangianBasicIntegrationModel::InsertParticleData(
       break;
   }
 }
+VTK_ABI_NAMESPACE_END

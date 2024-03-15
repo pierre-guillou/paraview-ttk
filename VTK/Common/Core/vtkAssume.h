@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAssume.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   VTK_ASSUME
  * @brief   Provide compiler hints for non-obvious conditions.
@@ -37,7 +25,7 @@
  * stride in AOS arrays allows advanced optimization of the accesses.
 
  * A more detailed description of this class and related tools can be found
- * \ref VTK-7-1-ArrayDispatch "here".
+ * [here](https://docs.vtk.org/en/latest/design_documents/array_dispatch.html).
  */
 #define VTK_ASSUME(cond)                                                                           \
   do                                                                                               \

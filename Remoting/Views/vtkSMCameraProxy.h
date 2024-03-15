@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMCameraProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMCameraProxy
  * @brief   proxy for a camera.
@@ -33,7 +21,7 @@ public:
   vtkTypeMacro(vtkSMCameraProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Updates all property information by calling UpdateInformation()
    * and populating the values.
@@ -47,7 +35,7 @@ public:
 protected:
   vtkSMCameraProxy();
   ~vtkSMCameraProxy() override;
-  //@}
+  ///@}
 
 private:
   vtkSMCameraProxy(const vtkSMCameraProxy&) = delete;

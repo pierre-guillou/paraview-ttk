@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellPicker.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellPicker
  * @brief   ray-cast cell picker for all kinds of Prop3Ds
@@ -44,6 +32,7 @@
 #include "vtkPicker.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMapper;
 class vtkTexture;
 class vtkAbstractHyperTreeGridMapper;
@@ -297,7 +286,7 @@ protected:
   static int ComputeSurfaceTCoord(
     vtkDataSet* data, vtkCell* cell, const double* weights, double tcoord[3]);
 
-  static int HasSubCells(int cellType);
+  static vtkTypeBool HasSubCells(int cellType);
 
   static int GetNumberOfSubCells(vtkIdList* pointIds, int cellType);
 
@@ -343,9 +332,9 @@ private:
   vtkIdList* PointIds;       // used to accelerate picking
   vtkDoubleArray* Gradients; // used in volume picking
 
-private:
   vtkCellPicker(const vtkCellPicker&) = delete;
   void operator=(const vtkCellPicker&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -11,7 +11,7 @@
 #ifndef vtk_m_filter_density_estimate_Histogram_h
 #define vtk_m_filter_density_estimate_Histogram_h
 
-#include <vtkm/filter/NewFilterField.h>
+#include <vtkm/filter/FilterField.h>
 #include <vtkm/filter/density_estimate/vtkm_filter_density_estimate_export.h>
 
 namespace vtkm
@@ -24,7 +24,7 @@ namespace density_estimate
 ///
 /// Construct a histogram with a default of 10 bins.
 ///
-class VTKM_FILTER_DENSITY_ESTIMATE_EXPORT Histogram : public vtkm::filter::NewFilterField
+class VTKM_FILTER_DENSITY_ESTIMATE_EXPORT Histogram : public vtkm::filter::FilterField
 {
 public:
   //Construct a histogram with a default of 10 bins
@@ -37,7 +37,7 @@ public:
   VTKM_CONT
   vtkm::Id GetNumberOfBins() const { return this->NumberOfBins; }
 
-  //@{
+  ///@{
   /// Get/Set the range to use to generate the histogram. If range is set to
   /// empty, the field's global range (computed using `vtkm::cont::FieldRangeGlobalCompute`)
   /// will be used.
@@ -46,7 +46,7 @@ public:
 
   VTKM_CONT
   const vtkm::Range& GetRange() const { return this->Range; }
-  //@}
+  ///@}
 
   /// Returns the bin delta of the last computed field.
   VTKM_CONT
@@ -63,14 +63,14 @@ private:
   VTKM_CONT vtkm::cont::PartitionedDataSet DoExecutePartitions(
     const vtkm::cont::PartitionedDataSet& inData) override;
 
-  //@{
+  ///@{
   /// when operating on vtkm::cont::PartitionedDataSet, we
   /// want to do processing across ranks as well. Just adding pre/post handles
   /// for the same does the trick.
   VTKM_CONT void PreExecute(const vtkm::cont::PartitionedDataSet& input);
   VTKM_CONT void PostExecute(const vtkm::cont::PartitionedDataSet& input,
                              vtkm::cont::PartitionedDataSet& output);
-  //@}
+  ///@}
 
   vtkm::Id NumberOfBins = 10;
   vtkm::Float64 BinDelta = 0;
@@ -79,11 +79,6 @@ private:
   bool InExecutePartitions = false;
 };
 } // namespace density_estimate
-class VTKM_DEPRECATED(1.8, "Use vtkm::filter::density_estimate::Histogram.") Histogram
-  : public vtkm::filter::density_estimate::Histogram
-{
-  using density_estimate::Histogram::Histogram;
-};
 } // namespace filter
 } // namespace vtkm
 

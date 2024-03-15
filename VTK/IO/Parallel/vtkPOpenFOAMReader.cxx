@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPOpenFOAMReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // This class was developed by Takuya Oshima at Niigata University,
 // Japan (oshima@eng.niigata-u.ac.jp).
 //
@@ -86,6 +74,7 @@
 
 //------------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPOpenFOAMReader);
 vtkCxxSetObjectMacro(vtkPOpenFOAMReader, Controller, vtkMultiProcessController);
 
@@ -384,7 +373,7 @@ void vtkPOpenFOAMReader::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-void vtkPOpenFOAMReader::SetCaseType(const int t)
+void vtkPOpenFOAMReader::SetCaseType(int t)
 {
   if (this->CaseType != t)
   {
@@ -401,6 +390,11 @@ int vtkPOpenFOAMReader::RequestInformation(
   const bool isRootProc = (this->ProcessId == 0);
   const bool isParallel = (this->NumProcesses > 1);
   int returnCode = 1;
+
+  // Set handle piece request for all cases. Even if the reconstructed case is not actually
+  // distributed, we need all processes to go through RequestData everytime in order to go through
+  // "Gather" functions.
+  outputVector->GetInformationObject(0)->Set(CAN_HANDLE_PIECE_REQUEST(), 1);
 
   if (this->CaseType == RECONSTRUCTED_CASE)
   {
@@ -601,8 +595,6 @@ int vtkPOpenFOAMReader::RequestInformation(
     this->Superclass::Refresh = false;
   }
 
-  outputVector->GetInformationObject(0)->Set(CAN_HANDLE_PIECE_REQUEST(), 1);
-
   return returnCode;
 }
 
@@ -702,7 +694,7 @@ int vtkPOpenFOAMReader::RequestData(
       // reader->RequestInformation() and RequestData() are called
       // for all reader instances without setting UPDATE_TIME_STEPS
       append->Update();
-      output->ShallowCopy(append->GetOutput());
+      output->CompositeShallowCopy(append->GetOutput());
     }
     append->Delete();
 
@@ -959,3 +951,4 @@ void vtkPOpenFOAMReader::AllGather(vtkDataArraySelection* sa)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

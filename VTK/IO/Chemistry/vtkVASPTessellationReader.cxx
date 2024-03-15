@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVASPTessellationReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkVASPTessellationReader.h"
 
@@ -45,7 +33,9 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVASPTessellationReader);
+VTK_ABI_NAMESPACE_END
 
 typedef vtksys::RegularExpression RegEx;
 typedef vtkStreamingDemandDrivenPipeline vtkSDDP;
@@ -116,6 +106,8 @@ bool parseVariableLists(
 }
 
 } // end anon namespace
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 void vtkVASPTessellationReader::PrintSelf(std::ostream& os, vtkIndent indent)
@@ -622,3 +614,4 @@ bool vtkVASPTessellationReader::ReadTimeStep(
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

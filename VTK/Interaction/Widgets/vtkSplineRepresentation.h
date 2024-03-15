@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSplineRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSplineRepresentation
  * @brief   representation for a spline.
@@ -31,6 +19,7 @@
 #include "vtkAbstractSplineRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPointHandleSource;
 
 class VTKINTERACTIONWIDGETS_EXPORT vtkSplineRepresentation : public vtkAbstractSplineRepresentation
@@ -44,7 +33,7 @@ public:
    * Set the number of handles for this widget,
    *  while keeping a similar spline.
    */
-  virtual void SetNumberOfHandles(int npts) override;
+  void SetNumberOfHandles(int npts) override;
 
   /**
    * Set the parametric spline object.
@@ -103,7 +92,7 @@ protected:
   // Specialized methods to access handles
   vtkActor* GetHandleActor(int index) override;
   vtkHandleSource* GetHandleSource(int index) override;
-  virtual int GetHandleIndex(vtkProp* prop) override;
+  int GetHandleIndex(vtkProp* prop) override;
 
 private:
   vtkSplineRepresentation(const vtkSplineRepresentation&) = delete;
@@ -116,4 +105,5 @@ private:
   std::vector<vtkSmartPointer<vtkActor>> HandleActors;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

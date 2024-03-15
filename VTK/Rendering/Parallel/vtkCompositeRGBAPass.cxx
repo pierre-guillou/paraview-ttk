@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeRGBAPass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCompositeRGBAPass.h"
 #include "vtkFrameBufferObjectBase.h"
@@ -49,6 +37,7 @@
 
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCompositeRGBAPass);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Controller, vtkMultiProcessController);
 vtkCxxSetObjectMacro(vtkCompositeRGBAPass, Kdtree, vtkPKdTree);
@@ -237,9 +226,9 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
   {
     // root
     // 1. figure out the back to front ordering
-    // 2. if root is not farest, save it in a TO
+    // 2. if root is not farthest, save it in a TO
     // 3. in back to front order:
-    // 3a. if this is step for root, render root TO (if not farest)
+    // 3a. if this is step for root, render root TO (if not farthest)
     // 3b. if satellite, get image, load it into TO, render quad
 
 #ifdef VTK_COMPOSITE_RGBAPASS_DEBUG
@@ -332,7 +321,7 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
 
       ostate->vtkglPixelStorei(GL_UNPACK_ALIGNMENT, 1); // client to server
 
-      // 2. if root is not farest, save it in a TO
+      // 2. if root is not farthest, save it in a TO
       bool rootIsFarest = frontToBackList->GetValue(numProcs - 1) == 0;
       if (!rootIsFarest)
       {
@@ -346,7 +335,7 @@ void vtkCompositeRGBAPass::Render(const vtkRenderState* s)
       }
 
       // 3. in back to front order:
-      // 3a. if this is step for root, render root TO (if not farest)
+      // 3a. if this is step for root, render root TO (if not farthest)
       // 3b. if satellite, get image, load it into TO, render quad
 
       int procIndex = numProcs - 1;
@@ -536,3 +525,4 @@ void vtkCompositeRGBAPass::ReleaseGraphicsResources(vtkWindow* w)
     this->RootTexture = nullptr;
   }
 }
+VTK_ABI_NAMESPACE_END

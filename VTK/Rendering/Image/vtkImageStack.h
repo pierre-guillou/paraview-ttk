@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageStack.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageStack
  * @brief   manages a stack of composited images
@@ -35,6 +23,7 @@
 #include "vtkImageSlice.h"
 #include "vtkRenderingImageModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageSliceCollection;
 class vtkImageProperty;
 class vtkImageMapper3D;
@@ -62,7 +51,7 @@ public:
   /**
    * Check if an image is present.  The returned value is one or zero.
    */
-  int HasImage(vtkImageSlice* prop);
+  vtkTypeBool HasImage(vtkImageSlice* prop);
 
   /**
    * Get the list of images as a vtkImageSliceCollection.
@@ -184,4 +173,5 @@ private:
   void operator=(const vtkImageStack&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSequenceAnimationPlayer.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSequenceAnimationPlayer
  *
@@ -38,21 +26,42 @@ protected:
   vtkSequenceAnimationPlayer();
   ~vtkSequenceAnimationPlayer() override;
 
-  void StartLoop(double, double, double, double*) override;
+  ///@{
+  /**
+   * Manage loop inside playbackwindow.
+   */
+  // initialize inner variables. Call it before any GetNextTime/GetPreviousTime call.
+  void StartLoop(double start, double end, double, double* playbackwindow) override;
   void EndLoop() override{};
-
-  /**
-   * Return the next time given the current time.
-   */
+  // Get next time in loop. Overriden to update FrameNo, and use StartTime, EndTime.
   double GetNextTime(double currentime) override;
-
-  /**
-   * Return the previous time given the current time.
-   */
+  // Get previous time in loop. Overriden to update FrameNo, and use StartTime, EndTime.
   double GetPreviousTime(double currenttime) override;
+  ///@}
 
+  ///@{
+  /**
+   * Return previous / next time, using Stride.
+   * Always compute it from `start + newTimestep * deltaTime`
+   * to avoid numerical errors that can be occured if we just
+   * do `deltaTime + currenttime`
+   */
   double GoToNext(double start, double end, double currenttime) override;
   double GoToPrevious(double start, double end, double currenttime) override;
+  ///@}
+
+  /**
+   * Return timestep associated to "current" time.
+   * Compute the duration of a timestep so it cuts [start, end] interval into NumberOfFrames
+   * element. Divide (current-start) length by this duration, to get the timestep.
+   */
+  int GetTimestep(double start, double end, double current);
+
+  /**
+   * Compute time value from timestep, start and end.
+   * Use NumberOfFrames.
+   */
+  double GetTimeFromTimestep(double start, double end, int timestep);
 
   int NumberOfFrames;
   int MaxFrameWindow;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRSliceFilter.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAMRSliceFilter.h"
 #include "vtkAMRBox.h"
@@ -43,6 +31,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRSliceFilter);
 vtkCxxSetObjectMacro(vtkAMRSliceFilter, Controller, vtkMultiProcessController);
 
@@ -333,6 +322,10 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
   std::vector<int> dataIndices(out->GetNumberOfLevels(), 0);
   for (unsigned int i = 0; i < this->BlocksToLoad.size(); i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     int flatIndex = this->BlocksToLoad[i];
     unsigned int level;
     unsigned int dataIdx;
@@ -377,12 +370,17 @@ void vtkAMRSliceFilter::GetAMRSliceInPlane(
   vtkTimerLog::MarkEndEvent("AMRSlice::GetAMRSliceInPlane");
 
   vtkTimerLog::MarkStartEvent("AMRSlice::Generate Blanking");
-  vtkParallelAMRUtilities::BlankCells(out, this->Controller);
+
+  // Skipping BlankCells in case out is empty
+  if (!this->CheckAbort())
+  {
+    vtkParallelAMRUtilities::BlankCells(out, this->Controller);
+  }
   vtkTimerLog::MarkEndEvent("AMRSlice::Generate Blanking");
 }
 
 //------------------------------------------------------------------------------
-void vtkAMRSliceFilter::ComputeCellCenter(vtkUniformGrid* ug, const int cellIdx, double centroid[3])
+void vtkAMRSliceFilter::ComputeCellCenter(vtkUniformGrid* ug, int cellIdx, double centroid[3])
 {
   assert("pre: Input grid is nullptr" && (ug != nullptr));
   assert(
@@ -460,7 +458,7 @@ void vtkAMRSliceFilter::GetSliceCellData(vtkUniformGrid* slice, vtkUniformGrid* 
     vtkUnsignedCharArray* uca = vtkArrayDownCast<vtkUnsignedCharArray>(array);
     if (uca != nullptr && uca == slice->GetCellGhostArray())
     {
-      // initiallize the ghost array
+      // initialize the ghost array
       memset(uca->WritePointer(0, numCells), 0, numCells);
     }
     array->Delete();
@@ -608,7 +606,7 @@ int vtkAMRSliceFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
   if (this->IsAMRData2D(inputAMR))
   {
-    outputAMR->ShallowCopy(inputAMR);
+    outputAMR->CompositeShallowCopy(inputAMR);
     return 1;
   }
 
@@ -623,3 +621,4 @@ int vtkAMRSliceFilter::RequestData(vtkInformation* vtkNotUsed(request),
   vtkTimerLog::MarkEndEvent(eventName.c_str());
   return 1;
 }
+VTK_ABI_NAMESPACE_END

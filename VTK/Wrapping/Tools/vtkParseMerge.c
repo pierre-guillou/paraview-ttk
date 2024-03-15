@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseMerge.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010,2015 David Gobbi
-
-  Contributed to the VisualizationToolkit by the author in March 2015
-  under the terms of the Visualization Toolkit 2015 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010,2015 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseMerge.h"
 #include "vtkParse.h"
 #include "vtkParseData.h"
@@ -164,7 +146,7 @@ int vtkParseMerge_PushOverride(MergeInfo* info, int i, int depth)
 }
 
 /* return an initialized MergeInfo */
-MergeInfo* vtkParseMerge_CreateMergeInfo(ClassInfo* classInfo)
+MergeInfo* vtkParseMerge_CreateMergeInfo(const ClassInfo* classInfo)
 {
   int i, n;
   MergeInfo* info = (MergeInfo*)malloc(sizeof(MergeInfo));
@@ -240,7 +222,7 @@ static void merge_function(FileInfo* finfo, FunctionInfo* merge, const FunctionI
           /* check if the unqualified identifier is a parameter name */
           for (j = 0; j < func->NumberOfParameters; j++)
           {
-            ValueInfo* arg = func->Parameters[j];
+            const ValueInfo* arg = func->Parameters[j];
             const char* name = arg->Name;
             if (name && strlen(name) == t.len && strncmp(name, t.text, t.len) == 0)
             {
@@ -607,6 +589,11 @@ int vtkParseMerge_Merge(FileInfo* finfo, MergeInfo* info, ClassInfo* merge, Clas
       super->Functions[j++] = super->Functions[i];
     }
   }
+  if (n && !j)
+  {
+    free(super->Functions);
+    super->Functions = NULL;
+  }
   super->NumberOfFunctions = j;
 
   return depth;
@@ -825,11 +812,11 @@ void vtkParseMerge_MergeHelper(FileInfo* finfo, const NamespaceInfo* data,
 
 /* Merge the methods from the superclasses */
 MergeInfo* vtkParseMerge_MergeSuperClasses(
-  FileInfo* finfo, NamespaceInfo* data, ClassInfo* classInfo)
+  FileInfo* finfo, const NamespaceInfo* data, ClassInfo* classInfo)
 {
   HierarchyInfo* hinfo = NULL;
   MergeInfo* info = NULL;
-  OptionInfo* oinfo = vtkParse_GetCommandLineOptions();
+  const OptionInfo* oinfo = vtkParse_GetCommandLineOptions();
   int i, n;
 
   if (oinfo->HierarchyFileNames)
@@ -851,6 +838,9 @@ MergeInfo* vtkParseMerge_MergeSuperClasses(
   {
     vtkParseHierarchy_Free(hinfo);
   }
+
+  /* Do not finalize `oinfo` here; we're just peeking at global state to know
+   * what hierarchy files are available. */
 
   return info;
 }

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRDualClip.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRDualClip
  * @brief   Clip (with scalars) an AMR volume to unstructured grid.
@@ -58,7 +47,7 @@ public:
   vtkSetMacro(IsoValue, double);
   vtkGetMacro(IsoValue, double);
 
-  //@{
+  ///@{
   /**
    * These are to evaluate performances. You can turn off degenerate cells
    * and multiprocess communication to see how they affect speed of execution.
@@ -72,9 +61,9 @@ public:
   vtkSetMacro(EnableMultiProcessCommunication, int);
   vtkGetMacro(EnableMultiProcessCommunication, int);
   vtkBooleanMacro(EnableMultiProcessCommunication, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This flag causes blocks to share locators so there are no
    * boundary edges between blocks. It does not eliminate
@@ -83,7 +72,7 @@ public:
   vtkSetMacro(EnableMergePoints, int);
   vtkGetMacro(EnableMergePoints, int);
   vtkBooleanMacro(EnableMergePoints, int);
-  //@}
+  ///@}
 
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
   virtual void SetController(vtkMultiProcessController*);

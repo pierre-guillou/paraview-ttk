@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVContextView.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVContextView
  *
@@ -32,7 +20,7 @@ class vtkChart;
 class vtkChartRepresentation;
 class vtkPVContextInteractorStyle;
 class vtkContextView;
-class vtkCSVExporter;
+class vtkAbstractChartExporter;
 class vtkInformationIntegerKey;
 class vtkRenderWindow;
 class vtkRenderWindowInteractor;
@@ -57,19 +45,19 @@ public:
    */
   void InteractiveRender() override;
 
-  //@{
+  ///@{
   /**
    * Get the context view.
    */
   vtkGetObjectMacro(ContextView, vtkContextView);
-  //@}
+  ///@}
 
   /**
    * Get the context item.
    */
   virtual vtkAbstractContextItem* GetContextItem() = 0;
 
-  //@{
+  ///@{
   /**
    * Set the interactor. Client applications must set the interactor to enable
    * interactivity. Note this method will also change the interactor styles set
@@ -77,7 +65,7 @@ public:
    */
   virtual void SetupInteractor(vtkRenderWindowInteractor*);
   vtkRenderWindowInteractor* GetInteractor();
-  //@}
+  ///@}
 
   /**
    * Representations can use this method to set the selection for a particular
@@ -102,9 +90,9 @@ public:
    * This is expected to called only on the client side after a render/update.
    * Thus all data is expected to available on the local process.
    */
-  virtual bool Export(vtkCSVExporter* exporter);
+  virtual bool Export(vtkAbstractChartExporter* exporter);
 
-  //@{
+  ///@{
   /**
    * Get/Set the title.
    * These methods should not be called directly. They are made public only so
@@ -113,9 +101,9 @@ public:
    */
   vtkSetStringMacro(Title);
   vtkGetStringMacro(Title);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the font of the title.
    * These methods should not be called directly. They are made public only so
@@ -132,9 +120,9 @@ public:
   virtual int GetTitleFontSize() = 0;
   virtual int GetTitleFontBold() = 0;
   virtual int GetTitleFontItalic() = 0;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the color of the title.
    * These methods should not be called directly. They are made public only so
@@ -143,9 +131,9 @@ public:
    */
   virtual void SetTitleColor(double red, double green, double blue) = 0;
   virtual double* GetTitleColor() = 0;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the alignement of the title.
    * These methods should not be called directly. They are made public only so

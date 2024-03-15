@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticCleanPolyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStaticCleanPolyData.h"
 
 #include "vtkArrayDispatch.h"
@@ -32,6 +20,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStaticCleanPolyData);
 
 // This filter uses methods found in vtkStaticCleanUnstructuredGrid.
@@ -245,17 +234,25 @@ int vtkStaticCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   // small set so find() will execute relatively fast.
   std::vector<vtkIdType> cellIds;
   vtkIdType inCellID = 0;
+  vtkIdType progressCounter = 0;
+  vtkIdType checkAbortInterval = 0;
 
   //
   // Vertices are renumbered and we remove duplicates
-  if (!this->GetAbortExecute() && inVerts->GetNumberOfCells() > 0)
+  if (!this->CheckAbort() && inVerts->GetNumberOfCells() > 0)
   {
     newVerts.TakeReference(vtkCellArray::New());
     newVerts->AllocateEstimate(inVerts->GetNumberOfCells(), 1);
+    checkAbortInterval = std::min(inVerts->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
 
     vtkDebugMacro(<< "Starting Verts " << inCellID);
     for (inVerts->InitTraversal(); inVerts->GetNextCell(npts, pts); inCellID++)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+
       cellIds.clear();
       for (i = 0; i < npts; i++)
       {
@@ -276,16 +273,22 @@ int vtkStaticCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   this->UpdateProgress(0.7);
 
   // lines reduced to one point are eliminated or made into verts
-  if (!this->GetAbortExecute() && inLines->GetNumberOfCells() > 0)
+  if (!this->CheckAbort() && inLines->GetNumberOfCells() > 0)
   {
     newLines.TakeReference(vtkCellArray::New());
     newLines->AllocateEstimate(inLines->GetNumberOfCells(), 2);
     outLineData.TakeReference(vtkCellData::New());
     outLineData->CopyAllocate(inCD);
+    checkAbortInterval = std::min(inLines->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
+    progressCounter = 0;
     //
     vtkDebugMacro(<< "Starting Lines " << inCellID);
     for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts); inCellID++)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       cellIds.clear();
       for (i = 0; i < npts; i++)
       {
@@ -319,16 +322,23 @@ int vtkStaticCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
 
   // polygons reduced to two points or less are either eliminated
   // or converted to lines or points if enabled
-  if (!this->GetAbortExecute() && inPolys->GetNumberOfCells() > 0)
+  if (!this->CheckAbort() && inPolys->GetNumberOfCells() > 0)
   {
     newPolys.TakeReference(vtkCellArray::New());
     newPolys->AllocateCopy(inPolys);
     outPolyData.TakeReference(vtkCellData::New());
     outPolyData->CopyAllocate(inCD);
+    checkAbortInterval = std::min(inPolys->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
+    progressCounter = 0;
 
     vtkDebugMacro(<< "Starting Polys " << inCellID);
     for (inPolys->InitTraversal(); inPolys->GetNextCell(npts, pts); inCellID++)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+
       cellIds.clear();
       for (i = 0; i < npts; i++)
       {
@@ -373,15 +383,22 @@ int vtkStaticCleanPolyData::RequestData(vtkInformation* vtkNotUsed(request),
   this->UpdateProgress(0.9);
 
   // triangle strips can reduced to polys/lines/points etc
-  if (!this->GetAbortExecute() && inStrips->GetNumberOfCells() > 0)
+  if (!this->CheckAbort() && inStrips->GetNumberOfCells() > 0)
   {
     newStrips.TakeReference(vtkCellArray::New());
     newStrips->AllocateCopy(inStrips);
     outStrpData.TakeReference(vtkCellData::New());
     outStrpData->CopyAllocate(inCD);
+    checkAbortInterval = std::min(inStrips->GetNumberOfCells() / 10 + 1, (vtkIdType)1000);
+    progressCounter = 0;
 
     for (inStrips->InitTraversal(); inStrips->GetNextCell(npts, pts); inCellID++)
     {
+      if (progressCounter % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
+
       cellIds.clear();
       for (i = 0; i < npts; i++)
       {
@@ -535,3 +552,4 @@ void vtkStaticCleanPolyData::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
   os << indent << "PieceInvariant: " << (this->PieceInvariant ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

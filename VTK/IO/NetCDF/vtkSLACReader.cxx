@@ -1,24 +1,6 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSLACReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-LANL-California-USGov
 
 #include "vtkSLACReader.h"
 
@@ -93,6 +75,7 @@
 //#define nc_get_var_vtkIdType nc_get_var_longlong
 //#define nc_get_vars_vtkIdType nc_get_vars_longlong
 //#else // NC_INT64
+VTK_ABI_NAMESPACE_BEGIN
 static int nc_get_var_vtkIdType(int ncid, int varid, vtkIdType* ip)
 {
   // Step 1, figure out how many entries in the given variable.
@@ -151,6 +134,7 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
 
   return NC_NOERR;
 }
+VTK_ABI_NAMESPACE_END
 //#endif // NC_INT64
 #else // VTK_USE_64_BIT_IDS
 #define nc_get_var_vtkIdType nc_get_var_int
@@ -160,6 +144,7 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
 //------------------------------------------------------------------------------
 // This convenience function gets a scalar variable as a double, doing the
 // appropriate checks.
+VTK_ABI_NAMESPACE_BEGIN
 static int nc_get_scalar_double(int ncid, const char* name, double* dp)
 {
   int varid;
@@ -943,7 +928,7 @@ int vtkSLACReader::RequestData(vtkInformation* request,
       }
     }
 
-    this->Internal->MeshCache->ShallowCopy(compositeOutput);
+    this->Internal->MeshCache->CompositeShallowCopy(compositeOutput);
     this->Internal->PointCache = points;
     this->MeshReadTime.Modified();
   }
@@ -1757,8 +1742,10 @@ int vtkSLACReader::MeshUpToDate()
 int vtkSLACReader::RestoreMeshCache(vtkMultiBlockDataSet* surfaceOutput,
   vtkMultiBlockDataSet* volumeOutput, vtkMultiBlockDataSet* compositeOutput)
 {
-  surfaceOutput->ShallowCopy(this->Internal->MeshCache->GetBlock(SURFACE_OUTPUT));
-  volumeOutput->ShallowCopy(this->Internal->MeshCache->GetBlock(VOLUME_OUTPUT));
+  surfaceOutput->CompositeShallowCopy(
+    vtkCompositeDataSet::SafeDownCast(this->Internal->MeshCache->GetBlock(SURFACE_OUTPUT)));
+  volumeOutput->CompositeShallowCopy(
+    vtkCompositeDataSet::SafeDownCast(this->Internal->MeshCache->GetBlock(VOLUME_OUTPUT)));
 
   // Shove two outputs in composite output.
   compositeOutput->SetNumberOfBlocks(2);
@@ -1776,3 +1763,4 @@ int vtkSLACReader::RestoreMeshCache(vtkMultiBlockDataSet* surfaceOutput,
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

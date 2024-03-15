@@ -66,21 +66,29 @@ elseif (APPLE_IOS)
       PROPERTIES
         COMPILE_FLAGS "${VTK_REQUIRED_OBJCXX_FLAGS}")
   endif ()
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # Add some custom overrides
+  vtk_object_factory_declare(
+    BASE vtkRenderWindowInteractor
+    OVERRIDE vtkWebAssemblyRenderWindowInteractor)
+  list(APPEND classes vtkWebAssemblyRenderWindowInteractor)
 else () # use generic
   vtk_object_factory_declare(
     BASE vtkRenderWindowInteractor
     OVERRIDE vtkGenericRenderWindowInteractor)
 endif ()
 
+# VTK_DEPRECATED_IN_9_3_0() Remove when vtkSDL2RenderWindowInteractor is removed.
+if (VTK_USE_SDL2)
+  list(APPEND classes vtkSDL2RenderWindowInteractor)
+endif ()
+
 vtk_object_factory_configure(
   SOURCE_FILE vtk_object_factory_source
   HEADER_FILE vtk_object_factory_header
   EXPORT_MACRO "VTKRENDERINGUI_EXPORT"
-  )
-
-if (VTK_USE_SDL2)
-  list(APPEND classes vtkSDL2RenderWindowInteractor)
-endif ()
+  EXTRA_INCLUDES "<vtkCollection.h>" "<vtkObjectFactoryCollection.h>" "<vtkLogger.h>" "<cstdlib>"
+  INITIAL_CODE ${intial_cpp_code})
 
 vtk_module_add_module(VTK::RenderingUI
   CLASSES ${classes}
@@ -90,10 +98,14 @@ vtk_module_add_module(VTK::RenderingUI
   PRIVATE_HEADERS ${vtk_object_factory_header}
   )
 
-if (VTK_USE_SDL2)
-  vtk_module_find_package(PACKAGE SDL2)
-  vtk_module_link(VTK::RenderingUI
-      PRIVATE SDL2::SDL2)
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # The -sUSE_SDL=2 flag will inform emcc driver to add include paths.
+  vtk_module_compile_options(VTK::RenderingUI
+    PRIVATE
+      "-sUSE_SDL=2")
+  vtk_module_LINK_options(VTK::RenderingUI
+    PRIVATE
+      "-sUSE_SDL=2")
 endif ()
 
 if (VTK_USE_X)
@@ -115,3 +127,4 @@ endif ()
 if (APPLE_IOS)
   vtk_module_link(VTK::RenderingUI PUBLIC "-framework UIKit")
 endif ()
+vtk_add_test_mangling(VTK::RenderingUI)

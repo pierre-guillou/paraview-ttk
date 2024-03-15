@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDataTypeDomain.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMDataTypeDomain.h"
 
 #include "vtkClientServerStreamInstantiator.h"
@@ -209,6 +197,12 @@ int vtkSMDataTypeDomain::ReadXMLAttributes(vtkSMProperty* prop, vtkPVXMLElement*
 {
   this->Superclass::ReadXMLAttributes(prop, element);
 
+  return this->ParseXMLAttributes(element);
+}
+
+//---------------------------------------------------------------------------
+int vtkSMDataTypeDomain::ParseXMLAttributes(vtkPVXMLElement* element)
+{
   int compositeDataSupported;
   if (element->GetScalarAttribute("composite_data_supported", &compositeDataSupported))
   {

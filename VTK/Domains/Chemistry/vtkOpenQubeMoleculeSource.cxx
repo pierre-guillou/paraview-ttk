@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenQubeMoleculeSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenQubeMoleculeSource.h"
 
 #include "vtkExecutive.h"
@@ -28,6 +16,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenQubeMoleculeSource);
 
 //------------------------------------------------------------------------------
@@ -163,3 +152,4 @@ void vtkOpenQubeMoleculeSource::CopyOQMoleculeToVtkMolecule(
 
   // TODO copy bonds (OQ doesn't currently have bonds)
 }
+VTK_ABI_NAMESPACE_END

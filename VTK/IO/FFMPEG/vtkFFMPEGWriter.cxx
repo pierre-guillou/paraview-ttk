@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFFMPEGWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkFFMPEGWriter.h"
 
@@ -38,6 +26,8 @@ extern "C"
 #include <libavutil/imgutils.h>
 }
 #endif
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 class vtkFFMPEGWriterInternal
@@ -786,3 +776,4 @@ void vtkFFMPEGWriter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BitRate: " << this->BitRate << endl;
   os << indent << "BitRateTolerance: " << this->BitRateTolerance << endl;
 }
+VTK_ABI_NAMESPACE_END

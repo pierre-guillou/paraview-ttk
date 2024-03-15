@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqApplyBehavior.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqApplyBehavior.h"
 
 #include "pqActiveObjects.h"
@@ -50,10 +22,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVDataInformation.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkSMAnimationSceneProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMLiveInsituLinkProxy.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMParaViewPipelineControllerWithRendering.h"
 #include "vtkSMPropertyHelper.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
@@ -283,7 +256,7 @@ void pqApplyBehavior::applied(pqPropertiesPanel* panel)
     SM_SCOPED_TRACE(CallMethod)
       .arg(view->getViewProxy())
       .arg("Update")
-      .arg("comment", "update the view to ensure updated data information");
+      .arg("comment", qPrintable(tr("update the view to ensure updated data information")));
     view->getViewProxy()->Update();
   }
 
@@ -297,20 +270,19 @@ void pqApplyBehavior::applied(pqPropertiesPanel* panel)
 
       // If not scalar coloring, we make an attempt to color using
       // 'vtkBlockColors' array, if present.
-      if (vtkSMPVRepresentationProxy::SafeDownCast(reprProxy) &&
-        vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy) == false)
+      if (!vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
       {
         auto dataInfo = reprProxy->GetRepresentedDataInformation();
         auto arrayInfo = dataInfo->GetArrayInformation("vtkBlockColors", vtkDataObject::FIELD);
         if (dataInfo->IsCompositeDataSet() && arrayInfo != nullptr &&
           arrayInfo->GetComponentRange(0)[1] > 0)
         {
-          vtkSMPVRepresentationProxy::SetScalarColoring(
+          vtkSMColorMapEditorHelper::SetScalarColoring(
             reprProxy, "vtkBlockColors", vtkDataObject::FIELD);
           if (gsettings->GetScalarBarMode() ==
             vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
           {
-            vtkSMPVRepresentationProxy::SetScalarBarVisibility(reprProxy, viewProxy, true);
+            vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, viewProxy, true);
           }
         }
       }
@@ -415,9 +387,9 @@ void pqApplyBehavior::showData(pqPipelineSource* source, pqView* view)
     if (gsettings->GetScalarBarMode() ==
       vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
     {
-      if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy))
+      if (vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
       {
-        vtkSMPVRepresentationProxy::SetScalarBarVisibility(reprProxy, preferredView, true);
+        vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, preferredView, true);
       }
     }
 

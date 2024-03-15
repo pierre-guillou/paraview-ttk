@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGLTFDocumentLoader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkGLTFDocumentLoader
@@ -39,13 +27,16 @@
 
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkObject.h"
-#include "vtkSmartPointer.h" // For SmartPointer
+#include "vtkResourceStream.h" // For "vtkResourceStream"
+#include "vtkSmartPointer.h"   // For "vtkSmartPointer"
+#include "vtkURILoader.h"      // For "vtkURILoader"
 
 #include <map>    // For std::map
 #include <memory> // For std::shared_ptr
 #include <string> // For std::string
 #include <vector> // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataArray;
 class vtkFloatArray;
@@ -522,11 +513,13 @@ public:
     std::string BufferMetaData;
     int DefaultScene;
     std::string FileName;
+    vtkSmartPointer<vtkResourceStream> Stream;
+    vtkSmartPointer<vtkURILoader> URILoader;
   };
 
   /**
-   * Apply the specified animation, at the specified time, to the internal Model. Changes node
-   * transforms and morphing weights.
+   * Apply the specified animation, at the specified time value t, to the internal Model. Changes
+   * node transforms and morphing weights.
    */
   bool ApplyAnimation(float t, int animationId, bool forceStep = false);
 
@@ -535,17 +528,28 @@ public:
    */
   void ResetAnimation(int animationId);
 
+  ///@{
   /**
-   * Load the binary part of a binary glTF (.glb) file. Returns false if no valid binary part was
-   * found.
+   * @brief Load the binary part of a binary glTF (.glb) file.
+   * Input can either be a file (LoadFileBuffer) or a stream (LoadStreamBuffer).
+   * @return false if no valid binary part was found.
    */
   bool LoadFileBuffer(VTK_FILEPATH const std::string& fileName, std::vector<char>& glbBuffer);
+  bool LoadStreamBuffer(vtkResourceStream* stream, std::vector<char>& glbBuffer);
+  ///@}
 
+  ///@{
   /**
-   * Reset internal Model struct, and serialize glTF metadata (all json information) into it.
-   * To load buffers, use LoadModelData
+   * @brief Reset internal Model struct, and serialize glTF metadata (all json information) into it.
+   *
+   * To load buffers, use LoadModelData.
+   * Input can either be a file (LoadModelMetaDataFromFile) or a stream + optional URI loader.
+   *
+   * @return `true` if internal model is correctly filled, `false` otherwise.
    */
-  bool LoadModelMetaDataFromFile(std::string FileName);
+  bool LoadModelMetaDataFromFile(VTK_FILEPATH const std::string& FileName);
+  bool LoadModelMetaDataFromStream(vtkResourceStream* stream, vtkURILoader* loader = nullptr);
+  ///@}
 
   /**
    * Load buffer data into the internal Model.
@@ -652,4 +656,5 @@ private:
   std::vector<std::string> UsedExtensions;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

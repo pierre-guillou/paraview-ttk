@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    QQuickVTKRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class QQuickVTKRenderWindow
  * @brief [QQuickItem] subclass that manages the vtkRenderWindow and, in
@@ -117,6 +105,7 @@
 #define QQuickVTKRenderWindow_h
 
 // vtk includes
+#include "vtkDeprecation.h"
 #include "vtkSmartPointer.h" // For vtkSmartPointer
 
 // Qt includes
@@ -126,18 +115,23 @@
 
 #include "vtkGUISupportQtQuickModule.h" // for export macro
 
-// Forward declarations
+// Qt Forward declarations
 class QEvent;
-class QQuickVTKInteractorAdapter;
 class QQuickWindow;
 class QWheelEvent;
+
+VTK_ABI_NAMESPACE_BEGIN
+
+// VTK Forward declarations
+class QQuickVTKInteractorAdapter;
 class vtkGenericOpenGLRenderWindow;
 class vtkImageData;
 class vtkRenderWindow;
 class vtkRenderer;
 class vtkWindowToImageFilter;
 
-class VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKRenderWindow
+class VTK_DEPRECATED_IN_9_3_0(
+  "Use QQuickVTKItem instead") VTKGUISUPPORTQTQUICK_EXPORT QQuickVTKRenderWindow
   : public QQuickItem
   , protected QOpenGLFunctions
 {
@@ -212,7 +206,7 @@ public:
    */
   virtual bool isInitialized() const;
 
-public Q_SLOTS:
+public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * This is the function called on the QtQuick render thread before the scenegraph state
    * is synchronized. This is where most of the pipeline updates, camera manipulations, etc. and
@@ -265,7 +259,7 @@ public Q_SLOTS:
 protected Q_SLOTS:
   virtual void handleWindowChanged(QQuickWindow* w);
 
-protected:
+protected: // NOLINT(readability-redundant-access-specifiers)
   QPointer<QQuickVTKInteractorAdapter> m_interactorAdapter;
   vtkSmartPointer<vtkGenericOpenGLRenderWindow> m_renderWindow;
   bool m_initialized = false;
@@ -292,4 +286,5 @@ private:
   void operator=(const QQuickVTKRenderWindow) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // QQuickVTKRenderWindow_h

@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>pqCameraToolbar</class>
  <widget class="QToolBar" name="pqCameraToolbar">
@@ -51,9 +53,6 @@
    <property name="statusTip">
     <string>Set view direction to +X</string>
    </property>
-   <property name="whatsThis">
-    <string>Set view direction to +X</string>
-   </property>
   </action>
   <action name="actionNegativeX">
    <property name="enabled">
@@ -70,9 +69,6 @@
     <string>Set view direction to -X</string>
    </property>
    <property name="statusTip">
-    <string>Set view direction to -X</string>
-   </property>
-   <property name="whatsThis">
     <string>Set view direction to -X</string>
    </property>
   </action>
@@ -93,9 +89,6 @@
    <property name="statusTip">
     <string>Set view direction to +Y</string>
    </property>
-   <property name="whatsThis">
-    <string>Set view direction to +Y</string>
-   </property>
   </action>
   <action name="actionNegativeY">
    <property name="enabled">
@@ -112,9 +105,6 @@
     <string>Set view direction to -Y</string>
    </property>
    <property name="statusTip">
-    <string>Set view direction to -Y</string>
-   </property>
-   <property name="whatsThis">
     <string>Set view direction to -Y</string>
    </property>
   </action>
@@ -135,9 +125,6 @@
    <property name="statusTip">
     <string>Set view direction to +Z</string>
    </property>
-   <property name="whatsThis">
-    <string>Set view direction to +Z</string>
-   </property>
   </action>
   <action name="actionNegativeZ">
    <property name="enabled">
@@ -154,9 +141,6 @@
     <string>Set view direction to -Z</string>
    </property>
    <property name="statusTip">
-    <string>Set view direction to -Z</string>
-   </property>
-   <property name="whatsThis">
     <string>Set view direction to -Z</string>
    </property>
   </action>
@@ -177,9 +161,6 @@
    <property name="statusTip">
     <string>Apply isometric view</string>
    </property>
-   <property name="whatsThis">
-    <string>Apply isometric view</string>
-   </property>
   </action>
   <action name="actionRotate90degCW">
    <property name="enabled">
@@ -198,9 +179,6 @@
    <property name="statusTip">
     <string>Rotate 90° clockwise</string>
    </property>
-   <property name="whatsThis">
-    <string>Rotate 90° clockwise</string>
-   </property>
   </action>
   <action name="actionRotate90degCCW">
    <property name="enabled">
@@ -217,9 +195,6 @@
     <string>Rotate 90° counterclockwise</string>
    </property>
    <property name="statusTip">
-    <string>Rotate 90° counterclockwise</string>
-   </property>
-   <property name="whatsThis">
     <string>Rotate 90° counterclockwise</string>
    </property>
   </action>

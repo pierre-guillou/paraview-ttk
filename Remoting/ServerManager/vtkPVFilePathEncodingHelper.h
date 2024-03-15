@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVFilePathEncodingHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVFilePathEncodingHelper
  * @brief   server side object used to check if manipulate a directory
@@ -34,30 +22,30 @@ public:
   vtkTypeMacro(vtkPVFilePathEncodingHelper, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the path that will be used by the helper
    */
   vtkSetStringMacro(Path);
   vtkGetStringMacro(Path);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the secondary path that will potentially be used by the helper
    */
   vtkSetStringMacro(SecondaryPath);
   vtkGetStringMacro(SecondaryPath);
 
-  //@}
-  //@{
+  ///@}
+  ///@{
   /**
    * Get/Set the globalId of the vtkDirectory present of the server
    * that we will use to manipulate directories.
    */
   vtkGetMacro(ActiveGlobalId, int);
   vtkSetMacro(ActiveGlobalId, int);
-  //@}
+  ///@}
 
   /**
    * Create a directory named Path

@@ -1,14 +1,6 @@
-/*=========================================================================
-
-  Project:   Visualization Toolkit
-  Module:    vtkExtractParticlesOverTime.cxx
-
-  Copyright (c) Kitware, Inc.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExtractParticlesOverTime.h"
 
 #include "vtkDataSet.h"
@@ -28,6 +20,7 @@
 #include <set>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractParticlesOverTime);
 
 namespace
@@ -73,7 +66,8 @@ class vtkExtractParticlesOverTimeInternals
 public:
   double GetProgress() const;
   bool ShouldRestart(vtkMTimeType modifiedTime) const;
-  bool GenerateOutput(vtkDataSet* inputDataSet, const std::string& IdChannelArray);
+  bool GenerateOutput(vtkDataSet* inputDataSet, const std::string& IdChannelArray,
+    vtkExtractParticlesOverTime* filter);
 
   int NumberOfTimeSteps = 0;
   vtkMTimeType LastModificationTime = 0;
@@ -117,7 +111,7 @@ bool vtkExtractParticlesOverTimeInternals::ShouldRestart(vtkMTimeType modifiedTi
 
 //------------------------------------------------------------------------------
 bool vtkExtractParticlesOverTimeInternals::GenerateOutput(
-  vtkDataSet* inputDataSet, const std::string& IdChannelArray)
+  vtkDataSet* inputDataSet, const std::string& IdChannelArray, vtkExtractParticlesOverTime* filter)
 {
   vtkNew<vtkSelectionNode> particleSelectionNode;
   vtkSmartPointer<vtkDataArray> array;
@@ -156,6 +150,7 @@ bool vtkExtractParticlesOverTimeInternals::GenerateOutput(
 
   this->SelectionExtractor->SetInputDataObject(0, inputDataSet);
   this->SelectionExtractor->SetInputDataObject(1, particleSelection);
+  this->SelectionExtractor->SetContainerAlgorithm(filter);
   this->SelectionExtractor->Update();
 
   return true;
@@ -308,8 +303,14 @@ int vtkExtractParticlesOverTime::RequestData(
       numberOfPoints = particleDataSet->GetNumberOfPoints();
     }
 
+    vtkIdType checkAbortInterval = std::min(numberOfPoints / 10 + 1, (vtkIdType)1000);
+
     for (vtkIdType index = 0; index < numberOfPoints; ++index)
     {
+      if (index % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        break;
+      }
       vtkIdType pointId = index;
       if (ids)
       {
@@ -330,7 +331,8 @@ int vtkExtractParticlesOverTime::RequestData(
 
     this->Internals->CurrentTimeIndex++;
 
-    if (this->Internals->CurrentTimeIndex == this->Internals->NumberOfTimeSteps)
+    if (this->CheckAbort() ||
+      this->Internals->CurrentTimeIndex == this->Internals->NumberOfTimeSteps)
     {
       this->Internals->CurrentTimeIndex = 0;
       this->Internals->CurrentState = State::EXTRACTION_ENDED;
@@ -339,7 +341,7 @@ int vtkExtractParticlesOverTime::RequestData(
 
   if (this->Internals->CurrentState == State::EXTRACTED)
   {
-    if (!this->Internals->GenerateOutput(particleDataSet, IdChannelArray))
+    if (!this->Internals->GenerateOutput(particleDataSet, IdChannelArray, this))
     {
       this->Internals->CurrentState = State::NOT_EXTRACTED;
       return 0;
@@ -367,3 +369,4 @@ void vtkExtractParticlesOverTime::PrintSelf(ostream& os, vtkIndent indent)
      << "IdChannelArray: " << (this->IdChannelArray.empty() ? "None" : this->IdChannelArray)
      << std::endl;
 }
+VTK_ABI_NAMESPACE_END

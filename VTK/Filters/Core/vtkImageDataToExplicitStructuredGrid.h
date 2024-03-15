@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDataToExplicitStructuredGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageDataToExplicitStructuredGrid
  * @brief   Filter which converts a 3D image data into an explicit structured grid.
@@ -23,6 +11,7 @@
 #include "vtkExplicitStructuredGridAlgorithm.h"
 #include "vtkFiltersCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkImageDataToExplicitStructuredGrid
   : public vtkExplicitStructuredGridAlgorithm
 {
@@ -44,4 +33,5 @@ private:
   void operator=(const vtkImageDataToExplicitStructuredGrid&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

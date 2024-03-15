@@ -1,4 +1,4 @@
-/* Copyright 2021 NVIDIA Corporation. All rights reserved.
+/* Copyright 2023 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,6 +24,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
@@ -572,8 +574,10 @@ mi::Size vtknvindex_regular_volume_properties::get_scalar_size(const std::string
 {
   mi::Size scalar_size = 0;
 
-  if (scalar_type == "char" || scalar_type == "unsigned char")
+  if (scalar_type == "char" || scalar_type == "unsigned char" || scalar_type == "signed char")
   {
+    // "char" is platform dependent, that's why there also exists "signed char" (but not "signed
+    // short")
     scalar_size = sizeof(mi::Uint8);
   }
   else if (scalar_type == "short" || scalar_type == "unsigned short")

@@ -1,42 +1,32 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Plugin:    NodeEditor
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  ParaViewPluginsNodeEditor - BSD 3-Clause License - Copyright (C) 2021 Jonas Lukasczyk
-
-  See the Copyright.txt file provided
-  with ParaViewPluginsNodeEditor for license information.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (C) 2021 Jonas Lukasczyk
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef pqNodeEditorEdge_h
 #define pqNodeEditorEdge_h
 
-#include <QGraphicsPathItem>
+#include "pqNodeEditorUtils.h"
+#include <QGraphicsItem>
 
 class pqNodeEditorNode;
-class QGraphicsScene;
+class QGraphicsPathItem;
 
 /**
  * Every instance of this class corresponds to an edge between an output port
  * and an input port. This class internally detects if the positions of the
  * corresponding ports change and updates itself automatically.
+ *
+ * This class also display 2 edges : one at the given Z depth, the other at the
+ * maximum Z layer. The second one will be displayed slighlty transparent. This
+ * is in order to have some informations on the edges even when nodes are above.
+ * The overlay needs to be added manually to the scene.
  */
 class pqNodeEditorEdge
   : public QObject
-  , public QGraphicsPathItem
+  , public QGraphicsItem
 {
   Q_OBJECT
+  Q_INTERFACES(QGraphicsItem)
 
 public:
   /**
@@ -54,7 +44,7 @@ public:
    * The edge is created and added into the specified @c scene.
    * One can also set its type and parent.
    */
-  pqNodeEditorEdge(QGraphicsScene* scene, pqNodeEditorNode* producer, int producerOutputPortIdx,
+  pqNodeEditorEdge(pqNodeEditorNode* producer, int producerOutputPortIdx,
     pqNodeEditorNode* consumer, int consumerInputPortIdx, Type type = Type::PIPELINE,
     QGraphicsItem* parent = nullptr);
 
@@ -63,36 +53,38 @@ public:
    */
   ~pqNodeEditorEdge() override;
 
-  //@{
+  ///@{
   /*
    * Get/Set the type of the edge (0:normal edge, 1: view edge). Update the style accordingly.
    */
   void setType(Type type);
   Type getType() { return this->type; };
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /*
    * Get the producer/consumer of this edge
    */
   pqNodeEditorNode* getProducer() { return this->producer; };
   pqNodeEditorNode* getConsumer() { return this->consumer; };
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /*
    * Get the producer/consumer port idx
    */
   int getProducerOutputPortIdx() { return this->producerOutputPortIdx; };
   int getConsumerInputPortIdx() { return this->consumerInputPortIdx; };
-  //@}
+  ///@}
+
+  QGraphicsPathItem* overlay() const { return this->edgeOverlay; }
 
   /*
    * Get edge information as string.
    */
   std::string toString();
 
-public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
+protected Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   /**
    * Recompute the points where the edge should pass by.
    * Should be called whenever one of the port the edge is attached to move.
@@ -100,22 +92,20 @@ public Q_SLOTS: // NOLINT(readability-redundant-access-specifiers)
   int updatePoints();
 
 protected:
+  QVariant itemChange(GraphicsItemChange change, const QVariant& value) override;
   QRectF boundingRect() const override;
   void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget) override;
 
 private:
-  QGraphicsScene* scene;
+  Type type = Type::PIPELINE;
 
-  Type type{ Type::PIPELINE };
-  QPointF oPoint;
-  QPointF cPoint;
-  QPointF iPoint;
   QPainterPath path;
+  QGraphicsPathItem* edgeOverlay = nullptr;
 
-  pqNodeEditorNode* producer;
-  int producerOutputPortIdx;
-  pqNodeEditorNode* consumer;
-  int consumerInputPortIdx;
+  pqNodeEditorNode* producer = nullptr;
+  int producerOutputPortIdx = 0;
+  pqNodeEditorNode* consumer = nullptr;
+  int consumerInputPortIdx = 0;
 };
 
 #endif // pqNodeEditorEdge_h

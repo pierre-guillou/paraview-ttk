@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWarpVector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWarpVector.h"
 
 #include "vtkArrayDispatch.h"
@@ -34,6 +22,7 @@
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWarpVector);
 
 //------------------------------------------------------------------------------
@@ -106,8 +95,17 @@ struct WarpWorker
     if (numPts >= VTK_SMP_THRESHOLD)
     {
       vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
+        bool isFirst = vtkSMPTools::GetSingleThread();
         for (; ptId < endPtId; ++ptId)
         {
+          if (isFirst)
+          {
+            self->CheckAbort();
+          }
+          if (self->GetAbortOutput())
+          {
+            break;
+          }
           const auto xi = ipts[ptId];
           auto xo = opts[ptId];
           const auto v = vecs[ptId];
@@ -126,7 +124,7 @@ struct WarpWorker
         if (!(ptId % 10000))
         {
           self->UpdateProgress((double)ptId / numPts);
-          if (self->GetAbortExecute())
+          if (self->CheckAbort())
           {
             break;
           }
@@ -162,6 +160,7 @@ int vtkWarpVector::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkNew<vtkImageDataToPointSet> image2points;
       image2points->SetInputData(inImage);
+      image2points->SetContainerAlgorithm(this);
       image2points->Update();
       input = image2points->GetOutput();
     }
@@ -175,6 +174,7 @@ int vtkWarpVector::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkNew<vtkRectilinearGridToPointSet> rect2points;
       rect2points->SetInputData(inRect);
+      rect2points->SetContainerAlgorithm(this);
       rect2points->Update();
       input = rect2points->GetOutput();
     }
@@ -253,3 +253,4 @@ void vtkWarpVector::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Scale Factor: " << this->ScaleFactor << "\n";
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program:   ParaView
-   Module:    pqPipelineModel.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPipelineModel.h"
 
 #include "pqBoxChartView.h"
@@ -39,6 +11,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPipelineFilter.h"
 #include "pqPipelineSource.h"
 #include "pqPlotMatrixView.h"
+#include "pqRenderView.h"
 #include "pqServer.h"
 #include "pqServerConfiguration.h"
 #include "pqServerManagerModel.h"
@@ -95,6 +68,7 @@ static const QString HISTOGRAMCHART = pqXYHistogramChartView::XYHistogramChartVi
 static const QString LINECHART = pqXYChartView::XYChartViewType();
 static const QString PLOTMATRIX = pqPlotMatrixView::viewType();
 static const QString TABLE = pqSpreadSheetView::spreadsheetViewType();
+static const QString RENDER_VIEW = pqRenderView::renderViewType();
 static const QString INDETERMINATE = "INDETERMINATE";
 static const QString NONE = "None";
 static const QString EYEBALL = "EYEBALL";
@@ -489,6 +463,7 @@ void pqPipelineModel::constructor()
     ":/pqWidgets/Icons/pqSecureServer16.png");
   this->PixmapMap[PipelineModelIconType::LINK].load(":/pqWidgets/Icons/pqLinkBack16.png");
   this->PixmapMap[PipelineModelIconType::GEOMETRY].load(":/pqWidgets/Icons/pq3DView16.png");
+  this->PixmapMap[PipelineModelIconType::RENDER_VIEW].load(":/pqWidgets/Icons/pq3DView16.png");
   this->PixmapMap[PipelineModelIconType::BARCHART].load(":/pqWidgets/Icons/pqHistogram16.png");
   this->PixmapMap[PipelineModelIconType::BOXCHART].load(":/pqWidgets/Icons/pqBoxChart16.png");
   this->PixmapMap[PipelineModelIconType::HISTOGRAMCHART].load(
@@ -547,6 +522,8 @@ pqPipelineModel::pqPipelineModel(const pqServerManagerModel& other, QObject* par
   // Build a pipeline model from the current server manager model.
   QList<pqPipelineSource*> sources;
   QList<pqPipelineSource*>::Iterator source;
+  QList<pqExtractor*> extractors;
+  QList<pqExtractor*>::Iterator extractor;
   QList<pqServer*> servers = other.findItems<pqServer*>();
   QList<pqServer*>::Iterator server = servers.begin();
   for (; server != servers.end(); ++server)
@@ -572,6 +549,18 @@ pqPipelineModel::pqPipelineModel(const pqServerManagerModel& other, QObject* par
         {
           this->addConnection(*source, (*source)->getConsumer(port, i), port);
         }
+      }
+    }
+
+    // Set up extractors
+    extractors = other.findItems<pqExtractor*>(*server);
+    for (extractor = extractors.begin(); extractor != extractors.end(); ++extractor)
+    {
+      this->addExtractor(*extractor);
+      auto port = qobject_cast<pqOutputPort*>((*extractor)->producer());
+      if (port && (*extractor)->isDataExtractor())
+      {
+        this->addConnection(port->getSource(), *extractor);
       }
     }
   }
@@ -899,7 +888,7 @@ bool pqPipelineModel::setData(const QModelIndex& idx, const QVariant& value, int
   auto proxy = qobject_cast<pqProxy*>(this->getItemFor(idx));
   if (proxy && proxy->getSMName() != name)
   {
-    BEGIN_UNDO_SET(QString("Rename %1 to %2").arg(proxy->getSMName()).arg(name));
+    BEGIN_UNDO_SET(tr("Rename %1 to %2").arg(proxy->getSMName()).arg(name));
     proxy->rename(name);
     END_UNDO_SET();
     return true;

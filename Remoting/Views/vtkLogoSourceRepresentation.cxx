@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkLogoSourceRepresentation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLogoSourceRepresentation.h"
 
 #include "vtk3DWidgetRepresentation.h"
@@ -24,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPVRenderView.h"
 #include "vtkProperty2D.h"
+#include "vtkRenderer.h"
 
 vtkStandardNewMacro(vtkLogoSourceRepresentation);
 vtkCxxSetObjectMacro(
@@ -139,8 +128,16 @@ int vtkLogoSourceRepresentation::ProcessViewRequest(
       repr->SetImage(image);
       repr->GetImageProperty()->SetOpacity(this->Opacity);
       repr->SetVisibility(true);
-      float height = repr->GetPosition2()[1];
-      repr->SetPosition2(height * dims[0] / dims[1], height);
+
+      const int* size = repr->GetRenderer()->GetSize();
+      double height =
+        (this->InteractiveScaling ? repr->GetPosition2()[1] : this->ImageScale) * size[1];
+      double width = height * dims[0] / dims[1];
+      repr->SetPosition2(width / size[0], height / size[1]);
+      if (repr->GetWindowLocation() != vtkBorderRepresentation::AnyLocation)
+      {
+        repr->UpdateWindowLocation();
+      }
     }
     else
     {

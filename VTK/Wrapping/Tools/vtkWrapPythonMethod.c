@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonMethod.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonMethod.h"
 #include "vtkWrapPythonOverload.h"
@@ -43,8 +31,8 @@ static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo*
 static void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction);
 
 /* generate the code that calls the C++ method */
-static void vtkWrapPython_GenerateMethodCall(
-  FILE* fp, FunctionInfo* currentFunction, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject);
+static void vtkWrapPython_GenerateMethodCall(FILE* fp, FunctionInfo* currentFunction,
+  ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject);
 
 /* Write back to all the reference arguments and array arguments */
 static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInfo* currentFunction);
@@ -61,7 +49,7 @@ static int vtkWrapPython_CountAllOccurrences(
 
 /* -------------------------------------------------------------------- */
 /* Declare all local variables used by the wrapper method */
-void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* theFunc)
+void vtkWrapPython_DeclareVariables(FILE* fp, const ClassInfo* data, const FunctionInfo* theFunc)
 {
   ValueInfo* arg;
   int i, n;
@@ -111,7 +99,8 @@ void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* the
           fprintf(fp, "  char *save%d = temp%d + size%d + 1;\n", i, i, i);
         }
       }
-      else if (arg->CountHint || vtkWrap_IsPODPointer(arg))
+      else if (arg->CountHint || vtkWrap_IsPODPointer(arg) ||
+        (vtkWrap_IsRef(arg) && !vtkWrap_IsArrayRef(arg)))
       {
         /* prepare for "T *" arg, where T is a plain type */
         fprintf(fp,
@@ -164,6 +153,10 @@ void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* the
           /* for saving a copy of the array */
           vtkWrap_DeclareVariable(fp, data, arg, "save", i, VTK_WRAP_ARG);
         }
+        else if (vtkWrap_IsConst(arg) && vtkWrap_IsRef(arg))
+        {
+          fprintf(fp, "  const %s *temp%dc = temp%d;\n", vtkWrap_GetTypeName(arg), i, i);
+        }
       }
     }
     else if (vtkWrap_IsStdVector(arg))
@@ -179,7 +172,10 @@ void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* the
     /* temps for buffer objects */
     if (vtkWrap_IsVoidPointer(arg) || vtkWrap_IsZeroCopyPointer(arg))
     {
-      fprintf(fp, "  Py_buffer pbuf%d = VTK_PYBUFFER_INITIALIZER;\n", i);
+      fprintf(fp,
+        "  Py_buffer pbuf%d = { nullptr, nullptr, 0, 0, 0, 0, nullptr, nullptr, nullptr, nullptr, "
+        "nullptr };\n",
+        i);
     }
 
     /* temps for conversion constructed objects, which only occur
@@ -208,7 +204,7 @@ void vtkWrapPython_DeclareVariables(FILE* fp, ClassInfo* data, FunctionInfo* the
 /* -------------------------------------------------------------------- */
 /* Write the code to convert one argument with vtkPythonArgs */
 void vtkWrapPython_GetSingleArgument(
-  FILE* fp, ClassInfo* data, int i, ValueInfo* arg, int static_call)
+  FILE* fp, const ClassInfo* data, int i, const ValueInfo* arg, int static_call)
 {
   const char* prefix = "ap.";
   const char* cp;
@@ -471,11 +467,20 @@ static void vtkWrapPython_SubstituteCode(
         }
       }
 
+      if (!matched) /* check for "_", which signifies the return value */
+      {
+        if (t.len == 1 && t.text[0] == '_')
+        {
+          fprintf(fp, "tempr");
+          matched = 1;
+        }
+      }
+
       if (!matched) /* check for class members */
       {
         for (j = 0; j < data->NumberOfItems; j++)
         {
-          ItemInfo* item = &data->Items[j];
+          const ItemInfo* item = &data->Items[j];
           const char* name = NULL;
           int is_static = 0;
 
@@ -558,7 +563,8 @@ static void vtkWrapPython_CheckPreconds(FILE* fp, ClassInfo* data, FunctionInfo*
 
 /* -------------------------------------------------------------------- */
 /* Convert values into python object and return them within python */
-void vtkWrapPython_ReturnValue(FILE* fp, ClassInfo* data, ValueInfo* val, int static_call)
+void vtkWrapPython_ReturnValue(
+  FILE* fp, const ClassInfo* data, const ValueInfo* val, int static_call)
 {
   char pythonname[1024];
   const char* deref = "";
@@ -792,8 +798,8 @@ void vtkWrapPython_SaveArgs(FILE* fp, FunctionInfo* currentFunction)
 
 /* -------------------------------------------------------------------- */
 /* generate the code that calls the C++ method */
-static void vtkWrapPython_GenerateMethodCall(
-  FILE* fp, FunctionInfo* currentFunction, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject)
+static void vtkWrapPython_GenerateMethodCall(FILE* fp, FunctionInfo* currentFunction,
+  ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject)
 {
   char methodname[256];
   ValueInfo* arg;
@@ -914,7 +920,8 @@ static void vtkWrapPython_GenerateMethodCall(
         fprintf(fp, "*temp%i", i);
       }
       else if (vtkWrap_IsConst(arg) && vtkWrap_IsRef(arg) &&
-        (arg->CountHint || vtkWrap_IsPODPointer(arg)))
+        (arg->CountHint || vtkWrap_IsPODPointer(arg) ||
+          (vtkWrap_IsArray(arg) && !vtkWrap_IsArrayRef(arg))))
       {
         fprintf(fp, "temp%ic", i);
       }
@@ -1000,9 +1007,9 @@ static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInf
       n = 1;
     }
 
-    /* the "arg->Count == 0" keeps this "if" from capturing "T (&a)[N]" */
-    if (vtkWrap_IsNonConstRef(arg) && !vtkWrap_IsStdVector(arg) && !vtkWrap_IsObject(arg) &&
-      arg->Count == 0)
+    if (!vtkWrap_IsStdVector(arg) && !vtkWrap_IsObject(arg) && !vtkWrap_IsArrayRef(arg) &&
+      (vtkWrap_IsNonConstRef(arg) ||
+        (vtkWrap_IsRef(arg) && (vtkWrap_IsArray(arg) || vtkWrap_IsPODPointer(arg)))))
     {
       fprintf(fp,
         "    if (!ap.ErrorOccurred())\n"
@@ -1014,6 +1021,10 @@ static void vtkWrapPython_WriteBackToArgs(FILE* fp, ClassInfo* data, FunctionInf
         if (arg->CountHint)
         {
           vtkWrapPython_SubstituteCode(fp, data, currentFunction, arg->CountHint);
+        }
+        else if (arg->Count > 0)
+        {
+          fprintf(fp, "%d", arg->Count);
         }
         else
         {
@@ -1125,8 +1136,8 @@ static void vtkWrapPython_FreeTemporaries(FILE* fp, FunctionInfo* currentFunctio
 /* Write out the code for one method (including all its overloads) */
 
 void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo* data,
-  HierarchyInfo* hinfo, FunctionInfo* wrappedFunctions[], int numberOfWrappedFunctions, int fnum,
-  int is_vtkobject, int do_constructors)
+  FileInfo* finfo, const HierarchyInfo* hinfo, FunctionInfo* wrappedFunctions[],
+  int numberOfWrappedFunctions, int fnum, int is_vtkobject, int do_constructors)
 {
   FunctionInfo* theFunc;
   char occSuffix[16];
@@ -1320,7 +1331,7 @@ void vtkWrapPython_GenerateOneMethod(FILE* fp, const char* classname, ClassInfo*
 
       /* memory leak here but ... */
       theOccurrence->Name = NULL;
-      cp = (char*)malloc(siglen + 2 + strlen(theOccurrence->Signature));
+      cp = vtkParse_NewString(finfo->Strings, siglen + 1 + strlen(theOccurrence->Signature));
       strcpy(cp, theFunc->Signature);
       strcpy(&cp[siglen], "\n");
       strcpy(&cp[siglen + 1], theOccurrence->Signature);

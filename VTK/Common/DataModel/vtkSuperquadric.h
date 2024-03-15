@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSuperquadric.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSuperquadric
  * @brief   implicit function for a Superquadric
@@ -47,6 +35,7 @@
 
 #define VTK_MIN_SUPERQUADRIC_THICKNESS 1e-4
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkSuperquadric : public vtkImplicitFunction
 {
 public:
@@ -141,4 +130,5 @@ private:
   void operator=(const vtkSuperquadric&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

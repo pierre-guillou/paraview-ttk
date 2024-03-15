@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExternalOpenGLRenderer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExternalOpenGLRenderer
  * @brief   OpenGL renderer
@@ -37,6 +25,7 @@
 #include "vtkRenderingExternalModule.h" // For export macro
 
 // Forward declarations
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLightCollection;
 class vtkExternalLight;
 
@@ -50,7 +39,7 @@ public:
   /**
    * Synchronize camera and light parameters
    */
-  void Render(void) override;
+  void Render() override;
 
   /**
    * Create a new Camera sutible for use with this type of Renderer.
@@ -120,4 +109,5 @@ private:
   void operator=(const vtkExternalOpenGLRenderer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkExternalOpenGLRenderer_h

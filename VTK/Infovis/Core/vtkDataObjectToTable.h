@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectToTable.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkDataObjectToTable
  * @brief   extract field data as a table
@@ -29,10 +13,13 @@
 #ifndef vtkDataObjectToTable_h
 #define vtkDataObjectToTable_h
 
+#include "vtkDeprecation.h"       // For deprecation macros
 #include "vtkInfovisCoreModule.h" // For export macro
 #include "vtkTableAlgorithm.h"
 
-class VTKINFOVISCORE_EXPORT vtkDataObjectToTable : public vtkTableAlgorithm
+VTK_ABI_NAMESPACE_BEGIN
+class VTK_DEPRECATED_IN_9_3_0("Use vtkAttributeDataToTableFilter instead of vtkDataObjectToTable.")
+  VTKINFOVISCORE_EXPORT vtkDataObjectToTable : public vtkTableAlgorithm
 {
 public:
   static vtkDataObjectToTable* New();
@@ -72,4 +59,5 @@ private:
   void operator=(const vtkDataObjectToTable&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

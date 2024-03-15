@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChart2DHistogram.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkChartHistogram2D.h"
 
@@ -29,6 +17,7 @@
 #include "vtkTooltipItem.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkChartHistogram2D);
 
 //------------------------------------------------------------------------------
@@ -92,7 +81,7 @@ bool vtkChartHistogram2D::UpdateLayout(vtkContext2D* painter)
 //------------------------------------------------------------------------------
 bool vtkChartHistogram2D::Hit(const vtkContextMouseEvent& mouse)
 {
-  vtkVector2i pos(mouse.GetScreenPos());
+  vtkVector2f pos(mouse.GetScenePos());
   return pos[0] > this->Point1[0] - 10 && pos[0] < this->Point2[0] + 10 &&
     pos[1] > this->Point1[1] && pos[1] < this->Point2[1];
 }
@@ -113,3 +102,4 @@ void vtkChartHistogram2D::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

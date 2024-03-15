@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCorrelativeStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkCorrelativeStatistics.h"
 #include "vtkStatisticsAlgorithmPrivate.h"
@@ -37,6 +21,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkCorrelativeStatistics);
 
 //------------------------------------------------------------------------------
@@ -156,7 +141,7 @@ void vtkCorrelativeStatistics::Aggregate(
       double M2Y_c = primaryTab->GetValueByName(r, "M2 Y").ToDouble();
       double MXY_c = primaryTab->GetValueByName(r, "M XY").ToDouble();
 
-      // Update global statics
+      // Update global statistics
       int N = n + n_c;
 
       double invN = 1. / static_cast<double>(N);
@@ -910,3 +895,4 @@ void vtkCorrelativeStatistics::SelectAssessFunctor(
   // If arrived here, it means that the pair of variables of interest was not found in the parameter
   // table
 }
+VTK_ABI_NAMESPACE_END

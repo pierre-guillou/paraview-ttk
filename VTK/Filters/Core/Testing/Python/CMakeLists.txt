@@ -1,11 +1,3 @@
-# Data files:
-#  deciPlane,NO_RT
-#  financialField,NO_RT
-#  skinOrder,NO_RT
-#  MassProperties,NO_RT
-#  financialField2,NO_RT
-#  financialField3,NO_RT
-
 vtk_add_test_python(
   CellDataToPointData.py
   CellDataToPointData2.py
@@ -14,6 +6,7 @@ vtk_add_test_python(
   Delaunay2DTransform.py
   Delaunay3D.py
   Delaunay3DAlphaTest.py
+  MassProperties.py
   QuadricDecimation.py
   QuadricDecimation2.py
   StreamPolyData.py
@@ -34,6 +27,7 @@ vtk_add_test_python(
   TestConvertToPolyhedra.py
   TestDecimatePolylineMaximumError.py
   TestElevationFilter.py
+  TestExtractCells.py
   TestFlyingEdges2D.py
   TestFlyingEdges2D2.py
   TestFlyingEdges2DThinPixel.py
@@ -50,6 +44,7 @@ vtk_add_test_python(
   TestMultiObjectMassProperties.py
   TestOrientedFlyingEdgesPlaneCutter.py
   TestOrientedFlyingEdgesPlaneCutter2.py
+  TestPackLabels.py,NO_VALID
   TestPointDataToCellData2.py
   TestPolyDataEdgeConnectivityFilter.py
   TestPolyDataEdgeConnectivityFilter2.py
@@ -68,6 +63,9 @@ vtk_add_test_python(
   TestStructuredGridPlaneCutter.py
   TestSurfaceNets2D.py
   TestSurfaceNets2D2.py
+  TestSurfaceNets3D.py
+  TestSurfaceNets3D2.py
+  TestSurfaceNets3D3.py
   TestSynchronizedTemplates2D.py
   TestSynchronizedTemplates3D.py
   TestWindowedSincPolyDataFilter.py
@@ -75,13 +73,14 @@ vtk_add_test_python(
   TestContourFilter.py,NO_DATA,NO_VALID
   TestContourGrid.py,NO_VALID
   TestContourPolyData.py,NO_VALID
-  TestTensorGlyph.py,NO_RT
+  TestTensorGlyph.py
   TestTextureGlyph.py
   TestTriangleFilter.py
   TestUnstructuredGridPlaneCutter.py
   TestVectorDotNorm.py
   TestVoronoi2D.py
   TestVoronoi2D2.py
+  TestVoronoi2D3.py
   TestWindowedSincPolylineSmoothing.py
   capCow.py
   capSphere.py
@@ -90,16 +89,20 @@ vtk_add_test_python(
   constrainedDelaunay.py
   contourCells.py
   contourQuadraticCells.py
-  contourQuadraticTetra.py,NO_RT
+  contourQuadraticTetra.py
   createBFont.py
   cutLoop.py
   cutPolygons.py
   cutter.py
+  deciPlane.py
   dispPlot.py
   fieldToPolyData.py
   fieldToRGrid.py
   fieldToSGrid.py
   fieldToUGrid.py
+  financialField.py
+  financialField2.py
+  financialField3.py
   glyphComb.py
   hull.py
   mergeFilter.py
@@ -110,6 +113,7 @@ vtk_add_test_python(
   probeComb.py
   probeComb2.py
   reverseNormals.py
+  skinOrder.py
   smoothMeshOnMesh.py
   streamComb.py
   streamSurface.py
@@ -117,9 +121,9 @@ vtk_add_test_python(
   stripF.py
   teapotHulls.py
   tubeComb.py
-  deciFranFace.py,NO_RT
+  deciFranFace.py
   TestContourCases.py,NO_DATA,NO_VALID
-  pointsPrecisions.py,NO_OUTPUT,NO_DATA,NO_VALID,NO_RT
+  pointsPrecisions.py,NO_OUTPUT,NO_DATA,NO_VALID
   TestCompositeCutter.py,NO_VALID
   testPDNormals.py,NO_DATA,NO_VALID
   )

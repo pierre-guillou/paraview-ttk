@@ -113,7 +113,8 @@ vtkm::cont::DataSet Make3DExplicitSimpleCube()
 vtkm::cont::DataSet Make3DWavelet()
 {
 
-  vtkm::source::Wavelet wavelet({ -25 }, { 25 });
+  vtkm::source::Wavelet wavelet;
+  wavelet.SetExtent({ -25 }, { 25 });
   wavelet.SetFrequency({ 60, 30, 40 });
   wavelet.SetMagnitude({ 5 });
 
@@ -233,7 +234,7 @@ void TestWithStructuredData()
   contour.SetIsoValue(192);
   contour.SetMergeDuplicatePoints(true);
   contour.SetGenerateNormals(true);
-  contour.SetComputeFastNormalsForStructured(true);
+  contour.SetComputeFastNormals(true);
   contour.SetNormalArrayName("normals");
   dataSet = contour.Execute(dataSet);
 

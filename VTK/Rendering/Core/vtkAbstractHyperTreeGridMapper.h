@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractHyperTreeGridMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAbstractHyperTreeGridMapper
  * @brief   Abstract class for a HyperTreeGrid mapper
@@ -36,6 +24,7 @@
 #include "vtkAbstractVolumeMapper.h"
 #include "vtkRenderingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBitArray;
 class vtkDataArray;
 class vtkMatrix4x4;
@@ -238,4 +227,5 @@ private:
   void operator=(const vtkAbstractHyperTreeGridMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

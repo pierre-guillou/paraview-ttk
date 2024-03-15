@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkInformationVector.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkInformationVector
  * @brief   Store zero or more vtkInformation instances.
@@ -29,6 +17,7 @@
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformation;
 class vtkInformationVectorInternals;
 
@@ -84,7 +73,7 @@ public:
    * instances of any contained vtkInformation and vtkInformationVector
    * objects are created).
    */
-  void Copy(vtkInformationVector* from, int deep = 0);
+  void Copy(vtkInformationVector* from, vtkTypeBool deep = 0);
 
 protected:
   vtkInformationVector();
@@ -103,4 +92,5 @@ private:
   void operator=(const vtkInformationVector&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

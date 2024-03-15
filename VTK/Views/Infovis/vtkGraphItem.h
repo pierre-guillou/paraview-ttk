@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGraphItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGraphItem
  * @brief   A 2D graphics item for rendering a graph.
@@ -35,6 +23,7 @@
 #include "vtkNew.h"    // For vtkNew ivars
 #include "vtkVector.h" // For vector types in API
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGraph;
 class vtkImageData;
 class vtkIncrementalForceLayout;
@@ -99,7 +88,7 @@ protected:
 
   /**
    * Returns true if the underlying vtkGraph has been modified since the last
-   * RebuildBuffers, signalling a new RebuildBuffers is needed. When the graph
+   * RebuildBuffers, signaling a new RebuildBuffers is needed. When the graph
    * was modified, it assumes the buffers will be rebuilt, so it updates
    * the modified time of the last build. Override this function if you have
    * a subclass that uses any information in addition to the vtkGraph to determine
@@ -229,4 +218,5 @@ private:
   vtkNew<vtkTooltipItem> Tooltip;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

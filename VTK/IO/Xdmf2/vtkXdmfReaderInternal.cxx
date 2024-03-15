@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfReaderInternal.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXdmfReaderInternal.h"
 
 #include "vtkDataArray.h"
@@ -24,15 +12,16 @@
 // As soon as num-grids (sub-grids and all) grows beyond this number, we assume
 // that the grids are way too numerous for the user to select individually and
 // hence only the top-level grids are made accessible.
-#define MAX_COLLECTABLE_NUMBER_OF_GRIDS 1000
+#define MAX_COLLECTABLE_NUMBER_OF_GRIDS 10000
 
+using namespace xdmf2;
+
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 T vtkMAX(T a, T b)
 {
   return (a > b ? a : b);
 }
-
-using namespace xdmf2;
 
 //------------------------------------------------------------------------------
 vtkXdmfDocument::vtkXdmfDocument()
@@ -816,3 +805,4 @@ bool vtkXdmfDomain::UpdateGridAttributeInSIL(XdmfAttribute* xmfAttribute, vtkIdT
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

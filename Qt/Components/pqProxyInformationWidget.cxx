@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqProxyInformationWidget.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqProxyInformationWidget.h"
 #include "ui_pqProxyInformationWidget.h"
 
@@ -66,15 +38,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <tuple>
 
 // ParaView components includes
-
-static QString formatTime(double time)
-{
-  auto settings = vtkPVGeneralSettings::GetInstance();
-  const auto precision = settings->GetAnimationTimePrecision();
-  const auto notation =
-    static_cast<pqDoubleLineEdit::RealNumberNotation>(settings->GetAnimationTimeNotation());
-  return pqDoubleLineEdit::formatDouble(time, notation, precision);
-}
 
 static QString formatMemory(vtkTypeInt64 msize)
 {
@@ -232,7 +195,10 @@ QVariant pqArraysModel::data(const QModelIndex& indx, int role) const
       return ainfo->GetDataTypeAsString();
 
     case 2:
-      return ainfo->GetRangesAsString().c_str();
+      auto settings = vtkPVGeneralSettings::GetInstance();
+      int lowExponent = settings->GetFullNotationLowExponent();
+      int highExponent = settings->GetFullNotationHighExponent();
+      return ainfo->GetRangesAsString(lowExponent, highExponent).c_str();
   }
   return QVariant();
 }
@@ -279,7 +245,7 @@ public:
         case 0:
           return indx.row();
         case 1:
-          return formatTime(this->TimeSteps[indx.row()]);
+          return pqCoreUtilities::formatTime(this->TimeSteps[indx.row()]);
       }
     }
     return QVariant();
@@ -416,8 +382,8 @@ public:
     }
     else
     {
-      this->Ui.filename->setText("(n/a)");
-      this->Ui.path->setText("(n/a)");
+      this->Ui.filename->setText(QString("(%1)").arg(tr("n/a")));
+      this->Ui.path->setText(QString("(%1)").arg(tr("n/a")));
       this->Ui.filename->setVisible(false);
       this->Ui.path->setVisible(false);
       this->Ui.labelFilename->setVisible(false);
@@ -491,17 +457,14 @@ public:
   }
 
   // populate timesteps info.
-  void setTimeSteps(vtkSMProxy* source)
+  void setTimeSteps(vtkPVDataInformation* dinfo)
   {
-    if (auto property = (source ? source->GetProperty("TimestepValues") : nullptr))
+    if (dinfo)
     {
-      vtkSMPropertyHelper helper(property);
-      std::vector<double> timesteps(helper.GetNumberOfElements());
-      if (helper.GetNumberOfElements() > 0)
-      {
-        helper.Get(&timesteps[0], helper.GetNumberOfElements());
-      };
-      this->TimestepValuesModel.setTimeSteps(timesteps);
+      const std::set<double>& timeSteps = dinfo->GetTimeSteps();
+      std::vector<double> vec;
+      std::copy(timeSteps.begin(), timeSteps.end(), std::back_inserter(vec));
+      this->TimestepValuesModel.setTimeSteps(vec);
     }
     else
     {
@@ -517,11 +480,40 @@ public:
     auto& ui = this->Ui;
     ui.dataType->setEnabled(dinfo && !dinfo->IsNull());
     ui.labelDataType->setEnabled(dinfo && !dinfo->IsNull());
-    ui.dataType->setText(dinfo ? dinfo->GetPrettyDataTypeString() : "(n/a)");
+
+    if (!dinfo)
+    {
+      ui.dataType->setText(QString("(%1)").arg(tr("n/a")));
+    }
+    else
+    {
+      if (dinfo->GetCompositeDataSetType() != -1)
+      {
+        std::vector<int> uniqueTypes = dinfo->GetUniqueBlockTypes();
+        std::string dataTypeText = dinfo->GetPrettyDataTypeString();
+        dataTypeText += " (";
+
+        if (uniqueTypes.size() >= 2)
+        {
+          dataTypeText += "Mixed Data Types";
+        }
+        else
+        {
+          dataTypeText += dinfo->GetPrettyDataTypeString(dinfo->GetDataSetType());
+        }
+
+        dataTypeText += ")";
+        ui.dataType->setText(dataTypeText.c_str());
+      }
+      else
+      {
+        ui.dataType->setText(dinfo->GetPrettyDataTypeString());
+      }
+    }
+
     ui.labelDataStatistics->setText((dinfo && dinfo->GetNumberOfDataSets() > 1)
-        ? QString("Data Statistics (# of datasets: %1)")
-            .arg(l.toString(dinfo->GetNumberOfDataSets()))
-        : QString("Data Statistics"));
+        ? tr("Data Statistics (# of datasets: %1)").arg(l.toString(dinfo->GetNumberOfDataSets()))
+        : tr("Data Statistics"));
 
     std::map<int, std::pair<QLabel*, QLabel*>> labelMap;
     labelMap[vtkDataObject::POINT] = std::make_pair(ui.labelPointCount, ui.pointCount);
@@ -546,7 +538,7 @@ public:
       }
       else
       {
-        item.second.second->setText("(n/a)");
+        item.second.second->setText(QString("(%1)").arg(tr("n/a")));
         item.second.first->setVisible(false);
         item.second.second->setVisible(false);
       }
@@ -554,15 +546,16 @@ public:
 
     ui.memory->setEnabled(dinfo != nullptr);
     ui.labelMemory->setEnabled(dinfo != nullptr);
-    ui.memory->setText(dinfo ? formatMemory(dinfo->GetMemorySize()) : QString("(n/a)"));
+    ui.memory->setText(
+      dinfo ? formatMemory(dinfo->GetMemorySize()) : QString("(%1)").arg(tr("n/a")));
 
     if (dinfo && vtkMath::AreBoundsInitialized(dinfo->GetBounds()))
     {
       double bds[6];
       dinfo->GetBounds(bds);
-      ui.bounds->setText(QString("%1 to %2 (delta: %3)\n"
-                                 "%4 to %5 (delta: %6)\n"
-                                 "%7 to %8 (delta: %9)")
+      ui.bounds->setText(tr("%1 to %2 (delta: %3)\n"
+                            "%4 to %5 (delta: %6)\n"
+                            "%7 to %8 (delta: %9)")
                            .arg(bds[0])
                            .arg(bds[1])
                            .arg(bds[1] - bds[0])
@@ -577,7 +570,10 @@ public:
     }
     else
     {
-      ui.bounds->setText("(n/a)\n(n/a)\n(n/a)");
+      ui.bounds->setText(QString("%1\n%2\n%3")
+                           .arg(QString("(%1)").arg(tr("n/a")))
+                           .arg(QString("(%1)").arg(tr("n/a")))
+                           .arg(QString("(%1)").arg(tr("n/a"))));
       ui.labelBounds->setVisible(false);
       ui.bounds->setVisible(false);
     }
@@ -586,9 +582,9 @@ public:
     {
       int exts[6];
       dinfo->GetExtent(exts);
-      ui.extents->setText(QString("%1 to %2 (dimension: %3)\n"
-                                  "%4 to %5 (dimension: %6)\n"
-                                  "%7 to %8 (dimension: %9)")
+      ui.extents->setText(tr("%1 to %2 (dimension: %3)\n"
+                             "%4 to %5 (dimension: %6)\n"
+                             "%7 to %8 (dimension: %9)")
                             .arg(l.toString(exts[0]))
                             .arg(l.toString(exts[1]))
                             .arg(l.toString(exts[1] - exts[0] + 1))
@@ -604,7 +600,10 @@ public:
     }
     else
     {
-      ui.extents->setText("(n/a)\n(n/a)\n(n/a)");
+      ui.extents->setText(QString("%1\n%2\n%3")
+                            .arg(QString("(%1)").arg(tr("n/a")))
+                            .arg(QString("(%1)").arg(tr("n/a")))
+                            .arg(QString("(%1)").arg(tr("n/a"))));
       ui.labelExtents->setVisible(false);
       ui.extents->setVisible(false);
     }
@@ -620,8 +619,8 @@ public:
     ui.currentTime->setVisible(dinfo && dinfo->GetHasTime());
     if (dinfo && dinfo->GetHasTime())
     {
-      ui.currentTime->setText(QString("%1 (range: [%2, %3])")
-                                .arg(formatTime(dinfo->GetTime()))
+      ui.currentTime->setText(tr("%1 (range: [%2, %3])")
+                                .arg(pqCoreUtilities::formatTime(dinfo->GetTime()))
                                 .arg(dinfo->GetTimeRange()[0])
                                 .arg(dinfo->GetTimeRange()[1]));
     }
@@ -738,7 +737,7 @@ void pqProxyInformationWidget::updateUI()
   internals.setFileName(proxy);
   internals.setDataGrouping(
     dinfo ? dinfo->GetHierarchy() : nullptr, dinfo ? dinfo->GetDataAssembly() : nullptr);
-  internals.setTimeSteps(proxy);
+  internals.setTimeSteps(dinfo);
 
   this->updateSubsetUI();
 }

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkClientServerStream.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkClientServerStream.h"
 
@@ -572,10 +560,6 @@ VTK_CLIENT_SERVER_OPERATOR(unsigned short)
 VTK_CLIENT_SERVER_OPERATOR(unsigned long)
 VTK_CLIENT_SERVER_OPERATOR(long long)
 VTK_CLIENT_SERVER_OPERATOR(unsigned long long)
-#if defined(VTK_TYPE_USE___INT64)
-VTK_CLIENT_SERVER_OPERATOR(__int64)
-VTK_CLIENT_SERVER_OPERATOR(unsigned __int64)
-#endif
 VTK_CLIENT_SERVER_OPERATOR(float)
 VTK_CLIENT_SERVER_OPERATOR(double)
 #undef VTK_CLIENT_SERVER_OPERATOR
@@ -638,10 +622,6 @@ VTK_CLIENT_SERVER_INSERT_ARRAY(unsigned int)
 VTK_CLIENT_SERVER_INSERT_ARRAY(unsigned long)
 VTK_CLIENT_SERVER_INSERT_ARRAY(long long)
 VTK_CLIENT_SERVER_INSERT_ARRAY(unsigned long long)
-#if defined(VTK_TYPE_USE___INT64)
-VTK_CLIENT_SERVER_INSERT_ARRAY(__int64)
-VTK_CLIENT_SERVER_INSERT_ARRAY(unsigned __int64)
-#endif
 VTK_CLIENT_SERVER_INSERT_ARRAY(float)
 VTK_CLIENT_SERVER_INSERT_ARRAY(double)
 #undef VTK_CLIENT_SERVER_INSERT_ARRAY
@@ -1018,10 +998,6 @@ VTK_CSS_GET_ARGUMENT(float)
 VTK_CSS_GET_ARGUMENT(double)
 VTK_CSS_GET_ARGUMENT(long long)
 VTK_CSS_GET_ARGUMENT(unsigned long long)
-#if defined(VTK_TYPE_USE___INT64)
-VTK_CSS_GET_ARGUMENT(__int64)
-VTK_CSS_GET_ARGUMENT(unsigned __int64)
-#endif
 #undef VTK_CSS_GET_ARGUMENT
 
 template <typename SourceType, typename DestType>
@@ -1135,10 +1111,6 @@ VTK_CSS_GET_ARGUMENT_ARRAY(float)
 VTK_CSS_GET_ARGUMENT_ARRAY(double)
 VTK_CSS_GET_ARGUMENT_ARRAY(long long)
 VTK_CSS_GET_ARGUMENT_ARRAY(unsigned long long)
-#if defined(VTK_TYPE_USE___INT64)
-VTK_CSS_GET_ARGUMENT_ARRAY(__int64)
-VTK_CSS_GET_ARGUMENT_ARRAY(unsigned __int64)
-#endif
 #undef VTK_CSS_GET_ARGUMENT_ARRAY
 
 //----------------------------------------------------------------------------

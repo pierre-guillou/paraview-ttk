@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellValidator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellValidator.h"
 
@@ -87,6 +75,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellValidator);
 
 //------------------------------------------------------------------------------
@@ -378,19 +367,6 @@ bool vtkCellValidator::Convex(vtkCell* cell, double vtkNotUsed(tolerance))
 }
 
 //------------------------------------------------------------------------------
-namespace
-{
-// The convention for three-dimensional cells is that the normal of each face
-// cell is oriented outwards. Some cells break this convention and remain
-// inconsistent to maintain backwards compatibility.
-bool outwardOrientation(int cellType)
-{
-  return cellType != VTK_QUADRATIC_LINEAR_WEDGE && cellType != VTK_BIQUADRATIC_QUADRATIC_WEDGE &&
-    cellType != VTK_QUADRATIC_WEDGE;
-}
-}
-
-//------------------------------------------------------------------------------
 bool vtkCellValidator::FacesAreOrientedCorrectly(vtkCell* threeDimensionalCell, double tolerance)
 {
   // Ensure that a 3-dimensional cell's faces are oriented away from the
@@ -401,8 +377,6 @@ bool vtkCellValidator::FacesAreOrientedCorrectly(vtkCell* threeDimensionalCell, 
   double faceNorm[3], norm[3], cellCentroid[3], faceCentroid[3];
   vtkCell* face;
   Centroid(threeDimensionalCell, cellCentroid);
-
-  bool hasOutwardOrientation = outwardOrientation(threeDimensionalCell->GetCellType());
 
   for (vtkIdType i = 0; i < threeDimensionalCell->GetNumberOfFaces(); i++)
   {
@@ -421,7 +395,7 @@ bool vtkCellValidator::FacesAreOrientedCorrectly(vtkCell* threeDimensionalCell, 
     vtkMath::Normalize(norm);
     double dot = vtkMath::Dot(faceNorm, norm);
 
-    if (hasOutwardOrientation == (dot < 0.))
+    if (dot < 0.)
     {
       return false;
     }
@@ -1919,6 +1893,10 @@ int vtkCellValidator::RequestData(vtkInformation* vtkNotUsed(request),
   State state;
   for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     it->GetCell(cell);
     state = Check(cell, this->Tolerance);
     stateArray->SetValue(counter, static_cast<short>(state));
@@ -1982,3 +1960,4 @@ void vtkCellValidator::PrintState(vtkCellValidator::State state, ostream& os, vt
     }
   }
 }
+VTK_ABI_NAMESPACE_END

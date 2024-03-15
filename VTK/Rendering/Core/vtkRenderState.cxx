@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderState.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRenderState.h"
 #include "vtkFrameBufferObjectBase.h"
 #include "vtkRenderer.h"
@@ -23,6 +11,7 @@
 // \pre renderer_exists: renderer!=0
 // \post renderer_is_set: GetRenderer()==renderer.
 // \post valid_state: IsValid()
+VTK_ABI_NAMESPACE_BEGIN
 vtkRenderState::vtkRenderState(vtkRenderer* renderer)
 {
   assert("pre: renderer_exists" && renderer != nullptr);
@@ -140,3 +129,4 @@ void vtkRenderState::SetRequiredKeys(vtkInformation* keys)
   this->RequiredKeys = keys;
   assert("post: is_set" && this->GetRequiredKeys() == keys);
 }
+VTK_ABI_NAMESPACE_END

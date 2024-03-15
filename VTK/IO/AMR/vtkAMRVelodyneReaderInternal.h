@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMRVelodyneReaderInternal.hpp
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMRVelodyneReaderInternal
  *
@@ -32,6 +20,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "vtkABINamespace.h"
 #include "vtkByteSwap.h"
 #include "vtkCellData.h"
 #include "vtkDataArray.h"
@@ -48,6 +37,7 @@
 //================================================================================
 //                          INTERNAL VELODYNE READER
 //================================================================================
+VTK_ABI_NAMESPACE_BEGIN
 
 class vtkAMRVelodyneReaderInternal
 {
@@ -89,7 +79,7 @@ private:
   void AttachTensorToGrid(int, const char*, int, vtkUniformGrid*);
   int ReadLevelsAndX0(hid_t grp_id, std::vector<int>& levels, std::vector<double>& X0);
   herr_t CloseFile(hid_t& fid);
-  vtkDataArray* GetTypeAndArray(const int, hid_t&);
+  vtkDataArray* GetTypeAndArray(int, hid_t&);
 
   std::string FileName;
   int nLeaves;
@@ -98,5 +88,6 @@ private:
   std::unordered_map<std::string, int> typeMap;
   std::unordered_map<std::string, int> arrayMap;
 };
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkAMRVelodyneReaderInternal.h

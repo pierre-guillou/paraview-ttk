@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module: pqDoubleVectorPropertyWidget.cxx
-
-   Copyright (c) 2005-2012 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDoubleVectorPropertyWidget.h"
 
 #include "pqActiveObjects.h"
@@ -43,8 +15,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqPropertiesPanel.h"
 #include "pqScalarValueListPropertyWidget.h"
 #include "pqScaleByButton.h"
+#include "pqSignalAdaptorSelectionTreeWidget.h"
 #include "pqSignalAdaptors.h"
+#include "pqTreeWidget.h"
+#include "pqTreeWidgetSelectionHelper.h"
 #include "pqWidgetRangeDomain.h"
+
 #include "vtkBoundingBox.h"
 #include "vtkCollection.h"
 #include "vtkCommand.h"
@@ -60,15 +36,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkSMDoubleVectorProperty.h"
 #include "vtkSMProperty.h"
 #include "vtkSMProxy.h"
+#include "vtkSMTimeStepsDomain.h"
 #include "vtkSMUncheckedPropertyHelper.h"
 #include "vtkSmartPointer.h"
 
+#include <QCoreApplication>
 #include <QDoubleSpinBox>
 #include <QHBoxLayout>
 #include <QMainWindow>
 #include <QMenu>
 #include <QStyle>
 #include <QToolButton>
+#include <QTreeWidgetItem>
 
 //-----------------------------------------------------------------------------
 pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
@@ -102,69 +81,92 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
   }
 
   QHBoxLayout* layoutLocal = new QHBoxLayout;
-  layoutLocal->setMargin(0);
+  layoutLocal->setContentsMargins(0, 0, 0, 0);
   layoutLocal->setSpacing(pqPropertiesPanel::suggestedHorizontalSpacing());
 
   this->setLayout(layoutLocal);
 
   // Fill Layout
   vtkPVXMLElement* hints = dvp->GetHints();
-  vtkPVXMLElement* showLabels = nullptr;
+  bool isSelectable = false;
+  bool showLabel = false;
+  vtkPVXMLElement* showComponentLabels = nullptr;
   if (hints != nullptr)
   {
-    showLabels = hints->FindNestedElementByName("ShowComponentLabels");
+    isSelectable = (hints->FindNestedElementByName("IsSelectable") != nullptr);
+    showLabel = (hints->FindNestedElementByName("ShowLabel") != nullptr);
+    showComponentLabels = hints->FindNestedElementByName("ShowComponentLabels");
   }
-
-  int elementCount = dvp->GetNumberOfElements();
-
-  std::vector<const char*> componentLabels(elementCount);
-  if (showLabels)
-  {
-    vtkNew<vtkCollection> elements;
-    showLabels->GetElementsByName("ComponentLabel", elements.GetPointer());
-    int nbCompLabels = elements->GetNumberOfItems();
-    if (elementCount == 0)
-    {
-      elementCount = nbCompLabels;
-      componentLabels.resize(nbCompLabels);
-    }
-    for (int i = 0; i < nbCompLabels; ++i)
-    {
-      vtkPVXMLElement* labelElement = vtkPVXMLElement::SafeDownCast(elements->GetItemAsObject(i));
-      if (labelElement)
-      {
-        int component;
-        if (labelElement->GetScalarAttribute("component", &component))
-        {
-          if (component < elementCount)
-          {
-            componentLabels[component] = labelElement->GetAttributeOrEmpty("label");
-          }
-        }
-      }
-    }
-  }
+  const int elementCount = dvp->GetNumberOfElements();
+  const auto componentLabels = showComponentLabels
+    ? pqPropertyWidget::parseComponentLabels(showComponentLabels, elementCount)
+    : std::vector<std::string>{};
 
   vtkSMDoubleRangeDomain* range = vtkSMDoubleRangeDomain::SafeDownCast(domain);
+  vtkSMTimeStepsDomain* tsDomain = vtkSMTimeStepsDomain::SafeDownCast(domain);
   if (this->property()->GetRepeatable())
   {
-    vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
-      "use `pqScalarValueListPropertyWidget` since property is repeatable");
-
-    pqScalarValueListPropertyWidget* widget =
-      new pqScalarValueListPropertyWidget(smProperty, this->proxy(), this);
-    widget->setObjectName("ScalarValueList");
-    widget->setRangeDomain(range);
-    this->addPropertyLink(widget, "scalars", SIGNAL(scalarsChanged()), smProperty);
-    widget->setShowLabels(showLabels);
-    if (showLabels)
+    if (isSelectable)
     {
-      widget->setLabels(componentLabels);
-    }
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        "use a multi-select value list (in a `pqTreeWidget`)");
+      pqTreeWidget* treeWidget = new pqTreeWidget(this);
+      treeWidget->setObjectName("TreeWidget");
+      treeWidget->setColumnCount(1);
+      treeWidget->setRootIsDecorated(false);
+      treeWidget->setMaximumRowCountBeforeScrolling(smProperty);
 
+      QTreeWidgetItem* header = new QTreeWidgetItem();
+      header->setData(0, Qt::DisplayRole,
+        QCoreApplication::translate("ServerManagerXML", smProperty->GetXMLLabel()));
+      treeWidget->setHeaderItem(header);
+
+      // helper makes it easier to select multiple entries.
+      pqTreeWidgetSelectionHelper* helper = new pqTreeWidgetSelectionHelper(treeWidget);
+      helper->setObjectName("TreeWidgetSelectionHelper");
+
+      // adaptor makes it possible to link with the smproperty.
+      pqSignalAdaptorSelectionTreeWidget* adaptor =
+        new pqSignalAdaptorSelectionTreeWidget(treeWidget, smProperty);
+      adaptor->setObjectName("SelectionTreeWidgetAdaptor");
+      this->addPropertyLink(adaptor, "values", SIGNAL(valuesChanged()), smProperty);
+
+      layoutLocal->addWidget(treeWidget);
+    }
+    else
+    {
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        "use `pqScalarValueListPropertyWidget` since property is repeatable");
+
+      pqScalarValueListPropertyWidget* widget =
+        new pqScalarValueListPropertyWidget(smProperty, this->proxy(), this);
+      widget->setObjectName("ScalarValueList");
+      this->addPropertyLink(widget, "scalars", SIGNAL(scalarsChanged()), smProperty);
+      if (range)
+      {
+        widget->setRangeDomain(range);
+      }
+      else if (tsDomain)
+      {
+        widget->setRangeDomain(tsDomain);
+        auto tsValues = tsDomain->GetValues();
+
+        // Initialize the scalar value list using the timesteps of the domain
+        QList<QVariant> tsList;
+        tsList.reserve(static_cast<int>(tsValues.size()));
+        std::copy(tsValues.begin(), tsValues.end(), std::back_inserter(tsList));
+        widget->setScalars(tsList);
+      }
+      widget->setShowLabels(showComponentLabels);
+      if (showComponentLabels)
+      {
+        widget->setLabels(componentLabels);
+      }
+
+      layoutLocal->addWidget(widget);
+    }
     this->setChangeAvailableAsChangeFinished(true);
-    layoutLocal->addWidget(widget);
-    this->setShowLabel(showLabels != nullptr);
+    this->setShowLabel(showLabel);
   }
   else if (range)
   {
@@ -210,9 +212,9 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
           pqDoubleLineEdit* lineEdit = new pqDoubleLineEdit(this);
           lineEdit->setUseGlobalPrecisionAndNotation(true);
           lineEdit->setObjectName(QString("DoubleLineEdit%1").arg(2 * i));
-          if (showLabels)
+          if (showComponentLabels)
           {
-            pqLabel* label = new pqLabel(componentLabels[2 * i], this);
+            pqLabel* label = new pqLabel(componentLabels[2 * i].c_str(), this);
             label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
             gridLayout->addWidget(label, (i * 2), 0);
             gridLayout->addWidget(lineEdit, (i * 2) + 1, 0);
@@ -228,9 +230,9 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
           lineEdit = new pqDoubleLineEdit(this);
           lineEdit->setObjectName(QString("DoubleLineEdit%1").arg(2 * i + 1));
           lineEdit->setUseGlobalPrecisionAndNotation(true);
-          if (showLabels)
+          if (showComponentLabels)
           {
-            pqLabel* label = new pqLabel(componentLabels[2 * i + 1], this);
+            pqLabel* label = new pqLabel(componentLabels[2 * i + 1].c_str(), this);
             label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
             gridLayout->addWidget(label, (i * 2), 1);
             gridLayout->addWidget(lineEdit, (i * 2) + 1, 1);
@@ -254,9 +256,9 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
           dvp->GetNumberOfElements());
         for (unsigned int i = 0; i < dvp->GetNumberOfElements(); i++)
         {
-          if (showLabels)
+          if (showComponentLabels)
           {
-            pqLabel* label = new pqLabel(componentLabels[i], this);
+            pqLabel* label = new pqLabel(componentLabels[i].c_str(), this);
             label->setAlignment(Qt::AlignTop | Qt::AlignHCenter);
             layoutLocal->addWidget(label);
           }
@@ -310,7 +312,7 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
     pqHighlightableToolButton* resetButton = new pqHighlightableToolButton(this);
     resetButton->setObjectName("Reset");
     QAction* resetActn = new QAction(resetButton);
-    resetActn->setToolTip("Reset using current data values");
+    resetActn->setToolTip(tr("Reset using current data values"));
     resetActn->setIcon(QIcon(":/pqWidgets/Icons/pqReset.svg"));
     resetButton->addAction(resetActn);
     resetButton->setDefaultAction(resetActn);
@@ -342,7 +344,7 @@ pqDoubleVectorPropertyWidget::pqDoubleVectorPropertyWidget(
         auto actn = new QAction(tb);
         tb->addAction(actn);
         tb->setDefaultAction(actn);
-        tb->setToolTip("Reset to active data bounds");
+        tb->setToolTip(tr("Reset to active data bounds"));
         tb->setIcon(QIcon(":/pqWidgets/Icons/pqZoomToData.svg"));
         QObject::connect(
           tb, &QToolButton::clicked, this, &pqDoubleVectorPropertyWidget::resetToActiveDataBounds);

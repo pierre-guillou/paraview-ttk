@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMetaImageWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMetaImageWriter
  * @brief   write a binary UNC meta image data
@@ -70,6 +58,7 @@ namespace vtkmetaio
 class MetaImage;
 } // forward declaration
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOIMAGE_EXPORT vtkMetaImageWriter : public vtkImageWriter
 {
 public:
@@ -99,7 +88,7 @@ public:
   ///@}
 
   virtual void SetCompression(bool compress) { this->Compress = compress; }
-  virtual bool GetCompression(void) { return this->Compress; }
+  virtual bool GetCompression() { return this->Compress; }
 
   // This is called by the superclass.
   // This is the method you should override.
@@ -120,4 +109,5 @@ private:
   vtkmetaio::MetaImage* MetaImagePtr;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

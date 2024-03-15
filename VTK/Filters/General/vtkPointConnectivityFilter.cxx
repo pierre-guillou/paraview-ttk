@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointConnectivityFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointConnectivityFilter.h"
 
 #include "vtkCellData.h"
@@ -28,6 +16,7 @@
 #include "vtkNew.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointConnectivityFilter);
 
 //------------------------------------------------------------------------------
@@ -46,10 +35,13 @@ struct UpdateConnectivityCount
   vtkDataSet* Input;
   unsigned int* ConnCount;
   vtkSMPThreadLocalObject<vtkIdList> CellIds;
+  vtkPointConnectivityFilter* Filter;
 
-  UpdateConnectivityCount(vtkDataSet* input, unsigned int* connPtr)
+  UpdateConnectivityCount(
+    vtkDataSet* input, unsigned int* connPtr, vtkPointConnectivityFilter* filter)
     : Input(input)
     , ConnCount(connPtr)
+    , Filter(filter)
   {
   }
 
@@ -62,8 +54,17 @@ struct UpdateConnectivityCount
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
     vtkIdList*& cellIds = this->CellIds.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
     for (; ptId < endPtId; ++ptId)
     {
+      if (isFirst)
+      {
+        this->Filter->CheckAbort();
+      }
+      if (this->Filter->GetAbortOutput())
+      {
+        break;
+      }
       this->Input->GetPointCells(ptId, cellIds);
       this->ConnCount[ptId] = cellIds->GetNumberOfIds();
     }
@@ -104,7 +105,7 @@ int vtkPointConnectivityFilter::RequestData(vtkInformation* vtkNotUsed(request),
   // The first GetPointCells() primes the pump (builds internal structures, etc.)
   vtkNew<vtkIdList> cellIds;
   input->GetPointCells(0, cellIds);
-  UpdateConnectivityCount updateCount(input, connPtr);
+  UpdateConnectivityCount updateCount(input, connPtr, this);
   vtkSMPTools::For(0, numPts, updateCount);
 
   // Pass array to the output
@@ -118,3 +119,4 @@ void vtkPointConnectivityFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -16,7 +16,7 @@
 
 #include <vtkm/exec/CellLocatorMultiplexer.h>
 
-#include <vtkm/cont/internal/Variant.h>
+#include <vtkm/cont/Variant.h>
 
 #include <functional>
 #include <memory>
@@ -54,12 +54,13 @@ public:
                vtkm::cont::internal::ExecutionObjectType<vtkm::cont::CellLocatorTwoLevel>>;
 
   using ExecObjType = vtkm::ListApply<ExecLocatorList, vtkm::exec::CellLocatorMultiplexer>;
+  using LastCell = typename ExecObjType::LastCell;
 
   VTKM_CONT ExecObjType PrepareForExecution(vtkm::cont::DeviceAdapterId device,
                                             vtkm::cont::Token& token) const;
 
 private:
-  vtkm::cont::internal::ListAsVariant<ContLocatorList> LocatorImpl;
+  vtkm::cont::ListAsVariant<ContLocatorList> LocatorImpl;
 
   friend Superclass;
   VTKM_CONT void Build();

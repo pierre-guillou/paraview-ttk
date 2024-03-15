@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGridToExplicitStructuredGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUnstructuredGridToExplicitStructuredGrid.h"
 
 #include "vtkCellArray.h"
@@ -26,6 +14,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUnstructuredGridToExplicitStructuredGrid);
 
 //------------------------------------------------------------------------------
@@ -131,7 +120,7 @@ int vtkUnstructuredGridToExplicitStructuredGrid::RequestData(
   }
 
   int progressCount = 0;
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = nbCells / 20 + 1;
 
   // Copy unstructured cells
@@ -142,7 +131,7 @@ int vtkUnstructuredGridToExplicitStructuredGrid::RequestData(
     {
       vtkDebugMacro("Process cell #" << i);
       this->UpdateProgress(static_cast<double>(i) / nbCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
       progressCount = 0;
     }
     progressCount++;
@@ -213,3 +202,4 @@ int vtkUnstructuredGridToExplicitStructuredGrid::FillInputPortInformation(
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkUnstructuredGrid");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

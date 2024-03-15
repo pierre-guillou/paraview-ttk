@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSphericalHarmonics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSphericalHarmonics.h"
 
 #include "vtkArrayDispatch.h"
@@ -28,6 +16,7 @@
 #include <array>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSphericalHarmonics);
 
 namespace
@@ -38,11 +27,14 @@ struct ComputeSH
   vtkIdType Width;
   vtkIdType Height;
   vtkFloatArray* Harmonics;
+  vtkSphericalHarmonics* Filter;
 
-  ComputeSH(vtkIdType width, vtkIdType height, vtkFloatArray* outArray)
+  ComputeSH(
+    vtkIdType width, vtkIdType height, vtkFloatArray* outArray, vtkSphericalHarmonics* filter)
     : Width(width)
     , Height(height)
     , Harmonics(outArray)
+    , Filter(filter)
   {
   }
 
@@ -56,11 +48,13 @@ struct ComputeSH
 
     vtkSMPThreadLocal<double> LocalWeight;
     vtkSMPThreadLocal<std::array<std::array<double, 9>, 3>> LocalHarmonics;
+    vtkSphericalHarmonics* Filter;
 
-    Impl(vtkIdType w, vtkIdType h, ArrayType* image)
+    Impl(vtkIdType w, vtkIdType h, ArrayType* image, vtkSphericalHarmonics* filter)
       : Image(image)
       , Width(w)
       , Height(h)
+      , Filter(filter)
     {
     }
 
@@ -78,9 +72,18 @@ struct ComputeSH
       const double solidAngle = 2.0 * vtkMath::Pi() * vtkMath::Pi() / (this->Width * this->Height);
       double& localWeight = this->LocalWeight.Local();
       auto& localHarmonics = this->LocalHarmonics.Local();
+      bool isFirst = vtkSMPTools::GetSingleThread();
 
       for (vtkIdType i = ybegin; i < yend; i++)
       {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
         double theta = ((i + 0.5) / static_cast<double>(this->Height)) * vtkMath::Pi();
         double ct = std::cos(theta);
         double st = std::sin(theta);
@@ -158,7 +161,7 @@ struct ComputeSH
   template <typename ArrayType>
   void operator()(ArrayType* image)
   {
-    Impl<ArrayType> functor(this->Width, this->Height, image);
+    Impl<ArrayType> functor(this->Width, this->Height, image, this->Filter);
     vtkSMPTools::For(0, this->Height, functor);
 
     for (vtkIdType i = 0; i < 3; i++)
@@ -195,7 +198,7 @@ int vtkSphericalHarmonics::RequestData(vtkInformation* vtkNotUsed(request),
   harmonics->SetNumberOfComponents(9);
   harmonics->SetNumberOfTuples(3);
 
-  ComputeSH worker(dimensions[0], dimensions[1], harmonics);
+  ComputeSH worker(dimensions[0], dimensions[1], harmonics, this);
 
   vtkDataArray* scalars = input->GetPointData()->GetScalars();
 
@@ -228,3 +231,4 @@ int vtkSphericalHarmonics::FillOutputPortInformation(int vtkNotUsed(port), vtkIn
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkTable");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

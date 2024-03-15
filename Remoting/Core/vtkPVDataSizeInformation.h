@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDataSizeInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVDataSizeInformation
  * @brief   PV information object for getting
@@ -46,25 +34,25 @@ public:
    */
   void AddInformation(vtkPVInformation* info) override;
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*) override;
   void CopyFromStream(const vtkClientServerStream*) override;
-  //@}
+  ///@}
 
   /**
    * Remove all information.  The next add will be like a copy.
    */
   void Initialize();
 
-  //@{
+  ///@{
   /**
    * Access to memory size information.
    */
   vtkGetMacro(MemorySize, int);
-  //@}
+  ///@}
 
 protected:
   vtkPVDataSizeInformation();

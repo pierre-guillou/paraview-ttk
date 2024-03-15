@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayRename.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkArrayRename
@@ -36,6 +24,7 @@
 #include <map>    // for std::map
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkArrayRename : public vtkPassInputTypeAlgorithm
 {
 public:
@@ -246,4 +235,5 @@ private:
   std::map<int, std::map<std::string, std::string>> ArrayMapping;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkArrayRename_h

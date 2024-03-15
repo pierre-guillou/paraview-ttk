@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMReXGridReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMReXGridReader.h"
 
 #include "vtkAMRBox.h"
@@ -41,6 +29,7 @@
 #include <iomanip>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMReXGridReader);
 //------------------------------------------------------------------------------
 vtkAMReXGridReader::vtkAMReXGridReader()
@@ -203,7 +192,7 @@ int vtkAMReXGridReader::FillMetaData()
 }
 
 //------------------------------------------------------------------------------
-vtkUniformGrid* vtkAMReXGridReader::GetAMRGrid(const int blockIdx)
+vtkUniformGrid* vtkAMReXGridReader::GetAMRGrid(int blockIdx)
 {
   if (!this->Internal->headersAreRead)
   {
@@ -279,7 +268,7 @@ int vtkAMReXGridReader::GetNumberOfBlocks()
 }
 
 //------------------------------------------------------------------------------
-int vtkAMReXGridReader::GetBlockLevel(const int blockIdx)
+int vtkAMReXGridReader::GetBlockLevel(int blockIdx)
 {
   if (!this->Internal->headersAreRead)
   {
@@ -302,7 +291,7 @@ int vtkAMReXGridReader::GetBlockLevel(const int blockIdx)
 }
 
 //------------------------------------------------------------------------------
-int vtkAMReXGridReader::GetLevelBlockID(const int blockIdx)
+int vtkAMReXGridReader::GetLevelBlockID(int blockIdx)
 {
   if (!this->Internal->headersAreRead)
   {
@@ -325,8 +314,7 @@ int vtkAMReXGridReader::GetLevelBlockID(const int blockIdx)
 }
 
 //------------------------------------------------------------------------------
-void vtkAMReXGridReader::GetAMRGridData(
-  const int blockIdx, vtkUniformGrid* block, const char* field)
+void vtkAMReXGridReader::GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field)
 {
   if (this->Internal->headersAreRead)
   {
@@ -373,3 +361,4 @@ void vtkAMReXGridReader::SetUpDataArraySelections()
     }
   }
 }
+VTK_ABI_NAMESPACE_END

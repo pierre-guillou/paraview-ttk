@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVPlane
  * @brief   extends vtkPlane to add Offset parameter.
@@ -24,7 +12,8 @@
 #ifndef vtkPVPlane_h
 #define vtkPVPlane_h
 
-#include "vtkPVVTKExtensionsMiscModule.h" //needed for exports
+#include "vtkNew.h"                       // For vtkNew
+#include "vtkPVVTKExtensionsMiscModule.h" // Needed for exports
 #include "vtkPlane.h"
 
 class VTKPVVTKEXTENSIONSMISC_EXPORT vtkPVPlane : public vtkPlane
@@ -34,39 +23,55 @@ public:
   vtkTypeMacro(vtkPVPlane, vtkPlane);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * The origin is shifted in the direction of the normal
    * by the offset.
    */
-  vtkSetMacro(Offset, double);
+  void SetOffset(double offset);
   vtkGetMacro(Offset, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
+  /**
+   * sets axis to the nearest canonical axis.
+   */
+  void SetOrigin(double x, double y, double z) override;
+  void SetOrigin(const double origin[3]) override
+  {
+    this->SetOrigin(origin[0], origin[1], origin[2]);
+  }
+  ///@}
+
+  ///@{
   /**
    * If AxisAligned is true, sets axis to the nearest canonical axis.
    */
   void SetNormal(double x, double y, double z) override;
-  void SetNormal(const double* x) override;
-  //@}
+  void SetNormal(const double normal[3]) override
+  {
+    this->SetNormal(normal[0], normal[1], normal[2]);
+  }
+  ///@}
 
+  ///@{
   /**
    * Accessors for AxisAligned, which locks normal to plane to be aligned with x, y, or z axis.
    */
-  vtkSetMacro(AxisAligned, bool);
+  void SetAxisAligned(bool axisAligned);
   vtkGetMacro(AxisAligned, bool);
+  ///@}
 
+  ///@{
   /**
    * Set/Get a transformation to apply to input points before
    * executing the implicit function.
    */
   void SetTransform(vtkAbstractTransform*) override;
-  void SetTransform(const double elements[16]) override
-  {
-    this->Superclass::SetTransform(elements);
-  }
+  void SetTransform(const double elements[16]) override;
+  ///@}
 
+  ///@{
   /**
    * Evaluate function at position x-y-z and return value.  You should
    * generally not call this method directly, you should use
@@ -76,6 +81,7 @@ public:
   using Superclass::EvaluateFunction;
   void EvaluateFunction(vtkDataArray* input, vtkDataArray* output) override;
   double EvaluateFunction(double x[3]) override;
+  ///@}
 
   /**
    * Evaluate function gradient at position x-y-z and pass back vector.
@@ -89,10 +95,12 @@ protected:
   vtkPVPlane();
   ~vtkPVPlane() override;
 
-  double Offset;
-  vtkPlane* Plane;
+  void InternalPlaneUpdate();
 
+  double Offset;
   bool AxisAligned;
+
+  vtkNew<vtkPlane> Plane;
 
 private:
   vtkPVPlane(const vtkPVPlane&) = delete;

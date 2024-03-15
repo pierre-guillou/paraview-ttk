@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelTimer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParallelTimer.h"
 
 #if defined(_WIN32)
@@ -37,25 +25,27 @@ using std::vector;
 #include <Winsock2.h>
 #include <ctime>
 #include <process.h>
+VTK_ABI_NAMESPACE_BEGIN
 static int gettimeofday(struct timeval* tv, void*)
 {
   FILETIME ft;
   GetSystemTimeAsFileTime(&ft);
 
-  __int64 tmpres = 0;
+  vtkTypeInt64 tmpres = 0;
   tmpres = ft.dwHighDateTime;
   tmpres <<= 32;
   tmpres |= ft.dwLowDateTime;
 
   /*converting file time to unix epoch*/
-  const __int64 DELTA_EPOCH_IN_MICROSECS = 11644473600000000;
+  const vtkTypeInt64 DELTA_EPOCH_IN_MICROSECS = 11644473600000000;
   tmpres /= 10; /*convert into microseconds*/
   tmpres -= DELTA_EPOCH_IN_MICROSECS;
-  tv->tv_sec = (__int32)(tmpres * 0.000001);
+  tv->tv_sec = (vtkTypeInt64)(tmpres * 0.000001);
   tv->tv_usec = (tmpres % 1000000);
 
   return 0;
 }
+VTK_ABI_NAMESPACE_END
 #endif
 
 using std::ios_base;
@@ -63,6 +53,7 @@ using std::ios_base;
 /*
 For singleton pattern
 **/
+VTK_ABI_NAMESPACE_BEGIN
 vtkParallelTimer* vtkParallelTimer::GlobalInstance = nullptr;
 vtkParallelTimer::vtkParallelTimerDestructor vtkParallelTimer::GlobalInstanceDestructor;
 
@@ -648,3 +639,4 @@ void vtkParallelTimer::PrintSelf(ostream& os, vtkIndent)
   *this->Log >> oss;
   os << oss.str();
 }
+VTK_ABI_NAMESPACE_END

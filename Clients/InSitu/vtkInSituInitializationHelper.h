@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkInSituInitializationHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkInSituInitializationHelper
  * @brief initialization helper for in situ environments.
@@ -51,6 +39,11 @@ class vtkInSituPipeline;
 class vtkSMProxy;
 class vtkSMSourceProxy;
 
+// forward declare conduit_node and its typedef.
+// it has to be identical to the one in conduit.hpp
+struct conduit_node_impl;
+typedef struct conduit_node_impl conduit_node;
+
 #include <string> // for std::string
 #include <vector> // for std::vector
 
@@ -87,7 +80,7 @@ public:
    * can point to a Python script, a directory containing a Python package or a
    * zip-file which containing a Python package.
    */
-  static vtkInSituPipeline* AddPipeline(const std::string& path);
+  static vtkInSituPipeline* AddPipeline(const std::string& name, const std::string& path);
 
   /**
    * Add a vtkInSituPipeline instance.
@@ -113,29 +106,29 @@ public:
    */
   static void UpdateAllProducers(double time);
 
-  //@{
+  ///@{
   /**
    * This is provided as a convenience to indicate a particular producer has
    * been modified or has new data for current timestep.
    */
   static void MarkProducerModified(const std::string& channelName);
   static void MarkProducerModified(vtkSMSourceProxy* producer);
-  //@}
+  ///@}
 
   /**
    * Executes pipelines.
    */
-  static bool ExecutePipelines(
-    int timestep, double time, const std::vector<std::string>& parameters = {});
+  static bool ExecutePipelines(int timestep, double time, const conduit_node* pipelines,
+    const std::vector<std::string>& parameters = {});
 
-  //@{
+  ///@{
   /**
    * Provides access to current time and timestep during `ExecutePipelines`
    * call. The value is not valid outside `ExecutePipelines`.
    */
   static int GetTimeStep();
   static double GetTime();
-  //@}
+  ///@}
 
   /**
    * Returns true if vtkInSituInitializationHelper has been initialized; which

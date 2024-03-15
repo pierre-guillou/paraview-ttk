@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPythonRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonRepresentation
  *
@@ -46,20 +34,20 @@ public:
   int ProcessViewRequest(vtkInformationRequestKey* request_type, vtkInformation* inInfo,
     vtkInformation* outInfo) override;
 
-  //@{
+  ///@{
   /**
    * Gets local copy of the input. This will be nullptr on the client when running in client-only
    * mode until after Update() is called.
    */
   vtkGetMacro(LocalInput, vtkDataObject*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Gets the client's copy of the input
    */
   vtkGetMacro(ClientDataObject, vtkDataObject*);
-  //@}
+  ///@}
 
   /**
    * Get number of arrays in an attribute (e.g., vtkDataObject::POINT,
@@ -127,13 +115,13 @@ private:
    */
   vtkDataObject* ClientDataObject;
 
-  //@{
+  ///@{
   /**
    * Internal data for the representation.
    */
   class vtkPythonRepresentationInternal;
   vtkPythonRepresentationInternal* Internal;
-  //@}
+  ///@}
 
   /**
    * Sets the pre-gather helper on the reduction filter based on the

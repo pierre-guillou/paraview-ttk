@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLUniforms
  * @brief   helper class to set custom uniform variables in GLSL shaders.
@@ -35,6 +24,7 @@
 #include "vtkUniforms.h"
 #include <string> // For member functions
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUniformInternals;
 class vtkShaderProgram;
 
@@ -95,12 +85,12 @@ public:
 
   ///@{
   /** Set the @p name uniform array to @p f with @p count elements */
-  void SetUniform1iv(const char* name, const int count, const int* f) override;
-  void SetUniform1fv(const char* name, const int count, const float* f) override;
-  void SetUniform2fv(const char* name, const int count, const float (*f)[2]) override;
-  void SetUniform3fv(const char* name, const int count, const float (*f)[3]) override;
-  void SetUniform4fv(const char* name, const int count, const float (*f)[4]) override;
-  void SetUniformMatrix4x4v(const char* name, const int count, float* v) override;
+  void SetUniform1iv(const char* name, int count, const int* f) override;
+  void SetUniform1fv(const char* name, int count, const float* f) override;
+  void SetUniform2fv(const char* name, int count, const float (*f)[2]) override;
+  void SetUniform3fv(const char* name, int count, const float (*f)[3]) override;
+  void SetUniform4fv(const char* name, int count, const float (*f)[4]) override;
+  void SetUniformMatrix4x4v(const char* name, int count, float* v) override;
   ///@}
 
   ///@{
@@ -183,4 +173,5 @@ private:
   vtkUniformInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

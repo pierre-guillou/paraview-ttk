@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkClientServerMoveData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkClientServerMoveData
  * @brief   Moves data from the server root node
@@ -43,7 +32,7 @@ public:
   vtkTypeMacro(vtkClientServerMoveData, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Controls the output type. This is required because processes receiving
    * data cannot know their output type in RequestDataObject without
@@ -55,9 +44,9 @@ public:
    */
   vtkSetMacro(OutputDataType, int);
   vtkGetMacro(OutputDataType, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Controls the output WHOLE_EXTENT.  This is required because processes
    * receiving data cannot know their WHOLE_EXTENT in RequestInformation
@@ -68,18 +57,18 @@ public:
    */
   vtkSetVector6Macro(WholeExtent, int);
   vtkGetVector6Macro(WholeExtent, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Optionally, set the process type. If set to AUTO, then the process type is
    * tried to be determined using the active connection.
    */
   vtkSetMacro(ProcessType, int);
   vtkGetMacro(ProcessType, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the controller to use. This is optional and needed only when
    * ProcessType is set to something other than AUTO. If AUTO, then the
@@ -87,7 +76,7 @@ public:
    */
   void SetController(vtkMultiProcessController*);
   vtkGetObjectMacro(Controller, vtkMultiProcessController);
-  //@}
+  ///@}
 
   enum ProcessTypes
   {
@@ -121,7 +110,8 @@ protected:
 
   enum Tags
   {
-    TRANSMIT_DATA_OBJECT = 23483
+    HAS_DATA_OBJECT_TO_TRANSMIT = 23479,
+    TRANSMIT_DATA_OBJECT = 23483,
   };
 
   int OutputDataType;

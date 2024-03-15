@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqRenderViewSelectionReaction.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqRenderViewSelectionReaction_h
 #define pqRenderViewSelectionReaction_h
 
@@ -45,7 +17,7 @@ class pqRenderView;
 class pqView;
 class vtkIntArray;
 class vtkObject;
-class vtkSMPVRepresentationProxy;
+class vtkSMRepresentationProxy;
 
 /**
  * pqRenderViewSelectionReaction handles various selection modes available on
@@ -90,14 +62,24 @@ public:
    */
   pqRenderViewSelectionReaction(QAction* parentAction, pqRenderView* view, SelectionMode mode,
     QActionGroup* modifierGroup = nullptr);
+
+  /**
+   * Call CleanupObservers on destruction
+   */
   ~pqRenderViewSelectionReaction() override;
 
 Q_SIGNALS:
+
+  ///@{
+  /**
+   * Signals emitted when the event happens
+   */
   void selectedCustomBox(int xmin, int ymin, int xmax, int ymax);
   void selectedCustomBox(const int region[4]);
   void selectedCustomPolygon(vtkIntArray* polygon);
+  ///@}
 
-private Q_SLOTS:
+protected Q_SLOTS:
   /**
    * For checkable actions, this calls this->beginSelection() or
    * this->endSelection() is val is true or false, respectively. For
@@ -115,8 +97,9 @@ private Q_SLOTS:
   /**
    * Called when this object was created with nullptr as the view and the active
    * view changes.
+   * Please note that this method will cast the pqView to a pqRenderView.
    */
-  void setView(pqView* view);
+  virtual void setView(pqView* view);
 
   /**
    * Called when the active representation changes.
@@ -126,59 +109,78 @@ private Q_SLOTS:
   /**
    * starts the selection i.e. setup render view in selection mode.
    */
-  void beginSelection();
+  virtual void beginSelection();
 
   /**
    * finishes the selection. Doesn't cause the selection, just returns the
    * render view to previous interaction mode.
    */
-  void endSelection();
+  virtual void endSelection();
 
   /**
    * makes the pre-selection.
    */
-  void preSelection();
+  virtual void preSelection();
 
   /**
    * makes fast pre-selection.
    */
-  void fastPreSelection();
+  virtual void fastPreSelection();
 
   /**
    * callback called for mouse stop events when in 'interactive selection'
    * modes.
    */
-  void onMouseStop();
+  virtual void onMouseStop();
 
-private: // NOLINT(readability-redundant-access-specifiers)
+  /**
+   * clears the selection cache.
+   */
+  virtual void clearSelectionCache();
+
+protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * callback called when the vtkPVRenderView is done with selection.
    */
-  void selectionChanged(vtkObject*, unsigned long, void* calldata);
+  virtual void selectionChanged(vtkObject*, unsigned long, void* calldata);
 
   /**
    * callback called for mouse move events when in 'interactive selection'
    * modes.
    */
-  void onMouseMove();
+  virtual void onMouseMove();
 
+  ///@{
   /**
    * callback called for click events when in 'interactive selection' modes.
    */
-  void onLeftButtonRelease();
-  void onWheelRotate();
-  void onRightButtonPressed();
-  void onRightButtonRelease();
+  virtual void onLeftButtonRelease();
+  virtual void onWheelRotate();
+  virtual void onRightButtonPressed();
+  virtual void onRightButtonRelease();
+  ///@}
 
-  // Get the current state of selection modifier
+  /**
+   * Get the current state of selection modifier
+   */
   int getSelectionModifier() override;
 
-  // Check this selection is compatible with another type of selection
-  bool isCompatible(SelectionMode mode);
+  /**
+   * Check this selection is compatible with another type of selection
+   */
+  virtual bool isCompatible(SelectionMode mode);
 
-  // Display/hide the tooltip of the selected point in mode SELECT_SURFACE_POINTS_TOOLTIP.
-  void UpdateTooltip();
+  /**
+   *  Display/hide the tooltip of the selected point in mode SELECT_SURFACE_POINTS_TOOLTIP.
+   */
+  virtual void UpdateTooltip();
 
+  /**
+   * cleans up observers.
+   */
+  virtual void cleanupObservers();
+
+private:
   Q_DISABLE_COPY(pqRenderViewSelectionReaction)
   QPointer<pqRenderView> View;
   QPointer<pqDataRepresentation> Representation;
@@ -192,16 +194,11 @@ private: // NOLINT(readability-redundant-access-specifiers)
   bool MouseMoving;
   int MousePosition[2];
   bool DisablePreSelection = false;
-  vtkSMPVRepresentationProxy* CurrentRepresentation = nullptr;
+  vtkSMRepresentationProxy* CurrentRepresentation = nullptr;
   QShortcut* CopyToolTipShortcut = nullptr;
   QString PlainTooltipText;
 
   static QPointer<pqRenderViewSelectionReaction> ActiveReaction;
-
-  /**
-   * cleans up observers.
-   */
-  void cleanupObservers();
 };
 
 #endif

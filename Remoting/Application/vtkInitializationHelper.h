@@ -1,18 +1,5 @@
-
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkInitializationHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkInitializationHelper
  * @brief   help class for python modules
@@ -26,11 +13,9 @@
 #define vtkInitializationHelper_h
 
 #include "vtkObject.h"
-#include "vtkParaViewDeprecation.h"       // for PARAVIEW_DEPRECATED_IN_5_10_0
 #include "vtkRemotingApplicationModule.h" // needed for exports
 #include <string>                         // needed for std::string
 
-class vtkPVOptions;
 class vtkCLIOptions;
 class vtkStringList;
 
@@ -105,7 +90,7 @@ public:
    */
   static int GetExitCode() { return vtkInitializationHelper::ExitCode; }
 
-  //@{
+  ///@{
   /**
    * Initialization for standalone executables linking against a PV
    * library. This is needed to insure that linker does not remove object
@@ -114,9 +99,9 @@ public:
    */
   static void StandaloneInitialize();
   static void StandaloneFinalize();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * During initialization, vtkInitializationHelper reads "settings" files for
    * configuring vtkSMSettings. To disable this processing of the settings file
@@ -124,25 +109,25 @@ public:
    */
   static void SetLoadSettingsFilesDuringInitialization(bool);
   static bool GetLoadSettingsFilesDuringInitialization();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the organization producing this application. This is
    * "ParaView" by default, but can be different for branded applications.
    */
   static void SetOrganizationName(const std::string& organizationName);
   static const std::string& GetOrganizationName();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the name of the application. This is "ParaView" by default, but
    * can be different for branded applications.
    */
   static void SetApplicationName(const std::string& appName);
   static const std::string& GetApplicationName();
-  //@}
+  ///@}
 
   /**
    * Get directory for user settings file. The last character is always the
@@ -154,15 +139,6 @@ public:
    * Get file path for the user settings file.
    */
   static std::string GetUserSettingsFilePath();
-
-  /**
-   * @deprecated in ParaView 5.10. `vtkPVOptions` is deprecated in ParaView 5.10
-   * and hence these functions are also deprecated.
-   */
-  PARAVIEW_DEPRECATED_IN_5_10_0("Use the `vtkCLIOptions` overload")
-  static void Initialize(const char* executable, int type, vtkPVOptions* options);
-  PARAVIEW_DEPRECATED_IN_5_10_0("Use the `vtkCLIOptions` overload")
-  static void Initialize(int argc, char** argv, int type, vtkPVOptions* options);
 
 protected:
   vtkInitializationHelper() = default;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLPStructuredDataWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLPStructuredDataWriter
  * @brief   Superclass for PVTK XML structured data writers.
@@ -29,6 +17,7 @@
 #include <map>    // for keeping track of extents
 #include <vector> // for keeping track of extents
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLStructuredDataWriter;
 
 class VTKIOPARALLELXML_EXPORT vtkXMLPStructuredDataWriter : public vtkXMLPDataWriter
@@ -59,4 +48,5 @@ private:
   ExtentsType Extents;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

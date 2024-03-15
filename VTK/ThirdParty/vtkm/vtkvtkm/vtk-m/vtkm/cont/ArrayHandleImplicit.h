@@ -91,34 +91,6 @@ struct VTKM_ALWAYS_EXPORT StorageTagImplicit
 namespace internal
 {
 
-template <class ArrayPortalType>
-struct VTKM_ALWAYS_EXPORT
-  Storage<typename ArrayPortalType::ValueType, StorageTagImplicit<ArrayPortalType>>
-{
-  VTKM_IS_TRIVIALLY_COPYABLE(ArrayPortalType);
-
-  VTKM_STORAGE_NO_RESIZE;
-  VTKM_STORAGE_NO_WRITE_PORTAL;
-
-  using ReadPortalType = ArrayPortalType;
-
-  // Implicit array has one buffer that should be empty (NumberOfBytes = 0), but holds
-  // the metadata for the array.
-  VTKM_CONT constexpr static vtkm::IdComponent GetNumberOfBuffers() { return 1; }
-
-  VTKM_CONT static vtkm::Id GetNumberOfValues(const vtkm::cont::internal::Buffer* buffers)
-  {
-    return buffers[0].GetMetaData<ArrayPortalType>().GetNumberOfValues();
-  }
-
-  VTKM_CONT static ReadPortalType CreateReadPortal(const vtkm::cont::internal::Buffer* buffers,
-                                                   vtkm::cont::DeviceAdapterId,
-                                                   vtkm::cont::Token&)
-  {
-    return buffers[0].GetMetaData<ArrayPortalType>();
-  }
-};
-
 /// Given an array portal, returns the buffers for the `ArrayHandle` with a storage that
 /// is (or is compatible with) a storage tag of `StorageTagImplicit<PortalType>`.
 template <typename PortalType>
@@ -141,6 +113,37 @@ VTKM_CONT inline std::vector<vtkm::cont::internal::Buffer> FunctorToArrayHandleI
     vtkm::internal::ArrayPortalImplicit<FunctorType>(functor, numValues));
 }
 
+template <class ArrayPortalType>
+struct VTKM_ALWAYS_EXPORT
+  Storage<typename ArrayPortalType::ValueType, StorageTagImplicit<ArrayPortalType>>
+{
+  VTKM_IS_TRIVIALLY_COPYABLE(ArrayPortalType);
+
+  VTKM_STORAGE_NO_RESIZE;
+  VTKM_STORAGE_NO_WRITE_PORTAL;
+
+  using ReadPortalType = ArrayPortalType;
+
+  VTKM_CONT static std::vector<vtkm::cont::internal::Buffer> CreateBuffers()
+  {
+    return vtkm::cont::internal::PortalToArrayHandleImplicitBuffers(ArrayPortalType{});
+  }
+
+  VTKM_CONT static vtkm::Id GetNumberOfValues(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers)
+  {
+    return buffers[0].GetMetaData<ArrayPortalType>().GetNumberOfValues();
+  }
+
+  VTKM_CONT static ReadPortalType CreateReadPortal(
+    const std::vector<vtkm::cont::internal::Buffer>& buffers,
+    vtkm::cont::DeviceAdapterId,
+    vtkm::cont::Token&)
+  {
+    return buffers[0].GetMetaData<ArrayPortalType>();
+  }
+};
+
 } // namespace internal
 
 namespace detail
@@ -155,7 +158,6 @@ struct ArrayHandleImplicitTraits
   using PortalType = vtkm::internal::ArrayPortalImplicit<FunctorType>;
   using StorageTag = vtkm::cont::StorageTagImplicit<PortalType>;
   using Superclass = vtkm::cont::ArrayHandle<ValueType, StorageTag>;
-  using StorageType = vtkm::cont::internal::Storage<ValueType, StorageTag>;
 };
 
 } // namespace detail

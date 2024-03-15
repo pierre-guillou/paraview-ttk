@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCollection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCollection.h"
 
 #include "vtkCollectionIterator.h"
@@ -22,6 +10,7 @@
 #include <cmath>
 #include <cstdlib>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCollection);
 
 // Construct with empty list.
@@ -198,20 +187,42 @@ void vtkCollection::RemoveAllItems()
   this->Modified();
 }
 
+// Search for an object and return location in list. If location == -1,
+// object was not found.
+int vtkCollection::IndexOfFirstOccurence(vtkObject* a)
+{
+  if (!this->Top)
+  {
+    return -1;
+  }
+
+  vtkCollectionElement* elem = this->Top;
+  for (int i = 0; i < this->NumberOfItems; i++)
+  {
+    if (elem->Item == a)
+    {
+      return i;
+    }
+    else
+    {
+      elem = elem->Next;
+    }
+  }
+
+  return -1;
+}
+
 // Search for an object and return location in list. If location == 0,
 // object was not found.
 int vtkCollection::IsItemPresent(vtkObject* a)
 {
-  int i;
-  vtkCollectionElement* elem;
-
   if (!this->Top)
   {
     return 0;
   }
 
-  elem = this->Top;
-  for (i = 0; i < this->NumberOfItems; i++)
+  vtkCollectionElement* elem = this->Top;
+  for (int i = 0; i < this->NumberOfItems; i++)
   {
     if (elem->Item == a)
     {
@@ -344,3 +355,4 @@ void vtkCollection::ReportReferences(vtkGarbageCollector* collector)
     vtkGarbageCollectorReport(collector, elem->Item, "Element");
   }
 }
+VTK_ABI_NAMESPACE_END

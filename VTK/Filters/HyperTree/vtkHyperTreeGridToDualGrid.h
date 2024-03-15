@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridToDualGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridToDualGrid
  * @brief   Convert hyper tree grid to the dual unstructured grid.
@@ -28,6 +16,7 @@
 
 #include <map> // std::map
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridNonOrientedMooreSuperCursor;
 class vtkIdTypeArray;
@@ -86,4 +75,5 @@ private:
   std::map<vtkIdType, double> ReductionFactors;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkHyperTreeGridToDualGrid_h */

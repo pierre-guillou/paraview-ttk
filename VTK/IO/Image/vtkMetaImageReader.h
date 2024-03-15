@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMetaImageReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMetaImageReader
  * @brief   read binary UNC meta image data
@@ -68,6 +56,8 @@ namespace vtkmetaio
 class MetaImage;
 } // forward declaration
 
+VTK_ABI_NAMESPACE_BEGIN
+
 class VTKIOIMAGE_EXPORT vtkMetaImageReader : public vtkImageReader2
 {
 public:
@@ -90,7 +80,7 @@ public:
   double* GetImagePositionPatient() { return this->GetDataOrigin(); }
   int GetNumberOfComponents() { return this->GetNumberOfScalarComponents(); }
   int GetPixelRepresentation() { return this->GetDataScalarType(); }
-  int GetDataByteOrder(void) override;
+  int GetDataByteOrder() override;
 
   vtkGetMacro(RescaleSlope, double);
   vtkGetMacro(RescaleOffset, double);
@@ -163,9 +153,9 @@ protected:
   virtual void ComputeInternalFileName(int slice)
     { vtkImageReader2::ComputeInternalFileName(slice); }
   vtkGetFilePathMacro(InternalFileName);
-  const char * GetDataByteOrderAsString(void)
+  const char * GetDataByteOrderAsString()
     { return vtkImageReader2::GetDataByteOrderAsString(); }
-  unsigned long GetHeaderSize(void)
+  unsigned long GetHeaderSize()
     { return vtkImageReader2::GetHeaderSize(); }*/
 
   void ExecuteInformation() override;
@@ -198,4 +188,5 @@ private:
   char AnatomicalOrientation[255];
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonClass.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonClass.h"
 #include "vtkWrapPythonConstant.h"
@@ -34,16 +22,16 @@
 /* prototypes for the methods used by the python wrappers */
 
 /* declare the exports and imports for a VTK/Python class */
-static void vtkWrapPython_ExportVTKClass(FILE* fp, ClassInfo* data, HierarchyInfo* hinfo);
+static void vtkWrapPython_ExportVTKClass(FILE* fp, ClassInfo* data, const HierarchyInfo* hinfo);
 
 /* generate the New method for a vtkObjectBase object */
 static void vtkWrapPython_GenerateObjectNew(
-  FILE* fp, const char* classname, ClassInfo* data, HierarchyInfo* hinfo, int class_has_new);
+  FILE* fp, const char* classname, ClassInfo* data, const HierarchyInfo* hinfo, int class_has_new);
 
 /* -------------------------------------------------------------------- */
 /* get the true superclass */
 const char* vtkWrapPython_GetSuperClass(
-  ClassInfo* data, HierarchyInfo* hinfo, const char** supermodule)
+  ClassInfo* data, const HierarchyInfo* hinfo, const char** supermodule)
 {
   const char* supername = NULL;
   const char* module = NULL;
@@ -100,7 +88,7 @@ const char* vtkWrapPython_GetSuperClass(
 /* -------------------------------------------------------------------- */
 /* Create the docstring for a class, and print it to fp */
 void vtkWrapPython_ClassDoc(
-  FILE* fp, FileInfo* file_info, ClassInfo* data, HierarchyInfo* hinfo, int is_vtkobject)
+  FILE* fp, FileInfo* file_info, ClassInfo* data, const HierarchyInfo* hinfo, int is_vtkobject)
 {
   char pythonname[1024];
   const char* supername;
@@ -287,7 +275,7 @@ void vtkWrapPython_ClassDoc(
 
 /* -------------------------------------------------------------------- */
 /* Declare the exports and imports for a VTK/Python class */
-static void vtkWrapPython_ExportVTKClass(FILE* fp, ClassInfo* data, HierarchyInfo* hinfo)
+static void vtkWrapPython_ExportVTKClass(FILE* fp, ClassInfo* data, const HierarchyInfo* hinfo)
 {
   char classname[1024];
   const char* supername;
@@ -316,7 +304,7 @@ static void vtkWrapPython_ExportVTKClass(FILE* fp, ClassInfo* data, HierarchyInf
 /* -------------------------------------------------------------------- */
 /* generate the New method for a vtkObjectBase object */
 static void vtkWrapPython_GenerateObjectNew(
-  FILE* fp, const char* classname, ClassInfo* data, HierarchyInfo* hinfo, int class_has_new)
+  FILE* fp, const char* classname, ClassInfo* data, const HierarchyInfo* hinfo, int class_has_new)
 {
   char superclassname[1024];
   const char* name;
@@ -373,16 +361,10 @@ static void vtkWrapPython_GenerateObjectNew(
 
   /* if type is already ready, then return */
   fprintf(fp,
-    "  if ((pytype->tp_flags & Py_TPFLAGS_READY) != 0)\n"
+    "  if ((PyType_GetFlags(pytype) & Py_TPFLAGS_READY) != 0)\n"
     "  {\n"
     "    return (PyObject *)pytype;\n"
     "  }\n\n");
-
-  /* add any flags specific to this type */
-  fprintf(fp,
-    "#ifndef VTK_PY3K\n"
-    "  pytype->tp_flags |= Py_TPFLAGS_HAVE_NEWBUFFER;\n"
-    "#endif\n\n");
 
   /* find the first superclass that is a VTK class, create it first */
   name = vtkWrapPython_GetSuperClass(data, hinfo, &supermodule);
@@ -583,7 +565,7 @@ int vtkWrapPython_WrapOneClass(FILE* fp, const char* module, const char* classna
   /* check for New() function */
   for (i = 0; i < data->NumberOfFunctions; i++)
   {
-    FunctionInfo* func = data->Functions[i];
+    const FunctionInfo* func = data->Functions[i];
 
     if (func->Name && !func->IsExcluded && func->Access == VTK_ACCESS_PUBLIC &&
       strcmp("New", func->Name) == 0 && func->NumberOfParameters == 0 &&

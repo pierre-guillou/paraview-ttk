@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkHybridProbeFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHybridProbeFilter
  *
@@ -54,13 +42,13 @@ public:
   void SetModeToInterpolateAtLocation() { this->SetMode(INTERPOLATE_AT_LOCATION); }
   void SetModeToExtractCellContainingLocation() { this->SetMode(EXTRACT_CELL_CONTAINING_LOCATION); }
 
-  //@{
+  ///@{
   /**
    * Get/Set the location to probe/pick at.
    */
   vtkSetVector3Macro(Location, double);
   vtkGetVector3Macro(Location, double);
-  //@}
+  ///@}
 
 protected:
   vtkHybridProbeFilter();

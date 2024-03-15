@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyLink.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyLink
  * @brief   creates a link between two proxies.
@@ -29,6 +17,8 @@
 #include "vtkRemotingServerManagerModule.h" //needed for exports
 #include "vtkSMLink.h"
 
+#include <memory> // for unique_ptr
+
 struct vtkSMProxyLinkInternals;
 
 class VTKREMOTINGSERVERMANAGER_EXPORT vtkSMProxyLink : public vtkSMLink
@@ -37,6 +27,12 @@ public:
   static vtkSMProxyLink* New();
   vtkTypeMacro(vtkSMProxyLink, vtkSMLink);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  enum ExceptionListBehavior : int
+  {
+    BLACKLIST = 0,
+    WHITELIST
+  };
 
   /**
    * Add a property to the link. updateDir determines whether a property of
@@ -48,41 +44,57 @@ public:
   virtual void AddLinkedProxy(vtkSMProxy* proxy, int updateDir);
 
   /**
+   * Utility method to add 2 proxies, both as INPUT and OUTPUT.
+   * This is equivalent to call 4 times AddLinkedProxy() with each combination.
+   */
+  virtual void LinkProxies(vtkSMProxy* proxy1, vtkSMProxy* proxy2);
+
+  /**
+   * Utility method to link the proxies stored as proxy property of input proxies.
+   */
+  virtual void LinkProxyPropertyProxies(vtkSMProxy* proxy1, vtkSMProxy* proxy2, const char* pname);
+
+  /**
    * Remove a linked proxy.
    */
   virtual void RemoveLinkedProxy(vtkSMProxy* proxy);
 
-  //@{
+  ///@{
   /**
    * Get the number of proxies that are involved in this link.
    */
   unsigned int GetNumberOfLinkedObjects() override;
   unsigned int GetNumberOfLinkedProxies();
-  //@}
+  ///@}
 
   /**
    * Get a proxy involved in this link.
    */
   vtkSMProxy* GetLinkedProxy(int index) override;
 
-  //@{
+  ///@{
   /**
    * Get the direction of a proxy involved in this link
    * (see vtkSMLink::UpdateDirections)
    */
   int GetLinkedObjectDirection(int index) override;
   int GetLinkedProxyDirection(int index);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * It is possible to exclude certain properties from being synchronized
    * by this link. This method can be used to add/remove the names for such
    * exception properties.
+   * If ExceptionBehavior is set to BLACKLIST (default), exceptions are excluded
+   * from synchronization.
+   * If ExceptionBehavior is set to WHITELIST, exceptions are the only one
+   * synchronized.
    */
   void AddException(const char* propertyname);
   void RemoveException(const char* propertyname);
-  //@}
+  void ClearExceptions();
+  ///@}
 
   /**
    * Remove all links.
@@ -97,6 +109,20 @@ public:
    * invalid state when property refere to a sub-proxy that does not exist yet.
    */
   void LoadState(const vtkSMMessage* msg, vtkSMProxyLocator* locator) override;
+
+  ///@{
+  /**
+   * Set/Get exception behavior. The list can be a blacklist or a whitelist
+   * of proxy properties. Properties in the list will not be linked if
+   * behavior is set to BLACKLIST, or they will be the only ones linked if
+   * behavior is set to WHITELIST.
+   * Default: BLACKLIST.
+   */
+  vtkSetMacro(ExceptionBehavior, int);
+  vtkGetMacro(ExceptionBehavior, int);
+  void SetExceptionBehaviorToBlacklist() { this->SetExceptionBehavior(BLACKLIST); }
+  void SetExceptionBehaviorToWhitelist() { this->SetExceptionBehavior(WHITELIST); }
+  ///@}
 
 protected:
   vtkSMProxyLink();
@@ -123,6 +149,13 @@ protected:
   void UpdateProperty(vtkSMProxy* caller, const char* pname) override;
 
   /**
+   * Get tag name to use in statefile. This should match
+   * the class name without "vtkSM" prefix.
+   * see vtkSMStateLoader::HandleLinks
+   */
+  virtual std::string GetXMLTagName() { return "ProxyLink"; }
+
+  /**
    * Save the state of the link.
    */
   void SaveXMLState(const char* linkname, vtkPVXMLElement* parent) override;
@@ -138,10 +171,17 @@ protected:
   void UpdateState() override;
 
 private:
-  vtkSMProxyLinkInternals* Internals;
-
   vtkSMProxyLink(const vtkSMProxyLink&) = delete;
   void operator=(const vtkSMProxyLink&) = delete;
+
+  /**
+   * Utility function to know whether a property is linked or not.
+   * Checks in exception list, depending on exception behavior.
+   */
+  bool isPropertyLinked(const char* pname);
+
+  std::unique_ptr<vtkSMProxyLinkInternals> Internals;
+  int ExceptionBehavior = BLACKLIST;
 };
 
 #endif

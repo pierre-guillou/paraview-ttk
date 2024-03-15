@@ -10,8 +10,8 @@ configure_file(
 
 set(sources
   vtkPythonTkWidgetsInit.cxx
-  vtkTkImageViewerWidgetPython.cxx
-  vtkTkRenderWidgetPython.cxx)
+  vtkTkImageViewerWidget.cxx
+  vtkTkRenderWidget.cxx)
 set(private_headers
   vtkTcl.h
   vtkTclUtil.h
@@ -67,3 +67,4 @@ vtk_module_include(VTK::RenderingTk
     ${TCL_INCLUDE_PATH}
     ${TK_INCLUDE_PATH}
     ${TK_INTERNAL_PATH})
+vtk_add_test_mangling(VTK::RenderingTk)

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonInterpreter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonInterpreter
  * @brief   wrapper for an embedded Python interpreter.
@@ -65,6 +53,7 @@
 #include <vector> // for vtkWideArgsConverter
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKPYTHONINTERPRETER_EXPORT vtkPythonInterpreter : public vtkObject
 {
 public:
@@ -221,20 +210,6 @@ private:
   ///@}
 
   /**
-   * Since vtkPythonInterpreter is often used outside CPython executable, e.g.
-   * vtkpython, the default logic to locate Python standard libraries used by
-   * Python (which depends on the executable path) may fail or pickup incorrect
-   * Python libs. This methods address the issue by setting program name to help
-   * guide Python's default prefix/exec_prefix searching logic.
-   */
-  static void SetupPythonPrefix();
-
-  /**
-   * Add paths to VTK's Python modules.
-   */
-  static void SetupVTKPythonPaths();
-
-  /**
    * Verbosity level to use when logging info.
    */
   static int LogVerbosity;
@@ -274,4 +249,5 @@ private:
 };
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -153,6 +153,7 @@ get_property(visit_db_headers GLOBAL PROPERTY _visit_db_headers)
 get_property(visit_include_dirs GLOBAL PROPERTY _visit_db_include_dirs)
 
 vtk_module_add_module(ParaView::IOVisItBridge
+  SPDX_SKIP_REGEX ".*"
   SOURCES ${visit_server_sources} ${visit_db_sources} ${sources}
   HEADERS ${headers} ${visit_db_headers}
   PRIVATE_HEADERS ${private_headers})

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMedicalImageProperties.cxx,v
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMedicalImageProperties.h"
 #include "vtkObjectFactory.h"
 
@@ -25,6 +13,7 @@
 #include <ctime>  // for strftime
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMedicalImageProperties);
 
 static const char* vtkMedicalImagePropertiesOrientationString[] = { "AXIAL", "CORONAL", "SAGITTAL",
@@ -446,7 +435,7 @@ int vtkMedicalImageProperties::GetWindowLevelPresetIndex(double w, double l)
 }
 
 //------------------------------------------------------------------------------
-int vtkMedicalImageProperties::HasWindowLevelPreset(double w, double l)
+vtkTypeBool vtkMedicalImageProperties::HasWindowLevelPreset(double w, double l)
 {
   return this->GetWindowLevelPresetIndex(w, l) >= 0 ? 1 : 0;
 }
@@ -1066,3 +1055,4 @@ void vtkMedicalImageProperties::PrintSelf(ostream& os, vtkIndent indent)
 
   this->Internals->Print(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMPIController.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMPIController
  * @brief   Process communication using MPI
@@ -50,6 +38,7 @@
 // reference.
 #include "vtkMPICommunicator.h" // Needed for direct access to communicator
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIntArray;
 
 class VTKPARALLELMPI_EXPORT vtkMPIController : public vtkMultiProcessController
@@ -131,6 +120,7 @@ public:
 
   vtkMPIController* PartitionController(int localColor, int localKey) override;
 
+  ///@{
   /**
    * This method sends data to another process (non-blocking).
    * Tag eliminates ambiguity when multiple sends or receives
@@ -176,15 +166,67 @@ public:
     return ((vtkMPICommunicator*)this->Communicator)
       ->NoBlockSend(data, length, remoteProcessId, tag, req);
   }
-#ifdef VTK_USE_64BIT_IDS
-  int NoBlockSend(const vtkIdType* data, int length, int remoteProcessId, int tag,
+  int NoBlockSend(const vtkTypeInt64* data, int length, int remoteProcessId, int tag,
     vtkMPICommunicator::Request& req)
   {
     return ((vtkMPICommunicator*)this->Communicator)
       ->NoBlockSend(data, length, remoteProcessId, tag, req);
   }
-#endif
+  int NoBlockSend(const int* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const unsigned long* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const char* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const unsigned char* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const float* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const double* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockSend(const vtkTypeInt64* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, remoteProcessId, tag, req);
+  }
+  ///@}
 
+  /**
+   * Variant that permits dynamic type sends, like those create by MPI_Type_create_subarray
+   */
+  int NoBlockSend(const void* data, vtkTypeInt64 length, MPI_Datatype mpiType, int remoteProcessId,
+    int tag, vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockSend(data, length, mpiType, remoteProcessId, tag, req);
+  }
+
+  ///@{
   /**
    * This method receives data from a corresponding send (non-blocking).
    * The last argument,
@@ -229,15 +271,57 @@ public:
     return ((vtkMPICommunicator*)this->Communicator)
       ->NoBlockReceive(data, length, remoteProcessId, tag, req);
   }
-#ifdef VTK_USE_64BIT_IDS
   int NoBlockReceive(
-    vtkIdType* data, int length, int remoteProcessId, int tag, vtkMPICommunicator::Request& req)
+    vtkTypeInt64* data, int length, int remoteProcessId, int tag, vtkMPICommunicator::Request& req)
   {
     return ((vtkMPICommunicator*)this->Communicator)
       ->NoBlockReceive(data, length, remoteProcessId, tag, req);
   }
-#endif
+  int NoBlockReceive(
+    int* data, vtkTypeInt64 length, int remoteProcessId, int tag, vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(unsigned long* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(
+    char* data, vtkTypeInt64 length, int remoteProcessId, int tag, vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(unsigned char* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(float* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(double* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  int NoBlockReceive(vtkTypeInt64* data, vtkTypeInt64 length, int remoteProcessId, int tag,
+    vtkMPICommunicator::Request& req)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)
+      ->NoBlockReceive(data, length, remoteProcessId, tag, req);
+  }
+  ///@}
 
+  ///@{
   /**
    * Nonblocking test for a message.  Inputs are: source -- the source rank
    * or ANY_SOURCE; tag -- the tag value.  Outputs are:
@@ -277,13 +361,55 @@ public:
     return ((vtkMPICommunicator*)this->Communicator)
       ->Iprobe(source, tag, flag, actualSource, type, size);
   }
+  ///@}
+
+  /**
+   * This controller does have probing capability
+   */
+  bool CanProbe() override { return ((vtkMPICommunicator*)this->Communicator)->CanProbe(); }
+
+  ///@{
+  /**
+   * Blocking test for a message.  Inputs are: source -- the source rank
+   * or ANY_SOURCE; tag -- the tag value.  Outputs are:
+   * actualSource -- the rank sending the message (useful if ANY_SOURCE is used)
+   * if actualSource isn't nullptr; size -- the length of the message in
+   * bytes if flag is true (only set if size isn't nullptr). The return
+   * value is 1 for success and 0 otherwise.
+   * Note: These methods delegate to the communicator
+   */
+  int Probe(int source, int tag, int* actualSource) override
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource);
+  }
+  int Probe(int source, int tag, int* actualSource, int* type, int* size)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource, type, size);
+  }
+  int Probe(int source, int tag, int* actualSource, unsigned long* type, int* size)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource, type, size);
+  }
+  int Probe(int source, int tag, int* actualSource, const char* type, int* size)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource, type, size);
+  }
+  int Probe(int source, int tag, int* actualSource, float* type, int* size)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource, type, size);
+  }
+  int Probe(int source, int tag, int* actualSource, double* type, int* size)
+  {
+    return ((vtkMPICommunicator*)this->Communicator)->Probe(source, tag, actualSource, type, size);
+  }
+  ///@}
 
   /**
    * Given the request objects of a set of non-blocking operations
    * (send and/or receive) this method blocks until all requests are complete.
    * Note: This method delegates to the communicator
    */
-  int WaitAll(const int count, vtkMPICommunicator::Request requests[])
+  int WaitAll(int count, vtkMPICommunicator::Request requests[])
   {
     return ((vtkMPICommunicator*)this->Communicator)->WaitAll(count, requests);
   }
@@ -294,7 +420,7 @@ public:
    * object is returned through the argument list.
    * Note: this method delegates to the communicator
    */
-  int WaitAny(const int count, vtkMPICommunicator::Request requests[], int& idx)
+  int WaitAny(int count, vtkMPICommunicator::Request requests[], int& idx)
     VTK_SIZEHINT(requests, count)
   {
     return ((vtkMPICommunicator*)this->Communicator)->WaitAny(count, requests, idx);
@@ -305,13 +431,13 @@ public:
    * request array completes. Upon return, the list of handles that have
    * completed is stored in the completed vtkIntArray.
    */
-  int WaitSome(const int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
+  int WaitSome(int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
     VTK_SIZEHINT(requests, count);
 
   /**
    * Returns true iff *all* of the communication request objects are complete.
    */
-  bool TestAll(const int count, vtkMPICommunicator::Request requests[]);
+  bool TestAll(int count, vtkMPICommunicator::Request requests[]);
 
   /**
    * Returns true iff at least *one* of the communication request objects is
@@ -319,7 +445,7 @@ public:
    * reflected in the out parameter idx. Otherwise, if none of the communication
    * requests are complete false is returned.
    */
-  bool TestAny(const int count, vtkMPICommunicator::Request requests[], int& idx)
+  bool TestAny(int count, vtkMPICommunicator::Request requests[], int& idx)
     VTK_SIZEHINT(requests, count);
 
   /**
@@ -327,7 +453,7 @@ public:
    * complete. The indices of the completed requests, w.r.t. the requests array,
    * are given in the completed user-supplied vtkIntArray.
    */
-  bool TestSome(const int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
+  bool TestSome(int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
     VTK_SIZEHINT(requests, count);
 
   static const char* GetProcessorName();
@@ -384,4 +510,5 @@ private:
   void operator=(const vtkMPIController&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

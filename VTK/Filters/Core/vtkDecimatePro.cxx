@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDecimatePro.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDecimatePro.h"
 
 #include "vtkCellArray.h"
@@ -28,6 +16,7 @@
 #include "vtkPriorityQueue.h"
 #include "vtkTriangle.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDecimatePro);
 
 #define VTK_TOLERANCE 1.0e-05
@@ -149,7 +138,7 @@ int vtkDecimatePro::RequestData(vtkInformation* vtkNotUsed(request),
   vtkPointData* meshPD = nullptr;
   vtkIdType *map, numNewPts, totalPts;
   vtkIdType newCellPts[3];
-  int abortExecute = 0;
+  bool abortExecute = false;
 
   vtkDebugMacro(<< "Executing progressive decimation...");
 
@@ -286,7 +275,7 @@ int vtkDecimatePro::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkDebugMacro(<< "Inserting vertex #" << ptId);
       this->UpdateProgress(0.25 * ptId / npts); // 25% spent inserting
-      abortExecute = this->GetAbortExecute();
+      abortExecute = this->CheckAbort();
     }
     this->Insert(ptId);
   }
@@ -309,7 +298,7 @@ int vtkDecimatePro::RequestData(vtkInformation* vtkNotUsed(request),
     {
       vtkDebugMacro(<< "Deleting vertex #" << numPops);
       this->UpdateProgress(0.25 + 0.75 * (reduction / this->TargetReduction));
-      abortExecute = this->GetAbortExecute();
+      abortExecute = this->CheckAbort();
     }
 
     this->Mesh->GetPoint(ptId, this->X);
@@ -1728,3 +1717,4 @@ void vtkDecimatePro::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

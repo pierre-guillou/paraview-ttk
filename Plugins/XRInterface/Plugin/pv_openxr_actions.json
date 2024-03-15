@@ -17,7 +17,7 @@
       "type": "pose"
     },
     {
-      "name": "handposehandgrip",
+      "name": "handposegrip",
       "type": "pose"
     },
     {
@@ -25,7 +25,7 @@
       "type": "vibration"
     },
     {
-      "name": "leftgripaction",
+      "name": "complexgestureaction",
       "type": "boolean"
     },
     {
@@ -41,20 +41,12 @@
       "type": "boolean"
     },
     {
-      "name": "rightgripaction",
-      "type": "boolean"
-    },
-    {
       "name": "showmenu",
       "type": "boolean"
     },
     {
       "name": "shownavigationpanel",
       "type": "boolean"
-    },
-    {
-      "name": "squeezeforce",
-      "type": "float"
     },
     {
       "name": "startelevation",
@@ -91,6 +83,10 @@
       "controller_type": "knuckles"
     },
     {
+      "binding_url": "pv_openxr_binding_microsoft_hand_interaction.json",
+      "controller_type": "microsoft_hand_interaction"
+    },
+    {
       "binding_url": "pv_openxr_binding_vive_controller.json",
       "controller_type": "vive_controller"
     }
@@ -107,16 +103,14 @@
       "elevation": "Elevation",
       "forwardthickcrop": "Move Thick Crop Forward",
       "handpose": "Hand Pose",
-      "handposehandgrip": "Hand Pose Hand Grip",
+      "handposegrip": "Hand Pose Grip",
       "haptic": "Haptic Vibration",
-      "leftgripaction": "Left Grip Action",
+      "complexgestureaction": "Complex Gesture Action",
       "movement": "Trackpad Movement",
       "nextcamerapose": "Next Camera Pose",
       "positionprop": "Position Prop",
-      "rightgripaction": "Right Grip Action",
       "showmenu": "Show Menu",
       "shownavigationpanel": "Show Navigation Panel",
-      "squeezeforce": "Squeeze Force",
       "startelevation": "Start Elevation",
       "startmovement": "Start Movement",
       "thickcropdirection": "Thick Crop Direction",

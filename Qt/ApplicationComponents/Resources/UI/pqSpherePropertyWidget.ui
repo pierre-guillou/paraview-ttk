@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>SpherePropertyWidget</class>
  <widget class="QWidget" name="SpherePropertyWidget">
@@ -84,7 +86,7 @@
       </font>
      </property>
      <property name="text">
-      <string>Note: Use 'P' to a 'Center' on mesh or 'Ctrl+P' to snap to the closest mesh point</string>
+      <string>Note: Use 'P' to a '%1' on mesh or 'Ctrl+P' to snap to the closest mesh point</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>

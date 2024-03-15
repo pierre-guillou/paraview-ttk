@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTubeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTubeBender.h"
 
 #include "vtkPoints.h"
@@ -20,6 +8,7 @@
 
 //----------------------------------------------------------------------------
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 void initRotateAboutLineWXYZQuaternion(
@@ -84,12 +73,20 @@ int vtkTubeBender::RequestData(vtkInformation* vtkNotUsed(request),
   // Traverse all new cells to insert new points into the paths
   vtkIdType linePoints = 0;
   const vtkIdType* linePointIds = nullptr;
-  for (iLines->InitTraversal(); iLines->GetNextCell(linePoints, linePointIds);)
+  bool abort = false;
+  vtkIdType checkAbortInterval = 0;
+  for (iLines->InitTraversal(); iLines->GetNextCell(linePoints, linePointIds) && !abort;)
   {
     // Process each point in each line cell
     vtkNew<vtkPolyLine> oLine;
+    checkAbortInterval = std::min(linePoints / 10 + 1, (vtkIdType)1000);
     for (vtkIdType lpIndex = 0; lpIndex < linePoints; lpIndex++)
     {
+      if (lpIndex % checkAbortInterval == 0 && this->CheckAbort())
+      {
+        abort = true;
+        break;
+      }
       if (lpIndex == 0 || lpIndex == linePoints - 1)
       {
         // The first and last points in each line should be preserved
@@ -235,3 +232,4 @@ void vtkTubeBender::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Radius: " << this->Radius << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkPolyhedron.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPolyhedron.h"
 #include "vtkCellArray.h"
@@ -41,13 +29,11 @@ PURPOSE.  See the above copyright notice for more information.
 #include <unordered_set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyhedron);
 
 // Special typedef
 typedef std::vector<vtkIdType> vtkIdVectorType;
-class vtkPointIdMap : public std::map<vtkIdType, vtkIdType>
-{
-};
 
 // an edge consists of two id's and their order
 // is *not* important. To that end special hash and
@@ -1214,10 +1200,9 @@ void vtkPolyhedron::InterpolateDerivs(const double x[3], double* derivs)
 }
 
 //------------------------------------------------------------------------------
-int vtkPolyhedron::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkPolyhedron::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
   ptIds->Reset();
-  pts->Reset();
 
   if (!this->GetPoints() || !this->GetNumberOfPoints())
   {
@@ -1240,15 +1225,53 @@ int vtkPolyhedron::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoint
     triangulator->InsertPoint(i, point, point, 0);
   }
   triangulator->Triangulate();
+  triangulator->AddTetras(0, ptIds);
+  return 1;
+}
 
-  triangulator->AddTetras(0, ptIds, pts);
+//------------------------------------------------------------------------------
+int vtkPolyhedron::TriangulateFaces(vtkIdList* newFaces)
+{
+  newFaces->Initialize();
+  newFaces->InsertNextId(0); // Keep room for the total nb of faces
+  vtkIdType totalNbOfFaces = 0;
 
-  // convert to global Ids
-  vtkIdType* ids = ptIds->GetPointer(0);
-  for (vtkIdType i = 0; i < ptIds->GetNumberOfIds(); i++)
+  for (vtkIdType faceId = 0; faceId < this->GetNumberOfFaces(); ++faceId)
   {
-    ids[i] = this->PointIds->GetId(ids[i]);
+    vtkCell* face = this->GetFace(faceId);
+    if (!face)
+    {
+      vtkErrorMacro("Unable to retrieve the face !");
+      return 0;
+    }
+
+    vtkNew<vtkIdList> ptIds;
+
+    // Triangulate the face
+    // - Triangle : returns the triangle
+    // - Quad : adds the "shortest" diagonal
+    // - Polygon : uses "EarCut" triangulation
+    face->TriangulateIds(0, ptIds);
+
+    // Allocate space for the new triangles
+    newFaces->Resize(newFaces->GetNumberOfIds() + ptIds->GetNumberOfIds());
+
+    // Insert triangles from triangulation
+    const auto nbOfTriangles = ptIds->GetNumberOfIds() / 3;
+    for (vtkIdType i = 0; i < nbOfTriangles; i++)
+    {
+      newFaces->InsertNextId(3); // Number of points
+      for (vtkIdType j = 0; j < 3; j++)
+      {
+        newFaces->InsertNextId(ptIds->GetId(3 * i + j));
+      }
+    }
+
+    totalNbOfFaces += nbOfTriangles;
   }
+
+  // Insert the total number of faces (triangles) at the beginning
+  newFaces->InsertId(0, totalNbOfFaces);
 
   return 1;
 }
@@ -1300,8 +1323,9 @@ vtkIdType vtkPolyhedron::GetPointToIncidentFaces(vtkIdType pointId, const vtkIdT
   return this->ValenceAtPoint[pointId];
 }
 
-bool IntersectWithContour(vtkCell* cell, vtkDataArray* pointScalars, vtkPointIdMap* pointIdMap,
-  double value, std::function<bool(double, double)>& compare, bool& allTrue)
+bool IntersectWithContour(vtkCell* cell, vtkDataArray* pointScalars,
+  vtkPolyhedron::vtkPointIdMap* pointIdMap, double value,
+  std::function<bool(double, double)>& compare, bool& allTrue)
 {
   allTrue = true;
   bool allFalse = true;
@@ -1522,8 +1546,8 @@ int TriangulatePolygonAt(vtkCell* polygon, int offset, vtkIdList* triIds)
   return nPoints - 2;
 }
 
-void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints, const vtkPointIdMap* pointIdMap,
-  double& minAngle, double& maxAngle)
+void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints,
+  const vtkPolyhedron::vtkPointIdMap* pointIdMap, double& minAngle, double& maxAngle)
 {
   vtkIdType idx0 = tri[0];
   vtkIdType idx1 = tri[1];
@@ -1571,7 +1595,7 @@ void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints, const vtkPointId
 }
 
 void TriangulatePolygon(vtkCell* polygon, FaceVector& faces, vtkIdList* triIds, vtkPoints* phPoints,
-  vtkPointIdMap* pointIdMap)
+  vtkPolyhedron::vtkPointIdMap* pointIdMap)
 {
   // attempt a fan triangulation for each point on the polygon and choose the
   // fan triangulation with the lowest range in internal angles differing from 60 degrees
@@ -1617,7 +1641,7 @@ void TriangulatePolygon(vtkCell* polygon, FaceVector& faces, vtkIdList* triIds, 
 }
 
 void TriangulateFace(vtkCell* face, FaceVector& faces, vtkIdList* triIds, vtkPoints* phPoints,
-  vtkPointIdMap* pointIdMap)
+  vtkPolyhedron::vtkPointIdMap* pointIdMap)
 {
   switch (face->GetCellType())
   {
@@ -1661,7 +1685,7 @@ bool CheckNonManifoldTriangulation(EdgeFaceSetMap& edgeFaceMap)
 }
 
 bool GetContourPoints(double value, vtkPolyhedron* cell,
-  vtkPointIdMap* pointIdMap, // from global id to local cell id
+  vtkPolyhedron::vtkPointIdMap* pointIdMap, // from global id to local cell id
   FaceEdgesVector& faceEdgesVector, EdgeFaceSetMap& edgeFaceMap, EdgeSet& originalEdges,
   std::vector<std::vector<vtkIdType>>& oririginalFaceTriFaceMap,
   PointIndexEdgeMultiMap& contourPointEdgeMultiMap, EdgePointIndexMap& edgeContourPointMap,
@@ -1972,7 +1996,7 @@ void vtkPolyhedron::Contour(double value, vtkDataArray* pointScalars,
         polygon->Points->SetPoint(i, xyz);
       }
       vtkNew<vtkIdList> ptIds;
-      polygon->Triangulate(ptIds);
+      polygon->TriangulateLocalIds(0, ptIds);
       vtkIdType numPts = ptIds->GetNumberOfIds();
       vtkIdType numSimplices = numPts / 3;
       vtkIdType triPts[3];
@@ -1983,14 +2007,20 @@ void vtkPolyhedron::Contour(double value, vtkDataArray* pointScalars,
           triPts[j] = polygon->PointIds->GetId(ptIds->GetId(3 * i + j));
         }
         vtkIdType newCellId = offset + polys->InsertNextCell(3, triPts);
-        outCd->CopyData(inCd, cellId, newCellId);
+        if (outCd)
+        {
+          outCd->CopyData(inCd, cellId, newCellId);
+        }
       } // for each simplex
     }   // triangulate polygon
     else
     {
       vtkIdType newCellId =
         offset + polys->InsertNextCell(poly->GetNumberOfIds(), poly->GetPointer(0));
-      outCd->CopyData(inCd, cellId, newCellId);
+      if (outCd)
+      {
+        outCd->CopyData(inCd, cellId, newCellId);
+      }
     }
   };
 
@@ -2493,3 +2523,4 @@ void vtkPolyhedron::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Faces:\n";
   this->GlobalFaces->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

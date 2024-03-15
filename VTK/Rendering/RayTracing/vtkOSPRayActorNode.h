@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayActorNode.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOSPRayActorNode
  * @brief   links vtkActor and vtkMapper to OSPRay
@@ -27,6 +15,7 @@
 #include "vtkTimeStamp.h"                 //for mapper changed time
 #include "vtkWeakPointer.h"               //also for mapper changed time
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCompositeDataDisplayAttributes;
 class vtkDataArray;
@@ -132,4 +121,5 @@ private:
   vtkWeakPointer<vtkMapper> LastMapper;
   vtkTimeStamp MapperChangedTime;
 };
+VTK_ABI_NAMESPACE_END
 #endif

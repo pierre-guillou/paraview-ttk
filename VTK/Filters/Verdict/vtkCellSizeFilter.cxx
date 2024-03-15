@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellSizeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkCellSizeFilter.h"
 
@@ -36,6 +24,7 @@
 #include "vtkTriangle.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellSizeFilter);
 
 //------------------------------------------------------------------------------
@@ -70,7 +59,6 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
 {
   vtkSmartPointer<vtkIdList> cellPtIds = vtkSmartPointer<vtkIdList>::New();
   vtkIdType numCells = input->GetNumberOfCells();
-  vtkSmartPointer<vtkPoints> cellPoints = vtkSmartPointer<vtkPoints>::New();
   int cellType;
   vtkDoubleArray* arrays[4] = { nullptr, nullptr, nullptr, nullptr };
   if (this->ComputeVertexCount)
@@ -295,7 +283,7 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
           case 1:
             if (this->ComputeLength)
             {
-              cell->Triangulate(1, cellPtIds, cellPoints);
+              cell->TriangulateIds(1, cellPtIds);
               value = this->IntegrateGeneral1DCell(input, cellPtIds);
             }
             else
@@ -307,7 +295,7 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
           case 2:
             if (this->ComputeArea)
             {
-              cell->Triangulate(1, cellPtIds, cellPoints);
+              cell->TriangulateIds(1, cellPtIds);
               value = this->IntegrateGeneral2DCell(inputPS, cellPtIds);
             }
             else
@@ -319,7 +307,7 @@ void vtkCellSizeFilter::ExecuteBlock(vtkDataSet* input, vtkDataSet* output, doub
           case 3:
             if (this->ComputeVolume)
             {
-              cell->Triangulate(1, cellPtIds, cellPoints);
+              cell->TriangulateIds(1, cellPtIds);
               value = this->IntegrateGeneral3DCell(inputPS, cellPtIds);
             }
             else
@@ -799,3 +787,4 @@ void vtkCellSizeFilter::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "ComputeSum: " << this->ComputeSum << endl;
 }
+VTK_ABI_NAMESPACE_END

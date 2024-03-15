@@ -81,6 +81,8 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestDiagram.cxx
   TestFunctionalBagPlot.cxx
   TestHistogram2D.cxx
+  TestHistogram2DComponent.cxx
+  TestHistogram2DMagnitude.cxx
   TestInteractiveChartXYZ.cxx
   TestLegendHiddenPlots.cxx
   TestLinePlot.cxx
@@ -98,6 +100,7 @@ vtk_add_test_cxx(vtkChartsCoreCxxTests tests
   TestMultipleScalarsToColors.cxx
   TestParallelCoordinates.cxx
   TestParallelCoordinatesDouble.cxx
+  TestParallelCoordinatesLegend.cxx
   TestParallelCoordinatesSelection.cxx,NO_VALID
   TestPieChart.cxx
   TestPlotBarRangeHandlesItem.cxx,NO_DATA,NO_VALID

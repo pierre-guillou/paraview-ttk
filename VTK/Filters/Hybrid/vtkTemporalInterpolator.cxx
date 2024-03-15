@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTemporalInterpolator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTemporalInterpolator.h"
 
 #include "vtkArrayDispatch.h"
@@ -34,6 +22,7 @@
 #include <algorithm>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTemporalInterpolator);
 
 //------------------------------------------------------------------------------
@@ -252,6 +241,10 @@ int vtkTemporalInterpolator::Execute(vtkInformation*,
   originalTimes->SetNumberOfTuples(numTimeSteps);
   for (int i = 0; i < numTimeSteps; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     originalTimes->SetValue(i, inputs[i]->GetInformation()->Get(vtkDataObject::DATA_TIME_STEP()));
   }
   outData->GetFieldData()->AddArray(originalTimes);
@@ -618,3 +611,4 @@ vtkDataArray* vtkTemporalInterpolator ::InterpolateDataArray(
 
   return output;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSliderRepresentation3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSliderRepresentation3D
  * @brief   provide the representation for a vtkSliderWidget with a 3D skin
@@ -32,8 +20,10 @@
 #include "vtkCoordinate.h"               // For vtkViewportCoordinateMacro
 #include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
+#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkSliderRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkPolyDataMapper;
 class vtkSphereSource;
@@ -158,10 +148,10 @@ public:
    * Methods supporting the rendering process.
    */
   double* GetBounds() VTK_SIZEHINT(6) override;
-  void GetActors(vtkPropCollection*) override;
-  void ReleaseGraphicsResources(vtkWindow*) override;
-  int RenderOpaqueGeometry(vtkViewport*) override;
-  int RenderTranslucentPolygonalGeometry(vtkViewport*) override;
+  void GetActors(vtkPropCollection* propCollection) override;
+  void ReleaseGraphicsResources(vtkWindow* window) override;
+  int RenderOpaqueGeometry(vtkViewport* viewport) override;
+  int RenderTranslucentPolygonalGeometry(vtkViewport* viewport) override;
   vtkTypeBool HasTranslucentPolygonalGeometry() override;
   ///@}
 
@@ -259,4 +249,5 @@ private:
   void operator=(const vtkSliderRepresentation3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

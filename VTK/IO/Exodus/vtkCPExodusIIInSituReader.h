@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCPExodusIIInSituReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkCPExodusIIInSituReader
@@ -34,6 +22,7 @@
 #include <string>   // For std::string
 #include <vector>   // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArrayCollection;
 class vtkPointData;
 class vtkPoints;
@@ -115,4 +104,5 @@ private:
   int CurrentTimeStep;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkCPExodusIIInSituReader_h

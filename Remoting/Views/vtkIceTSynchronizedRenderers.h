@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkIceTSynchronizedRenderers.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkIceTSynchronizedRenderers
  * @brief   vtkSynchronizedRenderers subclass that
@@ -104,7 +92,7 @@ public:
     return this->IceTCompositePass->GetImageReductionFactor();
   }
 
-  //@{
+  ///@{
   /**
    * Set the parallel message communicator. This is used to communicate among
    * processes.
@@ -114,15 +102,15 @@ public:
     this->Superclass::SetParallelController(cont);
     this->IceTCompositePass->SetController(cont);
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set an image processing pass to process the rendered images.
    */
   void SetImageProcessingPass(vtkImageProcessingPass*);
   vtkGetObjectMacro(ImageProcessingPass, vtkImageProcessingPass);
-  //@}
+  ///@}
 
   /**
    * Activates or de-activated the use of Depth Buffer
@@ -136,7 +124,7 @@ public:
    */
   void SetRenderEmptyImages(bool);
 
-  //@{
+  ///@{
   /**
    * Get/Set geometry rendering pass. This pass is used to render the geometry.
    * If none specified then default rendering pipeline is used. This is
@@ -146,15 +134,15 @@ public:
    */
   void SetRenderPass(vtkRenderPass*);
   vtkGetObjectMacro(RenderPass, vtkRenderPass);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Provides access to the internal vtkIceTCompositePass. Only use this if you
    * know what you're doing.
    */
   vtkGetObjectMacro(IceTCompositePass, vtkIceTCompositePass);
-  //@}
+  ///@}
 
 protected:
   vtkIceTSynchronizedRenderers();

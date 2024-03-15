@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpiderPlotActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpiderPlotActor
  * @brief   create a spider plot from input field
@@ -52,6 +40,7 @@
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithmOutput;
 class vtkAxisActor2D;
 class vtkDataObject;
@@ -168,7 +157,7 @@ public:
    * Specify the names of the radial spokes (i.e., the radial axes). If
    * not specified, then an integer number is automatically generated.
    */
-  void SetAxisLabel(const int i, const char*);
+  void SetAxisLabel(int i, const char*);
   const char* GetAxisLabel(int i);
   ///@}
 
@@ -288,9 +277,9 @@ private:
   int PlaceAxes(vtkViewport* viewport, const int* size);
   int BuildPlot(vtkViewport*);
 
-private:
   vtkSpiderPlotActor(const vtkSpiderPlotActor&) = delete;
   void operator=(const vtkSpiderPlotActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

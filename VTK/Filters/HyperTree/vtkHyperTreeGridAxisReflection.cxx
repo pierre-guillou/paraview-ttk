@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridAxisReflection.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridAxisReflection.h"
 
 #include "vtkCellData.h"
@@ -24,6 +12,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkUniformHyperTreeGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridAxisReflection);
 
 //------------------------------------------------------------------------------
@@ -235,9 +224,12 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
     outNormals = vtkDoubleArray::New();
     outNormals->SetNumberOfComponents(3);
     outNormals->SetNumberOfTuples(nTuples);
+    outNormals->SetName("outNormals");
+
     outIntercepts = vtkDoubleArray::New();
     outIntercepts->SetNumberOfComponents(3);
     outIntercepts->SetNumberOfTuples(nTuples);
+    outIntercepts->SetName("outIntercepts");
 
     // Reflect interface normals if present
     // Iterate over all cells
@@ -274,6 +266,10 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
   vtkIdType index;
   while ((tree = it.GetNextTree(index)))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     assert(tree->GetTreeIndex() == index);
     double origin[3];
     double scale[3];
@@ -285,3 +281,4 @@ int vtkHyperTreeGridAxisReflection::ProcessTrees(vtkHyperTreeGrid* input, vtkDat
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

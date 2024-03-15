@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPythonAnnotationFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonAnnotationFilter
  * @brief   filter used to generate text annotation
@@ -47,7 +35,7 @@ public:
   vtkTypeMacro(vtkPythonAnnotationFilter, vtkTableAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the expression to evaluate.
    * Here is a set of common expressions:
@@ -55,9 +43,9 @@ public:
    */
   vtkSetStringMacro(Expression);
   vtkGetStringMacro(Expression);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the input array association. This dictates which array names are made
    * available in the namespace by default. You can still use
@@ -66,24 +54,24 @@ public:
    */
   vtkSetMacro(ArrayAssociation, int);
   vtkGetMacro(ArrayAssociation, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the value that is going to be printed to the output.
    */
   vtkGetStringMacro(ComputedAnnotationValue);
-  //@}
+  ///@}
 
   //------------------------------------------------------------------------------
-  //@{
+  ///@{
   /**
    * Get methods for use in annotation.py.
    * The values are only valid during RequestData().
    */
   vtkGetMacro(DataTimeValid, bool);
   vtkGetMacro(DataTime, double);
-  //@}
+  ///@}
 
   vtkGetMacro(NumberOfTimeSteps, int);
   double GetTimeStep(int index)

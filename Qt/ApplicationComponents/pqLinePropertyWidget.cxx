@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqLinePropertyWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqLinePropertyWidget.h"
 #include "ui_pqLinePropertyWidget.h"
 
@@ -68,11 +40,11 @@ pqLinePropertyWidget::pqLinePropertyWidget(
 
   if (vtkSMProperty* p1 = smgroup->GetProperty("Point1WorldPosition"))
   {
-    ui.labelPoint1->setText(tr(p1->GetXMLLabel()));
+    ui.labelPoint1->setText(QCoreApplication::translate("ServerManagerXML", p1->GetXMLLabel()));
     this->addPropertyLink(ui.point1X, "text2", SIGNAL(textChangedAndEditingFinished()), p1, 0);
     this->addPropertyLink(ui.point1Y, "text2", SIGNAL(textChangedAndEditingFinished()), p1, 1);
     this->addPropertyLink(ui.point1Z, "text2", SIGNAL(textChangedAndEditingFinished()), p1, 2);
-    ui.labelPoint1->setText(p1->GetXMLLabel());
+    ui.labelPoint1->setText(QCoreApplication::translate("ServerManagerXML", p1->GetXMLLabel()));
   }
   else
   {
@@ -81,11 +53,11 @@ pqLinePropertyWidget::pqLinePropertyWidget(
 
   if (vtkSMProperty* p2 = smgroup->GetProperty("Point2WorldPosition"))
   {
-    ui.labelPoint2->setText(tr(p2->GetXMLLabel()));
+    ui.labelPoint2->setText(QCoreApplication::translate("ServerManagerXML", p2->GetXMLLabel()));
     this->addPropertyLink(ui.point2X, "text2", SIGNAL(textChangedAndEditingFinished()), p2, 0);
     this->addPropertyLink(ui.point2Y, "text2", SIGNAL(textChangedAndEditingFinished()), p2, 1);
     this->addPropertyLink(ui.point2Z, "text2", SIGNAL(textChangedAndEditingFinished()), p2, 2);
-    ui.labelPoint2->setText(p2->GetXMLLabel());
+    ui.labelPoint2->setText(QCoreApplication::translate("ServerManagerXML", p2->GetXMLLabel()));
   }
   else
   {
@@ -169,7 +141,7 @@ void pqLinePropertyWidget::updateLengthLabel()
 
   double distance = sqrt(vtkMath::Distance2BetweenPoints(p1, p2));
   Ui::LinePropertyWidget& ui = this->Internals->Ui;
-  ui.labelLength->setText(QString("<b>Length:</b> <i>%1</i> ").arg(distance));
+  ui.labelLength->setText(QString("<b>%1</b> <i>%2</i> ").arg(tr("Length: ")).arg(distance));
 }
 
 //-----------------------------------------------------------------------------

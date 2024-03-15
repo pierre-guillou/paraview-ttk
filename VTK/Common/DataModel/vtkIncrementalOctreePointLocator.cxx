@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIncrementalOctreePointLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkIncrementalOctreePointLocator.h"
 #include "vtkCellArray.h"
@@ -32,6 +20,7 @@
 #include <stack>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkIncrementalOctreePointLocator);
 
 //------------------------------------------------------------------------------
@@ -304,7 +293,7 @@ void vtkIncrementalOctreePointLocator::GenerateRepresentation(int nodeLevel, vtk
   std::queue<std::pair<vtkIncrementalOctreeNode*, int>> pairQueue;
 
   // recursively process the nodes in the octree
-  pairQueue.push(std::make_pair(this->OctreeRootNode, 0));
+  pairQueue.emplace(this->OctreeRootNode, 0);
   while (!pairQueue.empty())
   {
     pTempNode = pairQueue.front().first;
@@ -319,7 +308,7 @@ void vtkIncrementalOctreePointLocator::GenerateRepresentation(int nodeLevel, vtk
     {
       for (int i = 0; i < 8; i++)
       {
-        pairQueue.push(std::make_pair(pTempNode->GetChild(i), tempLevel + 1));
+        pairQueue.emplace(pTempNode->GetChild(i), tempLevel + 1);
       }
     }
   }
@@ -1332,3 +1321,4 @@ int vtkIncrementalOctreePointLocator::GetNumberOfLevels()
 {
   return this->Level = this->OctreeRootNode->GetNumberOfLevels();
 }
+VTK_ABI_NAMESPACE_END

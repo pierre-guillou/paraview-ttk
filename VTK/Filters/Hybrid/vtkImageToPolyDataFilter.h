@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageToPolyDataFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageToPolyDataFilter
  * @brief   generate linear primitives (vtkPolyData) from an image
@@ -74,6 +62,7 @@
 #define VTK_COLOR_MODE_LUT 0
 #define VTK_COLOR_MODE_LINEAR_256 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkEdgeTable;
 class vtkIdTypeArray;
@@ -239,15 +228,15 @@ private:
     vtkUnsignedCharArray* polyColors, vtkUnsignedCharArray* pointDescr);
 
   int GetNeighbors(
-    unsigned char* ptr, int& i, int& j, int dims[3], unsigned char* neighbors[4], int mode);
+    unsigned char* ptr, int& i, int& j, int dims[2], unsigned char* neighbors[4], int mode);
 
   void GetIJ(int id, int& i, int& j, int dims[2]);
   unsigned char* GetColor(unsigned char* rgb);
   int IsSameColor(unsigned char* p1, unsigned char* p2);
 
-private:
   vtkImageToPolyDataFilter(const vtkImageToPolyDataFilter&) = delete;
   void operator=(const vtkImageToPolyDataFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

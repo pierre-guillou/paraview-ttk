@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAbstractAccumulator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkAbstractAccumulator
@@ -48,7 +37,7 @@ public:
 
   static vtkAbstractAccumulator* New();
 
-  //@{
+  ///@{
   /**
    * Methods for adding data to the accumulator.
    */
@@ -56,13 +45,13 @@ public:
   virtual void Add(const double* data, vtkIdType numberOfElements = 1, double weight = 1.0);
   virtual void Add(vtkAbstractAccumulator* accumulator) = 0;
   virtual void Add(double value, double weight) = 0;
-  //@}
+  ///@}
 
   /**
    * Returns true if the parameters of accumulator is the same as the ones of this
    */
   virtual bool HasSameParameters(vtkAbstractAccumulator* accumulator) const = 0;
-  //@}
+  ///@}
 
   /**
    * Accessor on the accumulated value.
@@ -74,13 +63,13 @@ public:
   virtual void Initialize() {}
 
 protected:
-  //@{
+  ///@{
   /**
    * Default constructors and destructors
    */
   vtkAbstractAccumulator();
   ~vtkAbstractAccumulator() override = default;
-  //@}
+  ///@}
 
   /**
    * Lambda expression converting vectors to scalars. Default function is regular L2 norm.

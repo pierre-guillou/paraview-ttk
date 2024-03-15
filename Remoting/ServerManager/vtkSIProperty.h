@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSIProperty.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSIProperty
  *
@@ -40,40 +28,40 @@ public:
   vtkTypeMacro(vtkSIProperty, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * The name assigned by the xml parser. Used to get the property
    * from a proxy.
    */
   vtkGetStringMacro(XMLName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * The command name used to set the value on the server object.
    * For example: SetThetaResolution
    */
   vtkGetStringMacro(Command);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Is InformationOnly is set to true, this property is used to
    * get information from server instead of setting values.
    */
   vtkGetMacro(InformationOnly, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If repeatable, a property can have 1 or more values of the same kind.
    * This ivar is configured when the xml file is read and is mainly useful
    * for information (for example from python).
    */
   vtkGetMacro(Repeatable, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * This ivar is configured when the xml file is read and is mainly useful
    * to trigger a method call.
@@ -81,7 +69,7 @@ public:
    */
   vtkSetMacro(IsInternal, bool);
   vtkGetMacro(IsInternal, bool);
-  //@}
+  ///@}
 
 protected:
   vtkSIProperty();
@@ -109,14 +97,14 @@ protected:
    */
   virtual bool ReadXMLAttributes(vtkSIProxy* proxyhelper, vtkPVXMLElement* element);
 
-  //@{
+  ///@{
   /**
    * Interprets the message.
    */
   bool ProcessMessage(vtkClientServerStream& stream);
   const vtkClientServerStream& GetLastResult();
   vtkObjectBase* GetVTKObject();
-  //@}
+  ///@}
 
   vtkSetStringMacro(Command);
   vtkSetStringMacro(XMLName);

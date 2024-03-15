@@ -452,8 +452,12 @@ private:
                                       cellSet.GetIndices(originCells[myIndex]),
                                       myFace);
       bool foundPair = false;
-      for (vtkm::IdComponent otherIndex = myIndex + 1; otherIndex < numCellsOnHash; otherIndex++)
+      for (vtkm::IdComponent otherIndex = 0; otherIndex < numCellsOnHash; otherIndex++)
       {
+        if (otherIndex == myIndex)
+        {
+          continue;
+        }
         vtkm::Id3 otherFace;
         vtkm::exec::CellFaceCanonicalId(originFaces[otherIndex],
                                         cellSet.GetCellShape(originCells[otherIndex]),
@@ -671,22 +675,6 @@ public:
 
   VTKM_CONT
   bool GetPassPolyData() const { return this->PassPolyData; }
-
-  //----------------------------------------------------------------------------
-  template <typename ValueType, typename StorageType>
-  vtkm::cont::ArrayHandle<ValueType> ProcessCellField(
-    const vtkm::cont::ArrayHandle<ValueType, StorageType>& in) const
-  {
-
-    // Use a temporary permutation array to simplify the mapping:
-    auto tmp = vtkm::cont::make_ArrayHandlePermutation(this->CellIdMap, in);
-
-    // Copy into an array with default storage:
-    vtkm::cont::ArrayHandle<ValueType> result;
-    vtkm::cont::ArrayCopy(tmp, result);
-
-    return result;
-  }
 
   void ReleaseCellMapArrays() { this->CellIdMap.ReleaseResources(); }
 

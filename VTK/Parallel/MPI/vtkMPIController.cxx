@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkMPIController.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMPIController.h"
 
 #include "vtkIntArray.h"
@@ -26,6 +14,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
+VTK_ABI_NAMESPACE_BEGIN
 int vtkMPIController::Initialized = 0;
 char vtkMPIController::ProcessorName[MPI_MAX_PROCESSOR_NAME] = "";
 int vtkMPIController::UseSsendForRMI = 0;
@@ -341,7 +330,7 @@ vtkMPIController* vtkMPIController::PartitionController(int localColor, int loca
 
 //------------------------------------------------------------------------------
 int vtkMPIController::WaitSome(
-  const int count, vtkMPICommunicator::Request rqsts[], vtkIntArray* completed)
+  int count, vtkMPICommunicator::Request rqsts[], vtkIntArray* completed)
 {
   assert("pre: completed array is nullptr!" && (completed != nullptr));
 
@@ -362,7 +351,7 @@ int vtkMPIController::WaitSome(
 }
 
 //------------------------------------------------------------------------------
-bool vtkMPIController::TestAll(const int count, vtkMPICommunicator::Request requests[])
+bool vtkMPIController::TestAll(int count, vtkMPICommunicator::Request requests[])
 {
   int flag = 0;
 
@@ -374,7 +363,7 @@ bool vtkMPIController::TestAll(const int count, vtkMPICommunicator::Request requ
 }
 
 //------------------------------------------------------------------------------
-bool vtkMPIController::TestAny(const int count, vtkMPICommunicator::Request requests[], int& idx)
+bool vtkMPIController::TestAny(int count, vtkMPICommunicator::Request requests[], int& idx)
 {
   int flag = 0;
 
@@ -387,7 +376,7 @@ bool vtkMPIController::TestAny(const int count, vtkMPICommunicator::Request requ
 
 //------------------------------------------------------------------------------
 bool vtkMPIController::TestSome(
-  const int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
+  int count, vtkMPICommunicator::Request requests[], vtkIntArray* completed)
 {
   assert("pre: completed array is nullptr" && (completed != nullptr));
 
@@ -413,3 +402,4 @@ bool vtkMPIController::TestSome(
     return false;
   }
 }
+VTK_ABI_NAMESPACE_END

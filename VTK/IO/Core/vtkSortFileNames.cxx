@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSortFileNames.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSortFileNames.h"
 
@@ -27,6 +15,7 @@
 
 #include <cctype>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSortFileNames);
 
 // a container for holding string arrays
@@ -44,7 +33,7 @@ public:
 
   void InsertNextStringArray(vtkStringArray* stringArray)
   {
-    this->Container.push_back(stringArray);
+    this->Container.emplace_back(stringArray);
   }
 
   vtkStringArray* GetStringArray(int i)
@@ -568,3 +557,4 @@ void vtkSortFileNames::Update()
     }
   }
 }
+VTK_ABI_NAMESPACE_END

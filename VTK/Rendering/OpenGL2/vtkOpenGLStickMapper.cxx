@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLStickMapper.h"
 
 #include "vtkOpenGLHelper.h"
@@ -40,6 +29,7 @@
 #include "vtk_glew.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLStickMapper);
 
 //------------------------------------------------------------------------------
@@ -423,3 +413,4 @@ void vtkOpenGLStickMapper::RenderPieceDraw(vtkRenderer* ren, vtkActor* actor)
     glDrawArrays(GL_POINTS, 0, static_cast<GLuint>(numVerts));
   }
 }
+VTK_ABI_NAMESPACE_END

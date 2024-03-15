@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointHandleRepresentation2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointHandleRepresentation2D.h"
 #include "vtkActor2D.h"
 #include "vtkAssemblyPath.h"
@@ -31,6 +19,7 @@
 #include "vtkRenderer.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointHandleRepresentation2D);
 
 vtkCxxSetObjectMacro(vtkPointHandleRepresentation2D, Property, vtkProperty2D);
@@ -341,11 +330,10 @@ void vtkPointHandleRepresentation2D::DeepCopy(vtkProp* prop)
 //------------------------------------------------------------------------------
 void vtkPointHandleRepresentation2D::GetActors2D(vtkPropCollection* pc)
 {
-  if (!pc)
+  if (pc != nullptr && this->GetVisibility())
   {
-    return;
+    pc->AddItem(this->Actor);
   }
-  pc->AddItem(this->Actor);
   this->Superclass::GetActors2D(pc);
 }
 
@@ -403,3 +391,4 @@ void vtkPointHandleRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Cursor Shape: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVWebExporter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVWebExporter
  * @brief   vtkPVWebExporter is used to produce vtkjs export in the ParaView
@@ -33,13 +21,13 @@ public:
   vtkTypeMacro(vtkPVWebExporter, vtkJSONSceneExporter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Specify file name of the ParaViewGlance HTML file to use to embed the data in
    */
   vtkSetStringMacro(ParaViewGlanceHTML);
   vtkGetStringMacro(ParaViewGlanceHTML);
-  //@}
+  ///@}
 
 protected:
   vtkPVWebExporter();

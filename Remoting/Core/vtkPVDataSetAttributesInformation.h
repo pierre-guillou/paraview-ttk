@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDataSetAttributesInformation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVDataSetAttributesInformation
  * @brief   List of array info
@@ -40,7 +28,7 @@ public:
   vtkTypeMacro(vtkPVDataSetAttributesInformation, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Returns the field association to which the instance corresponds to.
    * Returned value can be vtkDataObject::POINT, vtkDataObject::CELL,
@@ -48,7 +36,7 @@ public:
    * vtkDataObject::AttributeTypes.
    */
   vtkGetMacro(FieldAssociation, int);
-  //@}
+  ///@}
 
   /**
    * Initialize this instances to its default state.
@@ -65,13 +53,13 @@ public:
    */
   int GetMaximumNumberOfTuples() const;
 
-  //@{
+  ///@{
   /**
    * Returns array information for the chosen array either by name or by index.
    */
   vtkPVArrayInformation* GetArrayInformation(int idx) const;
   vtkPVArrayInformation* GetArrayInformation(const char* name) const;
-  //@}
+  ///@}
 
   /**
    * Returns array information for an array associated with a specific attribute
@@ -97,13 +85,13 @@ protected:
    */
   vtkSetMacro(FieldAssociation, int);
 
-  //@{
+  ///@{
   /**
    * Manage a serialized version of the information.
    */
   void CopyToStream(vtkClientServerStream*);
   void CopyFromStream(const vtkClientServerStream*);
-  //@}
+  ///@}
 
   /**
    * Combine with another vtkPVDataSetAttributesInformation instance.

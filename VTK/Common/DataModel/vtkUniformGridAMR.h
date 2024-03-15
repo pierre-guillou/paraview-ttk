@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUniformGridAMR.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformGridAMR
  * @brief   a concrete implementation of vtkCompositeDataSet
@@ -27,7 +15,9 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkCompositeDataSet.h"
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataIterator;
 class vtkUniformGrid;
 class vtkAMRInformation;
@@ -80,7 +70,7 @@ public:
   /**
    * Get the number of datasets at the given level, including null blocks
    */
-  unsigned int GetNumberOfDataSets(const unsigned int level);
+  unsigned int GetNumberOfDataSets(unsigned int level);
 
   ///@{
   /**
@@ -120,21 +110,27 @@ public:
    * Retrieves the composite index associated with the data at the given
    * (level,index) pair.
    */
-  int GetCompositeIndex(const unsigned int level, const unsigned int index);
+  int GetCompositeIndex(unsigned int level, unsigned int index);
 
   /**
    * Given the compositeIdx (as set by SetCompositeIdx) this method returns the
    * corresponding level and dataset index within the level.
    */
-  void GetLevelAndIndex(const unsigned int compositeIdx, unsigned int& level, unsigned int& idx);
+  void GetLevelAndIndex(unsigned int compositeIdx, unsigned int& level, unsigned int& idx);
 
   ///@{
   /**
    * ShallowCopy.
    */
+  void CompositeShallowCopy(vtkCompositeDataSet* src) override;
   void ShallowCopy(vtkDataObject* src) override;
-  void RecursiveShallowCopy(vtkDataObject* src) override;
   ///@}
+
+  /**
+   * Deprecated RecursiveShallowCopy method, uses ShallowCopy
+   */
+  VTK_DEPRECATED_IN_9_3_0("Please use ShallowCopy instead.")
+  void RecursiveShallowCopy(vtkDataObject* src) override;
 
   /**
    * DeepCopy.
@@ -160,10 +156,13 @@ protected:
 
   double Bounds[6];
 
+  ///@{
   /**
-   * Get the meta AMR meta data
+   * Get/Set the meta AMR meta data
    */
   vtkGetObjectMacro(AMRData, vtkAMRDataInternals);
+  virtual void SetAMRData(vtkAMRDataInternals*);
+  ///@}
 
   vtkAMRDataInternals* AMRData;
 
@@ -184,4 +183,5 @@ private:
   friend class vtkUniformGridAMRDataIterator;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

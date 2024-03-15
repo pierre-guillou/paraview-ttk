@@ -1,24 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQWidgetRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQWidgetRepresentation
  * @brief   a class defining the representation for a vtkQWidgetWidget
  *
  * This class renders a QWidget as a simple vtkPlaneSource with a vtkTexture
  * that contains a vtkQWidgetTexture which imports the OpenGL texture handle
- * from Qt into the vtk scene. Qt and VTK may need to be useing the same
+ * from Qt into the vtk scene. Qt and VTK may need to be using the same
  * graphics context.
  */
 
@@ -30,6 +18,8 @@
 #include "vtkWidgetRepresentation.h"
 
 class QWidget;
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkCellPicker;
 class vtkOpenGLTexture;
@@ -156,4 +146,5 @@ private:
   void operator=(const vtkQWidgetRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

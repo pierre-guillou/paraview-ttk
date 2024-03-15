@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBezierTetra.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBezierTetra.h"
 #include "vtkBezierInterpolation.h"
@@ -27,6 +15,7 @@
 #include "vtkPoints.h"
 #include "vtkTetra.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBezierTetra);
 //------------------------------------------------------------------------------
 vtkBezierTetra::vtkBezierTetra() = default;
@@ -88,7 +77,8 @@ vtkCell* vtkBezierTetra::GetFace(int faceId)
       result->PointIds->SetId(face_id, this->PointIds->GetId(vol_id));
       result->GetRationalWeights()->SetValue(face_id, this->GetRationalWeights()->GetValue(vol_id));
     };
-    this->SetFaceIdsAndPoints(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
+    vtkHigherOrderTetra::SetFaceIdsAndPoints(faceId, this->Order, this->Points->GetNumberOfPoints(),
+      set_number_of_ids_and_points, set_ids_and_points);
   }
   else
   {
@@ -101,16 +91,16 @@ vtkCell* vtkBezierTetra::GetFace(int faceId)
       result->Points->SetPoint(face_id, this->Points->GetPoint(vol_id));
       result->PointIds->SetId(face_id, this->PointIds->GetId(vol_id));
     };
-    this->SetFaceIdsAndPoints(result, faceId, set_number_of_ids_and_points, set_ids_and_points);
+    vtkHigherOrderTetra::SetFaceIdsAndPoints(faceId, this->Order, this->Points->GetNumberOfPoints(),
+      set_number_of_ids_and_points, set_ids_and_points);
   }
-
+  result->Initialize();
   return result;
 }
 
 /**\brief Set the rational weight of the cell, given a vtkDataSet
  */
-void vtkBezierTetra::SetRationalWeightsFromPointData(
-  vtkPointData* point_data, const vtkIdType numPts)
+void vtkBezierTetra::SetRationalWeightsFromPointData(vtkPointData* point_data, vtkIdType numPts)
 {
   vtkDataArray* v = point_data->GetRationalWeights();
   if (v)
@@ -140,7 +130,7 @@ void vtkBezierTetra::InterpolateFunctions(const double pcoords[3], double* weigh
     vtkIdType lbv[4] = { bv[0], bv[1], bv[2], deg - bv[0] - bv[1] - bv[2] };
     weights[Index(lbv, deg)] = coeffs[i];
   }
-  // If the unit cell has rational weigths: weights_i = weights_i * rationalWeights / sum( weights_i
+  // If the unit cell has rational weights: weights_i = weights_i * rationalWeights / sum( weights_i
   // * rationalWeights )
   const bool has_rational_weights = RationalWeights->GetNumberOfTuples() > 0;
   if (has_rational_weights)
@@ -189,3 +179,4 @@ vtkHigherOrderTriangle* vtkBezierTetra::GetFaceCell()
 {
   return FaceCell;
 }
+VTK_ABI_NAMESPACE_END

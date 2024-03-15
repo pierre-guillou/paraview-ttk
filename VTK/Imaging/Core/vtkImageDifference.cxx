@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDifference.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageDifference.h"
 
 #include "vtkImageData.h"
@@ -24,6 +12,7 @@
 #include <iostream>
 #include <numeric>
 
+VTK_ABI_NAMESPACE_BEGIN
 constexpr int MAX_NCOMPS = 4;
 constexpr double DEFAULT_ERROR = 1000.;
 using max_ncomps_array_t = std::array<int, MAX_NCOMPS>;
@@ -211,18 +200,18 @@ void vtkImageDifference::ThreadedRequestData(vtkInformation* vtkNotUsed(request)
   // results in max_ncomps_array_t.
   // nComp is not taken into account with std::copy and std::accumulate
   // as it is simplifying the code and because non-considered-component
-  // treshold value is always zero.
+  // threshold value is always zero.
   int nComp = inData[0][0]->GetNumberOfScalarComponents();
   int input1NComp = inData[1][0]->GetNumberOfScalarComponents();
   int outputNComp = outData[0]->GetNumberOfScalarComponents();
   if (nComp != input1NComp)
   {
-    threadData->ErrorMessage = "Inputs number of components are differents";
+    threadData->ErrorMessage = "Inputs number of components are different";
     return;
   }
   if (outputNComp != input1NComp)
   {
-    threadData->ErrorMessage = "Input and output number of components are differents";
+    threadData->ErrorMessage = "Input and output number of components are different";
     return;
   }
   if (nComp > MAX_NCOMPS || nComp <= 0)
@@ -568,3 +557,4 @@ void vtkImageDifference::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "AllowShift: " << this->AllowShift << "\n";
   os << indent << "Averaging: " << this->Averaging << "\n";
 }
+VTK_ABI_NAMESPACE_END

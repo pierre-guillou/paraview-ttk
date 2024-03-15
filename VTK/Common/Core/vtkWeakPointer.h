@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWeakPointer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkWeakPointer
  * @brief   a weak reference to a vtkObject.
@@ -51,6 +39,7 @@
 #include <type_traits> // for is_base_of
 #include <utility>     // for std::move
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 class vtkWeakPointer : public vtkWeakPointerBase
 {
@@ -291,8 +280,11 @@ VTK_WEAK_POINTER_DEFINE_OPERATOR(>=)
 
 #undef VTK_WEAK_POINTER_DEFINE_OPERATOR
 
+VTK_ABI_NAMESPACE_END
+
 namespace vtk
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 /// Construct a vtkWeakPointer<T> containing @a obj. @a obj's reference count
 /// is not changed.
@@ -302,8 +294,10 @@ vtkWeakPointer<T> TakeWeakPointer(T* obj)
   return vtkWeakPointer<T>(obj);
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk
 
+VTK_ABI_NAMESPACE_BEGIN
 /**
  * Streaming operator to print smart pointer like regular pointers.
  */
@@ -313,6 +307,7 @@ inline ostream& operator<<(ostream& os, const vtkWeakPointer<T>& p)
   return os << static_cast<const vtkWeakPointerBase&>(p);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 
 // VTK-HeaderTest-Exclude: vtkWeakPointer.h

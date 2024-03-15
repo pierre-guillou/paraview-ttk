@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVoxelContoursToSurfaceFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVoxelContoursToSurfaceFilter.h"
 
 #include "vtkAppendPolyData.h"
@@ -25,6 +13,7 @@
 #include "vtkPolyData.h"
 #include "vtkStructuredPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkVoxelContoursToSurfaceFilter);
 
 vtkVoxelContoursToSurfaceFilter::vtkVoxelContoursToSurfaceFilter()
@@ -529,14 +518,20 @@ int vtkVoxelContoursToSurfaceFilter::RequestData(vtkInformation* vtkNotUsed(requ
   contourFilter->SetInputData(volume);
   contourFilter->SetNumberOfContours(1);
   contourFilter->SetValue(0, 0.0);
+  contourFilter->SetContainerAlgorithm(this);
 
   appendFilter = vtkAppendPolyData::New();
+  appendFilter->SetContainerAlgorithm(this);
 
   inputPolys->InitTraversal();
   inputPolys->GetNextCell(npts, pts);
 
   while (currentSlice <= lastSlice)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Make sure the origin of the volume is in the right
     // place so that the appended polydata all matches up
     // nicely.
@@ -648,3 +643,4 @@ void vtkVoxelContoursToSurfaceFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Spacing: " << this->Spacing[0] << " " << this->Spacing[1] << " "
      << this->Spacing[2] << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParallelCoordinatesActor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkParallelCoordinatesActor
  * @brief   create parallel coordinate display from input field
@@ -63,6 +51,7 @@
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAlgorithmOutput;
 class vtkAxisActor2D;
 class vtkDataObject;
@@ -218,9 +207,9 @@ private:
   void Initialize();
   int PlaceAxes(vtkViewport* viewport, const int* size);
 
-private:
   vtkParallelCoordinatesActor(const vtkParallelCoordinatesActor&) = delete;
   void operator=(const vtkParallelCoordinatesActor&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

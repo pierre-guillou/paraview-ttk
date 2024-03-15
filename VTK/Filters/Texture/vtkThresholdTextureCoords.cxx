@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkThresholdTextureCoords.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkThresholdTextureCoords.h"
 
 #include "vtkDataSet.h"
@@ -21,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkThresholdTextureCoords);
 
 // Construct with lower threshold=0, upper threshold=1, threshold
@@ -161,3 +150,4 @@ void vtkThresholdTextureCoords::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "In Texture Coordinate: (" << this->InTextureCoord[0] << ", "
      << this->InTextureCoord[1] << ", " << this->InTextureCoord[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExplicitStructuredGridToUnstructuredGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkExplicitStructuredGridToUnstructuredGrid.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 #include "vtkPointData.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExplicitStructuredGridToUnstructuredGrid);
 
 //------------------------------------------------------------------------------
@@ -87,8 +76,13 @@ int vtkExplicitStructuredGridToUnstructuredGrid::RequestData(
   vtkNew<vtkCellArray> cells;
   cells->AllocateEstimate(nbCells, 8);
   int i, j, k;
+  vtkIdType checkAbortInterval = std::min(nbCells / 10 + 1, (vtkIdType)1000);
   for (vtkIdType cellId = 0; cellId < nbCells; cellId++)
   {
+    if (cellId % checkAbortInterval == 0 && this->CheckAbort())
+    {
+      break;
+    }
     if (input->IsCellVisible(cellId))
     {
       vtkNew<vtkIdList> ptIds;
@@ -124,3 +118,4 @@ int vtkExplicitStructuredGridToUnstructuredGrid::FillInputPortInformation(
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkExplicitStructuredGrid");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

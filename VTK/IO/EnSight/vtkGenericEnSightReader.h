@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGenericEnSightReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGenericEnSightReader
  * @brief   class to read any type of EnSight files
@@ -26,6 +14,9 @@
 #include "vtkIOEnSightModule.h" // For export macro
 #include "vtkMultiBlockDataSetAlgorithm.h"
 
+#include <string>
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArrayCollection;
 class vtkDataArraySelection;
@@ -308,6 +299,11 @@ protected:
   virtual void ClearForNewCaseFileName();
 
   /**
+   * Sanitizes filename, removing quotations and removing trailing whitespace.
+   */
+  void SanitizeFileName(std::string& filename);
+
+  /**
    * Internal function to read in a line up to 256 characters.
    * Returns zero if there was an error.
    */
@@ -464,4 +460,5 @@ private:
   void operator=(const vtkGenericEnSightReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

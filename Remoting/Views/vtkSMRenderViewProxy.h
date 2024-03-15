@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMRenderViewProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMRenderViewProxy
  * @brief   implementation for View that includes
@@ -27,6 +15,7 @@
 #include "vtkNew.h"                 // needed for vtkInteractorObserver.
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSMViewProxy.h"
+
 class vtkCamera;
 class vtkCollection;
 class vtkFloatArray;
@@ -42,7 +31,7 @@ public:
   vtkTypeMacro(vtkSMRenderViewProxy, vtkSMViewProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Makes a new selection source proxy.
    */
@@ -62,9 +51,9 @@ public:
   bool SelectPolygonCells(vtkIntArray* polygon, vtkCollection* selectedRepresentations,
     vtkCollection* selectionSources, bool multiple_selections = false, int modifier = 0,
     bool selectBlocks = false);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the range for visible elements in the current view.
    */
@@ -72,7 +61,7 @@ public:
     int component, double range[]);
   bool ComputeVisibleScalarRange(
     int fieldAssociation, const char* scalarName, int component, double range[]);
-  //@}
+  ///@}
 
   /**
    * Convenience method to pick a location. Internally uses SelectSurfaceCells
@@ -109,29 +98,38 @@ public:
    */
   virtual bool IsSelectionAvailable();
 
-  //@{
+  /**
+   * Call SynchronizeGeometryBounds server side
+   */
+  void SynchronizeGeometryBounds();
+
+  ///@{
   /**
    * For backwards compatibility in Python scripts.
+   *
+   * OffsetRatio can be used to add a zoom offset (only applicable when closest is true).
    */
-  void ResetCamera(bool closest = false);
-  void ResetCamera(double bounds[6], bool closest = false);
+  void ResetCamera(bool closest = false, double offsetRatio = 0.9);
+  void ResetCamera(double bounds[6], bool closest = false, double offsetRatio = 0.9);
   void ResetCamera(double xmin, double xmax, double ymin, double ymax, double zmin, double zmax,
-    bool closest = false);
-  //@}
+    bool closest = false, double offsetRatio = 0.9);
+  ///@}
 
   /**
    * Convenience method for zooming to a representation.
+   *
+   * OffsetRatio can be used to add a zoom offset (only applicable when closest is true).
    */
-  virtual void ZoomTo(vtkSMProxy* representation, bool closest = false);
+  virtual void ZoomTo(vtkSMProxy* representation, bool closest = false, double offsetRatio = 0.9);
 
-  //@{
+  ///@{
   /**
    * Similar to IsSelectionAvailable(), however, on failure returns the
    * error message otherwise 0.
    */
   virtual const char* IsSelectVisibleCellsAvailable();
   virtual const char* IsSelectVisiblePointsAvailable();
-  //@}
+  ///@}
 
   /**
    * A client process need to set the interactor to enable interactivity. Use
@@ -151,6 +149,14 @@ public:
    */
   vtkRenderer* GetRenderer();
 
+  /**
+   * Filter changes to the OSPRay rendering method, to transfer the pathtracing materials from
+   * client to server only when they are acutally needed.
+   * Use this method instead of `UpdateProperty` when changing the OSPRay back-end for the default
+   * materials to load properly.
+   */
+  void UpdateVTKObjects() override;
+
   enum class CameraAdjustmentType : int
   {
     Roll = 0,
@@ -158,7 +164,7 @@ public:
     Azimuth,
     Zoom
   };
-  //@{
+  ///@{
   /**
    * Returns the client-side active camera object.
    * Helper methods to adjust its orientation and position.
@@ -179,7 +185,7 @@ public:
   void ResetActiveCameraToNegativeY();
   void ResetActiveCameraToPositiveZ();
   void ResetActiveCameraToNegativeZ();
-  //@}
+  ///@}
 
   /**
    * This method calls UpdateInformation on the Camera Proxy
@@ -236,6 +242,31 @@ public:
    */
   vtkFloatArray* CaptureDepthBuffer();
 
+  /**
+   * Get the SelectionRepresentation proxy name.
+   */
+  virtual const char* GetSelectionRepresentationProxyName() { return "SelectionRepresentation"; }
+
+  /**
+   * Function to copy selection representation properties.
+   */
+  virtual void CopySelectionRepresentationProperties(
+    vtkSMProxy* vtkNotUsed(fromSelectionRep), vtkSMProxy* vtkNotUsed(toSelectionRep))
+  {
+  }
+
+  /**
+   * Compute the bounds of the visible data on the given representation.
+   * Delegated to the server side (vtkPVRenderView).
+   */
+  void ComputeVisibleBounds(vtkSMProxy* representation, double* bounds);
+
+  /**
+   * Tries to clear the selection cache (if needed).
+   * Returns a boolean value which indicates whether the cache has been cleared.
+   */
+  bool ClearSelectionCache(bool force = false);
+
 protected:
   vtkSMRenderViewProxy();
   ~vtkSMRenderViewProxy() override;
@@ -286,12 +317,6 @@ protected:
   bool IsInSelectionMode();
 
   bool IsSelectionCached;
-
-  /**
-   * Returns true if the cache clear request was sent to vtkPVRenderView. The
-   * return value is primarily intended for debugging/logging purposes.
-   */
-  bool ClearSelectionCache(bool force = false);
 
   // Internal fields for the observer mechanism that is used to invalidate
   // the cache of selection when the current user became master

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWrapPythonTemplate.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkWrapPythonTemplate.h"
 #include "vtkWrapPythonClass.h"
@@ -89,11 +77,9 @@ size_t vtkWrapPython_PyTemplateName(const char* name, char* pname)
       ptype = "uint";
       break;
     case VTK_PARSE_LONG_LONG:
-    case VTK_PARSE___INT64:
       ptype = "int64";
       break;
     case VTK_PARSE_UNSIGNED_LONG_LONG:
-    case VTK_PARSE_UNSIGNED___INT64:
       ptype = "uint64";
       break;
     case VTK_PARSE_FLOAT:

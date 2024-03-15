@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkABI.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkABI
  * @brief   manage macros for exporting symbols in the binary interface.
@@ -44,6 +32,8 @@
 #ifndef vtkABI_h
 #define vtkABI_h
 
+#include "vtkOptions.h" // for VTK_USE_FUTURE_BOOL
+
 #if defined(_WIN32)
 #define VTK_ABI_IMPORT __declspec(dllimport)
 #define VTK_ABI_EXPORT __declspec(dllexport)
@@ -58,6 +48,8 @@
 #define VTK_ABI_HIDDEN
 #endif
 
+#include "vtkABINamespace.h"
+
 /*--------------------------------------------------------------------------*/
 /* If not already defined, define vtkTypeBool. When VTK was started, some   */
 /* compilers did not yet support the bool type, and so VTK often used int,  */
@@ -65,12 +57,12 @@
 /* Eventually vtkTypeBool will switch to real bool.                         */
 #ifndef VTK_TYPE_BOOL_TYPEDEFED
 #define VTK_TYPE_BOOL_TYPEDEFED
-#if 1
-typedef int vtkTypeBool;
-typedef unsigned int vtkTypeUBool;
-#else
+#if VTK_USE_FUTURE_BOOL
 typedef bool vtkTypeBool;
 typedef bool vtkTypeUBool;
+#else
+typedef int vtkTypeBool;
+typedef unsigned int vtkTypeUBool;
 #endif
 #endif
 

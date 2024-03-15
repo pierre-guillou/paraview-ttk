@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLFXAAFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLFXAAFilter.h"
 
@@ -43,6 +31,7 @@
 // Define to perform/dump benchmarking info:
 //#define FXAA_BENCHMARK
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLFXAAFilter);
 
 //------------------------------------------------------------------------------
@@ -335,6 +324,12 @@ void vtkOpenGLFXAAFilter::ApplyFilter()
   }
 
   vtkShaderProgram* program = this->QHelper->Program;
+  if (!program)
+  {
+    vtkWarningMacro(
+      "Unable to retrieve shader program from internal vtkOpenGLQuadHelper instance.");
+    return;
+  }
   program->SetUniformi("Input", this->Input->GetTextureUnit());
   float invTexSize[2] = { 1.f / static_cast<float>(this->Viewport[2]),
     1.f / static_cast<float>(this->Viewport[3]) };
@@ -449,3 +444,4 @@ void vtkOpenGLFXAAFilter::PrintBenchmark()
     this->FXAATimer->Reset();
   }
 }
+VTK_ABI_NAMESPACE_END

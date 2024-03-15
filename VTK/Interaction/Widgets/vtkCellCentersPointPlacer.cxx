@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellCentersPointPlacer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCellCentersPointPlacer.h"
 
 #include "vtkAssemblyNode.h"
@@ -26,6 +14,7 @@
 #include "vtkPropCollection.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellCentersPointPlacer);
 
 //------------------------------------------------------------------------------
@@ -68,9 +57,18 @@ void vtkCellCentersPointPlacer::RemoveAllProps()
 }
 
 //------------------------------------------------------------------------------
-int vtkCellCentersPointPlacer::HasProp(vtkProp* prop)
+vtkTypeBool vtkCellCentersPointPlacer::HasProp(vtkProp* prop)
 {
-  return this->PickProps->IsItemPresent(prop);
+  int index = this->PickProps->IndexOfFirstOccurence(prop);
+
+#if defined(VTK_LEGACY_REMOVE)
+  return (index >= 0);
+#else
+  // The implementation used to call IsItemPresent(), which, despite its name,
+  // returned an index, not a boolean.  Preserve the old behaviour.  0 means
+  // the item is not found, otherwise return the index + 1.
+  return index + 1;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -206,3 +204,4 @@ void vtkCellCentersPointPlacer::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Mode: " << this->Mode << endl;
 }
+VTK_ABI_NAMESPACE_END

@@ -430,11 +430,11 @@ utility/Utility.C
 utility/visit_gzstream.C
 utility/void_ref_ptr.C
 )
-IF(WIN32)
-    SET(UTILITY_WIN32_SOURCES utility/win32-regex.c)
-    SET_SOURCE_FILES_PROPERTIES(utility/win32-regex.c 
-        PROPERTIES LANGUAGE CXX)
-ENDIF(WIN32)
+#IF(WIN32)
+#    SET(UTILITY_WIN32_SOURCES utility/win32-regex.c)
+#    SET_SOURCE_FILES_PROPERTIES(utility/win32-regex.c 
+#        PROPERTIES LANGUAGE CXX)
+#ENDIF(WIN32)
 
 if (FALSE)
 INCLUDE_DIRECTORIES(

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkJoinTables.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkJoinTables.h"
 
 #include "vtkAbstractArray.h"
@@ -33,6 +21,7 @@
 #include <string>
 #include <utility>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkJoinTables);
 
 //------------------------------------------------------------------------------
@@ -138,6 +127,8 @@ int vtkJoinTables::RequestData(
     vtkErrorMacro("Unsupported types for the key columns.");
     return 0;
   }
+
+  this->CheckAbort();
   return 1;
 }
 
@@ -176,3 +167,4 @@ void vtkJoinTables::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << endl;
 }
+VTK_ABI_NAMESPACE_END

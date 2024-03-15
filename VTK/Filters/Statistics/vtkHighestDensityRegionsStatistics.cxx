@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHighestDensityRegionsStatistics.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHighestDensityRegionsStatistics.h"
 
@@ -29,6 +17,7 @@
 #include <set>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHighestDensityRegionsStatistics);
 
 //------------------------------------------------------------------------------
@@ -247,3 +236,4 @@ double vtkHighestDensityRegionsStatistics::ComputeSmoothGaussianKernel(
 
   return (exp(-d * 0.5)) / (2.0 * vtkMath::Pi() * this->Determinant);
 }
+VTK_ABI_NAMESPACE_END

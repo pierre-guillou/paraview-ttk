@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLagrangeInterpolation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangeInterpolation.h"
 
 #include "vtkDoubleArray.h"
@@ -27,6 +15,7 @@
 #include <array>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLagrangeInterpolation);
 
 vtkLagrangeInterpolation::vtkLagrangeInterpolation() = default;
@@ -39,8 +28,7 @@ void vtkLagrangeInterpolation::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 /// Evaluate 1-D shape functions for the given \a order at the given \a pcoord (in [0,1]).
-void vtkLagrangeInterpolation::EvaluateShapeFunctions(
-  const int order, const double pcoord, double* shape)
+void vtkLagrangeInterpolation::EvaluateShapeFunctions(int order, double pcoord, double* shape)
 {
   int j, k;
   double v = order * pcoord;
@@ -154,7 +142,7 @@ void vtkLagrangeInterpolation::Tensor3EvaluateDerivative(const int order[3], con
 
 /// Wedge shape function computation
 void vtkLagrangeInterpolation::WedgeShapeFunctions(
-  const int order[3], const vtkIdType numberOfPoints, const double pcoords[3], double* shape)
+  const int order[3], vtkIdType numberOfPoints, const double pcoords[3], double* shape)
 {
   vtkNew<vtkLagrangeTriangle> tri;
   vtkHigherOrderInterpolation::WedgeShapeFunctions(
@@ -163,14 +151,14 @@ void vtkLagrangeInterpolation::WedgeShapeFunctions(
 
 /// Wedge shape-function derivative evaluation
 void vtkLagrangeInterpolation::WedgeShapeDerivatives(
-  const int order[3], const vtkIdType numberOfPoints, const double pcoords[3], double* derivs)
+  const int order[3], vtkIdType numberOfPoints, const double pcoords[3], double* derivs)
 {
   vtkNew<vtkLagrangeTriangle> tri;
   vtkHigherOrderInterpolation::WedgeShapeDerivatives(order, numberOfPoints, pcoords, derivs, *tri,
     vtkLagrangeInterpolation::EvaluateShapeAndGradient);
 }
 
-void vtkLagrangeInterpolation::WedgeEvaluate(const int order[3], const vtkIdType numberOfPoints,
+void vtkLagrangeInterpolation::WedgeEvaluate(const int order[3], vtkIdType numberOfPoints,
   const double* pcoords, double* fieldVals, int fieldDim, double* fieldAtPCoords)
 {
   vtkNew<vtkLagrangeTriangle> tri;
@@ -185,3 +173,4 @@ void vtkLagrangeInterpolation::WedgeEvaluateDerivative(const int order[3], const
   this->vtkHigherOrderInterpolation::WedgeEvaluateDerivative(order, pcoords, points, fieldVals,
     fieldDim, fieldDerivs, *tri, vtkLagrangeInterpolation::EvaluateShapeAndGradient);
 }
+VTK_ABI_NAMESPACE_END

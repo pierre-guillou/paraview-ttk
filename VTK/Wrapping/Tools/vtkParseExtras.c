@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseExtras.c
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2011 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in May 2011
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2011 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkParseExtras.h"
 #include "vtkParseString.h"
 #include <assert.h>
@@ -584,11 +566,6 @@ size_t vtkParse_BasicTypeFromString(
       classname = "void";
       base_bits = VTK_PARSE_VOID;
     }
-    else if (n == 7 && strncmp(cp, "__int64", n) == 0)
-    {
-      classname = "__int64";
-      base_bits = VTK_PARSE___INT64;
-    }
     else
     {
       /* if type already found, break */
@@ -698,9 +675,6 @@ size_t vtkParse_BasicTypeFromString(
         break;
       case VTK_PARSE_LONG_LONG:
         classname = "unsigned long long";
-        break;
-      case VTK_PARSE___INT64:
-        classname = "unsigned __int64";
         break;
     }
   }

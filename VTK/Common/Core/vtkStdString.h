@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStdString.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStdString
  * @brief   Wrapper around std::string to keep symbols short.
@@ -25,10 +13,12 @@
 #define vtkStdString_h
 
 #include "vtkCommonCoreModule.h" // For export macro
+#include "vtkDeprecation.h"      // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkSystemIncludes.h"   // For VTKCOMMONCORE_EXPORT.
 #include <string>                // For the superclass.
 #include <utility>               // For std::move
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStdString;
 VTKCOMMONCORE_EXPORT ostream& operator<<(ostream&, const vtkStdString&);
 
@@ -47,10 +37,7 @@ public:
   typedef StdString::reverse_iterator reverse_iterator;
   typedef StdString::const_reverse_iterator const_reverse_iterator;
 
-  vtkStdString()
-    : std::string()
-  {
-  }
+  vtkStdString() = default;
   vtkStdString(const value_type* s)
     : std::string(s)
   {
@@ -72,8 +59,10 @@ public:
   {
   }
 
+  VTK_DEPRECATED_IN_9_3_0("Call `.c_str()` explicitly")
   operator const char*() { return this->c_str(); }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkStdString.h

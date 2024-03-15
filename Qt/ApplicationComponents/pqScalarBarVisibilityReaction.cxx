@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqScalarBarVisibilityReaction.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqScalarBarVisibilityReaction.h"
 
 #include "pqActiveObjects.h"
@@ -37,7 +9,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTimer.h"
 #include "pqUndoStack.h"
 #include "vtkAbstractArray.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMTransferFunctionProxy.h"
 
@@ -106,7 +78,7 @@ void pqScalarBarVisibilityReaction::setRepresentation(pqDataRepresentation* repr
   vtkSMProxy* reprProxy = repr ? repr->getProxy() : nullptr;
   pqView* view = repr ? repr->getView() : nullptr;
 
-  bool can_show_sb = repr && vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy);
+  bool can_show_sb = repr && vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy);
   bool is_shown = false;
   if (repr)
   {
@@ -142,7 +114,7 @@ vtkSMProxy* pqScalarBarVisibilityReaction::scalarBarProxy() const
   pqDataRepresentation* repr = this->CachedRepresentation;
   vtkSMProxy* reprProxy = repr ? repr->getProxy() : nullptr;
   pqView* view = repr ? repr->getView() : nullptr;
-  if (vtkSMPVRepresentationProxy::GetUsingScalarColoring(reprProxy))
+  if (vtkSMColorMapEditorHelper::GetUsingScalarColoring(reprProxy))
   {
     return vtkSMTransferFunctionProxy::FindScalarBarRepresentation(
       repr->getLookupTableProxy(), view->getProxy());
@@ -166,7 +138,7 @@ void pqScalarBarVisibilityReaction::setScalarBarVisibility(bool visible)
   }
 
   if (visible &&
-    vtkSMPVRepresentationProxy::GetEstimatedNumberOfAnnotationsOnScalarBar(
+    vtkSMColorMapEditorHelper::GetEstimatedNumberOfAnnotationsOnScalarBar(
       repr->getProxy(), repr->getView()->getProxy()) > vtkAbstractArray::MAX_DISCRETE_VALUES)
   {
     QMessageBox* box = new QMessageBox(QMessageBox::Warning, tr("Number of annotations warning"),
@@ -184,8 +156,8 @@ void pqScalarBarVisibilityReaction::setScalarBarVisibility(bool visible)
     }
     delete box;
   }
-  BEGIN_UNDO_SET("Toggle Color Legend Visibility");
-  vtkSMPVRepresentationProxy::SetScalarBarVisibility(
+  BEGIN_UNDO_SET(tr("Toggle Color Legend Visibility"));
+  vtkSMColorMapEditorHelper::SetScalarBarVisibility(
     repr->getProxy(), repr->getView()->getProxy(), visible);
   END_UNDO_SET();
   repr->renderViewEventually();

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSpreadSheetView.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpreadSheetView.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -32,6 +20,7 @@
 #include "vtkMultiProcessController.h"
 #include "vtkMultiProcessStream.h"
 #include "vtkObjectFactory.h"
+#include "vtkPVLogger.h"
 #include "vtkPVMergeTables.h"
 #include "vtkPVSession.h"
 #include "vtkProcessModule.h"
@@ -42,12 +31,12 @@
 #include "vtkSpreadSheetRepresentation.h"
 #include "vtkStringArray.h"
 #include "vtkTable.h"
+#include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkVariant.h"
 
 #include <algorithm>
 #include <cstring>
-#include <iterator>
 #include <map>
 #include <set>
 #include <string>
@@ -55,42 +44,6 @@
 
 namespace
 {
-bool OrderByNames(vtkAbstractArray* a1, vtkAbstractArray* a2)
-{
-  const char* order[] = { "vtkBlockNameIndices", "vtkOriginalProcessIds", "vtkCompositeIndexArray",
-    "vtkOriginalIndices", "vtkOriginalCellIds", "vtkOriginalPointIds", "vtkOriginalRowIds",
-    "Structured Coordinates", nullptr };
-  std::string a1Name = a1->GetName() ? a1->GetName() : "";
-  std::string a2Name = a2->GetName() ? a2->GetName() : "";
-  int a1Index = VTK_INT_MAX, a2Index = VTK_INT_MAX;
-  for (int cc = 0; order[cc] != nullptr; cc++)
-  {
-    if (a1Index == VTK_INT_MAX && a1Name == order[cc])
-    {
-      a1Index = cc;
-    }
-    if (a2Index == VTK_INT_MAX && a2Name == order[cc])
-    {
-      a2Index = cc;
-    }
-  }
-  if (a1Index < a2Index)
-  {
-    return true;
-  }
-  if (a2Index < a1Index)
-  {
-    return false;
-  }
-  // we can reach here only when both array names are not in the "priority"
-  // set or they are the same (which does happen, see BUG #9808).
-  assert((a1Index == VTK_INT_MAX && a2Index == VTK_INT_MAX) || (a1Name == a2Name));
-
-  std::transform(a1Name.begin(), a1Name.end(), a1Name.begin(), ::tolower);
-  std::transform(a2Name.begin(), a2Name.end(), a2Name.begin(), ::tolower);
-  return (a1Name < a2Name);
-}
-
 vtkSmartPointer<vtkAbstractArray> MapBlockNames(vtkAbstractArray* aa_ids, vtkStringArray* names)
 {
   const auto ids = vtkIdTypeArray::SafeDownCast(aa_ids);
@@ -180,8 +133,7 @@ const char* get_userfriendly_name(
 }
 
 /**
- * A subclass of vtkPVMergeTables to handle reduction for "vtkBlockNameIndices"
- * and "vtkBlockNames" arrays correctly.
+ * A subclass of vtkPVMergeTables to handle reduction for "vtkBlockNames" correctly.
  */
 class SpreadSheetViewMergeTables : public vtkPVMergeTables
 {
@@ -206,66 +158,10 @@ protected:
       return this->Superclass::RequestData(req, inputVector, outputVector);
     }
 
-    // Reduce vtkBlockNameIndices array correctly.
-    // vtkSortedTableStreamer adds a Row array named "vtkBlockNameIndices" which
-    // is the index for "vtkBlockNames" field array which is the name of the
-    // block. This indirection is used to avoid duplicating strings for all
-    // elements since they don't change for the entire block. However, with MBs
-    // block names are rarely consistent across ranks. So we do this reduction
-    // to build a reduced `vtkBlockNames` array and update the
-    // `vtkBlockNameIndices` accordingly.
-    std::map<std::string, vtkIdType> nameMap;
-    std::vector<vtkTable*> new_inputs(inputs.size(), nullptr);
-    std::transform(inputs.begin(), inputs.end(), new_inputs.begin(), [&nameMap](vtkTable* input) {
-      vtkTable* xformed = vtkTable::New();
-      xformed->ShallowCopy(input);
+    vtkPVMergeTables::MergeTables(output, inputs);
 
-      auto inIndices = vtkIdTypeArray::SafeDownCast(input->GetColumnByName("vtkBlockNameIndices"));
-      auto inNames =
-        vtkStringArray::SafeDownCast(input->GetFieldData()->GetAbstractArray("vtkBlockNames"));
-      if (!inIndices || !inNames)
-      {
-        return xformed;
-      }
-
-      // insert names in map, if not already present.
-      for (vtkIdType cc = 0, max = inNames->GetNumberOfTuples(); cc < max; ++cc)
-      {
-        nameMap.insert(
-          std::make_pair(inNames->GetValue(cc), static_cast<vtkIdType>(nameMap.size())));
-      }
-
-      vtkNew<vtkIdTypeArray> outIndices;
-      outIndices->SetName("vtkBlockNameIndices");
-      outIndices->SetNumberOfTuples(inIndices->GetNumberOfTuples());
-      auto irange = vtk::DataArrayValueRange<1>(inIndices);
-      auto orange = vtk::DataArrayValueRange<1>(outIndices);
-      std::transform(
-        irange.begin(), irange.end(), orange.begin(), [&nameMap, inNames](const vtkIdType& index) {
-          return nameMap.at(inNames->GetValue(index));
-        });
-
-      xformed->RemoveColumnByName("vtkBlockNameIndices");
-      xformed->AddColumn(outIndices);
-      return xformed;
-    });
-
-    vtkPVMergeTables::MergeTables(output, new_inputs);
-    for (auto input : new_inputs)
-    {
-      input->Delete();
-    }
-    new_inputs.clear();
-
-    vtkNew<vtkStringArray> outNames;
-    outNames->SetName("vtkBlockNames");
-    outNames->SetNumberOfTuples(static_cast<vtkIdType>(nameMap.size()));
-    for (const auto& pair : nameMap)
-    {
-      outNames->SetValue(pair.second, pair.first);
-    }
     output->GetFieldData()->RemoveArray("vtkBlockNames");
-    output->GetFieldData()->AddArray(outNames);
+    output->GetFieldData()->AddArray(inputs[0]->GetFieldData()->GetAbstractArray("vtkBlockNames"));
     return 1;
   }
 
@@ -330,14 +226,25 @@ class vtkSpreadSheetView::vtkInternals
   public:
     vtkSmartPointer<vtkTable> Dataobject;
     vtkTimeStamp RecentUseTime;
+
+    CacheInfo()
+    {
+      this->Dataobject = nullptr;
+      this->RecentUseTime = vtkTimeStamp();
+    }
   };
 
   typedef std::map<vtkIdType, CacheInfo> CacheType;
   CacheType CachedBlocks;
+  std::pair<vtkIdType, CacheInfo> PreviousFirstCachedBlock;
 
 public:
   void ClearCache()
   {
+    if (!this->CachedBlocks.empty())
+    {
+      this->PreviousFirstCachedBlock = *this->CachedBlocks.begin();
+    }
     this->CachedBlocks.clear();
     this->ColumnMetaData.clear();
     this->ColumnIndexMap.clear();
@@ -395,6 +302,70 @@ public:
     return nullptr;
   }
 
+  bool OrderByNames(vtkAbstractArray* a1, vtkAbstractArray* a2)
+  {
+    std::vector<std::string> firstOrder = { "vtkBlockNameIndices", "vtkOriginalProcessIds",
+      "vtkCompositeIndexArray", "vtkOriginalIndices", "vtkOriginalCellIds", "vtkOriginalPointIds",
+      "vtkOriginalRowIds", "Structured Coordinates" };
+    std::vector<std::string> lastOrder = { "FieldData: " };
+
+    if (this->OrderColumnsByList && !this->OrderedColumnList.empty())
+    {
+      firstOrder.insert(
+        firstOrder.end(), this->OrderedColumnList.begin(), this->OrderedColumnList.end());
+    }
+
+    std::string a1Name = a1->GetName() ? a1->GetName() : "";
+    std::string a2Name = a2->GetName() ? a2->GetName() : "";
+    unsigned int a1Index = VTK_INT_MAX, a2Index = VTK_INT_MAX;
+
+    auto findFirstOrderOccurance = [&firstOrder](const std::string& name, unsigned int& index) {
+      for (unsigned int i = 0; i < firstOrder.size(); i++)
+      {
+        if (index == VTK_INT_MAX && name == firstOrder[i])
+        {
+          index = i;
+          break;
+        }
+      }
+    };
+    findFirstOrderOccurance(a1Name, a1Index);
+    findFirstOrderOccurance(a2Name, a2Index);
+    if (a1Index < a2Index)
+    {
+      return true;
+    }
+    if (a2Index < a1Index)
+    {
+      return false;
+    }
+
+    // we can reach here only when both array names are not in the "priority"
+    // set or they are the same (which does happen, see BUG #9808).
+    assert((a1Index == VTK_INT_MAX && a2Index == VTK_INT_MAX) || (a1Name == a2Name));
+
+    auto findLastOrderOccurance = [&lastOrder](const std::string& name, unsigned int& index) {
+      for (unsigned int i = 0; i < lastOrder.size(); i++)
+      {
+        if (name.find(lastOrder[i], 0) != std::string::npos)
+        {
+          index = i;
+          break;
+        }
+      }
+    };
+    findLastOrderOccurance(a1Name, a1Index);
+    findLastOrderOccurance(a2Name, a2Index);
+
+    if (a1Index == a2Index)
+    {
+      std::transform(a1Name.begin(), a1Name.end(), a1Name.begin(), ::tolower);
+      std::transform(a2Name.begin(), a2Name.end(), a2Name.begin(), ::tolower);
+      return (a1Name < a2Name);
+    }
+    return a1Index > a2Index;
+  }
+
   vtkTable* AddToCache(vtkIdType blockId, vtkTable* data, vtkIdType max)
   {
     CacheType::iterator iter = this->CachedBlocks.find(blockId);
@@ -439,7 +410,8 @@ public:
       }
     }
     // if block-names are present in field-data, create an array
-    std::sort(arrays.begin(), arrays.end(), OrderByNames);
+    std::sort(arrays.begin(), arrays.end(),
+      [this](vtkAbstractArray* a1, vtkAbstractArray* a2) { return this->OrderByNames(a1, a2); });
     for (const auto& column : arrays)
     {
       clone->AddColumn(column);
@@ -457,11 +429,18 @@ public:
   }
 
   /**
-   * A convenient method to get some block. It returns either a cached block
-   * or the most recently accessed block, if possible. This method will avoid a
-   * fetch unless needed.
+   * Get Previous first cached block
    */
-  vtkTable* GetSomeBlock(vtkSpreadSheetView* self)
+  std::pair<vtkIdType, CacheInfo> GetPreviousFirstCachedBlock()
+  {
+    return this->PreviousFirstCachedBlock;
+  }
+
+  /**
+   * A convenient method to get an existing block. It returns either the most recently accessed
+   * block or a cached block.
+   */
+  vtkTable* GetAnExistingBlock(vtkSpreadSheetView* self)
   {
     const auto mrbId = this->GetMostRecentlyAccessedBlock(self);
     if (auto table = this->GetDataObject(mrbId))
@@ -476,7 +455,23 @@ public:
         return cinfo.second.Dataobject;
       }
     }
-    return self->FetchBlock(mrbId);
+    return nullptr;
+  }
+
+  /**
+   * A convenient method to get some block. It returns either the most recently accessed block
+   * or a cached block, if possible. This method will avoid a fetch unless needed.
+   */
+  vtkTable* GetSomeBlock(vtkSpreadSheetView* self)
+  {
+    if (auto table = this->GetAnExistingBlock(self))
+    {
+      return table;
+    }
+    else
+    {
+      return self->FetchBlock(this->GetMostRecentlyAccessedBlock(self));
+    }
   }
 
   vtkIdType MostRecentlyAccessedBlock;
@@ -485,6 +480,9 @@ public:
 
   std::set<std::string> HiddenColumnsByName;
   std::set<std::string> HiddenColumnsByLabel;
+
+  std::vector<std::string> OrderedColumnList;
+  bool OrderColumnsByList = false;
 };
 
 namespace
@@ -561,8 +559,6 @@ vtkStandardNewMacro(vtkSpreadSheetView);
 //----------------------------------------------------------------------------
 vtkSpreadSheetView::vtkSpreadSheetView()
   : Superclass(/*create_render_window=*/false)
-  , ShowExtractedSelection(false)
-  , GenerateCellConnectivity(false)
   , TableStreamer(vtkSortedTableStreamer::New())
   , TableSelectionMarker(vtkMarkSelectedRows::New())
   , ReductionFilter(vtkReductionFilter::New())
@@ -714,6 +710,58 @@ bool vtkSpreadSheetView::IsColumnInternal(const char* columnName)
 }
 
 //----------------------------------------------------------------------------
+void vtkSpreadSheetView::OrderColumnsByList(bool val)
+{
+  // Avoid unecessary called to ClearCache()
+  if (this->Internals->OrderColumnsByList == val)
+  {
+    return;
+  }
+
+  this->Internals->OrderColumnsByList = val;
+  this->ClearCache();
+}
+
+//----------------------------------------------------------------------------
+void vtkSpreadSheetView::InitializeOrderedColumnList()
+{
+  // We only want visible column
+  const char* unwantedColumnNames[2] = { "__vtkValidMask__", "vtkOriginalIndices" };
+
+  for (vtkIdType index = 0; index < this->GetNumberOfColumns(); index++)
+  {
+    std::string colName = this->GetColumnName(index);
+    if (colName.find(unwantedColumnNames[0]) == std::string::npos &&
+      colName.find(unwantedColumnNames[1]) == std::string::npos)
+    {
+      this->Internals->OrderedColumnList.push_back(colName);
+    }
+  }
+
+  std::sort(this->Internals->OrderedColumnList.begin(), this->Internals->OrderedColumnList.end());
+}
+
+//----------------------------------------------------------------------------
+std::vector<std::string> vtkSpreadSheetView::GetOrderedColumnList()
+{
+  return this->Internals->OrderedColumnList;
+}
+
+//----------------------------------------------------------------------------
+void vtkSpreadSheetView::SetOrderedColumnList(std::vector<std::string> list)
+{
+  this->Internals->OrderedColumnList = list;
+  this->ClearCache();
+}
+
+//----------------------------------------------------------------------------
+void vtkSpreadSheetView::ClearOrderedColumnList()
+{
+  this->Internals->OrderedColumnList.clear();
+  this->ClearCache();
+}
+
+//----------------------------------------------------------------------------
 void vtkSpreadSheetView::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -750,7 +798,66 @@ void vtkSpreadSheetView::Update()
   }
 
   this->SomethingUpdated = false;
-  this->Superclass::Update();
+
+  // The code below is the same with vtkPVView::Update() except for the addition of a block to the
+  // cache if none exists. This is needed to ensure that if a progress event is attempted to be
+  // handled, because of a WrongTagEvent during another Receive call message from the client's
+  // controller in any view that is present, the progress can query some block from the cache
+  // instead of trying to fetch it from the server which will result in a deadlock. After finishing
+  // the Update(), a StillRender/InteractiveRender will be called which will ensure that the cache
+  // is cleared and the correct block is fetched from the server.
+
+  vtkVLogScopeF(PARAVIEW_LOG_RENDERING_VERBOSITY(), "%s: update view", this->GetLogName().c_str());
+
+  // Propagate update time.
+  const int num_reprs = this->GetNumberOfRepresentations();
+  const auto view_time = this->GetViewTime();
+  for (int cc = 0; cc < num_reprs; cc++)
+  {
+    if (auto pvrepr = vtkPVDataRepresentation::SafeDownCast(this->GetRepresentation(cc)))
+    {
+      // Pass the view time information to the representation
+      if (this->GetViewTime())
+      {
+        pvrepr->SetUpdateTime(view_time);
+      }
+      else
+      {
+        pvrepr->ResetUpdateTime();
+      }
+    }
+  }
+
+  vtkTimerLog::MarkStartEvent("vtkPVView::Update");
+  const int count = this->CallProcessViewRequest(
+    vtkPVView::REQUEST_UPDATE(), this->RequestInformation, this->ReplyInformationVector);
+  vtkTimerLog::MarkEndEvent("vtkPVView::Update");
+
+  // Add a block to the cache if it doesn't exist.
+  if (!this->Internals->GetAnExistingBlock(this))
+  {
+    // Add the previous first cached block to the cache if it exists.
+    auto previousFirstCachedBlock = this->Internals->GetPreviousFirstCachedBlock();
+    vtkSmartPointer<vtkTable> table = previousFirstCachedBlock.second.Dataobject;
+    if (table)
+    {
+      this->Internals->AddToCache(previousFirstCachedBlock.first, table, 10);
+    }
+    else // Add an empty block to the cache.
+    {
+      table = vtkSmartPointer<vtkTable>::New();
+      this->Internals->AddToCache(0, table, 10);
+    }
+  }
+
+  // exchange information about representations that are time-dependent.
+  // this goes from data-server-root to client and render-server.
+  if (count)
+  {
+    this->SynchronizeRepresentationTemporalPipelineStates();
+  }
+
+  this->UpdateTimeStamp.Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -852,6 +959,7 @@ vtkTable* vtkSpreadSheetView::FetchBlockCallback(vtkIdType blockindex)
   }
 
   this->TableStreamer->SetBlock(blockindex);
+  this->TableStreamer->SetShowFieldData(this->ShowFieldData);
   this->TableStreamer->Modified();
   this->TableSelectionMarker->SetFieldAssociation(this->FieldAssociation);
   this->ReductionFilter->Modified();

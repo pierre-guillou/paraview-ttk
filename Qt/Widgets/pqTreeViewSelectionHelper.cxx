@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqTreeViewSelectionHelper.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqTreeViewSelectionHelper.h"
 
 #include "pqHeaderView.h"
@@ -36,6 +8,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QItemSelection>
 #include <QLineEdit>
 #include <QMenu>
+#include <QRegularExpression>
 #include <QSortFilterProxyModel>
 #include <QVBoxLayout>
 #include <QWidgetAction>
@@ -71,7 +44,8 @@ void updateFilter(QAbstractItemView* tree, int section, const QString& txt)
 
   if (sfmodel)
   {
-    sfmodel->setFilterRegExp(QRegExp(txt, Qt::CaseInsensitive));
+    sfmodel->setFilterRegularExpression(
+      QRegularExpression(txt, QRegularExpression::CaseInsensitiveOption));
     sfmodel->setFilterKeyColumn(section);
   }
   if (pqheader && sfmodel)
@@ -138,8 +112,10 @@ void pqTreeViewSelectionHelper::setSelectedItemsCheckState(Qt::CheckState state)
 }
 
 //-----------------------------------------------------------------------------
-void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
+void pqTreeViewSelectionHelper::buildupMenu(QMenu& menu, int section, const QPoint& pos)
 {
+  Q_UNUSED(pos);
+
   auto tree = this->TreeView;
   auto model = tree->model();
   auto header = genericHeader(tree);
@@ -154,23 +130,30 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
     }
   }
 
-  const bool user_checkable =
+  const bool isUserCheckable =
     model->headerData(section, header->orientation(), Qt::CheckStateRole).isValid();
+  QModelIndex itemIndex = this->TreeView->indexAt(pos);
+
+  bool isItemFilterable = false;
+  bool isItemSortable = false;
+  if (sfmodel != nullptr)
+  {
+    isItemFilterable = model->data(itemIndex, sfmodel->filterRole()).isValid();
+    isItemSortable = model->data(itemIndex, sfmodel->sortRole()).isValid();
+  }
+
   const int selectionCount = selectedIndexes.size();
   const int rowCount = model->rowCount();
 
-  QMenu menu;
-  menu.setObjectName("TreeViewCheckMenu");
-
   QLineEdit* searchLineEdit = nullptr;
-  if (this->Filterable && sfmodel != nullptr)
+  if (this->Filterable && isItemFilterable)
   {
     if (auto filterActn = new QWidgetAction(&menu))
     {
       searchLineEdit = new QLineEdit(&menu);
-      searchLineEdit->setPlaceholderText("Filter items (regex)");
+      searchLineEdit->setPlaceholderText(tr("Filter items (regex)"));
       searchLineEdit->setClearButtonEnabled(true);
-      searchLineEdit->setText(sfmodel->filterRegExp().pattern());
+      searchLineEdit->setText(sfmodel->filterRegularExpression().pattern());
 
       auto container = new QWidget(&menu);
       auto l = new QVBoxLayout(container);
@@ -192,18 +175,18 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
     menu.addSeparator();
   }
 
-  if (user_checkable)
+  if (isUserCheckable)
   {
     if (auto actn =
-          menu.addAction(QIcon(":/pqWidgets/Icons/pqChecked.svg"), "Check highlighted items"))
+          menu.addAction(QIcon(":/pqWidgets/Icons/pqChecked.svg"), tr("Check highlighted items")))
     {
       actn->setEnabled(selectionCount > 0);
       QObject::connect(
         actn, &QAction::triggered, [this](bool) { this->setSelectedItemsCheckState(Qt::Checked); });
     }
 
-    if (auto actn =
-          menu.addAction(QIcon(":/pqWidgets/Icons/pqUnchecked.svg"), "Uncheck highlighted items"))
+    if (auto actn = menu.addAction(
+          QIcon(":/pqWidgets/Icons/pqUnchecked.svg"), tr("Uncheck highlighted items")))
     {
       actn->setEnabled(selectionCount > 0);
       QObject::connect(actn, &QAction::triggered,
@@ -211,9 +194,9 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
     }
   }
 
-  if (sfmodel != nullptr)
+  if (isItemSortable)
   {
-    if (user_checkable)
+    if (isUserCheckable)
     {
       menu.addSeparator();
     }
@@ -225,8 +208,8 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
     }
 
     if (auto actn = order == Qt::AscendingOrder
-        ? menu.addAction(QIcon(":/pqWidgets/Icons/pqSortAscend.svg"), "Sort (ascending)")
-        : menu.addAction(QIcon(":/pqWidgets/Icons/pqSortDescend.svg"), "Sort (descending)"))
+        ? menu.addAction(QIcon(":/pqWidgets/Icons/pqSortAscend.svg"), tr("Sort (ascending)"))
+        : menu.addAction(QIcon(":/pqWidgets/Icons/pqSortDescend.svg"), tr("Sort (descending)")))
     {
       actn->setEnabled(rowCount > 0);
       QObject::connect(actn, &QAction::triggered, [order, section, sfmodel, header](bool) {
@@ -236,7 +219,7 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
       });
     }
 
-    if (auto actn = menu.addAction(QIcon(":/pqWidgets/Icons/pqClearSort.svg"), "Clear sorting"))
+    if (auto actn = menu.addAction(QIcon(":/pqWidgets/Icons/pqClearSort.svg"), tr("Clear sorting")))
     {
       actn->setEnabled(sfmodel->sortColumn() != -1);
       QObject::connect(actn, &QAction::triggered, [order, sfmodel, header](bool) {
@@ -250,5 +233,19 @@ void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
   {
     searchLineEdit->setFocus();
   }
+}
+
+//-----------------------------------------------------------------------------
+void pqTreeViewSelectionHelper::showContextMenu(int section, const QPoint& pos)
+{
+  QMenu menu;
+  menu.setObjectName("TreeViewCheckMenu");
+
+  this->buildupMenu(menu, section, pos);
+  if (menu.isEmpty())
+  {
+    return;
+  }
+
   menu.exec(this->TreeView->mapToGlobal(pos));
 }

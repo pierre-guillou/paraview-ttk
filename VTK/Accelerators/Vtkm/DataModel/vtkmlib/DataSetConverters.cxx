@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "DataSetConverters.h"
 
@@ -47,6 +36,7 @@
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 namespace
 {
@@ -260,7 +250,8 @@ vtkm::cont::DataSet Convert(vtkRectilinearGrid* input, FieldsFlag fields)
 // determine the type and call the proper Convert routine
 vtkm::cont::DataSet Convert(vtkDataSet* input, FieldsFlag fields)
 {
-  switch (input->GetDataObjectType())
+  auto typeId = input->GetDataObjectType();
+  switch (typeId)
   {
     case VTK_UNSTRUCTURED_GRID:
       return Convert(vtkUnstructuredGrid::SafeDownCast(input), fields);
@@ -277,14 +268,18 @@ vtkm::cont::DataSet Convert(vtkDataSet* input, FieldsFlag fields)
     case VTK_UNSTRUCTURED_GRID_BASE:
     case VTK_STRUCTURED_POINTS:
     default:
-      return vtkm::cont::DataSet();
+      const std::string typeStr = vtkDataObjectTypes::GetClassNameFromTypeId(typeId);
+      const std::string errMsg = "Unable to convert " + typeStr + " to vtkm::cont::DataSet";
+      throw vtkm::cont::ErrorBadType(errMsg);
   }
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace tovtkm
 
 namespace fromvtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 namespace
 {
@@ -440,4 +435,5 @@ bool Convert(const vtkm::cont::DataSet& vtkmOut, vtkStructuredGrid* output, vtkD
   return true;
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace fromvtkm

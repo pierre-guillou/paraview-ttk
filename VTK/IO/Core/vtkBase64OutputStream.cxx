@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBase64OutputStream.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkBase64OutputStream.h"
 #include "vtkBase64Utilities.h"
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBase64OutputStream);
 
 //------------------------------------------------------------------------------
@@ -35,8 +24,7 @@ void vtkBase64OutputStream::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-inline int vtkBase64OutputStream::EncodeTriplet(
-  unsigned char c0, unsigned char c1, unsigned char c2)
+int vtkBase64OutputStream::EncodeTriplet(unsigned char c0, unsigned char c1, unsigned char c2)
 {
   // Encodes 3 bytes into 4 bytes and writes them to the output stream.
   unsigned char out[4];
@@ -45,7 +33,7 @@ inline int vtkBase64OutputStream::EncodeTriplet(
 }
 
 //------------------------------------------------------------------------------
-inline int vtkBase64OutputStream::EncodeEnding(unsigned char c0, unsigned char c1)
+int vtkBase64OutputStream::EncodeEnding(unsigned char c0, unsigned char c1)
 {
   // Encodes a 2-byte ending into 3 bytes and 1 pad byte and writes.
   unsigned char out[4];
@@ -54,7 +42,7 @@ inline int vtkBase64OutputStream::EncodeEnding(unsigned char c0, unsigned char c
 }
 
 //------------------------------------------------------------------------------
-inline int vtkBase64OutputStream::EncodeEnding(unsigned char c0)
+int vtkBase64OutputStream::EncodeEnding(unsigned char c0)
 {
   // Encodes a 1-byte ending into 2 bytes and 2 pad bytes and writes.
   unsigned char out[4];
@@ -139,3 +127,4 @@ int vtkBase64OutputStream::Write(void const* data, size_t length)
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

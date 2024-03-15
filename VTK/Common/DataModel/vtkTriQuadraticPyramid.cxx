@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTriQuadraticPyramid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkTriQuadraticPyramid.h"
 
@@ -27,8 +15,10 @@
 #include "vtkQuadraticEdge.h"
 #include "vtkTetra.h"
 
+#include <algorithm> //std::copy
 #include <cstddef>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // defined constants used in interpolation functions and their partial derivatives
@@ -255,18 +245,25 @@ int vtkTriQuadraticPyramid::EvaluatePosition(const double* x, double closestPoin
   double pcoords[3], double& dist2, double weights[])
 {
   subId = 0;
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return 0;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
   // There are problems searching for the apex point, so we check if
   // we are there first before doing the full parametric inversion.
-  vtkPoints* points = this->GetPoints();
-  double apexPoint[3];
-  points->GetPoint(4, apexPoint);
+  const double* apexPoint;
+  apexPoint = pts + 3 * 4;
   dist2 = vtkMath::Distance2BetweenPoints(apexPoint, x);
-  double baseMidpoint[3];
-  points->GetPoint(0, baseMidpoint);
+  double baseMidpoint[3] = { pts[0], pts[1], pts[2] };
   for (int i = 1; i < 4; i++)
   {
-    double tmp[3];
-    points->GetPoint(i, tmp);
+    const double* tmp;
+    tmp = pts + 3 * i;
     for (int j = 0; j < 3; j++)
     {
       baseMidpoint[j] += tmp[j];
@@ -299,15 +296,15 @@ int vtkTriQuadraticPyramid::EvaluatePosition(const double* x, double closestPoin
 
   // compute a bound on the volume to get a scale for an acceptable determinant
   double longestEdge = 0;
-  double pt0[3], pt1[3];
+  const double *pt0, *pt1;
   for (int i = 0; i < 8; i++)
   {
-    points->GetPoint(PyramidEdges[i][0], pt0);
-    points->GetPoint(PyramidEdges[i][1], pt1);
+    pt0 = pts + 3 * PyramidEdges[i][0];
+    pt1 = pts + 3 * PyramidEdges[i][1];
     longestEdge = std::max(longestEdge, vtkMath::Distance2BetweenPoints(pt0, pt1));
   }
   // longestEdge value is already squared
-  double volumeBound = std::pow(longestEdge, 1.5);
+  double volumeBound = longestEdge * std::sqrt(longestEdge);
   double determinantTolerance = std::min(1e-20, 0.00001 * volumeBound);
 
   //  set initial position for Newton's method
@@ -325,10 +322,10 @@ int vtkTriQuadraticPyramid::EvaluatePosition(const double* x, double closestPoin
     //  calculate newton functions
     double fcol[3] = { 0, 0, 0 }, rcol[3] = { 0, 0, 0 }, scol[3] = { 0, 0, 0 },
            tcol[3] = { 0, 0, 0 };
-    double pt[3];
+    const double* pt;
     for (int i = 0; i < 19; i++)
     {
-      this->Points->GetPoint(i, pt);
+      pt = pts + 3 * i;
       for (int j = 0; j < 3; j++)
       {
         fcol[j] += pt[j] * weights[i];
@@ -438,14 +435,23 @@ void vtkTriQuadraticPyramid::EvaluateLocation(
   int& vtkNotUsed(subId), const double pcoords[3], double x[3], double* weights)
 {
   int i, j;
-  double pt[3];
+  const double* pt;
 
   vtkTriQuadraticPyramid::InterpolationFunctions(pcoords, weights);
+
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
 
   x[0] = x[1] = x[2] = 0.0;
   for (i = 0; i < 19; i++)
   {
-    this->Points->GetPoint(i, pt);
+    pt = pts + 3 * i;
     for (j = 0; j < 3; j++)
     {
       x[j] += pt[j] * weights[i];
@@ -588,25 +594,11 @@ int vtkTriQuadraticPyramid::IntersectWithLine(
 }
 
 //------------------------------------------------------------------------------
-int vtkTriQuadraticPyramid::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkTriQuadraticPyramid::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
   // split into 32 tetrahedra
-  static constexpr vtkIdType totalTetrahedra = 32;
-  static constexpr vtkIdType tetrahedronPoints = 4;
-  pts->SetNumberOfPoints(totalTetrahedra * tetrahedronPoints);
-  ptIds->SetNumberOfIds(totalTetrahedra * tetrahedronPoints);
-
-  vtkIdType counter = 0;
-  for (int i = 0; i < totalTetrahedra; i++)
-  {
-    for (int j = 0; j < tetrahedronPoints; j++)
-    {
-      ptIds->SetId(counter, this->PointIds->GetId(triangulationPointIds[i][j]));
-      pts->SetPoint(counter, this->Points->GetPoint(triangulationPointIds[i][j]));
-      counter++;
-    }
-  }
-
+  ptIds->SetNumberOfIds(32 * 4);
+  std::copy(&triangulationPointIds[0][0], &triangulationPointIds[0][0] + 32 * 4, ptIds->begin());
   return 1;
 }
 
@@ -1078,3 +1070,4 @@ void vtkTriQuadraticPyramid::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Scalars:\n";
   this->Scalars->PrintSelf(os, indent.GetNextIndent());
 }
+VTK_ABI_NAMESPACE_END

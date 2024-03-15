@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataSilhouette.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .SECTION Thanks
 // Contribution by Thierry Carrard <br>
 // CEA/DIF - Commissariat a l'Energie Atomique, Centre DAM Ile-De-France <br>
@@ -39,6 +27,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyDataSilhouette);
 
 vtkCxxSetObjectMacro(vtkPolyDataSilhouette, Camera, vtkCamera);
@@ -277,6 +266,10 @@ int vtkPolyDataSilhouette::RequestData(vtkInformation* vtkNotUsed(request),
     for (std::map<vtkOrderedEdge, vtkTwoNormals>::iterator it = this->PreComp->edges.begin();
          it != this->PreComp->edges.end(); ++it)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       double d1, d2;
 
       // does this edge have two co-faces ?
@@ -478,3 +471,4 @@ void vtkPolyDataSilhouette::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "EnableFeatureAngle: " << this->EnableFeatureAngle << "\n";
   os << indent << "BorderEdges: " << this->BorderEdges << "\n";
 }
+VTK_ABI_NAMESPACE_END

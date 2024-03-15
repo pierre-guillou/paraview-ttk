@@ -1,22 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3ArraySelection.cxx
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkXdmf3ArraySelection.h"
 
 //==============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 void vtkXdmf3ArraySelection::Merge(const vtkXdmf3ArraySelection& other)
 {
   vtkXdmf3ArraySelection::const_iterator iter = other.begin();
@@ -84,3 +72,4 @@ int vtkXdmf3ArraySelection::GetNumberOfArrays()
 {
   return static_cast<int>(this->size());
 }
+VTK_ABI_NAMESPACE_END

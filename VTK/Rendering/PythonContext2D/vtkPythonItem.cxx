@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonItem.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPythonItem.h"
 #include "vtkObjectFactory.h"
 
@@ -21,6 +9,7 @@
 #include "vtkPythonUtil.h"
 #include "vtkSmartPyObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPythonItem);
 
 //------------------------------------------------------------------------------
@@ -39,16 +28,12 @@ void vtkPythonItem::PrintSelf(ostream& os, vtkIndent indent)
   if (str)
   {
     os << indent << "Object (string): ";
-#ifndef VTK_PY3K
-    os << PyString_AsString(str);
-#else
     PyObject* bytes = PyUnicode_EncodeLocale(str, VTK_PYUNICODE_ENC);
     if (bytes)
     {
       os << PyBytes_AsString(bytes);
       Py_DECREF(bytes);
     }
-#endif
     os << std::endl;
   }
 }
@@ -147,13 +132,12 @@ void vtkPythonItem::SetPythonObject(PyObject* obj)
   this->Object = obj;
   Py_INCREF(this->Object);
 
-  char mname[] = "Initialize";
+  const char* mname = "Initialize";
   VTK_GET_METHOD(method, this->Object, mname, /* no return */)
 
-  vtkSmartPyObject args(PyTuple_New(1));
-
   PyObject* vtkself = VTKToPython(this);
-  PyTuple_SET_ITEM(args.GetPointer(), 0, vtkself);
+  vtkSmartPyObject args(PyTuple_Pack(1, vtkself));
+  Py_DECREF(vtkself);
 
   vtkSmartPyObject result(PyObject_Call(method, args, nullptr));
 
@@ -164,18 +148,17 @@ void vtkPythonItem::SetPythonObject(PyObject* obj)
 bool vtkPythonItem::Paint(vtkContext2D* painter)
 {
   vtkPythonScopeGilEnsurer gilEnsurer;
-  char mname[] = "Paint";
+  const char* mname = "Paint";
   VTK_GET_METHOD(method, this->Object, mname, 0)
 
-  vtkSmartPyObject args(PyTuple_New(2));
-
   PyObject* vtkself = VTKToPython(this);
-  PyTuple_SET_ITEM(args.GetPointer(), 0, vtkself);
-
   PyObject* pypainter = VTKToPython(painter);
-  PyTuple_SET_ITEM(args.GetPointer(), 1, pypainter);
+  vtkSmartPyObject args(PyTuple_Pack(2, vtkself, pypainter));
+  Py_DECREF(vtkself);
+  Py_DECREF(pypainter);
 
   vtkSmartPyObject result(PyObject_Call(method, args, nullptr));
 
   return CheckResult(mname, result);
 }
+VTK_ABI_NAMESPACE_END

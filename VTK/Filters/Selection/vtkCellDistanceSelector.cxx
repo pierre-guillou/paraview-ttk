@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellDistanceSelector.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCellDistanceSelector.h"
 
 #include "vtkCell.h"
@@ -36,6 +24,7 @@
 #include <map>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCellDistanceSelector);
 
 //------------------------------------------------------------------------------
@@ -156,7 +145,7 @@ int vtkCellDistanceSelector::RequestData(vtkInformation* vtkNotUsed(request),
 
         if (ug_input)
         {
-          if (!ug_input->GetCellLinks())
+          if (!ug_input->GetLinks())
           {
             ug_input->BuildLinks();
           }
@@ -371,3 +360,4 @@ int vtkCellDistanceSelector::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

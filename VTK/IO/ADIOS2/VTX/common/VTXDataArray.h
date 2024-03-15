@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    VTXDataArray.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /*
  * VTXDataArray.h : wrapper around vtkDataArray adding adios2 relevant
@@ -35,6 +23,7 @@ namespace vtx
 {
 namespace types
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 class DataArray
 {
@@ -88,6 +77,7 @@ public:
   void ConvertTo3DVTK(const std::vector<double>& fillValues = std::vector<double>());
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace types
 } // end namespace vtx
 

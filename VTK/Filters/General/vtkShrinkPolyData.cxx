@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkShrinkPolyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkShrinkPolyData.h"
 
 #include "vtkArrayDispatch.h"
@@ -24,6 +12,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkShrinkPolyData);
 
 vtkShrinkPolyData::vtkShrinkPolyData(double sf)
@@ -45,11 +34,11 @@ struct ShrinkWorker
 
     int j, k;
     T center[3];
-    int abortExecute = 0;
+    bool abortExecute = false;
     vtkCellArray *newVerts, *newLines, *newPolys;
     vtkPointData* pd;
     vtkCellArray *inVerts, *inLines, *inPolys, *inStrips;
-    vtkIdType numNewPts, numNewLines, numNewPolys, polyAllocSize;
+    vtkIdType numNewPts, numNewLines, polyAllocSize;
     vtkIdType npts = 0;
     const vtkIdType* pts = nullptr;
     vtkIdType newIds[3] = { 0, 0, 0 };
@@ -70,7 +59,6 @@ struct ShrinkWorker
     //
     numNewPts = input->GetNumberOfVerts();
     numNewLines = 0;
-    numNewPolys = 0;
     polyAllocSize = 0;
 
     for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts);)
@@ -81,7 +69,6 @@ struct ShrinkWorker
     for (inPolys->InitTraversal(); inPolys->GetNextCell(npts, pts);)
     {
       numNewPts += npts;
-      numNewPolys++;
       polyAllocSize += npts + 1;
     }
     for (inStrips->InitTraversal(); inStrips->GetNextCell(npts, pts);)
@@ -127,7 +114,7 @@ struct ShrinkWorker
         pointData->CopyData(pd, pts[j], outCount);
         outCount++;
       }
-      abortExecute = self->GetAbortExecute();
+      abortExecute = self->CheckAbort();
     }
     self->UpdateProgress(0.10);
 
@@ -161,7 +148,7 @@ struct ShrinkWorker
         newLines->InsertNextCell(2, newIds);
         outCount++;
       }
-      abortExecute = self->GetAbortExecute();
+      abortExecute = self->CheckAbort();
     }
     self->UpdateProgress(0.25);
 
@@ -195,7 +182,7 @@ struct ShrinkWorker
         pointData->CopyData(pd, pts[j], outCount);
         outCount++;
       }
-      abortExecute = self->GetAbortExecute();
+      abortExecute = self->CheckAbort();
     }
     self->UpdateProgress(0.75);
 
@@ -248,10 +235,10 @@ struct ShrinkWorker
         }
         newPolys->InsertNextCell(3, newIds);
       }
-      abortExecute = self->GetAbortExecute();
+      abortExecute = self->CheckAbort();
     }
 
-    assert(outCount == numNewPts);
+    assert(abortExecute || outCount == numNewPts);
 
     // Update self and release memory
     //
@@ -309,3 +296,4 @@ void vtkShrinkPolyData::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
   os << indent << "Shrink Factor: " << this->ShrinkFactor << "\n";
 }
+VTK_ABI_NAMESPACE_END

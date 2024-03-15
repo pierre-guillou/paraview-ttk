@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSciVizStatistics.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2011 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-  -------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright 2011 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkSciVizStatistics
  * @brief   Abstract base class for computing statistics with vtkStatistics
@@ -55,13 +39,13 @@ public:
   vtkTypeMacro(vtkSciVizStatistics, vtkTableAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/get the type of field attribute (cell, point, field)
    */
   vtkGetMacro(AttributeMode, int);
   vtkSetMacro(AttributeMode, int);
-  //@}
+  ///@}
 
   /**
    * Return the number of columns available for the current value of \a AttributeMode.
@@ -78,15 +62,15 @@ public:
    */
   int GetAttributeArrayStatus(const char* arrName);
 
-  //@{
+  ///@{
   /**
    * An alternate interface for preparing a selection of arrays in ParaView.
    */
   void EnableAttributeArray(const char* arrName);
   void ClearAttributeArrays();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the amount of data to be used for training.
    * When 0.0 < \a TrainingFraction < 1.0, a randomly-sampled subset of the data is used for
@@ -103,7 +87,7 @@ public:
    */
   vtkSetClampMacro(TrainingFraction, double, 0.0, 1.0);
   vtkGetMacro(TrainingFraction, double);
-  //@}
+  ///@}
 
   ///@{
   /**
@@ -132,7 +116,7 @@ public:
                      //! dataset. This is a bad idea.
   };
 
-  //@{
+  ///@{
   /**
    * Set/get whether this filter should create a model of the input or assess the input or both.
    * This should take on a value from the Tasks enum.
@@ -140,7 +124,7 @@ public:
    */
   vtkSetMacro(Task, int);
   vtkGetMacro(Task, int);
-  //@}
+  ///@}
 
   /**
    * A key used to mark the output model data object (output port 0) when it is a multiblock

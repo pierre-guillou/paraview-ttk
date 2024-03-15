@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMapToWindowLevelColors.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageMapToWindowLevelColors
  * @brief   Map an image through a lookup table and/or a window/level.
@@ -45,6 +33,7 @@
 #include "vtkImageMapToColors.h"
 #include "vtkImagingColorModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIMAGINGCOLOR_EXPORT vtkImageMapToWindowLevelColors : public vtkImageMapToColors
 {
 public:
@@ -91,4 +80,5 @@ private:
   void operator=(const vtkImageMapToWindowLevelColors&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

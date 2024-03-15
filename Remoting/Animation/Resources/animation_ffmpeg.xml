@@ -1,10 +1,17 @@
 <!-- Proxy definitions for FFMPEG writer -->
 <ServerManagerConfiguration>
   <ProxyGroup name="animation_writers">
-    <Proxy name="FFMPEG" class="vtkFFMPEGWriter" processes="client">
+    <Proxy name="FFMPEG" class="vtkFFMPEGWriter" processes="client,dataserver">
       <Documentation>
         FFMPEG animation writer.
       </Documentation>
+
+      <StringVectorProperty name="FileName" command="SetFileName"
+        number_of_elements="1"
+        default_values=""
+        panel_visibility="never">
+        <Documentation>The name of the file to be written.</Documentation>
+      </StringVectorProperty>
 
       <IntVectorProperty name="Compression"
         command="SetCompression"

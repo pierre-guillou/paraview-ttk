@@ -1,36 +1,9 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqViewMenuManager.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqViewMenuManager.h"
 
+#include "pqEqualizeLayoutReaction.h"
 #include "pqLockPanelsReaction.h"
 #include "pqPVApplicationCore.h"
 #include "pqPreviewMenuManager.h"
@@ -88,7 +61,7 @@ void pqViewMenuManager::buildMenu()
   this->Menu->clear();
 
   // Add invariant items to the menu.
-  this->ToolbarsMenu = this->Menu->addMenu(QIcon(":/pqWidgets/Icons/pqToolbar.svg"), "Toolbars")
+  this->ToolbarsMenu = this->Menu->addMenu(QIcon(":/pqWidgets/Icons/pqToolbar.svg"), tr("Toolbars"))
     << pqSetName("Toolbars");
   this->DockPanelSeparators[0] = this->Menu->addSeparator();
   this->DockPanelSeparators[1] = this->Menu->addSeparator();
@@ -103,17 +76,17 @@ void pqViewMenuManager::buildMenu()
   if (viewManager)
   {
     new pqPreviewMenuManager(
-      (this->Menu->addMenu(QIcon(":/pqWidgets/Icons/pqPreview.svg"), "Preview")
+      (this->Menu->addMenu(QIcon(":/pqWidgets/Icons/pqPreview.svg"), tr("Preview"))
         << pqSetName("Preview")));
 
     QAction* fullscreen =
-      this->Menu->addAction(QIcon(":/pqWidgets/Icons/pqFullscreen.svg"), "Full Screen");
+      this->Menu->addAction(QIcon(":/pqWidgets/Icons/pqFullscreen.svg"), tr("Full Screen"));
     fullscreen->setObjectName("actionFullScreen");
     fullscreen->setShortcut(QKeySequence("F11"));
     QObject::connect(
       fullscreen, &QAction::triggered, viewManager, &pqTabbedMultiViewWidget::toggleFullScreen);
 
-    auto showDecorations = this->Menu->addAction("Show Frame Decorations");
+    auto showDecorations = this->Menu->addAction(tr("Show Frame Decorations"));
     showDecorations->setCheckable(true);
     showDecorations->setChecked(viewManager->decorationsVisibility());
     QObject::connect(showDecorations, &QAction::triggered, viewManager,
@@ -122,11 +95,33 @@ void pqViewMenuManager::buildMenu()
   }
 
   QAction* lockDockWidgetsAction =
-    this->Menu->addAction(QIcon(":/pqWidgets/Icons/pqToggleLock.svg"), "Toggle Lock Panels");
+    this->Menu->addAction(QIcon(":/pqWidgets/Icons/pqToggleLock.svg"), tr("Toggle Lock Panels"));
   lockDockWidgetsAction->setObjectName("actionLockDockWidgets");
-  lockDockWidgetsAction->setToolTip("Toggle locking of dockable panels so they\
-    cannot be moved");
+  lockDockWidgetsAction->setToolTip(tr("Toggle locking of dockable panels so they\
+    cannot be moved"));
   new pqLockPanelsReaction(lockDockWidgetsAction);
+
+  QMenu* equalizeMenu = this->Menu->addMenu(tr("Equalize Views")) << pqSetName("equalizeViewsMenu");
+  QAction* equalizeViewsHorizontallyAction = equalizeMenu->addAction(tr("Horizontally"));
+  equalizeViewsHorizontallyAction->setObjectName("equalizeViewsHorizontallyAction");
+  equalizeViewsHorizontallyAction->setToolTip(
+    tr("Equalize layout so views are evenly sized horizontally"));
+  new pqEqualizeLayoutReaction(
+    pqEqualizeLayoutReaction::Orientation::HORIZONTAL, equalizeViewsHorizontallyAction);
+
+  QAction* equalizeViewsVerticallyAction = equalizeMenu->addAction(tr("Vertically"));
+  equalizeViewsVerticallyAction->setObjectName("equalizeViewsVerticallyAction");
+  equalizeViewsVerticallyAction->setToolTip(
+    tr("Equalize layout so views are evenly sized vertically"));
+  new pqEqualizeLayoutReaction(
+    pqEqualizeLayoutReaction::Orientation::VERTICAL, equalizeViewsVerticallyAction);
+
+  QAction* equalizeViewsBothAction = equalizeMenu->addAction(tr("Both"));
+  equalizeViewsBothAction->setObjectName("equalizeViewsBothAction");
+  equalizeViewsBothAction->setToolTip(
+    tr("Equalize layout so views are evenly sized horizontally and vertically"));
+  new pqEqualizeLayoutReaction(
+    pqEqualizeLayoutReaction::Orientation::BOTH, equalizeViewsBothAction);
 }
 
 //-----------------------------------------------------------------------------

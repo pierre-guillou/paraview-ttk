@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMapArrayValues.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkMapArrayValues.h"
 
 #include "vtkAbstractArray.h"
@@ -34,6 +22,7 @@
 #include <map>
 #include <utility>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMapArrayValues);
 
 typedef std::map<vtkVariant, vtkVariant, vtkVariantLessThan> MapBase;
@@ -314,3 +303,4 @@ void vtkMapArrayValues::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "PassArray: " << this->PassArray << endl;
   os << indent << "FillValue: " << this->FillValue << endl;
 }
+VTK_ABI_NAMESPACE_END

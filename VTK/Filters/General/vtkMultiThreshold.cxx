@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiThreshold.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMultiThreshold.h"
 
@@ -34,6 +19,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkMultiThreshold);
 
 // Prevent lots of error messages on the inner loop of the filter by keeping track of how many we
@@ -295,7 +281,7 @@ int vtkMultiThreshold::AddBooleanSet(int operation, int numInputs, int* inputs)
 
   BooleanSet* bset = new BooleanSet(sId, operation, inputs, inputs + numInputs);
   this->Sets.push_back(bset);
-  this->DependentSets.push_back(TruthTreeValues());
+  this->DependentSets.emplace_back();
 
   // Add dependency to input sets
   for (i = 0; i < numInputs; ++i)
@@ -427,7 +413,7 @@ int vtkMultiThreshold::AddIntervalSet(NormKey& nk, double xmin, double xmax, int
   interval->Id = entry;
 
   this->Sets.push_back(interval);
-  this->DependentSets.push_back(TruthTreeValues());
+  this->DependentSets.emplace_back();
   this->IntervalRules[nk].push_back(interval);
 
   return entry;
@@ -534,7 +520,7 @@ int vtkMultiThreshold::RequestData(
   // II. C. Keep a generic cell handy for when we need to copy the input to the output
   vtkGenericCell* cell = vtkGenericCell::New();
 
-  // III. Loop over each cell, copying it to output meshes as required. The stategy here is:
+  // III. Loop over each cell, copying it to output meshes as required. The strategy here is:
   //      For each cell C_i in the mesh,
   //         setStates <- setStatesInit
   //         unresolvedOutputs <- unresolvedOutputsInit
@@ -555,6 +541,10 @@ int vtkMultiThreshold::RequestData(
   // For each cell in the mesh:
   for (inCell = 0; inCell < in->GetNumberOfCells(); ++inCell)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     in->GetCell(inCell, cell);
     unresolvedOutputs.clear();
     for (i = 0; i < this->NumberOfOutputs; ++i)
@@ -788,3 +778,4 @@ void vtkMultiThreshold::PrintGraph(ostream& os)
   }
   os << "}" << endl;
 }
+VTK_ABI_NAMESPACE_END

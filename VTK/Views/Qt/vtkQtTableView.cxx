@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtTableView.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkQtTableView.h"
 
@@ -33,8 +17,8 @@
 #include "vtkAnnotationLayers.h"
 #include "vtkAnnotationLink.h"
 #include "vtkApplyColors.h"
+#include "vtkAttributeDataToTableFilter.h"
 #include "vtkConvertSelection.h"
-#include "vtkDataObjectToTable.h"
 #include "vtkDataRepresentation.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkGraph.h"
@@ -50,17 +34,29 @@
 #include "vtkTable.h"
 #include "vtkViewTheme.h"
 
+namespace
+{
+const std::map<int, int> FIELD_ASSOCIATION_MAP = { { vtkQtTableView::FIELD_DATA,
+                                                     vtkDataObject::FIELD_ASSOCIATION_NONE },
+  { vtkQtTableView::POINT_DATA, vtkDataObject::FIELD_ASSOCIATION_POINTS },
+  { vtkQtTableView::CELL_DATA, vtkDataObject::FIELD_ASSOCIATION_CELLS },
+  { vtkQtTableView::VERTEX_DATA, vtkDataObject::FIELD_ASSOCIATION_VERTICES },
+  { vtkQtTableView::EDGE_DATA, vtkDataObject::FIELD_ASSOCIATION_EDGES },
+  { vtkQtTableView::ROW_DATA, vtkDataObject::FIELD_ASSOCIATION_ROWS } };
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkQtTableView);
 
 //------------------------------------------------------------------------------
 vtkQtTableView::vtkQtTableView()
 {
   this->ApplyColors = vtkSmartPointer<vtkApplyColors>::New();
-  this->DataObjectToTable = vtkSmartPointer<vtkDataObjectToTable>::New();
+  this->DataObjectToTable = vtkSmartPointer<vtkAttributeDataToTableFilter>::New();
   this->AddSelectedColumn = vtkSmartPointer<vtkAddMembershipArray>::New();
   this->AddSelectedColumn->SetInputConnection(0, this->DataObjectToTable->GetOutputPort());
 
-  this->DataObjectToTable->SetFieldType(vtkDataObjectToTable::VERTEX_DATA);
+  this->DataObjectToTable->SetFieldAssociation(vtkDataObject::FIELD_ASSOCIATION_VERTICES);
   this->AddSelectedColumn->SetFieldType(vtkAddMembershipArray::VERTEX_DATA);
   this->FieldType = vtkQtTableView::VERTEX_DATA;
   this->AddSelectedColumn->SetOutputArrayName("vtkAddMembershipArray membership");
@@ -153,7 +149,7 @@ void vtkQtTableView::SetSortingEnabled(bool state)
 //------------------------------------------------------------------------------
 void vtkQtTableView::SetFieldType(int type)
 {
-  this->DataObjectToTable->SetFieldType(type);
+  this->DataObjectToTable->SetFieldAssociation(::FIELD_ASSOCIATION_MAP.at(type));
   this->AddSelectedColumn->SetFieldType(type);
   if (this->FieldType != type)
   {
@@ -618,3 +614,4 @@ void vtkQtTableView::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "SortSelectionToTop: " << (this->SortSelectionToTop ? "true" : "false") << endl;
   os << indent << "ColumnName: " << (this->ColumnName ? this->ColumnName : "(none)") << endl;
 }
+VTK_ABI_NAMESPACE_END

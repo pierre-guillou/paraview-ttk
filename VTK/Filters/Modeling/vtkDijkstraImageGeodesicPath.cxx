@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDijkstraImageGeodesicPath.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDijkstraImageGeodesicPath.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 
 #include "vtkDijkstraGraphInternals.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDijkstraImageGeodesicPath);
 
 //------------------------------------------------------------------------------
@@ -297,3 +286,4 @@ void vtkDijkstraImageGeodesicPath::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "EdgeLengthWeight: " << this->EdgeLengthWeight << endl;
   os << indent << "CurvatureWeight: " << this->CurvatureWeight << endl;
 }
+VTK_ABI_NAMESPACE_END

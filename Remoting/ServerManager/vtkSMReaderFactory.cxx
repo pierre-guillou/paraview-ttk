@@ -1,16 +1,5 @@
-/*=========================================================================
-  Program:   ParaView
-  Module:    vtkSMReaderFactory.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMReaderFactory.h"
 
 #include "vtkCallbackCommand.h"
@@ -632,7 +621,7 @@ std::vector<FileTypeDetailed> vtkSMReaderFactory::GetSupportedFileTypesDetailed(
 
   // Add custom patterns to supported files
   auto* settings = vtkSMSettings::GetInstance();
-  char const* settingName = ".settings.RepresentedArrayListSettings.ReaderDetails";
+  char const* settingName = ".settings.IOSettings.ReaderDetails";
   unsigned int const numberOfEntries = settings->GetSettingNumberOfElements(settingName) / 3;
   for (unsigned int entryIndex = 0; entryIndex < numberOfEntries; ++entryIndex)
   {

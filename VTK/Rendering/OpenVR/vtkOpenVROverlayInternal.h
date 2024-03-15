@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkPVOpenVROverlayInternal_h
 #define vtkPVOpenVROverlayInternal_h
@@ -21,6 +10,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkVectorOperators.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenVRCameraPose : public vtkVRCamera::Pose
 {
 public:
@@ -75,7 +65,7 @@ public:
     this->ymin = in.ymin;
     this->ymax = in.ymax;
     this->Callback = in.Callback;
-    this->Callback->Register(0);
+    this->Callback->Register(nullptr);
     this->Active = in.Active;
     this->Group = in.Group;
     this->GroupId = in.GroupId;
@@ -83,6 +73,7 @@ public:
   vtkOpenVROverlaySpot& operator=(const vtkOpenVROverlaySpot&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPVOpenVROverlayInternal_h
 
 //****************************************************************************

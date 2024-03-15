@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpatialRepresentationFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpatialRepresentationFilter.h"
 
 #include "vtkGarbageCollector.h"
@@ -24,6 +12,7 @@
 
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSpatialRepresentationFilterInternal
 {
 public:
@@ -84,6 +73,10 @@ int vtkSpatialRepresentationFilter::RequestData(
   std::set<int>::iterator it;
   for (it = this->Internal->Levels.begin(); it != this->Internal->Levels.end(); ++it)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (*it <= this->MaximumLevel)
     {
       vtkNew<vtkPolyData> level_representation;
@@ -97,6 +90,8 @@ int vtkSpatialRepresentationFilter::RequestData(
     output->SetBlock(this->MaximumLevel + 1, leaf_representation);
     this->SpatialRepresentation->GenerateRepresentation(-1, leaf_representation);
   }
+
+  this->CheckAbort();
 
   return 1;
 }
@@ -137,3 +132,4 @@ int vtkSpatialRepresentationFilter::FillInputPortInformation(int port, vtkInform
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

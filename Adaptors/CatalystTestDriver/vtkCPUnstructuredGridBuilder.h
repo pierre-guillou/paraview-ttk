@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPUnstructuredGridBuilder.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPUnstructuredGridBuilder
  * @brief   Class for creating unstructured grids.
@@ -61,14 +49,14 @@ public:
    */
   virtual void Allocate(vtkIdType numCells = 1000, int extSize = 1000);
 
-  //@{
+  ///@{
   /**
    * Insert/create cell in object by type and list of point
    * ids defining cell topology.
    */
   vtkIdType InsertNextCell(int type, vtkIdType npts, vtkIdType* pts);
   vtkIdType InsertNextCell(int type, vtkIdList* ptIds);
-  //@}
+  ///@}
 
 protected:
   vtkCPUnstructuredGridBuilder();
@@ -89,7 +77,7 @@ private:
   vtkCPUnstructuredGridBuilder(const vtkCPUnstructuredGridBuilder&) = delete;
   void operator=(const vtkCPUnstructuredGridBuilder&) = delete;
 
-  //@{
+  ///@{
   /**
    * The unstructured grid that is created.
    */

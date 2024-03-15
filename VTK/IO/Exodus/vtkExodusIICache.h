@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkExodusIICache_h
 #define vtkExodusIICache_h
 
@@ -29,6 +31,7 @@
 #include <list> // use for LRU ordering
 #include <map>  // used for cache storage
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOEXODUS_EXPORT vtkExodusIICacheKey
 {
 public:
@@ -199,4 +202,5 @@ private:
   vtkExodusIICache(const vtkExodusIICache&) = delete;
   void operator=(const vtkExodusIICache&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif // vtkExodusIICache_h

@@ -1,38 +1,9 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonMacroSupervisor.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPythonMacroSupervisor.h"
 #include "pqApplicationCore.h"
 #include "pqServer.h"
-#include "pqSettings.h"
 
 #include "pqCoreUtilities.h"
 #include "pqPythonManager.h"
@@ -102,7 +73,7 @@ void addPlaceHolderIfNeeded(QWidget* widget)
   QMenu* menu = qobject_cast<QMenu*>(widget);
   if (menu && menu->isEmpty())
   {
-    menu->addAction("empty")->setEnabled(0);
+    menu->addAction(QCoreApplication::translate("pqPythonMacroSupervisor", "empty"))->setEnabled(0);
   }
 }
 void removePlaceHolderIfNeeded(QWidget* widget)
@@ -111,8 +82,8 @@ void removePlaceHolderIfNeeded(QWidget* widget)
   if (menu && menu->actions().size() == 1)
   {
     QAction* act = menu->actions()[0];
-    // It's a placeholder if its name is 'empty' and has empty data().
-    if (act->text() == "empty" && act->data().toString().length() == 0)
+    // It's a placeholder if it is disabled and has empty data().
+    if (!act->isEnabled() && act->data().toString().length() == 0)
     {
       menu->removeAction(act);
       delete act;
@@ -194,18 +165,6 @@ void pqPythonMacroSupervisor::addWidgetForMacros(QWidget* widget, int actionType
 //----------------------------------------------------------------------------
 QMap<QString, QString> pqPythonMacroSupervisor::getStoredMacros()
 {
-  //  pqSettings* settings = pqApplicationCore::instance()->settings();
-  //  QStringList fileNames = settings->value("PythonMacros/FileNames").toStringList();
-  //  QStringList macroNames = settings->value("PythonMacros/Names").toStringList();
-
-  //  if (fileNames.size() != macroNames.size())
-  //    {
-  //    qWarning() << "Lookup of macro filenames is corrupted.  Stored macros will be reset.";
-  //    settings->remove("PythonMacros");
-  //    fileNames.clear();
-  //    macroNames.clear();
-  //    }
-
   QStringList fileNames = getMacrosFilePaths();
 
   QMap<QString, QString> macros;
@@ -217,29 +176,29 @@ QMap<QString, QString> pqPythonMacroSupervisor::getStoredMacros()
 }
 
 //----------------------------------------------------------------------------
-void pqPythonMacroSupervisor::removeStoredMacro(const QString& filename)
+void pqPythonMacroSupervisor::removeStoredMacro(const QString& fileName)
 {
-  QDir dir = QFileInfo(filename).absoluteDir();
-  QString baseName = ".";
-  baseName += QFileInfo(filename).fileName().replace(".py", "");
+  pqPythonMacroSupervisor::hideFile(fileName);
+}
+
+//----------------------------------------------------------------------------
+void pqPythonMacroSupervisor::hideFile(const QString& fileName)
+{
+  QFileInfo file = QFileInfo(fileName);
+  QDir dir = file.absoluteDir();
+  QString baseName = file.baseName();
+  QString suffix = file.completeSuffix();
 
   int index = 1;
-  QString newName = baseName;
-  newName += ".py";
+  QString pattern = "." + baseName + "%1%2." + suffix;
+  QString newName = pattern.arg("").arg("");
   while (dir.exists(newName))
   {
-    newName = baseName;
-    newName.append("-").append(QString::number(index)).append(".py");
+    newName = pattern.arg("-").arg(QString::number(index));
     index++;
   }
   QString newFilePath = dir.absolutePath() + QDir::separator() + newName;
-  QFile::rename(filename, newFilePath);
-
-  //  QMap<QString, QString> macros = pqPythonMacroSupervisor::getStoredMacros();
-  //  macros.remove(filename);
-  //  pqSettings* settings = pqApplicationCore::instance()->settings();
-  //  settings->setValue("PythonMacros/FileNames", QStringList(macros.keys()));
-  //  settings->setValue("PythonMacros/Names", QStringList(macros.values()));
+  QFile::rename(fileName, newFilePath);
 }
 //----------------------------------------------------------------------------
 void pqPythonMacroSupervisor::updateMacroList()
@@ -284,8 +243,7 @@ void pqPythonMacroSupervisor::resetActions()
 //----------------------------------------------------------------------------
 void pqPythonMacroSupervisor::addMacro(const QString& fileName)
 {
-  pqPythonMacroSupervisor::addMacro(
-    pqPythonMacroSupervisor::macroNameFromFileName(fileName), fileName);
+  this->addMacro(pqPythonMacroSupervisor::macroNameFromFileName(fileName), fileName);
 }
 //----------------------------------------------------------------------------
 void pqPythonMacroSupervisor::addMacro(const QString& macroName, const QString& fileName)
@@ -308,6 +266,13 @@ void pqPythonMacroSupervisor::addMacro(const QString& macroName, const QString& 
   QAction* runAction = new QAction(macroName, this);
   runAction->setData(fileName);
   runAction->setEnabled(enable);
+
+  QString iconPath = pqPythonMacroSupervisor::iconPathFromFileName(fileName);
+  if (!iconPath.isEmpty())
+  {
+    runAction->setIcon(QIcon(iconPath));
+  }
+
   this->Internal->RunActionMap.insert(fileName, runAction);
   this->connect(runAction, SIGNAL(triggered()), SLOT(onMacroTriggered()));
 
@@ -329,6 +294,8 @@ void pqPythonMacroSupervisor::addMacro(const QString& macroName, const QString& 
   addActionToWidgets(runAction, this->Internal->RunWidgetContainers);
   addActionToWidgets(editAction, this->Internal->EditWidgetContainers);
   addActionToWidgets(deleteAction, this->Internal->DeleteWidgetContainers);
+
+  Q_EMIT this->onAddedMacro();
 }
 
 //----------------------------------------------------------------------------
@@ -389,10 +356,25 @@ void pqPythonMacroSupervisor::onDeleteMacroTriggered()
       listOfMacroToDelete.append(filename);
     }
   }
-  Q_FOREACH (QString fileName, listOfMacroToDelete)
+
+  for (const QString& filename : listOfMacroToDelete)
   {
-    pqPythonMacroSupervisor::removeStoredMacro(fileName);
-    pqPythonMacroSupervisor::removeMacro(fileName);
+    // look for related file with same basename (as icon file)
+    QDir dir = QFileInfo(filename).absoluteDir();
+    QStringList filter;
+    filter << QFileInfo(filename).completeBaseName() + ".py";
+    for (auto extension : pqPythonMacroSupervisor::getSupportedIconFormats())
+    {
+      filter << QFileInfo(filename).completeBaseName() + extension;
+    }
+    auto fileList = dir.entryInfoList(filter);
+
+    for (auto file : fileList)
+    {
+      pqPythonMacroSupervisor::hideFile(file.absoluteFilePath());
+    }
+
+    this->removeMacro(filename);
   }
 }
 //----------------------------------------------------------------------------
@@ -409,15 +391,31 @@ void pqPythonMacroSupervisor::onEditMacroTriggered()
     }
   }
 }
+
 //----------------------------------------------------------------------------
-QString pqPythonMacroSupervisor::macroNameFromFileName(const QString& filename)
+QString pqPythonMacroSupervisor::macroNameFromFileName(const QString& fileName)
 {
-  QString name = QFileInfo(filename).fileName().replace(".py", "");
+  QString name = QFileInfo(fileName).fileName().replace(".py", "");
   if (!name.length())
   {
     name = "Unnamed macro";
   }
   return name;
+}
+
+//----------------------------------------------------------------------------
+QString pqPythonMacroSupervisor::iconPathFromFileName(const QString& fileName)
+{
+  for (auto extension : pqPythonMacroSupervisor::getSupportedIconFormats())
+  {
+    QString iconPath = QFileInfo(fileName).absoluteFilePath().replace(".py", extension);
+    if (QFileInfo::exists(iconPath))
+    {
+      return iconPath;
+    }
+  }
+
+  return QString();
 }
 
 //----------------------------------------------------------------------------
@@ -449,7 +447,11 @@ QStringList pqPythonMacroSupervisor::getMacrosFilePaths()
         {
           continue;
         }
-        macroList.push_back(dirPath + QDir::separator() + filePath);
+        // allows only ".py"
+        if (filePath.endsWith(".py"))
+        {
+          macroList.push_back(dirPath + QDir::separator() + filePath);
+        }
       }
     }
   }

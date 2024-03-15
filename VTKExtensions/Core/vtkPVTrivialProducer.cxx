@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile: vtkPVTrivialProducer.cxx,v $
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVTrivialProducer.h"
 
 #include "vtkDataObject.h"
@@ -125,10 +113,10 @@ int vtkPVTrivialProducer::ProcessRequest(
       // satisfy. In that case, let's report a warning.
       if (internals.FindNearestTime(uTime) != internals.TimeSteps.back())
       {
-        vtkNumberToString convert;
-        vtkWarningMacro("Cannot produce requested time '" << convert(uTime) << "', only '"
-                                                          << convert(internals.TimeSteps.back())
-                                                          << "' is available.");
+        vtkNumberToString converter;
+        vtkWarningMacro("Cannot produce requested time '"
+          << converter.Convert(uTime) << "', only '"
+          << converter.Convert(internals.TimeSteps.back()) << "' is available.");
       }
 
       dobj->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(), internals.TimeSteps.back());

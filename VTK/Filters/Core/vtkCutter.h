@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCutter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCutter
  * @brief   Cut vtkDataSet with user-specified implicit function
@@ -57,6 +45,7 @@
 #define VTK_SORT_BY_VALUE 0
 #define VTK_SORT_BY_CELL 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGridSynchronizedTemplates3D;
 class vtkImplicitFunction;
 class vtkIncrementalPointLocator;
@@ -240,15 +229,15 @@ protected:
   vtkImplicitFunction* CutFunction;
   vtkTypeBool GenerateTriangles;
 
-  vtkSynchronizedTemplates3D* SynchronizedTemplates3D;
-  vtkSynchronizedTemplatesCutter3D* SynchronizedTemplatesCutter3D;
-  vtkGridSynchronizedTemplates3D* GridSynchronizedTemplates;
-  vtkRectilinearSynchronizedTemplates* RectilinearSynchronizedTemplates;
+  vtkNew<vtkSynchronizedTemplates3D> SynchronizedTemplates3D;
+  vtkNew<vtkSynchronizedTemplatesCutter3D> SynchronizedTemplatesCutter3D;
+  vtkNew<vtkGridSynchronizedTemplates3D> GridSynchronizedTemplates;
+  vtkNew<vtkRectilinearSynchronizedTemplates> RectilinearSynchronizedTemplates;
   vtkNew<vtkPlaneCutter> PlaneCutter;
 
   vtkIncrementalPointLocator* Locator;
   int SortBy;
-  vtkContourValues* ContourValues;
+  vtkNew<vtkContourValues> ContourValues;
   vtkTypeBool GenerateCutScalars;
   int OutputPointsPrecision;
 
@@ -272,4 +261,5 @@ inline const char* vtkCutter::GetSortByAsString()
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGPUVolumeRayCastMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGPUVolumeRayCastMapper
  * @brief   Ray casting performed on the GPU.
@@ -35,6 +23,7 @@
 #include "vtkRenderingVolumeModule.h" // For export macro
 #include "vtkVolumeMapper.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContourValues;
 class vtkRenderWindow;
 class vtkVolumeProperty;
@@ -424,7 +413,7 @@ public:
   vtkGetMacro(GradientOpacityRangeType, int);
   ///@}
 
-  vtkDataSet* GetInput() override { return this->GetInput(0); };
+  vtkDataSet* GetInput() override { return this->GetInput(0); }
 
   ///@{
   /**
@@ -445,9 +434,9 @@ public:
    */
   int GetInputCount();
 
-  vtkDataSet* GetTransformedInput(const int port = 0);
+  vtkDataSet* GetTransformedInput(int port = 0);
 
-  double* GetBoundsFromPort(const int port) VTK_SIZEHINT(6);
+  double* GetBoundsFromPort(int port) VTK_SIZEHINT(6);
 
   ///@{
   /**
@@ -482,7 +471,7 @@ protected:
    * There is not a easy fix in the GPU volume ray cast mapper hence
    * this fix has been introduced.
    */
-  void TransformInput(const int port);
+  void TransformInput(int port);
 
   ///@{
   /**
@@ -496,7 +485,7 @@ protected:
    */
   int ValidateRender(vtkRenderer*, vtkVolume*);
   int ValidateInputs();
-  int ValidateInput(vtkVolumeProperty* property, const int port);
+  int ValidateInput(vtkVolumeProperty* property, int port);
   ///@}
 
   ///@{
@@ -505,7 +494,7 @@ protected:
    * \sa vtkGPUVolumeRayCastMapper::TransformInput
    */
   void CloneInputs();
-  void CloneInput(vtkDataSet* input, const int port);
+  void CloneInput(vtkDataSet* input, int port);
   ///@}
 
   // Special version of render called during the creation
@@ -520,7 +509,7 @@ protected:
   virtual void RenderBlock(vtkRenderer* ren, vtkVolume* vol, unsigned int level) = 0;
 
   virtual void PostRender(vtkRenderer* ren, int numberOfScalarComponents) = 0;
-  vtkDataSet* GetInput(const int port) override;
+  vtkDataSet* GetInput(int port) override;
 
   /**
    * Called by the AMR Volume Mapper.
@@ -528,7 +517,7 @@ protected:
    * cell data (1).
    */
   void SetCellFlag(int cellFlag);
-  void RemovePortInternal(const int port);
+  void RemovePortInternal(int port);
 
   vtkTypeBool LockSampleDistanceToInputSpacing;
   vtkTypeBool AutoAdjustSampleDistances;
@@ -642,4 +631,5 @@ private:
   void operator=(const vtkGPUVolumeRayCastMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

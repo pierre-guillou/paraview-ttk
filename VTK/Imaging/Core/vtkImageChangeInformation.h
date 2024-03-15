@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageChangeInformation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageChangeInformation
  * @brief   modify spacing, origin and extent.
@@ -27,6 +15,7 @@
 #include "vtkImageAlgorithm.h"
 #include "vtkImagingCoreModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 
 class VTKIMAGINGCORE_EXPORT vtkImageChangeInformation : public vtkImageAlgorithm
@@ -65,6 +54,16 @@ public:
    */
   vtkSetVector3Macro(OutputSpacing, double);
   vtkGetVector3Macro(OutputSpacing, double);
+  ///@}
+
+  ///@{
+  /**
+   * Specify a new direction matrix explicitly.  The default is to
+   * use the direction of the Input, or of the InformationInput
+   * if InformationInput is set.
+   */
+  vtkSetVectorMacro(OutputDirection, double, 9);
+  vtkGetVectorMacro(OutputDirection, double, 9);
   ///@}
 
   ///@{
@@ -135,6 +134,8 @@ protected:
   double OutputSpacing[3];
   double SpacingScale[3];
 
+  double OutputDirection[9];
+
   double OutputOrigin[3];
   double OriginScale[3];
   double OriginTranslation[3];
@@ -151,4 +152,5 @@ private:
   void operator=(const vtkImageChangeInformation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

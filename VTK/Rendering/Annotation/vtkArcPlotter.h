@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArcPlotter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkArcPlotter
  * @brief   plot data along an arbitrary polyline
@@ -51,6 +39,7 @@
 #define VTK_PLOT_TENSORS 5
 #define VTK_PLOT_FIELD_DATA 6
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCamera;
 class vtkDataArray;
 class vtkPointData;
@@ -191,9 +180,9 @@ private:
   int StartComp;
   int EndComp;
 
-private:
   vtkArcPlotter(const vtkArcPlotter&) = delete;
   void operator=(const vtkArcPlotter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

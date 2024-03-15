@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataAssemblyUtilities.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataAssemblyUtilities.h"
 
 #include "vtkDataAssembly.h"
@@ -27,14 +15,12 @@
 #include "vtkUniformGrid.h"
 #include "vtkUniformGridAMR.h"
 
-#include <algorithm>
 #include <cassert>
 #include <functional>
-#include <iterator>
 #include <set>
-#include <sstream>
 #include <tuple>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -45,7 +31,7 @@ std::pair<std::string, std::string> GetBlockNameAndLabel(
     metadata->Get(vtkCompositeDataSet::NAME()))
   {
     std::string label = metadata->Get(vtkCompositeDataSet::NAME());
-    if (label.size() > 0)
+    if (!label.empty())
     {
       std::string name = vtkDataAssembly::MakeValidNodeName(label.c_str());
       return std::make_pair(name, label);
@@ -224,7 +210,7 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(
     }
     if (auto pdc = vtkPartitionedDataSetCollection::SafeDownCast(dobj))
     {
-      output->GetPartitionedDataSet(oid)->ShallowCopy(pdc);
+      output->GetPartitionedDataSet(oid)->CompositeShallowCopy(pdc);
     }
     else if (auto mp = vtkMultiPieceDataSet::SafeDownCast(dobj))
     {
@@ -318,7 +304,7 @@ bool vtkDataAssemblyUtilities::GenerateHierarchyInternal(vtkPartitionedDataSetCo
   assert(input != nullptr && hierarchy != nullptr);
   if (output)
   {
-    output->ShallowCopy(input);
+    output->CompositeShallowCopy(input);
   }
 
   std::map<int, unsigned int> output_node2dataset_map;
@@ -758,6 +744,7 @@ std::string vtkDataAssemblyUtilities::GetSelectorForCompositeId(
 //----------------------------------------------------------------------------
 namespace
 {
+//----------------------------------------------------------------------------
 class vtkSelectorsForCompositeIdsVisitor : public vtkDataAssemblyVisitor
 {
 public:
@@ -800,7 +787,145 @@ private:
   void operator=(const vtkSelectorsForCompositeIdsVisitor&) = delete;
 };
 
+//----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSelectorsForCompositeIdsVisitor);
+
+//----------------------------------------------------------------------------
+class vtkPartitionedDataSetIdsForCompositeIdsVisitor : public vtkDataAssemblyVisitor
+{
+public:
+  static vtkPartitionedDataSetIdsForCompositeIdsVisitor* New();
+  vtkTypeMacro(vtkPartitionedDataSetIdsForCompositeIdsVisitor, vtkDataAssemblyVisitor);
+
+  std::vector<unsigned int> PartitionedDataSetIds;
+  std::set<unsigned int> CompositeIds;
+
+protected:
+  vtkPartitionedDataSetIdsForCompositeIdsVisitor() = default;
+  ~vtkPartitionedDataSetIdsForCompositeIdsVisitor() override = default;
+
+  void Visit(int nodeid) override
+  {
+    const auto ids = this->GetCurrentDataSetIndices();
+    if (ids.size() != 1)
+    {
+      // this happens for AMR if a level has no datasets.
+      return;
+    }
+
+    const auto assembly = this->GetAssembly();
+    const unsigned int partitionedDataSetId = assembly->GetAttributeOrDefault(nodeid, "id", 0u);
+    const unsigned int cid = ids.front();
+    unsigned int childCount = assembly->GetAttributeOrDefault(nodeid, "number_of_partitions", 0u);
+    childCount = assembly->GetAttributeOrDefault(nodeid, "vtk_num_pieces", childCount);
+    const auto cid_range = std::make_pair(cid, cid + 1 + childCount);
+    for (auto id = cid_range.first; id < cid_range.second; ++id)
+    {
+      if (this->CompositeIds.find(id) != this->CompositeIds.end())
+      {
+        this->PartitionedDataSetIds.push_back(partitionedDataSetId - 1);
+        break;
+      }
+    }
+  }
+
+private:
+  vtkPartitionedDataSetIdsForCompositeIdsVisitor(
+    const vtkPartitionedDataSetIdsForCompositeIdsVisitor&) = delete;
+  void operator=(const vtkPartitionedDataSetIdsForCompositeIdsVisitor&) = delete;
+};
+
+//----------------------------------------------------------------------------
+vtkStandardNewMacro(vtkPartitionedDataSetIdsForCompositeIdsVisitor);
+
+//----------------------------------------------------------------------------
+class vtkAssemblySelectorsForPartitionedDataSetIdsVisitor : public vtkDataAssemblyVisitor
+{
+public:
+  static vtkAssemblySelectorsForPartitionedDataSetIdsVisitor* New();
+  vtkTypeMacro(vtkAssemblySelectorsForPartitionedDataSetIdsVisitor, vtkDataAssemblyVisitor);
+
+  std::set<unsigned int> PartitionedDataSetIds;
+  std::vector<std::string> Selectors;
+
+protected:
+  vtkAssemblySelectorsForPartitionedDataSetIdsVisitor() = default;
+  ~vtkAssemblySelectorsForPartitionedDataSetIdsVisitor() override = default;
+
+  void Visit(int nodeid) override
+  {
+    const auto ids = this->GetCurrentDataSetIndices();
+    for (auto id : ids)
+    {
+      if (this->PartitionedDataSetIds.find(id) != this->PartitionedDataSetIds.end())
+      {
+        this->Selectors.push_back(this->GetAssembly()->GetNodePath(nodeid));
+        break;
+      }
+    }
+  }
+
+private:
+  vtkAssemblySelectorsForPartitionedDataSetIdsVisitor(
+    const vtkAssemblySelectorsForPartitionedDataSetIdsVisitor&) = delete;
+  void operator=(const vtkAssemblySelectorsForPartitionedDataSetIdsVisitor&) = delete;
+};
+
+//----------------------------------------------------------------------------
+vtkStandardNewMacro(vtkAssemblySelectorsForPartitionedDataSetIdsVisitor);
+
+//----------------------------------------------------------------------------
+class vtkSelectorsCompositeIdsForCompositeIdsVisitor : public vtkDataAssemblyVisitor
+{
+public:
+  static vtkSelectorsCompositeIdsForCompositeIdsVisitor* New();
+  vtkTypeMacro(vtkSelectorsCompositeIdsForCompositeIdsVisitor, vtkDataAssemblyVisitor);
+
+  std::vector<unsigned int> SelectorsCompositeIds;
+  std::set<unsigned int> CompositeIds;
+
+protected:
+  vtkSelectorsCompositeIdsForCompositeIdsVisitor() = default;
+  ~vtkSelectorsCompositeIdsForCompositeIdsVisitor() override = default;
+
+  void Visit(int nodeid) override
+  {
+    const auto ids = this->GetCurrentDataSetIndices();
+    if (ids.size() != 1)
+    {
+      // this happens for AMR if a level has no datasets.
+      return;
+    }
+
+    const auto assembly = this->GetAssembly();
+    // get the composite id of this node.
+    const unsigned int cid = ids.front();
+    // get the number of partitions for this node.
+    unsigned int childCount = assembly->GetAttributeOrDefault(nodeid, "number_of_partitions", 0u);
+    // get the number of pieces for this node.
+    childCount = assembly->GetAttributeOrDefault(nodeid, "vtk_num_pieces", childCount);
+    // get the composite id range of the children of this node.
+    const auto cid_range = std::make_pair(cid, cid + 1 + childCount);
+    // iterate over the composite id range of the children of this node.
+    for (auto id = cid_range.first; id < cid_range.second; ++id)
+    {
+      // if any of the children of this node is in the list of composite ids
+      if (this->CompositeIds.find(id) != this->CompositeIds.end())
+      {
+        // add the composite id of this node to the list of selectors composite ids.
+        this->SelectorsCompositeIds.push_back(cid);
+        break;
+      }
+    }
+  }
+
+private:
+  vtkSelectorsCompositeIdsForCompositeIdsVisitor(
+    const vtkSelectorsCompositeIdsForCompositeIdsVisitor&) = delete;
+  void operator=(const vtkSelectorsCompositeIdsForCompositeIdsVisitor&) = delete;
+};
+
+vtkStandardNewMacro(vtkSelectorsCompositeIdsForCompositeIdsVisitor);
 
 } // namespace {}
 
@@ -832,3 +957,71 @@ std::vector<std::string> vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(
   // use-case.
   return {};
 }
+
+//----------------------------------------------------------------------------
+std::vector<std::string> vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(
+  const std::vector<unsigned int>& ids, vtkDataAssembly* hierarchy, vtkDataAssembly* assembly)
+{
+  const auto root = vtkDataAssembly::GetRootNode();
+  if (strcmp(hierarchy->GetAttributeOrDefault(root, CATEGORY_ATTRIBUTE_NAME, ""),
+        CATEGORY_HIERARCHY) != 0)
+  {
+    vtkLogF(ERROR, "hierarchy parameter should have attribute %s set to %s, but is '%s'",
+      CATEGORY_ATTRIBUTE_NAME, CATEGORY_HIERARCHY,
+      hierarchy->GetAttributeOrDefault(root, CATEGORY_ATTRIBUTE_NAME, ""));
+    return {};
+  }
+  if (strcmp(assembly->GetAttributeOrDefault(root, CATEGORY_ATTRIBUTE_NAME, ""),
+        CATEGORY_HIERARCHY) == 0)
+  {
+    vtkLogF(ERROR, "assembly parameter should have attribute %s not set to %s, but is '%s'",
+      CATEGORY_ATTRIBUTE_NAME, CATEGORY_HIERARCHY,
+      assembly->GetAttributeOrDefault(root, CATEGORY_ATTRIBUTE_NAME, ""));
+    return {};
+  }
+
+  const auto dataType = hierarchy->GetAttributeOrDefault(root, "vtk_type", -1);
+  if (vtkDataObjectTypes::TypeIdIsA(dataType, VTK_PARTITIONED_DATA_SET_COLLECTION))
+  {
+    vtkNew<vtkPartitionedDataSetIdsForCompositeIdsVisitor> visitor;
+    std::copy(
+      ids.begin(), ids.end(), std::inserter(visitor->CompositeIds, visitor->CompositeIds.end()));
+    hierarchy->Visit(visitor);
+    vtkNew<vtkAssemblySelectorsForPartitionedDataSetIdsVisitor> visitor2;
+    std::copy(visitor->PartitionedDataSetIds.begin(), visitor->PartitionedDataSetIds.end(),
+      std::inserter(visitor2->PartitionedDataSetIds, visitor2->PartitionedDataSetIds.end()));
+    assembly->Visit(visitor2);
+    return visitor2->Selectors;
+  }
+  return {};
+}
+
+//----------------------------------------------------------------------------
+std::vector<unsigned int> vtkDataAssemblyUtilities::GetSelectorsCompositeIdsForCompositeIds(
+  const std::vector<unsigned int>& ids, vtkDataAssembly* hierarchy)
+{
+  const auto root = vtkDataAssembly::GetRootNode();
+  if (strcmp(hierarchy->GetAttributeOrDefault(root, CATEGORY_ATTRIBUTE_NAME, ""),
+        CATEGORY_HIERARCHY) != 0)
+  {
+    vtkLogF(ERROR,
+      "GetSelectorForCompositeId is only supported on a data-assembly representation a hierarchy.");
+    return {};
+  }
+
+  const auto dataType = hierarchy->GetAttributeOrDefault(root, "vtk_type", -1);
+  if (vtkDataObjectTypes::TypeIdIsA(dataType, VTK_PARTITIONED_DATA_SET_COLLECTION) ||
+    vtkDataObjectTypes::TypeIdIsA(dataType, VTK_MULTIBLOCK_DATA_SET))
+  {
+    vtkNew<vtkSelectorsCompositeIdsForCompositeIdsVisitor> visitor;
+    std::copy(
+      ids.begin(), ids.end(), std::inserter(visitor->CompositeIds, visitor->CompositeIds.end()));
+    hierarchy->Visit(visitor);
+    return visitor->SelectorsCompositeIds;
+  }
+
+  // in theory, this can work for AMR too, but I am leaving that until we have a
+  // use-case.
+  return {};
+}
+VTK_ABI_NAMESPACE_END

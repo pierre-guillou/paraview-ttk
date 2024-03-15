@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataObjectTypes.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataObject
  * @brief   helper class to get VTK data object types as string and instantiate them
@@ -30,6 +18,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObject;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkDataObjectTypes : public vtkObject
@@ -55,12 +44,12 @@ public:
   /**
    * Create (New) and return a data object of the given classname.
    */
-  static vtkDataObject* NewDataObject(const char* classname);
+  static VTK_NEWINSTANCE vtkDataObject* NewDataObject(const char* classname);
 
   /**
    * Create (New) and return a data object of the given type id.
    */
-  static vtkDataObject* NewDataObject(int typeId);
+  static VTK_NEWINSTANCE vtkDataObject* NewDataObject(int typeId);
 
   /*
    * Returns true if the `typeId` is same or a subclass of
@@ -90,4 +79,5 @@ private:
   void operator=(const vtkDataObjectTypes&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

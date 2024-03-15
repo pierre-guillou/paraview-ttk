@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPTestDriver.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCPTestDriver
  * @brief   Class for creating a co-processor test driver.
@@ -41,13 +29,13 @@ public:
    */
   virtual int Run();
 
-  //@{
+  ///@{
   /**
    * Set/get NumberOfTimeSteps.
    */
   vtkSetMacro(NumberOfTimeSteps, unsigned long);
   vtkGetMacro(NumberOfTimeSteps, unsigned long);
-  //@}
+  ///@}
 
   /**
    * Given a TimeStep, return the simulation time corresponding to
@@ -56,15 +44,15 @@ public:
    */
   virtual double GetTime(unsigned long timeStep);
 
-  //@{
+  ///@{
   /**
    * Set/get GridBuilder.
    */
   void SetGridBuilder(vtkCPBaseGridBuilder* gridBuilder);
   vtkCPBaseGridBuilder* GetGridBuilder();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get the start and end times of the simulation.
    */
@@ -72,7 +60,7 @@ public:
   vtkGetMacro(StartTime, double);
   vtkSetMacro(EndTime, double);
   vtkGetMacro(EndTime, double);
-  //@}
+  ///@}
 
 protected:
   vtkCPTestDriver();
@@ -93,7 +81,7 @@ private:
    */
   unsigned long NumberOfTimeSteps;
 
-  //@{
+  ///@{
   /**
    * The start and end times of the simulation.
    */

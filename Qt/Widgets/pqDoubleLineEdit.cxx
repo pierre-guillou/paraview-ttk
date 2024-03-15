@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqDoubleLineEdit.cxx
-
-   Copyright (c) 2005-2018 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDoubleLineEdit.h"
 
 // Qt Includes.
@@ -37,28 +9,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QPointer>
 #include <QTextStream>
 
+// VTK includes
+#include "vtkNumberToString.h"
+
+// System includes
 #include <cassert>
 
 //=============================================================================
 namespace
 {
-//-----------------------------------------------------------------------------
-QTextStream::RealNumberNotation toTextStreamNotation(pqDoubleLineEdit::RealNumberNotation notation)
-{
-  if (notation == pqDoubleLineEdit::FixedNotation)
-  {
-    return QTextStream::FixedNotation;
-  }
-  else if (notation == pqDoubleLineEdit::ScientificNotation)
-  {
-    return QTextStream::ScientificNotation;
-  }
-  else
-  {
-    return QTextStream::SmartNotation;
-  }
-}
-
 //-----------------------------------------------------------------------------
 using InstanceTrackerType = QList<pqDoubleLineEdit*>;
 static InstanceTrackerType* InstanceTracker = nullptr;
@@ -97,25 +56,28 @@ public:
 
   bool useFullPrecision(const pqDoubleLineEdit* self) const
   {
-    return this->AlwaysUseFullPrecision || self->hasFocus();
+    const auto realNotation =
+      this->UseGlobalPrecisionAndNotation ? pqDoubleLineEdit::globalNotation() : this->Notation;
+
+    return this->AlwaysUseFullPrecision || self->hasFocus() ||
+      realNotation == RealNumberNotation::FullNotation;
   }
 
   void sync(pqDoubleLineEdit* self)
   {
-    const auto real_precision =
+    const auto realPrecision =
       this->UseGlobalPrecisionAndNotation ? pqDoubleLineEdit::globalPrecision() : this->Precision;
-    const auto real_notation =
+    const auto realNotation =
       this->UseGlobalPrecisionAndNotation ? pqDoubleLineEdit::globalNotation() : this->Notation;
 
     const QString limited = self->text().isEmpty()
-      ? QString()
-      : pqDoubleLineEdit::formatDouble(
-          self->text().toDouble(), toTextStreamNotation(real_notation), real_precision);
+      ? self->text()
+      : pqDoubleLineEdit::formatDouble(self->text().toDouble(), realNotation, realPrecision);
 
     const bool changed = (limited != this->InactiveLineEdit->text());
     this->InactiveLineEdit->setText(limited);
 
-    if (changed & !this->useFullPrecision(self))
+    if (changed)
     {
       // ensures that if the low precision text changed and it was being shown on screen,
       // we repaint it.
@@ -303,10 +265,33 @@ QString pqDoubleLineEdit::formatDouble(
 }
 
 //-----------------------------------------------------------------------------
-QString pqDoubleLineEdit::formatDouble(
-  double value, pqDoubleLineEdit::RealNumberNotation notation, int precision)
+QString pqDoubleLineEdit::formatDouble(double value, pqDoubleLineEdit::RealNumberNotation notation,
+  int precision, int fullLowExponent, int fullHighExponent)
 {
-  return pqDoubleLineEdit::formatDouble(value, toTextStreamNotation(notation), precision);
+  switch (notation)
+  {
+    case RealNumberNotation::ScientificNotation:
+      return QString::number(value, 'e', precision);
+      break;
+    case RealNumberNotation::FixedNotation:
+      return QString::number(value, 'f', precision);
+      break;
+    case RealNumberNotation::MixedNotation:
+      return QString::number(value, 'g', precision);
+      break;
+    case RealNumberNotation::FullNotation:
+    {
+      vtkNumberToString converter;
+      converter.SetLowExponent(fullLowExponent);
+      converter.SetHighExponent(fullHighExponent);
+      return QString::fromStdString(converter.Convert(value));
+    }
+    break;
+    default:
+      return "";
+      break;
+  };
+  return "";
 }
 
 //-----------------------------------------------------------------------------

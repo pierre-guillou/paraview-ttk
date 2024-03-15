@@ -1,12 +1,6 @@
-//=========================================================================
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDataSetRegionSurfaceFilter.h"
 
 #include "vtkCellArray.h"
@@ -32,6 +26,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSetRegionSurfaceFilter::Internals
 {
 public:
@@ -39,7 +34,7 @@ public:
     : NextRegion(0)
   {
     this->OldToNew[-1] = -1;
-  };
+  }
   ~Internals() = default;
 
   // place to pass a material id back but still subclass
@@ -147,6 +142,8 @@ int vtkDataSetRegionSurfaceFilter::RequestData(
     output->GetPointData()->RemoveArray("vtkOriginalPointIds");
   }
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -187,6 +184,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
     uggf->SetInputData(clone);
     uggf->SetPassThroughCellIds(this->PassThroughCellIds);
     uggf->SetPassThroughPointIds(this->PassThroughPointIds);
+    uggf->SetMatchBoundariesIgnoringCellOrder(this->MatchBoundariesIgnoringCellOrder);
     uggf->Update();
 
     tempInput = vtkSmartPointer<vtkUnstructuredGrid>::New();
@@ -218,7 +216,6 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
 
   // These are for the default case/
   vtkIdList* pts;
-  vtkPoints* coords;
   vtkCell* face;
   int flag2D = 0;
 
@@ -229,14 +226,10 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
   vtkIdList* outPts2;
 
   pts = vtkIdList::New();
-  coords = vtkPoints::New();
   parametricCoords = vtkDoubleArray::New();
   parametricCoords2 = vtkDoubleArray::New();
   outPts = vtkIdList::New();
   outPts2 = vtkIdList::New();
-  // might not be necessary to set the data type for coords
-  // but certainly safer to do so
-  coords->SetDataType(input->GetPoints()->GetData()->GetDataType());
   cell = vtkGenericCell::New();
 
   this->NumberOfNewCells = 0;
@@ -304,7 +297,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
   // Traverse cells to extract geometry
   //
   progressCount = 0;
-  int abort = 0;
+  bool abort = false;
   vtkIdType progressInterval = numCells / 20 + 1;
 
   // First insert all points lines in output and 3D geometry in hash.
@@ -320,7 +313,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
     {
       vtkDebugMacro(<< "Process cell #" << cellId);
       this->UpdateProgress(static_cast<double>(cellId) / numCells);
-      abort = this->GetAbortExecute();
+      abort = this->CheckAbort();
       progressCount = 0;
     }
     progressCount++;
@@ -443,7 +436,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
       {
         if (cell->GetCellDimension() == 1)
         {
-          cell->Triangulate(0, pts, coords);
+          cell->TriangulateIds(0, pts);
           for (i = 0; i < pts->GetNumberOfIds(); i += 2)
           {
             newLines->InsertNextCell(2);
@@ -475,7 +468,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
               if (this->NonlinearSubdivisionLevel >= 1)
               {
                 // TODO: Handle NonlinearSubdivisionLevel > 1 correctly.
-                face->Triangulate(0, pts, coords);
+                face->TriangulateIds(0, pts);
                 for (i = 0; i < pts->GetNumberOfIds(); i += 3)
                 {
                   this->InsertTriInHash(
@@ -597,7 +590,7 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
       // Note: we should not be here if this->NonlinearSubdivisionLevel is less
       // than 1.  See the check above.
       input->GetCell(cellId, cell);
-      cell->Triangulate(0, pts, coords);
+      cell->TriangulateIds(0, pts);
       // Copy the level 1 subdivision points (which also exist in the input and
       // can therefore just be copied over.  Note that the output of Triangulate
       // records triangles in pts where each 3 points defines a triangle.  We
@@ -837,7 +830,6 @@ int vtkDataSetRegionSurfaceFilter::UnstructuredGridExecute(
 
   // Update ourselves and release memory
   cell->Delete();
-  coords->Delete();
   pts->Delete();
   parametricCoords->Delete();
   parametricCoords2->Delete();
@@ -1169,3 +1161,4 @@ vtkFastGeomQuad* vtkDataSetRegionSurfaceFilter::GetNextVisibleQuadFromHash()
 
   return quad;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellLinks.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellLinks
  * @brief   object represents upward pointers from points to list of cells using each point
@@ -39,6 +27,7 @@
 #include "vtkAbstractCellLinks.h"
 #include "vtkCommonDataModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkCellArray;
 
@@ -62,10 +51,9 @@ public:
   ///@}
 
   /**
-   * Build the link list array. All subclasses of vtkAbstractCellLinks
-   * must support this method.
+   * Build the link list array from the input dataset.
    */
-  void BuildLinks(vtkDataSet* data) override;
+  void BuildLinks() override;
 
   /**
    * Allocate the specified number of links (i.e., number of points) that
@@ -169,15 +157,7 @@ public:
   void DeepCopy(vtkAbstractCellLinks* src) override;
 
 protected:
-  vtkCellLinks()
-    : Array(nullptr)
-    , Size(0)
-    , MaxId(-1)
-    , Extend(1000)
-    , NumberOfPoints(0)
-    , NumberOfCells(0)
-  {
-  }
+  vtkCellLinks();
   ~vtkCellLinks() override;
 
   /**
@@ -264,4 +244,5 @@ inline void vtkCellLinks::ResizeCellList(vtkIdType ptId, int size)
   this->Array[ptId].cells = cells;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

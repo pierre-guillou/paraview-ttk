@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqAnimationManager.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqAnimationManager.h"
 #include "ui_pqAbortAnimation.h"
 
@@ -76,10 +48,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqView.h"
 
 #include <sstream>
-
-#define SEQUENCE 0
-#define REALTIME 1
-#define SNAP_TO_TIMESTEPS 2
 
 //-----------------------------------------------------------------------------
 class pqAnimationManager::pqInternals
@@ -232,7 +200,7 @@ bool pqAnimationManager::saveGeometry(const QString& filename, pqView* view)
     .arg("WriteAnimationGeometry")
     .arg(filename.toUtf8().data())
     .arg("view", view->getProxy())
-    .arg("comment", "save animation geometry from a view");
+    .arg("comment", qPrintable(tr("save animation geometry from a view")));
 
   vtkSMProxy* sceneProxy = scene->getProxy();
   vtkSMAnimationSceneGeometryWriter* writer = vtkSMAnimationSceneGeometryWriter::New();
@@ -247,7 +215,7 @@ bool pqAnimationManager::saveGeometry(const QString& filename, pqView* view)
 //-----------------------------------------------------------------------------
 void pqAnimationManager::onTick(int progress)
 {
-  Q_EMIT this->saveProgress("Saving Animation", progress);
+  Q_EMIT this->saveProgress(qPrintable(tr("Saving Animation")), progress);
 }
 
 //-----------------------------------------------------------------------------

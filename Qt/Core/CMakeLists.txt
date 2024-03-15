@@ -1,33 +1,6 @@
-#==========================================================================
-#
-#     Program: ParaView
-#
-#     Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-#     All rights reserved.
-#
-#     ParaView is a free software; you can redistribute it and/or modify it
-#     under the terms of the ParaView license version 1.2.
-#
-#     See License_v1.2.txt for the full ParaView license.
-#     A copy of this license can be obtained by contacting
-#     Kitware Inc.
-#     28 Corporate Drive
-#     Clifton Park, NY 12065
-#     USA
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#=========================================================================
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 set(classes
   pqAnimationCue
   pqAnimationScene
@@ -35,6 +8,7 @@ set(classes
   pqApplicationCore
   pqAutoStartInterface
   pqBoxChartView
+  pqCameraWidgetViewLink
   pqCheckBoxDelegate
   pqCollaborationEventPlayer
   pqCollaborationManager
@@ -54,6 +28,7 @@ set(classes
   pqFileDialogEventTranslator
   pqFileDialogFavoriteModel
   pqFileDialogFilter
+  pqFileDialogLocationModel
   pqFileDialogModel
   pqFileDialogRecentDirsModel
   pqFileUtilitiesEventPlayer
@@ -75,7 +50,6 @@ set(classes
   pqMultiSliceView
   pqNonEditableStyledItemDelegate
   pqObjectBuilder
-  pqOptions
   pqOutputPort
   pqOutputWidget
   pqParallelCoordinatesChartView
@@ -133,7 +107,7 @@ set(classes
   vtkPVGUIPluginInterface)
 
 set(headers
-    pqQVTKWidgetBase.h)
+  pqQVTKWidgetBase.h)
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/pqQtConfig.h.in"
@@ -168,13 +142,18 @@ endif ()
 set(qt_components
   Widgets)
 
+if (PARAVIEW_QT_MAJOR_VERSION GREATER "5")
+  list(APPEND qt_components
+    Core5Compat)
+endif ()
+
 if (PARAVIEW_USE_QTHELP)
   list(APPEND qt_components
     Help)
 endif ()
 
 vtk_module_find_package(
-  PACKAGE     Qt5
+  PACKAGE     "Qt${PARAVIEW_QT_MAJOR_VERSION}"
   COMPONENTS  ${qt_components}
   VERSION     5.12
   FORWARD_VERSION_REQ MINOR)
@@ -183,6 +162,21 @@ set(CMAKE_AUTOMOC 1)
 set(CMAKE_AUTORCC 1)
 set(CMAKE_AUTOUIC 1)
 set(CMAKE_AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/UI")
+
+set(translatable_files)
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  list(APPEND translatable_files ${ui_files})
+  foreach(el IN LISTS classes)
+    list(APPEND translatable_files "${el}.cxx")
+    list(APPEND translatable_files "${el}.h")
+  endforeach()
+
+  paraview_create_translation(
+    TARGET "Core.ts"
+    FILES ${translatable_files}
+    OUTPUT_TS "${PARAVIEW_TRANSLATIONS_DIRECTORY}/Qt_Core.ts")
+  add_dependencies(localization "Core.ts")
+endif ()
 
 source_group("Resources" FILES
   ${ui_files}
@@ -195,11 +189,18 @@ vtk_module_add_module(ParaView::pqCore
   HEADERS ${headers})
 vtk_module_link(ParaView::pqCore
   PRIVATE
-    Qt5::Widgets)
+    "Qt${PARAVIEW_QT_MAJOR_VERSION}::Widgets")
+
+if (PARAVIEW_QT_MAJOR_VERSION GREATER "5")
+  vtk_module_link(ParaView::pqCore
+    PRIVATE
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Core5Compat")
+endif ()
+
 if (PARAVIEW_USE_QTHELP)
   vtk_module_link(ParaView::pqCore
     PRIVATE
-      Qt5::Help)
+      "Qt${PARAVIEW_QT_MAJOR_VERSION}::Help")
 endif ()
 vtk_module_definitions(ParaView::pqCore PRIVATE QT_NO_KEYWORDS)
 

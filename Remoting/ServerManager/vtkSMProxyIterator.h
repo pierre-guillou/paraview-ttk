@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyIterator.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyIterator
  * @brief   iterates over all registered proxies (and groups)
@@ -87,7 +75,7 @@ public:
    */
   vtkSMProxy* GetProxy();
 
-  //@{
+  ///@{
   /**
    * The traversal mode for the iterator. If the traversal mode is
    * set to GROUPS, each Next() will move to the next group, in
@@ -99,16 +87,16 @@ public:
   void SetModeToGroupsOnly() { this->SetMode(GROUPS_ONLY); }
   void SetModeToOneGroup() { this->SetMode(ONE_GROUP); }
   void SetModeToAll() { this->SetMode(ALL); }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set to true (default), the iterator will skip prototype proxies.
    */
   vtkSetMacro(SkipPrototypes, bool);
   vtkGetMacro(SkipPrototypes, bool);
   vtkBooleanMacro(SkipPrototypes, bool);
-  //@}
+  ///@}
 
   enum TraversalMode
   {

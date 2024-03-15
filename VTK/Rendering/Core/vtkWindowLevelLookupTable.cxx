@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWindowLevelLookupTable.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWindowLevelLookupTable.h"
 #include "vtkObjectFactory.h"
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWindowLevelLookupTable);
 
 //------------------------------------------------------------------------------
@@ -141,3 +130,4 @@ void vtkWindowLevelLookupTable::PrintSelf(ostream& os, vtkIndent indent)
      << this->MaximumTableValue[1] << ", " << this->MaximumTableValue[2] << ", "
      << this->MaximumTableValue[3] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

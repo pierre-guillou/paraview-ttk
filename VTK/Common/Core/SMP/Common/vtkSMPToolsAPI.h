@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsAPI.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkSMPToolsAPI_h
 #define vtkSMPToolsAPI_h
@@ -43,6 +31,7 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 using vtkSMPToolsDefaultImpl = vtkSMPToolsImpl<DefaultBackend>;
 
@@ -75,6 +64,9 @@ public:
 
   //--------------------------------------------------------------------------------
   bool IsParallelScope();
+
+  //--------------------------------------------------------------------------------
+  bool GetSingleThread();
 
   //--------------------------------------------------------------------------------
   int GetInternalDesiredNumberOfThread() { return this->DesiredNumberOfThread; }
@@ -294,8 +286,10 @@ private:
 #endif
 };
 
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 
 #endif
+/* VTK-HeaderTest-Exclude: vtkSMPToolsAPI.h */

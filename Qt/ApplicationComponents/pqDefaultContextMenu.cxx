@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDefaultContextMenu.h"
 
 #include "pqActiveObjects.h"
@@ -49,7 +21,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVDataInformation.h"
 #include "vtkPVGeneralSettings.h"
 #include "vtkSMArrayListDomain.h"
-#include "vtkSMPVRepresentationProxy.h"
+#include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMSourceProxy.h"
@@ -121,10 +93,10 @@ bool pqDefaultContextMenu::contextMenu(QMenu* menu, pqView* viewContext, const Q
     this->PickedRepresentation = repr;
 
     QAction* action;
-    action = menu->addAction(QIcon(":/pqWidgets/Icons/pqEyeballClosed.svg"), "Hide");
+    action = menu->addAction(QIcon(":/pqWidgets/Icons/pqEyeballClosed.svg"), tr("Hide"));
     QObject::connect(action, &QAction::triggered, this, &pqDefaultContextMenu::hide);
 
-    QMenu* reprMenu = menu->addMenu("Representation") << pqSetName("Representation");
+    QMenu* reprMenu = menu->addMenu(tr("Representation")) << pqSetName("Representation");
 
     // populate the representation types menu.
     QList<QVariant> rTypes =
@@ -147,30 +119,30 @@ bool pqDefaultContextMenu::contextMenu(QMenu* menu, pqView* viewContext, const Q
     if (pipelineRepr)
     {
       QMenu* colorFieldsMenu =
-        menu->addMenu(QIcon(":/pqWidgets/Icons/explicit_color.png"), "Color By")
+        menu->addMenu(QIcon(":/pqWidgets/Icons/explicit_color.png"), tr("Color By"))
         << pqSetName("ColorBy");
       this->buildColorFieldsMenu(pipelineRepr, colorFieldsMenu);
     }
 
-    action = menu->addAction(QIcon(":/pqWidgets/Icons/pqEditColor.svg"), "Edit Color");
+    action = menu->addAction(QIcon(":/pqWidgets/Icons/pqEditColor.svg"), tr("Edit Color"));
     new pqEditColorMapReaction(action);
 
     menu->addSeparator();
   }
   else
   {
-    QAction* showAllBlocksAction = menu->addAction("Show All Blocks");
+    QAction* showAllBlocksAction = menu->addAction(tr("Show All Blocks"));
     this->connect(showAllBlocksAction, SIGNAL(triggered()), this, SLOT(showAllBlocks()));
   }
 
   // Even when nothing was picked, show the "link camera" and
   // possibly the frame decoration menu items.
-  menu->addAction("Link Camera...", viewContext, SLOT(linkToOtherView()));
+  menu->addAction(tr("Link Camera..."), viewContext, SLOT(linkToOtherView()));
 
   if (auto tmvwidget = qobject_cast<pqTabbedMultiViewWidget*>(
         pqApplicationCore::instance()->manager("MULTIVIEW_WIDGET")))
   {
-    auto actn = menu->addAction("Show Frame Decorations");
+    auto actn = menu->addAction(tr("Show Frame Decorations"));
     actn->setCheckable(true);
     actn->setChecked(tmvwidget->decorationsVisibility());
     QObject::connect(
@@ -190,7 +162,7 @@ void pqDefaultContextMenu::buildColorFieldsMenu(
   QIcon pointDataIcon(":/pqWidgets/Icons/pqPointData.svg");
   QIcon solidColorIcon(":/pqWidgets/Icons/pqSolidColor.svg");
 
-  menu->addAction(solidColorIcon, "Solid Color")->setData(convert(QPair<int, QString>()));
+  menu->addAction(solidColorIcon, tr("Solid Color"))->setData(convert(QPair<int, QString>()));
   vtkSMProperty* prop = pipelineRepr->getProxy()->GetProperty("ColorArrayName");
   if (!prop)
   {
@@ -244,7 +216,7 @@ void pqDefaultContextMenu::showAllBlocks() const
       }
 
       SM_SCOPED_TRACE(PropertiesModified).arg("proxy", proxy);
-      BEGIN_UNDO_SET("Show All Blocks");
+      BEGIN_UNDO_SET(tr("Show All Blocks"));
       smProperty->SetElements(std::vector<std::string>({ "/" }));
       proxy->UpdateVTKObjects();
       END_UNDO_SET();
@@ -259,13 +231,13 @@ void pqDefaultContextMenu::colorMenuTriggered(QAction* action)
   QPair<int, QString> array = convert(action->data());
   if (this->PickedRepresentation)
   {
-    BEGIN_UNDO_SET("Change coloring");
+    BEGIN_UNDO_SET(tr("Change coloring"));
     vtkSMViewProxy* view = pqActiveObjects::instance().activeView()->getViewProxy();
     vtkSMProxy* reprProxy = this->PickedRepresentation->getProxy();
 
     vtkSMProxy* oldLutProxy = vtkSMPropertyHelper(reprProxy, "LookupTable", true).GetAsProxy();
 
-    vtkSMPVRepresentationProxy::SetScalarColoring(
+    vtkSMColorMapEditorHelper::SetScalarColoring(
       reprProxy, array.second.toUtf8().data(), array.first);
 
     vtkNew<vtkSMTransferFunctionManager> tmgr;
@@ -284,7 +256,7 @@ void pqDefaultContextMenu::colorMenuTriggered(QAction* action)
     {
       // we could now respect some application setting to determine if the LUT is
       // to be reset.
-      vtkSMPVRepresentationProxy::RescaleTransferFunctionToDataRange(reprProxy, true);
+      vtkSMColorMapEditorHelper::RescaleTransferFunctionToDataRange(reprProxy, true);
 
       /// BUG #0011858. Users often do silly things!
       bool reprVisibility =
@@ -295,7 +267,7 @@ void pqDefaultContextMenu::colorMenuTriggered(QAction* action)
         gsettings->GetScalarBarMode() ==
           vtkPVGeneralSettings::AUTOMATICALLY_SHOW_AND_HIDE_SCALAR_BARS)
       {
-        vtkSMPVRepresentationProxy::SetScalarBarVisibility(reprProxy, view, true);
+        vtkSMColorMapEditorHelper::SetScalarBarVisibility(reprProxy, view, true);
       }
     }
 
@@ -311,7 +283,7 @@ void pqDefaultContextMenu::reprTypeChanged(QAction* action)
   if (repr)
   {
     SM_SCOPED_TRACE(PropertiesModified).arg("proxy", repr->getProxy());
-    BEGIN_UNDO_SET("Representation Type Changed");
+    BEGIN_UNDO_SET(tr("Representation Type Changed"));
     pqSMAdaptor::setEnumerationProperty(
       repr->getProxy()->GetProperty("Representation"), action->text());
     repr->getProxy()->UpdateVTKObjects();
@@ -327,7 +299,7 @@ void pqDefaultContextMenu::hide()
   if (repr)
   {
     SM_SCOPED_TRACE(PropertiesModified).arg("proxy", repr->getProxy());
-    BEGIN_UNDO_SET("Visibility Changed");
+    BEGIN_UNDO_SET(tr("Visibility Changed"));
     repr->setVisible(false);
     repr->renderViewEventually();
     END_UNDO_SET();

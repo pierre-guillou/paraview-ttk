@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPPythonPipeline.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkCPPythonPipeline_h
 #define vtkCPPythonPipeline_h
 
@@ -57,7 +45,7 @@ public:
   static vtkSmartPointer<vtkCPPythonPipeline> CreateAndInitializePipeline(
     const char* fname, int default_version = 1);
 
-  //@{
+  ///@{
   /**
    * These overloads are provided for Python wrapping since `vtkSmartPointer`
    * doesn't seem to be wrapped correctly. C++ code should avoid using these.
@@ -67,7 +55,7 @@ public:
   static vtkCPPythonPipeline* NewPipeline(const char* fname, int default_version = 1);
   VTK_NEWINSTANCE
   static vtkCPPythonPipeline* NewAndInitializePipeline(const char* fname, int default_version = 1);
-  //@}
+  ///@}
 protected:
   /// For things like programmable filters that have a '\n' in their strings,
   /// we need to fix them to have \\n so that everything works smoothly

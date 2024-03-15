@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSmartPointer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSmartPointer
  * @brief   Hold a reference to a vtkObjectBase instance.
@@ -28,9 +16,11 @@
 #include "vtkMeta.h" // for IsComplete
 #include "vtkNew.h"  // for vtkNew.h
 
+#include <functional>  // for std::hash
 #include <type_traits> // for is_base_of
 #include <utility>     // for std::move
 
+VTK_ABI_NAMESPACE_BEGIN
 template <class T>
 class vtkSmartPointer : public vtkSmartPointerBase
 {
@@ -219,10 +209,18 @@ public:
    */
   void TakeReference(T* t) { *this = vtkSmartPointer<T>(t, NoReference()); }
 
+  ///@{
   /**
    * Create an instance of a VTK object.
    */
   static vtkSmartPointer<T> New() { return vtkSmartPointer<T>(T::New(), NoReference()); }
+  template <class... ArgsT>
+  static vtkSmartPointer<T> New(ArgsT&&... args)
+  {
+    return vtkSmartPointer<T>(T::New(std::forward<ArgsT>(args)...), NoReference());
+  }
+  ///@}
+
   /**
    * Create an instance of a VTK object in a memkind extended memory space. Note that not all
    * vtkObjects support this yet and that VTK needs to be compiled with VTK_USE_MEMKIND to enable
@@ -291,7 +289,20 @@ private:
   void TakeReference(const vtkSmartPointerBase&) = delete;
   static void Take(const vtkSmartPointerBase&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
+namespace std
+{
+template <class T>
+struct hash<vtkSmartPointer<T>>
+{
+  std::size_t operator()(const vtkSmartPointer<T>& p) const { return this->Hasher(p.Get()); }
+
+  std::hash<T*> Hasher;
+};
+}
+
+VTK_ABI_NAMESPACE_BEGIN
 #define VTK_SMART_POINTER_DEFINE_OPERATOR(op)                                                      \
   template <class T, class U>                                                                      \
   inline bool operator op(const vtkSmartPointer<T>& l, const vtkSmartPointer<U>& r)                \
@@ -330,9 +341,11 @@ VTK_SMART_POINTER_DEFINE_OPERATOR(>)
 VTK_SMART_POINTER_DEFINE_OPERATOR(>=)
 
 #undef VTK_SMART_POINTER_DEFINE_OPERATOR
+VTK_ABI_NAMESPACE_END
 
 namespace vtk
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 /// Construct a vtkSmartPointer<T> containing @a obj. A new reference is added
 /// to @a obj.
@@ -350,8 +363,10 @@ vtkSmartPointer<T> TakeSmartPointer(T* obj)
   return vtkSmartPointer<T>::Take(obj);
 }
 
+VTK_ABI_NAMESPACE_END
 } // end namespace vtk
 
+VTK_ABI_NAMESPACE_BEGIN
 /**
  * Streaming operator to print smart pointer like regular pointers.
  */
@@ -361,5 +376,6 @@ inline ostream& operator<<(ostream& os, const vtkSmartPointer<T>& p)
   return os << static_cast<const vtkSmartPointerBase&>(p);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkSmartPointer.h

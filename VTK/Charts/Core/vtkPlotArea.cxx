@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotArea.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotArea.h"
 
@@ -37,6 +25,7 @@
 #include <set>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 inline bool vtkIsBadPoint(const vtkVector2f& vec)
@@ -146,8 +135,8 @@ private:
       assert(array->GetNumberOfComponents() == this->ValidPointMask->GetNumberOfComponents());
 
       using Dispatcher =
-        vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::Arrays, // First array is input, can be
-                                                                     // anything.
+        vtkArrayDispatch::Dispatch2ByArray<vtkArrayDispatch::AllArrays, // First array is input, can
+                                                                        // be anything.
           vtkTypeList::Create<vtkCharArray> // Second is always vtkCharArray.
           >;
       ComputeArrayRange worker;
@@ -667,3 +656,4 @@ void vtkPlotArea::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

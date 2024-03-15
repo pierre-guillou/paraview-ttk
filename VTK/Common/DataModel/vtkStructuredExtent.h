@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStructuredExtent.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStructuredExtent
  * @brief   helper class to aid working with structured
@@ -29,6 +17,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkStructuredExtent : public vtkObject
 {
 public:
@@ -39,7 +28,7 @@ public:
   /**
    * Clamps \c ext to fit in \c wholeExt.
    */
-  static void Clamp(int ext[6], const int wholeExt[]);
+  static void Clamp(int ext[6], const int wholeExt[6]);
 
   /**
    * Returns true if \c ext is fits within \c wholeExt with at least 1 dimension
@@ -177,4 +166,5 @@ inline void vtkStructuredExtent::GetDimensions(const int ext[6], int dims[3])
   dims[2] = ext[5] - ext[4] + 1;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestLagrangianIntegrationModel.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkLagrangianMatidaIntegrationModel.h"
 
 #include "vtkActor.h"
@@ -344,6 +332,29 @@ int TestLagrangianIntegrationModel(int, char*[])
     return EXIT_FAILURE;
   }
 
+  double gravity_init[3] = { 0, 0, -9.8 };
+  double gravity_get[3] = { 0, 0, 0 };
+  odeTransform->GetGravity(gravity_get);
+  if (!doubleEquals(gravity_get[0], gravity_init[0]) ||
+    !doubleEquals(gravity_get[1], gravity_init[1]) ||
+    !doubleEquals(gravity_get[2], gravity_init[2]))
+  {
+    std::cerr << "Incorrect initial gravity values" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  double gravity_set[3] = { 9.8, 0, 0 };
+  odeTransform->SetGravity(gravity_set);
+  odeTransform->GetGravity(gravity_get);
+  if (!doubleEquals(gravity_get[0], gravity_set[0]) ||
+    !doubleEquals(gravity_get[1], gravity_set[1]) || !doubleEquals(gravity_get[2], gravity_set[2]))
+  {
+    std::cerr << "Incorrect SetGravity" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  odeTransform->SetGravity(gravity_init);
+
   x[3] = 1.3;
   x[4] = 1.4;
   x[5] = 1.5;
@@ -664,5 +675,6 @@ int TestLagrangianIntegrationModel(int, char*[])
   }
 
   odeWavelet->FinalizeThreadedData(data);
+
   return EXIT_SUCCESS;
 }

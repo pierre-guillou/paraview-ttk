@@ -1,20 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedPointRayCastImage.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFixedPointRayCastImage.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFixedPointRayCastImage);
 
 // Construct a new vtkFixedPointRayCastImage with default values
@@ -151,3 +140,4 @@ void vtkFixedPointRayCastImage::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "ZBuffer Size: " << this->ZBufferSize[0] << " " << this->ZBufferSize[1] << endl;
 }
+VTK_ABI_NAMESPACE_END

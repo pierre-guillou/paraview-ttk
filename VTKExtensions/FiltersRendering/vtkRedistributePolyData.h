@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkRedistributePolyData.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Los Alamos National Laboratory
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Los Alamos National Laboratory
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRedistributePolyData
  * @brief   redistribute poly cells from other processes
@@ -54,7 +38,7 @@ public:
   vtkSetMacro(ColorProc, int);
   void SetColorProc() { this->ColorProc = 1; };
 
-  //@{
+  ///@{
   /**
    * These are here for ParaView compatibility. Not used.
    */
@@ -62,7 +46,7 @@ public:
   virtual void SetPassThrough(int){};
   virtual int GetPassThrough() { return 0; };
   vtkBooleanMacro(PassThrough, int);
-  //@}
+  ///@}
 
 protected:
   vtkRedistributePolyData();

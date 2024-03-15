@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLFXAAPass.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLFXAAPass
  * @brief   Render pass calling the FXAA filter
@@ -38,6 +26,7 @@
 #include "vtkOpenGLFXAAFilter.h"       // For vtkOpenGLFXAAFilter
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFXAAOptions;
 
 class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLFXAAPass : public vtkImageProcessingPass
@@ -51,6 +40,13 @@ public:
    * Perform rendering according to a render state.
    */
   void Render(const vtkRenderState* s) override;
+
+  /**
+   * Release graphics resources and ask components to release their own
+   * resources.
+   * \pre w_exists: w!=0
+   */
+  void ReleaseGraphicsResources(vtkWindow* w) override;
 
   vtkGetObjectMacro(FXAAOptions, vtkFXAAOptions);
   virtual void SetFXAAOptions(vtkFXAAOptions*);
@@ -71,4 +67,5 @@ private:
   void operator=(const vtkOpenGLFXAAPass&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

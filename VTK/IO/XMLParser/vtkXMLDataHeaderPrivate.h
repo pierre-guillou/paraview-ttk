@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLDataHeaderPrivate.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkXMLDataHeaderPrivate_DoNotInclude
 #error "do not include unless you know what you are doing"
@@ -26,6 +14,7 @@
 // Abstract interface using type vtkTypeUInt64 to access an array
 // of either vtkTypeUInt32 or vtkTypeUInt64.  Shared by vtkXMLWriter
 // and vtkXMLDataParser to write/read binary data headers.
+VTK_ABI_NAMESPACE_BEGIN
 class vtkXMLDataHeader
 {
 public:
@@ -74,5 +63,6 @@ vtkXMLDataHeader* vtkXMLDataHeader::New(int width, size_t count)
   return nullptr;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkXMLDataHeaderPrivate.h

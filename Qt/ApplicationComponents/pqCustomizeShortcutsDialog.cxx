@@ -1,38 +1,11 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqCustomizeShortcutsDialog.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqCustomizeShortcutsDialog.h"
 
 #include "ui_pqCustomizeShortcutsDialog.h"
 
+#include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqSettings.h"
 
@@ -40,6 +13,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
+#include <QRegularExpression>
 #include <QSortFilterProxyModel>
 
 namespace
@@ -80,8 +54,8 @@ public:
   {
     this->KeySequence = shortcut.toString();
     this->Action->setShortcut(shortcut);
-    pqSettings settings;
-    settings.setValue(settingsKey(), shortcut);
+    pqSettings* settings = pqApplicationCore::instance()->settings();
+    settings->setValue(settingsKey(), shortcut);
   }
 
   bool isLeaf() const { return this->IsLeaf; }
@@ -123,7 +97,7 @@ private:
 
 class pqCustomizeShortcutsModel : public QAbstractItemModel
 {
-  static void buildTree(TreeItem* root, const QList<QAction*>& actions, pqSettings& settings)
+  static void buildTree(TreeItem* root, const QList<QAction*>& actions, pqSettings* settings)
   {
     for (QAction* action : actions)
     {
@@ -134,7 +108,7 @@ class pqCustomizeShortcutsModel : public QAbstractItemModel
       }
       actionName = actionName.replace("&", "");
       QString localSettingName = actionName.replace(" ", "_");
-      QString settingsKey = QString("%1/%2").arg(settings.group()).arg(localSettingName);
+      QString settingsKey = QString("%1/%2").arg(settings->group()).arg(localSettingName);
       if (action->menu())
       {
         if ((root->name() == "Filters" || root->name() == "Sources") &&
@@ -149,17 +123,17 @@ class pqCustomizeShortcutsModel : public QAbstractItemModel
         {
           TreeItem* myItem = new TreeItem(actionName, settingsKey, false, action, root);
           root->appendChild(myItem);
-          settings.beginGroup(localSettingName);
+          settings->beginGroup(localSettingName);
           buildTree(myItem, action->menu()->actions(), settings);
-          settings.endGroup();
+          settings->endGroup();
         }
       }
       else
       {
         QString shortcut;
-        if (settings.contains(localSettingName))
+        if (settings->contains(localSettingName))
         {
-          shortcut = settings.value(localSettingName).toString();
+          shortcut = settings->value(localSettingName).toString();
         }
         TreeItem* myItem = new TreeItem(actionName, settingsKey, true, action, root);
         root->appendChild(myItem);
@@ -171,13 +145,13 @@ public:
   pqCustomizeShortcutsModel(QObject* p)
     : QAbstractItemModel(p)
   {
-    pqSettings settings;
+    pqSettings* settings = pqApplicationCore::instance()->settings();
     auto mainWindow = qobject_cast<QMainWindow*>(pqCoreUtilities::mainWidget());
     auto menuBar = mainWindow->menuBar();
     TreeItem* treeItem = new TreeItem("", "", false, nullptr, nullptr);
-    settings.beginGroup("pqCustomShortcuts");
+    settings->beginGroup("pqCustomShortcuts");
     buildTree(treeItem, menuBar->actions(), settings);
-    settings.endGroup();
+    settings->endGroup();
     this->RootItem = treeItem;
   }
 
@@ -419,6 +393,7 @@ pqCustomizeShortcutsDialog::pqCustomizeShortcutsDialog(QWidget* parentObject)
   : Superclass(parentObject)
   , Internals(new pqInternals(this))
 {
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
   connect(this->Internals->Ui.keySequenceEdit, &QKeySequenceEdit::editingFinished, this,
     &pqCustomizeShortcutsDialog::onEditingFinished);
   connect(this->Internals->Ui.treeView->selectionModel(), &QItemSelectionModel::selectionChanged,
@@ -432,13 +407,17 @@ pqCustomizeShortcutsDialog::pqCustomizeShortcutsDialog(QWidget* parentObject)
   connect(this->Internals->Ui.recordButton, &QAbstractButton::clicked, this,
     [this]() { this->Internals->Ui.keySequenceEdit->setFocus(); });
   connect(this->Internals->Ui.searchBox, &pqSearchBox::textChanged, this, [this]() {
-    QRegExp regex(this->Internals->Ui.searchBox->text(), Qt::CaseInsensitive);
+    QRegularExpression regex(
+      this->Internals->Ui.searchBox->text(), QRegularExpression::CaseInsensitiveOption);
 
-    this->Internals->FilterModel->setFilterRegExp(regex);
+    this->Internals->FilterModel->setFilterRegularExpression(regex);
     this->Internals->Ui.treeView->expandAll();
   });
-  this->setWindowTitle("Customize Shortcuts");
+  this->setWindowTitle(tr("Customize Shortcuts"));
   this->onSelectionChanged();
+
+  // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
 }
 
 pqCustomizeShortcutsDialog::~pqCustomizeShortcutsDialog() = default;

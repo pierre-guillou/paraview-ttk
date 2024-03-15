@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLContextDevice3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkOpenGLContextDevice3D
@@ -28,13 +16,18 @@
 #include "vtkContextDevice3D.h"
 #include "vtkNew.h"                           // For ivars.
 #include "vtkRenderingContextOpenGL2Module.h" // For export macro
-#include <vector>                             // STL Header
 
+#include <cstdint> // For std::uintptr_t
+#include <vector>  // STL Header
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBrush;
 class vtkOpenGLContextDevice2D;
 class vtkOpenGLHelper;
 class vtkOpenGLRenderWindow;
 class vtkPen;
+class vtkUnsignedCharArray;
+class vtkFloatArray;
 class vtkRenderer;
 class vtkShaderProgram;
 class vtkTransform;
@@ -62,11 +55,15 @@ public:
    * Draw points at the vertex positions specified.
    */
   void DrawPoints(const float* verts, int n, const unsigned char* colors, int nc) override;
+  void DrawPoints(
+    vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier) override;
 
   /**
    * Draw triangles to generate the specified mesh.
    */
   void DrawTriangleMesh(const float* mesh, int n, const unsigned char* colors, int nc) override;
+  void DrawTriangleMesh(
+    vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t cacheIdentifier) override;
 
   /**
    * Apply the supplied pen which controls the outlines of shapes, as well as
@@ -140,6 +137,11 @@ public:
    */
   virtual void Begin(vtkViewport* viewport);
 
+  /**
+   * Ask the buffer object builder to erase cache entry for given identifier.
+   */
+  void ReleaseCache(std::uintptr_t cacheIdentifier) override;
+
 protected:
   vtkOpenGLContextDevice3D();
   ~vtkOpenGLContextDevice3D() override;
@@ -203,4 +205,5 @@ private:
   vtkNew<vtkPen> Pen;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

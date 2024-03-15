@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPythonView.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonView
  *
@@ -61,21 +49,21 @@ public:
   // Sets the renderer for this view.
   virtual void SetRenderer(vtkRenderer* ren);
 
-  //@{
+  ///@{
   /**
    * Get/Set the Python script.
    */
   vtkSetStringMacro(Script);
   vtkGetStringMacro(Script);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Magnification is needed to inform Python of the requested size of the plot
    */
   vtkSetVector2Macro(Magnification, int);
   vtkGetVector2Macro(Magnification, int);
-  //@}
+  ///@}
 
   /**
    * Gets the number of visible data objects in the view.
@@ -153,14 +141,14 @@ public:
 
   void InteractiveRender() override;
 
-  //@{
+  ///@{
   /**
    * Set the vtkImageData that will be displayed. This is an internal
    * method meant only to be called from the python side, but must be
    * exposed to be wrapped.
    */
   vtkSetObjectMacro(ImageData, vtkImageData);
-  //@}
+  ///@}
 
 protected:
   vtkPythonView();

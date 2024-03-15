@@ -1,19 +1,7 @@
-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSmartPyObject.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSmartPyObject.h"
+#include "vtkABINamespace.h"
 
 #if defined(_MSC_VER) // Visual studio
 // Ignore "constant expression" warnings from MSVC due to the "while (0)" in
@@ -21,6 +9,7 @@
 #pragma warning(disable : 4127)
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkSmartPyObject::vtkSmartPyObject(PyObject* obj)
   : Object(obj)
@@ -117,3 +106,4 @@ PyObject* vtkSmartPyObject::GetAndIncreaseReferenceCount()
   Py_XINCREF(this->Object);
   return this->Object;
 }
+VTK_ABI_NAMESPACE_END

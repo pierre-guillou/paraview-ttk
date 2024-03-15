@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayDataWriter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkArrayDataWriter.h"
 
 #include "vtkArrayData.h"
@@ -25,6 +13,7 @@
 #include <sstream>
 #include <stdexcept>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkArrayDataWriter);
 
 vtkArrayDataWriter::vtkArrayDataWriter()
@@ -140,3 +129,4 @@ vtkStdString vtkArrayDataWriter::Write(vtkArrayData* array_data, bool WriteBinar
   vtkArrayDataWriter::Write(array_data, oss, WriteBinary);
   return oss.str();
 }
+VTK_ABI_NAMESPACE_END

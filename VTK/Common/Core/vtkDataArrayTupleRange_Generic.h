@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataArrayTupleRange_Generic.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * Generic implementation of value ranges and iterators, suitable for
  * vtkDataArray and all subclasses.
@@ -33,9 +21,9 @@ VTK_ITER_OPTIMIZE_START
 
 namespace vtk
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 // Forward decs for friends/args
 template <typename ArrayType, ComponentIdType>
@@ -977,7 +965,7 @@ public:
   VTK_ITER_INLINE
   TupleReference(const TupleReference&) = default;
   VTK_ITER_INLINE
-  TupleReference(TupleReference&&) = default;
+  TupleReference(TupleReference&&) noexcept = default;
 
   // Allow this type to masquerade as a pointer, so that tupleIiter->foo works.
   VTK_ITER_INLINE
@@ -1743,6 +1731,7 @@ private:
 template <typename ArrayType, ComponentIdType TupleSize>
 TupleRange<ArrayType, TupleSize> DeclareTupleRangeSpecialization(vtkDataArray*);
 
+VTK_ABI_NAMESPACE_END
 } // end namespace detail
 } // end namespace vtk
 

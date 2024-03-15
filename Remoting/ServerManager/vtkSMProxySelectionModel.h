@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxySelectionModel.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxySelectionModel
  * @brief   selects proxies.
@@ -50,14 +38,14 @@ public:
    */
   void SetSession(vtkSMSession*) override;
 
-  //@{
+  ///@{
   /**
    * Allow to synchronize the active object with master or just keep remote object
    * out-of-synch. Only the state from the master will be loaded.
    */
   void SetFollowingMaster(bool following);
   bool IsFollowingMaster();
-  //@}
+  ///@}
 
   /**
    * Type for selection.

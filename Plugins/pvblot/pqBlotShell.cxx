@@ -1,23 +1,7 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    pqBlotShell.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include <vtkPython.h> // python first
 
@@ -40,7 +24,7 @@ pqBlotShell::pqBlotShell(QWidget* p)
   : QWidget(p)
 {
   QVBoxLayout* boxLayout = new QVBoxLayout(this);
-  boxLayout->setMargin(0);
+  boxLayout->setContentsMargins(0, 0, 0, 0);
 
   this->Console = new pqConsoleWidget(this);
   boxLayout->addWidget(this->Console);
@@ -237,7 +221,7 @@ void pqBlotShell::promptForInput()
       if (pvblotinterp)
       {
         PyObject* promptObj = PyObject_GetAttrString(pvblotinterp, const_cast<char*>("prompt"));
-        newPrompt = PyString_AsString(PyObject_Str(promptObj));
+        newPrompt = PyUnicode_AsUTF8(PyObject_Str(promptObj));
       }
     }
   }

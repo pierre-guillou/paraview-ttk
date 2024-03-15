@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQuadraticLinearWedge.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkQuadraticLinearWedge
  * @brief   cell represents a, 12-node isoparametric wedge
@@ -42,6 +30,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkNonLinearCell.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQuadraticEdge;
 class vtkLine;
 class vtkQuadraticLinearQuad;
@@ -82,7 +71,7 @@ public:
   int EvaluatePosition(const double x[3], double* closestPoint, int& subId, double pcoords[3],
     double& dist2, double* weights) override;
   void EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   double* GetParametricCoords() override;
@@ -109,18 +98,18 @@ public:
    */
   int GetParametricCenter(double pcoords[3]) override;
 
-  static void InterpolationFunctions(const double pcoords[3], double weights[15]);
-  static void InterpolationDerivs(const double pcoords[3], double derivs[45]);
+  static void InterpolationFunctions(const double pcoords[3], double weights[12]);
+  static void InterpolationDerivs(const double pcoords[3], double derivs[36]);
   ///@{
   /**
    * Compute the interpolation functions/derivatives
    * (aka shape functions/derivatives)
    */
-  void InterpolateFunctions(const double pcoords[3], double weights[15]) override
+  void InterpolateFunctions(const double pcoords[3], double weights[12]) override
   {
     vtkQuadraticLinearWedge::InterpolationFunctions(pcoords, weights);
   }
-  void InterpolateDerivs(const double pcoords[3], double derivs[45]) override
+  void InterpolateDerivs(const double pcoords[3], double derivs[36]) override
   {
     vtkQuadraticLinearWedge::InterpolationDerivs(pcoords, derivs);
   }
@@ -142,7 +131,7 @@ public:
    * matrix. Returns 9 elements of 3x3 inverse Jacobian plus interpolation
    * function derivatives.
    */
-  void JacobianInverse(const double pcoords[3], double** inverse, double derivs[45]);
+  void JacobianInverse(const double pcoords[3], double** inverse, double derivs[36]);
 
 protected:
   vtkQuadraticLinearWedge();
@@ -168,4 +157,5 @@ inline int vtkQuadraticLinearWedge::GetParametricCenter(double pcoords[3])
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

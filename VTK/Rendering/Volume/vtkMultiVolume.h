@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiVolume.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkMultiVolume
  * @brief Represents a world axis-aligned bounding-box containing a set of
@@ -42,6 +30,7 @@
 #include "vtkSmartPointer.h"          // For vtkSmartPointer
 #include "vtkVolume.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractVolumeMapper;
 class vtkBoundingBox;
 class vtkMatrix4x4;
@@ -178,4 +167,5 @@ private:
   vtkMultiVolume(const vtkMultiVolume&) = delete;
   void operator=(const vtkMultiVolume&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

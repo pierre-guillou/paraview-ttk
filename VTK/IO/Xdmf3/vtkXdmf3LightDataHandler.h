@@ -1,18 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmf3LightDataHandler.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXdmf3LightDataHandler
  * @brief   internal helper for vtkXdmf3Reader
@@ -38,11 +25,13 @@
 
 #include <set>
 
-class vtkXdmf3SILBuilder;
-class vtkXdmf3ArraySelection;
 class XdmfItem;
 class XdmfGraph;
 class XdmfGrid;
+
+VTK_ABI_NAMESPACE_BEGIN
+class vtkXdmf3SILBuilder;
+class vtkXdmf3ArraySelection;
 
 class VTKIOXDMF3_EXPORT vtkXdmf3LightDataHandler
 {
@@ -131,5 +120,6 @@ private:
   std::set<double> times; // relying on implicit sort from set<double>
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkXdmf3LightDataHandler_h
 // VTK-HeaderTest-Exclude: vtkXdmf3LightDataHandler.h

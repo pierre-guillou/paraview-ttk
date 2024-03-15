@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAMReXParticlesReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkAMReXParticlesReader
  * @brief reader for AMReX plotfiles particle data.
@@ -42,6 +30,7 @@
 
 #include <string> // for std::string.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkMultiPieceDataSet;
 class vtkMultiProcessController;
@@ -116,12 +105,12 @@ private:
    * Reads a level. Blocks in the level are distributed among pieces in a
    * contiguous fashion.
    */
-  bool ReadLevel(const int level, vtkMultiPieceDataSet* pdataset, const int piece_idx,
-    const int num_pieces) const;
+  bool ReadLevel(int level, vtkMultiPieceDataSet* pdataset, int piece_idx, int num_pieces) const;
 
   vtkTimeStamp PlotFileNameMTime;
   vtkTimeStamp MetaDataMTime;
   std::string ParticleType;
+  double dataTimeStep;
   vtkNew<vtkDataArraySelection> PointDataArraySelection;
 
   class AMReXParticleHeader;
@@ -129,4 +118,5 @@ private:
   friend class AMReXParticleHeader;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

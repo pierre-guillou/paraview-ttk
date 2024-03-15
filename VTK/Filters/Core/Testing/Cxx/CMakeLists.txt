@@ -9,6 +9,8 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestArrayCalculator.cxx,NO_VALID
   TestArrayRename.cxx,NO_VALID
   TestAssignAttribute.cxx,NO_VALID
+  TestAttributeDataToTableFilter.cxx,NO_VALID
+  TestAttributeDataToTableHyperTreeGrid.cxx,NO_VALID
   TestBinCellDataFilter.cxx,NO_VALID
   TestCategoricalPointDataToCellData.cxx,NO_VALID
   TestCategoricalResampleWithDataSet.cxx,NO_VALID
@@ -33,8 +35,10 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestExplicitStructuredGridCrop.cxx
   TestExplicitStructuredGridToUnstructuredGrid.cxx
   TestExecutionTimer.cxx,NO_VALID
+  TestExtractCells.cxx,NO_VALID
   TestExtractCellsAlongPolyLine.cxx,NO_VALID
   TestFeatureEdges.cxx,NO_VALID
+  TestFieldDataToDataSetAttribute.cxx,NO_VALID
   TestFlyingEdges.cxx
   TestGlyph3D.cxx
   TestGlyph3DFollowCamera.cxx,NO_VALID
@@ -43,6 +47,7 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestResampleHyperTreeGridWithDataSet.cxx
   TestImageDataToExplicitStructuredGrid.cxx
   TestImplicitPolyDataDistance.cxx
+  TestImplicitPolyDataDistanceCube.cxx,NO_VALID
   TestImplicitProjectOnPlaneDistance.cxx
   TestMaskPoints.cxx,NO_VALID
   TestMaskPointsModes.cxx
@@ -55,6 +60,8 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestProbeFilter.cxx,NO_VALID
   TestProbeFilterImageInput.cxx
   TestProbeFilterOutputAttributes.cxx,NO_VALID
+  TestQuadricDecimationRegularization.cxx
+  TestQuadricDecimationMapPointData.cxx
   TestResampleToImage.cxx,NO_VALID
   TestResampleToImage2D.cxx,NO_VALID
   TestResampleWithDataSet.cxx,
@@ -79,6 +86,19 @@ vtk_add_test_cxx(vtkFiltersCoreCxxTests tests
   TestVaryRadiusTubeFilter.cxx
   UnitTestMaskPoints.cxx,NO_VALID
   UnitTestMergeFilter.cxx,NO_VALID
+  TestContourImplicitArrays.cxx
   )
 
-vtk_test_cxx_executable(vtkFiltersCoreCxxTests tests)
+# This test fails on vtk-m due to bug #804 (vtk/vtkm)
+# TODO: Remove from condition when fixed
+if (NOT VTK_ENABLE_VTKM_OVERRIDES)
+  vtk_add_test_cxx(vtkFiltersCoreCxxTests no_vtkm_tests
+    TestThresholdComponents.cxx,NO_VALID)
+endif()
+
+set(all_tests
+  ${tests}
+  ${no_vtkm_tests}
+  )
+
+vtk_test_cxx_executable(vtkFiltersCoreCxxTests all_tests)

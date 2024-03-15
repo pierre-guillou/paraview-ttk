@@ -1,25 +1,11 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenXRRenderWindow.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-Parts Copyright Valve Corporation from hellovr_opengl_main.cpp
-under their BSD license found here:
-https://github.com/ValveSoftware/openvr/blob/master/LICENSE
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2015, Valve Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenXRRenderWindow.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLState.h"
+#include "vtkOpenXR.h"
 #include "vtkOpenXRManager.h"
 #include "vtkOpenXRModel.h"
 #include "vtkOpenXRRenderWindowInteractor.h"
@@ -41,6 +27,7 @@ https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 #define stricmp strcasecmp
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenXRRenderWindow);
 
 //------------------------------------------------------------------------------
@@ -48,7 +35,7 @@ vtkOpenXRRenderWindow::vtkOpenXRRenderWindow()
 {
   this->StereoCapableWindow = 1;
   this->StereoRender = 1;
-  this->UseOffScreenBuffers = 1;
+  this->UseOffScreenBuffers = true;
   this->Size[0] = 640;
   this->Size[1] = 720;
   this->Position[0] = 100;
@@ -105,8 +92,14 @@ void vtkOpenXRRenderWindow::AddRenderer(vtkRenderer* ren)
 // Initialize the rendering window.
 void vtkOpenXRRenderWindow::Initialize()
 {
-  if (this->Initialized)
+  if (this->VRInitialized)
   {
+    return;
+  }
+
+  if (!this->HelperWindow)
+  {
+    vtkErrorMacro(<< "HelperWindow is not set");
     return;
   }
 
@@ -122,7 +115,6 @@ void vtkOpenXRRenderWindow::Initialize()
   if (!xrManager.Initialize(this->HelperWindow))
   {
     // Set to false because the above init of the HelperWindow sets it to true
-    this->Initialized = false;
     vtkErrorMacro(<< "Failed to initialize OpenXRManager");
     return;
   }
@@ -137,22 +129,27 @@ void vtkOpenXRRenderWindow::Initialize()
   std::string strWindowTitle = "VTK - " + xrManager.GetOpenXRPropertiesAsString();
   this->SetWindowName(strWindowTitle.c_str());
 
-  this->Initialized = true;
-
-  vtkDebugMacro(<< "End of OpenXRRenderWindow Initialization");
+  this->VRInitialized = true;
 }
 
 //------------------------------------------------------------------------------
 void vtkOpenXRRenderWindow::Finalize()
 {
-  this->ReleaseGraphicsResources(this);
-
-  vtkOpenXRManager::GetInstance().Finalize();
+  if (!this->VRInitialized)
+  {
+    return;
+  }
 
   if (this->HelperWindow && this->HelperWindow->GetGenericContext())
   {
     this->HelperWindow->Finalize();
   }
+
+  vtkOpenXRManager::GetInstance().Finalize();
+
+  this->ReleaseGraphicsResources(this);
+
+  this->VRInitialized = false;
 }
 
 //------------------------------------------------------------------------------
@@ -165,10 +162,7 @@ void vtkOpenXRRenderWindow::Render()
     return;
   }
 
-  if (this->TrackHMD)
-  {
-    this->UpdateHMDMatrixPose();
-  }
+  this->UpdateHMDMatrixPose();
 
   if (xrManager.GetShouldRenderCurrentFrame())
   {
@@ -213,10 +207,13 @@ void vtkOpenXRRenderWindow::UpdateHMDMatrixPose()
   while ((ren = this->Renderers->GetNextRenderer(rit)))
   {
     vtkVRCamera* cam = vtkVRCamera::SafeDownCast(ren->GetActiveCamera());
-    cam->SetCameraFromDeviceToWorldMatrix(d2wMat, this->GetPhysicalScale());
-    if (ren->GetLightFollowCamera())
+    if (cam && cam->GetTrackHMD())
     {
-      ren->UpdateLightsGeometryToFollowCamera();
+      cam->SetCameraFromDeviceToWorldMatrix(d2wMat, this->GetPhysicalScale());
+      if (ren->GetLightFollowCamera())
+      {
+        ren->UpdateLightsGeometryToFollowCamera();
+      }
     }
   }
 }
@@ -250,13 +247,14 @@ void vtkOpenXRRenderWindow::StereoRenderComplete()
 }
 
 //------------------------------------------------------------------------------
-void vtkOpenXRRenderWindow::RenderOneEye(const uint32_t eye)
+void vtkOpenXRRenderWindow::RenderOneEye(uint32_t eye)
 {
   vtkOpenXRManager& xrManager = vtkOpenXRManager::GetInstance();
 
   FramebufferDesc& eyeFramebufferDesc = this->FramebufferDescs[eye];
+
   if (!xrManager.PrepareRendering(
-        eye, eyeFramebufferDesc.ResolveColorTextureId, eyeFramebufferDesc.ResolveDepthTextureId))
+        eye, &eyeFramebufferDesc.ResolveColorTextureId, &eyeFramebufferDesc.ResolveDepthTextureId))
   {
     return;
   }
@@ -402,3 +400,4 @@ vtkEventDataDevice vtkOpenXRRenderWindow::GetDeviceForOpenXRHandle(uint32_t ohan
 
   return vtkEventDataDevice::Unknown;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAreaPicker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAreaPicker.h"
 #include "vtkAbstractMapper3D.h"
@@ -36,6 +24,7 @@
 #include "vtkRenderer.h"
 #include "vtkVolume.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAreaPicker);
 
 //------------------------------------------------------------------------------
@@ -258,7 +247,7 @@ int vtkAreaPicker::PickProps(vtkRenderer* renderer)
           double dist;
           if (this->ABoxFrustumIsect(bounds, dist))
           {
-            if (!this->Prop3Ds->IsItemPresent(prop))
+            if (this->Prop3Ds->IndexOfFirstOccurence(prop) < 0)
             {
               this->Prop3Ds->AddItem(static_cast<vtkProp3D*>(prop));
               if (dist < mindist) // new nearest, remember it
@@ -422,3 +411,4 @@ void vtkAreaPicker::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Mapper: " << this->Mapper << "\n";
   os << indent << "DataSet: " << this->DataSet << "\n";
 }
+VTK_ABI_NAMESPACE_END

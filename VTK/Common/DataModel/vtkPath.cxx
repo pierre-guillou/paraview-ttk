@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPath.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPath.h"
 
 #include "vtkGenericCell.h"
@@ -26,6 +14,7 @@
 #include <cassert>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPath);
 
 //------------------------------------------------------------------------------
@@ -93,7 +82,7 @@ void vtkPath::PrintSelf(ostream& os, vtkIndent indent)
 }
 
 //------------------------------------------------------------------------------
-void vtkPath::InsertNextPoint(float pts[], int code)
+void vtkPath::InsertNextPoint(float pts[3], int code)
 {
   this->Points->InsertNextPoint(pts);
 
@@ -103,7 +92,7 @@ void vtkPath::InsertNextPoint(float pts[], int code)
 }
 
 //------------------------------------------------------------------------------
-void vtkPath::InsertNextPoint(double pts[], int code)
+void vtkPath::InsertNextPoint(double pts[3], int code)
 {
   this->InsertNextPoint(pts[0], pts[1], pts[2], code);
 }
@@ -129,3 +118,4 @@ vtkIntArray* vtkPath::GetCodes()
 {
   return vtkArrayDownCast<vtkIntArray>(this->PointData->GetScalars());
 }
+VTK_ABI_NAMESPACE_END

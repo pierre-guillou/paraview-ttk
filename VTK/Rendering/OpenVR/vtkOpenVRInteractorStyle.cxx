@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenVRInteractorStyle.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenVRInteractorStyle.h"
 
 #include "vtkObjectFactory.h"
@@ -20,6 +8,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkOpenVRRenderWindow.h"
 #include "vtkOpenVRRenderWindowInteractor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenVRInteractorStyle);
 
 //------------------------------------------------------------------------------
@@ -59,3 +48,4 @@ vtkVRControlsHelper* vtkOpenVRInteractorStyle::MakeControlsHelper()
   vtkVRControlsHelper* helper = vtkOpenVRControlsHelper::New();
   return helper;
 }
+VTK_ABI_NAMESPACE_END

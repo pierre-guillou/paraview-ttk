@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOptions.h.in
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkOptions_h
 #define vtkOptions_h
 
@@ -23,5 +11,8 @@
 
 /* Whether VTK_FUTURE_CONST should be defined as const or nothing.  */
 #cmakedefine01 VTK_USE_FUTURE_CONST
+
+/* Whether vtkTypeBool should be defined as int or bool.  */
+#cmakedefine01 VTK_USE_FUTURE_BOOL
 
 #endif

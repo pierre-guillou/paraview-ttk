@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTriangle.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTriangle
  * @brief   a cell that represents a triangle
@@ -28,6 +16,7 @@
 
 #include "vtkMath.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLine;
 class vtkQuadric;
 class vtkIncrementalPointLocator;
@@ -61,7 +50,7 @@ public:
   int EvaluatePosition(const double x[3], double closestPoint[3], int& subId, double pcoords[3],
     double& dist2, double weights[]) override;
   void EvaluateLocation(int& subId, const double pcoords[3], double x[3], double* weights) override;
-  int Triangulate(int index, vtkIdList* ptIds, vtkPoints* pts) override;
+  int TriangulateLocalIds(int index, vtkIdList* ptIds) override;
   void Derivatives(
     int subId, const double pcoords[3], const double* values, int dim, double* derivs) override;
   double* GetParametricCoords() override;
@@ -202,8 +191,8 @@ public:
   // coordinate values p1, p2, p3. Method is via comparing dot products.
   // (Note: in current implementation the tolerance only works in the
   // neighborhood of the three vertices of the triangle.
-  static int PointInTriangle(const double x[3], const double x1[3], const double x2[3],
-    const double x3[3], const double tol2);
+  static int PointInTriangle(
+    const double x[3], const double x1[3], const double x2[3], const double x3[3], double tol2);
 
   ///@{
   /**
@@ -293,4 +282,5 @@ inline double vtkTriangle::TriangleArea(const double p1[3], const double p2[3], 
   return 0.5 * vtkMath::Norm(n);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

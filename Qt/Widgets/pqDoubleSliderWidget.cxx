@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    pqDoubleSliderWidget.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqDoubleSliderWidget.h"
 
 // Qt includes
@@ -30,7 +18,7 @@ pqDoubleSliderWidget::pqDoubleSliderWidget(QWidget* parent)
   this->DeferredValueEdited = false;
 
   QHBoxLayout* l = new QHBoxLayout(this);
-  l->setMargin(0);
+  l->setContentsMargins(0, 0, 0, 0);
   this->Slider = new QSlider(Qt::Horizontal, this);
   this->Slider->setRange(0, 100);
   l->addWidget(this->Slider);

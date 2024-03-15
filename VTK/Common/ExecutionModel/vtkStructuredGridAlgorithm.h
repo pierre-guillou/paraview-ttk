@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStructuredGridAlgorithm.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStructuredGridAlgorithm
  * @brief   Superclass for algorithms that produce only structured grid as output
@@ -35,6 +23,7 @@
 #include "vtkCommonExecutionModelModule.h" // For export macro
 #include "vtkStructuredGrid.h"             // makes things a bit easier
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkStructuredGrid;
 
@@ -109,8 +98,13 @@ protected:
   virtual int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
   {
     return 1;
-  };
+  }
   ///@}
+
+  virtual int RequestUpdateTime(vtkInformation*, vtkInformationVector**, vtkInformationVector*)
+  {
+    return 1;
+  }
 
   // see algorithm for more info
   int FillOutputPortInformation(int port, vtkInformation* info) override;
@@ -121,4 +115,5 @@ private:
   void operator=(const vtkStructuredGridAlgorithm&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

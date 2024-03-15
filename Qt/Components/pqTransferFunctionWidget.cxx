@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqTransferFunctionWidget.h"
 
 #include "QVTKOpenGLNativeWidget.h"
@@ -36,6 +8,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTimer.h"
 #include "vtkAxis.h"
 #include "vtkBoundingBox.h"
+#include "vtkBrush.h"
 #include "vtkChartXY.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkColorTransferFunctionItem.h"
@@ -47,6 +20,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkContextView.h"
 #include "vtkEventQtSlotConnect.h"
 #include "vtkGenericOpenGLRenderWindow.h"
+#include "vtkImageData.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVColorTransferControlPointsItem.h"
@@ -197,6 +171,7 @@ public:
   vtkNew<vtkTransferFunctionChartXY> ChartXY;
   vtkNew<vtkContextView> ContextView;
   vtkNew<vtkEventQtSlotConnect> VTKConnect;
+  vtkNew<vtkBrush> CheckerBrush;
 
   pqTimer Timer;
   pqTimer RangeTimer;
@@ -246,7 +221,7 @@ public:
 
     this->Widget->setParent(editor);
     QVBoxLayout* layout = new QVBoxLayout(editor);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(this->Widget);
 
     this->ChartXY->SetAutoAxes(false);
@@ -258,6 +233,58 @@ public:
     }
   }
   ~pqInternals() { this->cleanup(); }
+
+  void initializeCheckerBoardBrush()
+  {
+    vtkNew<vtkImageData> texture;
+    const int numPtsX = 32;
+    const int numPtsY = 32;
+    const int ncomp = 3;
+    texture->SetDimensions(numPtsX, numPtsY, 1);
+    texture->AllocateScalars(VTK_UNSIGNED_CHAR, ncomp);
+    // assumes origin at lower left corner in a 32x32 square.
+    // create a checkerboard with 4 sub-squares. texture property repeat
+    // ensures this pattern is repeated.
+    for (int i = 0; i < numPtsY; ++i)
+    {
+      for (int j = 0; j < numPtsX; ++j)
+      {
+        double val = 0;
+        // lower left
+        if (i < numPtsY / 2 && j < numPtsX / 2)
+        {
+          val = 225; // grey
+        }
+        // upper right
+        else if (i >= numPtsY / 2 && j >= numPtsX / 2)
+        {
+          val = 225; // grey
+        }
+        // lower right
+        else if (j >= numPtsX / 2)
+        {
+          val = 255; // white
+        }
+        // upper left
+        else if (i >= numPtsY / 2)
+        {
+          val = 255; // white
+        }
+        for (int comp = 0; comp < ncomp; ++comp)
+        {
+          texture->SetScalarComponentFromDouble(i, j, 0, comp, val);
+        }
+      }
+    }
+    this->CheckerBrush->SetTexture(texture);
+    this->CheckerBrush->SetTextureProperties(
+      vtkBrush::TextureProperty::Repeat | vtkBrush::TextureProperty::Nearest);
+  }
+
+  void setUseCheckerBoardBrush(bool use)
+  {
+    this->ChartXY->SetBackgroundBrush(use ? this->CheckerBrush.GetPointer() : nullptr);
+  }
 
   void cleanup()
   {
@@ -289,6 +316,8 @@ pqTransferFunctionWidget::pqTransferFunctionWidget(QWidget* parentObject)
     }
   });
 
+  this->Internals->initializeCheckerBoardBrush();
+  this->Internals->setUseCheckerBoardBrush(true);
   this->connect(&this->Internals->EditColorPointTimer, SIGNAL(timeout()),
     SLOT(editColorAtCurrentControlPoint()));
 }

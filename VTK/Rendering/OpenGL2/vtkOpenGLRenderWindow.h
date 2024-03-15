@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLRenderWindow.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenGLRenderWindow
  * @brief   OpenGL rendering window
@@ -33,6 +21,7 @@
 #include <set>                         // for ivar
 #include <string>                      // for ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 class vtkOpenGLBufferObject;
 class vtkOpenGLFramebufferObject;
@@ -57,7 +46,7 @@ public:
   /**
    * Begin the rendering process.
    */
-  void Start(void) override;
+  void Start() override;
 
   /**
    * A termination method performed at the end of the rendering process
@@ -285,7 +274,7 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  virtual void Initialize(void) {}
+  virtual void Initialize() {}
 
   std::set<vtkGenericOpenGLResourceFreeCallback*> Resources;
 
@@ -412,6 +401,25 @@ public:
   /**
    * SetGet how to handle blits at the end of a Frame() call.
    * Only happens when SwapBuffers is true.
+   *
+   * The “blit” operation means copying something (pixels) from one region
+   * in memory to another. This is a common OpenGL operation: check out the
+   * glBlitFramebuffer OpenGL method. VTK OpenGL rasterizes 3D/2D geometry
+   * into color/depth attachments of an in-memory framebuffer: in the graphics
+   * world, this is called offscreen rendering.
+   *
+   * The FrameBlitMode tells VTK where to copy the offscreen
+   * buffer. Either the default hardware framebuffer or the currently bound
+   * framebuffer. Here are the available modes:
+   * - BlitToHardware: This mode blits to the default framebuffer managed by
+   *   platform(Win32/X/Cocoa) render windows. This is the default mode when VTK
+   *   is used through one of the platform render windows (with vtkRenderWindow).
+   * - BlitToCurrent: This mode blits to the currently bound framebuffer.
+   *   It is useful when an external framebuffer is bound just before
+   *   the vtkRenderWindow::Frame() call. You’ll need this when integrating
+   *   VTK with other UI frameworks because these UI frameworks create/have
+   *   their own framebuffers.
+   * - NoBlit: no blit. The GUI or external code will handle the blit.
    */
   vtkSetClampMacro(FrameBlitMode, FrameBlitModes, BlitToHardware, NoBlit);
   vtkGetMacro(FrameBlitMode, FrameBlitModes);
@@ -465,6 +473,10 @@ protected:
   // a FSQ we use to flip framebuffer texture
   vtkOpenGLQuadHelper* FlipQuad;
 
+  // a FSQ we use to read depth component on platforms with OpenGL ES implementations
+  // because `glReadPixels` cannot be used to read GL_DEPTH_COMPONENT
+  vtkOpenGLQuadHelper* DepthReadQuad;
+
   // flip quad helpers Y tcoord
   bool FramebufferFlipY;
 
@@ -472,6 +484,15 @@ protected:
   // when copying to displayframebuffer. Returns
   // true if the color buffer was copied.
   virtual bool ResolveFlipRenderFramebuffer();
+
+  // On GLES, the depth attachment buffer cannot be downloaded from
+  // the GPU with `glReadPixels`.
+  // This method reads the depth buffer bits.
+  // The depth attachment size can be 8,16,24 or 32. The values are split into 4 8-bit numbers.
+  // These are stored in the form of an RGBA color attachment in DepthFrameBuffer.
+  // `glReadPixels` can read that RGBA format and reconstruct full 8,16,24 or 32-bit integer
+  // followed by scaling down to 0-1.
+  bool ReadDepthComponent(int depthSize);
 
   // used in testing for opengl support
   // in the SupportsOpenGL() method
@@ -497,6 +518,10 @@ protected:
   // used when we need to resolve a multisampled
   // framebuffer
   vtkOpenGLFramebufferObject* ResolveFramebuffer;
+
+  // used when we need to read depth component
+  // with OpenGL ES 3
+  vtkOpenGLFramebufferObject* DepthFramebuffer;
 
   /**
    * Create a not-off-screen window.
@@ -558,4 +583,5 @@ private:
   vtkOpenGLState* State;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPropAssembly.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPropAssembly.h"
 
 #include "vtkAssemblyNode.h"
@@ -23,6 +11,7 @@
 #include "vtkPropCollection.h"
 #include "vtkViewport.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPropAssembly);
 
 // Construct object with no children.
@@ -48,7 +37,7 @@ vtkPropAssembly::~vtkPropAssembly()
 // Add a part to the list of Parts.
 void vtkPropAssembly::AddPart(vtkProp* prop)
 {
-  if (!this->Parts->IsItemPresent(prop))
+  if (this->Parts->IndexOfFirstOccurence(prop) < 0)
   {
     this->Parts->AddItem(prop);
     prop->AddConsumer(this);
@@ -59,7 +48,7 @@ void vtkPropAssembly::AddPart(vtkProp* prop)
 // Remove a part from the list of parts,
 void vtkPropAssembly::RemovePart(vtkProp* prop)
 {
-  if (this->Parts->IsItemPresent(prop))
+  if (this->Parts->IndexOfFirstOccurence(prop) >= 0)
   {
     prop->RemoveConsumer(this);
     this->Parts->RemoveItem(prop);
@@ -447,3 +436,4 @@ void vtkPropAssembly::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "There are: " << this->Parts->GetNumberOfItems() << " parts in this assembly\n";
 }
+VTK_ABI_NAMESPACE_END

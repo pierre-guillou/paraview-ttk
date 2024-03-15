@@ -22,23 +22,21 @@ namespace field_conversion
 vtkm::cont::DataSet CellAverage::DoExecute(const vtkm::cont::DataSet& input)
 {
   const auto& field = GetFieldFromDataSet(input);
-  if (!field.IsFieldPoint())
+  if (!field.IsPointField())
   {
     throw vtkm::cont::ErrorFilterExecution("Point field expected.");
   }
 
   vtkm::cont::UnknownCellSet inputCellSet = input.GetCellSet();
-  vtkm::cont::UnknownArrayHandle outArray;
+  vtkm::cont::UnknownArrayHandle inArray = field.GetData();
+  vtkm::cont::UnknownArrayHandle outArray = inArray.NewInstanceBasic();
 
   auto resolveType = [&](const auto& concrete) {
-    using T = typename std::decay_t<decltype(concrete)>::ValueType;
-    vtkm::cont::ArrayHandle<T> result;
+    using T = typename std::decay_t<decltype(concrete)>::ValueType::ComponentType;
+    auto result = outArray.ExtractArrayFromComponents<T>();
     this->Invoke(vtkm::worklet::CellAverage{}, inputCellSet, concrete, result);
-    outArray = result;
   };
-  field.GetData()
-    .CastAndCallForTypesWithFloatFallback<vtkm::TypeListField, VTKM_DEFAULT_STORAGE_LIST>(
-      resolveType);
+  inArray.CastAndCallWithExtractedArray(resolveType);
 
   std::string outputName = this->GetOutputFieldName();
   if (outputName.empty())

@@ -1,19 +1,8 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVClipDataSet.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVClipDataSet.h"
 
+#include "vtkCellData.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkDataSet.h"
 #include "vtkDataSetTriangleFilter.h"
@@ -28,11 +17,13 @@
 #include "vtkMathUtilities.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkNew.h"
+#include "vtkNonMergingPointLocator.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVBox.h"
 #include "vtkPVCylinder.h"
 #include "vtkPVPlane.h"
 #include "vtkPVThreshold.h"
+#include "vtkPointData.h"
 #include "vtkQuadric.h"
 #include "vtkSmartPointer.h"
 #include "vtkSphere.h"
@@ -471,7 +462,43 @@ int vtkPVClipDataSet::ClipUsingSuperclass(
       return retVal;
     }
   }
-  return this->Superclass::RequestData(request, inputVector, outputVector);
+
+  vtkDataObject* inputDO = vtkDataObject::GetData(inputVector[0], 0);
+  vtkDataObject* outputDO = vtkDataObject::GetData(outputVector, 0);
+
+  vtkNew<Superclass> instance;
+  instance->SetInsideOut(this->GetInsideOut());
+  instance->SetValue(this->GetValue());
+  instance->SetUseValueAsOffset(this->GetUseValueAsOffset());
+  instance->SetClipFunction(this->GetClipFunction());
+  instance->SetGenerateClipScalars(this->GetGenerateClipScalars());
+  instance->SetMergeTolerance(this->GetMergeTolerance());
+  instance->SetGenerateClippedOutput(this->GetGenerateClippedOutput());
+  instance->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+  instance->SetBatchSize(this->GetBatchSize());
+
+  // Dataset with "normals" will use non merging point locator instead of vtkMergePoints to avoid
+  // potential artefacts
+  vtkDataSet* inputDS = vtkDataSet::SafeDownCast(inputDO);
+  vtkNew<vtkNonMergingPointLocator> locator;
+  if (inputDS->GetPointData()->GetNormals() || inputDS->GetCellData()->GetNormals())
+  {
+    instance->SetLocator(locator);
+  }
+
+  instance->SetInputDataObject(inputDO);
+  instance->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+  if (instance->GetExecutive()->Update())
+  {
+    outputDO->ShallowCopy(instance->GetOutput());
+    if (instance->GetClippedOutput())
+    {
+      this->GetClippedOutput()->ShallowCopy(instance->GetClippedOutput());
+    }
+    return 1;
+  }
+
+  return 0;
 }
 
 //----------------------------------------------------------------------------

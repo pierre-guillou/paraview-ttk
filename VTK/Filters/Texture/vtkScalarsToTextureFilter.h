@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkScalarsToTextureFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkScalarsToTextureFilter
  * @brief   generate texture coordinates and a texture image based on a scalar field
@@ -32,6 +20,7 @@
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkSmartPointer.h" // For smart pointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkPolyData;
 class vtkScalarsToColors;
@@ -91,4 +80,5 @@ private:
   int TextureDimensions[2];
   bool UseTransferFunction = true;
 };
+VTK_ABI_NAMESPACE_END
 #endif

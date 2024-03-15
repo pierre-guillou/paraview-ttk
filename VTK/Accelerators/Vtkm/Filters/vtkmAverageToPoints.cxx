@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkmAverageToPoints.h"
 
 #include "vtkCellData.h"
@@ -29,12 +18,12 @@
 
 #include "vtkmlib/ArrayConverters.h"
 #include "vtkmlib/DataSetConverters.h"
-
-#include "vtkmFilterPolicy.h"
+#include "vtkmlib/DataSetUtils.h"
 
 #include <vtkm/cont/ErrorFilterExecution.h>
 #include <vtkm/filter/field_conversion/PointAverage.h>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkmAverageToPoints);
 
 //------------------------------------------------------------------------------
@@ -114,7 +103,8 @@ int vtkmAverageToPoints::RequestData(
       }
     }
 
-    if (in.GetNumberOfFields() < 1) // `in` should only have cell fields, if any
+    // At this point, `in` should only have cell fields and coordinates
+    if (in.GetNumberOfFields() <= in.GetNumberOfCoordinateSystems())
     {
       vtkWarningMacro(<< "No cell arrays to process.");
       return 1;
@@ -145,13 +135,13 @@ int vtkmAverageToPoints::RequestData(
 
     // Execute the vtk-m filter
     vtkm::filter::field_conversion::PointAverage filter;
-    for (int i = 0; i < in.GetNumberOfFields(); ++i)
+    for (auto i : GetFieldsIndicesWithoutCoords(in))
     {
       const auto& name = in.GetField(i).GetName();
       filter.SetActiveField(name, vtkm::cont::Field::Association::Cells);
       auto result = filter.Execute(in);
 
-      // convert back the dataset to VTK, and add the field as a point field
+      // convert back to VTK, and add the field as a point field
       vtkDataArray* resultingArray = fromvtkm::Convert(result.GetPointField(name));
       if (resultingArray == nullptr)
       {
@@ -181,3 +171,4 @@ void vtkmAverageToPoints::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

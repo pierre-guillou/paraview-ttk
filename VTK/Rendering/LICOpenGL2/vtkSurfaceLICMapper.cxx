@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSurfaceLICMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSurfaceLICMapper.h"
 
 #include "vtkSurfaceLICInterface.h"
@@ -38,6 +26,7 @@
 #define vtkSurfaceLICMapperDEBUG 0
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkObjectFactoryNewMacro(vtkSurfaceLICMapper);
 
 //------------------------------------------------------------------------------
@@ -98,11 +87,15 @@ void vtkSurfaceLICMapper::ReplaceShaderValues(
     "in vec3 tcoordVCVSOutput;\n"
     "//VTK::TCoord::Dec");
 
-  // No need to create uniform normalMatrix as it will be done in superclass
-  // if the data contains normals
-  if (this->VBOs->GetNumberOfComponents("normalMC") != 3)
+  // We need to create the uniform normalMatrix here as it will not be done in the superclass
+  // if the data does not contains normals or if drawing spheres / tubes is enabled.
+  if (this->VBOs->GetNumberOfComponents("normalMC") != 3 ||
+    this->DrawingSpheres(*this->LastBoundBO, actor) ||
+    this->DrawingTubes(*this->LastBoundBO, actor))
   {
-    vtkShaderProgram::Substitute(FSSource, "//VTK::TCoord::Dec", "uniform mat3 normalMatrix;");
+    vtkShaderProgram::Substitute(FSSource, "//VTK::Normal::Dec",
+      "//VTK::Normal::Dec\n"
+      "uniform mat3 normalMatrix;");
   }
 
   if (this->PrimitiveInfo[this->LastBoundBO].LastLightComplexity > 0)
@@ -251,3 +244,4 @@ void vtkSurfaceLICMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

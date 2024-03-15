@@ -1,18 +1,7 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
-  Program:   Visualization Toolkit
-  Module:    TestScatterPlotMatrix.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
+#include "vtkCallbackCommand.h"
 #include "vtkChart.h"
 #include "vtkContextMouseEvent.h"
 #include "vtkContextScene.h"
@@ -21,13 +10,33 @@
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkPlot.h"
+#include "vtkRenderTimerLog.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkScatterPlotMatrix.h"
 #include "vtkTable.h"
 
+namespace
+{
+
+void RenderComplete(vtkObject* obj, unsigned long, void*, void*)
+{
+  vtkRenderWindow* renWin = vtkRenderWindow::SafeDownCast(obj);
+  assert(renWin);
+
+  vtkRenderTimerLog* timer = renWin->GetRenderTimer();
+  while (timer->FrameReady())
+  {
+    std::cout << "-- Frame Timing:------------------------------------------\n";
+    timer->PopFirstReadyFrame().Print(std::cout);
+    std::cout << "\n";
+  }
+}
+
+} // end anon namespace
+
 //------------------------------------------------------------------------------
-int TestScatterPlotMatrix(int, char*[])
+int TestScatterPlotMatrix(int argc, char* argv[])
 {
   // Set up a 2D scene, add a chart to it
   vtkNew<vtkContextView> view;
@@ -54,6 +63,19 @@ int TestScatterPlotMatrix(int, char*[])
   table->AddColumn(tangent);
   // Test the chart scatter plot matrix
   int numPoints = 100;
+  // Setup the rendertimer observer:
+  for (int i = 0; i < argc; ++i)
+  {
+    if (std::string(argv[i]) == "-timeit")
+    {
+      numPoints = 10000000; // 10 million
+      vtkNew<vtkCallbackCommand> renderCompleteCB;
+      renderCompleteCB->SetCallback(RenderComplete);
+      view->GetRenderWindow()->GetRenderTimer()->LoggingEnabledOn();
+      view->GetRenderWindow()->AddObserver(vtkCommand::EndEvent, renderCompleteCB);
+      break;
+    }
+  }
   float inc = 4.0 * vtkMath::Pi() / (numPoints - 1);
   table->SetNumberOfRows(numPoints);
   for (int i = 0; i < numPoints; ++i)

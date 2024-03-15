@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageOrthoPlanes.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkImageOrthoPlanes
  * @brief   Connect three vtkImagePlaneWidgets together
@@ -31,6 +19,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImagePlaneWidget;
 class vtkTransform;
 class vtkMatrix4x4;
@@ -77,7 +66,7 @@ protected:
   void SetTransformMatrix(
     vtkMatrix4x4* matrix, vtkImagePlaneWidget* currentImagePlane, int indexOfModifiedPlane);
 
-  void GetBounds(double bounds[3]);
+  void GetBounds(double bounds[6]);
 
   // The plane definitions prior to any rotations or scales
   double Origin[3][3];
@@ -102,4 +91,5 @@ private:
   void operator=(const vtkImageOrthoPlanes&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -9,6 +9,7 @@ endif ()
 set(sources
   vtkParse.tab.c
   vtkParseData.c
+  vtkParseDependencyTracking.c
   vtkParseExtras.c
   vtkParseHierarchy.c
   vtkParseMain.c
@@ -24,6 +25,7 @@ set(headers
   vtkParse.h
   vtkParseAttributes.h
   vtkParseData.h
+  vtkParseDependencyTracking.h
   vtkParseExtras.h
   vtkParseHierarchy.h
   vtkParseMain.h
@@ -39,6 +41,9 @@ set(headers
 set_property(SOURCE vtkParseMain.c
   PROPERTY
     COMPILE_DEFINITIONS "VTK_PARSE_VERSION=\"${VTK_MAJOR_VERSION}.${VTK_MINOR_VERSION}\"")
+
+# Disable abi mangling in this module
+set(_vtk_module_no_namespace_abi_mangling ON)
 
 vtk_module_add_module("${ns}::WrappingTools"
   SOURCES ${sources}

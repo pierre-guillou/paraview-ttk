@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderHexahedron.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkHigherOrderHexahedron.h"
 
@@ -31,6 +19,9 @@
 #include "vtkVector.h"
 #include "vtkVectorOperators.h"
 
+#include <array>
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkHigherOrderHexahedron::vtkHigherOrderHexahedron()
 {
   this->Approx = nullptr;
@@ -97,9 +88,9 @@ void vtkHigherOrderHexahedron::SetEdgeIdsAndPoints(int edgeId,
   }
 }
 
-void vtkHigherOrderHexahedron::SetFaceIdsAndPoints(vtkHigherOrderQuadrilateral* result, int faceId,
+void vtkHigherOrderHexahedron::SetFaceIdsAndPoints(int faceId, const int* order,
   const std::function<void(const vtkIdType&)>& set_number_of_ids_and_points,
-  const std::function<void(const vtkIdType&, const vtkIdType&)>& set_ids_and_points)
+  const std::function<void(const vtkIdType&, const vtkIdType&)>& set_ids_and_points, int* faceOrder)
 {
   if (faceId < 0 || faceId >= 6)
   {
@@ -109,12 +100,12 @@ void vtkHigherOrderHexahedron::SetFaceIdsAndPoints(vtkHigherOrderQuadrilateral* 
   // Do we need to flip the face to get an outward-pointing normal?
   bool flipFace = faceId % 2 == ((faceId / 2) % 2);
 
-  const int* order = this->GetOrder();
   vtkVector2i faceParams = vtkHigherOrderInterpolation::GetVaryingParametersOfHexFace(faceId);
   const int* corners = vtkHigherOrderInterpolation::GetPointIndicesBoundingHexFace(faceId);
-  int npts = (order[faceParams[0]] + 1) * (order[faceParams[1]] + 1);
+  faceOrder[0] = order[faceParams[0]];
+  faceOrder[1] = order[faceParams[1]];
+  int npts = (faceOrder[0] + 1) * (faceOrder[1] + 1);
   set_number_of_ids_and_points(npts);
-  result->SetOrder(order[faceParams[0]], order[faceParams[1]]);
 
   // Add vertex DOFs to result
   int sn = 0;
@@ -355,12 +346,21 @@ void vtkHigherOrderHexahedron::EvaluateLocation(
   subId = 0; // LagrangeHexahedron tests that this is set to 0
   this->InterpolateFunctions(pcoords, weights);
 
-  double p[3];
+  // Efficient point access
+  const auto pointsArray = vtkDoubleArray::FastDownCast(this->Points->GetData());
+  if (!pointsArray)
+  {
+    vtkErrorMacro(<< "Points should be double type");
+    return;
+  }
+  const double* pts = pointsArray->GetPointer(0);
+
+  const double* p;
   x[0] = x[1] = x[2] = 0.;
   vtkIdType nPoints = this->GetPoints()->GetNumberOfPoints();
   for (vtkIdType idx = 0; idx < nPoints; ++idx)
   {
-    this->Points->GetPoint(idx, p);
+    p = pts + 3 * idx;
     for (vtkIdType jdx = 0; jdx < 3; ++jdx)
     {
       x[jdx] += p[jdx] * weights[idx];
@@ -436,29 +436,27 @@ int vtkHigherOrderHexahedron::IntersectWithLine(
   return intersection ? 1 : 0;
 }
 
-int vtkHigherOrderHexahedron::Triangulate(int vtkNotUsed(index), vtkIdList* ptIds, vtkPoints* pts)
+int vtkHigherOrderHexahedron::TriangulateLocalIds(int vtkNotUsed(index), vtkIdList* ptIds)
 {
-  ptIds->Reset();
-  pts->Reset();
-
+  constexpr std::array<vtkIdType, 20> linearHexLocalPtIds{ 0, 1, 3, 4, 1, 4, 5, 6, 1, 4, 6, 3, 1, 3,
+    6, 2, 3, 6, 7, 4 };
   vtkIdType nhex = vtkHigherOrderInterpolation::NumberOfIntervals<3>(this->GetOrder());
-  for (int i = 0; i < nhex; ++i)
+  ptIds->SetNumberOfIds(nhex * 20);
+  int i, j, k, corner;
+  int count = 0;
+  for (int subId = 0; subId < nhex; ++subId)
   {
-    vtkHexahedron* approx = this->GetApproximateHex(i);
-    if (approx->Triangulate(1, this->TmpIds.GetPointer(), this->TmpPts.GetPointer()))
+    if (!this->SubCellCoordinatesFromId(i, j, k, subId))
     {
-      // Sigh. Triangulate methods all reset their points/ids
-      // so we must copy them to our output.
-      vtkIdType np = this->TmpPts->GetNumberOfPoints();
-      vtkIdType ni = this->TmpIds->GetNumberOfIds();
-      for (vtkIdType ii = 0; ii < np; ++ii)
-      {
-        pts->InsertNextPoint(this->TmpPts->GetPoint(ii));
-      }
-      for (vtkIdType ii = 0; ii < ni; ++ii)
-      {
-        ptIds->InsertNextId(this->TmpIds->GetId(ii));
-      }
+      vtkErrorMacro("Invalid subId " << subId);
+      return 0;
+    }
+    for (vtkIdType ic : linearHexLocalPtIds)
+    {
+      corner = this->PointIndexFromIJK(
+        i + ((((ic + 1) / 2) % 2) ? 1 : 0), j + (((ic / 2) % 2) ? 1 : 0), k + ((ic / 4) ? 1 : 0));
+      ptIds->SetId(count, corner);
+      count++;
     }
   }
   return 1;
@@ -534,7 +532,7 @@ void vtkHigherOrderHexahedron::PrepareApproxData(
   this->GetApprox(); // Ensure this->Approx{PD,CD} are non-NULL.
   // this->GetOrder(); // Ensure the order has been updated to match this element.
   this->SetOrderFromCellData(cd, this->Points->GetNumberOfPoints(), cellId);
-  vtkIdType npts = this->Order[3];
+  vtkIdType npts = this->Points->GetNumberOfPoints();
   vtkIdType nele = this->Order[0] * this->Order[1] * this->Order[2];
   this->ApproxPD->Initialize();
   this->ApproxCD->Initialize();
@@ -660,7 +658,7 @@ int vtkHigherOrderHexahedron::PointIndexFromIJK(int i, int j, int k, const int* 
 }
 
 vtkIdType vtkHigherOrderHexahedron::NodeNumberingMappingFromVTK8To9(
-  const int order[3], const vtkIdType node_id_vtk8)
+  const int order[3], vtkIdType node_id_vtk8)
 {
   int numPtsPerEdgeWithoutCorners[3];
   numPtsPerEdgeWithoutCorners[0] = order[0] - 1;
@@ -731,21 +729,32 @@ bool vtkHigherOrderHexahedron::TransformFaceToCellParams(int bdyFace, double* pc
 /**\brief Set the degree  of the cell, given a vtkDataSet and cellId
  */
 void vtkHigherOrderHexahedron::SetOrderFromCellData(
-  vtkCellData* cell_data, const vtkIdType numPts, const vtkIdType cell_id)
+  vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id)
+{
+  vtkHigherOrderHexahedron::SetOrderFromCellData(cell_data, numPts, cell_id, this->Order);
+}
+
+void vtkHigherOrderHexahedron::SetOrderFromCellData(
+  vtkCellData* cell_data, vtkIdType numPts, vtkIdType cell_id, int* order)
 {
   vtkDataArray* v = cell_data->GetHigherOrderDegrees();
   if (v)
   {
     double degs[3];
     v->GetTuple(cell_id, degs);
-    this->SetOrder(degs[0], degs[1], degs[2]);
-    if (this->Order[3] != numPts)
-      vtkErrorMacro("The degrees are not correctly set in the input file.");
+    order[0] = degs[0];
+    order[1] = degs[1];
+    order[2] = degs[2];
   }
   else
   {
-    this->SetUniformOrderFromNumPoints(numPts);
+    order[0] = order[1] = order[2] =
+      static_cast<int>(round(std::cbrt(static_cast<int>(numPts)))) - 1;
   }
+  order[3] = (order[0] + 1) * (order[1] + 1) * (order[2] + 1);
+  if (order[3] != numPts)
+    vtkGenericWarningMacro(
+      "The degrees are direction dependents, and should be set in the input file.");
 }
 
 void vtkHigherOrderHexahedron::SetUniformOrderFromNumPoints(vtkIdType numPts)
@@ -783,3 +792,11 @@ const int* vtkHigherOrderHexahedron::GetOrder()
   }
   return this->Order;
 }
+
+bool vtkHigherOrderHexahedron::PointCountSupportsUniformOrder(vtkIdType pointsPerCell)
+{
+  // Determine if the cube root of N is integral.
+  auto rr = static_cast<int>(std::floor(std::cbrt(pointsPerCell) + 0.5));
+  return (rr * rr * rr == pointsPerCell);
+}
+VTK_ABI_NAMESPACE_END

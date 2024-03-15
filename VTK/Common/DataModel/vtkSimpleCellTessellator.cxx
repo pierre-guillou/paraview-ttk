@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSimpleCellTessellator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkSimpleCellTessellator.h"
 #include "vtkObjectFactory.h"
@@ -38,6 +26,7 @@
 
 // format of the arrays LeftPoint, MidPoint, RightPoint is global, parametric,
 // attributes: xyz rst [abc de...]
+VTK_ABI_NAMESPACE_BEGIN
 const int PARAMETRIC_OFFSET = 3;
 const int ATTRIBUTES_OFFSET = 6;
 
@@ -2174,7 +2163,6 @@ void vtkSimpleCellTessellator::Tessellate(vtkGenericAdaptorCell* cell,
   }
 
   // refine loop
-  int count = 0;
   while (!work.empty())
   {
     vtkTetraTile piece[8];
@@ -2190,7 +2178,6 @@ void vtkSimpleCellTessellator::Tessellate(vtkGenericAdaptorCell* cell,
 
     // We are done we should clean ourself from the hash table:
     this->RemoveEdgesFromEdgeTable(curr);
-    ++count;
   }
 
   // remove the points of the complex cell from the hashtable
@@ -2277,7 +2264,7 @@ void vtkSimpleCellTessellator::TessellateFace(vtkGenericAdaptorCell* cell,
       ++i;
     }
 
-    this->Polygon->Triangulate(this->TriangleIds);
+    this->Polygon->TriangulateLocalIds(0, this->TriangleIds);
 
     // now iterate over any sub-triangle and call triangulateface on it
     vtkIdType pts[3];
@@ -2418,7 +2405,7 @@ void vtkSimpleCellTessellator::Triangulate(vtkGenericAdaptorCell* cell,
       ++i;
     }
 
-    this->Polygon->Triangulate(this->TriangleIds);
+    this->Polygon->TriangulateLocalIds(0, this->TriangleIds);
 
     // now iterate over any sub-triangle and call triangulateface on it
     vtkIdType pts[3];
@@ -2789,3 +2776,4 @@ int vtkSimpleCellTessellator::FacesAreEqual(const vtkIdType* originalFace, const
   }
   return result;
 }
+VTK_ABI_NAMESPACE_END

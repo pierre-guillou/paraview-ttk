@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLineIntegralConvolution2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLineIntegralConvolution2D
  * @brief   GPU-based implementation of Line
@@ -97,6 +85,7 @@
 #include "vtkWeakPointer.h"               // for ren context
 #include <deque>                          // for deque
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLHelper;
 class vtkOpenGLRenderWindow;
@@ -393,7 +382,6 @@ protected:
   virtual void StartTimerEvent(const char*) {}
   virtual void EndTimerEvent(const char*) {}
 
-protected:
   vtkWeakPointer<vtkOpenGLRenderWindow> Context;
   vtkOpenGLFramebufferObject* FBO;
 
@@ -428,4 +416,5 @@ private:
   void operator=(const vtkLineIntegralConvolution2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

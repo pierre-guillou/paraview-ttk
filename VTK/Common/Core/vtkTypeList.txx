@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTypeList.txx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkTypeList_txx
 #define vtkTypeList_txx
@@ -20,9 +8,9 @@
 
 namespace vtkTypeList
 {
-
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename... Ts>
 struct CreateImpl;
@@ -55,6 +43,12 @@ struct CreateImpl<T1>
   using type = vtkTypeList::TypeList<T1, vtkTypeList::NullType>;
 };
 
+template <>
+struct CreateImpl<>
+{
+  using type = vtkTypeList::NullType;
+};
+
 template <typename T1, typename T2, typename T3, typename T4, typename... Tail>
 struct CreateImpl<T1, T2, T3, T4, Tail...>
 {
@@ -64,7 +58,10 @@ struct CreateImpl<T1, T2, T3, T4, Tail...>
         vtkTypeList::TypeList<T4, typename vtkTypeList::detail::CreateImpl<Tail...>::type>>>>;
 };
 
+VTK_ABI_NAMESPACE_END
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Description:
@@ -377,6 +374,7 @@ struct Append<vtkTypeList::TypeList<Head, Tail>, T>
   typedef vtkTypeList::TypeList<Head, typename Append<Tail, T>::Result> Result;
 };
 
+VTK_ABI_NAMESPACE_END
 }
 
 #endif // vtkTypeList_txx

@@ -1,20 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestAMRReadWrite.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-// .NAME Test of vtkSimplePointsReader and vtkSimplePointsWriter
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
+// .NAME Test of vtkXMLHyperTreeGridWriter with a vtkHyperTreeGridAxisClip
+//       and a vtkArrayCalculator
 // .SECTION Description
 
+#include "vtkArrayCalculator.h"
 #include "vtkCellData.h"
 #include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
@@ -226,6 +216,61 @@ int TestXMLHyperTreeGridIO2(int argc, char* argv[])
   if (!AreHTGSame(htgWrite, htgRead))
   {
     vtkLog(ERROR, "Binary Write and Read version 2 failed");
+    return EXIT_FAILURE;
+  }
+
+  // Testing with calculator (works only with xml htg writer v2)
+
+  vtkNew<vtkArrayCalculator> calcScalar;
+  calcScalar->SetInputConnection(source->GetOutputPort(0));
+  calcScalar->SetAttributeTypeToCellData();
+  calcScalar->AddScalarArrayName("Depth");
+  calcScalar->SetFunction("Depth*iHat");
+  calcScalar->SetResultArrayName("ResultScalar");
+
+  vtkNew<vtkArrayCalculator> calcVector;
+  calcVector->SetInputConnection(calcScalar->GetOutputPort(0));
+  calcVector->SetAttributeTypeToCellData();
+  calcVector->AddScalarArrayName("Depth");
+  calcVector->AddScalarArrayName("ResultScalar");
+  calcVector->SetFunction("Depth*iHat+ResultScalar*jHat+kHat");
+  calcVector->SetResultArrayName("ResultVector");
+
+  calcVector->Update();
+  writer->SetInputData(calcVector->GetOutputDataObject(0));
+  htgWrite = vtkHyperTreeGrid::SafeDownCast(calcVector->GetOutputDataObject(0));
+
+  vtkLog(INFO, "Writing TestXMLHyperTreeGridIO2_CalculatorAppendedv2.htg");
+  fname = tdir + std::string("/TestXMLHyperTreeGridIO2_CalculatorAppendedv2.htg");
+  writer->SetDataSetMajorVersion(2);
+  writer->SetFileName(fname.c_str());
+  writer->Write();
+
+  vtkLog(INFO, "Reading TestXMLHyperTreeGridIO2_CalculatorAppendedv2.htg");
+  reader->SetFileName(fname.c_str());
+  reader->Update();
+  htgRead = vtkHyperTreeGrid::SafeDownCast(reader->GetOutputDataObject(0));
+
+  if (!AreHTGSame(htgWrite, htgRead))
+  {
+    vtkLog(ERROR, "Calculator Appended Write and Read version 2 failed");
+    return EXIT_FAILURE;
+  }
+
+  vtkLog(INFO, "Writing TestXMLHyperTreeGridIO2_CalculatorBinaryv2.htg");
+  fname = tdir + std::string("/TestXMLHyperTreeGridIO2_CalculatorBinaryv2.htg");
+  writer->SetDataSetMajorVersion(2);
+  writer->SetFileName(fname.c_str());
+  writer->Write();
+
+  vtkLog(INFO, "Reading TestXMLHyperTreeGridIO2_CalculatorBinaryv2.htg");
+  reader->SetFileName(fname.c_str());
+  reader->Update();
+  htgRead = vtkHyperTreeGrid::SafeDownCast(reader->GetOutputDataObject(0));
+
+  if (!AreHTGSame(htgWrite, htgRead))
+  {
+    vtkLog(ERROR, "Calculator Binary Write and Read version 2 failed");
     return EXIT_FAILURE;
   }
 

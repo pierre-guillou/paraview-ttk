@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestImageStencilData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // The test creates two box-shaped image stencils from rectangular polydata.
 // The stencils are added / subtracted, converted to an image and compared
@@ -62,7 +50,7 @@ static vtkSmartPointer<vtkImageStencilData> CreateBoxStencilData(double d1, doub
   extrudeFilter->Update();
 
   // Apply a transformation to the output polydata that subtracts 0.5 from
-  // the z co-ordinate.
+  // the z coordinate.
 
   const double m[16] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, -0.5, 0, 0, 0, 1 };
   vtkMatrixToLinearTransform* linearTransform = vtkMatrixToLinearTransform::New();

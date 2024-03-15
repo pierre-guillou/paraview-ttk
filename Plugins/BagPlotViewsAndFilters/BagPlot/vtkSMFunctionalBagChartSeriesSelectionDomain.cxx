@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMFunctionalBagChartSeriesSelectionDomain.h"
 
 #include "vtkObjectFactory.h"
@@ -63,7 +51,7 @@ std::vector<std::string> vtkSMFunctionalBagChartSeriesSelectionDomain::GetDefaul
     else if (vtksys::SystemTools::StringEndsWith(name, "_median"))
     {
       vtksys::SystemTools::ReplaceString(name, "_median", "");
-      name = "Higher density (" + name + ")";
+      name = "Highest density (" + name + ")";
     }
     values.push_back(name.c_str());
     return values;

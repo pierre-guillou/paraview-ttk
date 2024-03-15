@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLAvatar.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLAvatar.h"
 
 #include "vtkAvatarHead.h"          // geometry for head
@@ -40,6 +28,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 void setOrientation(vtkTransform* trans, const double* orientation)
@@ -526,3 +515,4 @@ vtkTextProperty* vtkOpenGLAvatar::GetLabelTextProperty()
 {
   return this->LabelActor->GetTextProperty();
 }
+VTK_ABI_NAMESPACE_END

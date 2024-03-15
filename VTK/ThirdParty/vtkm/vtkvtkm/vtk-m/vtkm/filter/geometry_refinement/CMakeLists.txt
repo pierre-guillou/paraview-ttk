@@ -8,6 +8,8 @@
 ##  PURPOSE.  See the above copyright notice for more information.
 ##============================================================================
 set(geometry_refinement_headers
+  ConvertToPointCloud.h
+  Shrink.h
   SplitSharpEdges.h
   Tetrahedralize.h
   Triangulate.h
@@ -16,6 +18,8 @@ set(geometry_refinement_headers
   )
 
 set(geometry_refinement_sources
+  ConvertToPointCloud.cxx
+  Shrink.cxx
   SplitSharpEdges.cxx
   Tetrahedralize.cxx
   Triangulate.cxx
@@ -34,8 +38,3 @@ target_link_libraries(vtkm_filter_geometry_refinement PUBLIC vtkm_worklet vtkm_f
 target_link_libraries(vtkm_filter PUBLIC INTERFACE vtkm_filter_geometry_refinement)
 
 add_subdirectory(worklet)
-
-#-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -
-if (VTKm_ENABLE_TESTING)
-  add_subdirectory(testing)
-endif ()

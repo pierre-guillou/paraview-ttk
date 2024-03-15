@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAnnotationLink.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkAnnotationLink.h"
 
@@ -27,6 +15,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkTable.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAnnotationLink);
 // vtkCxxSetObjectMacro(vtkAnnotationLink, AnnotationLayers, vtkAnnotationLayers);
 
@@ -124,7 +113,7 @@ void vtkAnnotationLink::SetAnnotationLayers(vtkAnnotationLayers* layers)
 //------------------------------------------------------------------------------
 void vtkAnnotationLink::AddDomainMap(vtkTable* map)
 {
-  if (!this->DomainMaps->IsItemPresent(map))
+  if (this->DomainMaps->IndexOfFirstOccurence(map) < 0)
   {
     this->DomainMaps->AddItem(map);
   }
@@ -237,6 +226,8 @@ int vtkAnnotationLink::RequestData(vtkInformation* vtkNotUsed(info),
     }
   }
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -343,3 +334,4 @@ void vtkAnnotationLink::PrintSelf(ostream& os, vtkIndent indent)
     os << "(none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

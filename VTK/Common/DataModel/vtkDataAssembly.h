@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataAssembly.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkDataAssembly
  * @brief hierarchical representation to use with
@@ -125,6 +113,7 @@
 #include <string> // for std::string
 #include <vector> // for std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataAssemblyVisitor;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkDataAssembly : public vtkObject
@@ -167,8 +156,11 @@ public:
   /**
    * Get/Set root node name. Defaults to DataAssembly.
    */
-  void SetRootNodeName(const char* name) { this->SetNodeName(this->GetRootNode(), name); }
-  const char* GetRootNodeName() const { return this->GetNodeName(this->GetRootNode()); }
+  void SetRootNodeName(const char* name)
+  {
+    this->SetNodeName(vtkDataAssembly::GetRootNode(), name);
+  }
+  const char* GetRootNodeName() const { return this->GetNodeName(vtkDataAssembly::GetRootNode()); }
   ///@}
 
   /**
@@ -474,4 +466,5 @@ private:
   std::unique_ptr<vtkInternals> Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

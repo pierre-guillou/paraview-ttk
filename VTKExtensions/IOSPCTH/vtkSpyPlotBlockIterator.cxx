@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSpyPlotBlockIterator.h"
 #include "vtkSpyPlotReader.h"
 #include <cassert>
@@ -56,6 +58,7 @@ int vtkSpyPlotBlockDistributionBlockIterator::GetNumberOfBlocksToProcess()
   {
     if (!(cur_file % progressInterval))
     {
+      // run from 0 to 0.2
       this->Parent->UpdateProgress(0.2 * static_cast<double>(cur_file) / numFiles);
     }
     vtkSpyPlotUniReader* reader = this->FileMap->GetReader(fileIterator, this->Parent);
@@ -207,7 +210,8 @@ int vtkSpyPlotFileDistributionBlockIterator::GetNumberOfBlocksToProcess()
     }
     if (!(file_index % progressInterval))
     {
-      this->Parent->UpdateProgress(0.2 * (file_index + 1.0) / numFiles);
+      // run from 0 to 0.2
+      this->Parent->UpdateProgress(0.2 * (file_index - this->FileStart + 1.0) / numFiles);
     }
     vtkSpyPlotUniReader* reader = this->FileMap->GetReader(fileIterator, this->Parent);
     reader->ReadInformation();

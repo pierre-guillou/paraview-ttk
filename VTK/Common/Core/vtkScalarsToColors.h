@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkScalarsToColors.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkScalarsToColors
  * @brief   Superclass for mapping scalar values to colors
@@ -50,6 +38,7 @@
 #include "vtkObject.h"
 #include "vtkVariant.h" // Set/get annotation methods require variants.
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataArray;
 class vtkUnsignedCharArray;
@@ -70,9 +59,9 @@ public:
    * equal to 1. Default implementation returns true. The more complex
    * signature will yield more accurate results.
    */
-  virtual int IsOpaque();
-  virtual int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component);
-  virtual int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
+  virtual vtkTypeBool IsOpaque();
+  virtual vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component);
+  virtual vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
     vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip = 0xff);
   ///@}
 
@@ -163,9 +152,9 @@ public:
    * When the component argument is -1, then the this object uses its own
    * selected technique to change a vector into a scalar to map.
    */
-  virtual vtkUnsignedCharArray* MapScalars(
+  virtual VTK_NEWINSTANCE vtkUnsignedCharArray* MapScalars(
     vtkDataArray* scalars, int colorMode, int component, int outputFormat = VTK_RGBA);
-  virtual vtkUnsignedCharArray* MapScalars(
+  virtual VTK_NEWINSTANCE vtkUnsignedCharArray* MapScalars(
     vtkAbstractArray* scalars, int colorMode, int component, int outputFormat = VTK_RGBA);
   ///@}
 
@@ -260,10 +249,10 @@ public:
   virtual void DeepCopy(vtkScalarsToColors* o);
 
   /**
-   * This should return 1 is the subclass is using log scale for mapping scalars
+   * This should return 1 if the subclass is using log scale for mapping scalars
    * to colors. Default implementation always returns 0.
    */
-  virtual int UsingLogScale() { return 0; }
+  virtual vtkTypeBool UsingLogScale() { return 0; }
 
   /**
    * Get the number of available colors for mapping to.
@@ -308,11 +297,13 @@ public:
 
   /**
    * Return the annotated value at a particular index in the list of annotations.
+   * If there are no annotations, or \p idx is out-of-range, returns a default/invalid vtkVariant.
    */
   vtkVariant GetAnnotatedValue(vtkIdType idx);
 
   /**
    * Return the annotation at a particular index in the list of annotations.
+   * If there are no annotations, or \p idx is out-of-range, returns an empty string.
    */
   vtkStdString GetAnnotation(vtkIdType idx);
 
@@ -343,7 +334,7 @@ public:
    * vtkColorTransferFunction returns the color associated with node \a index % \a this->GetSize().
 
    * Note that implementations *must* set the opacity (alpha) component of the color, even if they
-   * do not provide opacity values in their colormaps. In that case, alpha = 1 should be used.
+   * do not provide opacity values in their colormaps. In that case, alpha = 1.0 should be used.
    */
   virtual void GetIndexedColor(vtkIdType i, double rgba[4]);
 
@@ -415,7 +406,8 @@ protected:
    * method instantiates a vtkUnsignedCharArray and returns it. The user is
    * responsible for managing the memory.
    */
-  vtkUnsignedCharArray* ConvertToRGBA(vtkDataArray* colors, int numComp, int numTuples);
+  VTK_NEWINSTANCE vtkUnsignedCharArray* ConvertToRGBA(
+    vtkDataArray* colors, int numComp, int numTuples);
 
   /**
    * An internal method for converting vectors to magnitudes, used as
@@ -452,8 +444,10 @@ protected:
   int VectorComponent;
   int VectorSize;
 
+#if !defined(VTK_LEGACY_REMOVE)
   // Obsolete, kept so subclasses will still compile
   int UseMagnitude;
+#endif
 
   unsigned char RGBABytes[4];
 
@@ -474,13 +468,16 @@ private:
 template <>
 inline unsigned char vtkScalarsToColors::ColorToUChar(double t)
 {
-  return static_cast<unsigned char>(t * 255 + 0.5);
+  double temp = (t * 255.0) + 0.5;
+  return static_cast<unsigned char>(temp);
 }
 template <>
 inline unsigned char vtkScalarsToColors::ColorToUChar(float t)
 {
-  return static_cast<unsigned char>(t * 255 + 0.5);
+  double temp = (t * 255.0) + 0.5;
+  return static_cast<unsigned char>(temp);
 }
 ///@}
 
+VTK_ABI_NAMESPACE_END
 #endif

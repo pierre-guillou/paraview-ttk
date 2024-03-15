@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMProxyConfigurationWriter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMProxyConfigurationWriter
  * @brief   Base readers of a vtkSMProxy's vtkSMProperty's.
@@ -52,38 +40,38 @@ public:
   vtkTypeMacro(vtkSMProxyConfigurationWriter, vtkSMObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the proxy to write out.
    */
   virtual void SetProxy(vtkSMProxy* proxy);
   vtkGetObjectMacro(Proxy, vtkSMProxy);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the ieterator used to traverse properties during the write.
    * If no iterator is set then all properties are written.
    */
   virtual void SetPropertyIterator(vtkSMPropertyIterator* iter);
   vtkGetObjectMacro(PropertyIterator, vtkSMPropertyIterator);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the file name.
    */
   vtkSetStringMacro(FileName);
   vtkGetStringMacro(FileName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/get file meta data.
    */
   vtkSetStringMacro(FileIdentifier);
   vtkGetStringMacro(FileIdentifier);
-  //@}
+  ///@}
 
   vtkSetStringMacro(FileDescription);
   vtkGetStringMacro(FileDescription);
@@ -96,13 +84,13 @@ public:
    */
   virtual const char* GetWriterVersion() { return "1.0"; }
 
-  //@{
+  ///@{
   /**
    * Write the proxy's state directly to an XML file, in PV state format.
    */
   virtual int WriteConfiguration();
   virtual int WriteConfiguration(const char* fileName);
-  //@}
+  ///@}
   /**
    * Write the proxy's state to a stream, in PV state format.
    */

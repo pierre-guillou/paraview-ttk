@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStreamingDemandDrivenPipeline.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamingDemandDrivenPipeline
  * @brief   Executive supporting partial updates.
@@ -32,6 +20,7 @@
 #define VTK_UPDATE_EXTENT_COMBINE 1
 #define VTK_UPDATE_EXTENT_REPLACE 2
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkInformationDoubleKey;
 class vtkInformationDoubleVectorKey;
 class vtkInformationIdTypeKey;
@@ -236,6 +225,39 @@ public:
    */
   static vtkInformationDoubleVectorKey* BOUNDS();
 
+  /**
+   * Key to tell whether the data has all its time steps generated.
+   * It is typically used for in situ, where you want to be able to visualize
+   * a simulation while it is running. It effectively tells the downstream
+   * algorithms integrating over all the timesteps
+   * that the current set of available timesteps is not necessarily
+   * complete. As a result, they will produce a valid output for each requested timestep
+   * and keep some cache helping them to retrieve upcoming timesteps as they arrive.
+   *
+   * @note One should check the actual value of this key. Possible values are listed
+   * in `NO_PRIOR_TEMPORAL_ACCESS_STATES`.
+   */
+  static vtkInformationIntegerKey* NO_PRIOR_TEMPORAL_ACCESS();
+
+  /**
+   * States that the information key `NO_PRIOR_TEMPORAL_ACCESS` can have.
+   */
+  enum NO_PRIOR_TEMPORAL_ACCESS_STATES
+  {
+    /**
+     * Notifies that the current `UPDATE_TIME_STEP()` is to be integrated in the
+     * output of the current `vtkAlgorithm`.
+     */
+    NO_PRIOR_TEMPORAL_ACCESS_CONTINUE = 1,
+
+    /**
+     * Notifies that the filter should reset its internal state.
+     * This bit should be activated if one wants to rerun the time steps
+     * from scratch. It does not need to be set on the first update of the pipeline.
+     */
+    NO_PRIOR_TEMPORAL_ACCESS_RESET = 2
+  };
+
   ///@{
   /**
    * Get/Set the update extent for output ports that use 3D extents.
@@ -321,4 +343,5 @@ private:
   void operator=(const vtkStreamingDemandDrivenPipeline&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

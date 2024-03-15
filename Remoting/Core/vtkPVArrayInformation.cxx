@@ -1,22 +1,13 @@
-/*=========================================================================
-
- Program:   ParaView
- Module:    vtkPVArrayInformation.cxx
-
- Copyright (c) Kitware, Inc.
- All rights reserved.
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- cxx     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVArrayInformation.h"
 
 #include "vtkAbstractArray.h"
+#include "vtkCellAttribute.h"
+#include "vtkCellGrid.h"
 #include "vtkClientServerStream.h"
 #include "vtkDataArray.h"
+#include "vtkFieldData.h"
 #include "vtkGenericAttribute.h"
 #include "vtkInformation.h"
 #include "vtkInformationIterator.h"
@@ -260,7 +251,7 @@ void vtkPVArrayInformation::DeepCopy(vtkPVArrayInformation* other)
 }
 
 //----------------------------------------------------------------------------
-void vtkPVArrayInformation::CopyFromArray(vtkAbstractArray* array)
+void vtkPVArrayInformation::CopyFromArray(vtkAbstractArray* array, vtkFieldData* fd)
 {
   assert(array != nullptr);
   this->Name = array->GetName() ? array->GetName() : "";
@@ -296,8 +287,13 @@ void vtkPVArrayInformation::CopyFromArray(vtkAbstractArray* array)
     for (int comp = -1; comp < numComponents; ++comp)
     {
       auto& compInfo = this->Components.at(comp + 1);
-      dataArray->GetRange(compInfo.Range.GetData(), comp);
-      dataArray->GetFiniteRange(compInfo.FiniteRange.GetData(), comp);
+      if (!fd || !array->GetName() ||
+        !fd->GetRange(dataArray->GetName(), compInfo.Range.GetData(), comp) ||
+        !fd->GetFiniteRange(dataArray->GetName(), compInfo.FiniteRange.GetData(), comp))
+      {
+        dataArray->GetRange(compInfo.Range.GetData(), comp);
+        dataArray->GetFiniteRange(compInfo.FiniteRange.GetData(), comp);
+      }
     }
   }
   else if (auto sarray = vtkStringArray::SafeDownCast(array))
@@ -325,6 +321,28 @@ void vtkPVArrayInformation::CopyFromArray(vtkAbstractArray* array)
         std::make_pair<std::string, std::string>(key->GetLocation(), key->GetName()));
     }
     it->Delete();
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVArrayInformation::CopyFromCellAttribute(vtkCellGrid* grid, vtkCellAttribute* attribute)
+{
+  assert(!!attribute);
+  const int numComponents = attribute->GetNumberOfComponents();
+  assert(numComponents > 0);
+
+  this->Name = attribute->GetName().Data();
+  this->DataType = VTK_DOUBLE; // TODO: vtkCellAttribute doesn't force this.
+  // this->NumberOfTuples = 0; // TODO: Should we even try to answer this?
+
+  this->Components.resize(numComponents + 1);
+  for (int comp = -1; comp < numComponents; ++comp)
+  {
+    auto& compInfo = this->Components.at(comp + 1);
+    grid->GetCellAttributeRange(attribute, comp < 0 ? -2 : comp, compInfo.Range.GetData(), false);
+    grid->GetCellAttributeRange(
+      attribute, comp < 0 ? -2 : comp, compInfo.FiniteRange.GetData(), true);
+    compInfo.DefaultName = vtkPVPostFilter::DefaultComponentName(comp, numComponents);
   }
 }
 
@@ -576,7 +594,7 @@ const char* vtkPVArrayInformation::GetStringValue(int index)
 }
 
 //----------------------------------------------------------------------------
-std::string vtkPVArrayInformation::GetRangesAsString() const
+std::string vtkPVArrayInformation::GetRangesAsString(int lowExponent, int highExponent) const
 {
   std::ostringstream stream;
 
@@ -593,14 +611,16 @@ std::string vtkPVArrayInformation::GetRangesAsString() const
   else
   {
     vtkNumberToString formatter;
+    formatter.SetLowExponent(lowExponent);
+    formatter.SetHighExponent(highExponent);
     bool first = true;
     for (int cc = 0, max = this->GetNumberOfComponents(); cc < max; ++cc)
     {
       auto& cinfo = this->Components[cc + 1];
       if (cinfo.Range[0] <= cinfo.Range[1])
       {
-        stream << (first ? "" : ", ") << "[" << formatter(cinfo.Range[0]) << ", "
-               << formatter(cinfo.Range[1]) << "]";
+        stream << (first ? "" : ", ") << "[" << formatter.Convert(cinfo.Range[0]) << ", "
+               << formatter.Convert(cinfo.Range[1]) << "]";
         first = false;
       }
     }

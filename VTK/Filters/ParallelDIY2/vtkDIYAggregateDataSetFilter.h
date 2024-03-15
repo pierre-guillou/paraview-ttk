@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDIYAggregateDataSetFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDIYAggregateDataSetFilter
  * @brief   Aggregates data sets to a reduced number of processes.
@@ -29,6 +17,7 @@
 #include <string> // For passing computed data between methods
 #include <vector> // For passing computed data between methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObject;
 class vtkIdList;
 
@@ -114,4 +103,5 @@ private:
   bool OutputInitialized;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

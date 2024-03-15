@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXdmfHeavyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXdmfHeavyData.h"
 
 #include "vtkCellArray.h"
@@ -61,6 +49,7 @@ typedef XdmfInt32 vtkXdmfIdType;
 
 using namespace xdmf2;
 
+VTK_ABI_NAMESPACE_BEGIN
 static void vtkScaleExtents(int in_exts[6], int out_exts[6], int stride[3])
 {
   out_exts[0] = in_exts[0] / stride[0];
@@ -483,7 +472,7 @@ int vtkXdmfHeavyData::GetNumberOfPointsPerCell(int vtk_cell_type)
     case VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON:
       return 24;
     case VTK_TRIQUADRATIC_HEXAHEDRON:
-      return 24;
+      return 27;
   }
   return -1;
 }
@@ -1736,3 +1725,4 @@ vtkDataSet* vtkXdmfHeavyData::ExtractEdges(XdmfSet* xmfSet, vtkDataSet* dataSet)
 
   return output;
 }
+VTK_ABI_NAMESPACE_END

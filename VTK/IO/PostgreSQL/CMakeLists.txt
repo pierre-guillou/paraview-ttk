@@ -1,4 +1,5 @@
-vtk_module_find_package(PACKAGE PostgreSQL)
+vtk_module_find_package(PRIVATE_IF_SHARED
+  PACKAGE PostgreSQL)
 
 set(classes
   vtkPostgreSQLDatabase
@@ -13,3 +14,4 @@ vtk_module_add_module(VTK::IOPostgreSQL
 vtk_module_link(VTK::IOPostgreSQL
   PRIVATE
     PostgreSQL::PostgreSQL)
+vtk_add_test_mangling(VTK::IOPostgreSQL)

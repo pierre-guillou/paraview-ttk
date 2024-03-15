@@ -1,22 +1,7 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkModelMetadata.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkModelMetadata
  * @brief   This class encapsulates the metadata
@@ -77,6 +62,7 @@
 #include "vtkObject.h"
 #include "vtkSmartPointer.h" // for vtkSmartPointer
 #include "vtkStringArray.h"  // for vtkStringArray
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkCharArray;
 class vtkIdTypeArray;
@@ -823,8 +809,8 @@ private:
   int* ElementVariableTruthTable; // (G) NumBlocks*OrigNumberOfElementVariables
   vtkTypeBool AllVariablesDefinedInAllBlocks;
 
-private:
   vtkModelMetadata(const vtkModelMetadata&) = delete;
   void operator=(const vtkModelMetadata&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

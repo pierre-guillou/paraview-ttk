@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLWriter2.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXMLWriter2.h"
 
 #include "vtkInformation.h"
@@ -27,6 +15,7 @@
 #include <cassert>
 #include <numeric>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkXMLWriter2, Controller, vtkMultiProcessController);
 //----------------------------------------------------------------------------
 vtkXMLWriter2::vtkXMLWriter2()
@@ -221,3 +210,4 @@ void vtkXMLWriter2::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Controller: " << this->Controller << endl;
   os << indent << "NumberOfGhostLevels: " << this->NumberOfGhostLevels << endl;
 }
+VTK_ABI_NAMESPACE_END

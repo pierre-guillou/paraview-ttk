@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridNonOrientedCursor.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright Nonice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridNonOrientedCursor
  * @brief   Objects for traversal a HyperTreeGrid.
@@ -22,6 +10,9 @@
  * the compact hyper tree cursor implemented in vtkHyperTree can.
  * This is an abstract class.
  * Cursors are created by the HyperTreeGrid implementation.
+ *
+ * Non-oriented cursors have the ability to come back to their parents
+ * and to go to the root.
  *
  * @sa
  * vtkHyperTreeCursor vtkHyperTree vtkHyperTreeGrid
@@ -43,6 +34,7 @@
 
 #include <vector> // For std::vector
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHyperTree;
 class vtkHyperTreeGrid;
 class vtkHyperTreeGridEntry;
@@ -224,4 +216,5 @@ private:
   vtkHyperTreeGridNonOrientedCursor(const vtkHyperTreeGridNonOrientedCursor&) = delete;
   void operator=(const vtkHyperTreeGridNonOrientedCursor&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

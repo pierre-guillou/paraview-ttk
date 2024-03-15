@@ -1,20 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVDataInformation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
-// Hide PARAVIEW_DEPRECATED_IN_5_10_0() warnings for this class.
-#define PARAVIEW_DEPRECATION_LEVEL 0
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPVDataInformation.h"
 
@@ -23,6 +8,7 @@
 #include "vtkBoundingBox.h"
 #include "vtkByteSwap.h"
 #include "vtkCellData.h"
+#include "vtkCellGrid.h"
 #include "vtkClientServerStream.h"
 #include "vtkClientServerStreamInstantiator.h"
 #include "vtkCollection.h"
@@ -261,7 +247,13 @@ void vtkPVDataInformation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "TimeRange: " << this->TimeRange[0] << ", " << this->TimeRange[1] << endl;
   os << indent << "TimeLabel: " << (this->TimeLabel.empty() ? "(none)" : this->TimeLabel.c_str())
      << endl;
-  os << indent << "NumberOfTimeSteps: " << this->NumberOfTimeSteps << endl;
+  os << indent << "NumberOfTimeSteps: " << this->TimeSteps.size() << endl;
+  os << indent << "TimeSteps: ";
+  for (double timeStep : this->TimeSteps)
+  {
+    os << timeStep;
+  }
+  os << endl;
 }
 
 //----------------------------------------------------------------------------
@@ -330,7 +322,7 @@ void vtkPVDataInformation::Initialize()
   this->TimeRange[0] = VTK_DOUBLE_MAX;
   this->TimeRange[1] = -VTK_DOUBLE_MAX;
   this->TimeLabel.clear();
-  this->NumberOfTimeSteps = 0;
+  this->TimeSteps.clear();
   this->AMRNumberOfDataSets.clear();
 
   this->Hierarchy->Initialize();
@@ -507,7 +499,13 @@ void vtkPVDataInformation::CopyFromPipelineInformation(vtkInformation* pinfo)
 
     if (pinfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
     {
-      this->NumberOfTimeSteps = pinfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+      vtkTypeInt64 numberOfTimeSteps =
+        pinfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+      double* inTimes = pinfo->Get(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
+      for (int i = 0; i < numberOfTimeSteps; i++)
+      {
+        this->TimeSteps.insert(inTimes[i]);
+      }
     }
 
     if (pinfo->Has(vtkPVInformationKeys::TIME_LABEL_ANNOTATION()))
@@ -588,6 +586,11 @@ void vtkPVDataInformation::CopyFromDataObject(vtkDataObject* dobj)
     htg->GetBounds(this->Bounds);
     htg->GetExtent(this->Extent);
   }
+  else if (auto cg = vtkCellGrid::SafeDownCast(dobj))
+  {
+    cg->GetBounds(this->Bounds);
+    // this->AttributeInformations[cc]->CopyFromDataObject(dobj);
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -637,8 +640,7 @@ void vtkPVDataInformation::AddInformation(vtkPVInformation* oinfo)
     this->TimeLabel = other->TimeLabel;
   }
 
-  // TODO: not sure what's the best way.
-  this->NumberOfTimeSteps = std::max(this->NumberOfTimeSteps, other->NumberOfTimeSteps);
+  this->TimeSteps.insert(other->TimeSteps.begin(), other->TimeSteps.end());
 
   std::set<int> types;
   std::copy(this->UniqueBlockTypes.begin(), this->UniqueBlockTypes.end(),
@@ -701,8 +703,8 @@ void vtkPVDataInformation::DeepCopy(vtkPVDataInformation* other)
   this->HasTime = other->HasTime;
   this->Time = other->Time;
   std::copy(other->TimeRange, other->TimeRange + 2, this->TimeRange);
+  this->TimeSteps = other->TimeSteps;
   this->TimeLabel = other->TimeLabel;
-  this->NumberOfTimeSteps = other->NumberOfTimeSteps;
   this->UniqueBlockTypes = other->UniqueBlockTypes;
   std::copy(other->NumberOfElements,
     other->NumberOfElements + vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES, this->NumberOfElements);
@@ -1001,9 +1003,16 @@ void vtkPVDataInformation::CopyToStream(vtkClientServerStream* css)
        << vtkClientServerStream::InsertArray(this->Bounds, 6)
        << vtkClientServerStream::InsertArray(this->Extent, 6) << this->HasTime << this->Time
        << vtkClientServerStream::InsertArray(this->TimeRange, 2) << this->TimeLabel
-       << this->NumberOfTimeSteps
        << vtkClientServerStream::InsertArray(
             this->NumberOfElements, vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES);
+
+  *css << static_cast<int>(this->TimeSteps.size());
+  if (!this->TimeSteps.empty())
+  {
+    std::vector<double> vec;
+    std::copy(this->TimeSteps.begin(), this->TimeSteps.end(), std::back_inserter(vec));
+    *css << vtkClientServerStream::InsertArray(&vec.front(), static_cast<int>(vec.size()));
+  }
 
   *css << static_cast<int>(this->UniqueBlockTypes.size());
   if (!this->UniqueBlockTypes.empty())
@@ -1061,7 +1070,6 @@ void vtkPVDataInformation::CopyFromStream(const vtkClientServerStream* css)
     !css->GetArgument(0, argument++, &this->Time) ||
     !css->GetArgument(0, argument++, this->TimeRange, 2) ||
     !css->GetArgument(0, argument++, &this->TimeLabel) ||
-    !css->GetArgument(0, argument++, &this->NumberOfTimeSteps) ||
     !css->GetArgument(
       0, argument++, this->NumberOfElements, vtkDataObject::NUMBER_OF_ATTRIBUTE_TYPES))
   {
@@ -1069,6 +1077,24 @@ void vtkPVDataInformation::CopyFromStream(const vtkClientServerStream* css)
     vtkErrorMacro("Error parsing stream.");
     return;
   }
+
+  // read TimeSteps
+  int timeStepsLength;
+  if (!css->GetArgument(0, argument++, &timeStepsLength))
+  {
+    this->Initialize();
+    vtkErrorMacro("Error parsing stream.");
+    return;
+  }
+  std::vector<double> vec;
+  vec.resize(timeStepsLength);
+  if (timeStepsLength > 0 && !css->GetArgument(0, argument++, &vec[0], timeStepsLength))
+  {
+    this->Initialize();
+    vtkErrorMacro("Error parsing stream.");
+    return;
+  }
+  this->TimeSteps.insert(vec.begin(), vec.end());
 
   // read UniqueBlockTypes.
   int uniqueBlockTypesLength;
@@ -1191,6 +1217,7 @@ int vtkPVDataInformation::GetExtentType(int type)
     case VTK_PARTITIONED_DATA_SET:
     case VTK_PARTITIONED_DATA_SET_COLLECTION:
     case VTK_UNIFORM_HYPER_TREE_GRID:
+    case VTK_CELL_GRID:
       return VTK_PIECES_EXTENT;
 
     default:
@@ -1351,62 +1378,4 @@ unsigned int vtkPVDataInformation::ComputeCompositeIndexForAMR(
   }
 
   return (compositeIndex + index);
-}
-
-//============================================================================
-vtkTypeUInt64 vtkPVDataInformation::GetPolygonCount()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkPVDataInformation::GetPolygonCount, "ParaView 5.10", vtkPVDataInformation::GetNumberOfCells);
-  return this->GetNumberOfCells();
-}
-
-void* vtkPVDataInformation::GetCompositeDataInformation()
-{
-  VTK_LEGACY_BODY(vtkPVDataInformation::GetCompositeDataInformation, "ParaView 5.10");
-  return nullptr;
-}
-
-vtkPVDataInformation* vtkPVDataInformation::GetDataInformationForCompositeIndex(int)
-{
-  VTK_LEGACY_BODY(vtkPVDataInformation::GetDataInformationForCompositeIndex, "ParaView 5.10");
-  return nullptr;
-}
-
-unsigned int vtkPVDataInformation::GetNumberOfBlockLeafs(bool)
-{
-  VTK_LEGACY_BODY(vtkPVDataInformation::GetNumberOfBlockLeafs, "ParaView 5.10");
-  return 0;
-}
-
-vtkPVDataInformation* vtkPVDataInformation::GetDataInformationForCompositeIndex(int*)
-{
-  VTK_LEGACY_BODY(vtkPVDataInformation::GetDataInformationForCompositeIndex, "ParaView 5.10");
-  return nullptr;
-}
-
-double* vtkPVDataInformation::GetTimeSpan()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkPVDataInformation::GetTimeSpan, "ParaView 5.10", vtkPVDataInformation::GetTimeRange);
-  return this->GetTimeRange();
-}
-
-void vtkPVDataInformation::GetTimeSpan(double& x, double& y)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkPVDataInformation::GetTimeSpan, "ParaView 5.10", vtkPVDataInformation::GetTimeRange);
-  this->GetTimeRange(x, y);
-}
-
-void vtkPVDataInformation::GetTimeSpan(double val[2])
-{
-  VTK_LEGACY_REPLACED_BODY(
-    vtkPVDataInformation::GetTimeSpan, "ParaView 5.10", vtkPVDataInformation::GetTimeRange);
-  this->GetTimeRange(val);
-}
-
-void vtkPVDataInformation::RegisterHelper(const char*, const char*)
-{
-  VTK_LEGACY_BODY(vtkPVDataInformation::RegisterHelper, "ParaView 5.10");
 }

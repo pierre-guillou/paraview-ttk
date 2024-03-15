@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkReductionFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkReductionFilter
  * @brief   A generic filter that can reduce any type of
@@ -54,7 +43,7 @@ public:
     REDUCE_ALL_TO_ALL = 2
   } ReductionModeType;
 
-  //@{
+  ///@{
   /**
    * Get/Set the Reduction Mode.
    * REDUCE_ALL_TO_ONE is the default behavior.
@@ -65,18 +54,18 @@ public:
   vtkSetClampMacro(ReductionMode, int, vtkReductionFilter::REDUCE_ALL_TO_ONE,
     vtkReductionFilter::REDUCE_ALL_TO_ALL);
   vtkGetMacro(ReductionMode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the node to reduce to, default is 0.
    * Not used with REDUCE_ALL_TO_ALL Reduction mode
    */
   vtkSetMacro(ReductionProcessId, int);
   vtkGetMacro(ReductionProcessId, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the pre-reduction helper. Pre-Reduction helper is an algorithm
    * that runs on each node's data before it is sent to the root.
@@ -84,9 +73,9 @@ public:
   void SetPreGatherHelper(vtkAlgorithm*);
   void SetPreGatherHelperName(const char*);
   vtkGetObjectMacro(PreGatherHelper, vtkAlgorithm);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the reduction helper. Reduction helper is an algorithm with
    * multiple input connections, that produces a single output as
@@ -96,14 +85,14 @@ public:
   void SetPostGatherHelper(vtkAlgorithm*);
   void SetPostGatherHelperName(const char*);
   vtkGetObjectMacro(PostGatherHelper, vtkAlgorithm);
-  //@}
+  ///@}
 
   /**
    * Get/Set the MPI controller used for gathering.
    */
   void SetController(vtkMultiProcessController*);
 
-  //@{
+  ///@{
   /**
    * Get/Set the PassThrough flag which (when set to a nonnegative number N)
    * tells the filter to produce results that come from node N only. The
@@ -112,9 +101,9 @@ public:
    */
   vtkSetMacro(PassThrough, int);
   vtkGetMacro(PassThrough, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set, a new array vtkOriginalProcessIds will be added
    * to the output of the the pre-gather helper (or input, if no pre-gather
@@ -123,7 +112,7 @@ public:
    */
   vtkSetMacro(GenerateProcessIds, int);
   vtkGetMacro(GenerateProcessIds, int);
-  //@}
+  ///@}
 
   enum Tags
   {

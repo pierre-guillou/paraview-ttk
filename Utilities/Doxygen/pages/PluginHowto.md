@@ -125,10 +125,6 @@ There are four ways for loading plugins:
     - Recognized locations are:
       * A `plugins` subdirectory under the `paraview-X.Y` directory in the
         library path (usually `lib` on Unix platforms and `bin` on Windows).
-      * A `plugins` subdirectory in the user's home directory.  On Unix
-        platforms, `$HOME/.config/ParaView/ParaView<version>/Plugins`.  On
-        Windows `%APPDATA$\ParaView\ParaView<version>\Plugins`. (XXX: no
-        evidence of an implementation backing this search path).
 
 ## Debugging Plugins
 
@@ -816,6 +812,9 @@ well, as with a standard (non-reader) filter. Also, the `Hints` section is neede
 in order to associate the file extension with the reader on the client. The
 `ReaderFactory` hint is what the client uses to identify readers from sources.
 
+Optionally, you can provide an information property `RegistrationName` to specify the reader
+pipeline name to use. `RegistrationName` is a feature available for any proxy, not just readers.
+
 ```xml
 <ServerManagerConfiguration>
   <ProxyGroup name="sources">
@@ -834,6 +833,20 @@ in order to associate the file extension with the reader on the client. The
           This property specifies the file name for the PNG reader.
         </Documentation>
       </StringVectorProperty>
+
+     <StringVectorProperty
+        name="RegistrationName"
+        number_of_elements="1"
+        default_values="MyCustomName"
+        command="GetRegistrationName"
+        panel_visibility="never"
+        information_only="1">
+        <Documentation>
+          This property specify the pipeline name for the reader, using the return value of `command`.
+          If `command` attributes is not specified, it uses `default_values`.
+        </Documentation>
+     </StringVectorProperty>
+
       <Hints>
         <ReaderFactory extensions="png"
                        file_description="PNG File Format" />
@@ -1497,6 +1510,13 @@ The problem is caused because inside the Linker properties there are references
 to the `*.lib` files, including the name of the directory that matches the
 configuration type, which may look something like
 `C:\Users\MyUser\ParaView-v4.2.0-build\lib\Release\vtkPVAnimation-pv4.2.lib`.
+
+### Changing ParaView_DIR after the first configuration do not work as expected
+
+The plugin infrastructure and package finding logic do not support that as
+clearing the cache is not something we can reliably do as a config.cmake file.
+
+Just remove the build directory content and configure from scratch.
 
 [ParaView Guide]: http://www.kitware.com/products/books/paraview.html
 [core readers]: https://gitlab.kitware.com/paraview/paraview/-/blob/87babdbeab6abe20aac6f8b2692788abc6bb20ac/ParaViewCore/ServerManager/SMApplication/Resources/readers.xml#L158-179

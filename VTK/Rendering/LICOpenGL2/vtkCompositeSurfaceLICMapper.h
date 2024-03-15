@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeSurfaceLICMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeSurfaceLICMapper
  * @brief   mapper for composite dataset
@@ -26,18 +14,20 @@
 #ifndef vtkCompositeSurfaceLICMapper_h
 #define vtkCompositeSurfaceLICMapper_h
 
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
+
 #include "vtkNew.h"                       // for ivars
 #include "vtkRenderingLICOpenGL2Module.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSurfaceLICInterface;
+class vtkCompositePolyDataMapperDelegator;
 
-class VTKRENDERINGLICOPENGL2_EXPORT vtkCompositeSurfaceLICMapper
-  : public vtkCompositePolyDataMapper2
+class VTKRENDERINGLICOPENGL2_EXPORT vtkCompositeSurfaceLICMapper : public vtkCompositePolyDataMapper
 {
 public:
   static vtkCompositeSurfaceLICMapper* New();
-  vtkTypeMacro(vtkCompositeSurfaceLICMapper, vtkCompositePolyDataMapper2);
+  vtkTypeMacro(vtkCompositeSurfaceLICMapper, vtkCompositePolyDataMapper);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   ///@{
@@ -58,14 +48,12 @@ protected:
 
   vtkNew<vtkSurfaceLICInterface> LICInterface;
 
-  vtkCompositeMapperHelper2* CreateHelper() override;
-
-  // copy values to the helpers
-  void CopyMapperValuesToHelper(vtkCompositeMapperHelper2* helper) override;
+  vtkCompositePolyDataMapperDelegator* CreateADelegator() override;
 
 private:
   vtkCompositeSurfaceLICMapper(const vtkCompositeSurfaceLICMapper&) = delete;
   void operator=(const vtkCompositeSurfaceLICMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

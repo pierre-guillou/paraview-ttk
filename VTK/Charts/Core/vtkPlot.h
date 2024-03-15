@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlot.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlot
@@ -35,6 +23,7 @@
 #include "vtkSmartPointer.h"   // Needed to hold SP ivars
 #include "vtkStdString.h"      // Needed to hold TooltipLabelFormat ivar
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVariant;
 class vtkTable;
 class vtkIdTypeArray;
@@ -152,7 +141,7 @@ public:
   // SetColor(unsigned char r, unsigned char g, unsigned char b)
   // here and in the inheriting classes overriding it
   VTK_DEPRECATED_IN_9_3_0("Please use unambiguous SetColorF method instead.")
-  virtual void SetColor(double r, double g, double b) { this->SetColorF(r, g, b); };
+  virtual void SetColor(double r, double g, double b) { this->SetColorF(r, g, b); }
   ///@}
 
   /**
@@ -168,7 +157,7 @@ public:
 
   // If removed, please make GetColor(unsigned char rgb[3]) virtual
   VTK_DEPRECATED_IN_9_3_0("Please use unambiguous GetColorF method instead.")
-  virtual void GetColor(double rgb[3]) { this->GetColorF(rgb); };
+  virtual void GetColor(double rgb[3]) { this->GetColorF(rgb); }
   ///@
 
   /**
@@ -433,6 +422,13 @@ public:
    */
   virtual bool UpdateCache() { return true; }
 
+  /**
+   * Utility function that fills up `selectedPoints` with tuples from `points`. Indices
+   * from `selectedIds` are used to index into `points`.
+   */
+  static void FilterSelectedPoints(
+    vtkDataArray* points, vtkDataArray* selectedPoints, vtkIdTypeArray* selectedIds);
+
 protected:
   vtkPlot();
   ~vtkPlot() override;
@@ -449,10 +445,8 @@ protected:
    */
   virtual void TransformScreenToData(const vtkVector2f& in, vtkVector2f& out);
   virtual void TransformDataToScreen(const vtkVector2f& in, vtkVector2f& out);
-  virtual void TransformScreenToData(
-    const double inX, const double inY, double& outX, double& outY);
-  virtual void TransformDataToScreen(
-    const double inX, const double inY, double& outX, double& outY);
+  virtual void TransformScreenToData(double inX, double inY, double& outX, double& outY);
+  virtual void TransformDataToScreen(double inX, double inY, double& outX, double& outY);
   ///@}
 
   /**
@@ -561,4 +555,5 @@ private:
   void operator=(const vtkPlot&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlot_h

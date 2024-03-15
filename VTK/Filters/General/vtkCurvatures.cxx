@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCurvatures.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCurvatures.h"
 
 #include "vtkCellArray.h"
@@ -34,6 +22,7 @@
 
 #include <memory> // For unique_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCurvatures);
 
 //-------------------------------------------------------//
@@ -115,6 +104,10 @@ void vtkCurvatures::GetMeanCurvature(vtkPolyData* mesh)
 
   for (vtkIdType f = 0; f < F; ++f)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     polyData->GetCellPoints(f, vertices);
     const vtkIdType nv = vertices->GetNumberOfIds();
 
@@ -211,7 +204,7 @@ void vtkCurvatures::GetMeanCurvature(vtkPolyData* mesh)
   mesh->GetPointData()->SetActiveScalars("Mean_Curvature");
 
   vtkDebugMacro("Set Values of Mean Curvature: Done");
-};
+}
 //--------------------------------------------
 #define CLAMP_MACRO(v) ((v) < (-1) ? (-1) : (v) > (1) ? (1) : (v))
 void vtkCurvatures::GetGaussCurvature(vtkPolyData* output)
@@ -223,6 +216,10 @@ void vtkCurvatures::GetGaussCurvature(vtkPolyData* output)
   vtkNew<vtkCellArray> triangleStrip;
   for (vtkIdType cellId = 0; cellId < output->GetNumberOfCells(); ++cellId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (output->GetCellType(cellId) == VTK_TRIANGLE_STRIP)
     {
       vtkCell* cell = output->GetCell(cellId);
@@ -286,6 +283,10 @@ void vtkCurvatures::ComputeGaussCurvature(
   facets->InitTraversal();
   while (facets->GetNextCell(f, vert))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     output->GetPoint(vert[0], v0);
     output->GetPoint(vert[1], v1);
     output->GetPoint(vert[2], v2);
@@ -358,6 +359,11 @@ void vtkCurvatures::GetMaximumCurvature(vtkPolyData* input, vtkPolyData* output)
 
   for (vtkIdType i = 0; i < numPts; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
+
     k = gauss->GetComponent(i, 0);
     h = mean->GetComponent(i, 0);
     tmp = h * h - k;
@@ -401,6 +407,11 @@ void vtkCurvatures::GetMinimumCurvature(vtkPolyData* input, vtkPolyData* output)
 
   for (vtkIdType i = 0; i < numPts; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
+
     k = gauss->GetComponent(i, 0);
     h = mean->GetComponent(i, 0);
     tmp = h * h - k;
@@ -480,3 +491,4 @@ void vtkCurvatures::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "CurvatureType: " << this->CurvatureType << "\n";
   os << indent << "InvertMeanCurvature: " << this->InvertMeanCurvature << "\n";
 }
+VTK_ABI_NAMESPACE_END

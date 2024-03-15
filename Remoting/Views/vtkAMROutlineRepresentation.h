@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMROutlineRepresentation
  * @brief   a simple outline representation for AMR
@@ -33,7 +21,7 @@
 #include "vtkWeakPointer.h"         // for weak pointer.
 
 class vtkAMRStreamingPriorityQueue;
-class vtkCompositePolyDataMapper2;
+class vtkCompositePolyDataMapper;
 class vtkPVLODActor;
 
 class VTKREMOTINGVIEWS_EXPORT vtkAMROutlineRepresentation : public vtkPVDataRepresentation
@@ -55,7 +43,7 @@ public:
    */
   void SetVisibility(bool val) override;
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkProperty
    */
@@ -70,9 +58,9 @@ public:
   void SetOpacity(double val);
   void SetLuminosity(double val);
   void SetRenderLinesAsTubes(bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Forwarded to vtkActor
    */
@@ -82,7 +70,7 @@ public:
   void SetPosition(double, double, double);
   void SetScale(double, double, double);
   void SetUserTransform(const double[16]);
-  //@}
+  ///@}
 
 protected:
   vtkAMROutlineRepresentation();
@@ -133,20 +121,20 @@ protected:
   int RequestData(vtkInformation* rqst, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
 
-  //@{
+  ///@{
   /**
    * Returns true when the input pipeline supports streaming. It is set in
    * RequestInformation().
    */
   vtkGetMacro(StreamingCapablePipeline, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns true when StreamingUpdate() is being processed.
    */
   vtkGetMacro(InStreamingUpdate, bool);
-  //@}
+  ///@}
 
   /**
    * Returns true if this representation has a "next piece" that it streamed.
@@ -183,13 +171,13 @@ protected:
    */
   vtkSmartPointer<vtkAMRStreamingPriorityQueue> PriorityQueue;
 
-  //@{
+  ///@{
   /**
    * Actor used to render the outlines in the view.
    */
-  vtkSmartPointer<vtkCompositePolyDataMapper2> Mapper;
+  vtkSmartPointer<vtkCompositePolyDataMapper> Mapper;
   vtkSmartPointer<vtkPVLODActor> Actor;
-  //@}
+  ///@}
 
   /**
    * Used to keep track of data bounds.

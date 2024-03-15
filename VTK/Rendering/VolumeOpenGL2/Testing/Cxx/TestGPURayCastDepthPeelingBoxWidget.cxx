@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGPURayCastDepthPeeling.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  *  Tests interactive clipping with volume peeling.
  */
@@ -103,7 +91,7 @@ public:
 
 const std::string EventStream =
   R"eventStream(
-#StreamVersion 1.1
+# StreamVersion 1.1
 LeftButtonPressEvent 198 296 0 0 0 0
 RenderEvent 198 296 0 0 0 0
 MouseMoveEvent 198 295 0 0 0 0

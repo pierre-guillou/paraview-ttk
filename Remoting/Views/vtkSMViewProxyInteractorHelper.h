@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMViewProxyInteractorHelper.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMViewProxyInteractorHelper
  * @brief   helper class that make it easier to
@@ -67,7 +55,7 @@ public:
   vtkTypeMacro(vtkSMViewProxyInteractorHelper, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the view proxy.
    * This is a weak reference i.e. the view proxy's
@@ -75,9 +63,9 @@ public:
    */
   void SetViewProxy(vtkSMViewProxy* proxy);
   vtkSMViewProxy* GetViewProxy();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the interactor to "help" the view with.
    * This is a weak reference i.e. the interactor's
@@ -86,13 +74,13 @@ public:
   void SetupInteractor(vtkRenderWindowInteractor* iren);
   vtkRenderWindowInteractor* GetInteractor();
   void CleanupInteractor() { this->SetupInteractor(nullptr); }
-  //@}
+  ///@}
 
 protected:
   vtkSMViewProxyInteractorHelper();
   ~vtkSMViewProxyInteractorHelper() override;
 
-  //@{
+  ///@{
   /**
    * Handle event.
    */
@@ -100,7 +88,7 @@ protected:
   void Render();
   void CleanupTimer();
   void Resize();
-  //@}
+  ///@}
 
   vtkCommand* Observer;
   vtkWeakPointer<vtkSMViewProxy> ViewProxy;

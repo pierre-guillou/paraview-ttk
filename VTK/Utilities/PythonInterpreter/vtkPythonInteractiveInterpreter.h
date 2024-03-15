@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPythonInteractiveInterpreter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPythonInteractiveInterpreter
  * @brief   interpreter for interactive shells.
@@ -39,6 +27,7 @@
 #include "vtkObject.h"
 #include "vtkPythonInterpreterModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPythonInterpreter;
 
 class VTKPYTHONINTERPRETER_EXPORT vtkPythonInteractiveInterpreter : public vtkObject
@@ -56,7 +45,7 @@ public:
    * return value is True if more input is required, False if the line was dealt
    * with in some way.
    */
-  bool Push(const char* const code);
+  bool Push(const char* code);
 
   /**
    * This destroys the internal code.InteractiveConsole instance. Hence, next
@@ -99,4 +88,5 @@ private:
   vtkInternals* Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

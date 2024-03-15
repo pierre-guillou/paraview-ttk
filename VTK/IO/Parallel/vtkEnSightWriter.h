@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSightWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkEnSightWriter
@@ -36,6 +21,7 @@
 #include "vtkIOParallelModule.h" // For export macro
 #include "vtkWriter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnstructuredGrid;
 
 class VTKIOPARALLEL_EXPORT vtkEnSightWriter : public vtkWriter
@@ -117,6 +103,34 @@ public:
 
   ///@{
   /**
+   * Turn on/off writing node IDs (default: on).
+   * If this is on, geometry files will contain node IDs for each part
+   * (<code>node id given</code>), otherwise node IDs are omitted
+   * (<code>node id off</code>).
+   *
+   * The EnSight node IDs correspond to VTK point IDs in the input dataset.
+   */
+  vtkBooleanMacro(WriteNodeIDs, bool);
+  vtkSetMacro(WriteNodeIDs, bool);
+  vtkGetMacro(WriteNodeIDs, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off writing element IDs (default: on).
+   * If this is on, geometry files will contain element IDs for each part
+   * (<code>element id given</code>), otherwise element IDs are omitted
+   * (<code>element id off</code>).
+   *
+   * The EnSight element IDs correspond to VTK cell IDs in the input dataset.
+   */
+  vtkBooleanMacro(WriteElementIDs, bool);
+  vtkSetMacro(WriteElementIDs, bool);
+  vtkGetMacro(WriteElementIDs, bool);
+  ///@}
+
+  ///@{
+  /**
    * set the array of Block ID's
    * this class keeps a reference to the array and will not delete it
    */
@@ -156,8 +170,8 @@ protected:
 
   virtual void WriteStringToFile(const char* string, FILE* file);
   virtual void WriteTerminatedStringToFile(const char* string, FILE* file);
-  virtual void WriteIntToFile(const int i, FILE* file);
-  virtual void WriteFloatToFile(const float f, FILE* file);
+  virtual void WriteIntToFile(int i, FILE* file);
+  virtual void WriteFloatToFile(float f, FILE* file);
   virtual void WriteElementTypeToFile(int ElementType, FILE* fd);
 
   virtual bool ShouldWriteGeometry();
@@ -168,6 +182,8 @@ protected:
   void DefaultNames();
 
   int GetExodusModelIndex(int* ElementArray, int NumberElements, int PartID);
+
+  static int GetDestinationComponent(int srcComponent, int numComponents);
 
   char* Path;
   char* BaseName;
@@ -180,10 +196,13 @@ protected:
   int* BlockIDs;
   bool TransientGeometry;
   int GhostLevel;
+  bool WriteNodeIDs;
+  bool WriteElementIDs;
   vtkUnstructuredGrid* TmpInput;
 
   vtkEnSightWriter(const vtkEnSightWriter&) = delete;
   void operator=(const vtkEnSightWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

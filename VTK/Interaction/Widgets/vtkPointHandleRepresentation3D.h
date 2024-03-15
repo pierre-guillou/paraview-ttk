@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointHandleRepresentation3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointHandleRepresentation3D
  * @brief   represent the position of a point in 3D space
@@ -31,6 +19,7 @@
 #include "vtkHandleRepresentation.h"
 #include "vtkInteractionWidgetsModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCursor3D;
 class vtkProperty;
 class vtkActor;
@@ -148,6 +137,16 @@ public:
 
   ///@{
   /**
+   * Set the widget color, and the color of interactive handles.
+   */
+  void SetInteractionColor(double, double, double);
+  void SetInteractionColor(double c[3]) { this->SetInteractionColor(c[0], c[1], c[2]); }
+  void SetForegroundColor(double, double, double);
+  void SetForegroundColor(double c[3]) { this->SetForegroundColor(c[0], c[1], c[2]); }
+  ///@}
+
+  ///@{
+  /**
    * Set the "hot spot" size; i.e., the region around the focus, in which the
    * motion vector is used to control the constrained sliding action. Note the
    * size is specified as a fraction of the length of the diagonal of the
@@ -251,7 +250,7 @@ protected:
    * world coordinates), the new display position of the handle center is
    * populated into requestedDisplayPos. This is again only a request for the
    * new display position. It is up to the point placer to deduce the
-   * appropriate world co-ordinates that this display position will map into.
+   * appropriate world coordinates that this display position will map into.
    * The placer may even disallow such a movement.
    * If "SmoothMotion" is OFF, the returned requestedDisplayPos is the same
    * as the event position, ie the location of the mouse cursor. If its OFF,
@@ -285,4 +284,5 @@ private:
   void operator=(const vtkPointHandleRepresentation3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

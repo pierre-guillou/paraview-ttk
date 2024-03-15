@@ -1,21 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenVRRenderWindow.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-Parts Copyright Valve Corporation from hellovr_opengl_main.cpp
-under their BSD license found here:
-https://github.com/ValveSoftware/openvr/blob/master/LICENSE
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2015, Valve Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenVRRenderWindow.h"
 
 #include "vtkMatrix4x4.h"
@@ -27,12 +12,18 @@ https://github.com/ValveSoftware/openvr/blob/master/LICENSE
 #include "vtkRendererCollection.h"
 #include "vtkVRCamera.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenVRRenderWindow);
 
 //------------------------------------------------------------------------------
 vtkOpenVRRenderWindow::vtkOpenVRRenderWindow()
 {
   this->DashboardOverlay = vtkSmartPointer<vtkOpenVRDefaultOverlay>::New();
+}
+//------------------------------------------------------------------------------
+vtkOpenVRRenderWindow::~vtkOpenVRRenderWindow()
+{
+  this->Finalize();
 }
 
 //------------------------------------------------------------------------------
@@ -146,20 +137,19 @@ void vtkOpenVRRenderWindow::UpdateHMDMatrixPose()
   }
 
   // Retrieve Open VR poses
-  vr::TrackedDevicePose_t OpenVRTrackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
   vr::VRCompositor()->WaitGetPoses(
-    OpenVRTrackedDevicePoses, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
+    this->OpenVRTrackedDevicePoses, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
 
   // Store poses with generic type
   for (uint32_t deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx)
   {
-    if (OpenVRTrackedDevicePoses[deviceIdx].bPoseIsValid)
+    if (this->OpenVRTrackedDevicePoses[deviceIdx].bPoseIsValid)
     {
       auto handle = this->GetDeviceHandleForOpenVRHandle(deviceIdx);
       auto device = this->GetDeviceForOpenVRHandle(deviceIdx);
       this->AddDeviceHandle(handle, device);
       vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
-      this->SetMatrixFromOpenVRPose(tdPose, OpenVRTrackedDevicePoses[deviceIdx]);
+      this->SetMatrixFromOpenVRPose(tdPose, this->OpenVRTrackedDevicePoses[deviceIdx]);
     }
   }
 
@@ -174,10 +164,13 @@ void vtkOpenVRRenderWindow::UpdateHMDMatrixPose()
   while ((ren = this->Renderers->GetNextRenderer(rit)))
   {
     vtkVRCamera* cam = vtkVRCamera::SafeDownCast(ren->GetActiveCamera());
-    cam->SetCameraFromDeviceToWorldMatrix(d2wMat, this->GetPhysicalScale());
-    if (ren->GetLightFollowCamera())
+    if (cam && cam->GetTrackHMD())
     {
-      ren->UpdateLightsGeometryToFollowCamera();
+      cam->SetCameraFromDeviceToWorldMatrix(d2wMat, this->GetPhysicalScale());
+      if (ren->GetLightFollowCamera())
+      {
+        ren->UpdateLightsGeometryToFollowCamera();
+      }
     }
   }
 }
@@ -206,30 +199,7 @@ void vtkOpenVRRenderWindow::SetMatrixFromOpenVRPose(
 //------------------------------------------------------------------------------
 void vtkOpenVRRenderWindow::Render()
 {
-  if (this->TrackHMD)
-  {
-    this->UpdateHMDMatrixPose();
-  }
-  else
-  {
-    // Retrieve OpenVR poses
-    vr::TrackedDevicePose_t OpenVRTrackedDevicePoses[vr::k_unMaxTrackedDeviceCount];
-    vr::VRCompositor()->WaitGetPoses(
-      OpenVRTrackedDevicePoses, vr::k_unMaxTrackedDeviceCount, nullptr, 0);
-
-    // Store poses with generic type
-    for (uint32_t deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx)
-    {
-      if (OpenVRTrackedDevicePoses[deviceIdx].bPoseIsValid)
-      {
-        auto handle = this->GetDeviceHandleForOpenVRHandle(deviceIdx);
-        auto device = this->GetDeviceForOpenVRHandle(deviceIdx);
-        this->AddDeviceHandle(handle, device);
-        vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
-        this->SetMatrixFromOpenVRPose(tdPose, OpenVRTrackedDevicePoses[deviceIdx]);
-      }
-    }
-  }
+  this->UpdateHMDMatrixPose();
 
   this->Superclass::Render();
 }
@@ -274,6 +244,24 @@ void vtkOpenVRRenderWindow::StereoRenderComplete()
     };
     vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture);
   }
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenVRRenderWindow::RenderFramebuffer(FramebufferDesc& framebufferDesc)
+{
+  this->GetState()->PushDrawFramebufferBinding();
+  this->GetState()->vtkglBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebufferDesc.ResolveFramebufferId);
+
+  glBlitFramebuffer(0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0], this->Size[1],
+    GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+  if (framebufferDesc.ResolveDepthTextureId != 0)
+  {
+    glBlitFramebuffer(0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0], this->Size[1],
+      GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+  }
+
+  this->GetState()->PopDrawFramebufferBinding();
 }
 
 //------------------------------------------------------------------------------
@@ -362,6 +350,17 @@ std::string vtkOpenVRRenderWindow::GetWindowTitleFromAPI()
 //------------------------------------------------------------------------------
 void vtkOpenVRRenderWindow::Initialize()
 {
+  if (this->VRInitialized)
+  {
+    return;
+  }
+
+  if (!this->HelperWindow)
+  {
+    vtkErrorMacro(<< "HelperWindow is not set");
+    return;
+  }
+
   // Loading the SteamVR Runtime
   vr::EVRInitError eError = vr::VRInitError_None;
   this->HMD = vr::VR_Init(&eError, vr::VRApplication_Scene);
@@ -390,15 +389,23 @@ void vtkOpenVRRenderWindow::Initialize()
     return;
   }
 
-  // Initialize the helper window and OpenGL through the superclass
-  // This will also call CreateFramebuffers
-  this->Superclass::Initialize();
+  this->GetSizeFromAPI();
 
-  if (!this->Initialized)
-  {
-    vtkErrorMacro("VRRenderWindow initialization failed.");
-    return;
-  }
+  this->HelperWindow->SetDisplayId(this->GetGenericDisplayId());
+  this->HelperWindow->SetShowWindow(false);
+  this->HelperWindow->Initialize();
+
+  this->MakeCurrent();
+
+  this->OpenGLInit();
+
+  this->MaximumHardwareLineWidth = this->HelperWindow->GetMaximumHardwareLineWidth();
+
+  glDepthRange(0., 1.);
+
+  this->SetWindowName(this->GetWindowTitleFromAPI().c_str());
+
+  this->CreateFramebuffers();
 
   if (!vr::VRCompositor())
   {
@@ -407,18 +414,34 @@ void vtkOpenVRRenderWindow::Initialize()
   }
 
   this->DashboardOverlay->Create(this);
+
+  this->VRInitialized = true;
 }
 
 //------------------------------------------------------------------------------
-void vtkOpenVRRenderWindow::ReleaseGraphicsResources(vtkWindow* renWin)
+void vtkOpenVRRenderWindow::Finalize()
 {
-  this->Superclass::ReleaseGraphicsResources(renWin);
+  if (!this->VRInitialized)
+  {
+    return;
+  }
 
   if (this->HMD)
   {
     vr::VR_Shutdown();
     this->HMD = nullptr;
   }
+
+  this->DeviceHandleToDeviceDataMap.clear();
+
+  if (this->HelperWindow && this->HelperWindow->GetGenericContext())
+  {
+    this->HelperWindow->Finalize();
+  }
+
+  this->ReleaseGraphicsResources(this);
+
+  this->VRInitialized = false;
 }
 
 //------------------------------------------------------------------------------
@@ -485,3 +508,20 @@ vtkEventDataDevice vtkOpenVRRenderWindow::GetDeviceForOpenVRHandle(vr::TrackedDe
 
   return vtkEventDataDevice::Unknown;
 }
+
+//------------------------------------------------------------------------------
+void vtkOpenVRRenderWindow::GetOpenVRPose(
+  vtkEventDataDevice dev, uint32_t index, vr::TrackedDevicePose_t** pose)
+{
+  auto handle = this->GetDeviceHandleForDevice(dev, index);
+  if (handle < vr::k_unMaxTrackedDeviceCount)
+  {
+    *pose = &(this->OpenVRTrackedDevicePoses[handle]);
+  }
+  else
+  {
+    *pose = nullptr;
+  }
+}
+
+VTK_ABI_NAMESPACE_END

@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVXYChartView.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVXYChartView.h"
 
 #include "vtkAnnotationLink.h"
 #include "vtkAxis.h"
 #include "vtkCSVExporter.h"
 #include "vtkChartBox.h"
+#include "vtkChartHistogram2D.h"
 #include "vtkChartLegend.h"
 #include "vtkChartParallelCoordinates.h"
 #include "vtkChartWarning.h"
@@ -143,6 +132,10 @@ void vtkPVXYChartView::SetChartType(const char* type)
   else if (strcmp(type, "ParallelCoordinates") == 0)
   {
     this->Chart = vtkChartParallelCoordinates::New();
+  }
+  else if (strcmp(type, "Image") == 0)
+  {
+    this->Chart = vtkChartHistogram2D::New();
   }
 
   if (this->Chart)
@@ -765,6 +758,15 @@ void vtkPVXYChartView::SetAxisLabels(
 
     std::string text = label.empty() ? value : label;
     this->Internals->CustomLabelTexts[axis]->SetValue(i, text);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVXYChartView::SetTooltipLabelFormat(const vtkStdString& labelFormat)
+{
+  for (int i = 0; i < this->Chart->GetNumberOfPlots(); i++)
+  {
+    this->Chart->GetPlot(i)->SetTooltipLabelFormat(labelFormat);
   }
 }
 

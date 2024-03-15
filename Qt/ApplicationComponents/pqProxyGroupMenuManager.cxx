@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqProxyGroupMenuManager.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqProxyGroupMenuManager.h"
 
 #include "pqActiveObjects.h"
@@ -274,8 +246,9 @@ void pqProxyGroupMenuManager::loadConfiguration(vtkPVXMLElement* root)
         continue;
       }
       QString categoryName = curElem->GetAttribute("name");
-      QString categoryLabel =
-        curElem->GetAttribute("menu_label") ? curElem->GetAttribute("menu_label") : categoryName;
+      QString categoryLabel = curElem->GetAttribute("menu_label")
+        ? QCoreApplication::translate("ServerManagerXML", curElem->GetAttribute("menu_label"))
+        : categoryName;
       int preserve_order = 0;
       curElem->GetScalarAttribute("preserve_order", &preserve_order);
       int show_in_toolbar = 0;
@@ -399,7 +372,7 @@ void pqProxyGroupMenuManager::populateFavoritesMenu()
     this->Internal->FavoritesMenu->clear();
 
     QAction* manageFavoritesAction =
-      this->Internal->FavoritesMenu->addAction("&Manage Favorites...")
+      this->Internal->FavoritesMenu->addAction(tr("&Manage Favorites..."))
       << pqSetName("actionManage_Favorites");
     new pqManageFavoritesReaction(manageFavoritesAction, this);
 
@@ -457,7 +430,7 @@ QAction* pqProxyGroupMenuManager::getAddToCategoryAction(const QString& path)
   QAction* actionAddToFavorites = new QAction(this);
   actionAddToFavorites->setObjectName(QString("actionAddTo:%1").arg(path));
   actionAddToFavorites->setText(
-    QApplication::translate("pqPipelineBrowserContextMenu", "&Add current filter", Q_NULLPTR));
+    QCoreApplication::translate("pqPipelineBrowserContextMenu", "&Add current filter", Q_NULLPTR));
   actionAddToFavorites->setData(path);
 
   // get filters list for current category
@@ -554,23 +527,23 @@ void pqProxyGroupMenuManager::populateMenu()
   {
 #if defined(Q_WS_MAC) || defined(Q_OS_MAC)
     this->Internal->SearchAction =
-      _menu->addAction("Search...\tAlt+Space", this, SLOT(quickLaunch()));
+      _menu->addAction(tr("Search...\tAlt+Space"), this, SLOT(quickLaunch()));
 #else
     this->Internal->SearchAction =
-      _menu->addAction("Search...\tCtrl+Space", this, SLOT(quickLaunch()));
+      _menu->addAction(tr("Search...\tCtrl+Space"), this, SLOT(quickLaunch()));
 #endif
   }
 
   if (this->RecentlyUsedMenuSize > 0)
   {
-    auto* rmenu = _menu->addMenu("&Recent") << pqSetName("Recent");
+    auto* rmenu = _menu->addMenu(tr("&Recent")) << pqSetName("Recent");
     this->Internal->RecentMenu = rmenu;
     this->connect(rmenu, SIGNAL(aboutToShow()), SLOT(populateRecentlyUsedMenu()));
   }
 
   if (this->EnableFavorites)
   {
-    auto* bmenu = _menu->addMenu("&Favorites") << pqSetName("Favorites");
+    auto* bmenu = _menu->addMenu(tr("&Favorites")) << pqSetName("Favorites");
     this->Internal->FavoritesMenu = bmenu;
     this->connect(_menu, SIGNAL(aboutToShow()), SLOT(populateFavoritesMenu()));
   }
@@ -581,7 +554,7 @@ void pqProxyGroupMenuManager::populateMenu()
   QMenu* alphabeticalMenu = _menu;
   if (!this->Internal->Categories.empty() || this->RecentlyUsedMenuSize > 0)
   {
-    alphabeticalMenu = _menu->addMenu("&Alphabetical") << pqSetName("Alphabetical");
+    alphabeticalMenu = _menu->addMenu(tr("&Alphabetical")) << pqSetName("Alphabetical");
   }
 
   pqInternal::ProxyInfoMap::iterator proxyIter = this->Internal->Proxies.begin();
@@ -676,7 +649,7 @@ QAction* pqProxyGroupMenuManager::getAction(const QString& pgroup, const QString
   vtkSMProxy* prototype = pxm->GetPrototypeProxy(pgroup.toUtf8().data(), pname.toUtf8().data());
   if (prototype)
   {
-    QString label = prototype->GetXMLLabel() ? prototype->GetXMLLabel() : pname;
+    QString label = QCoreApplication::translate("ServerManagerXML", prototype->GetXMLLabel());
     QAction* action = iter.value().Action;
     if (!action)
     {
@@ -684,11 +657,11 @@ QAction* pqProxyGroupMenuManager::getAction(const QString& pgroup, const QString
       QStringList data_list;
       data_list << pgroup << pname;
       action << pqSetName(name) << pqSetData(data_list);
-      pqSettings settings;
+      pqSettings* settings = pqApplicationCore::instance()->settings();
       if (pgroup == "filters" || pgroup == "sources")
       {
         QString menuName = pgroup == "filters" ? "Filters" : "Sources";
-        auto variant = settings.value(
+        auto variant = settings->value(
           QString("pqCustomShortcuts/%1/Alphabetical/%2").arg(menuName, label), QVariant());
         if (variant.canConvert<QKeySequence>())
         {
@@ -996,7 +969,7 @@ void pqProxyGroupMenuManager::lookForNewDefinitions()
           // If no label just make it up
           if (category.Label.isEmpty())
           {
-            category.Label = categoryName;
+            category.Label = QCoreApplication::translate("ServerManagerXML", categoryName);
           }
           int show_in_toolbar = 0;
           if (showInMenu->GetScalarAttribute("show_in_toolbar", &show_in_toolbar))

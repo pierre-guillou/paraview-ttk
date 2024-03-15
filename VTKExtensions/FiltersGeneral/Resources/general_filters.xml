@@ -59,6 +59,46 @@
         relative (a percentage of the bounding box) tolerance when performing
         point merging.</Documentation>
       </IntVectorProperty>
+      <IntVectorProperty command="SetRemovePointsWithoutCells"
+                         default_values="0"
+                         name="RemovePointsWithoutCells"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+      </IntVectorProperty>
+      <IntVectorProperty name="PointDataWeightingStrategy"
+                         command="SetPointDataWeighingStrategy"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="advanced">
+        <EnumerationDomain name="enum">
+          <Entry text="Take First Point" value="0" />
+          <Entry text="Average by Number" value="1" />
+          <Entry text="Average by Spatial Density" value="2" />
+        </EnumerationDomain>
+        <Documentation>
+          Select how to merge data located on merged points:
+           - Take First Point (default): the point with the lowest index imposes its data on to the merged point
+           - Average by Number: a number average is performed on all the duplicate points
+           - Average by Spatial Density: an average by attached cell volume (i.e. for every cell the point is
+           connected to sum cell_volume/number_cell_points) is performed on the point data
+        </Documentation>
+      </IntVectorProperty>
+      <Hints>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="20" />
+          <Text title="Potentially running out of memory">
+            **Clean to Grid** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+      </Hints>
+
       <!-- End CleanUnstructuredGrid -->
     </SourceProxy>
 
@@ -251,6 +291,19 @@
       </DoubleVectorProperty>
       <Hints>
         <Visibility replace_input="2" />
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="10" />
+          <Text title="Potentially running out of memory">
+            **Isovolume** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
       </Hints>
       <!-- End Iso Volume -->
     </SourceProxy>
@@ -336,7 +389,8 @@ using the ( and ) buttons.
   in parentheses.
 - +: Add two scalars or two vectors. The operands for this function are not
   required to be enclosed in parentheses.
-- sin: Compute the sine of a scalar. cos: Compute the cosine of a scalar.
+- sin: Compute the sine of a scalar.
+- cos: Compute the cosine of a scalar.
 - tan: Compute the tangent of a scalar.
 - asin: Compute the arcsine of a scalar.
 - acos: Compute the arccosine of a scalar.
@@ -653,17 +707,12 @@ array.
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkDataSet" />
-          <DataType value="vtkNonOverlappingAMR" />
           <DataType value="vtkHyperTreeGrid" />
         </DataTypeDomain>
         <InputArrayDomain attribute_type="point"
                           name="input_array"
                           number_of_components="1"
                           data_type="vtkDataSet" />
-        <InputArrayDomain attribute_type="cell"
-                          name="input_array_amr"
-                          number_of_components="1"
-                          data_type="vtkNonOverlappingAMR" />
         <InputArrayDomain attribute_type="cell"
                           name="input_array_htg"
                           number_of_components="1"
@@ -800,6 +849,53 @@ points in the input. Defaults to ***Single***.
         Warning: Many filters do not properly handle non-triangular polygons.
         </Documentation>
       </IntVectorProperty>
+      <IntVectorProperty animateable="0"
+                         command="SetFastMode"
+                         default_values="0"
+                         name="FastMode"
+                         number_of_elements="1">
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+
+              <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                       name="vtkImageData"
+                                       mode="visibility"/>
+
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="GenerateTriangles"
+                                       value="1"
+                                       mode="enabled_state"/>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          This parameter controls whether to use Fast Mode or not.
+          Fast Mode is only applicable to vtkImageData input and when GenerateTriangles is on.
+          Fast Mode is much faster but it may produce degenerate triangles.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetHTGStrategy3D"
+                         name="HTGStrategy3D"
+                         label="Contour strategy (3D)"
+                         number_of_elements="1"
+                         default_values="0">
+        <EnumerationDomain name="enum">
+          <Entry text="Use Voxels" value="0" />
+          <Entry text="Use Decomposed Polyhedra" value="1" />
+        </EnumerationDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility" />
+        </Hints>
+        <Documentation>
+          Choose the contour strategy to apply (3D case only). **IMPORTANT**: the
+          **Use Decomposed Polyhedra** strategy generally leads to better results
+          but can take significantly more time to complete.
+        </Documentation>
+      </IntVectorProperty>
       <DoubleVectorProperty animateable="1"
                             command="SetValue"
                             label="Isosurfaces"
@@ -821,8 +917,22 @@ points in the input. Defaults to ***Single***.
         isosurfaces/isolines and also the number of such
         values.</Documentation>
       </DoubleVectorProperty>
+
       <Hints>
         <Visibility replace_input="2" />
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="10" />
+          <Text title="Potentially running out of memory">
+            **Contour** filter will create a polydata output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
       </Hints>
       <!-- incremental point locator begin -->
       <ProxyProperty command="SetLocator"
@@ -840,11 +950,14 @@ points in the input. Defaults to ***Single***.
           <Proxy group="incremental_point_locators"
                  name="NonMergingPointLocator" />
         </ProxyListDomain>
-        <Documentation>This property specifies an incremental point locator for
-        merging duplicate / coincident points.</Documentation>
+        <Documentation>This property specifies which incremental point locator to
+        use for handling duplicate/coincident points.</Documentation>
       </ProxyProperty>
       <!-- incremental point locator end -->
 
+      <PropertyGroup label="Hyper Tree Grid Contour">
+        <Property name="HTGStrategy3D" />
+      </PropertyGroup>
       <PropertyGroup label="Isosurfaces">
         <Property name="ContourValues" />
       </PropertyGroup>
@@ -1308,6 +1421,18 @@ Every Nth Point.
             changed on creation of this filter (defaults to "1")
        -->
         <Visibility replace_input="0" />
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkDataSet" />
+          </DataTypeDomain>
+          <MemoryUsage relative="500" />
+          <Text title="Potentially running out of memory">
+            **Glyph** filter will create one geometry by point
+            if configured as such in the "Glyph Mode" property,
+            which you may not have enough memory to do.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
       </Hints>
       <!-- End Glyph -->
     </SourceProxy>
@@ -1698,9 +1823,32 @@ Every Nth Point.
           In two dimensions, the X and Y dimensions are used.
         </Documentation>
       </IntVectorProperty>
-      <IntVectorProperty command="SetComputeGradient"
-                         default_values="1"
-                         name="ComputeGradient"
+      <IntVectorProperty command="SetHTGMode"
+                         default_values="0"
+                         name="HTGMode"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry text="Unlimited"
+                 value="0" />
+          <Entry text="Unstructured"
+                 value="1" />
+        </EnumerationDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility" />
+        </Hints>
+        <Documentation>
+          Specify how to compute the gradient on a Hypertree Grid.
+          'Unlimited' handles the resolution change by virtually subdividing
+          coarser cells and eventually applyging a ratio.
+          'Unstructured' operate like the AMR like if it was an unstructured
+          mesh, which may give a higher weight to coarser cells.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetHTGExtensiveComputation"
+                         default_values="0"
+                         name="ExtensiveComputation"
                          number_of_elements="1"
                          panel_visibility="advanced">
         <BooleanDomain name="bool" />
@@ -1710,19 +1858,37 @@ Every Nth Point.
 
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
                                        name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
+                                       mode="visibility" />
 
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="HTGMode"
+                                       value="0"
+                                       mode="enabled_state" />
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+        <Documentation>
+          Use the extensive ratio during the Hyper Tree Grid gradient computation.
+          This property only work in UNLIMITED mode.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeGradient"
+                         default_values="1"
+                         name="ComputeGradient"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool" />
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1796,13 +1962,6 @@ Every Nth Point.
         <BooleanDomain name="bool" />
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
-              <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
             <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
                                        name="vtkImageData"
@@ -1812,7 +1971,6 @@ Every Nth Point.
                                        property="BoundaryMethod"
                                        value="1"
                                        mode="enabled_state" />
-              </Expression>
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1827,23 +1985,15 @@ Every Nth Point.
                             panel_visibility="advanced">
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
+            <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1859,23 +2009,15 @@ Every Nth Point.
         <BooleanDomain name="bool" />
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
+            <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1890,23 +2032,15 @@ Every Nth Point.
                             panel_visibility="advanced">
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
+            <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1922,24 +2056,16 @@ Every Nth Point.
                          panel_visibility="advanced">
         <BooleanDomain name="bool" />
         <Hints>
-          <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
+        <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -1954,23 +2080,15 @@ Every Nth Point.
                             panel_visibility="advanced">
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-
+            <Expression type="or">
               <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       mode="visibility"
-                                       exclude="1" />
-
-              <Expression type="or">
-                <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                         name="vtkImageData"
-                                         exclude="1"
-                                         mode="enabled_state" />
-                <PropertyWidgetDecorator type="GenericDecorator"
-                                         property="BoundaryMethod"
-                                         value="1"
-                                         mode="enabled_state" />
-              </Expression>
+                                       name="vtkImageData"
+                                       exclude="1"
+                                       mode="enabled_state" />
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       property="BoundaryMethod"
+                                       value="1"
+                                       mode="enabled_state" />
             </Expression>
           </PropertyWidgetDecorator>
         </Hints>
@@ -2206,6 +2324,20 @@ Every Nth Point.
         <BooleanDomain name="bool" />
         <Documentation>Remove duplicate points.</Documentation>
       </IntVectorProperty>
+      <Hints>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkPolyData" />
+          </DataTypeDomain>
+          <MemoryUsage relative="4" />
+          <Text title="Potentially running out of memory">
+            **Linear Cell Extrusion** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+      </Hints>
+
       <!-- End LinearCellExtrusionFilter -->
     </SourceProxy>
     <!-- ==================================================================== -->
@@ -2403,6 +2535,19 @@ Every Nth Point.
       </IntVectorProperty>
       <Hints>
         <Visibility replace_input="2" />
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="20" />
+          <Text title="Potentially running out of memory">
+            **Clip** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
       </Hints>
       <!-- End Clip -->
     </SourceProxy>
@@ -2525,27 +2670,6 @@ Every Nth Point.
           </PropertyWidgetDecorator>
         </Hints>
       </IntVectorProperty>
-      <IntVectorProperty command="SetMergePoints"
-                         default_values="1"
-                         name="MergePoints"
-                         label="Merge duplicated points in the slice"
-                         number_of_elements="1">
-        <BooleanDomain name="bool" />
-        <Documentation>This parameter controls whether to merge duplicated points in the slice.</Documentation>
-        <Hints>
-          <PropertyWidgetDecorator type="CompositeDecorator">
-            <Expression type="and">
-              <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
-                                       exclude="1"
-                                       mode="visibility"/>
-              <PropertyWidgetDecorator type="ShowWidgetDecorator">
-                <Property name="PreserveInputCells" function="boolean_invert" />
-              </PropertyWidgetDecorator>
-            </Expression>
-          </PropertyWidgetDecorator>
-        </Hints>
-      </IntVectorProperty>
       <DoubleVectorProperty animateable="1"
                             command="SetValue"
                             label="Slice Offset Values"
@@ -2556,7 +2680,17 @@ Every Nth Point.
                             use_index="1"
                             panel_visibility="advanced">
         <Hints>
-          <PropertyWidgetDecorator type="InputDataTypeDecorator" name="vtkHyperTreeGrid" exclude="1" />
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                       name="vtkHyperTreeGrid"
+                                       mode="visibility"
+                                       exclude="1" />
+              <PropertyWidgetDecorator type="ShowWidgetDecorator">
+                <Property name="PreserveInputCells" function="boolean_invert" />
+              </PropertyWidgetDecorator>
+            </Expression>
+          </PropertyWidgetDecorator>
         </Hints>
         <BoundsDomain mode="magnitude"
                       name="bounds">
@@ -2571,12 +2705,27 @@ Every Nth Point.
         shifted by the offset value. The 'Values Range' information is the
         range based on the global bounding box, not necessarily on the current
         slice geometry configuration.</Documentation>
-        <Hints>
-          <PropertyWidgetDecorator type="ShowWidgetDecorator">
-            <Property name="PreserveInputCells" function="boolean_invert" />
-          </PropertyWidgetDecorator>
-        </Hints>
       </DoubleVectorProperty>
+      <!-- incremental point locator begin -->
+      <ProxyProperty command="SetLocator"
+                     label="Point Merge Method"
+                     name="Locator"
+                     panel_visibility="advanced" >
+        <ProxyGroupDomain name="groups">
+          <Group name="incremental_point_locators" />
+        </ProxyGroupDomain>
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="incremental_point_locators"
+                 name="MergePoints" />
+          <Proxy group="incremental_point_locators"
+                 name="IncrementalOctreeMergePoints" />
+          <Proxy group="incremental_point_locators"
+                 name="NonMergingPointLocator" />
+        </ProxyListDomain>
+        <Documentation>This property specifies which incremental point locator to
+        use for handling duplicate/coincident points.</Documentation>
+      </ProxyProperty>
+      <!-- incremental point locator end -->
       <Hints>
         <Visibility replace_input="2" />
       </Hints>
@@ -2594,7 +2743,12 @@ Every Nth Point.
                      data. It operates on any type of dataset and produces
                      unstructured grid output.
                      The scalar array from which to threshold the data can be selected
-                     in the 'Scalars' menu.
+                     in the 'Scalars' menu. For a multi-components array, 'Selected
+                     Component' menu allows you to select a specific component or
+                     magnitude if using the 'Selected' component mode. You can also
+                     choose 'All' or 'Any' that will keep data if either all components
+                     or at least one satisfies the threshold. Note that multi-components
+                     arrays are not available with Hyper Tree Grid inputs.
                      The 'Lower Threshold' and 'Upper Threshold' sliders determine
                      the range of the scalars to retain in the output.
                      The threshold method can be selected from the 'Threshold Method' menu.
@@ -2614,9 +2768,7 @@ Every Nth Point.
           <DataType value="vtkDataSet" />
           <DataType value="vtkHyperTreeGrid" />
         </DataTypeDomain>
-        <InputArrayDomain name="input_array"
-                          number_of_components="1">
-        </InputArrayDomain>
+        <InputArrayDomain name="input_array" />
         <Documentation>This property specifies the input to the Threshold
         filter.</Documentation>
       </InputProperty>
@@ -2625,16 +2777,63 @@ Every Nth Point.
                             label="Scalars"
                             name="SelectInputScalars"
                             number_of_elements="5">
-        <ArrayListDomain attribute_type="Scalars"
-                         name="array_list">
+        <ArrayListDomain name="array_list" input_domain_name="input_array">
           <RequiredProperties>
             <Property function="Input"
                       name="Input" />
           </RequiredProperties>
         </ArrayListDomain>
         <Documentation>The value of this property contains the name of the
-        scalar array from which to perform thresholding.</Documentation>
+        array from which to perform thresholding. Be aware that HTG does not
+        support multi-component arrays.</Documentation>
       </StringVectorProperty>
+      <IntVectorProperty command="SetComponentMode"
+                         name="ComponentMode"
+                         default_values="0"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry text="Selected"
+                 value="0" />
+          <Entry text="All"
+                 value="1" />
+          <Entry text="Any"
+                 value="2" />
+        </EnumerationDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   exclude="1"
+                                   mode="visibility"/>
+        </Hints>
+        <Documentation>This property specifies how multi-component arrays are handled.
+                       'Selected' will use the 'Selected Component' property.
+                       'All' will pass if all components satisfy the rule.
+                       'Any' will pass if any component satisfies the rule.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetSelectedComponent"
+                         name="SelectedComponent"
+                         default_values="0"
+                         number_of_elements="1">
+        <NumberOfComponentsDomain name="comps" enable_magnitude="1">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+            <Property function="ArraySelection"
+                      name="SelectInputScalars" />
+          </RequiredProperties>
+        </NumberOfComponentsDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   exclude="1"
+                                   mode="visibility"/>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state" property="ComponentMode" value="0" />
+        </Hints>
+        <Documentation>This property specifies which component of the array needs to satisfy
+                       the rule.
+        </Documentation>
+      </IntVectorProperty>
       <DoubleVectorProperty command="SetLowerThreshold"
                             default_values="0"
                             name="LowerThreshold"
@@ -2646,6 +2845,8 @@ Every Nth Point.
                       name="Input" />
             <Property function="ArraySelection"
                       name="SelectInputScalars" />
+            <Property function="ComponentSelection"
+                      name="SelectedComponent" />
           </RequiredProperties>
         </ArrayRangeDomain>
         <Hints>
@@ -2672,6 +2873,8 @@ Every Nth Point.
                       name="Input" />
             <Property function="ArraySelection"
                       name="SelectInputScalars" />
+            <Property function="ComponentSelection"
+                      name="SelectedComponent" />
           </RequiredProperties>
         </ArrayRangeDomain>
         <Hints>
@@ -2709,7 +2912,7 @@ Every Nth Point.
           <PropertyWidgetDecorator type="InputDataTypeDecorator"
                                          name="vtkHyperTreeGrid"
                                          exclude="1"
-                                         mode="enabled_state" />
+                                         mode="visibility" />
         </Hints>
         <BooleanDomain name="bool" />
         <Documentation>If the value of this property is 1, then a cell is only
@@ -2725,7 +2928,7 @@ Every Nth Point.
           <PropertyWidgetDecorator type="InputDataTypeDecorator"
                                    name="vtkHyperTreeGrid"
                                    exclude="1"
-                                   mode="enabled_state" />
+                                   mode="visibility" />
         </Hints>
         <BooleanDomain name="bool" />
         <Documentation>
@@ -2746,7 +2949,7 @@ Every Nth Point.
           <PropertyWidgetDecorator type="InputDataTypeDecorator"
                                    name="vtkHyperTreeGrid"
                                    exclude="1"
-                                   mode="enabled_state"/>
+                                   mode="visibility"/>
         </Hints>
         <BooleanDomain name="bool" />
         <Documentation>Invert the threshold results. That is, cells that would have been in the
@@ -2754,8 +2957,45 @@ Every Nth Point.
           the output are included.
         </Documentation>
       </IntVectorProperty>
+      <IntVectorProperty name="MemoryStrategy"
+                         command="SetMemoryStrategy"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="advanced">
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility" />
+        </Hints>
+        <EnumerationDomain name="enum">
+          <Entry text="Mask Input" value="0" />
+          <Entry text="Regenerate Trees And Index Fields" value="1" />
+          <Entry text="New HyperTreeGrid" value="2" />
+        </EnumerationDomain>
+        <Documentation>
+          Select how to construct the result in memory:
+           - MaskInput (default): shallow copy the input and mask all cells being thresholded
+          - Regenerate Trees And Index Fields: generate a new tree structure but use indexed arrays on the
+          input for cell data
+          - New HyperTreeGrid: construct a new HyperTreeGrid from scratch representing the minimal
+          threshold of the input
+        </Documentation>
+      </IntVectorProperty>
       <Hints>
         <Visibility replace_input="2" />
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="20" />
+          <Text title="Potentially running out of memory">
+            **Threshold** filter will create an unstructured grid output and
+            you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
       </Hints>
       <!-- End Threshold -->
     </SourceProxy>
@@ -3745,6 +3985,88 @@ Every Nth Point.
     </SourceProxy>
 
     <!-- ==================================================================== -->
+    <SourceProxy class="vtkAnnotateSelectionFilter"
+                 label="Annotate Selection"
+                 name="AnnotateSelection">
+      <Documentation short_help="Filter for annotating selection">
+        Generates annotation text for each selectionNode from a selection.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+        </DataTypeDomain>
+        <Documentation>
+          This property specifies the input from which the selection is extracted.
+        </Documentation>
+      </InputProperty>
+      <InputProperty command="SetSelectionConnection"
+                     name="Selection">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkSelection"/>
+        </DataTypeDomain>
+        <Documentation>
+          The input that provides the selection object.
+        </Documentation>
+        <Hints>
+          <!-- This tag alerts the auto-generated panels and input selection
+              that this input is a selection.  It should use the special
+              selection GUI. -->
+          <SelectionInput/>
+        </Hints>
+      </InputProperty>
+      <StringVectorProperty name="Labels"
+                            command="SetLabels"
+                            clean_command="ResetLabels"
+                            number_of_elements_per_command="1"
+                            repeat_command="1"
+                            use_index="1"
+                            panel_visibility="default">
+        <Documentation>
+          Associated for each selection node an label.
+        </Documentation>
+      </StringVectorProperty>
+      <StringVectorProperty name="DefaultLabel"
+                            command="SetDefaultLabel"
+                            default_values="none"
+                            number_of_elements="1"
+                            panel_visibility="default">
+        <Documentation>
+          Specify the default label used for unlabelized data.
+        </Documentation>
+      </StringVectorProperty>
+      <PropertyGroup name = "LabelsOnSelection" panel_widget="SelectionList" >
+        <Property name="Labels" />
+        <Property name="Selection"/>
+      </PropertyGroup>
+      <Hints>
+        <InitializationHelper class="vtkSMExtractSelectionProxyInitializationHelper"/>
+        <WarnOnCreate>
+          <DataTypeDomain name="input_type">
+            <DataType value="vtkImageData" />
+            <DataType value="vtkRectilinearGrid" />
+            <DataType value="vtkStructuredGrid" />
+          </DataTypeDomain>
+          <MemoryUsage relative="20" />
+          <Text title="Potentially running out of memory">
+            **Extract Selection** filter will create an unstructured grid output
+            and you may not have enough memory to create it.
+            Do you want to continue?
+          </Text>
+        </WarnOnCreate>
+      </Hints>
+      <!-- End AnnotateSelection -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
     <SourceProxy class="vtkMergeVectorComponents"
                  label="Merge Vector Components"
                  name="MergeVectorComponents">
@@ -3842,7 +4164,233 @@ Every Nth Point.
       <!-- End MergeVectorComponents -->
    </SourceProxy>
 
-   <!-- ==================================================================== -->
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkPointSetToOctreeImageFilter"
+                 name="PointSetToOctreeImage"
+                 label="PointSet To Octree Image">
+      <Documentation
+              long_help="Convert a point set to an octree image."
+              short_help="Convert a point set to an octree  image.">
+        PointSetToOctreeImage can be used to convert a point set to an image with a number of points per cell
+        target and an unsigned char octree cell array. Each bit of the unsigned char indicates if the point-set had a
+        point close to one of the 8 corners of the cell. It can optionally also output a cell array based on an input
+        point array. This array will have 1 or many components that represent different functions i.e. last value, min,
+        max, count, sum, mean.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkPointSet"/>
+        </DataTypeDomain>
+        <InputArrayDomain name="point_scalar_arrays"
+                          attribute_type="point"
+                          number_of_components="1"
+                          optional="1"/>
+      </InputProperty>
+      <IntVectorProperty command="SetNumberOfPointsPerCell"
+                         name="NumberOfPointsPerCell"
+                         default_values="1"
+                         number_of_elements="1">
+        <Documentation>
+          Set the average number of points in each cell of the output image.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetProcessInputPointArray"
+                         name="ProcessInputPointArray"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if input point array should be processed.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeLastValue"
+                         name="ComputeLastValue"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the last value for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeMin"
+                         name="ComputeMin"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the min value for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeMax"
+                         name="ComputeMax"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the max value for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeCount"
+                         name="ComputeCount"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the count of the values for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeSum"
+                         name="ComputeSum"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the sum of the values for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetComputeMean"
+                         name="ComputeMean"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if the mean value for each cell id of the point array will be computed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </IntVectorProperty>
+      <StringVectorProperty command="SetInputArrayToProcess"
+                            element_types="0 0 0 0 2"
+                            label="Point Array"
+                            name="SelectInputPointArray"
+                            number_of_elements="5">
+        <ArrayListDomain name="array_list" input_domain_name="point_scalar_arrays">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Documentation>
+          The value of this property contains the name of the scalar point array to be processed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputPointArray"
+                                   value="1"/>
+        </Hints>
+      </StringVectorProperty>
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkOctreeImageToPointSetFilter"
+                 name="OctreeImageToPointSet"
+                 label="Octree Image to PointSet">
+      <Documentation
+              long_help="Convert an octree image to point set."
+              short_help="Convert an octree image to point set.">
+        OctreeImageToPointSet can be used to convert an image with an unsigned char octree cell array to a point
+        set. Each bit of the unsigned char indicates if the cell had a point close to one of its 8 corners.
+        It can optionally also output a point array based on an input cell array. This array will have 1 of the
+        components of the input array.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkImageData"/>
+        </DataTypeDomain>
+        <InputArrayDomain name="cell_arrays"
+                          attribute_type="cell"
+                          optional="1"/>
+      </InputProperty>
+      <IntVectorProperty command="SetCreateVerticesCellArray"
+                         default_values="1"
+                         name="CreateVerticesCellArray"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set whether a cell array of vertices will be created.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetProcessInputCellArray"
+                         name="ProcessInputCellArray"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Set if input cell array should be processed.
+        </Documentation>
+      </IntVectorProperty>
+      <StringVectorProperty command="SetInputArrayToProcess"
+                            element_types="0 0 0 0 2"
+                            label="Cell Array"
+                            name="SelectInputCellArray"
+                            number_of_elements="5">
+        <ArrayListDomain name="array_list" input_domain_name="cell_arrays">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Documentation>
+          The value of this property contains the name of the cell array to be processed.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="ProcessInputCellArray"
+                                   value="1"/>
+        </Hints>
+      </StringVectorProperty>
+      <IntVectorProperty animateable="0"
+                         command="SetCellArrayComponent"
+                         default_values="0"
+                         name="Component"
+                         number_of_elements="1">
+        <NumberOfComponentsDomain name="comps" enable_magnitude="0">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+            <Property function="ArraySelection"
+                      name="SelectInputCellArray"/>
+          </RequiredProperties>
+        </NumberOfComponentsDomain>
+        <Documentation>
+          The value of this property specifies the array component
+          that will be extracted from the cell array.
+        </Documentation>
+      </IntVectorProperty>
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
    <SourceProxy class="vtkMultiObjectMassProperties"
                 label="Compute Connected Surface Properties"
                 name="ComputeConnectedSurfaceProperties">

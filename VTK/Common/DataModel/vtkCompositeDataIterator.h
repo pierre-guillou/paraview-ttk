@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataIterator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeDataIterator
  * @brief   superclass for composite data iterators
@@ -26,6 +14,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataSet;
 class vtkCompositeDataSetInternals;
 class vtkCompositeDataSetIndex;
@@ -91,7 +80,7 @@ public:
    * Returns if the a meta-data information object is present for the current
    * item. Return 1 on success, 0 otherwise.
    */
-  virtual int HasCurrentMetaData() = 0;
+  virtual vtkTypeBool HasCurrentMetaData() = 0;
 
   ///@{
   /**
@@ -131,4 +120,5 @@ private:
   void operator=(const vtkCompositeDataIterator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

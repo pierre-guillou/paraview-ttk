@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearGridGeometryFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRectilinearGridGeometryFilter.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPolyData.h"
 #include "vtkRectilinearGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRectilinearGridGeometryFilter);
 
 // Construct with initial extent (0,100, 0,100, 0,0) (i.e., a k-plane).
@@ -129,6 +118,8 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
                                               : (extent[4] - 1) * (dims[0] - 1) * (dims[1] - 1);
   }
 
+  bool abort = false;
+
   switch (dimension)
   {
     default:
@@ -148,6 +139,7 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
 
       cellId = newVerts->InsertNextCell(1, ptIds);
       outCD->CopyData(cd, startIdx, cellId);
+      this->CheckAbort();
       break;
 
     case 1: // --------------------- build line -----------------------
@@ -185,6 +177,11 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
 
       for (i = 0; i < totPoints; i++)
       {
+        if (this->CheckAbort())
+        {
+          abort = true;
+          break;
+        }
         idx = startIdx + i * offset[0];
         input->GetPoint(idx, x);
         ptIds[0] = newPts->InsertNextPoint(x);
@@ -204,8 +201,13 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
         offset[0] = (dims[0] - 1) * (dims[1] - 1);
       }
 
-      for (i = 0; i < (totPoints - 1); i++)
+      for (i = 0; i < (totPoints - 1) && !abort; i++)
       {
+        if (this->CheckAbort())
+        {
+          abort = true;
+          break;
+        }
         idx = startCellIdx + i * offset[0];
         ptIds[0] = i;
         ptIds[1] = i + 1;
@@ -260,10 +262,15 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
 
       // create points whether visible or not.  Makes coding easier but generates
       // extra data.
-      for (pos = startIdx, j = 0; j < (diff[dir[1]] + 1); j++)
+      for (pos = startIdx, j = 0; j < (diff[dir[1]] + 1) && !abort; j++)
       {
         for (i = 0; i < (diff[dir[0]] + 1); i++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           idx = pos + i * offset[0];
           input->GetPoint(idx, x);
           ptIds[0] = newPts->InsertNextPoint(x);
@@ -290,10 +297,15 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
         }
       }
 
-      for (pos = startCellIdx, j = 0; j < diff[dir[1]]; j++)
+      for (pos = startCellIdx, j = 0; j < diff[dir[1]] && !abort; j++)
       {
         for (i = 0; i < diff[dir[0]]; i++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           idx = pos + i * offset[0];
           ptIds[0] = i + j * (diff[dir[0]] + 1);
           ptIds[1] = ptIds[0] + 1;
@@ -330,10 +342,15 @@ int vtkRectilinearGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(req
       offset[0] = dims[0];
       offset[1] = dims[0] * dims[1];
 
-      for (k = 0; k < (diff[2] + 1); k++)
+      for (k = 0; k < (diff[2] + 1) && !abort; k++)
       {
         for (j = 0; j < (diff[1] + 1); j++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           pos = startIdx + j * offset[0] + k * offset[1];
           for (i = 0; i < (diff[0] + 1); i++)
           {
@@ -435,3 +452,4 @@ void vtkRectilinearGridGeometryFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "  Jmin,Jmax: (" << this->Extent[2] << ", " << this->Extent[3] << ")\n";
   os << indent << "  Kmin,Kmax: (" << this->Extent[4] << ", " << this->Extent[5] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

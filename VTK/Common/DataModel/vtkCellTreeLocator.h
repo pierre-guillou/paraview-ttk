@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCellTreeLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCellTreeLocator
  * @brief   This class implements the data structures, construction
@@ -57,14 +45,17 @@
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 // Forward declarations for PIMPL
 struct vtkCellTree;
 template <typename T>
 struct CellTree;
 template <typename T>
 struct CellTreeBuilder;
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkCellTreeLocator : public vtkAbstractCellLocator
 {
   template <typename>
@@ -126,7 +117,7 @@ public:
    *
    * For other IntersectWithLine signatures, see vtkAbstractCellLocator.
    */
-  int IntersectWithLine(const double p1[3], const double p2[3], const double tol, vtkPoints* points,
+  int IntersectWithLine(const double p1[3], const double p2[3], double tol, vtkPoints* points,
     vtkIdList* cellIds, vtkGenericCell* cell) override;
 
   /**
@@ -190,5 +181,6 @@ private:
   vtkCellTreeLocator(const vtkCellTreeLocator&) = delete;
   void operator=(const vtkCellTreeLocator&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 
 #endif

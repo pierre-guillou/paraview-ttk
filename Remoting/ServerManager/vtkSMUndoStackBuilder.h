@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMUndoStackBuilder.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMUndoStackBuilder
  * @brief   builds server manager undo sets and
@@ -69,7 +57,7 @@ public:
    */
   virtual void End();
 
-  //@{
+  ///@{
   /**
    * Convenience method call End(); PushToStack(); in that order.
    */
@@ -78,7 +66,7 @@ public:
     this->End();
     this->PushToStack();
   }
-  //@}
+  ///@}
 
   /**
    * If any undoable changes were recorded by the builder, this will push
@@ -102,15 +90,15 @@ public:
    */
   virtual bool Add(vtkUndoElement* element);
 
-  //@{
+  ///@{
   /**
    * Get/Set the undo stack that this builder will build.
    */
   vtkGetObjectMacro(UndoStack, vtkSMUndoStack);
   virtual void SetUndoStack(vtkSMUndoStack*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * If IgnoreAllChanges is true, any server manager changes will be
    * ignored even if the changes happened within a Begin()-End() call.
@@ -120,7 +108,7 @@ public:
    */
   vtkSetMacro(IgnoreAllChanges, bool);
   vtkGetMacro(IgnoreAllChanges, bool);
-  //@}
+  ///@}
 
   // Record a state change on a RemoteObject
   virtual void OnStateChange(vtkSMSession* session, vtkTypeUInt32 globalId,

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIdFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkIdFilter.h"
 
 #include "vtkCellData.h"
@@ -22,6 +10,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkIdFilter);
 
 // Construct object with PointIds and CellIds on; and ids being generated
@@ -132,6 +121,8 @@ int vtkIdFilter::RequestData(vtkInformation* vtkNotUsed(request),
   outPD->PassData(inPD);
   outCD->PassData(inCD);
 
+  this->CheckAbort();
+
   return 1;
 }
 
@@ -149,3 +140,4 @@ void vtkIdFilter::PrintSelf(ostream& os, vtkIndent indent)
      << "CellIdsArrayName: " << (this->CellIdsArrayName ? this->CellIdsArrayName : "(none)")
      << "\n";
 }
+VTK_ABI_NAMESPACE_END

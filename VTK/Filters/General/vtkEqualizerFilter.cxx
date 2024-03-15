@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEqualizerFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEqualizerFilter.h"
 
 #include "vtkDataArray.h"
@@ -33,6 +21,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkEqualizerFilter::vtkInternal
 {
 public:
@@ -291,6 +280,10 @@ int vtkEqualizerFilter::RequestData(
     for (vtkIdType col = 0; col < numColumns; col++)
     {
       this->UpdateProgress(static_cast<double>(col) / numColumns);
+      if (this->CheckAbort())
+      {
+        break;
+      }
 
       vtkDataArray* array = vtkArrayDownCast<vtkDataArray>(input->GetColumn(col));
       if (!array)
@@ -423,6 +416,10 @@ void vtkEqualizerFilter::ProcessColumn(
   double modifier = pow(10, 0.05 * this->SpectrumGain);
   for (vtkIdType spectrumId = 0; spectrumId < this->Internal->GetHalfSpectrumSize(); ++spectrumId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     auto value = spectrum[spectrumId];
     // we are only interested in amplitude spectrum, so we use complex_module
     // divide by the number of elements so that the amplitudes are in millivolts, not Fourier sums.
@@ -451,3 +448,4 @@ void vtkEqualizerFilter::ProcessColumn(
   resultTable->AddColumn(rfftArray);
   // end fill result table
 }
+VTK_ABI_NAMESPACE_END

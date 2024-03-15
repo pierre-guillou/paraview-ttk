@@ -1,7 +1,10 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "TestQtCommon.h"
 
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 Type select_widget(int argc, char* argv[])
 {
@@ -227,4 +230,5 @@ QImage grab_framebuffer(std::shared_ptr<QObject> widgetOrWindow)
 
   return QImage();
 }
+VTK_ABI_NAMESPACE_END
 }

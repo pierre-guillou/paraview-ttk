@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWarpTo.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWarpTo.h"
 
 #include "vtkImageData.h"
@@ -30,6 +18,7 @@
 #include "vtkNew.h"
 #include "vtkSmartPointer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWarpTo);
 
 vtkWarpTo::vtkWarpTo()
@@ -84,6 +73,7 @@ int vtkWarpTo::RequestData(vtkInformation* vtkNotUsed(request), vtkInformationVe
     {
       vtkNew<vtkImageDataToPointSet> image2points;
       image2points->SetInputData(inImage);
+      image2points->SetContainerAlgorithm(this);
       image2points->Update();
       input = image2points->GetOutput();
     }
@@ -97,6 +87,7 @@ int vtkWarpTo::RequestData(vtkInformation* vtkNotUsed(request), vtkInformationVe
     {
       vtkNew<vtkRectilinearGridToPointSet> rect2points;
       rect2points->SetInputData(inRect);
+      rect2points->SetContainerAlgorithm(this);
       rect2points->Update();
       input = rect2points->GetOutput();
     }
@@ -152,6 +143,10 @@ int vtkWarpTo::RequestData(vtkInformation* vtkNotUsed(request), vtkInformationVe
   //
   for (ptId = 0; ptId < numPts; ptId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     inPts->GetPoint(ptId, x);
     if (this->Absolute)
     {
@@ -194,3 +189,4 @@ void vtkWarpTo::PrintSelf(ostream& os, vtkIndent indent)
      << this->Position[2] << ")\n";
   os << indent << "Scale Factor: " << this->ScaleFactor << "\n";
 }
+VTK_ABI_NAMESPACE_END

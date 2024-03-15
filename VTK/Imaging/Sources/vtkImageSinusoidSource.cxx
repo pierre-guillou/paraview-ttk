@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageSinusoidSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageSinusoidSource.h"
 
 #include "vtkImageData.h"
@@ -23,6 +11,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageSinusoidSource);
 
 //------------------------------------------------------------------------------
@@ -209,3 +198,4 @@ void vtkImageSinusoidSource::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Direction: ( " << this->Direction[0] << ", " << this->Direction[1] << ", "
      << this->Direction[2] << " )\n";
 }
+VTK_ABI_NAMESPACE_END

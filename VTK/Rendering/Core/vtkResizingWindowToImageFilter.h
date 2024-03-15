@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkResizingWindowToImageFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkResizingWindowToImageFilter
  * @brief   Use a vtkWindow as input to image pipeline
@@ -58,6 +46,7 @@
 // VTK_RGB and VTK_RGBA are defined in system includes
 #define VTK_ZBUFFER 5
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkWindow;
 
 class vtkWTI2DHelperClass;
@@ -177,4 +166,5 @@ private:
   void operator=(const vtkResizingWindowToImageFilter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

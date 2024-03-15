@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqSeriesGeneratorDialog.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqSeriesGeneratorDialog.h"
 #include "ui_pqSeriesGeneratorDialog.h"
 
@@ -81,29 +53,29 @@ bool pqSeriesGeneratorDialog::pqInternals::validate()
     case LOGARITHMIC: // log
       if (min < 0.0 && max > 0.0)
       {
-        msg = "Error: range cannot contain 0 for log.";
+        msg = tr("Error: range cannot contain 0 for log.");
       }
       break;
 
     case GEOMETRIC_SAMPLES:
       if (start == 0.0 || end == 0.0)
       {
-        msg = "Error: range cannot begin or end with 0 for a geometric series.";
+        msg = tr("Error: range cannot begin or end with 0 for a geometric series.");
       }
       else if (min < 0.0 && max > 0.0)
       {
-        msg = "Error: range cannot contain 0 for a geometric series.";
+        msg = tr("Error: range cannot contain 0 for a geometric series.");
       }
       break;
 
     case GEOMETRIC_RATIO:
       if (start == 0.0)
       {
-        msg = "Error: range cannot begin with 0 for a geometric series.";
+        msg = tr("Error: range cannot begin with 0 for a geometric series.");
       }
       else if (ui.ratio->text().toDouble() == 0.0)
       {
-        msg = "Error: common ratio cannot be 0 for a geometric series.";
+        msg = tr("Error: common ratio cannot be 0 for a geometric series.");
       }
       break;
   }
@@ -118,7 +90,7 @@ bool pqSeriesGeneratorDialog::pqInternals::validate()
     QString txt;
     QTextStream stream(&txt);
 
-    stream << "Sample series: ";
+    stream << tr("Sample series: ");
     bool add_comma = false;
     for (auto& val : sampleValues)
     {
@@ -216,7 +188,7 @@ pqSeriesGeneratorDialog::pqSeriesGeneratorDialog(
   internals.Ui.ratio->setValidator(new QDoubleValidator(this));
   internals.Ui.label_ratio->hide();
   internals.Ui.ratio->hide();
-  internals.Ui.buttonBox->button(QDialogButtonBox::Ok)->setText("&Generate");
+  internals.Ui.buttonBox->button(QDialogButtonBox::Ok)->setText(tr("&Generate"));
 
   QObject::connect(internals.Ui.comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
     [&internals](int idx) {

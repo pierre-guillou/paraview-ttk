@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDataReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDataReader
  * @brief   helper superclass for objects that read vtk data files
@@ -40,6 +28,7 @@
 #define VTK_ASCII 1
 #define VTK_BINARY 2
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkCharArray;
 class vtkCellArray;
@@ -473,7 +462,7 @@ public:
   /**
    * Helper method for reading in data.
    */
-  char* LowerCase(char* str, const size_t len = 256);
+  char* LowerCase(char* str, size_t len = 256);
 
   /**
    * Return the istream being used to read in the data.
@@ -563,7 +552,8 @@ protected:
   int ReadEdgeFlags(vtkDataSetAttributes* a, vtkIdType num);
 
   /**
-   * Format is detailed \ref IOLegacyInformationFormat "here".
+   * Format is detailed at
+   * https://docs.vtk.org/en/latest/design_documents/IOLegacyInformationFormat.html
    */
   int ReadInformation(vtkInformation* info, vtkIdType numKeys);
 
@@ -620,4 +610,5 @@ private:
   void ConvertGhostLevelsToGhostType(FieldType fieldType, vtkAbstractArray* data) const;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

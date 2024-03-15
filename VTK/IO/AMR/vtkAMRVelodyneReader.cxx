@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRVelodyneReader.h"
 #include "vtkOverlappingAMR.h"
 
@@ -34,6 +36,7 @@
 #include "vtk_hdf5.h"
 
 #include "vtkAMRVelodyneReaderInternal.h"
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRVelodyneReader);
 
 //-------------------------------------------------------------------
@@ -190,7 +193,7 @@ int vtkAMRVelodyneReader::GetNumberOfLevels()
   return (this->Internal->nLevels);
 }
 
-int vtkAMRVelodyneReader::GetBlockLevel(const int blockIdx)
+int vtkAMRVelodyneReader::GetBlockLevel(int blockIdx)
 {
   assert("pre: Internal Velodyne Reader is nullptr" && (this->Internal != nullptr));
   if (!this->IsReady)
@@ -237,7 +240,7 @@ int vtkAMRVelodyneReader::FillMetaData()
   return 1;
 }
 
-vtkUniformGrid* vtkAMRVelodyneReader::GetAMRGrid(const int blockIdx)
+vtkUniformGrid* vtkAMRVelodyneReader::GetAMRGrid(int blockIdx)
 {
   if (!this->IsReady)
   {
@@ -256,8 +259,7 @@ vtkUniformGrid* vtkAMRVelodyneReader::GetAMRGrid(const int blockIdx)
   return ug;
 }
 
-void vtkAMRVelodyneReader::GetAMRGridData(
-  const int blockIdx, vtkUniformGrid* block, const char* field)
+void vtkAMRVelodyneReader::GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field)
 {
   assert("pre: Internal Velodyne Reader is nullptr" && (this->Internal != nullptr));
   this->Internal->ReadMetaData();
@@ -352,3 +354,4 @@ vtkOverlappingAMR* vtkAMRVelodyneReader::GetOutput()
   amr->GenerateParentChildInformation();
   return amr;
 }
+VTK_ABI_NAMESPACE_END

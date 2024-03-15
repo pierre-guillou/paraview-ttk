@@ -1,16 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkXYPlotActor.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkXYPlotActor.h"
 
 #include "vtkAlgorithm.h"
@@ -42,6 +31,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #define VTK_MAX_PLOTS 50
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkXYPlotActor);
 
 vtkCxxSetObjectMacro(vtkXYPlotActor, TitleTextProperty, vtkTextProperty);
@@ -3152,3 +3142,4 @@ void vtkXYPlotActor::SetAxisLabelVerticalJustification(int x)
   this->GetAxisLabelTextProperty()->SetVerticalJustification(x);
   this->Modified();
 }
+VTK_ABI_NAMESPACE_END

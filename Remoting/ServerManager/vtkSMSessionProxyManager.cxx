@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSessionProxyManager.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMSessionProxyManager.h"
 
 #include "vtkClientServerStreamInstantiator.h"
@@ -30,6 +18,7 @@
 #include "vtkSMDeserializerProtobuf.h"
 #include "vtkSMDocumentation.h"
 #include "vtkSMPipelineState.h"
+#include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyDefinitionManager.h"
@@ -39,9 +28,12 @@
 #include "vtkSMProxyProperty.h"
 #include "vtkSMProxySelectionModel.h"
 #include "vtkSMSessionClient.h"
+#include "vtkSMSessionProxyManagerInternals.h"
 #include "vtkSMSettingsProxy.h"
+#include "vtkSMSourceProxy.h"
 #include "vtkSMStateLoader.h"
 #include "vtkSMStateLocator.h"
+#include "vtkSMStringVectorProperty.h"
 #include "vtkSMUndoStack.h"
 #include "vtkSMUndoStackBuilder.h"
 #include "vtkSmartPointer.h"
@@ -56,8 +48,6 @@
 #include <set>
 #include <sstream>
 #include <vector>
-
-#include "vtkSMSessionProxyManagerInternals.h"
 
 #if 0 // for debugging
 class vtkSMProxyRegObserver : public vtkCommand
@@ -1210,11 +1200,11 @@ int vtkSMSessionProxyManager::AreProxiesModified()
 
 //---------------------------------------------------------------------------
 void vtkSMSessionProxyManager::LoadXMLState(
-  const char* filename, vtkSMStateLoader* loader /*=nullptr*/)
+  const char* filename, vtkSMStateLoader* loader /*=nullptr*/, vtkTypeUInt32 location)
 {
+  const std::string contents = this->LoadString(filename, location);
   vtkPVXMLParser* parser = vtkPVXMLParser::New();
-  parser->SetFileName(filename);
-  parser->Parse();
+  parser->Parse(contents.c_str());
 
   this->LoadXMLState(parser->GetRootElement(), loader);
   parser->Delete();
@@ -1252,17 +1242,65 @@ void vtkSMSessionProxyManager::LoadXMLState(vtkPVXMLElement* rootElement,
 }
 
 //---------------------------------------------------------------------------
-bool vtkSMSessionProxyManager::SaveXMLState(const char* filename)
+bool vtkSMSessionProxyManager::SaveString(
+  const char* string, const char* filename, vtkTypeUInt32 location)
 {
-  vtkPVXMLElement* rootElement = this->SaveXMLState();
-  vtksys::ofstream os(filename, ios::out);
-  if (!os.is_open())
+  if (string == nullptr || filename == nullptr)
   {
+    vtkErrorMacro("Invalid arguments");
     return false;
   }
-  rootElement->PrintXML(os, vtkIndent());
-  rootElement->Delete();
+
+  auto proxy = vtkSMSourceProxy::SafeDownCast(this->NewProxy("internal_writers", "StringWriter"));
+  if (!proxy)
+  {
+    vtkErrorMacro("Failed to create string proxy writer");
+    return false;
+  }
+  proxy->SetLocation(location);
+  vtkSMPropertyHelper(proxy, "FileName").Set(filename);
+  vtkSMPropertyHelper(proxy, "String").Set(string);
+  proxy->UpdateVTKObjects();
+  proxy->UpdatePipeline();
+  proxy->Delete();
   return true;
+}
+
+//---------------------------------------------------------------------------
+std::string vtkSMSessionProxyManager::LoadString(const char* filename, vtkTypeUInt32 location)
+{
+  if (filename == nullptr)
+  {
+    vtkErrorMacro("Invalid arguments");
+    return std::string();
+  }
+
+  auto proxy = vtkSMSourceProxy::SafeDownCast(this->NewProxy("internal_sources", "StringReader"));
+  if (!proxy)
+  {
+    vtkErrorMacro("Failed to create string proxy reader");
+    return std::string();
+  }
+  proxy->SetLocation(location);
+  vtkSMPropertyHelper(proxy, "FileName").Set(filename);
+  proxy->UpdateVTKObjects();
+  proxy->UpdatePipeline();
+
+  auto stringProp = vtkSMStringVectorProperty::SafeDownCast(proxy->GetProperty("String"));
+  proxy->UpdatePropertyInformation(stringProp);
+  const std::string contents = stringProp->GetElement(0);
+  proxy->Delete();
+  return contents;
+}
+
+//---------------------------------------------------------------------------
+bool vtkSMSessionProxyManager::SaveXMLState(const char* filename, vtkTypeUInt32 location)
+{
+  vtkPVXMLElement* rootElement = this->SaveXMLState();
+  std::ostringstream xmlStream;
+  rootElement->PrintXML(xmlStream, vtkIndent());
+  rootElement->Delete();
+  return this->SaveString(xmlStream.str().c_str(), filename, location);
 }
 
 //---------------------------------------------------------------------------

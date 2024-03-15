@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVPlugin.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVPlugin
  * @brief   defines the core interface for any ParaView plugin.
@@ -98,7 +86,7 @@ public:
    */
   virtual void GetBinaryResources(std::vector<std::string>& resources);
 
-  //@{
+  ///@{
   /**
    * Used when import plugins programmatically.
    * This must only be called after the application has initialized, more
@@ -119,13 +107,13 @@ public:
    */
   typedef bool (*EULAConfirmationCallback)(vtkPVPlugin*);
 
-  //@{
+  ///@{
   /**
    * Get/Set the static callback to call to confirm EULA
    */
   static void SetEULAConfirmationCallback(EULAConfirmationCallback callback);
   static EULAConfirmationCallback GetEULAConfirmationCallback();
-  //@}
+  ///@}
 
 protected:
   /**

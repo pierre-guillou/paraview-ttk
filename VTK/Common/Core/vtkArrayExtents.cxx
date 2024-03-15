@@ -1,23 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayExtents.cxx
-
--------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #include "vtkArrayExtents.h"
 #include "vtkArrayCoordinates.h"
@@ -25,9 +8,10 @@
 #include <functional>
 #include <numeric>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkArrayExtents::vtkArrayExtents() = default;
 
-vtkArrayExtents::vtkArrayExtents(const CoordinateT i)
+vtkArrayExtents::vtkArrayExtents(CoordinateT i)
   : Storage(1)
 {
   this->Storage[0] = vtkArrayRange(0, i);
@@ -39,7 +23,7 @@ vtkArrayExtents::vtkArrayExtents(const vtkArrayRange& i)
   this->Storage[0] = i;
 }
 
-vtkArrayExtents::vtkArrayExtents(const CoordinateT i, const CoordinateT j)
+vtkArrayExtents::vtkArrayExtents(CoordinateT i, CoordinateT j)
   : Storage(2)
 {
   this->Storage[0] = vtkArrayRange(0, i);
@@ -53,7 +37,7 @@ vtkArrayExtents::vtkArrayExtents(const vtkArrayRange& i, const vtkArrayRange& j)
   this->Storage[1] = j;
 }
 
-vtkArrayExtents::vtkArrayExtents(const CoordinateT i, const CoordinateT j, const CoordinateT k)
+vtkArrayExtents::vtkArrayExtents(CoordinateT i, CoordinateT j, CoordinateT k)
   : Storage(3)
 {
   this->Storage[0] = vtkArrayRange(0, i);
@@ -231,3 +215,4 @@ ostream& operator<<(ostream& stream, const vtkArrayExtents& rhs)
 
   return stream;
 }
+VTK_ABI_NAMESPACE_END

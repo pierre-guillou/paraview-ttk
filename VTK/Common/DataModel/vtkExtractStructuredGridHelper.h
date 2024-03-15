@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractStructuredGridHelper
  * @brief   helper for extracting/sub-sampling
@@ -34,20 +22,25 @@
 #include "vtkObject.h"
 
 // Forward declarations
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellData;
 class vtkPointData;
 class vtkPoints;
+VTK_ABI_NAMESPACE_END
 
 namespace vtk
 {
 namespace detail
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 struct vtkIndexMap;
 
+VTK_ABI_NAMESPACE_END
 } // END namespace detail
 } // END namespace vtk
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONDATAMODEL_EXPORT vtkExtractStructuredGridHelper : public vtkObject
 {
 public:
@@ -77,7 +70,7 @@ public:
    * \param dim the dimension in query
    * \pre dim >= 0 && dim < 3
    */
-  int GetSize(const int dim);
+  int GetSize(int dim);
 
   /**
    * \brief Given a dimension and output index, return the corresponding
@@ -227,4 +220,5 @@ private:
   void operator=(const vtkExtractStructuredGridHelper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* VTKEXTRACTSTRUCTUREDGRIDHELPER_H_ */

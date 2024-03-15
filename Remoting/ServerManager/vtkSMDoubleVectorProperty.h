@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMDoubleVectorProperty.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMDoubleVectorProperty
  * @brief   property representing a vector of doubles
@@ -55,7 +43,7 @@ public:
    */
   int SetElement(unsigned int idx, double value);
 
-  //@{
+  ///@{
   /**
    * Set the values of all elements. The size of the values array
    * has to be equal or larger to the size of the vector.
@@ -66,15 +54,15 @@ public:
   int SetElements(const double* values);
   int SetElements(const double* values, unsigned int numValues);
   double* GetElements();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Sets the values of all the unchecked elements.
    */
   int SetUncheckedElements(const double* values);
   int SetUncheckedElements(const double* values, unsigned int numValues);
-  //@}
+  ///@}
 
   /**
    * Set the value of 1st element. The vector is resized as necessary.
@@ -145,7 +133,7 @@ public:
    */
   void SetUncheckedElement(unsigned int idx, double value);
 
-  //@{
+  ///@{
   /**
    * If ArgumentIsArray is true, multiple elements are passed in as
    * array arguments. For example, For example, if
@@ -160,7 +148,7 @@ public:
    */
   vtkGetMacro(ArgumentIsArray, int);
   vtkSetMacro(ArgumentIsArray, int);
-  //@}
+  ///@}
 
   /**
    * Copy all property values.

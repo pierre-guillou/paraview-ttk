@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCameraOrientationRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCameraOrientationRepresentation.h"
 
 #include "vtkActor.h"
@@ -58,6 +46,7 @@
   }
 
 //-----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCameraOrientationRepresentation);
 
 //-----------------------------------------------------------------------------
@@ -356,15 +345,19 @@ void vtkCameraOrientationRepresentation::ApplyInteractionState(const int& state)
 //-----------------------------------------------------------------------------
 void vtkCameraOrientationRepresentation::GetActors(vtkPropCollection* ac)
 {
-  ac->AddItem(this->Container);
-  for (int ax = 0; ax < 3; ++ax)
+  if (ac != nullptr && this->GetVisibility())
   {
-    ac->AddItem(this->Shafts);
-    for (int dir = 0; dir < 2; ++dir)
+    ac->AddItem(this->Container);
+    for (int ax = 0; ax < 3; ++ax)
     {
-      ac->AddItem(this->Handles[ax][dir]);
+      ac->AddItem(this->Shafts);
+      for (int dir = 0; dir < 2; ++dir)
+      {
+        ac->AddItem(this->Handles[ax][dir]);
+      }
     }
   }
+  this->Superclass::GetActors(ac);
 }
 
 //-----------------------------------------------------------------------------
@@ -631,10 +624,12 @@ int vtkCameraOrientationRepresentation::RenderOpaqueGeometry(vtkViewport* vp)
 
   if (this->Container->GetVisibility())
   {
+    this->Container->SetPropertyKeys(this->GetPropertyKeys());
     this->Container->GetMapper()->Update();
     count += this->Container->RenderOpaqueGeometry(vp);
   }
 
+  this->Shafts->SetPropertyKeys(this->GetPropertyKeys());
   this->Shafts->GetMapper()->Update();
   count += this->Shafts->RenderOpaqueGeometry(vp);
 
@@ -643,6 +638,7 @@ int vtkCameraOrientationRepresentation::RenderOpaqueGeometry(vtkViewport* vp)
     for (int dir = 0; dir < 2; ++dir)
     {
       const auto& handle = this->Handles[ax][dir];
+      handle->SetPropertyKeys(this->GetPropertyKeys());
       handle->GetMapper()->Update();
       count += handle->RenderOpaqueGeometry(vp);
     }
@@ -657,17 +653,21 @@ int vtkCameraOrientationRepresentation::RenderTranslucentPolygonalGeometry(vtkVi
 
   if (this->Container->GetVisibility())
   {
+    this->Container->SetPropertyKeys(this->GetPropertyKeys());
     this->Container->GetMapper()->Update();
     count += this->Container->RenderTranslucentPolygonalGeometry(vp);
   }
 
+  this->Shafts->SetPropertyKeys(this->GetPropertyKeys());
   this->Shafts->GetMapper()->Update();
   count += this->Shafts->RenderTranslucentPolygonalGeometry(vp);
+
   for (int ax = 0; ax < 3; ++ax)
   {
     for (int dir = 0; dir < 2; ++dir)
     {
       const auto& handle = this->Handles[ax][dir];
+      handle->SetPropertyKeys(this->GetPropertyKeys());
       handle->GetMapper()->Update();
       count += handle->RenderTranslucentPolygonalGeometry(vp);
     }
@@ -890,3 +890,4 @@ void vtkCameraOrientationRepresentation::PrintSelf(ostream& os, vtkIndent indent
   this->Transform->PrintSelf(os, indent);
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStructuredGridGeometryFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStructuredGridGeometryFilter.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStructuredGridGeometryFilter);
 
 // Construct with initial extent of all the data
@@ -153,6 +142,9 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
     startCellIdx += (extent[4] < dims[2] - 1) ? extent[4] * (dims[0] - 1) * (dims[1] - 1)
                                               : (extent[4] - 1) * (dims[0] - 1) * (dims[1] - 1);
   }
+
+  bool abort = false;
+
   switch (dimension)
   {
     default:
@@ -175,6 +167,7 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
         cellId = newVerts->InsertNextCell(1, ptIds);
         outCD->CopyData(cd, startIdx, cellId);
       }
+      this->CheckAbort();
       break;
 
     case 1: // --------------------- build line -----------------------
@@ -215,14 +208,22 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
 
       for (i = 0; i < totPoints; i++)
       {
+        if (this->CheckAbort())
+        {
+          break;
+        }
         idx = startIdx + i * offset[0];
         input->GetPoint(idx, x);
         ptIds[0] = newPts->InsertNextPoint(x);
         outPD->CopyData(pd, idx, ptIds[0]);
       }
 
-      for (i = 0; i < (totPoints - 1); i++)
+      for (i = 0; i < (totPoints - 1) && !abort; i++)
       {
+        if (this->CheckAbort())
+        {
+          break;
+        }
         if (input->IsPointVisible(startIdx + i * offset[0]) &&
           input->IsPointVisible(startIdx + (i + 1) * offset[0]))
         {
@@ -284,10 +285,15 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
 
       // Create points whether visible or not.  Makes coding easier
       // but generates extra data.
-      for (pos = startIdx, j = 0; j < (diff[dir[1]] + 1); j++)
+      for (pos = startIdx, j = 0; j < (diff[dir[1]] + 1) && !abort; j++)
       {
         for (i = 0; i < (diff[dir[0]] + 1); i++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           idx = pos + i * offset[0];
           input->GetPoint(idx, x);
           ptIds[0] = newPts->InsertNextPoint(x);
@@ -296,10 +302,15 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
         pos += offset[1];
       }
 
-      for (pos = startIdx, cellPos = startCellIdx, j = 0; j < diff[dir[1]]; j++)
+      for (pos = startIdx, cellPos = startCellIdx, j = 0; j < diff[dir[1]] && !abort; j++)
       {
         for (i = 0; i < diff[dir[0]]; i++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           if (input->IsPointVisible(pos + i * offset[0]) &&
             input->IsPointVisible(pos + (i + 1) * offset[0]) &&
             input->IsPointVisible(pos + i * offset[0] + offset[1]) &&
@@ -342,10 +353,15 @@ int vtkStructuredGridGeometryFilter::RequestData(vtkInformation* vtkNotUsed(requ
       offset[0] = dims[0];
       offset[1] = dims[0] * dims[1];
 
-      for (k = 0; k < (diff[2] + 1); k++)
+      for (k = 0; k < (diff[2] + 1) && !abort; k++)
       {
         for (j = 0; j < (diff[1] + 1); j++)
         {
+          if (this->CheckAbort())
+          {
+            abort = true;
+            break;
+          }
           pos = startIdx + j * offset[0] + k * offset[1];
 
           // avoid accessing cells past the end of the grid
@@ -490,3 +506,4 @@ void vtkStructuredGridGeometryFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "  Jmin,Jmax: (" << this->Extent[2] << ", " << this->Extent[3] << ")\n";
   os << indent << "  Kmin,Kmax: (" << this->Extent[4] << ", " << this->Extent[5] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSphericalPointIterator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSphericalPointIterator.h"
 
 #include "vtkCellArray.h"
@@ -25,6 +13,7 @@
 #include <numeric>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSphericalPointIterator);
 
 //=============================================================================
@@ -161,7 +150,7 @@ struct vtkSphericalPointIterator::SphericalPointIterator
     {
       this->DataSet->GetPoint(ptId, x);
       d2 = vtkMath::Distance2BetweenPoints(x, this->Center);
-      radialSort.emplace_back(RadialTuple(ptId, d2));
+      radialSort.emplace_back(ptId, d2);
     }
     if (dir == vtkSphericalPointIterator::SORT_DESCENDING)
     {
@@ -616,3 +605,4 @@ void vtkSphericalPointIterator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Axes: " << this->Axes << "\n";
   os << indent << "Sorting: " << this->Sorting << "\n";
 }
+VTK_ABI_NAMESPACE_END

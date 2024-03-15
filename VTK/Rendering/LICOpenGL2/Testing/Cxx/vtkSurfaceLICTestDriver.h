@@ -1,24 +1,15 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestSurfaceLIC.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkTestSurfaceLICDriver_h
 #define vtkTestSurfaceLICDriver_h
 
 #include "vtkSystemIncludes.h" // include it first
 #include <string>              // for string
 #include <vector>              // for vector
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataObject;
+VTK_ABI_NAMESPACE_END
 
 // Description:
 // Internal test driver. Used by serial and parallel

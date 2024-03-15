@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkCPPythonPipeline.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPython.h" // must be first
 
 #include "vtkCPPythonPipeline.h"
@@ -77,7 +65,7 @@ void CatalystInitializePython()
     PyErr_Clear();
   }
 
-  vtkSmartPyObject method(PyString_FromString("InitializePythonEnvironment"));
+  vtkSmartPyObject method(PyUnicode_FromString("InitializePythonEnvironment"));
   vtkSmartPyObject result(PyObject_CallMethodObjArgs(module, method, nullptr));
   if (!result)
   {
@@ -273,11 +261,7 @@ void vtkCPPythonPipeline::FixEOL(std::string& str)
 std::string vtkCPPythonPipeline::GetPythonAddress(void* pointer)
 {
   char addressOfPointer[1024];
-#ifdef COPROCESSOR_WIN32_BUILD
-  sprintf_s(addressOfPointer, "%p", pointer);
-#else
-  sprintf(addressOfPointer, "%p", pointer);
-#endif
+  snprintf(addressOfPointer, sizeof(addressOfPointer), "%p", pointer);
   char* aplus = addressOfPointer;
   if ((addressOfPointer[0] == '0') && ((addressOfPointer[1] == 'x') || addressOfPointer[1] == 'X'))
   {

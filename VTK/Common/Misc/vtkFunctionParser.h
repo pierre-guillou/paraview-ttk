@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFunctionParser.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkFunctionParser
  * @brief   Parse and evaluate a mathematical expression
@@ -130,6 +118,7 @@
 // the value that is returned as a result if there is an error
 #define VTK_PARSER_ERROR_RESULT VTK_FLOAT_MAX
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONMISC_EXPORT vtkFunctionParser : public vtkObject
 {
 public:
@@ -457,4 +446,5 @@ private:
   void operator=(const vtkFunctionParser&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

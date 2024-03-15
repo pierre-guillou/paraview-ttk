@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAxis.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkAxis
@@ -59,6 +47,7 @@
 #include "vtkStdString.h"    // For vtkStdString ivars
 #include "vtkVector.h"       // For position variables
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkFloatArray;
 class vtkDoubleArray;
@@ -497,7 +486,7 @@ public:
   ///@{
   /**
    * Get/set the tick label algorithm that is used to calculate the min, max
-   * and tick spacing. There are currently two algoriths, vtkAxis::TICK_SIMPLE
+   * and tick spacing. There are currently two algorithms, vtkAxis::TICK_SIMPLE
    * is the default and uses a simple algorithm. The second option is
    * vtkAxis::TICK_WILKINSON which uses an extended Wilkinson algorithm to find
    * the optimal range, spacing and font parameters.
@@ -794,4 +783,5 @@ private:
   bool InRange(double value);
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkAxis_h

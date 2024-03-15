@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotPoints.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkPlotPoints
@@ -37,6 +25,7 @@
 #include "vtkScalarsToColors.h"    // For VTK_COLOR_MODE_DEFAULT and _MAP_SCALARS
 #include "vtkStdString.h"          // For color array name
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCharArray;
 class vtkContext2D;
 class vtkTable;
@@ -184,6 +173,8 @@ public:
    */
   bool UpdateCache() override;
 
+  void ReleaseGraphicsCache() override;
+
 protected:
   vtkPlotPoints();
   ~vtkPlotPoints() override;
@@ -196,7 +187,7 @@ protected:
   /**
    * Test if the internal cache requires an update.
    */
-  virtual bool CacheRequiresUpdate() override;
+  bool CacheRequiresUpdate() override;
 
   /**
    * Calculate the unscaled input bounds from the input arrays.
@@ -289,4 +280,5 @@ private:
   void operator=(const vtkPlotPoints&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkPlotPoints_h

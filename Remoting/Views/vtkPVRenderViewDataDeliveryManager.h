@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program: ParaView
-  Module:  vtkPVRenderViewDataDeliveryManager
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVRenderViewDataDeliveryManager
  * @brief vtkPVRenderView specific subclass of vtkPVDataDeliveryManager.
@@ -69,7 +57,7 @@ public:
   void SetDeliverToClientAndRenderingProcesses(vtkPVDataRepresentation*, bool deliver_to_client,
     bool gather_before_delivery, bool low_res, int port = 0);
 
-  //@{
+  ///@{
   /**
    * For representations that have indicated that the data is redistributable
    * (using SetOrderedCompositingConfiguration), this control the mode for redistribution.
@@ -83,7 +71,7 @@ public:
   void SetRedistributionModeToDuplicateBoundaryCells(vtkPVDataRepresentation* repr, int port = 0);
   void SetRedistributionModeToUniquelyAssignBoundaryCells(
     vtkPVDataRepresentation* repr, int port = 0);
-  //@}
+  ///@}
 
   /**
    * Called by the view on every render when ordered compositing is to be used to
@@ -106,7 +94,7 @@ public:
   void SetOrderedCompositingConfiguration(
     vtkPVDataRepresentation* repr, int config, const double* bds, int port = 0);
 
-  //@{
+  ///@{
   /**
    * Pass data bounds information.
    */
@@ -114,7 +102,7 @@ public:
     vtkMatrix4x4* matrix = nullptr, int port = 0);
   vtkBoundingBox GetGeometryBounds(vtkPVDataRepresentation* repr, int port = 0);
   vtkBoundingBox GetTransformedGeometryBounds(vtkPVDataRepresentation* repr, int port = 0);
-  //@}
+  ///@}
 
   // *******************************************************************
   // UNDER CONSTRUCTION STREAMING API
@@ -127,7 +115,7 @@ public:
    */
   void SetStreamable(vtkPVDataRepresentation*, bool, int port = 0);
 
-  //@{
+  ///@{
   /**
    * Passes the current streamed piece. This is the piece that will be delivered
    * to the rendering node.
@@ -135,7 +123,7 @@ public:
   void SetNextStreamedPiece(vtkPVDataRepresentation* repr, vtkDataObject* piece, int port = 0);
   vtkDataObject* GetCurrentStreamedPiece(vtkPVDataRepresentation* repr, int port = 0);
   void ClearStreamedPieces();
-  //@}
+  ///@}
 
   /**
    * Deliver streamed pieces. Unlike regular data, streamed pieces are delivered
@@ -150,18 +138,18 @@ public:
    */
   bool GetRepresentationsReadyToStreamPieces(std::vector<unsigned int>& keys);
 
-  //@{
+  ///@{
   /**
    * When set to true GetDeliveredDataKey returns `REDISTRIBUTED_DATA_KEY` else
    * returns the key returned by GetViewDataDistributionMode
    */
   vtkGetMacro(UseRedistributedDataAsDeliveredData, bool);
   vtkSetMacro(UseRedistributedDataAsDeliveredData, bool);
-  //@}
+  ///@}
 
   int GetDeliveredDataKey(bool low_res) const override;
 
-  //@{
+  ///@{
   /**
    * Provides access to the "cuts" built by this class when doing ordered
    * compositing. Note, this may not be up-to-date unless ordered compositing is
@@ -170,9 +158,9 @@ public:
    */
   const std::vector<vtkBoundingBox>& GetCuts() const { return this->Cuts; }
   vtkTimeStamp GetCutsMTime() const { return this->CutsMTime; }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When using an internally generated kd-tree for ordered compositing, this
    * method provides access to the complete kd-tree and the rendering rank
@@ -185,7 +173,7 @@ public:
    */
   const std::vector<vtkBoundingBox>& GetRawCuts() const { return this->RawCuts; }
   const std::vector<int>& GetRawCutsRankAssignments() const { return this->RawCutsRankAssignments; }
-  //@}
+  ///@}
 
 protected:
   vtkPVRenderViewDataDeliveryManager();

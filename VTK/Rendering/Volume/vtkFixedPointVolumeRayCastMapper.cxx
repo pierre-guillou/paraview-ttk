@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFixedPointVolumeRayCastMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFixedPointVolumeRayCastMapper.h"
 
 #include "vtkCamera.h"
@@ -48,6 +36,7 @@
 #include <cmath>
 #include <exception>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFixedPointVolumeRayCastMapper);
 vtkCxxSetObjectMacro(vtkFixedPointVolumeRayCastMapper, RayCastImage, vtkFixedPointRayCastImage);
 
@@ -1043,7 +1032,7 @@ void vtkFixedPointVolumeRayCastMapper::UpdateCroppingRegions()
 // directly as the mapper, the Render method calls these initialization
 // methods and the RenderSubVolumeMethod. The AMR mapper will set the
 // multiRender flag to 1 indicating that the PerImageInitialization
-// should fully polulate the RayCastImage class based on the
+// should fully populate the RayCastImage class based on the
 // origin, spacing, and extent passed in. This will result in computing
 // some things twice - once for the "full" volume (the extent bounding
 // all volumes in the hierarchy), then once for each volume in the
@@ -3235,3 +3224,4 @@ void vtkFixedPointVolumeRayCastMapper::ReleaseGraphicsResources(vtkWindow* win)
     this->ImageDisplayHelper->ReleaseGraphicsResources(win);
   }
 }
+VTK_ABI_NAMESPACE_END

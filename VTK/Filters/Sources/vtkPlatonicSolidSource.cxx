@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlatonicSolidSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPlatonicSolidSource.h"
 
 #include "vtkCellArray.h"
@@ -22,7 +10,9 @@
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPlatonicSolidSource);
+VTK_ABI_NAMESPACE_END
 
 // Wrapping this in namespaces because the short names (a, b, c, etc) are
 // throwing warnings on MSVC when inlined methods in vtkGenericDataArray are
@@ -42,10 +32,10 @@ constexpr double TetraPoints[] = {
   -1.0, -1.0, 1.0  //
 };
 constexpr vtkIdType TetraVerts[] = {
-  0, 1, 2, //
-  1, 3, 2, //
-  0, 2, 3, //
-  0, 3, 1  //
+  0, 2, 1, //
+  1, 2, 3, //
+  0, 3, 2, //
+  0, 1, 3  //
 };
 
 constexpr double CubePoints[] = {
@@ -142,30 +132,31 @@ constexpr double IcosaPoints[] = {
   c, 0.0, -d   //
 };
 constexpr vtkIdType IcosaVerts[] = {
-  0, 5, 3,  //
-  1, 3, 5,  //
-  1, 2, 9,  //
-  1, 8, 2,  //
-  0, 7, 11, //
-  0, 10, 7, //
-  2, 6, 4,  //
-  7, 4, 6,  //
-  3, 9, 10, //
-  4, 10, 9, //
-  5, 11, 8, //
-  6, 8, 11, //
-  1, 9, 3,  //
-  1, 5, 8,  //
-  0, 3, 10, //
-  0, 11, 5, //
-  7, 10, 4, //
-  7, 6, 11, //
-  2, 4, 9,  //
-  2, 8, 6   //
+  0, 3, 5,  //
+  1, 5, 3,  //
+  1, 9, 2,  //
+  1, 2, 8,  //
+  0, 11, 7, //
+  0, 7, 10, //
+  2, 4, 6,  //
+  7, 6, 4,  //
+  3, 10, 9, //
+  4, 9, 10, //
+  5, 8, 11, //
+  6, 11, 8, //
+  1, 3, 9,  //
+  1, 8, 5,  //
+  0, 10, 3, //
+  0, 5, 11, //
+  7, 4, 10, //
+  7, 11, 6, //
+  2, 9, 4,  //
+  2, 6, 8   //
 };
 } // end namespace detail
 } // end anon namespace
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkPlatonicSolidSource::vtkPlatonicSolidSource()
 {
   this->SolidType = VTK_SOLID_TETRAHEDRON;
@@ -318,3 +309,4 @@ void vtkPlatonicSolidSource::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Output Points Precision: " << this->OutputPointsPrecision << "\n";
 }
+VTK_ABI_NAMESPACE_END

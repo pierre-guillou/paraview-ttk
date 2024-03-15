@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperStreamline.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperStreamline.h"
 
 #include "vtkCellArray.h"
@@ -24,6 +12,7 @@
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperStreamline);
 
 //
@@ -476,7 +465,7 @@ int vtkHyperStreamline::RequestData(vtkInformation* vtkNotUsed(request),
   //
   // For each hyperstreamline, integrate in appropriate direction (using RK2).
   //
-  for (ptId = 0; ptId < this->NumberOfStreamers; ptId++)
+  for (ptId = 0; ptId < this->NumberOfStreamers && !this->CheckAbort(); ptId++)
   {
     // get starting step
     sPtr = this->Streamers[ptId].GetHyperPoint(0);
@@ -499,7 +488,10 @@ int vtkHyperStreamline::RequestData(vtkInformation* vtkNotUsed(request),
     while (sPtr->CellId >= 0 && fabs(sPtr->W[0]) > this->TerminalEigenvalue &&
       sPtr->D < this->MaximumPropagationDistance)
     {
-
+      if (this->CheckAbort())
+      {
+        break;
+      }
       // compute updated position using this step (Euler integration)
       for (i = 0; i < 3; i++)
       {
@@ -901,3 +893,4 @@ void vtkHyperStreamline::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Integrate Along Minor Eigenvector\n";
   }
 }
+VTK_ABI_NAMESPACE_END

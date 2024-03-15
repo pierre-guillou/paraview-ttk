@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDiscreteFlyingEdgesClipper2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkDiscreteFlyingEdgesClipper2D
  * @brief   generate filled regions from segmented 2D image data
@@ -58,6 +46,7 @@
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 
 class VTKFILTERSGENERAL_EXPORT vtkDiscreteFlyingEdgesClipper2D : public vtkPolyDataAlgorithm
@@ -137,9 +126,9 @@ public:
    * Option to set the cell scalars of the output. The scalars will be the
    * contour values. By default this flag is on.
    */
-  vtkSetMacro(ComputeScalars, int);
-  vtkGetMacro(ComputeScalars, int);
-  vtkBooleanMacro(ComputeScalars, int);
+  vtkSetMacro(ComputeScalars, vtkTypeBool);
+  vtkGetMacro(ComputeScalars, vtkTypeBool);
+  vtkBooleanMacro(ComputeScalars, vtkTypeBool);
   ///@}
 
   ///@{
@@ -159,7 +148,7 @@ protected:
   int FillInputPortInformation(int port, vtkInformation* info) override;
 
   vtkContourValues* ContourValues;
-  int ComputeScalars;
+  vtkTypeBool ComputeScalars;
   int ArrayComponent;
 
 private:
@@ -167,4 +156,5 @@ private:
   void operator=(const vtkDiscreteFlyingEdgesClipper2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

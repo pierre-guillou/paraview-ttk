@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStreamLinesMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamLinesMapper
  * @brief   Mapper for live stream lines rendering of vtkDataSet.
@@ -42,69 +31,69 @@ public:
   vtkTypeMacro(vtkStreamLinesMapper, vtkMapper);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set animation status. Default is true.
    */
   virtual void SetAnimate(bool);
   vtkGetMacro(Animate, bool);
   vtkBooleanMacro(Animate, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the Alpha blending between new trajectory and previous.
    * Default is 0.95
    */
   vtkSetMacro(Alpha, double);
   vtkGetMacro(Alpha, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the integration step factor.
    * Default is 0.01
    */
   vtkSetMacro(StepLength, double);
   vtkGetMacro(StepLength, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the number of particles.
    * Default is 1000.
    */
   void SetNumberOfParticles(int);
   vtkGetMacro(NumberOfParticles, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the maximum number of iteration before particles die.
    * Default is 600.
    */
   vtkSetMacro(MaxTimeToLive, int);
   vtkGetMacro(MaxTimeToLive, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the maximum number of animation steps before the animation stops.
    * Default is 1.
    */
   vtkSetMacro(NumberOfAnimationSteps, int);
   vtkGetMacro(NumberOfAnimationSteps, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Some introspection on the type of data the mapper will render
    * used by props to determine if they should invoke the mapper
    * on a specific rendering pass.
    */
   bool HasOpaqueGeometry() override { return true; }
-  bool HasTranslucentPolygonalGeometry() override { return false; }
-  //@}
+  bool HasTranslucentPolygonalGeometry() override { return true; }
+  ///@}
 
   /**
    * WARNING: INTERNAL METHOD - NOT INTENDED FOR GENERAL USE

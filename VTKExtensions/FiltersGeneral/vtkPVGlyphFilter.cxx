@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVGlyphFilter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVGlyphFilter.h"
 
 // VTK includes
@@ -676,7 +664,7 @@ int vtkPVGlyphFilter::RequestData(vtkInformation* vtkNotUsed(request),
 
     vtkSmartPointer<vtkDataObjectTree> cdsCopy;
     cdsCopy.TakeReference(outputDT->NewInstance());
-    cdsCopy->ShallowCopy(cds);
+    cdsCopy->CompositeShallowCopy(cds);
 
     vtkSmartPointer<vtkCompositeDataIterator> iter;
     iter.TakeReference(cdsCopy->NewIterator());

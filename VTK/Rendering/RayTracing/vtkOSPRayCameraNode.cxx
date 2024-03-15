@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOSPRayCameraNode.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOSPRayCameraNode.h"
 
 #include "vtkCamera.h"
@@ -27,6 +15,7 @@
 #include "RTWrapper/RTWrapper.h"
 
 //============================================================================
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOSPRayCameraNode);
 
 //------------------------------------------------------------------------------
@@ -102,7 +91,7 @@ void vtkOSPRayCameraNode::Render(bool prepass)
       }
       else
       {
-        ospSetFloat(ospCamera, "focusDistance", 0.0f);
+        ospSetFloat(ospCamera, "focusDistance", 1.0f);
         ospSetFloat(ospCamera, "apertureRadius", 0.0f);
       }
     }
@@ -149,7 +138,7 @@ void vtkOSPRayCameraNode::Render(bool prepass)
     ospSetVec2f(ospCamera, "imageStart", (float)vp[0], (float)vp[1]);
     ospSetVec2f(ospCamera, "imageEnd", (float)vp[2], (float)vp[3]);
     ospCommit(ospCamera);
-    ospRelease(ospCamera);
     this->oCamera = ospCamera;
   }
 }
+VTK_ABI_NAMESPACE_END

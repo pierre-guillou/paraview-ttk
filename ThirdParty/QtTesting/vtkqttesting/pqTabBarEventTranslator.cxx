@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqTabBarEventTranslator.h"
 
 #include <QEvent>
+#include <QMainWindow>
 #include <QTabBar>
 
 pqTabBarEventTranslator::pqTabBarEventTranslator(QObject* p)
@@ -74,5 +75,16 @@ bool pqTabBarEventTranslator::translateEvent(QObject* Object, QEvent* Event, boo
 
 void pqTabBarEventTranslator::indexChanged(int which)
 {
-  Q_EMIT recordEvent(this->CurrentObject, "set_tab_with_text", this->CurrentObject->tabText(which));
+  QObject* recordedObject = this->CurrentObject;
+  QObject* parent = this->CurrentObject->parent();
+  if (parent && this->CurrentObject->objectName().isEmpty())
+  {
+    QMainWindow* mainWindow = qobject_cast<QMainWindow*>(this->CurrentObject->parent());
+    if (mainWindow)
+    {
+      recordedObject = mainWindow;
+    }
+  }
+
+  Q_EMIT recordEvent(recordedObject, "set_tab_with_text", this->CurrentObject->tabText(which));
 }

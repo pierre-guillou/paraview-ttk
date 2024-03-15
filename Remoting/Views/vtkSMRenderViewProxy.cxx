@@ -1,18 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMRenderViewProxy.cxx
-
-  Copyright (c) Kitware, Inc.
-  Copyright (c) 2017, NVIDIA CORPORATION.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) 2017, NVIDIA CORPORATION
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMRenderViewProxy.h"
 
 #include "vtkBoundingBox.h"
@@ -46,14 +34,17 @@
 #include "vtkSMCollaborationManager.h"
 #include "vtkSMDataDeliveryManagerProxy.h"
 #include "vtkSMInputProperty.h"
+#include "vtkSMMaterialLibraryProxy.h"
 #include "vtkSMOutputPort.h"
-#include "vtkSMPVRepresentationProxy.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
+#include "vtkSMProxyInternals.h"
+#include "vtkSMProxyManager.h"
 #include "vtkSMRepresentationProxy.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
+#include "vtkSMStringVectorProperty.h"
 #include "vtkSMTrace.h"
 #include "vtkSMUncheckedPropertyHelper.h"
 #include "vtkSMViewProxyInteractorHelper.h"
@@ -668,7 +659,8 @@ const char* vtkSMRenderViewProxy::GetRepresentationType(vtkSMSourceProxy* produc
 
   const char* representationsToTry[] = { "UnstructuredGridRepresentation",
     "StructuredGridRepresentation", "HyperTreeGridRepresentation", "AMRRepresentation",
-    "UniformGridRepresentation", "PVMoleculeRepresentation", "GeometryRepresentation", nullptr };
+    "UniformGridRepresentation", "PVMoleculeRepresentation", "GeometryRepresentation",
+    "CellGridRepresentation", nullptr };
   for (int cc = 0; representationsToTry[cc] != nullptr; ++cc)
   {
     if (vtkSMProxy* prototype = pxm->GetPrototypeProxy("representations", representationsToTry[cc]))
@@ -729,7 +721,18 @@ const char* vtkSMRenderViewProxy::GetRepresentationType(vtkSMSourceProxy* produc
 }
 
 //----------------------------------------------------------------------------
-void vtkSMRenderViewProxy::ZoomTo(vtkSMProxy* representation, bool closest)
+void vtkSMRenderViewProxy::ZoomTo(vtkSMProxy* representation, bool closest, double offsetRatio)
+{
+  double bounds[6] = { 0.0 };
+  this->ComputeVisibleBounds(representation, bounds);
+  if (bounds[1] >= bounds[0] && bounds[3] >= bounds[2] && bounds[5] >= bounds[4])
+  {
+    this->ResetCamera(bounds, closest, offsetRatio);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkSMRenderViewProxy::ComputeVisibleBounds(vtkSMProxy* representation, double* bounds)
 {
   vtkSMPropertyHelper helper(representation, "Input");
   vtkSMSourceProxy* input = vtkSMSourceProxy::SafeDownCast(helper.GetAsProxy());
@@ -740,32 +743,45 @@ void vtkSMRenderViewProxy::ZoomTo(vtkSMProxy* representation, bool closest)
 
   // Send client server stream to the vtkPVRenderView to reduce visible bounds
   this->GetSession()->PrepareProgress();
+
   vtkClientServerStream stream;
   stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "ComputeVisibleBounds"
          << VTKOBJECT(representation) << vtkClientServerStream::End;
   this->ExecuteStream(stream);
   vtkClientServerStream result = this->GetLastResult();
 
-  double bounds[6];
   if (result.GetNumberOfMessages() == 1 && result.GetNumberOfArguments(0) == 1)
   {
     result.GetArgument(0, 0, bounds, 6);
   }
 
-  if (bounds[1] >= bounds[0] && bounds[3] >= bounds[2] && bounds[5] >= bounds[4])
-  {
-    this->ResetCamera(bounds, closest);
-  }
   this->GetSession()->CleanupPendingProgress();
 }
 
 //----------------------------------------------------------------------------
-void vtkSMRenderViewProxy::ResetCamera(bool closest)
+void vtkSMRenderViewProxy::SynchronizeGeometryBounds()
+{
+  SM_SCOPED_TRACE(CallMethod)
+    .arg(this)
+    .arg("SynchronizeGeometryBounds")
+    .arg("comment", "synchronize geometry bounds");
+
+  this->GetSession()->PrepareProgress();
+  vtkClientServerStream stream;
+  stream << vtkClientServerStream::Invoke << VTKOBJECT(this) << "SynchronizeGeometryBounds";
+  stream << vtkClientServerStream::End;
+  this->ExecuteStream(stream);
+  this->GetSession()->CleanupPendingProgress();
+}
+
+//----------------------------------------------------------------------------
+void vtkSMRenderViewProxy::ResetCamera(bool closest, double offsetRatio)
 {
   SM_SCOPED_TRACE(CallMethod)
     .arg(this)
     .arg("ResetCamera")
     .arg(closest)
+    .arg(offsetRatio)
     .arg("comment", "reset view to fit data");
 
   this->GetSession()->PrepareProgress();
@@ -773,7 +789,7 @@ void vtkSMRenderViewProxy::ResetCamera(bool closest)
   stream << vtkClientServerStream::Invoke << VTKOBJECT(this);
   if (closest)
   {
-    stream << "ResetCameraScreenSpace";
+    stream << "ResetCameraScreenSpace" << offsetRatio;
   }
   else
   {
@@ -785,15 +801,15 @@ void vtkSMRenderViewProxy::ResetCamera(bool closest)
 }
 
 //----------------------------------------------------------------------------
-void vtkSMRenderViewProxy::ResetCamera(
-  double xmin, double xmax, double ymin, double ymax, double zmin, double zmax, bool closest)
+void vtkSMRenderViewProxy::ResetCamera(double xmin, double xmax, double ymin, double ymax,
+  double zmin, double zmax, bool closest, double offsetRatio)
 {
   double bds[6] = { xmin, xmax, ymin, ymax, zmin, zmax };
-  this->ResetCamera(bds, closest);
+  this->ResetCamera(bds, closest, offsetRatio);
 }
 
 //----------------------------------------------------------------------------
-void vtkSMRenderViewProxy::ResetCamera(double bounds[6], bool closest)
+void vtkSMRenderViewProxy::ResetCamera(double bounds[6], bool closest, double offsetRatio)
 {
   SM_SCOPED_TRACE(CallMethod)
     .arg(this)
@@ -805,6 +821,7 @@ void vtkSMRenderViewProxy::ResetCamera(double bounds[6], bool closest)
     .arg(bounds[4])
     .arg(bounds[5])
     .arg(closest)
+    .arg(offsetRatio)
     .arg("comment", "reset view to fit data bounds");
   this->CreateVTKObjects();
 
@@ -812,13 +829,14 @@ void vtkSMRenderViewProxy::ResetCamera(double bounds[6], bool closest)
   stream << vtkClientServerStream::Invoke << VTKOBJECT(this);
   if (closest)
   {
-    stream << "ResetCameraScreenSpace";
+    stream << "ResetCameraScreenSpace" << vtkClientServerStream::InsertArray(bounds, 6)
+           << offsetRatio;
   }
   else
   {
-    stream << "ResetCamera";
+    stream << "ResetCamera" << vtkClientServerStream::InsertArray(bounds, 6);
   }
-  stream << vtkClientServerStream::InsertArray(bounds, 6) << vtkClientServerStream::End;
+  stream << vtkClientServerStream::End;
   this->ExecuteStream(stream);
 }
 
@@ -839,7 +857,7 @@ void vtkSMRenderViewProxy::MarkDirty(vtkSMProxy* modifiedProxy)
       strcmp(modifiedProxy->GetXMLName(), "PVExtractSelection") == 0;
     const bool isSelectionRepresentation =
       strcmp(modifiedProxy->GetXMLGroup(), "representations") == 0 &&
-      strcmp(modifiedProxy->GetXMLName(), "SelectionRepresentation") == 0;
+      strcmp(modifiedProxy->GetXMLName(), this->GetSelectionRepresentationProxyName()) == 0;
 
     const bool isFastPreSelection = strcmp(modifiedProxy->GetXMLGroup(), "representations") == 0 &&
       vtkPVRenderViewSettings::GetInstance()->GetEnableFastPreselection();
@@ -957,6 +975,36 @@ vtkSMRepresentationProxy* vtkSMRenderViewProxy::PickBlock(
 }
 
 //----------------------------------------------------------------------------
+void vtkSMRenderViewProxy::UpdateVTKObjects()
+{
+  // Load default OSPRay materials lazily when the path tracing algorithm is used
+  vtkSMProxyInternals::PropertyInfoMap::iterator it =
+    this->Internals->Properties.find("OSPRayRendererType");
+
+  if (it->second.ModifiedFlag)
+  {
+    vtkSMStringVectorProperty* svp =
+      vtkSMStringVectorProperty::SafeDownCast(this->GetProperty("OSPRayRendererType"));
+    const char* rendererType = svp ? svp->GetElement(0) : nullptr;
+
+    if (!(strcmp(rendererType, "OSPRay raycaster") == 0))
+    {
+      vtkSMProxyManager* proxyManager = vtkSMProxyManager::GetProxyManager();
+      vtkSMSessionProxyManager* sessionProxyManager = proxyManager->GetActiveSessionProxyManager();
+
+      vtkSmartPointer<vtkSMProxy> materialLibProxy = sessionProxyManager
+        ? sessionProxyManager->FindProxy("materiallibrary", "materials", "MaterialLibrary")
+        : nullptr;
+      vtkSMMaterialLibraryProxy* mlp = vtkSMMaterialLibraryProxy::SafeDownCast(materialLibProxy);
+
+      mlp->LoadDefaultMaterials();
+    }
+  }
+
+  this->Superclass::UpdateVTKObjects();
+}
+
+//----------------------------------------------------------------------------
 bool vtkSMRenderViewProxy::ConvertDisplayToPointOnSurface(const int display_position[2],
   double world_position[3], double world_normal[3], bool snapOnMeshPoint)
 {
@@ -978,8 +1026,8 @@ bool vtkSMRenderViewProxy::ConvertDisplayToPointOnSurface(const int display_posi
 
   if (representations->GetNumberOfItems() > 0 && sources->GetNumberOfItems() > 0)
   {
-    vtkSMPVRepresentationProxy* rep =
-      vtkSMPVRepresentationProxy::SafeDownCast(representations->GetItemAsObject(0));
+    vtkSMRepresentationProxy* rep =
+      vtkSMRepresentationProxy::SafeDownCast(representations->GetItemAsObject(0));
     vtkSMProxy* input = vtkSMPropertyHelper(rep, "Input").GetAsProxy(0);
     vtkSMSourceProxy* selection = vtkSMSourceProxy::SafeDownCast(sources->GetItemAsObject(0));
 

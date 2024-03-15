@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVEnSightMasterServerReader2.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVEnSightMasterServerReader2
  *
@@ -35,7 +23,7 @@ public:
   vtkTypeMacro(vtkPVEnSightMasterServerReader2, vtkPGenericEnSightReader);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * This class uses MPI communication mechanisms to verify the
    * integrity of all case files in the master file.  The get method
@@ -47,44 +35,44 @@ public:
    */
   virtual vtkMultiProcessController* GetController();
   virtual void SetController(vtkMultiProcessController* controller);
-  //@}
+  ///@}
 
   /**
    * Return whether we can read the file given.
    */
   int CanReadFile(const char*) override;
 
-  //@{
+  ///@{
   /**
    * Get the number of pieces in the file.  Valid after
    * UpdateInformation.
    */
   vtkGetMacro(NumberOfPieces, int);
-  //@}
+  ///@}
 
   /**
    * Set the name of the file to be read.
    */
   void SetCaseFileName(const char* fileName);
 
-  //@{
+  ///@{
   /**
    * Get the number of point or cell arrays available in the input.
    */
   int GetNumberOfPointArrays();
   int GetNumberOfCellArrays();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get the name of the point or cell array with the given index in
    * the input.
    */
   const char* GetPointArrayName(int index);
   const char* GetCellArrayName(int index);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set whether the point or cell array with the given name is to
    * be read.
@@ -93,9 +81,9 @@ public:
   int GetCellArrayStatus(const char* name);
   void SetPointArrayStatus(const char* name, int status);
   void SetCellArrayStatus(const char* name, int status);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the byte order of the file (remember, more Unix workstations
    * write big endian whereas PCs write little endian). Default is
@@ -107,7 +95,7 @@ public:
   void SetByteOrder(int byteOrder) override;
   int GetByteOrder() override;
   const char* GetByteOrderAsString();
-  //@}
+  ///@}
 
 protected:
   vtkPVEnSightMasterServerReader2();

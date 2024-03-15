@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPluginManager
  * @brief   manages ParaView plugins.
@@ -39,7 +27,7 @@ public:
   vtkTypeMacro(vtkSMPluginManager, vtkSMObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Register/Unregister a session. Every vtkSMSession must be registered with
    * the vtkSMPluginManager. This is done automatically by vtkSMSession during
@@ -48,9 +36,9 @@ public:
    */
   void RegisterSession(vtkSMSession*);
   void UnRegisterSession(vtkSMSession*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * vtkPVPluginsInformation provides information about plugins
    * loaded/available. LocalInformation corresponds to plugins loaded on the
@@ -60,9 +48,9 @@ public:
    */
   vtkGetObjectMacro(LocalInformation, vtkPVPluginsInformation);
   vtkPVPluginsInformation* GetRemoteInformation(vtkSMSession*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Returns the plugin search paths used either locally or remotely. For
    * non-remote sessions, GetRemotePluginSearchPaths() returns the same value as
@@ -70,15 +58,15 @@ public:
    */
   const char* GetLocalPluginSearchPaths();
   const char* GetRemotePluginSearchPaths(vtkSMSession*);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Loads the plugin either locally or remotely.
    */
   bool LoadRemotePlugin(const char* filename, vtkSMSession*);
   bool LoadLocalPlugin(const char* filename);
-  //@}
+  ///@}
 
   /**
    * Plugin configuration XML is a simple XML that makes ParaView aware of the

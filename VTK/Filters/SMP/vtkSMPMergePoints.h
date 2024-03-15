@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPMergePoints.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPMergePoints
  * @brief   Class designed to help with merging of points in parallel
@@ -40,6 +28,7 @@
 
 #include <atomic> // for std::atomic
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPointData;
 
 class VTKFILTERSSMP_EXPORT vtkSMPMergePoints : public vtkMergePoints
@@ -112,4 +101,5 @@ private:
   void operator=(const vtkSMPMergePoints&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkSMPMergePoints_h

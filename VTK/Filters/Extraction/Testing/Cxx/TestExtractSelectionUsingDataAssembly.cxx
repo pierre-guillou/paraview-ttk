@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestExtractSelectionUsingDataAssembly.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include <vtkConvertSelection.h>
 #include <vtkDataAssemblyUtilities.h>
 #include <vtkExtractSelection.h>
@@ -91,7 +79,7 @@ int TestExtractSelectionUsingDataAssembly(int argc, char* argv[])
     "Incorrect selection for selection '//element_blocks'!");
 
   //------------------------------------------------------------------------
-  // let's also test selection convertor.
+  // let's also test selection converter.
   selSource->RemoveAllSelectors();
   selSource->RemoveAllBlockSelectors();
   selSource->SetCompositeIndex(3u);
@@ -99,11 +87,11 @@ int TestExtractSelectionUsingDataAssembly(int argc, char* argv[])
   selSource->SetFieldType(vtkSelectionNode::CELL);
   selSource->SetContentType(vtkSelectionNode::INDICES);
 
-  vtkNew<vtkConvertSelection> convertor;
-  convertor->SetOutputType(vtkSelectionNode::BLOCK_SELECTORS);
-  convertor->SetDataObjectConnection(reader->GetOutputPort());
-  convertor->SetInputConnection(selSource->GetOutputPort());
-  extractor->SetInputConnection(1, convertor->GetOutputPort());
+  vtkNew<vtkConvertSelection> converter;
+  converter->SetOutputType(vtkSelectionNode::BLOCK_SELECTORS);
+  converter->SetDataObjectConnection(reader->GetOutputPort());
+  converter->SetInputConnection(selSource->GetOutputPort());
+  extractor->SetInputConnection(1, converter->GetOutputPort());
   extractor->Update();
   vtkLogIfF(ERROR,
     extractor->GetOutputDataObject(0)->GetNumberOfElements(vtkDataObject::CELL) != 2352,

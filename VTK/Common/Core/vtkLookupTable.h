@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkLookupTable.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-    This software is distributed WITHOUT ANY WARRANTY; without even
-    the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-    PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkLookupTable
  * @brief   map scalar values into colors via a lookup table
@@ -65,6 +53,7 @@
 #define VTK_SCALE_LINEAR 0
 #define VTK_SCALE_LOG10 1
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkLookupTable : public vtkScalarsToColors
 {
 public:
@@ -95,9 +84,9 @@ public:
    * Return true if all of the values defining the mapping have an opacity
    * equal to 1.
    */
-  int IsOpaque() override;
-  int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component) override;
-  int IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
+  vtkTypeBool IsOpaque() override;
+  vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component) override;
+  vtkTypeBool IsOpaque(vtkAbstractArray* scalars, int colorMode, int component,
     vtkUnsignedCharArray* ghosts, unsigned char ghostsToSkip = 0xff) override;
   ///@}
 
@@ -406,7 +395,7 @@ public:
    * This should return 1 if the subclass is using log scale for mapping scalars
    * to colors. Returns 1 is scale == VTK_SCALE_LOG10.
    */
-  int UsingLogScale() override { return (this->GetScale() == VTK_SCALE_LOG10) ? 1 : 0; }
+  vtkTypeBool UsingLogScale() override { return (this->GetScale() == VTK_SCALE_LOG10) ? 1 : 0; }
 
   /**
    * Get the number of available colors for mapping to.
@@ -446,7 +435,7 @@ protected:
   double RGBA[4]; // used during conversion process
   unsigned char NanColorChar[4];
 
-  int OpaqueFlag;
+  vtkTypeBool OpaqueFlag;
   vtkTimeStamp OpaqueFlagBuildTime;
   vtkTimeStamp SpecialColorsBuildTime;
 
@@ -467,4 +456,5 @@ inline unsigned char* vtkLookupTable::WritePointer(vtkIdType id, int number)
   return this->Table->WritePointer(4 * id, 4 * number);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

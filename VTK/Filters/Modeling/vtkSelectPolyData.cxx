@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSelectPolyData.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSelectPolyData.h"
 
 #include "vtkCellData.h"
@@ -27,6 +15,7 @@
 #include "vtkPolyData.h"
 #include "vtkTriangleFilter.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSelectPolyData);
 
 vtkCxxSetObjectMacro(vtkSelectPolyData, Loop, vtkPoints);
@@ -105,6 +94,10 @@ void vtkSelectPolyData::GreedyEdgeSearch(vtkPolyData* mesh, vtkIdList* edgePoint
   vtkIdType numPts = mesh->GetNumberOfPoints();
   for (vtkIdType loopPointId = 0; loopPointId < numLoopPts; loopPointId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     double xLoop[3];
     this->Loop->GetPoint(loopPointId, xLoop);
     vtkIdType closestMeshPointId = 0;
@@ -136,6 +129,10 @@ void vtkSelectPolyData::GreedyEdgeSearch(vtkPolyData* mesh, vtkIdList* edgePoint
   neighbors->Allocate(10000);
   for (vtkIdType loopPointIndex = 0; loopPointIndex < numLoopPts; loopPointIndex++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkIdType currentId = loopIds->GetId(loopPointIndex);
     vtkIdType nextId = loopIds->GetId((loopPointIndex + 1) % numLoopPts);
     vtkIdType prevId = (-1);
@@ -223,6 +220,10 @@ void vtkSelectPolyData::DijkstraEdgeSearch(vtkPolyData* mesh, vtkIdList* edgePoi
   vtkIdType nextId = pointLocator->FindClosestPoint(xLoop);
   for (vtkIdType i = 0; i < numLoopPts; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     currentId = nextId;
     this->Loop->GetPoint((i + 1) % numLoopPts, xLoop);
     nextId = pointLocator->FindClosestPoint(xLoop);
@@ -288,6 +289,7 @@ int vtkSelectPolyData::RequestData(vtkInformation* vtkNotUsed(request),
     tf->SetInputData(input);
     tf->PassLinesOff();
     tf->PassVertsOff();
+    tf->SetContainerAlgorithm(this);
     tf->Update();
     triMesh = tf->GetOutput();
   }
@@ -322,7 +324,7 @@ int vtkSelectPolyData::RequestData(vtkInformation* vtkNotUsed(request),
     default:
       vtkErrorMacro("Unknown edge search mode: " << this->EdgeSearchMode);
   }
-  if (edgePointIds->GetNumberOfIds() == 0)
+  if (edgePointIds->GetNumberOfIds() == 0 || this->CheckAbort())
   {
     return 1;
   }
@@ -604,18 +606,22 @@ bool vtkSelectPolyData::IsBoundaryEdge(
   vtkIdType pointId1, vtkIdType pointId2, vtkIdList* edgePointIds)
 {
   vtkIdType numMeshLoopPts = edgePointIds->GetNumberOfIds();
-  for (vtkIdType edgePointIndex = 0; edgePointIndex < numMeshLoopPts; edgePointIndex++)
+  for (vtkIdType edgePointIndex = 0; edgePointIndex < numMeshLoopPts; ++edgePointIndex)
   {
     vtkIdType edgePointId = edgePointIds->GetId(edgePointIndex);
     if (edgePointId == pointId1)
     {
-      vtkIdType edgePointIdAfter = edgePointIds->GetId((edgePointIndex + 1) % numMeshLoopPts);
+      vtkIdType wrappedEdgePointIndex = (edgePointIndex + 1) % numMeshLoopPts;
+      vtkIdType edgePointIdAfter = edgePointIds->GetId(wrappedEdgePointIndex);
       if (edgePointIdAfter == pointId2)
       {
         // boundary edge
         return true;
       }
-      vtkIdType edgePointIdBefore = edgePointIds->GetId((edgePointIndex - 1) % numMeshLoopPts);
+
+      // Conceptually (edgePointIndex - 1) % numMeshLoopPts, but avoiding negatives.
+      wrappedEdgePointIndex = (edgePointIndex > 0) ? (edgePointIndex - 1) : (numMeshLoopPts - 1);
+      vtkIdType edgePointIdBefore = edgePointIds->GetId(wrappedEdgePointIndex);
       if (edgePointIdBefore == pointId2)
       {
         // boundary edge
@@ -624,13 +630,17 @@ bool vtkSelectPolyData::IsBoundaryEdge(
     }
     if (edgePointId == pointId2)
     {
-      vtkIdType edgePointIdAfter = edgePointIds->GetId((edgePointIndex + 1) % numMeshLoopPts);
+      vtkIdType wrappedEdgePointIndex = (edgePointIndex + 1) % numMeshLoopPts;
+      vtkIdType edgePointIdAfter = edgePointIds->GetId(wrappedEdgePointIndex);
       if (edgePointIdAfter == pointId1)
       {
         // boundary edge
         return true;
       }
-      vtkIdType edgePointIdBefore = edgePointIds->GetId((edgePointIndex - 1) % numMeshLoopPts);
+
+      // Conceptually (edgePointIndex - 1) % numMeshLoopPts, but avoiding negatives.
+      wrappedEdgePointIndex = (edgePointIndex > 0) ? (edgePointIndex - 1) : (numMeshLoopPts - 1);
+      vtkIdType edgePointIdBefore = edgePointIds->GetId(wrappedEdgePointIndex);
       if (edgePointIdBefore == pointId1)
       {
         // boundary edge
@@ -660,6 +670,11 @@ void vtkSelectPolyData::SetSelectionScalarsToOutput(vtkPointData* originalPointD
   vtkIdType numLoopPts = this->Loop->GetNumberOfPoints();
   for (vtkIdType pointId = 0; pointId < numPts; pointId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
+
     if (pointMarks->GetValue(pointId) == 0)
     {
       // boundary point, we'll deal with these later
@@ -703,6 +718,10 @@ void vtkSelectPolyData::SetSelectionScalarsToOutput(vtkPointData* originalPointD
   neighbors->Allocate(10000);
   for (vtkIdType edgePointIndex = 0; edgePointIndex < numMeshLoopPts; edgePointIndex++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkIdType edgePointId = edgePointIds->GetId(edgePointIndex);
     double x[3];
     inPts->GetPoint(edgePointId, x);
@@ -801,6 +820,10 @@ void vtkSelectPolyData::SetClippedResultToOutput(vtkPointData* originalPointData
   vtkIdType newID = 0;
   for (vtkIdType i = 0; i < numCells; i++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if ((cellMarks->GetValue(i) < 0) || (cellMarks->GetValue(i) > 0 && this->InsideOut))
     {
       const vtkIdType* pts;
@@ -826,6 +849,10 @@ void vtkSelectPolyData::SetClippedResultToOutput(vtkPointData* originalPointData
     unPolys->AllocateEstimate(numCells / 2, 3);
     for (vtkIdType i = 0; i < numCells; i++)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       if ((cellMarks->GetValue(i) >= 0) || this->InsideOut)
       {
         const vtkIdType* pts;
@@ -914,3 +941,4 @@ void vtkSelectPolyData::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Loop not defined\n";
   }
 }
+VTK_ABI_NAMESPACE_END

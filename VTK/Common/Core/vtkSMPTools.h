@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPTools.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPTools
  * @brief   A set of parallel (multi-threaded) utility functions.
@@ -46,6 +34,7 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkSMPTools_Has_Initialize
 {
@@ -218,11 +207,13 @@ public:
 
 template <typename T>
 using resolvedNotInt = typename std::enable_if<!std::is_integral<T>::value, void>::type;
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkSMPTools
 {
 public:
@@ -444,6 +435,12 @@ public:
   static bool IsParallelScope();
 
   /**
+   * Returns true if the given thread is specified thread
+   * for single scope. Returns false otherwise.
+   */
+  static bool GetSingleThread();
+
+  /**
    * Structure used to specify configuration for LocalScope() method.
    * Several parameters can be configured:
    *    - MaxNumberOfThreads set the maximum number of threads.
@@ -596,5 +593,6 @@ public:
   }
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkSMPTools.h

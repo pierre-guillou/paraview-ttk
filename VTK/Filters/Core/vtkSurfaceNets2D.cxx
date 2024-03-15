@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSurfaceNets2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSurfaceNets2D.h"
 
 #include "vtkArrayDispatch.h"
@@ -32,6 +20,7 @@
 
 #include <memory>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSurfaceNets2D);
 
 //============================================================================
@@ -593,11 +582,14 @@ void SurfaceNets<T>::ClassifyXEdges(T* inPtr, vtkIdType row, vtkLabelMapLookup<T
   // Note that the ith dyad corresponds to the (i-1) image pixel.
   for (vtkIdType i = 0; i < (numDyads - 1); ++i)
   {
+    // This handles the left-hand edge of the image as well as setting up for
+    // the next dyad.
     unsigned char* dPtr = rowDyadPtr + i;
     s0 = s1;
     isLV0 = isLV1;
 
-    if (i == (numDyads - 2)) // Edge of image
+    // Check if this is the right-hand edge of the image.
+    if (i == (numDyads - 2))
     {
       s1 = s0;
       isLV1 = isLV0;
@@ -971,8 +963,8 @@ struct NetsWorker
       } // over all threads
 
       // Pass1 does not process the bottom and top edges (because there is no
-      // underlying image pixels). Here set the trim information on the
-      // bottom and top rows to be consistent with the in between rows.
+      // underlying image pixels). Here set the trim information on these edges
+      // so that they are not processed.
       vtkIdType* eMD = this->Algo->EdgeMetaData;
       eMD[3] = this->Algo->DyadDims[0];
       eMD[4] = 0;
@@ -1105,12 +1097,13 @@ struct NetsWorker
     algo.DyadCases = new unsigned char[algo.DyadDims[0] * algo.DyadDims[1]]();
 
     // Also allocate the characterization (metadata) array for the x edges,
-    // including the padded out -y (image bottom) dyads.  This array tracks
-    // 1) the number points added along each x-row; as well as 2) the number
-    // of line primitives; 3) the number of stencil edges; and the 4) xMin_i
-    // and 5) xMax_i (minimum index of first intersection, maximum index of
-    // intersection for row i, so-called trim edges used for computational
-    // trimming). Note that the edge meta data is zero initialized.
+    // including the padded out -y (image bottom) dyads. This edge metadata
+    // array (often referred to as eMD[5]) tracks 0) the number points
+    // added along each x-row; as well as 1) the number of line primitives;
+    // 2) the number of stencil edges; and the 3) xMin_i and 4) xMax_i
+    // (minimum index of first intersection, maximum index of intersection
+    // for row i, so-called trim edges used for computational trimming). Note
+    // that the edge meta data is zero initialized.
     algo.EdgeMetaData = new vtkIdType[algo.DyadDims[1] * algo.EdgeMetaDataSize]();
 
     // Compute the starting offset location for scalar data.  We may be operating
@@ -1382,3 +1375,4 @@ void vtkSurfaceNets2D::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Data Caching: " << (this->DataCaching ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

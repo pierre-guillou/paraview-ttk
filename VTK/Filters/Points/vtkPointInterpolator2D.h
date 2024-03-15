@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointInterpolator2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointInterpolator2D
  * @brief   interpolate point cloud attribute data
@@ -64,6 +52,7 @@
 #include "vtkPointInterpolator.h"
 #include "vtkStdString.h" // For vtkStdString ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSPOINTS_EXPORT vtkPointInterpolator2D : public vtkPointInterpolator
 {
 public:
@@ -116,4 +105,5 @@ private:
   void operator=(const vtkPointInterpolator2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

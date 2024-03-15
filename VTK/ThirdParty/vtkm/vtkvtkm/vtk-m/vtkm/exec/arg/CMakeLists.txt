@@ -19,8 +19,6 @@ set(headers
   FetchTagArrayDirectIn.h
   FetchTagArrayDirectInOut.h
   FetchTagArrayDirectOut.h
-  FetchTagArrayDirectOutArrayHandleGroupVecVariable.h
-  FetchTagArrayDirectOutArrayHandleRecombineVec.h
   FetchTagArrayNeighborhoodIn.h
   FetchTagArrayTopologyMapIn.h
   FetchTagExecObject.h
@@ -46,9 +44,3 @@ set(headers
   )
 
 vtkm_declare_headers(${headers})
-
-
-#-----------------------------------------------------------------------------
-if (VTKm_ENABLE_TESTING)
-  add_subdirectory(testing)
-endif ()

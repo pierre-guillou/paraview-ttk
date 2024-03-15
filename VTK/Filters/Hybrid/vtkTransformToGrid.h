@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransformToGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTransformToGrid
  * @brief   create a grid for a vtkGridTransform
@@ -31,6 +19,7 @@
 #include "vtkFiltersHybridModule.h" // For export macro
 #include "vtkImageData.h"           // makes things a bit easier
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractTransform;
 
 class VTKFILTERSHYBRID_EXPORT vtkTransformToGrid : public vtkAlgorithm
@@ -150,4 +139,5 @@ private:
   void operator=(const vtkTransformToGrid&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

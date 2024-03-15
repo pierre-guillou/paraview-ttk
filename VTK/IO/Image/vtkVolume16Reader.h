@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolume16Reader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVolume16Reader
  * @brief   read 16 bit image files
@@ -51,6 +39,7 @@
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkVolumeReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTransform;
 class vtkUnsignedCharArray;
 class vtkUnsignedShortArray;
@@ -154,7 +143,7 @@ protected:
   vtkTransform* Transform;
 
   void TransformSlice(
-    unsigned short* slice, unsigned short* pixels, int k, int dimensions[3], int bounds[3]);
+    unsigned short* slice, unsigned short* pixels, int k, int dimensions[3], int bounds[6]);
   void ComputeTransformedDimensions(int dimensions[3]);
   void ComputeTransformedBounds(int bounds[6]);
   void ComputeTransformedSpacing(double Spacing[3]);
@@ -170,4 +159,5 @@ private:
   void operator=(const vtkVolume16Reader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

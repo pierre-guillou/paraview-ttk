@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVolumeMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkVolumeMapper.h"
 
 #include "vtkDataSet.h"
@@ -24,6 +12,7 @@
 #include <cmath>
 
 // Construct a vtkVolumeMapper with empty scalar input and clipping off.
+VTK_ABI_NAMESPACE_BEGIN
 vtkVolumeMapper::vtkVolumeMapper()
 {
   int i;
@@ -138,7 +127,7 @@ vtkDataSet* vtkVolumeMapper::GetInput()
   return vtkDataSet::SafeDownCast(this->GetExecutive()->GetInputData(0, 0));
 }
 
-vtkDataSet* vtkVolumeMapper::GetInput(const int port)
+vtkDataSet* vtkVolumeMapper::GetInput(int port)
 {
   if (this->GetNumberOfInputConnections(0) < 1)
   {
@@ -198,3 +187,4 @@ double vtkVolumeMapper::SpacingAdjustedSampleDistance(double inputSpacing[3], in
 
   return dist;
 }
+VTK_ABI_NAMESPACE_END

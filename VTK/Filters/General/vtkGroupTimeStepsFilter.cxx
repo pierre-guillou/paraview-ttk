@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGroupTimeStepsFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkGroupTimeStepsFilter.h"
 
 #include "vtkDataAssembly.h"
@@ -27,6 +15,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGroupTimeStepsFilter);
 //----------------------------------------------------------------------------
 vtkGroupTimeStepsFilter::vtkGroupTimeStepsFilter()
@@ -134,7 +123,7 @@ int vtkGroupTimeStepsFilter::RequestData(
     this->AddTimeStep(time, timeStep, clone);
   }
 
-  if ((++this->UpdateTimeIndex) < this->TimeSteps.size())
+  if ((++this->UpdateTimeIndex) < this->TimeSteps.size() && !this->CheckAbort())
   {
     request->Set(vtkStreamingDemandDrivenPipeline::CONTINUE_EXECUTING(), 1);
   }
@@ -278,3 +267,4 @@ void vtkGroupTimeStepsFilter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

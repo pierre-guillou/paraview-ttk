@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkProjectedTerrainPath.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkProjectedTerrainPath.h"
 #include "vtkCellArray.h"
 #include "vtkDoubleArray.h"
@@ -29,6 +17,7 @@
 #include <vector>
 
 // Define the edge list class--------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkEdge
 {
   vtkEdge(vtkIdType v1, vtkIdType v2)
@@ -112,7 +101,7 @@ int vtkProjectedTerrainPath::FillInputPortInformation(int port, vtkInformation* 
 //------------------------------------------------------------------------------
 // Warning: this method may return negative indices. This is expected behavior
 //
-inline void vtkProjectedTerrainPath::GetImageIndex(double x[3], double loc[2], int ij[2])
+void vtkProjectedTerrainPath::GetImageIndex(double x[3], double loc[2], int ij[2])
 {
   loc[0] = (x[0] - this->Origin[0]) / this->Spacing[0];
   ij[0] = (int)(floor(loc[0]));
@@ -200,10 +189,16 @@ int vtkProjectedTerrainPath::RequestData(
   this->PositiveLineError = vtkPriorityQueue::New();
   this->NegativeLineError = vtkPriorityQueue::New();
   this->NumLines = 0;
-  for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts);)
+  bool abort = false;
+  for (inLines->InitTraversal(); inLines->GetNextCell(npts, pts) && !abort;)
   {
     for (j = 0; j < (npts - 1); j++)
     {
+      if (this->CheckAbort())
+      {
+        abort = true;
+        break;
+      }
       this->EdgeList->push_back(vtkEdge(pts[j], pts[j + 1]));
       this->ComputeError(static_cast<vtkIdType>(this->EdgeList->size() - 1)); // puts edges in
                                                                               // queues
@@ -211,11 +206,11 @@ int vtkProjectedTerrainPath::RequestData(
     }
   }
 
-  if (this->ProjectionMode == NONOCCLUDED_PROJECTION)
+  if (!this->CheckAbort() && this->ProjectionMode == NONOCCLUDED_PROJECTION)
   {
     this->RemoveOcclusions();
   }
-  else // if ( this->ProjectionMode == HUG_PROJECTION )
+  else if (!this->CheckAbort()) // if ( this->ProjectionMode == HUG_PROJECTION )
   {
     this->HugTerrain();
   }
@@ -543,3 +538,4 @@ void vtkProjectedTerrainPath::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Height Tolerance: " << this->HeightTolerance << "\n";
   os << indent << "Maximum Number Of Lines: " << this->MaximumNumberOfLines << "\n";
 }
+VTK_ABI_NAMESPACE_END

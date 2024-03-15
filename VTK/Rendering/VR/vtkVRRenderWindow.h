@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkVRRenderWindow.h
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVRRenderWindow
  * @brief   VR rendering window
@@ -60,6 +48,7 @@ PURPOSE.  See the above copyright notice for more information.
 
 #include <vector> // ivars
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCamera;
 class vtkMatrix4x4;
 class vtkVRModel;
@@ -252,23 +241,6 @@ public:
   void AddRenderer(vtkRenderer*) override;
 
   /**
-   * Begin the rendering process.
-   */
-  void Start() override;
-
-  /**
-   * Initialize the rendering window.
-   */
-  void Initialize() override;
-
-  /**
-   * Finalize the rendering window.  This will shutdown all system-specific
-   * resources. After having called this, it should be possible to destroy
-   * a window that was used for a SetWindowId() call without any ill effects.
-   */
-  void Finalize() override;
-
-  /**
    * Make this windows OpenGL context the current context.
    */
   void MakeCurrent() override;
@@ -321,11 +293,11 @@ public:
   /**
    * Implement required virtual functions.
    */
-  void* GetGenericDisplayId() override { return (void*)this->HelperWindow->GetGenericDisplayId(); }
-  void* GetGenericWindowId() override { return (void*)this->HelperWindow->GetGenericWindowId(); }
-  void* GetGenericParentId() override { return (void*)nullptr; }
-  void* GetGenericContext() override { return (void*)this->HelperWindow->GetGenericContext(); }
-  void* GetGenericDrawable() override { return (void*)this->HelperWindow->GetGenericDrawable(); }
+  void* GetGenericDisplayId() override { return this->HelperWindow->GetGenericDisplayId(); }
+  void* GetGenericWindowId() override { return this->HelperWindow->GetGenericWindowId(); }
+  void* GetGenericParentId() override { return nullptr; }
+  void* GetGenericContext() override { return this->HelperWindow->GetGenericContext(); }
+  void* GetGenericDrawable() override { return this->HelperWindow->GetGenericDrawable(); }
   ///@}
 
   /**
@@ -387,9 +359,10 @@ public:
   virtual void UpdateHMDMatrixPose(){};
 
   /**
-   * Get whether the window has been initialized successfully.
+   * Get whether the XR components of the window
+   * have been initialized successfully.
    */
-  vtkGetMacro(Initialized, bool);
+  vtkGetMacro(VRInitialized, bool);
 
 protected:
   vtkVRRenderWindow();
@@ -415,8 +388,9 @@ protected:
   virtual std::string GetWindowTitleFromAPI() { return "VTK - VR"; }
 
   virtual bool CreateFramebuffers(uint32_t viewCount = 2) = 0;
-  void RenderFramebuffer(FramebufferDesc& framebufferDesc);
+  virtual void RenderFramebuffer(FramebufferDesc& framebufferDesc) = 0;
 
+  bool VRInitialized = false;
   bool TrackHMD = true;
 
   // One per view (typically one per eye)
@@ -452,4 +426,5 @@ private:
   void operator=(const vtkVRRenderWindow&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

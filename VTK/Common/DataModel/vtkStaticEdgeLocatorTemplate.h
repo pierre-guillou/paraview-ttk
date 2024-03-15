@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticEdgeLocatorTemplate.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 /**
  * @class   vtkStaticEdgeLocatorTemplate
  * @brief   templated locator for managing edges and associated data on edges
@@ -63,6 +51,8 @@
 #ifndef vtkStaticEdgeLocatorTemplate_h
 #define vtkStaticEdgeLocatorTemplate_h
 
+#include "vtkABINamespace.h"
+
 #include <algorithm>
 #include <vector>
 
@@ -72,6 +62,7 @@
  * sort) by using smaller types (32-int versus 64-bit vtkIdType). It is
  * required that V0 < V1; the tuple constructor enforces this.
  */
+VTK_ABI_NAMESPACE_BEGIN
 template <typename TId, typename TED>
 struct EdgeTuple
 {
@@ -298,6 +289,7 @@ private:
   void operator=(const vtkStaticEdgeLocatorTemplate&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkStaticEdgeLocatorTemplate.txx"
 
 #endif

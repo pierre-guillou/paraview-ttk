@@ -1,21 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCollapseGraph.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCollapseGraph.h"
 
 #include "vtkConvertSelection.h"
@@ -38,6 +23,7 @@ typedef std::vector<vtkEdgeType> EdgeListT;
 ///////////////////////////////////////////////////////////////////////////////////
 // BuildGraph
 
+VTK_ABI_NAMESPACE_BEGIN
 template <typename GraphT>
 static void BuildGraph(vtkGraph* input_graph, const std::vector<vtkIdType>& vertex_map,
   const EdgeListT& edge_list, vtkGraph* destination_graph)
@@ -204,3 +190,4 @@ int vtkCollapseGraph::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

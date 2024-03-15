@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSocketCommunicator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSocketCommunicator.h"
 
 #include "vtkClientSocket.h"
@@ -34,6 +22,7 @@
 // receive is successful.
 //#define ENABLE_SYNCHRONIZED_COMMUNICATION
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkSocketCommunicator::vtkMessageBuffer
 {
 public:
@@ -56,7 +45,7 @@ public:
 
   void Push(int tag, int numchars, char* data)
   {
-    this->Buffer[tag].push_back(MessageType());
+    this->Buffer[tag].emplace_back();
     MessageType& msg = this->Buffer[tag].back();
     msg.insert(msg.end(), data, (data + numchars));
   }
@@ -89,8 +78,10 @@ public:
 // represent the CVS revision number of this file, so the value must
 // be larger than the last revision which used that strategy.
 #define vtkSocketCommunicatorHashId 100 /* MD5 */
+VTK_ABI_NAMESPACE_END
 #include "vtkSocketCommunicatorHash.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkSocketCommunicator);
 vtkCxxSetObjectMacro(vtkSocketCommunicator, Socket, vtkClientSocket);
 //------------------------------------------------------------------------------
@@ -1136,3 +1127,4 @@ int vtkSocketCommunicator::GetVersion()
 {
   return vtkSocketCommunicatorHashId;
 }
+VTK_ABI_NAMESPACE_END

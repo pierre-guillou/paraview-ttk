@@ -1,23 +1,7 @@
-// -*- c++ -*-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    pqSLACDataLoadManager.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2009 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "pqSLACDataLoadManager.h"
 #include "ui_pqSLACDataLoadManager.h"
 
@@ -52,6 +36,9 @@ pqSLACDataLoadManager::pqSLACDataLoadManager(QWidget* p, Qt::WindowFlags f /*=0*
   this->ui = new pqSLACDataLoadManager::pqUI;
   this->ui->setupUi(this);
 
+  // hide the Context Help item (it's a "?" in the Title Bar for Windows, a menu item for Linux)
+  this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
+
   this->ui->meshFile->setServer(this->Server);
   this->ui->modeFile->setServer(this->Server);
   this->ui->particlesFile->setServer(this->Server);
@@ -60,9 +47,10 @@ pqSLACDataLoadManager::pqSLACDataLoadManager(QWidget* p, Qt::WindowFlags f /*=0*
   this->ui->modeFile->setForceSingleFile(false);
   this->ui->particlesFile->setForceSingleFile(false);
 
-  this->ui->meshFile->setExtension("SLAC Mesh Files (*.ncdf *.nc)");
-  this->ui->modeFile->setExtension("SLAC Mode Files (*.mod *.m?)");
-  this->ui->particlesFile->setExtension("SLAC Particle Files (*.ncdf *.netcdf)");
+  this->ui->meshFile->setExtension(QString("%1 (*.ncdf *.nc)").arg(tr("SLAC Mesh Files")));
+  this->ui->modeFile->setExtension(QString("%1 (*.mod *.m?)").arg(tr("SLAC Mode Files")));
+  this->ui->particlesFile->setExtension(
+    QString("%1 (*.ncdf *.netcdf)").arg(tr("SLAC Particle Files")));
 
   pqPipelineSource* meshReader = manager->getMeshReader();
   pqPipelineSource* particlesReader = manager->getParticlesReader();
@@ -114,7 +102,7 @@ void pqSLACDataLoadManager::setupPipeline()
 
   pqSLACManager* manager = pqSLACManager::instance();
 
-  BEGIN_UNDO_SET("SLAC Data Load");
+  BEGIN_UNDO_SET(tr("SLAC Data Load"));
 
   // Determine the views.  Do this before deleting existing pipeline objects.
   pqView* meshView = manager->getMeshView();

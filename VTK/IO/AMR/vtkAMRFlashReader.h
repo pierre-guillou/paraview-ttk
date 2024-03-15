@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRFlashReader.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMREnzoReader
  * @brief   A concrete instance of vtkAMRBaseReader that implements functionality
@@ -24,6 +12,7 @@
 #include "vtkAMRBaseReader.h"
 #include "vtkIOAMRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOverlappingAMR;
 class vtkFlashReaderInternal;
 
@@ -61,7 +50,7 @@ protected:
   /**
    * See vtkAMRBaseReader::GetBlockLevel
    */
-  int GetBlockLevel(const int blockIdx) override;
+  int GetBlockLevel(int blockIdx) override;
 
   /**
    * See vtkAMRBaseReader::FillMetaData
@@ -71,17 +60,17 @@ protected:
   /**
    * See vtkAMRBaseReader::GetAMRGrid
    */
-  vtkUniformGrid* GetAMRGrid(const int blockIdx) override;
+  vtkUniformGrid* GetAMRGrid(int blockIdx) override;
 
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
-  void GetAMRGridData(const int blockIdx, vtkUniformGrid* block, const char* field) override;
+  void GetAMRGridData(int blockIdx, vtkUniformGrid* block, const char* field) override;
 
   /**
    * See vtkAMRBaseReader::GetAMRGridData
    */
-  void GetAMRGridPointData(const int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
+  void GetAMRGridPointData(int vtkNotUsed(blockIdx), vtkUniformGrid* vtkNotUsed(block),
     const char* vtkNotUsed(field)) override
   {
   }
@@ -101,4 +90,5 @@ private:
   vtkFlashReaderInternal* Internal;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMRFlashReader_h */

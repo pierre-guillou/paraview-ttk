@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTimerLog.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTimerLog
  * @brief   Timer support and logging
@@ -62,6 +50,7 @@ typedef long fd_mask;
 #endif
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkTimerLogEntry
 {
   enum LogEntryType
@@ -269,7 +258,7 @@ public:
     vtkTimerLog::MarkStartEvent(eventString);
   }
 
-  ~vtkTimerLogScope() { vtkTimerLog::MarkEndEvent(this->EventString.c_str()); };
+  ~vtkTimerLogScope() { vtkTimerLog::MarkEndEvent(this->EventString.c_str()); }
 
 protected:
   std::string EventString;
@@ -301,4 +290,5 @@ private:
 };
 static vtkTimerLogCleanup vtkTimerLogCleanupInstance;
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTRUCHASReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTRUCHASReader.h"
 
 #include "vtkCellArray.h"
@@ -34,6 +22,7 @@
 #include <sstream>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTRUCHASReader::Internal
 {
 public:
@@ -104,15 +93,15 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  hid_t OpenFile(char* _FileName)
+  hid_t OpenFile(char* _filename)
   {
-    if (this->FileName != _FileName)
+    if (this->FileName != _filename)
     {
       this->CloseFile();
-      if (_FileName != nullptr)
+      if (_filename != nullptr)
       {
-        this->FileName = std::string(_FileName);
-        this->FileIndx = H5Fopen(_FileName, H5F_ACC_RDONLY, H5P_DEFAULT);
+        this->FileName = std::string(_filename);
+        this->FileIndx = H5Fopen(_filename, H5F_ACC_RDONLY, H5P_DEFAULT);
         this->PointData = vtkPointData::New();
       }
     }
@@ -1360,3 +1349,4 @@ const char* vtkTRUCHASReader::GetCellArrayName(int index)
 {
   return this->CellArrayChoices->GetArrayName(index);
 }
+VTK_ABI_NAMESPACE_END

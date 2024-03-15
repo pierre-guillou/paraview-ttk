@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkDepthPeelingPass.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDepthPeelingPass.h"
 #include "vtkInformation.h"
@@ -40,6 +28,7 @@ PURPOSE.  See the above copyright notice for more information.
 #include "vtkDepthPeelingPassFinalFS.h"
 #include "vtkDepthPeelingPassIntermediateFS.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDepthPeelingPass);
 vtkCxxSetObjectMacro(vtkDepthPeelingPass, TranslucentPass, vtkRenderPass);
 
@@ -691,3 +680,4 @@ bool vtkDepthPeelingPass::SetShaderParameters(vtkShaderProgram* program, vtkAbst
 
   return true;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMPIPixelTT.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef vtkMPIPixelTT_h
 #define vtkMPIPixelTT_h
 
@@ -21,6 +9,7 @@
 // Description:
 // Traits class for converting from vtk data type enum
 // to the appropriate C or MPI datatype.
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 class vtkMPIPixelTT;
 
@@ -49,5 +38,6 @@ vtkMPIPixelTTMacro1(double);
 vtkMPIPixelTTMacro1(long long);
 vtkMPIPixelTTMacro1(unsigned long long);
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkMPIPixelTT.h

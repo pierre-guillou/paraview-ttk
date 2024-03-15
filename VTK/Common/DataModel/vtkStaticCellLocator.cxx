@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStaticCellLocator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -35,6 +23,7 @@
 #include <queue>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStaticCellLocator);
 
 //------------------------------------------------------------------------------
@@ -1030,7 +1019,7 @@ vtkIdType CellProcessor<T>::FindClosestPointWithinRadius(const double x[3], doub
 
   // first get ijk containing point
   vtkIdType binId = this->Binner->GetBinIndex(x);
-  queue.push(std::make_pair(0.0, binId));
+  queue.emplace(0.0, binId);
   binHasBeenQueued[binId] = true;
 
   // minimum squared distance to the closest point
@@ -1124,7 +1113,7 @@ vtkIdType CellProcessor<T>::FindClosestPointWithinRadius(const double x[3], doub
             distance2ToCellBounds = Distance2ToBounds(x, bds);
 
             // add to queue
-            queue.push(std::make_pair(distance2ToCellBounds, binId));
+            queue.emplace(distance2ToCellBounds, binId);
           }
         }
       }
@@ -1822,3 +1811,4 @@ void vtkStaticCellLocator::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Large IDs: " << this->LargeIds << "\n";
 }
+VTK_ABI_NAMESPACE_END

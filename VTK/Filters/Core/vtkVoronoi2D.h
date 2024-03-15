@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkVoronoi2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkVoronoi2D
  * @brief   create 2D Voronoi convex tiling of input points
@@ -52,7 +40,7 @@
  * point set. A locator is then used to identify nearby points: each neighbor
  * in turn generates a clipping line positioned halfway between the
  * generating point and the neighboring point, and orthogonal to the line
- * connecting them. Clips are readily performed by evaluationg the vertices
+ * connecting them. Clips are readily performed by evaluating the vertices
  * of the convex Voronoi tile as being on either side (inside,outside) of the
  * clip line. If two intersections of the Voronoi tile are found, the portion
  * of the tile "outside" the clip line is discarded, resulting in a new
@@ -94,6 +82,7 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkStaticPointLocator2D;
 class vtkAbstractTransform;
 class vtkPointSet;
@@ -276,4 +265,5 @@ private:
   void operator=(const vtkVoronoi2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

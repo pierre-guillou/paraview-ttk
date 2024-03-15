@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageDataToHyperTreeGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageDataToHyperTreeGrid.h"
 
 #include <vtkBitArray.h>
@@ -33,6 +21,7 @@
 
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageDataToHyperTreeGrid);
 
 //------------------------------------------------------------------------------
@@ -144,6 +133,10 @@ int vtkImageDataToHyperTreeGrid::RequestData(vtkInformation* vtkNotUsed(request)
   vtkNew<vtkHyperTreeGridNonOrientedCursor> cursor;
   for (vtkIdType itree = 0; itree < nbTrees; ++itree)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     vtkIdType index = itree;
 
     unsigned int i, j, k;
@@ -267,3 +260,4 @@ int vtkImageDataToHyperTreeGrid::FillInputPortInformation(
   info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkImageData");
   return 1;
 }
+VTK_ABI_NAMESPACE_END

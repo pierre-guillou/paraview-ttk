@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBMPReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBMPReader
  * @brief   read Windows BMP files
@@ -43,6 +31,7 @@
 
 #include "vtkIOImageModule.h" // For export macro
 #include "vtkImageReader.h"
+VTK_ABI_NAMESPACE_BEGIN
 class vtkLookupTable;
 
 class VTKIOIMAGE_EXPORT vtkBMPReader : public vtkImageReader
@@ -114,4 +103,5 @@ private:
   vtkBMPReader(const vtkBMPReader&) = delete;
   void operator=(const vtkBMPReader&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

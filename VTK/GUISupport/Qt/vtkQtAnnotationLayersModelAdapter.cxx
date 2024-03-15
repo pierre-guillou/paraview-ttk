@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtAnnotationLayersModelAdapter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkQtAnnotationLayersModelAdapter.h"
 
 #include "vtkAnnotation.h"
@@ -37,6 +21,7 @@
 #include <QPixmap>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkQtAnnotationLayersModelAdapter::vtkQtAnnotationLayersModelAdapter(QObject* p)
   : vtkQtAbstractModelAdapter(p)
 {
@@ -153,7 +138,7 @@ bool vtkQtAnnotationLayersModelAdapter::noAnnotationsCheck() const
 // Description:
 // Selection conversion from VTK land to Qt land
 vtkAnnotationLayers* vtkQtAnnotationLayersModelAdapter::QModelIndexListToVTKAnnotationLayers(
-  const QModelIndexList qmil) const
+  QModelIndexList qmil) const
 {
   // Create vtk index selection
   vtkAnnotationLayers* annotations = vtkAnnotationLayers::New(); // Caller needs to delete
@@ -198,7 +183,7 @@ QItemSelection vtkQtAnnotationLayersModelAdapter::VTKAnnotationLayersToQItemSele
 // Description:
 // Selection conversion from VTK land to Qt land
 vtkSelection* vtkQtAnnotationLayersModelAdapter::QModelIndexListToVTKIndexSelection(
-  const QModelIndexList vtkNotUsed(qmil)) const
+  QModelIndexList vtkNotUsed(qmil)) const
 {
   /*
     // Create vtk index selection
@@ -472,3 +457,4 @@ QMimeData *vtkQtAnnotationLayersModelAdapter::mimeData(const QModelIndexList &in
   return mimeData;
 }
 */
+VTK_ABI_NAMESPACE_END

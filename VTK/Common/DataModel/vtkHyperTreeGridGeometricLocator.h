@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridGeoemtricLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkHyperTreeGridGeometricLocator
  * @brief class that implements accelerated searches through HyperTree Grids (HTGs) using geometric
@@ -38,6 +26,7 @@
 #include "vtkCommonDataModelModule.h" //For export macro
 #include "vtkHyperTreeGridLocator.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkGenericCell;
 class vtkPoints;
 class vtkIdList;
@@ -98,7 +87,7 @@ public:
    * @param[out] cell pointer to a vtkCell object corresponding to cellId
    * @return an integer with 0 if no intersection could be found
    */
-  int IntersectWithLine(const double p0[3], const double p1[2], double tol, double& t, double x[3],
+  int IntersectWithLine(const double p0[3], const double p1[3], double tol, double& t, double x[3],
     double pcoords[3], int& subId, vtkIdType& cellId, vtkGenericCell* cell) override;
 
   /**
@@ -190,5 +179,7 @@ private:
   std::vector<double> Bins1D;
 
 }; // vtkHyperTreeGridGeometricLocator
+
+VTK_ABI_NAMESPACE_END
 
 #endif // vtkHyperTreeGridGeometricLocator_h

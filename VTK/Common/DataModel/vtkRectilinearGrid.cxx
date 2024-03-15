@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRectilinearGrid.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkRectilinearGrid.h"
 
@@ -33,6 +21,7 @@
 #include "vtkVertex.h"
 #include "vtkVoxel.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkRectilinearGrid);
 vtkStandardExtendedNewMacro(vtkRectilinearGrid);
 
@@ -811,7 +800,7 @@ void vtkRectilinearGrid::GetPoint(vtkIdType ptId, double x[3])
 }
 
 //------------------------------------------------------------------------------
-void vtkRectilinearGrid::GetPoint(const int i, const int j, const int k, double p[3])
+void vtkRectilinearGrid::GetPoint(int i, int j, int k, double p[3])
 {
   int ijk[3];
   ijk[0] = i;
@@ -1574,3 +1563,4 @@ bool vtkRectilinearGrid::HasAnyBlankCells()
   int cellBlanking = this->CellData->HasAnyGhostBitSet(vtkDataSetAttributes::HIDDENCELL);
   return cellBlanking || this->HasAnyBlankPoints();
 }
+VTK_ABI_NAMESPACE_END

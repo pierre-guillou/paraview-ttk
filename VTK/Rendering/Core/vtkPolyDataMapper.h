@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataMapper
  * @brief   map vtkPolyData to graphics primitives
@@ -27,8 +15,10 @@
 
 #include "vtkMapper.h"
 #include "vtkRenderingCoreModule.h" // For export macro
-//#include "vtkTexture.h" // used to include texture unit enum.
 
+#include <cstdint> // For uintptr_t
+
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyData;
 class vtkRenderer;
 class vtkRenderWindow;
@@ -43,12 +33,23 @@ public:
   /**
    * Implemented by sub classes. Actual rendering is done here.
    */
-  virtual void RenderPiece(vtkRenderer*, vtkActor*){};
+  virtual void RenderPiece(vtkRenderer*, vtkActor*) {}
 
   /**
    * This calls RenderPiece (in a for loop if streaming is necessary).
    */
   void Render(vtkRenderer* ren, vtkActor* act) override;
+
+  using MapperHashType = std::uintptr_t;
+  /**
+   * This hash integer is computed by concrete graphics implementation of this class.
+   * For two different polydata instances, concrete implementations MUST return identical value,
+   * if both the polydata can be batched together for device uploads.
+   *
+   * @note: For example, the OpenGL impl is capable of grouping polydata
+   * that are similar in terms of the availability of scalars, normals and tcoords.
+   */
+  virtual MapperHashType GenerateHash(vtkPolyData*) { return 0; }
 
   ///@{
   /**
@@ -154,6 +155,61 @@ public:
   vtkTypeBool ProcessRequest(
     vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
+  /**\brief Methods for VBO coordinate shift+scale-computation.
+   *
+   * By default, shift and scale vectors are enabled
+   * whenever CreateVBO is called with points whose
+   * bounds are many bbox-lengths away from the origin.
+   *
+   * Shifting and scaling may be completely disabled,
+   * or manually specified, or left at the default.
+   *
+   * Manual specification is for the case when you
+   * will be calling AppendVBO instead of just CreateVBO
+   * and know better bounds than the what CreateVBO
+   * might produce.
+   *
+   * The automatic method tells CreatVBO to compute shift and
+   * scale vectors that remap the points to the unit cube.
+   *
+   * The camera method will shift scale the VBO so that the visible
+   * part of the data has reasonable values.
+   */
+  enum ShiftScaleMethodType
+  {
+    DISABLE_SHIFT_SCALE,     //!< Do not shift/scale point coordinates. Ever!
+    AUTO_SHIFT_SCALE,        //!< The default, automatic computation.
+    ALWAYS_AUTO_SHIFT_SCALE, //!< Always shift scale using auto computed values
+    MANUAL_SHIFT_SCALE,      //!< Manual shift/scale (for use with AppendVBO)
+    AUTO_SHIFT,              //!< Only Apply the shift
+    NEAR_PLANE_SHIFT_SCALE,  //!< Shift scale based on camera settings
+    FOCAL_POINT_SHIFT_SCALE  //!< Shift scale based on camera settings
+  };
+
+  /**\brief A convenience method for enabling/disabling
+   *   the VBO's shift+scale transform.
+   */
+  virtual void SetVBOShiftScaleMethod(int) {}
+  virtual int GetVBOShiftScaleMethod() { return this->ShiftScaleMethod; }
+
+  /**\brief Pause per-render updates to VBO shift+scale parameters.
+   *
+   * For large datasets, re-uploading the VBO during user interaction
+   * can cause stutters in the framerate. Interactors can use this
+   * method to force UpdateCameraShiftScale to return immediately
+   * (without changes) while users are zooming/rotating/etc. and then
+   * re-enable shift-scale just before a still render.
+   *
+   * This setting has no effect unless the shift-scale method is set
+   * to NEAR_PLANE_SHIFT_SCALE or FOCAL_POINT_SHIFT_SCALE.
+   *
+   * Changing this setting does **not** mark the mapper as modified as
+   * that would force a VBO upload – defeating its own purpose.
+   */
+  virtual void SetPauseShiftScale(bool pauseShiftScale) { this->PauseShiftScale = pauseShiftScale; }
+  vtkGetMacro(PauseShiftScale, bool);
+  vtkBooleanMacro(PauseShiftScale, bool);
+
 protected:
   vtkPolyDataMapper();
   ~vtkPolyDataMapper() override = default;
@@ -170,6 +226,8 @@ protected:
   int NumberOfSubPieces;
   int GhostLevel;
   bool SeamlessU, SeamlessV;
+  int ShiftScaleMethod; // for points
+  bool PauseShiftScale;
 
   int FillInputPortInformation(int, vtkInformation*) override;
 
@@ -178,4 +236,5 @@ private:
   void operator=(const vtkPolyDataMapper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

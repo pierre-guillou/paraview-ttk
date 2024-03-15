@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextItem.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkAbstractContextItem
@@ -30,6 +18,7 @@
 #include "vtkObject.h"
 #include "vtkRenderingContext2DModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkContext2D;
 class vtkContextMouseEvent;
 class vtkContextKeyEvent;
@@ -291,6 +280,11 @@ protected:
   ~vtkAbstractContextItem() override;
 
   /**
+   * Release cache entries created by this context item.
+   */
+  virtual void ReleaseGraphicsCache();
+
+  /**
    * Point to the scene the item is on - can be null.
    */
   vtkContextScene* Scene;
@@ -322,4 +316,5 @@ private:
   void operator=(const vtkAbstractContextItem&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkContextItem_h

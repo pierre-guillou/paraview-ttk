@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBoostBetweennessClustering.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkBoostBetweennessClustering.h"
 
@@ -98,6 +86,8 @@ void betweenness_centrality_clustering(MutableGraph& g, Done done,
   } while (!is_done && !has_no_edges(g));
 }
 }
+
+VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkBoostBetweennessClustering);
 
@@ -377,3 +367,4 @@ int vtkBoostBetweennessClustering::FillOutputPortInformation(int port, vtkInform
   }
   return 1;
 }
+VTK_ABI_NAMESPACE_END

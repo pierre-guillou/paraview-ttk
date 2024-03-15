@@ -8,7 +8,7 @@ readonly name="visit"
 readonly ownership="VisIt Upstream <kwrobot@kitware.com>"
 readonly subtree="Library/VisItLib"
 readonly repo="https://gitlab.kitware.com/third-party/visit.git"
-readonly tag="for/paraview-20220727-g756b0aa4ee"
+readonly tag="for/paraview-20230731-g756b0aa4ee"
 
 readonly paths="
 .gitattributes
@@ -389,7 +389,6 @@ src/common/utility/vectortypes.h
 src/common/utility/visit_gzstream.*
 src/common/utility/visitstream.h
 src/common/utility/void_ref_ptr.*
-src/common/utility/win32-regex.*
 
 src/common/CMakeLists.txt
 

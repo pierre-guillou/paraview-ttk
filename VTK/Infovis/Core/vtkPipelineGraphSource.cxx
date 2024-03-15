@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPipelineGraphSource.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPipelineGraphSource.h"
 #include "vtkAbstractArray.h"
@@ -37,6 +25,7 @@
 
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPipelineGraphSource);
 
 //------------------------------------------------------------------------------
@@ -70,7 +59,7 @@ void vtkPipelineGraphSource::PrintSelf(ostream& os, vtkIndent indent)
 
 void vtkPipelineGraphSource::AddSink(vtkObject* sink)
 {
-  if (sink != nullptr && !this->Sinks->IsItemPresent(sink))
+  if (sink != nullptr && this->Sinks->IndexOfFirstOccurence(sink) < 0)
   {
     this->Sinks->AddItem(sink);
     this->Modified();
@@ -79,7 +68,7 @@ void vtkPipelineGraphSource::AddSink(vtkObject* sink)
 
 void vtkPipelineGraphSource::RemoveSink(vtkObject* sink)
 {
-  if (sink != nullptr && this->Sinks->IsItemPresent(sink))
+  if (sink != nullptr && this->Sinks->IndexOfFirstOccurence(sink) >= 0)
   {
     this->Sinks->RemoveItem(sink);
     this->Modified();
@@ -349,3 +338,4 @@ void vtkPipelineGraphSource::PipelineToDot(
 
   output << "}\n";
 }
+VTK_ABI_NAMESPACE_END

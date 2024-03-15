@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkDisplaySizedImplicitPlaneRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkDisplaySizedImplicitPlaneRepresentation.h"
 
@@ -50,6 +38,7 @@
 
 #include <cfloat> //for FLT_EPSILON
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkDisplaySizedImplicitPlaneRepresentation);
 
 static constexpr double DefaultPickTol = 0.001;
@@ -655,14 +644,17 @@ double* vtkDisplaySizedImplicitPlaneRepresentation::GetBounds()
 //------------------------------------------------------------------------------
 void vtkDisplaySizedImplicitPlaneRepresentation::GetActors(vtkPropCollection* pc)
 {
-  pc->AddItem(this->OutlineActor);
-  pc->AddItem(this->PlaneActor);
-  pc->AddItem(this->EdgesActor);
-  pc->AddItem(this->IntersectionEdgesActor);
-  pc->AddItem(this->ConeActor);
-  pc->AddItem(this->LineActor);
-  pc->AddItem(this->ConeActor2);
-  pc->AddItem(this->SphereActor);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    pc->AddItem(this->OutlineActor);
+    pc->AddItem(this->PlaneActor);
+    pc->AddItem(this->EdgesActor);
+    pc->AddItem(this->IntersectionEdgesActor);
+    pc->AddItem(this->ConeActor);
+    pc->AddItem(this->LineActor);
+    pc->AddItem(this->ConeActor2);
+    pc->AddItem(this->SphereActor);
+  }
   this->Superclass::GetActors(pc);
 }
 
@@ -1307,33 +1299,30 @@ void vtkDisplaySizedImplicitPlaneRepresentation::CreateDefaultProperties()
 }
 
 //------------------------------------------------------------------------------
-void vtkDisplaySizedImplicitPlaneRepresentation::SetSelectedWidgetColor(
-  double r, double g, double b)
+void vtkDisplaySizedImplicitPlaneRepresentation::SetInteractionColor(double r, double g, double b)
 {
   this->SelectedNormalProperty->SetColor(r, g, b);
   this->SelectedSphereProperty->SetColor(r, g, b);
   this->SelectedEdgesProperty->SetColor(r, g, b);
+  this->SelectedPlaneProperty->SetColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkDisplaySizedImplicitPlaneRepresentation::SetSelectedWidgetColor(double c[3])
-{
-  this->SetSelectedWidgetColor(c[0], c[1], c[2]);
-}
-
-//------------------------------------------------------------------------------
-void vtkDisplaySizedImplicitPlaneRepresentation::SetUnselectedWidgetColor(
-  double r, double g, double b)
+void vtkDisplaySizedImplicitPlaneRepresentation::SetHandleColor(double r, double g, double b)
 {
   this->NormalProperty->SetColor(r, g, b);
   this->SphereProperty->SetColor(r, g, b);
   this->EdgesProperty->SetColor(r, g, b);
+  this->SetEdgesColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
-void vtkDisplaySizedImplicitPlaneRepresentation::SetUnselectedWidgetColor(double c[3])
+void vtkDisplaySizedImplicitPlaneRepresentation::SetForegroundColor(double r, double g, double b)
 {
-  this->SetUnselectedWidgetColor(c[0], c[1], c[2]);
+  this->PlaneProperty->SetColor(r, g, b);
+  this->OutlineProperty->SetColor(r, g, b);
+  this->IntersectionEdgesProperty->SetColor(r, g, b);
+  this->SetIntersectionEdgesColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------
@@ -1967,3 +1956,4 @@ void vtkDisplaySizedImplicitPlaneRepresentation::ComputeAdaptivePickerTolerance(
   double tolerance = pickerCylinderRadius < DefaultPickTol ? pickerCylinderRadius : DefaultPickTol;
   this->CellPicker->SetTolerance(tolerance);
 }
+VTK_ABI_NAMESPACE_END

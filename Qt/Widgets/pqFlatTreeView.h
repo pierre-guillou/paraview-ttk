@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqFlatTreeView.h
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * \file pqFlatTreeView.h
@@ -113,18 +85,18 @@ public:
   /**
    * \name Model Setup Methods
    */
-  //@{
+  ///@{
   QAbstractItemModel* getModel() const { return this->Model; }
   void setModel(QAbstractItemModel* model);
 
   QModelIndex getRootIndex() const;
   void setRootIndex(const QModelIndex& index);
-  //@}
+  ///@}
 
   /**
    * \name Selection Setup Methods
    */
-  //@{
+  ///@{
   QItemSelectionModel* getSelectionModel() const { return this->Selection; }
   void setSelectionModel(QItemSelectionModel* selectionModel);
 
@@ -133,12 +105,12 @@ public:
 
   SelectionMode getSelectionMode() const { return this->Mode; }
   void setSelectionMode(SelectionMode mode);
-  //@}
+  ///@}
 
   /**
    * \name Column Management Methods
    */
-  //@{
+  ///@{
   QHeaderView* getHeader() const { return this->HeaderView; }
   void setHeader(QHeaderView* headerView);
 
@@ -163,47 +135,47 @@ public:
    *   pqFlatTreeView::isColumnSizeManaged()
    */
   void setColumnSizeManaged(bool managed);
-  //@}
+  ///@}
 
   /**
    * \name Drawing Options
    */
-  //@{
+  ///@{
   int getIconSize() const;
   void setIconSize(int iconSize);
-  //@}
+  ///@}
 
   /**
    * \name Index Location Methods
    */
-  //@{
+  ///@{
   bool isIndexHidden(const QModelIndex& index) const;
   void getVisibleRect(const QModelIndex& index, QRect& area) const;
   QModelIndex getIndexVisibleAt(const QPoint& point) const;
   QModelIndex getIndexCellAt(const QPoint& point) const;
   void getSelectionIn(const QRect& rect, QItemSelection& items) const;
-  //@}
+  ///@}
 
   /**
    * \name Index Navigation Methods
    */
-  //@{
+  ///@{
   bool isIndexExpanded(const QModelIndex& index) const;
   QModelIndex getNextVisibleIndex(
     const QModelIndex& index, const QModelIndex& root = QModelIndex()) const;
   QModelIndex getRelativeIndex(const QString& id, const QModelIndex& root = QModelIndex()) const;
   void getRelativeIndexId(
     const QModelIndex& index, QString& id, const QModelIndex& root = QModelIndex()) const;
-  //@}
+  ///@}
 
   /**
    * \name Editing Methods
    */
-  //@{
+  ///@{
   bool startEditing(const QModelIndex& index);
   void finishEditing();
   void cancelEditing();
-  //@}
+  ///@}
 
 Q_SIGNALS:
   void activated(const QModelIndex& index);
@@ -222,7 +194,7 @@ protected Q_SLOTS:
   /**
    * \name Model Change Handlers
    */
-  //@{
+  ///@{
   void insertRows(const QModelIndex& parent, int start, int end);
   void startRowRemoval(const QModelIndex& parent, int start, int end);
   void finishRowRemoval(const QModelIndex& parent, int start, int end);
@@ -230,33 +202,33 @@ protected Q_SLOTS:
   void startColumnRemoval(const QModelIndex& parent, int start, int end);
   void finishColumnRemoval(const QModelIndex& parent, int start, int end);
   void updateData(const QModelIndex& topLeft, const QModelIndex& bottomRight);
-  //@}
+  ///@}
 
 protected: // NOLINT(readability-redundant-access-specifiers)
   /**
    * \name Keyboard Event Handlers
    */
-  //@{
+  ///@{
   void keyPressEvent(QKeyEvent* e) override;
   void keyboardSearch(const QString& search);
-  //@}
+  ///@}
 
   /**
    * \name Mouse Event Handlers
    */
-  //@{
+  ///@{
   void mousePressEvent(QMouseEvent* e) override;
   void mouseMoveEvent(QMouseEvent* e) override;
   void mouseReleaseEvent(QMouseEvent* e) override;
   void mouseDoubleClickEvent(QMouseEvent* e) override;
-  //@}
+  ///@}
 
   /**
    * \name Event Handlers
    */
-  //@{
+  ///@{
   bool event(QEvent* e) override;
-  //@}
+  ///@}
 
   int horizontalOffset() const;
   int verticalOffset() const;
@@ -270,20 +242,20 @@ private Q_SLOTS:
   /**
    * \name Header Signal Handlers
    */
-  //@{
+  ///@{
   void handleSectionResized(int index, int oldSize, int newSize);
   void handleSectionMoved(int index, int oldVisual, int newVisual);
-  //@}
+  ///@}
 
   /**
    * \name Selection Signal Handlers
    */
-  //@{
+  ///@{
   void changeCurrent(const QModelIndex& current, const QModelIndex& previous);
   void changeCurrentRow(const QModelIndex& current, const QModelIndex& previous);
   void changeCurrentColumn(const QModelIndex& current, const QModelIndex& previous);
   void changeSelection(const QItemSelection& selected, const QItemSelection& deselected);
-  //@}
+  ///@}
 
 private: // NOLINT(readability-redundant-access-specifiers)
   void resetRoot();
@@ -292,7 +264,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
   /**
    * \name Layout Methods
    */
-  //@{
+  ///@{
   void layoutEditor();
   void layoutItems();
   void layoutItem(pqFlatTreeViewItem* item, int& point, const QFontMetrics& fm);
@@ -301,12 +273,12 @@ private: // NOLINT(readability-redundant-access-specifiers)
   bool updateContentsWidth();
   void updateScrollBars();
   void addChildItems(pqFlatTreeViewItem* item, int parentChildCount);
-  //@}
+  ///@}
 
   /**
    * \name Tree Navigation Methods
    */
-  //@{
+  ///@{
   bool getIndexRowList(const QModelIndex& index, pqFlatTreeViewItemRows& rowList) const;
   pqFlatTreeViewItem* getItem(const pqFlatTreeViewItemRows& rowList) const;
   pqFlatTreeViewItem* getItem(const QModelIndex& index) const;
@@ -315,7 +287,7 @@ private: // NOLINT(readability-redundant-access-specifiers)
   pqFlatTreeViewItem* getNextVisibleItem(pqFlatTreeViewItem* item) const;
   pqFlatTreeViewItem* getPreviousVisibleItem(pqFlatTreeViewItem* item) const;
   pqFlatTreeViewItem* getLastVisibleItem() const;
-  //@}
+  ///@}
 
   void expandItem(pqFlatTreeViewItem* item);
 

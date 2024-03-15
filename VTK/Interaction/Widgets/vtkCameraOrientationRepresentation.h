@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCameraOrientationRepresentation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCameraOrientationRepresentation
  * @brief   A 3D representation for vtkCameraOrientationWidget.
@@ -34,6 +22,7 @@
 #include "vtkInteractionWidgetsModule.h" // needed for export macro
 #include "vtkWidgetRepresentation.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
 class vtkDiskSource;
 class vtkDoubleArray;
@@ -251,7 +240,7 @@ public:
   /**
    * These are methods that satisfy vtkWidgetRepresentation's API.
    */
-  void PlaceWidget(double*) override{}; // this representation is an overlay. Doesn't need this.
+  void PlaceWidget(double*) override {} // this representation is an overlay. Doesn't need this.
   void BuildRepresentation() override;
   void StartWidgetInteraction(double eventPos[2]) override;
   void WidgetInteraction(double newEventPos[2]) override;
@@ -353,4 +342,5 @@ private:
   void operator=(const vtkCameraOrientationRepresentation&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkWindowedSincPolyDataFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkWindowedSincPolyDataFilter.h"
 
 #include "vtkArrayDispatch.h"
@@ -35,13 +23,15 @@
 #include "vtkTriangleFilter.h"
 
 #include <atomic>
+#include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWindowedSincPolyDataFilter);
 
 //------------------------------------------------------------------------------
 // Internal classes and methods for smoothing.
 namespace
-{
+{ // anonymous
 
 enum PointType
 {
@@ -55,12 +45,12 @@ struct PointConnectivity;
 
 // Compute normal vectors for mesh polygons. Only called if feature
 // edge smoothing is enabled.
-vtkDoubleArray* ComputeNormals(vtkPolyData* mesh)
+vtkSmartPointer<vtkDoubleArray> ComputeNormals(vtkPolyData* mesh)
 {
   vtkPoints* pts = mesh->GetPoints();
   vtkCellArray* polys = mesh->GetPolys();
   vtkIdType numCells = polys->GetNumberOfCells();
-  vtkDoubleArray* normals = vtkDoubleArray::New();
+  vtkNew<vtkDoubleArray> normals;
   normals->SetNumberOfComponents(3);
   normals->SetNumberOfTuples(numCells);
   double* n = normals->GetPointer(0);
@@ -80,7 +70,7 @@ vtkDoubleArray* ComputeNormals(vtkPolyData* mesh)
   }); // end lambda
 
   return normals;
-}
+} // ComputeNormals
 
 // Process line edges. There are two "modes" in which this functor is
 // called. In the first mode (Insertion==false), it's simply counting the
@@ -94,10 +84,13 @@ struct LineConnectivity
   vtkCellArray* Lines;
   PointConnectivity<TIds>* PtConn;
   vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> LineIterator;
+  vtkWindowedSincPolyDataFilter* Filter;
 
-  LineConnectivity(vtkCellArray* lines, PointConnectivity<TIds>* ptConn)
+  LineConnectivity(
+    vtkCellArray* lines, PointConnectivity<TIds>* ptConn, vtkWindowedSincPolyDataFilter* filter)
     : Lines(lines)
     , PtConn(ptConn)
+    , Filter(filter)
   {
   }
 
@@ -150,9 +143,23 @@ struct LineConnectivity
     vtkCellArrayIterator* cellIter = this->LineIterator.Local();
     vtkIdType npts;
     const vtkIdType* pts;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endCellId - cellId) / 10 + 1, (vtkIdType)1000);
 
     for (; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       cellIter->GetCellAtId(cellId, npts, pts);
       bool closedLoop = (pts[0] == pts[npts - 1] && npts > 3);
       this->ProcessCell(closedLoop, npts, pts);
@@ -168,7 +175,7 @@ struct LineConnectivity
       vtkSMPTools::For(0, numLines, *this);
     }
   }
-}; // Line Connectivity
+}; // LineConnectivity
 
 // Process mesh edges. There are two "modes" in which this functor is
 // called. In the first mode (Insertion==false), it's simply counting the
@@ -188,10 +195,13 @@ struct MeshConnectivity
   vtkPoints* Points;
   PointConnectivity<TIds>* PtConn;
   vtkSMPThreadLocal<vtkSmartPointer<vtkCellArrayIterator>> MeshIterator;
+  vtkWindowedSincPolyDataFilter* Filter;
 
-  MeshConnectivity(vtkPolyData* mesh, PointConnectivity<TIds>* ptConn)
+  MeshConnectivity(
+    vtkPolyData* mesh, PointConnectivity<TIds>* ptConn, vtkWindowedSincPolyDataFilter* filter)
     : Mesh(mesh)
     , PtConn(ptConn)
+    , Filter(filter)
   {
     this->Polys = this->Mesh->GetPolys();
     this->Points = this->Mesh->GetPoints();
@@ -235,9 +245,22 @@ struct MeshConnectivity
     vtkCellArrayIterator* cellIter = this->MeshIterator.Local();
     vtkIdType npts;
     const vtkIdType* pts;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endCellId - cellId) / 10 + 1, (vtkIdType)1000);
 
     for (; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       cellIter->GetCellAtId(cellId, npts, pts);
       this->ProcessCell(npts, pts);
     }
@@ -252,7 +275,7 @@ struct MeshConnectivity
       vtkSMPTools::For(0, numCells, *this);
     }
   }
-}; // Mesh Connectivity
+}; // MeshConnectivity
 
 // Class for representing and constructing the point connectivity. Templated
 // on id type so that smaller ids can be used for memory reduction and speed
@@ -267,11 +290,12 @@ struct PointConnectivityBase
   vtkSmartPointer<vtkDoubleArray> Normals; // optional mesh polygon normals
 
   bool EdgeInsertion; // whether in edge counting mode, or edge insertion mode
-  int OptLevel;       // level of optimization, 2 is highest, 0 lowest.
+  int OptLevel;       // level of optimization, 2 requires less analysis, 0 the most
 
-  int NonManifoldSmoothing; // Convenience values for integration
-  int BoundarySmoothing;
-  int FeatureEdgeSmoothing;
+  bool NonManifoldSmoothing;   // Control how smoothing is performed
+  bool WeightNonManifoldEdges; // Control how smoothing is performed
+  bool BoundarySmoothing;
+  bool FeatureEdgeSmoothing;
   double CosFeatureAngle; // Cosine of angle between edge-adjacent polys
   double CosEdgeAngle;    // Cosine of angle between adjacent edges
   int NumberOfIterations;
@@ -287,6 +311,7 @@ struct PointConnectivityBase
   {
     this->NumPts = input->GetNumberOfPoints();
     this->NonManifoldSmoothing = self->GetNonManifoldSmoothing();
+    this->WeightNonManifoldEdges = self->GetWeightNonManifoldEdges();
     this->BoundarySmoothing = self->GetBoundarySmoothing();
     this->FeatureEdgeSmoothing = self->GetFeatureEdgeSmoothing();
     this->CosFeatureAngle = cos(vtkMath::RadiansFromDegrees(self->GetFeatureAngle()));
@@ -297,17 +322,19 @@ struct PointConnectivityBase
     // Set the optimization level as appropriate to key options
     if (this->FeatureEdgeSmoothing)
     {
-      // Requires geometric analysis, normal generation, and BuildLinks()
+      // Requires topological and geometric analysis, normal generation, and
+      // BuildLinks() (for edge neighbor information).
       this->OptLevel = 0;
     }
     else if (this->BoundarySmoothing || this->NonManifoldSmoothing)
     {
-      // Requires complex topological analysis
+      // Requires topological analysis.
       this->OptLevel = 1;
     }
     else
     {
-      // Either fixed (non-smoothed point), or simple topological analysis
+      // Requires less analysis. Either fixed (non-smoothed point), or simple
+      // smoothed.
       this->OptLevel = 2;
     }
   }
@@ -317,7 +344,7 @@ struct PointConnectivityBase
   // processes).
   void EdgeInsertionOn() { this->EdgeInsertion = true; }
   void EdgeInsertionOff() { this->EdgeInsertion = false; }
-};
+}; // PointConnectivityBase
 
 // Limit the number of incident smoothing edges. Any unsigned or signed
 // integer is okay, at the cost of additional memory and performance. If
@@ -425,7 +452,7 @@ struct PointConnectivity : PointConnectivityBase
   {
     this->EdgeInsertionOff(); // edges will be counted
 
-    LineConnectivity<TIds> lineConn(this->Input->GetLines(), this);
+    LineConnectivity<TIds> lineConn(this->Input->GetLines(), this, this->Self);
     lineConn.Execute();
 
     // The mesh may need special treatment (e.g., triangulation
@@ -441,6 +468,7 @@ struct PointConnectivity : PointConnectivityBase
       tmpMesh->SetStrips(this->Input->GetStrips());
       vtkNew<vtkTriangleFilter> toTris;
       toTris->SetInputData(tmpMesh);
+      toTris->SetContainerAlgorithm(this->Self);
       toTris->Update();
       this->Mesh->SetPolys(toTris->GetOutput()->GetPolys());
     }
@@ -454,24 +482,25 @@ struct PointConnectivity : PointConnectivityBase
     // of time.
     if (this->OptLevel == 0)
     {
-      this->Mesh->BuildLinks();                                // for neighbor information
-      this->Normals.TakeReference(ComputeNormals(this->Mesh)); // feature edges
+      this->Mesh->BuildLinks(); // for neighbor information
+      //      this->Normals.TakeReference(ComputeNormals(this->Mesh)); // for feature edges
+      this->Normals = ComputeNormals(this->Mesh); // for feature edges
     }
 
-    MeshConnectivity<TIds> meshConn(this->Mesh, this);
+    MeshConnectivity<TIds> meshConn(this->Mesh, this, this->Self);
     meshConn.Execute();
   }
   void InsertEdges()
   {
     this->EdgeInsertionOn(); // incident edges will now be inserted
 
-    LineConnectivity<TIds> lineConn(this->Input->GetLines(), this);
+    LineConnectivity<TIds> lineConn(this->Input->GetLines(), this, this->Self);
     lineConn.Execute();
 
-    MeshConnectivity<TIds> meshConn(this->Mesh, this);
+    MeshConnectivity<TIds> meshConn(this->Mesh, this, this->Self);
     meshConn.Execute();
   }
-};
+}; // PointConnectivity
 
 // Various methods for performing local analysis of the region around each
 // point to determine the smoothing stencil.  OptLevel==2: simple topological
@@ -482,7 +511,8 @@ EDGE_COUNT_TYPE inline BuildO2Stencil(
   vtkIdType vtkNotUsed(ptId), TIds* edges, TIds nedges, PointConnectivity<TIds>* vtkNotUsed(ptConn))
 {
   // Check the necessary condition that there is an even number of incident
-  // edges (required if all edges are manifold).
+  // edges (required if all edges are manifold). This is because all edges
+  // come in pairs (if a point is interior to a manifold mesh).
   if ((nedges % 2))
   {
     return PointType::FIXED;
@@ -490,24 +520,24 @@ EDGE_COUNT_TYPE inline BuildO2Stencil(
 
   // Okay now see if we can group edges into pairs. If so, we have a manifold
   // situation. If not, the point may be on the boundary or in some unusual
-  // non-manifold state.
+  // nonmanifold state.
   TIds curEdge = (-1);
   int numPairs = nedges / 2;
   TIds* e = edges;
 
   for (auto i = 0; i < numPairs; ++i)
   {
-    if (edges[2 * i] == curEdge ||      // the id of subsequent pairs should be different
-      edges[2 * i] != edges[2 * i + 1]) // the ids of each pair should be the same
+    if (edges[2 * i] == curEdge ||      // if the id is the same as the previous pair
+      edges[2 * i] != edges[2 * i + 1]) // or if the id is not the same for this pair
     {
-      return PointType::FIXED;
+      return PointType::FIXED; // the point is fixed
     }
     curEdge = edges[2 * i];
     *e++ = curEdge; // rearrange edges
   }
 
   return numPairs;
-}
+} // BuildO2Stencil
 
 // Helper function compares the dot product between successive edges to the
 // cosine of the angle between the edges.
@@ -527,60 +557,77 @@ bool inline ExceedsEdgeAngle(vtkIdType ptId, TIds pt0, TIds pt1, double cosEdgeA
   }
   return vtkMath::Normalize(l1) >= 0.0 && vtkMath::Normalize(l2) >= 0.0 &&
     vtkMath::Dot(l1, l2) < cosEdgeAngle;
-}
+} // ExceedsEdgeAngle
 
 // Various methods for performing local analysis of the region around a point
 // to determine the smoothing stencil.  OptLevel==1: more complex topological
 // analysis, plus geometric query for edge angle (if needed). Points may be
-// fixed, or constrained to smooth along boundary or non-manifold edges.
+// fixed, or constrained to smooth along boundary or non-manifold edges. Feature
+// edges are not considered.
 template <typename TIds, typename TPts>
 EDGE_COUNT_TYPE inline BuildO1Stencil(
   vtkIdType ptId, TIds* edges, TIds nedges, PointConnectivity<TIds>* ptConn, TPts* pts)
 {
-  // Likely this is the end of a polyline, the point shouldn't move
+  // Likely this is the end of a polyline, the point shouldn't move, so marked "fixed".
   if (nedges == 1)
   {
     return PointType::FIXED;
   }
 
   TIds totalEdges = 0, numBEdges = 0, numNMEdges = 0;
-  TIds bEdges[2], nmEdges[2];
+  TIds bEdges[2];
   TIds eStart = 0, eEnd = 1, num;
+  bool nmSmoothing = ptConn->NonManifoldSmoothing;
+  bool weightNMEdges = ptConn->WeightNonManifoldEdges;
 
-  // Group edges, and counting the number of duplicates, and rearrange
-  // into smoothing stencil.
+  // For the current point id ptId, group edges connected to ptId, count the
+  // number of duplicates to determine the edge type, and reorder the edges
+  // into the final smoothing stencil for ptId.
   while (true)
   {
-    // Find group of identical edges
+    // Find a group of identical edges.
     while (eEnd < nedges && edges[eEnd] == edges[eStart])
     {
       ++eEnd;
     }
-    // Now classify the edges
-    if ((num = (eEnd - eStart)) == 1) // boundary edge
+
+    // Now classify the edges, and move them into position for later
+    // smoothing. Simple manifold edges are given no special treatment.
+    // We keep track of boundary edges and possibly nonmanifold edges.
+    num = (eEnd - eStart);
+    if (num == 1) // boundary edge
     {
-      if (numBEdges == 2) // already have two edges, one more makes this fixed
+      // If more than two boundary edges are incident on ptId, then the
+      // point is fixed.
+      if (numBEdges == 2)
       {
         return PointType::FIXED;
       }
-      edges[totalEdges++] = edges[eStart]; // copy into new position
+      // Keep track of boundary edges
       bEdges[numBEdges++] = edges[eStart];
     }
-    else if (num == 2) // simple manifold edge
+
+    // Nonmanifold edge might be treated as a boundary edge if nonmanifold
+    // smoothing is off and number of nonmanifold edges == 2.
+    else if (num > 2)
     {
-      edges[totalEdges++] = edges[eStart]; // copy into new position
-    }
-    else // nonmanifold edge num>2
-    {
-      if (numNMEdges == 2)
-      {
-        return PointType::FIXED; // already have two, one more makes this fixed
-      }
-      edges[totalEdges++] = edges[eStart]; // copy into new position
-      nmEdges[numNMEdges++] = edges[eStart];
+      numNMEdges++;
     }
 
-    // Advance to the next group of edges
+    // Copy the edge into a new position in the list of edges. If edges are
+    // nonmanifold, and nonmanifold weighting is on, all instances of the
+    // nonmanifold edges are copied into the smoothing stencil.
+    edges[totalEdges++] = edges[eStart];
+    if (nmSmoothing && weightNMEdges)
+    {
+      for (auto i = 0; i < (num - 1); ++i)
+      {
+        edges[totalEdges++] = edges[eStart];
+      }
+    }
+
+    // Advance to the next group of edges, or break out if all edges have
+    // been processed.
     if (eEnd >= nedges)
     {
       break;
@@ -588,11 +635,19 @@ EDGE_COUNT_TYPE inline BuildO1Stencil(
     eStart = eEnd++;
   } // while in list of edges
 
-  // Let's see what we have. If all simple, we have the smoothing stencil.
-  if (numBEdges == 0 && numNMEdges == 0)
+  // Let's see what the analysis reveals. If all simple edges, we have the
+  // smoothing stencil. Also if nonmanifold smoothing and no boundary edges
+  // also consider the nonmanifold edges as simple edges.
+  if (numBEdges == 0)
   {
-    return totalEdges; // all edges are simple
+    if (nmSmoothing || numNMEdges == 0)
+    {
+      return totalEdges;
+    }
   }
+
+  // For point along boundary edges, we have two edges to smooth along. Check
+  // that the angle between the two edges is less than the edge angle.
   else if (numBEdges == 2 && numNMEdges == 0)
   {
     if (ExceedsEdgeAngle(ptId, bEdges[0], bEdges[1], ptConn->CosEdgeAngle, pts))
@@ -603,20 +658,10 @@ EDGE_COUNT_TYPE inline BuildO1Stencil(
     edges[1] = bEdges[1];
     return 2; // a pair of boundary edges which can be smoothed
   }
-  else if (numBEdges == 0 && numNMEdges == 2)
-  {
-    if (ExceedsEdgeAngle(ptId, nmEdges[0], nmEdges[1], ptConn->CosEdgeAngle, pts))
-    {
-      return PointType::FIXED;
-    }
-    edges[0] = nmEdges[0]; // smoothing on pair of non-manifold edges
-    edges[1] = nmEdges[1];
-    return 2; // a pair of non-manifold edges which can be smoothed
-  }
 
-  // a complex mess, don't smooth
+  // A complex collection of edges, don't smooth (i.e., fix the point).
   return PointType::FIXED;
-}
+} // BuildO1Stencil
 
 // Various methods for performing local analysis of the region around a point
 // to determine the smoothing stencil.  OptLevel==0: requires both geometric
@@ -633,12 +678,16 @@ EDGE_COUNT_TYPE inline BuildO0Stencil(vtkIdType ptId, TIds* edges, TIds nedges,
   }
 
   TIds totalEdges = 0, numFEdges = 0, numBEdges = 0, numNMEdges = 0;
-  TIds fEdges[2], bEdges[2], nmEdges[2];
+  TIds fEdges[2], bEdges[2];
   TIds eStart = 0, eEnd = 1, num;
+  bool nmSmoothing = ptConn->NonManifoldSmoothing;
+  bool weightNMEdges = ptConn->WeightNonManifoldEdges;
   vtkPolyData* mesh = ptConn->Mesh;
   double* normals = ptConn->Normals->GetPointer(0);
 
-  // Group edges, and count number of duplicates
+  // For the current point id ptId, group edges connected to ptId, count the
+  // number of duplicates to determine the edge type, and reorder the edges
+  // into the final smoothing stencil for ptId.
   while (true)
   {
     // Find group of identical edges
@@ -646,42 +695,58 @@ EDGE_COUNT_TYPE inline BuildO0Stencil(vtkIdType ptId, TIds* edges, TIds nedges,
     {
       ++eEnd;
     }
-    // Now classify the edges
-    if ((num = (eEnd - eStart)) == 1) // boundary edge
+
+    // Now classify the edges, and move them into position for later
+    // smoothing. Simple manifold edges are given no special treatment.
+    // We keep track of boundary edges and possibly nonmanifold edges.
+    num = (eEnd - eStart);
+    if (num == 1) // boundary edge
     {
       if (numBEdges == 2) // already have two edges, one more makes this fixed
       {
         return PointType::FIXED;
       }
-      edges[totalEdges++] = edges[eStart]; // copy into new position
       bEdges[numBEdges++] = edges[eStart];
     }
-    else if (num == 2) // simple manifold edge, but could be a feature edge
+
+    // Simple manifold edge, but could be a feature edge. If more than two
+    // feature edges are incident on ptId, then the point is fixed/
+    else if (num == 2)
     {
       mesh->GetCellEdgeNeighbors((-1), ptId, edges[eStart], neighbors);
       double* n0 = normals + 3 * neighbors->GetId(0);
       double* n1 = normals + 3 * neighbors->GetId(1);
       if (vtkMath::Dot(n0, n1) <= ptConn->CosFeatureAngle)
       {
-        if (numFEdges == 2) // already have two feature edges
+        // See if we already have two feature edges; if so it is fixed.
+        if (numFEdges == 2)
         {
           return PointType::FIXED;
         }
         fEdges[numFEdges++] = edges[eStart];
       }
-      edges[totalEdges++] = edges[eStart]; // copy into new position
-    }
-    else // nonmanifold edge num>2
-    {
-      if (numNMEdges == 2)
-      {
-        return PointType::FIXED; // already have two, one more makes this fixed
-      }
-      edges[totalEdges++] = edges[eStart]; // copy into new position
-      nmEdges[numNMEdges++] = edges[eStart];
     }
 
-    // Advance to the next group of edges
+    // Count the number of nonmanifold edges.
+    else if (num > 2)
+    {
+      numNMEdges++;
+    }
+
+    // Copy the edge into a new position in the list of edges. If edges are
+    // nonmanifold, and nonmanifold weighting is on, *all* instances of the
+    // nonmanifold edges are copied into the smoothing stencil.
+    edges[totalEdges++] = edges[eStart];
+    if (nmSmoothing && weightNMEdges)
+    {
+      for (auto i = 0; i < (num - 1); ++i)
+      {
+        edges[totalEdges++] = edges[eStart];
+      }
+    }
+
+    // Advance to the next group of edges, or break out if all edges have
+    // been processed.
     if (eEnd >= nedges)
     {
       break;
@@ -689,13 +754,19 @@ EDGE_COUNT_TYPE inline BuildO0Stencil(vtkIdType ptId, TIds* edges, TIds nedges,
     eStart = eEnd++;
   } // while in list of edges
 
-  // Let's see what we have. If all simple, we have the smoothing stencil.
-  // Or possible smoothing along a boundary, feature, or non-manifold edge.
-  if (numBEdges == 0 && numNMEdges == 0 && numFEdges == 0)
+  // Let's see what the analysis reveals. If all simple edges, we have the
+  // smoothing stencil. Also if nonmanifold smoothing and no boundary edges nor
+  // feature edges consider the nonmanifold edges as simple edges.
+  if (numBEdges == 0 && numFEdges == 0)
   {
-    return totalEdges; // all edges are simple
+    if (nmSmoothing || numNMEdges == 0)
+    {
+      return totalEdges;
+    }
   }
-  else if (numBEdges == 2 && numNMEdges == 0 && numFEdges == 0)
+
+  // See if ptId can be smoothed along a boundary edge
+  else if (numBEdges == 2 && numFEdges == 0 && numNMEdges == 0)
   {
     if (ExceedsEdgeAngle(ptId, bEdges[0], bEdges[1], ptConn->CosEdgeAngle, pts))
     {
@@ -705,17 +776,9 @@ EDGE_COUNT_TYPE inline BuildO0Stencil(vtkIdType ptId, TIds* edges, TIds nedges,
     edges[1] = bEdges[1];
     return 2; // a pair of boundary edges which can be smoothed
   }
-  else if (numBEdges == 0 && numNMEdges == 2 && numFEdges == 0)
-  {
-    if (ExceedsEdgeAngle(ptId, nmEdges[0], nmEdges[1], ptConn->CosEdgeAngle, pts))
-    {
-      return PointType::FIXED;
-    }
-    edges[0] = nmEdges[0]; // smoothing on pair of non-manifold edges
-    edges[1] = nmEdges[1];
-    return 2; // a pair of non-manifold edges which can be smoothed
-  }
-  else if (numBEdges == 0 && numNMEdges == 0 && numFEdges == 2)
+
+  // See if ptId can be smoothed along a feature edge
+  else if (numBEdges == 0 && numFEdges == 2 && numNMEdges == 0)
   {
     if (ExceedsEdgeAngle(ptId, fEdges[0], fEdges[1], ptConn->CosEdgeAngle, pts))
     {
@@ -728,7 +791,7 @@ EDGE_COUNT_TYPE inline BuildO0Stencil(vtkIdType ptId, TIds* edges, TIds nedges,
 
   // a complex mess, don't smooth
   return PointType::FIXED;
-};
+} // BuildO0Stencil
 
 // Perform point classification by examining local topology and/or geometry
 // around each point. Update the count of the edges around the point that
@@ -739,10 +802,12 @@ struct AnalyzePoints
   TPts* Points;
   PointConnectivity<TIds>* PtConn;
   vtkSMPThreadLocal<vtkSmartPointer<vtkIdList>> Neighbors;
+  vtkWindowedSincPolyDataFilter* Filter;
 
-  AnalyzePoints(TPts* pts, PointConnectivity<TIds>* ptConn)
+  AnalyzePoints(TPts* pts, PointConnectivity<TIds>* ptConn, vtkWindowedSincPolyDataFilter* filter)
     : Points(pts)
     , PtConn(ptConn)
+    , Filter(filter)
   {
   }
 
@@ -752,9 +817,22 @@ struct AnalyzePoints
   {
     PointConnectivity<TIds>* ptConn = this->PtConn;
     vtkIdList* neighbors = this->Neighbors.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
     for (; ptId < endPtId; ++ptId)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // First sort the local list of edges (i.e., the edges incident to
       // ptId). This will group duplicate edges (if any). Manifold edges
       // come in groups of two, boundary edges just a single edge, and
@@ -781,7 +859,7 @@ struct AnalyzePoints
         {
           ptConn->SetEdgeCount(ptId, BuildO2Stencil(ptId, edges, nedges, ptConn));
         }
-        else if (ptConn->OptLevel == 1) // simple, fixed, or boundary/non-manifold edge smoothing
+        else if (ptConn->OptLevel == 1) // simple, fixed, boundary, non-manifold edge smoothing
         {
           ptConn->SetEdgeCount(ptId, BuildO1Stencil(ptId, edges, nedges, ptConn, this->Points));
         }
@@ -804,23 +882,24 @@ struct AnalyzePoints
       vtkSMPTools::For(0, numPts, *this);
     }
   }
-};
+}; // AnalyzePoints
 
 // Analyze points to develop smoothing stencil
 struct AnalyzeWorker
 {
   template <typename DataT1, typename TIds>
-  void operator()(DataT1* pts, PointConnectivity<TIds>* ptConn)
+  void operator()(
+    DataT1* pts, PointConnectivity<TIds>* ptConn, vtkWindowedSincPolyDataFilter* filter)
   {
     // This analyzes the surface mesh and polylines
-    AnalyzePoints<TIds, DataT1> pppoints(pts, ptConn);
+    AnalyzePoints<TIds, DataT1> pppoints(pts, ptConn, filter);
     pppoints.Execute();
   }
-};
+}; // AnalyzeWorker
 
 // Dispatch to the local point analysis.
 template <typename TIds>
-void AnalyzePointTopology(PointConnectivityBase* ptConnBase)
+void AnalyzePointTopology(PointConnectivityBase* ptConnBase, vtkWindowedSincPolyDataFilter* filter)
 {
   PointConnectivity<TIds>* ptConn = static_cast<PointConnectivity<TIds>*>(ptConnBase);
   vtkPoints* pts = ptConn->Input->GetPoints();
@@ -829,15 +908,15 @@ void AnalyzePointTopology(PointConnectivityBase* ptConnBase)
   using vtkArrayDispatch::Reals;
   using AnalyzeDispatch = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::Reals>;
   AnalyzeWorker ppWorker;
-  if (!AnalyzeDispatch::Execute(pts->GetData(), ppWorker, ptConn))
+  if (!AnalyzeDispatch::Execute(pts->GetData(), ppWorker, ptConn, filter))
   { // Fallback to slowpath for other point types
-    ppWorker(pts->GetData(), ptConn);
+    ppWorker(pts->GetData(), ptConn, filter);
   }
 
   // The last word comes from the vertices which will mark points fixed.
   vtkCellArray* verts = ptConn->Input->GetVerts();
   vtkIdType numVerts = (verts != nullptr ? verts->GetNumberOfCells() : 0);
-  if (numVerts > 0)
+  if (numVerts > 0 && !filter->CheckAbort())
   {
     vtkSMPTools::For(0, numVerts, [&, verts, ptConn](vtkIdType cellId, vtkIdType endCellId) {
       vtkSmartPointer<vtkCellArrayIterator> vIter;
@@ -855,22 +934,35 @@ void AnalyzePointTopology(PointConnectivityBase* ptConnBase)
       }
     }); // end lambda
   }     // if any verts
-}
+} // AnalyzePointTopology
 
 // Initialize points prior to applying smoothing operations.
 struct InitializePointsWorker
 {
   template <typename DataT1, typename DataT2>
-  void operator()(
-    DataT1* inPts, DataT2* outPts, vtkIdType numPts, int normalize, double length, double center[3])
+  void operator()(DataT1* inPts, DataT2* outPts, vtkIdType numPts, int normalize, double length,
+    double center[3], vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       const auto inTuples = vtk::DataArrayTupleRange<3>(inPts);
       auto outTuples = vtk::DataArrayTupleRange<3>(outPts);
       double x[3];
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (; ptId < endPtId; ++ptId)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         const auto inTuple = inTuples[ptId];
         auto outTuple = outTuples[ptId];
         x[0] = static_cast<double>(inTuple[0]);
@@ -891,16 +983,17 @@ struct InitializePointsWorker
       } // for all points
     }); // end lambda
   }
-};
+}; // InitializePointsWorker
 
 // Initialize points including possibly normalizing them.
 // Currently the output points are the same type as the
 // input points - could be user specified.
-vtkPoints* InitializePoints(int normalize, vtkPolyData* input, double& length, double center[3])
+vtkSmartPointer<vtkPoints> InitializePoints(int normalize, vtkPolyData* input, double& length,
+  double center[3], vtkWindowedSincPolyDataFilter* filter)
 {
   vtkPoints* inPts = input->GetPoints();
   vtkIdType numPts = inPts->GetNumberOfPoints();
-  vtkPoints* newPts = vtkPoints::New();
+  vtkNew<vtkPoints> newPts;
   newPts->SetDataType(inPts->GetDataType());
   newPts->SetNumberOfPoints(numPts);
 
@@ -915,14 +1008,14 @@ vtkPoints* InitializePoints(int normalize, vtkPolyData* input, double& length, d
   using InitializePointsDispatch =
     vtkArrayDispatch::Dispatch2BySameValueType<vtkArrayDispatch::Reals>;
   InitializePointsWorker initPtsWorker;
-  if (!InitializePointsDispatch::Execute(
-        inPts->GetData(), newPts->GetData(), initPtsWorker, numPts, normalize, length, center))
+  if (!InitializePointsDispatch::Execute(inPts->GetData(), newPts->GetData(), initPtsWorker, numPts,
+        normalize, length, center, filter))
   { // Fallback to slowpath for other point types
-    initPtsWorker(inPts->GetData(), newPts->GetData(), numPts, normalize, length, center);
+    initPtsWorker(inPts->GetData(), newPts->GetData(), numPts, normalize, length, center, filter);
   }
 
   return newPts;
-}
+} // InitializePoints
 
 // Driver function builds smoothing connectivity (i.e., the stencil of
 // smoothing edges). The connectivity that it allocates must be deleted later
@@ -943,7 +1036,7 @@ PointConnectivityBase* BuildConnectivity(vtkPolyData* input, vtkWindowedSincPoly
   ptConn->InsertEdges();
 
   return ptConn;
-}
+} // PointConnectivityBase
 
 // Calculation of the Chebychev coefficients c.  Currently this process is
 // not threaded: since it ends on convergence, typically after say maybe
@@ -958,8 +1051,8 @@ struct CoefficientsWorker
     double theta_pb, k_pb, sigma;
 
     // Allocate scratch arrays
-    double* w = new double[numIters + 1];
-    double* cprime = new double[numIters + 1];
+    std::vector<double> w(numIters + 1);
+    std::vector<double> cprime(numIters + 1);
 
     // calculate weights and filter coefficients
     k_pb = ptConn->PassBand;           // reasonable default for k_pb in [0, 2] is 0.1
@@ -1045,18 +1138,16 @@ struct CoefficientsWorker
     {
       cout << "An optimal offset for the smoothing filter could not be found.\n";
     }
-
-    delete[] w;
-    delete[] cprime;
   }
-}; // Coefficients
+}; // CoefficientsWorker
 
 // Threaded point smoothing (initial iteration to set things up)
 struct InitSmoothingWorker
 {
   template <typename DataT, typename TIds>
   void operator()(DataT* vtkNotUsed(pts), vtkIdType numPts, vtkDataArray* da[4],
-    PointConnectivity<TIds>* ptConn, double* c, int ptSelect[4])
+    PointConnectivity<TIds>* ptConn, double* c, int ptSelect[4],
+    vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       EDGE_COUNT_TYPE numEdges;
@@ -1064,9 +1155,22 @@ struct InitSmoothingWorker
       auto tuples0 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[0]]));
       auto tuples1 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[1]]));
       auto tuples3 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[3]]));
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (; ptId < endPtId; ++ptId)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         // Grab the edges
         TIds* edges = ptConn->GetEdges(ptId);
         numEdges = ptConn->GetEdgeCount(ptId);
@@ -1104,14 +1208,15 @@ struct InitSmoothingWorker
       } // for all points
     }); // end lambda
   }
-}; // Initialize smoothing
+}; // InitSmoothingWorker
 
 // Threaded point smoothing (latter iterations)
 struct SmoothingWorker
 {
   template <typename DataT, typename TIds>
   void operator()(DataT* vtkNotUsed(pts), vtkIdType numPts, vtkDataArray* da[4],
-    PointConnectivity<TIds>* ptConn, int iterNum, double* c, int ptSelect[4])
+    PointConnectivity<TIds>* ptConn, int iterNum, double* c, int ptSelect[4],
+    vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       EDGE_COUNT_TYPE numEdges;
@@ -1120,9 +1225,22 @@ struct SmoothingWorker
       auto tuples1 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[1]]));
       auto tuples2 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[2]]));
       auto tuples3 = vtk::DataArrayTupleRange<3>(vtkArrayDownCast<DataT>(da[ptSelect[3]]));
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (; ptId < endPtId; ++ptId)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         // Grab the edges
         TIds* edges = ptConn->GetEdges(ptId);
         numEdges = ptConn->GetEdgeCount(ptId);
@@ -1166,11 +1284,12 @@ struct SmoothingWorker
       } // for all points
     }); // end lambda
   }
-};
+}; // SmoothingWorker
 
 // Driver function to perform windowed sinc smoothing
 template <typename TIds>
-vtkPoints* SmoothMesh(PointConnectivity<TIds>* ptConn, vtkPoints* pts)
+vtkSmartPointer<vtkPoints> SmoothMesh(
+  PointConnectivity<TIds>* ptConn, vtkPoints* pts, vtkWindowedSincPolyDataFilter* filter)
 {
   vtkIdType numPts = ptConn->NumPts;
   int numIters = ptConn->NumberOfIterations;
@@ -1181,33 +1300,32 @@ vtkPoints* SmoothMesh(PointConnectivity<TIds>* ptConn, vtkPoints* pts)
   // COMPUTE SMOOTHING COEFFICIENTS============================================
 
   // Allocate coefficient array
-  double* c = new double[numIters + 1];
+  std::vector<double> c(numIters + 1);
 
   // Compute the smoothing coefficients
   CoefficientsWorker cWorker;
-  cWorker(ptConn, numIters, c);
+  cWorker(ptConn, numIters, c.data());
 
   // BEGIN SMOOTHING PASSES==============================================
 
   // Need 4 point arrays for smoothing. The point arrays are all of the
   // same type, and of the same value type. Dispatching requires the
   // underlying data arrays.
-  vtkPoints* newPts[4];
+  vtkSmartPointer<vtkPoints> newPts[4];
   vtkDataArray* newDA[4];
   int ptSelect[4] = { 0, 1, 2, 3 };
 
-  pts->Register(nullptr);
   newPts[0] = pts;
   newDA[0] = pts->GetData();
-  newPts[1] = vtkPoints::New();
+  newPts[1].TakeReference(vtkPoints::New());
   newPts[1]->SetDataType(pts->GetDataType());
   newPts[1]->SetNumberOfPoints(numPts);
   newDA[1] = newPts[1]->GetData();
-  newPts[2] = vtkPoints::New();
+  newPts[2].TakeReference(vtkPoints::New());
   newPts[2]->SetDataType(pts->GetDataType());
   newPts[2]->SetNumberOfPoints(numPts);
   newDA[2] = newPts[2]->GetData();
-  newPts[3] = vtkPoints::New();
+  newPts[3].TakeReference(vtkPoints::New());
   newPts[3]->SetDataType(pts->GetDataType());
   newPts[3]->SetNumberOfPoints(numPts);
   newDA[3] = newPts[3]->GetData();
@@ -1217,18 +1335,20 @@ vtkPoints* SmoothMesh(PointConnectivity<TIds>* ptConn, vtkPoints* pts)
   SmoothingWorker sWorker;
 
   // Threaded execute smoothing initialization pass
-  if (!SmoothingDispatch::Execute(newDA[0], isWorker, numPts, newDA, ptConn, c, ptSelect))
+  if (!SmoothingDispatch::Execute(
+        newDA[0], isWorker, numPts, newDA, ptConn, c.data(), ptSelect, filter))
   { // Fallback to slowpath for other point types
-    isWorker(newDA[0], numPts, newDA, ptConn, c, ptSelect);
+    isWorker(newDA[0], numPts, newDA, ptConn, c.data(), ptSelect, filter);
   }
 
   // for the rest of the iterations
   for (auto iterNum = 2; iterNum <= numIters; iterNum++)
   {
     // Threaded execute smoothing pass
-    if (!SmoothingDispatch::Execute(newDA[0], sWorker, numPts, newDA, ptConn, iterNum, c, ptSelect))
+    if (!SmoothingDispatch::Execute(
+          newDA[0], sWorker, numPts, newDA, ptConn, iterNum, c.data(), ptSelect, filter))
     { // Fallback to slowpath for other point types
-      sWorker(newDA[0], numPts, newDA, ptConn, iterNum, c, ptSelect);
+      sWorker(newDA[0], numPts, newDA, ptConn, iterNum, c.data(), ptSelect, filter);
     }
 
     // Update the point arrays. ptSelect[3] is always three. All other pointers
@@ -1238,29 +1358,38 @@ vtkPoints* SmoothMesh(PointConnectivity<TIds>* ptConn, vtkPoints* pts)
     ptSelect[2] = (1 + ptSelect[2]) % 3;
   } // for all iterations or until convergence
 
-  // Clean up
-  delete[] c;
-
-  // Clean up and return the appropriate points
-  newPts[ptSelect[0]]->Delete();
-  newPts[ptSelect[1]]->Delete();
-  newPts[ptSelect[2]]->Delete();
+  // Return the appropriate points
   return newPts[ptSelect[3]];
-}
+} // SmoothMesh
 
 // If points were initially normalized, inverse transform them
 // into original coordinate system.
 struct UnnormalizePointsWorker
 {
   template <typename DataT>
-  void operator()(DataT* pts, vtkIdType numPts, double length, double center[3])
+  void operator()(DataT* pts, vtkIdType numPts, double length, double center[3],
+    vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       auto inTuples = vtk::DataArrayTupleRange<3>(pts, ptId, endPtId);
       double x[3];
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (auto tuple : inTuples)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
+        ptId++;
         x[0] = (static_cast<double>(tuple[0]) * length) + center[0];
         x[1] = (static_cast<double>(tuple[1]) * length) + center[1];
         x[2] = (static_cast<double>(tuple[2]) * length) + center[2];
@@ -1271,36 +1400,52 @@ struct UnnormalizePointsWorker
       } // for all points
     }); // end lambda
   }
-};
+}; // UnnormalizePointsWorker
 
 // If points have been normalized, restore them to normal space
-void UnnormalizePoints(vtkPoints* inPts, double& length, double center[3])
+void UnnormalizePoints(
+  vtkPoints* inPts, double& length, double center[3], vtkWindowedSincPolyDataFilter* filter)
 {
   vtkIdType numPts = inPts->GetNumberOfPoints();
 
   using vtkArrayDispatch::Reals;
   using UnnormalizePointsDispatch = vtkArrayDispatch::DispatchByValueType<Reals>;
   UnnormalizePointsWorker unnWorker;
-  if (!UnnormalizePointsDispatch::Execute(inPts->GetData(), unnWorker, numPts, length, center))
+  if (!UnnormalizePointsDispatch::Execute(
+        inPts->GetData(), unnWorker, numPts, length, center, filter))
   { // Fallback to slowpath for other point types
-    unnWorker(inPts->GetData(), numPts, length, center);
+    unnWorker(inPts->GetData(), numPts, length, center, filter);
   }
-}
+} // UnnormalizePoints
 
 // If requested, generate scalars indicating error magnitude
 struct ErrorScalarsWorker
 {
   template <typename DataT1, typename DataT2>
-  void operator()(DataT1* inPts, DataT2* outPts, vtkIdType numPts, vtkFloatArray* es)
+  void operator()(DataT1* inPts, DataT2* outPts, vtkIdType numPts, vtkFloatArray* es,
+    vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       const auto inTuples = vtk::DataArrayTupleRange<3>(inPts);
       const auto outTuples = vtk::DataArrayTupleRange<3>(outPts);
       float* esPtr = es->GetPointer(0) + ptId;
       double x[3];
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (; ptId < endPtId; ++ptId)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         const auto inTuple = inTuples[ptId];
         const auto outTuple = outTuples[ptId];
         x[0] = outTuple[0] - inTuple[0];
@@ -1310,14 +1455,15 @@ struct ErrorScalarsWorker
       } // for all points
     }); // end lambda
   }
-};
+}; // ErrorScalarsWorker
 
 // Dispatch computation of error scalars. Caller takes the
 // reference to the created error scalars.
-vtkFloatArray* ProduceErrorScalars(vtkPoints* inPts, vtkPoints* outPts)
+vtkSmartPointer<vtkFloatArray> ProduceErrorScalars(
+  vtkPoints* inPts, vtkPoints* outPts, vtkWindowedSincPolyDataFilter* filter)
 {
   vtkIdType numPts = inPts->GetNumberOfPoints();
-  vtkFloatArray* errorScalars = vtkFloatArray::New();
+  vtkNew<vtkFloatArray> errorScalars;
   errorScalars->SetNumberOfComponents(1);
   errorScalars->SetNumberOfTuples(numPts);
 
@@ -1325,27 +1471,41 @@ vtkFloatArray* ProduceErrorScalars(vtkPoints* inPts, vtkPoints* outPts)
   using ErrorScalarsDispatch = vtkArrayDispatch::Dispatch2BySameValueType<vtkArrayDispatch::Reals>;
   ErrorScalarsWorker esWorker;
   if (!ErrorScalarsDispatch::Execute(
-        inPts->GetData(), outPts->GetData(), esWorker, numPts, errorScalars))
+        inPts->GetData(), outPts->GetData(), esWorker, numPts, errorScalars, filter))
   { // Fallback to slowpath for other point types
-    esWorker(inPts->GetData(), outPts->GetData(), numPts, errorScalars);
+    esWorker(inPts->GetData(), outPts->GetData(), numPts, errorScalars, filter);
   }
 
   return errorScalars;
-}
+} // ProduceErrorScalars
 
 // If requested, produce vectors indicating vector difference in position
 struct ErrorVectorsWorker
 {
   template <typename DataT1, typename DataT2>
-  void operator()(DataT1* inPts, DataT2* outPts, vtkIdType numPts, vtkFloatArray* ev)
+  void operator()(DataT1* inPts, DataT2* outPts, vtkIdType numPts, vtkFloatArray* ev,
+    vtkWindowedSincPolyDataFilter* filter)
   {
     vtkSMPTools::For(0, numPts, [&](vtkIdType ptId, vtkIdType endPtId) {
       const auto inTuples = vtk::DataArrayTupleRange<3>(inPts);
       const auto outTuples = vtk::DataArrayTupleRange<3>(outPts);
       float* evPtr = ev->GetPointer(0) + 3 * ptId;
+      bool isFirst = vtkSMPTools::GetSingleThread();
+      vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
       for (; ptId < endPtId; ++ptId)
       {
+        if (ptId % checkAbortInterval == 0)
+        {
+          if (isFirst)
+          {
+            filter->CheckAbort();
+          }
+          if (filter->GetAbortOutput())
+          {
+            break;
+          }
+        }
         const auto inTuple = inTuples[ptId];
         const auto outTuple = outTuples[ptId];
         *evPtr++ = outTuple[0] - inTuple[0];
@@ -1354,14 +1514,15 @@ struct ErrorVectorsWorker
       } // for all points
     }); // end lambda
   }
-};
+}; // ErrorVectorsWorker
 
 // Dispatch computation of error vectors. Caller takes the
 // reference to the created error vectors.
-vtkFloatArray* ProduceErrorVectors(vtkPoints* inPts, vtkPoints* outPts)
+vtkSmartPointer<vtkFloatArray> ProduceErrorVectors(
+  vtkPoints* inPts, vtkPoints* outPts, vtkWindowedSincPolyDataFilter* filter)
 {
   vtkIdType numPts = inPts->GetNumberOfPoints();
-  vtkFloatArray* errorVectors = vtkFloatArray::New();
+  vtkNew<vtkFloatArray> errorVectors;
   errorVectors->SetNumberOfComponents(3);
   errorVectors->SetNumberOfTuples(numPts);
 
@@ -1369,13 +1530,13 @@ vtkFloatArray* ProduceErrorVectors(vtkPoints* inPts, vtkPoints* outPts)
   using ErrorVectorsDispatch = vtkArrayDispatch::Dispatch2BySameValueType<vtkArrayDispatch::Reals>;
   ErrorVectorsWorker evWorker;
   if (!ErrorVectorsDispatch::Execute(
-        inPts->GetData(), outPts->GetData(), evWorker, numPts, errorVectors))
+        inPts->GetData(), outPts->GetData(), evWorker, numPts, errorVectors, filter))
   { // Fallback to slowpath for other point types
-    evWorker(inPts->GetData(), outPts->GetData(), numPts, errorVectors);
+    evWorker(inPts->GetData(), outPts->GetData(), numPts, errorVectors, filter);
   }
 
   return errorVectors;
-}
+} // ProduceErrorVectors
 
 } // anonymous namespace
 
@@ -1389,16 +1550,18 @@ vtkWindowedSincPolyDataFilter::vtkWindowedSincPolyDataFilter()
   this->NumberOfIterations = 20;
   this->PassBand = 0.1;
 
-  this->NormalizeCoordinates = 0;
+  this->NormalizeCoordinates = false;
 
   this->FeatureAngle = 45.0;
   this->EdgeAngle = 15.0;
-  this->FeatureEdgeSmoothing = 0;
-  this->BoundarySmoothing = 1;
-  this->NonManifoldSmoothing = 0;
 
-  this->GenerateErrorScalars = 0;
-  this->GenerateErrorVectors = 0;
+  this->FeatureEdgeSmoothing = false;
+  this->BoundarySmoothing = true;
+  this->NonManifoldSmoothing = false;
+  this->WeightNonManifoldEdges = true;
+
+  this->GenerateErrorScalars = false;
+  this->GenerateErrorVectors = false;
 }
 
 //------------------------------------------------------------------------------
@@ -1430,8 +1593,10 @@ int vtkWindowedSincPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(reques
                 << "\tBoundary Smoothing " << (this->BoundarySmoothing ? "On\n" : "Off\n")
                 << "\tFeature Edge Smoothing " << (this->FeatureEdgeSmoothing ? "On\n" : "Off\n")
                 << "\tNonmanifold Smoothing " << (this->NonManifoldSmoothing ? "On\n" : "Off\n")
-                << "\tError Scalars " << (this->GenerateErrorScalars ? "On\n" : "Off\n")
-                << "\tError Vectors " << (this->GenerateErrorVectors ? "On\n" : "Off\n"));
+                << "\tWeight NonManifold Edges "
+                << (this->WeightNonManifoldEdges ? "On\n" : "Off\n") << "\tError Scalars "
+                << (this->GenerateErrorScalars ? "On\n" : "Off\n") << "\tError Vectors "
+                << (this->GenerateErrorVectors ? "On\n" : "Off\n"));
 
   // We will replace the smoothed points later with newPts
   output->CopyStructure(input);
@@ -1455,12 +1620,12 @@ int vtkWindowedSincPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(reques
   if (largeIds)
   {
     ptConn = BuildConnectivity<vtkIdType>(input, this);
-    AnalyzePointTopology<vtkIdType>(ptConn);
+    AnalyzePointTopology<vtkIdType>(ptConn, this);
   }
   else
   {
     ptConn = BuildConnectivity<int>(input, this);
-    AnalyzePointTopology<int>(ptConn);
+    AnalyzePointTopology<int>(ptConn, this);
   }
 
   vtkDebugMacro(<< "Found\n\t" << ptConn->NumSimple << " simple vertices\n\t" << ptConn->NumEdges
@@ -1469,33 +1634,33 @@ int vtkWindowedSincPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(reques
   // Copy the input points to the output; normalize the output points if
   // requested.
   double length = 1.0, center[3];
-  vtkSmartPointer<vtkPoints> newPts;
-  newPts.TakeReference(InitializePoints(this->NormalizeCoordinates, input, length, center));
+  vtkSmartPointer<vtkPoints> newPts =
+    InitializePoints(this->NormalizeCoordinates, input, length, center, this);
 
   // Now smooth the mesh. Basically what is happening is that the input point
   // positions are adjusted to remove high-frequency information / noise.
   vtkSmartPointer<vtkPoints> outPts;
   if (largeIds)
   {
-    outPts.TakeReference(
-      SmoothMesh<vtkIdType>(static_cast<PointConnectivity<vtkIdType>*>(ptConn), newPts));
+    outPts =
+      SmoothMesh<vtkIdType>(static_cast<PointConnectivity<vtkIdType>*>(ptConn), newPts, this);
   }
   else
   {
-    outPts.TakeReference(SmoothMesh<int>(static_cast<PointConnectivity<int>*>(ptConn), newPts));
+    outPts = SmoothMesh<int>(static_cast<PointConnectivity<int>*>(ptConn), newPts, this);
   }
 
   // If the points were normalized, reverse the normalization process.
   if (this->NormalizeCoordinates)
   {
-    UnnormalizePoints(outPts, length, center);
+    UnnormalizePoints(outPts, length, center, this);
   }
 
   // If error scalars are requested, create them.
   if (this->GenerateErrorScalars)
   {
-    vtkSmartPointer<vtkFloatArray> errorScalars;
-    errorScalars.TakeReference(ProduceErrorScalars(input->GetPoints(), outPts));
+    vtkSmartPointer<vtkFloatArray> errorScalars =
+      ProduceErrorScalars(input->GetPoints(), outPts, this);
     int idx = output->GetPointData()->AddArray(errorScalars);
     output->GetPointData()->SetActiveAttribute(idx, vtkDataSetAttributes::SCALARS);
   }
@@ -1503,8 +1668,8 @@ int vtkWindowedSincPolyDataFilter::RequestData(vtkInformation* vtkNotUsed(reques
   // If error vector are requested, create them.
   if (this->GenerateErrorVectors)
   {
-    vtkSmartPointer<vtkFloatArray> errorVectors;
-    errorVectors.TakeReference(ProduceErrorVectors(input->GetPoints(), outPts));
+    vtkSmartPointer<vtkFloatArray> errorVectors =
+      ProduceErrorVectors(input->GetPoints(), outPts, this);
     output->GetPointData()->AddArray(errorVectors);
   }
 
@@ -1529,7 +1694,9 @@ void vtkWindowedSincPolyDataFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Feature Angle: " << this->FeatureAngle << "\n";
   os << indent << "Edge Angle: " << this->EdgeAngle << "\n";
   os << indent << "Boundary Smoothing: " << (this->BoundarySmoothing ? "On\n" : "Off\n");
-  os << indent << "Nonmanifold Smoothing: " << (this->NonManifoldSmoothing ? "On\n" : "Off\n");
+  os << indent << "NonManifold Smoothing: " << (this->NonManifoldSmoothing ? "On\n" : "Off\n");
+  os << indent << "Weight NonManifold Edges: " << (this->WeightNonManifoldEdges ? "On\n" : "Off\n");
   os << indent << "Generate Error Scalars: " << (this->GenerateErrorScalars ? "On\n" : "Off\n");
   os << indent << "Generate Error Vectors: " << (this->GenerateErrorVectors ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

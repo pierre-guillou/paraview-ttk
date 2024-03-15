@@ -1,40 +1,18 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonFileIO.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqPythonFileIO.h"
 
+#include "pqApplicationCore.h"
 #include "pqCoreUtilities.h"
 #include "pqFileDialog.h"
 #include "pqPythonScriptEditor.h"
+#include "pqServer.h"
+
+#include "vtkPVSession.h"
+#include "vtkSMFileUtilities.h"
+#include "vtkSMSessionProxyManager.h"
 
 #include <QApplication>
 #include <QFile>
@@ -42,16 +20,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QMessageBox>
 #include <QTextEdit>
 #include <QTextStream>
-
-#define Q_OPEN_FILE_(FILENAME, FLAGS)                                                              \
-  QFile file(FILENAME);                                                                            \
-  if (!file.open(FLAGS))                                                                           \
-  {                                                                                                \
-    QMessageBox::warning(pqCoreUtilities::mainWidget(), QObject::tr("Sorry!"),                     \
-      QObject::tr(                                                                                 \
-        qPrintable(QString("Cannot open file %1:\n%2.").arg(FILENAME).arg(file.errorString()))));  \
-    return false;                                                                                  \
-  }
 
 namespace details
 {
@@ -62,9 +30,10 @@ QString GetSwapDir()
   const QDir existCheck(swapDir);
   if (!existCheck.mkpath(swapDir))
   {
-    QMessageBox::warning(nullptr, QString("Sorry!"),
-      QObject::tr(
-        qPrintable(QString("Could not create user PythonSwap directory: %1.").arg(swapDir))));
+    QMessageBox::warning(nullptr, QCoreApplication::translate("pqPythonFileIO", "Sorry!"),
+      qPrintable(QCoreApplication::translate(
+        "pqPythonFileIO", "Could not create user PythonSwap directory: %1.")
+                   .arg(swapDir)));
 
     return {};
   }
@@ -86,14 +55,18 @@ QString GetSwapFilename(const QString& filepath)
 }
 
 //-----------------------------------------------------------------------------
-bool Write(const QString& filename, const QString& content)
+//-----------------------------------------------------------------------------
+QString Read(const QString& filename, vtkTypeUInt32 location)
 {
-  Q_OPEN_FILE_(filename, QFile::WriteOnly | QFile::Text);
+  auto pxm = pqApplicationCore::instance()->getActiveServer()->proxyManager();
+  return QString(pxm->LoadString(filename.toStdString().c_str(), location).c_str());
+}
 
-  QTextStream out(&file);
-  out << content;
-
-  return true;
+//-----------------------------------------------------------------------------
+bool Write(const QString& filename, vtkTypeUInt32 location, const QString& content)
+{
+  auto pxm = pqApplicationCore::instance()->getActiveServer()->proxyManager();
+  return pxm->SaveString(content.toStdString().c_str(), filename.toStdString().c_str(), location);
 }
 }
 
@@ -102,12 +75,13 @@ bool pqPythonFileIO::PythonFile::writeToFile() const
 {
   if (this->Name.isEmpty())
   {
-    QMessageBox::warning(
-      pqCoreUtilities::mainWidget(), QObject::tr("Error"), QObject::tr("No Filename Given!"));
+    QMessageBox::warning(pqCoreUtilities::mainWidget(),
+      QCoreApplication::translate("pqPythonFileIO", "Error"),
+      QCoreApplication::translate("pqPythonFileIO", "No Filename Given!"));
     return false;
   }
 
-  return details::Write(this->Name, this->Text->toPlainText());
+  return details::Write(this->Name, this->Location, this->Text->toPlainText());
 }
 
 //-----------------------------------------------------------------------------
@@ -115,24 +89,27 @@ bool pqPythonFileIO::PythonFile::readFromFile(QString& str) const
 {
   if (this->Name.isEmpty())
   {
-    QMessageBox::warning(
-      pqCoreUtilities::mainWidget(), QObject::tr("Error"), QObject::tr("No Filename Given!"));
+    QMessageBox::warning(pqCoreUtilities::mainWidget(),
+      QCoreApplication::translate("pqPythonFileIO", "Error"),
+      QCoreApplication::translate("pqPythonFileIO", "No Filename Given!"));
     return false;
   }
 
   const QString swapFilename = details::GetSwapFilename(this->Name);
   if (QFileInfo::exists(swapFilename))
   {
-    switch (pqCoreUtilities::promptUserGeneric(tr("Script Editor"),
+    const auto userAnswer = pqCoreUtilities::promptUserGeneric(tr("Script Editor"),
       tr("Paraview found an old automatic save file %1. Would you like to recover its content?"),
-      QMessageBox::Warning, QMessageBox::Yes | QMessageBox::Discard | QMessageBox::Cancel, nullptr))
+      QMessageBox::Warning, QMessageBox::Yes | QMessageBox::Discard | QMessageBox::Cancel, nullptr);
+    switch (userAnswer)
     {
       case QMessageBox::Yes:
-        QFile::remove(this->Name);
-        QFile::copy(swapFilename, this->Name);
+      {
+        const auto contents = details::Read(swapFilename, vtkPVSession::CLIENT);
+        details::Write(this->Name, this->Location, contents);
         QFile::remove(swapFilename);
         break;
-
+      }
       case QMessageBox::Discard:
         QFile::remove(swapFilename);
         break;
@@ -143,11 +120,8 @@ bool pqPythonFileIO::PythonFile::readFromFile(QString& str) const
     }
   }
 
-  Q_OPEN_FILE_(Name, QFile::ReadOnly | QFile::Text);
-
-  QTextStream in(&file);
   QApplication::setOverrideCursor(Qt::WaitCursor);
-  str = in.readAll();
+  str = details::Read(this->Name, this->Location);
   QApplication::restoreOverrideCursor();
 
   pqPythonScriptEditor::bringFront();
@@ -164,7 +138,7 @@ void pqPythonFileIO::PythonFile::start()
       const QString swapFilename = details::GetSwapFilename(this->Name);
       if (!swapFilename.isEmpty())
       {
-        details::Write(swapFilename, this->Text->toPlainText());
+        details::Write(swapFilename, vtkPVSession::CLIENT, this->Text->toPlainText());
       }
     }
   });
@@ -229,14 +203,14 @@ bool pqPythonFileIO::saveOnClose()
 }
 
 //-----------------------------------------------------------------------------
-bool pqPythonFileIO::openFile(const QString& filename)
+bool pqPythonFileIO::openFile(const QString& filename, vtkTypeUInt32 location)
 {
   if (!this->saveOnClose())
   {
     return false;
   }
 
-  const PythonFile file(filename, &this->TextEdit);
+  const PythonFile file(filename, location, &this->TextEdit);
   QString fileContent;
   if (!file.readFromFile(fileContent))
   {
@@ -262,7 +236,7 @@ bool pqPythonFileIO::save()
   }
   else
   {
-    return this->saveBuffer(this->File.Name);
+    return this->saveBuffer(this->File.Name, this->File.Location);
   }
 }
 
@@ -279,23 +253,26 @@ void pqPythonFileIO::setModified(bool modified)
 //-----------------------------------------------------------------------------
 bool pqPythonFileIO::saveAs()
 {
-  QString filename =
-    pqFileDialog::getSaveFileName(nullptr, pqPythonScriptEditor::getUniqueInstance(),
-      tr("Save File As"), this->DefaultSaveDirectory, tr("Python Script (*.py)"));
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  auto filenameAndLocation = pqFileDialog::getSaveFileNameAndLocation(server,
+    pqPythonScriptEditor::getUniqueInstance(), tr("Save File As"), this->DefaultSaveDirectory,
+    tr("Python Files") + QString(" (*.py);;"), false, false);
 
-  if (filename.isEmpty())
+  auto& fileName = filenameAndLocation.first;
+  auto& location = filenameAndLocation.second;
+  if (fileName.isEmpty())
   {
     return false;
   }
 
-  if (!filename.endsWith(".py"))
+  if (!fileName.endsWith(".py"))
   {
-    filename.append(".py");
+    fileName.append(".py");
   }
 
   pqPythonScriptEditor::bringFront();
 
-  return this->saveBuffer(filename);
+  return this->saveBuffer(fileName, location);
 }
 
 //-----------------------------------------------------------------------------
@@ -305,18 +282,18 @@ bool pqPythonFileIO::saveAsMacro()
   const QDir existCheck(userMacroDir);
   if (!existCheck.exists() && !existCheck.mkpath(userMacroDir))
   {
-    QMessageBox::warning(nullptr, this->tr("Sorry!"),
-      tr(qPrintable(QString("Could not create user Macro directory: %1.").arg(userMacroDir))));
+    QMessageBox::warning(nullptr, tr("Sorry!"),
+      qPrintable(tr("Could not create user Macro directory: %1.").arg(userMacroDir)));
     return false;
   }
 
   const QString filename =
     pqFileDialog::getSaveFileName(nullptr, pqPythonScriptEditor::getUniqueInstance(),
-      tr("Save As Macro"), userMacroDir, tr("Python script (*.py)"));
+      tr("Save As Macro"), userMacroDir, tr("Python Files") + QString(" (*.py);;"));
 
   pqPythonScriptEditor::bringFront();
 
-  if (this->saveBuffer(filename))
+  if (this->saveBuffer(filename, vtkPVSession::CLIENT))
   {
     pqPythonScriptEditor::updateMacroList();
     return true;
@@ -332,18 +309,19 @@ bool pqPythonFileIO::saveAsScript()
   const QDir existCheck(userScriptDir);
   if (!existCheck.exists() && !existCheck.mkpath(userScriptDir))
   {
-    QMessageBox::warning(nullptr, this->tr("Sorry!"),
-      tr(qPrintable(QString("Could not create user Script directory: %1.").arg(userScriptDir))));
+    QMessageBox::warning(nullptr, tr("Sorry!"),
+      qPrintable(tr("Could not create user Script directory: %1.").arg(userScriptDir)));
     return false;
   }
 
-  const QString filename =
-    pqFileDialog::getSaveFileName(nullptr, pqPythonScriptEditor::getUniqueInstance(),
-      tr("Save As Script"), userScriptDir, tr("Python script (*.py)"));
+  pqServer* server = pqApplicationCore::instance()->getActiveServer();
+  const auto filenameAndLocation =
+    pqFileDialog::getSaveFileNameAndLocation(server, pqPythonScriptEditor::getUniqueInstance(),
+      tr("Save As Script"), userScriptDir, tr("Python Files") + QString(" (*.py);;"), false, false);
 
   pqPythonScriptEditor::bringFront();
 
-  if (this->saveBuffer(filename))
+  if (this->saveBuffer(filenameAndLocation.first, filenameAndLocation.second))
   {
     pqPythonScriptEditor::updateScriptList();
     return true;
@@ -353,14 +331,14 @@ bool pqPythonFileIO::saveAsScript()
 }
 
 //-----------------------------------------------------------------------------
-bool pqPythonFileIO::saveBuffer(const QString& filename)
+bool pqPythonFileIO::saveBuffer(const QString& filename, vtkTypeUInt32 location)
 {
   if (filename.isEmpty())
   {
     return false;
   }
 
-  const PythonFile file(filename, &this->TextEdit);
+  const PythonFile file(filename, location, &this->TextEdit);
   if (file.writeToFile())
   {
     if (file != this->File)

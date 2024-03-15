@@ -1,6 +1,7 @@
 set(classes
   vtkEnSightWriter
   vtkMultiBlockPLOT3DReader
+  vtkNek5000Reader
   vtkPChacoReader
   vtkPDataSetReader
   vtkPDataSetWriter
@@ -18,3 +19,4 @@ vtk_module_add_module(VTK::IOParallel
   CLASSES ${classes}
   SOURCES ${sources}
   PRIVATE_HEADERS ${private_headers})
+vtk_add_test_mangling(VTK::IOParallel)

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCoordinateFrame.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCoordinateFrame.h"
 
 #include "vtkMath.h"
@@ -21,6 +9,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkCoordinateFrame);
 
 double vtkCoordinateFrame::EvaluateFunction(double x[3])
@@ -81,3 +70,4 @@ void vtkCoordinateFrame::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "ZAxis: " << this->ZAxis[0] << " " << this->ZAxis[1] << " " << this->ZAxis[2]
      << "\n";
 }
+VTK_ABI_NAMESPACE_END

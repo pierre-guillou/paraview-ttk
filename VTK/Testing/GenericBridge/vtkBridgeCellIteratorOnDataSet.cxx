@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBridgeCellIteratorOnDataSet.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkBridgeCellIteratorOnDataSet - Iterate over cells of a dataset.
 // .SECTION See Also
 // vtkBridgeCellIterator, vtkBridgeDataSet, vtkBridgeCellIteratorStrategy
@@ -26,6 +14,7 @@
 #include "vtkDataSet.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkBridgeCellIteratorOnDataSet);
 
 //------------------------------------------------------------------------------
@@ -151,3 +140,4 @@ void vtkBridgeCellIteratorOnDataSet::InitWithDataSet(vtkBridgeDataSet* ds, int d
   this->Size = ds->GetNumberOfCells();
   this->Id = this->Size; // at end
 }
+VTK_ABI_NAMESPACE_END

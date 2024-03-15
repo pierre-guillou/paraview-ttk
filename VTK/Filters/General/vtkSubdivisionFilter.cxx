@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSubdivisionFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSubdivisionFilter.h"
 
 #include "vtkCell.h"
@@ -32,6 +20,7 @@
 
 // Construct object with number of subdivisions set to 1, check for
 // triangles set to 1
+VTK_ABI_NAMESPACE_BEGIN
 vtkSubdivisionFilter::vtkSubdivisionFilter()
 {
   this->NumberOfSubdivisions = 1;
@@ -68,6 +57,10 @@ int vtkSubdivisionFilter::RequestData(vtkInformation* vtkNotUsed(request),
     vtkCellIterator* it = input->NewCellIterator();
     for (it->InitTraversal(); !it->IsDoneWithTraversal(); it->GoToNextCell())
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       if (it->GetCellType() != VTK_TRIANGLE)
       {
         hasOnlyTris = false;
@@ -101,3 +94,4 @@ void vtkSubdivisionFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Number of subdivisions: " << this->GetNumberOfSubdivisions() << endl;
   os << indent << "Check for triangles: " << this->GetCheckForTriangles() << endl;
 }
+VTK_ABI_NAMESPACE_END

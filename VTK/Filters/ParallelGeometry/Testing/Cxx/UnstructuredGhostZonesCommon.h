@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkPStructuredGridConnectivity.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef UNSTRUCTUREDGHOSTZONESCOMMON_H_
 #define UNSTRUCTUREDGHOSTZONESCOMMON_H_
 
@@ -39,10 +27,10 @@ struct global
   static vtkUnstructuredGrid* Grid;
 };
 
-int CheckGrid(vtkUnstructuredGrid* ghostGrid, const int iteration);
+int CheckGrid(vtkUnstructuredGrid* ghostGrid, int iteration);
 
 //------------------------------------------------------------------------------
-void UpdateGrid(const int iteration);
+void UpdateGrid(int iteration);
 
 //------------------------------------------------------------------------------
 void SetXYZCellField();
@@ -54,7 +42,7 @@ void SetXYZNodeField();
 void WriteDataSet(vtkUnstructuredGrid* grid, const std::string& file);
 
 //------------------------------------------------------------------------------
-void GetPoint(const int i, const int j, const int k, double pnt[3]);
+void GetPoint(int i, int j, int k, double pnt[3]);
 
 void GenerateDataSet();
 

@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMREnzoParticlesReader.h
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAMREnzoParticlesReader
  *
@@ -29,6 +17,7 @@
 #include "vtkAMRBaseParticlesReader.h"
 #include "vtkIOAMRModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPolyData;
 class vtkDataArray;
 class vtkIntArray;
@@ -62,7 +51,7 @@ protected:
    * Read the particles from the given particles file for the block
    * corresponding to the given block index.
    */
-  vtkPolyData* GetParticles(const char* file, const int blockIdx);
+  vtkPolyData* GetParticles(const char* file, int blockIdx);
 
   /**
    * See vtkAMRBaseParticlesReader::ReadMetaData()
@@ -78,17 +67,17 @@ protected:
    * Filter's by particle type, iff particle_type is included in
    * the given file.
    */
-  bool CheckParticleType(const int pIdx, vtkIntArray* ptypes);
+  bool CheckParticleType(int pIdx, vtkIntArray* ptypes);
 
   /**
    * Returns the ParticlesType Array
    */
-  vtkDataArray* GetParticlesTypeArray(const int blockIdx);
+  vtkDataArray* GetParticlesTypeArray(int blockIdx);
 
   /**
    * Reads the particles.
    */
-  vtkPolyData* ReadParticles(const int blkidx) override;
+  vtkPolyData* ReadParticles(int blkidx) override;
 
   int ParticleType;
 
@@ -99,4 +88,5 @@ private:
   void operator=(const vtkAMREnzoParticlesReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif /* vtkAMREnzoParticlesReader_h */

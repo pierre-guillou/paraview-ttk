@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointPlacer.h,v
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPointPlacer
  * @brief   Abstract interface to translate 2D display positions to world coordinates
@@ -44,6 +32,7 @@
 #include "vtkInteractionWidgetsModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRenderer;
 
 class VTKINTERACTIONWIDGETS_EXPORT vtkPointPlacer : public vtkObject
@@ -158,4 +147,5 @@ private:
   void operator=(const vtkPointPlacer&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

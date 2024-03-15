@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCurveRepresentation.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkCurveRepresentation.h"
 
 #include "vtkActor.h"
@@ -42,6 +30,7 @@
 #include <iterator>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkCurveRepresentation::vtkCurveRepresentation()
 {
   this->LastEventPosition[0] = VTK_DOUBLE_MAX;
@@ -570,7 +559,7 @@ void vtkCurveRepresentation::CreateDefaultProperties()
   this->SelectedLineProperty = vtkProperty::New();
   this->SelectedLineProperty->SetRepresentationToWireframe();
   this->SelectedLineProperty->SetAmbient(1.0);
-  this->SelectedLineProperty->SetAmbientColor(0.0, 1.0, 0.0);
+  this->SelectedLineProperty->SetColor(0.0, 1.0, 0.0);
   this->SelectedLineProperty->SetLineWidth(2.0);
 }
 
@@ -963,16 +952,29 @@ void vtkCurveRepresentation::SetLineColor(double r, double g, double b)
 }
 
 //------------------------------------------------------------------------------
+void vtkCurveRepresentation::SetInteractionColor(double r, double g, double b)
+{
+  this->SelectedHandleProperty->SetColor(r, g, b);
+  this->SelectedLineProperty->SetColor(r, g, b);
+}
+
+//------------------------------------------------------------------------------
+void vtkCurveRepresentation::SetForegroundColor(double r, double g, double b)
+{
+  this->HandleProperty->SetColor(r, g, b);
+  this->LineProperty->SetColor(r, g, b);
+}
+
+//------------------------------------------------------------------------------
 void vtkCurveRepresentation::GetActors(vtkPropCollection* pc)
 {
-  if (!pc)
+  if (pc != nullptr && this->GetVisibility())
   {
-    return;
-  }
-  pc->AddItem(this->LineActor);
-  for (int i = 0; i < this->GetNumberOfHandles(); ++i)
-  {
-    pc->AddItem(this->GetHandleActor(i));
+    pc->AddItem(this->LineActor);
+    for (int i = 0; i < this->GetNumberOfHandles(); ++i)
+    {
+      pc->AddItem(this->GetHandleActor(i));
+    }
   }
   this->Superclass::GetActors(pc);
 }
@@ -1022,3 +1024,4 @@ void vtkCurveRepresentation::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Closed: " << (this->Closed ? "On" : "Off") << "\n";
   os << indent << "InteractionState: " << this->InteractionState << endl;
 }
+VTK_ABI_NAMESPACE_END

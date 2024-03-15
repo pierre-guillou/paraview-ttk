@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContourLoopExtraction.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContourLoopExtraction.h"
 
 #include "vtkCellArray.h"
@@ -32,6 +20,7 @@
 #include <cfloat>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkContourLoopExtraction);
 
 //------------------------------------------------------------------------------
@@ -105,7 +94,7 @@ vtkIdType TraverseLoop(double dir, vtkPolyData* polyData, vtkIdType lineId, vtkI
     last = (pts[0] != last ? pts[0] : pts[1]);
     numInserted++;
     t = dir * static_cast<double>(numInserted);
-    sortedPoints.push_back(LoopPoint(t, last));
+    sortedPoints.emplace_back(t, last);
     UpdateRange(scalars, last, range);
 
     polyData->GetPointCells(last, ncells, cells);
@@ -423,12 +412,16 @@ int vtkContourLoopExtraction::RequestData(vtkInformation* vtkNotUsed(request),
   double range[2];
   for (lineId = 0, newLines->InitTraversal(); newLines->GetNextCell(npts, pts); ++lineId)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     if (!visited[lineId])
     {
       visited[lineId] = 1;
       start = pts[0];
       sortedPoints.clear();
-      sortedPoints.push_back(LoopPoint(0.0, start));
+      sortedPoints.emplace_back(0.0, start);
       range[0] = VTK_FLOAT_MAX;
       range[1] = VTK_FLOAT_MIN;
       UpdateRange(scalars, start, range);
@@ -526,3 +519,4 @@ void vtkContourLoopExtraction::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Clean Points: " << (this->CleanPoints ? "On\n" : "Off\n");
 }
+VTK_ABI_NAMESPACE_END

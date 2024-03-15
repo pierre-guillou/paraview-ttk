@@ -1,24 +1,20 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTestingInteractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkTestingInteractor.h"
+#include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindow.h"
 #include "vtkSmartPointer.h"
 #include "vtkTesting.h"
 
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+#include "vtkMPIController.h"
+#endif
+
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkTestingInteractor);
+
+vtkCxxSetSmartPointerMacro(vtkTestingInteractor, Controller, vtkMultiProcessController);
 
 int vtkTestingInteractor::TestReturnStatus = -1;
 double vtkTestingInteractor::ErrorThreshold = 10.0;
@@ -27,12 +23,34 @@ std::string vtkTestingInteractor::TempDirectory;
 std::string vtkTestingInteractor::DataDirectory;
 
 //------------------------------------------------------------------------------
+vtkTestingInteractor::vtkTestingInteractor()
+{
+#if VTK_MODULE_ENABLE_VTK_ParallelMPI
+  this->Controller = vtkSmartPointer<vtkMPIController>::New();
+  // IF MPI is not set up, set to nullptr
+  if (!this->Controller->GetCommunicator())
+  {
+    this->Controller = nullptr;
+  }
+#else
+  this->Controller = nullptr;
+#endif
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkTestingInteractor::GetController() const
+{
+  return this->Controller;
+}
+
+//------------------------------------------------------------------------------
 // Start normally starts an event loop. This iterator uses vtkTesting
 // to grab the render window and compare the results to a baseline image
 void vtkTestingInteractor::Start()
 {
   vtkSmartPointer<vtkTesting> testing = vtkSmartPointer<vtkTesting>::New();
   testing->SetRenderWindow(this->GetRenderWindow());
+  testing->SetController(this->Controller);
 
   // Location of the temp directory for testing
   testing->AddArgument("-T");
@@ -62,3 +80,4 @@ void vtkTestingInteractor::PrintSelf(ostream& os, vtkIndent indent)
   // Superclass typedef defined in vtkTypeMacro() found in vtkSetGet.h
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

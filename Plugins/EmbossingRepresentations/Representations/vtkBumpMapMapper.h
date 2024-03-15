@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkBumpMapMapper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkBumpMapMapper
  * @brief   Mapper for showing data sets with bump mapping effect.
@@ -25,25 +14,25 @@
  * This work was supported by the German Climate Computing Center (DKRZ).
  *
  * @sa
- * vtkCompositePolyDataMapper2
+ * vtkCompositePolyDataMapper
  */
 
 #ifndef vtkBumpMapMapper_h
 #define vtkBumpMapMapper_h
 
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkEmbossingRepresentationsModule.h" // for export macro
 
 class vtkMultiProcessController;
 
-class VTKEMBOSSINGREPRESENTATIONS_EXPORT vtkBumpMapMapper : public vtkCompositePolyDataMapper2
+class VTKEMBOSSINGREPRESENTATIONS_EXPORT vtkBumpMapMapper : public vtkCompositePolyDataMapper
 {
 public:
   static vtkBumpMapMapper* New();
-  vtkTypeMacro(vtkBumpMapMapper, vtkCompositePolyDataMapper2);
+  vtkTypeMacro(vtkBumpMapMapper, vtkCompositePolyDataMapper);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the factor used to scale the bump mapping effect.
    * This factor scales the gradient vector magnitude computed, based on input array.
@@ -51,20 +40,18 @@ public:
    */
   vtkSetMacro(BumpMappingFactor, float);
   vtkGetMacro(BumpMappingFactor, float);
-  //@}
+  ///@}
 
 protected:
   vtkBumpMapMapper() = default;
   ~vtkBumpMapMapper() override = default;
 
   /**
-   * Creation of a helper
+   * Creation of a delegator
    */
-  vtkCompositeMapperHelper2* CreateHelper() override;
+  vtkCompositePolyDataMapperDelegator* CreateADelegator() override;
 
   float BumpMappingFactor = 50.f;
-
-  friend class vtkBumpMapMapperHelper;
 
 private:
   vtkBumpMapMapper(const vtkBumpMapMapper&) = delete;

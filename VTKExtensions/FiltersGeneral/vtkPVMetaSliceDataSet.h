@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPVMetaSliceDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVMetaSliceDataSet
  * Meta class for slice filter that will allow the user to switch between
@@ -23,10 +12,13 @@
 
 #include "vtkPVDataSetAlgorithmSelectorFilter.h"
 #include "vtkPVVTKExtensionsFiltersGeneralModule.h" //needed for exports
+#include "vtkParaViewDeprecation.h"
+#include "vtkSmartPointer.h"
 
 class vtkImplicitFunction;
 class vtkInformation;
 class vtkInformationVector;
+class vtkIncrementalPointLocator;
 
 class VTKPVVTKEXTENSIONSFILTERSGENERAL_EXPORT vtkPVMetaSliceDataSet
   : public vtkPVDataSetAlgorithmSelectorFilter
@@ -86,7 +78,13 @@ public:
 
   /**
    * Expose method from vtkPVCutter
+   *
+   * @deprecated in favor of SetLocator to allow octree locator.
+   * SetMergePoints(true) <=> SetLocator(vtkMergePoints::New())
+   * SetMergePoints(false) <=> SetLocator(vtkNonMergingPointLocator::New())
    */
+  PARAVIEW_DEPRECATED_IN_5_12_0(
+    "Use `vtkPVMetaSliceDataSet::SetLocator(vtkIncrementalPointLocator*)` instead")
   void SetMergePoints(bool status);
 
   /**
@@ -95,6 +93,14 @@ public:
   void SetDual(bool dual);
 
   int RequestDataObject(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+
+  ///@{
+  /**
+   * Set / get a spatial locator.
+   */
+  void SetLocator(vtkIncrementalPointLocator* locator);
+  vtkIncrementalPointLocator* GetLocator();
+  ///@}
 
 protected:
   vtkPVMetaSliceDataSet();
@@ -108,6 +114,7 @@ private:
 
   class vtkInternals;
   vtkInternals* Internal;
+  vtkSmartPointer<vtkIncrementalPointLocator> Locator;
 };
 
 #endif

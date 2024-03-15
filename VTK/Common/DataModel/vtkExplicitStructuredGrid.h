@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExplicitStructuredGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExplicitStructuredGrid
  * @brief   structured grid with explicit topology and geometry
@@ -54,13 +42,15 @@
 #ifndef vtkExplicitStructuredGrid_h
 #define vtkExplicitStructuredGrid_h
 
+#include "vtkAbstractCellLinks.h"     // For vtkAbstractCellLinks
+#include "vtkCellArray.h"             // For vtkCellArray
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkNew.h"                   // for vtkNew
 #include "vtkPointSet.h"
 #include "vtkStructuredData.h" // For static method usage
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
-class vtkAbstractCellLinks;
 class vtkEmptyCell;
 class vtkHexahedron;
 
@@ -96,6 +86,7 @@ public:
   void GetCellPoints(vtkIdType cellId, vtkIdList* ptIds) override;
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override;
   int GetMaxCellSize() override { return 8; } // hexahedron is the largest
+  int GetMaxSpatialDimension() override { return 3; }
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
 
@@ -157,17 +148,22 @@ public:
   /**
    * Set/Get the cell array defining hexahedron.
    */
-  void SetCells(vtkCellArray* cells);
-  vtkGetObjectMacro(Cells, vtkCellArray);
+  vtkSetSmartPointerMacro(Cells, vtkCellArray);
+  vtkGetSmartPointerMacro(Cells, vtkCellArray);
   ///@}
+
+  /**
+   * Build topological links from points to lists of cells that use each point.
+   * See vtkAbstractCellLinks for more information.
+   */
+  void BuildLinks();
 
   ///@{
   /**
-   * Create/Get upward links from points to cells that use each point.
-   * Enables topologically complex queries.
+   * Set/Get the links that you created possibly without using BuildLinks.
    */
-  void BuildLinks();
-  vtkGetObjectMacro(Links, vtkAbstractCellLinks);
+  vtkSetSmartPointerMacro(Links, vtkAbstractCellLinks);
+  vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
   ///@}
 
   /**
@@ -326,6 +322,8 @@ protected:
   vtkExplicitStructuredGrid();
   ~vtkExplicitStructuredGrid() override;
 
+  void ReportReferences(vtkGarbageCollector*) override;
+
   /**
    * Compute the range of the scalars and cache it into ScalarRange
    * only if the cache became invalid (ScalarRangeComputeTime).
@@ -378,8 +376,8 @@ protected:
   vtkNew<vtkHexahedron> Hexahedron;
   vtkNew<vtkEmptyCell> EmptyCell;
 
-  vtkCellArray* Cells;
-  vtkAbstractCellLinks* Links;
+  vtkSmartPointer<vtkCellArray> Cells;
+  vtkSmartPointer<vtkAbstractCellLinks> Links;
   int Extent[6];
   char* FacesConnectivityFlagsArrayName;
 
@@ -435,4 +433,5 @@ inline vtkIdType vtkExplicitStructuredGrid::ComputeCellId(int i, int j, int k, b
     return vtkStructuredData::ComputeCellId(dims, ijk);
   }
 }
+VTK_ABI_NAMESPACE_END
 #endif

@@ -35,6 +35,42 @@ std::ostream& operator<<(std::ostream& out, const std::vector<T>& v)
   return out;
 }
 
+namespace
+{
+std::vector<std::string> SplitString(const std::string& input, char sep)
+{
+  std::vector<std::string> result;
+  if (input.empty())
+  {
+    return result;
+  }
+  std::string::size_type pos1 = 0;
+  std::string::size_type pos2 = input.find(sep, pos1);
+  while (pos2 != std::string::npos)
+  {
+    result.push_back(input.substr(pos1, pos2 - pos1));
+    pos1 = pos2 + 1;
+    pos2 = input.find(sep, pos1 + 1);
+  }
+  result.push_back(input.substr(pos1, pos2 - pos1));
+
+  return result;
+}
+
+std::string JoinString(const std::vector<std::string>& words, char sep)
+{
+  std::string result;
+  std::size_t i = 0;
+  for (; i < words.size() - 1; ++i)
+  {
+    result += words[i];
+    result += sep;
+  }
+  result += words[i];
+  return result;
+}
+}
+
 namespace fides
 {
 namespace io
@@ -105,6 +141,40 @@ void DataSource::SetupEngine()
   }
 }
 
+std::map<std::string, adios2::Params>::iterator DataSource::FindVariable(
+  const std::string& name,
+  const fides::metadata::MetaData& selections)
+{
+  std::string fullVarName = name;
+  if (selections.Has(fides::keys::GROUP_SELECTION()))
+  {
+    const auto& group =
+      selections.Get<fides::metadata::String>(fides::keys::GROUP_SELECTION()).Data;
+    if (!group.empty())
+    {
+      fullVarName = group + "/" + name;
+    }
+  }
+  return this->AvailVars.find(fullVarName);
+}
+
+std::map<std::string, adios2::Params>::iterator DataSource::FindAttribute(
+  const std::string& name,
+  const fides::metadata::MetaData& selections)
+{
+  std::string fullAttrName = name;
+  if (selections.Has(fides::keys::GROUP_SELECTION()))
+  {
+    const auto& group =
+      selections.Get<fides::metadata::String>(fides::keys::GROUP_SELECTION()).Data;
+    if (!group.empty())
+    {
+      fullAttrName = group + "/" + name;
+    }
+  }
+  return this->AvailAtts.find(fullAttrName);
+}
+
 void DataSource::OpenSource(const std::string& fname, bool useMPI /* = true */)
 {
   //if the reader (ADIOS engine) is already been set, do nothing
@@ -138,8 +208,17 @@ void DataSource::OpenSource(const std::string& fname, bool useMPI /* = true */)
     this->AdiosIO = this->Adios->DeclareIO("adios-io-read");
     this->SetupEngine();
   }
+  auto mode = adios2::Mode::Read;
+  if (!this->StreamingMode)
+  {
+#ifdef FIDES_ADIOS_HAS_RANDOM_ACCESS
+    mode = adios2::Mode::ReadRandomAccess;
+#else
+    mode = adios2::Mode::Read;
+#endif
+  }
 
-  this->Reader = this->AdiosIO.Open(fname, adios2::Mode::Read);
+  this->Reader = this->AdiosIO.Open(fname, mode);
   this->Refresh();
 }
 
@@ -147,6 +226,23 @@ void DataSource::Refresh()
 {
   this->AvailVars = this->AdiosIO.AvailableVariables();
   this->AvailAtts = this->AdiosIO.AvailableAttributes();
+  // refresh available groups
+  this->AvailGroups.clear();
+  for (const auto& availItems : { this->AvailAtts, this->AvailVars })
+  {
+    for (const auto& item : availItems)
+    {
+      const auto& fullName = item.first;
+      auto pieces = SplitString(fullName, '/');
+      if (pieces.size() < 2)
+      {
+        continue;
+      }
+      const auto lastPiece = pieces.back();
+      pieces.pop_back();
+      this->AvailGroups[lastPiece].insert(JoinString(pieces, '/'));
+    }
+  }
 }
 
 template <typename VariableType, typename VecType>
@@ -166,13 +262,54 @@ vtkm::cont::UnknownArrayHandle AllocateArrayHandle(const VariableType* vecData, 
   return vtkm::cont::make_ArrayHandleGroupVec<Dim>(arrayHandle);
 }
 
-template <typename VariableType>
-vtkm::Id GetBufferSize(adios2::Engine& reader,
-                       adios2::Variable<VariableType>& varADIOS2,
-                       size_t blockId,
-                       size_t step)
+struct FidesArrayMemoryRequirements
 {
-  auto blocksInfo = reader.BlocksInfo(varADIOS2, step);
+  /// Total number of elements.
+  vtkm::Id Size;
+  /// Location of the first element - local to the block.
+  adios2::Dims Start;
+  /// Number of elements in each dimension - local to the block.
+  adios2::Dims Count;
+  /// Does this memory describe shared points as well?
+  /// This is used to decide whether `SetSelection` of `SetBlockSelection` is called for global
+  /// arrays distributed across blocks.
+  bool HasSharedPoints;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const FidesArrayMemoryRequirements& memReqs)
+{
+  os << "FidesArrayMemoryRequirements: \n";
+  os << "\tSize: " << memReqs.Size << "\n";
+  for (size_t dim = 0; dim < memReqs.Start.size(); ++dim)
+  {
+    os << "\tStart[" << dim << "]: " << memReqs.Start[dim] << "\n";
+    os << "\tCount[" << dim << "]: " << memReqs.Count[dim] << "\n";
+  }
+  os << "\tHasSharedPoints: " << memReqs.HasSharedPoints;
+  return os;
+}
+
+size_t GetBufferSize(const adios2::Dims& shape)
+{
+  size_t size = 1;
+  for (const auto& n : shape)
+  {
+    size *= n;
+  }
+  return size;
+}
+
+// Set 1 to enable debug prints of array memory requirements.
+#define FidesArrayMemoryRequirements_DEBUG 0
+
+template <typename VariableType,
+          typename BlocksInfoType = typename adios2::Variable<VariableType>::Info>
+FidesArrayMemoryRequirements GetVariableMemoryRequirements(
+  std::vector<BlocksInfoType>& blocksInfo,
+  adios2::Variable<VariableType>& varADIOS2,
+  size_t blockId,
+  bool createSharedPoints = false)
+{
   if (blockId >= blocksInfo.size())
   {
     std::stringstream ss;
@@ -181,13 +318,48 @@ vtkm::Id GetBufferSize(adios2::Engine& reader,
        << "; there are only " << blocksInfo.size() << " blocks.";
     throw std::invalid_argument(ss.str());
   }
-  const auto& shape = blocksInfo[blockId].Count;
-  vtkm::Id bufSize = 1;
-  for (auto n : shape)
+  const auto& blockInfo = blocksInfo[blockId];
+
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "GetVariableMemoryRequirements for " << varADIOS2.Name() << " in block " << blockId
+            << std::endl;
+#endif
+  FidesArrayMemoryRequirements memoryRequirements = {};
+  // sane defaults correspond to whatever the variable and block info have.
+  memoryRequirements.Start = blockInfo.Start;
+  memoryRequirements.Count = blockInfo.Count;
+  memoryRequirements.Size = GetBufferSize(blockInfo.Count);
+  memoryRequirements.HasSharedPoints = false;
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "Default " << memoryRequirements << std::endl;
+#endif
+  // start and count will be adjusted depending on the value of Variable::ShapeID().
+  switch (varADIOS2.ShapeID())
   {
-    bufSize *= n;
+    case adios2::ShapeID::GlobalArray:
+    {
+      if (createSharedPoints)
+      {
+        const auto& nDims = blockInfo.Start.size();
+        for (size_t dim = 0; dim < nDims; ++dim)
+        {
+          // grow by one index for all blocks whose start > 0
+          const bool extendDimensions = blockInfo.Start[dim] > 0;
+          const int indexDelta = static_cast<int>(extendDimensions);
+          memoryRequirements.Start[dim] -= indexDelta;
+          memoryRequirements.Count[dim] += indexDelta;
+          memoryRequirements.HasSharedPoints |= extendDimensions;
+        }
+        // size will include shared points
+        memoryRequirements.Size = GetBufferSize(memoryRequirements.Count);
+      }
+      break;
+    }
+    default:
+      // all other types return un-modified shape and buffer size.
+      break;
   }
-  if (bufSize <= 0)
+  if (memoryRequirements.Size <= 0)
   {
     // ADIOS Dims are size_t, but vtk-m uses signed integers (32- or 64-bit
     // depending on build) for allocating storage for the arrayhandle (num values,
@@ -200,7 +372,29 @@ vtkm::Id GetBufferSize(adios2::Engine& reader,
     }
     throw std::runtime_error("Overflow in number of values being read detected.");
   }
-  return bufSize;
+#if FidesArrayMemoryRequirements_DEBUG
+  std::cout << "New " << memoryRequirements << std::endl;
+#endif
+  return memoryRequirements;
+}
+
+/// This method makes an appropriate selection on the variable.
+///  - applies an extended selection using `SetSelection` if memory requirements deem that's necessary.
+///  - otherwise, applies a block selection using `SetBlockSelection`
+template <typename VariableType>
+void PrepareVariableSelection(adios2::Variable<VariableType>& varADIOS2,
+                              const FidesArrayMemoryRequirements& memoryRequirements,
+                              const std::size_t blockId)
+{
+  if (memoryRequirements.HasSharedPoints)
+  {
+    varADIOS2.SetSelection({ memoryRequirements.Start, memoryRequirements.Count });
+  }
+  else
+  {
+    // ADIOS2 calls `SetSelection`
+    varADIOS2.SetBlockSelection(blockId);
+  }
 }
 
 template <typename VariableType>
@@ -209,14 +403,19 @@ vtkm::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
                                                     size_t blockId,
                                                     EngineType engineType,
                                                     size_t step,
-                                                    IsVector isit = IsVector::Auto)
+                                                    IsVector isit = IsVector::Auto,
+                                                    bool createSharedPoints = false)
 {
-  auto bufSize = GetBufferSize(reader, varADIOS2, blockId, step);
   auto blocksInfo = reader.BlocksInfo(varADIOS2, step);
-  const auto& shape = blocksInfo[blockId].Count;
+  auto memoryRequirements =
+    GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId, createSharedPoints);
+  const auto& shape = memoryRequirements.Count;
+  auto& bufSize = memoryRequirements.Size;
 
   vtkm::cont::UnknownArrayHandle retVal;
   VariableType* buffer = nullptr;
+
+  PrepareVariableSelection(varADIOS2, memoryRequirements, blockId);
 
   if (engineType == EngineType::Inline)
   {
@@ -224,7 +423,6 @@ vtkm::cont::UnknownArrayHandle ReadVariableInternal(adios2::Engine& reader,
     // instead of data being copied into a buffer.
     // And this can be handled the same way whether it's a
     // vector or not
-    varADIOS2.SetBlockSelection(blockId);
     reader.Get(varADIOS2, blocksInfo[blockId]);
     reader.PerformGets();
   }
@@ -333,7 +531,8 @@ vtkm::cont::UnknownArrayHandle ReadMultiBlockVariableInternal(
   vtkm::Id bufSize = 0;
   for (const auto& blockId : blocks)
   {
-    bufSize += GetBufferSize(reader, varADIOS2, blockId, step);
+    const auto memoryRequirements = GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId);
+    bufSize += memoryRequirements.Size;
   }
 
   vtkm::cont::UnknownArrayHandle retVal;
@@ -388,7 +587,8 @@ std::vector<vtkm::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
   const fides::metadata::MetaData& selections,
   EngineType engineType,
   IsVector isit = IsVector::Auto,
-  bool isMultiBlock = false)
+  bool isMultiBlock = false,
+  bool createSharedPoints = false)
 {
   std::vector<vtkm::cont::UnknownArrayHandle> arrays;
   if (selections.Has(fides::keys::BLOCK_SELECTION()) &&
@@ -448,9 +648,8 @@ std::vector<vtkm::cont::UnknownArrayHandle> ReadVariableBlocksInternal(
     arrays.reserve(blocksToReallyRead.size());
     for (auto blockId : blocksToReallyRead)
     {
-      varADIOS2.SetBlockSelection(blockId);
-      arrays.push_back(
-        ReadVariableInternal<VariableType>(reader, varADIOS2, blockId, engineType, step, isit));
+      arrays.push_back(ReadVariableInternal<VariableType>(
+        reader, varADIOS2, blockId, engineType, step, isit, createSharedPoints));
     }
   }
 
@@ -462,7 +661,8 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetDimensionsInternal(
   adios2::IO& adiosIO,
   adios2::Engine& reader,
   const std::string& varName,
-  const fides::metadata::MetaData& selections)
+  const fides::metadata::MetaData& selections,
+  bool createSharedPoints = false)
 {
   auto varADIOS2 = adiosIO.InquireVariable<VariableType>(varName);
   size_t step = reader.CurrentStep();
@@ -497,9 +697,11 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetDimensionsInternal(
 
   for (auto blockId : blocksToReallyRead)
   {
-    std::vector<size_t> shape = blocksInfo[blockId].Count;
+    const auto memoryRequirements =
+      GetVariableMemoryRequirements(blocksInfo, varADIOS2, blockId, createSharedPoints);
+    std::vector<size_t> shape = memoryRequirements.Count;
     std::reverse(shape.begin(), shape.end());
-    std::vector<size_t> start = blocksInfo[blockId].Start;
+    std::vector<size_t> start = memoryRequirements.Start;
     std::reverse(start.begin(), start.end());
     shape.insert(shape.end(), start.begin(), start.end());
     arrays.push_back(vtkm::cont::make_ArrayHandle(shape, vtkm::CopyFlag::On));
@@ -601,14 +803,14 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
       }                                          \
       else if (type == "int64_t")                \
       {                                          \
-        using fides_TT = vtkm::Id;               \
+        using fides_TT = int64_t;                \
         return call;                             \
       }                                          \
       break;                                     \
     case 'l':                                    \
       if (type == "long long int")               \
       {                                          \
-        using fides_TT = vtkm::Id;               \
+        using fides_TT = long long int;          \
         return call;                             \
       }                                          \
       else if (type == "long int")               \
@@ -620,7 +822,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
     case 's':                                    \
       if (type == "short")                       \
       {                                          \
-        using fides_TT = long int;               \
+        using fides_TT = short;                  \
         return call;                             \
       }                                          \
       else if (type == "signed char")            \
@@ -667,7 +869,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArrayInternal(
       }                                          \
       else if (type == "uint64_t")               \
       {                                          \
-        using fides_TT = unsigned long;          \
+        using fides_TT = uint64_t;               \
         return call;                             \
       }                                          \
       break;                                     \
@@ -681,7 +883,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
   {
     throw std::runtime_error("Cannot read variable without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     // previously we were throwing an error if the variable could not be found,
@@ -695,8 +897,16 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetVariableDimensions(
     throw std::runtime_error("Variable type unavailable.");
   }
 
-  fidesTemplateMacro(
-    GetDimensionsInternal<fides_TT>(this->AdiosIO, this->Reader, varName, selections));
+  if (this->AdiosEngineType == EngineType::Inline)
+  {
+    // in the inline case, Fides can't read from other blocks,
+    // so we'll just set to false so we don't end up with junk
+    // data.
+    this->CreateSharedPoints = false;
+  }
+
+  fidesTemplateMacro(GetDimensionsInternal<fides_TT>(
+    this->AdiosIO, this->Reader, itr->first, selections, this->CreateSharedPoints));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
@@ -709,7 +919,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   {
     throw std::runtime_error("Cannot read variable without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     // previously we were throwing an error if the variable could not be found,
@@ -724,7 +934,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetScalarVariable(
   }
 
   fidesTemplateMacro(
-    GetScalarVariableInternal<fides_TT>(this->AdiosIO, this->Reader, varName, selections));
+    GetScalarVariableInternal<fides_TT>(this->AdiosIO, this->Reader, itr->first, selections));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
@@ -743,7 +953,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
     throw std::runtime_error("A full time array can only be read when using BP files");
   }
 
-  auto itr = this->AvailVars.find(varName);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     // previously we were throwing an error if the variable could not be found,
@@ -758,7 +968,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::GetTimeArray(
   }
 
   fidesTemplateMacro(
-    GetTimeArrayInternal<fides_TT>(this->AdiosIO, this->Reader, varName, selections));
+    GetTimeArrayInternal<fides_TT>(this->AdiosIO, this->Reader, itr->first, selections));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
@@ -772,7 +982,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
   {
     throw std::runtime_error("Cannot read variable without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     // previously we were throwing an error if the variable could not be found,
@@ -785,8 +995,22 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadVariable(
     throw std::runtime_error("Variable type unavailable.");
   }
 
-  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(
-    this->AdiosIO, this->Reader, varName, selections, this->AdiosEngineType, isit));
+  if (this->AdiosEngineType == EngineType::Inline)
+  {
+    // in the inline case, Fides can't read from other blocks,
+    // so we'll just set to false so we don't end up with junk
+    // data.
+    this->CreateSharedPoints = false;
+  }
+
+  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(this->AdiosIO,
+                                                          this->Reader,
+                                                          itr->first,
+                                                          selections,
+                                                          this->AdiosEngineType,
+                                                          isit,
+                                                          false,
+                                                          this->CreateSharedPoints));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
@@ -799,7 +1023,7 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadMultiBlockVariable(
   {
     throw std::runtime_error("Cannot read variable without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     // previously we were throwing an error if the variable could not be found,
@@ -812,28 +1036,57 @@ std::vector<vtkm::cont::UnknownArrayHandle> DataSource::ReadMultiBlockVariable(
     throw std::runtime_error("Variable type unavailable.");
   }
 
-  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(
-    this->AdiosIO, this->Reader, varName, selections, this->AdiosEngineType, IsVector::No, true));
+  fidesTemplateMacro(ReadVariableBlocksInternal<fides_TT>(this->AdiosIO,
+                                                          this->Reader,
+                                                          itr->first,
+                                                          selections,
+                                                          this->AdiosEngineType,
+                                                          IsVector::No,
+                                                          true));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
 size_t DataSource::GetNumberOfBlocks(const std::string& varName)
 {
+  return this->GetNumberOfBlocks(varName, "");
+}
+
+size_t DataSource::GetNumberOfBlocks(const std::string& varName, const std::string& group)
+{
   if (!this->Reader)
   {
     throw std::runtime_error("Cannot read variable without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  fides::metadata::MetaData selections;
+  selections.Set<fides::metadata::String>(fides::keys::GROUP_SELECTION(), group);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     return 0;
   }
   const std::string& type = itr->second["Type"];
 
-  fidesTemplateMacro(GetNumberOfBlocksInternal<fides_TT>(this->AdiosIO, this->Reader, varName));
+  fidesTemplateMacro(GetNumberOfBlocksInternal<fides_TT>(this->AdiosIO, this->Reader, itr->first));
 
   throw std::runtime_error("Unsupported variable type " + type);
+}
+
+std::set<std::string> DataSource::GetGroupNames(const std::string& name) const
+{
+  if (!this->Reader)
+  {
+    throw std::runtime_error("Cannot retrieve groups without setting the adios engine.");
+  }
+  auto itr = this->AvailGroups.find(name);
+  if (itr != this->AvailGroups.end())
+  {
+    return itr->second;
+  }
+  else
+  {
+    return {};
+  }
 }
 
 size_t DataSource::GetNumberOfSteps()
@@ -923,25 +1176,39 @@ void DataSource::EndStep()
 
 std::vector<size_t> DataSource::GetVariableShape(std::string& varName)
 {
+  return this->GetVariableShape(varName, "");
+}
+
+std::vector<size_t> DataSource::GetVariableShape(std::string& varName, const std::string& group)
+{
   if (!this->Reader)
   {
     throw std::runtime_error("Cannot get variable size without setting the adios engine.");
   }
-  auto itr = this->AvailVars.find(varName);
+  fides::metadata::MetaData selections;
+  selections.Set<fides::metadata::String>(fides::keys::GROUP_SELECTION(), group);
+  auto itr = this->FindVariable(varName, selections);
   if (itr == this->AvailVars.end())
   {
     throw std::runtime_error("Variable " + varName + " was not found.");
   }
   const std::string& type = itr->second["Type"];
 
-  fidesTemplateMacro(GetVariableShapeInternal<fides_TT>(this->AdiosIO, this->Reader, varName));
+  fidesTemplateMacro(GetVariableShapeInternal<fides_TT>(this->AdiosIO, this->Reader, itr->first));
 
   throw std::runtime_error("Unsupported variable type " + type);
 }
 
 std::string DataSource::GetAttributeType(const std::string& attrName)
 {
-  auto itr = this->AvailAtts.find(attrName);
+  return this->GetAttributeType(attrName, "");
+}
+
+std::string DataSource::GetAttributeType(const std::string& attrName, const std::string& group)
+{
+  fides::metadata::MetaData selections;
+  selections.Set<fides::metadata::String>(fides::keys::GROUP_SELECTION(), group);
+  auto itr = this->FindAttribute(attrName, selections);
   if (itr == this->AvailAtts.end())
   {
     // Attributes can be optional so just return empty string if it isn't found

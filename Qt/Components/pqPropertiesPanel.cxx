@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqPropertiesPanel.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPropertiesPanel.h"
 #include "ui_pqPropertiesPanel.h"
 
@@ -121,7 +93,7 @@ public:
 
     delete parentWdg->layout();
     QVBoxLayout* layout = new QVBoxLayout(parentWdg);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
     this->Panel->setObjectName("ProxyPanel");
     this->Panel->setParent(parentWdg);
@@ -487,6 +459,7 @@ void pqPropertiesPanel::updatePropertiesPanel(pqProxy* source)
     source = nullptr;
   }
 
+  bool created = false;
   if (this->Internals->Source != source)
   {
     // Panel has changed.
@@ -500,6 +473,7 @@ void pqPropertiesPanel::updatePropertiesPanel(pqProxy* source)
     if (source && !this->Internals->SourceWidgets.contains(source))
     {
       // create the panel for the source.
+      created = true;
       pqProxyWidgets* widgets = new pqProxyWidgets(source, this);
       this->Internals->SourceWidgets[source] = widgets;
 
@@ -528,7 +502,8 @@ void pqPropertiesPanel::updatePropertiesPanel(pqProxy* source)
     // update interactive widgets specifically
     if (this->Internals->SourcePort >= 0)
     {
-      sourceWidgets->Panel->showLinkedInteractiveWidget(this->Internals->SourcePort, true);
+      // change the focus for newly created pqProxyWidgets
+      sourceWidgets->Panel->showLinkedInteractiveWidget(this->Internals->SourcePort, true, created);
     }
 
     Q_EMIT this->modified();
@@ -596,7 +571,7 @@ void pqPropertiesPanel::updateDisplayPanel(pqDataRepresentation* repr)
   }
   else
   {
-    this->Internals->Ui.DisplayButton->setText("Display");
+    this->Internals->Ui.DisplayButton->setText(tr("Display"));
   }
 
   this->updateButtonEnableState();
@@ -641,7 +616,9 @@ void pqPropertiesPanel::updateViewPanel(pqView* argView)
     vtkSMViewProxy* proxy = _view->getViewProxy();
     const char* label = proxy->GetXMLLabel();
     this->Internals->Ui.ViewButton->setText(
-      tr("View") + QString(" (%1)").arg(label != nullptr ? label : _view->getViewType()));
+      tr("View (%1)")
+        .arg(label != nullptr ? QCoreApplication::translate("ServerManagerXML", label)
+                              : _view->getViewType()));
     this->Internals->ViewWidgets->showWidgets(
       this->Internals->Ui.SearchBox->isAdvancedSearchActive(),
       this->Internals->Ui.SearchBox->text());
@@ -823,7 +800,7 @@ void pqPropertiesPanel::apply()
 
   vtkTimerLog::MarkStartEvent("PropertiesPanel::Apply");
 
-  BEGIN_UNDO_SET("Apply");
+  BEGIN_UNDO_SET(tr("Apply"));
 
   bool onlyApplyCurrentPanel = vtkPVGeneralSettings::GetInstance()->GetAutoApplyActiveOnly();
 

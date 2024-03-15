@@ -4,7 +4,7 @@ vtk_module_test_data(
   )
 
 vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
-  TestBlockOpacity.cxx TestBlockVisibility.cxx
+  TestBlockVisibility.cxx
   TestBlurAndSobelPasses.cxx
   TestCameraShiftScale.cxx,NO_DATA
   TestCoincident.cxx
@@ -17,6 +17,8 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestCompositePolyDataMapper2MixedGeometryCellScalars.cxx,NO_DATA
   TestCompositePolyDataMapper2MixedGeometryEdges.cxx,NO_DATA
   TestCompositePolyDataMapper2NaNPartial.cxx,NO_DATA
+  TestCompositePolyDataMapper2PartialFieldData.cxx,NO_DATA
+  TestCompositePolyDataMapper2PartialPointData.cxx,NO_DATA
   TestCompositePolyDataMapper2Pickability.cxx,NO_DATA
   TestCompositePolyDataMapper2Picking.cxx,NO_DATA
   TestCompositePolyDataMapper2Scalars.cxx,NO_DATA
@@ -51,11 +53,10 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestHiddenLineRemovalPass.cxx
   TestLightingMapLuminancePass.cxx
   TestLightingMapNormalsPass.cxx
-  TestMultiBlockPartialArrayFieldData.cxx
-  TestMultiBlockPartialArrayPointData.cxx
   TestMultiTexturing.cxx
   TestMultiTexturingInterpolateScalars.cxx
   TestNormalMapping.cxx
+  TestNormalMappingWithEdges.cxx
   TestOffscreenRenderingResize.cxx
   TestOutlineGlowPass.cxx
   TestOrderIndependentTranslucentPass.cxx
@@ -69,6 +70,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestPBRMapping.cxx
   TestPBRMaterials.cxx
   TestPBRMaterialsCoat.cxx
+  TestPBRTextureInterpolateScalars.cxx
   TestPointFillPass.cxx
   TestPointGaussianMapper.cxx
   TestPointGaussianMapperOpacity.cxx
@@ -94,6 +96,8 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestSurfaceInterpolationSwitch.cxx
   TestTexture16Bits.cxx,NO_DATA
   TestTexture32Bits.cxx,NO_DATA
+  TestTextureBufferEmulation.cxx,NO_DATA,NO_VALID,NO_OUTPUT
+  TestTextureInterpolateScalars.cxx
   TestToneMappingPass.cxx,NO_DATA
   TestUserShader.cxx
   TestUserShader2.cxx
@@ -104,11 +108,29 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   UnitTestOpenGLUniforms.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   )
 
+# Allow local customization of timeout for this test.
+if(NOT VTK_TEST_TIMEOUT_TestFramebufferHDR)
+  set(VTK_TEST_TIMEOUT_TestFramebufferHDR 300)
+endif()
+set_tests_properties(VTK::RenderingOpenGL2Cxx-TestFramebufferHDR
+  PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestFramebufferHDR})
+
 if (VTK_USE_SDL2)
   vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
+endif ()
+
+if (VTK_USE_WIN32_OPENGL)
+  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
+    TestWin32OpenGLDXRenderWindow.cxx)
 endif ()
 
 vtk_test_cxx_executable(vtkRenderingOpenGL2CxxTests tests
   DISABLE_FLOATING_POINT_EXCEPTIONS
   RENDERING_FACTORY
   )
+
+if (VTK_USE_WIN32_OPENGL)
+  # TestWin32OpenGLDXRenderWindow requires DirectX
+  find_package(DirectX REQUIRED)
+  target_link_libraries(vtkRenderingOpenGL2CxxTests PRIVATE DirectX::d3d11 DirectX::dxgi)
+endif ()

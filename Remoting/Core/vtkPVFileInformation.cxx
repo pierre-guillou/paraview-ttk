@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVFileInformation.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVFileInformation.h"
 
 #include "vtkClientServerStream.h"
@@ -28,9 +16,8 @@
 #include "vtkVersion.h"
 
 #if defined(_WIN32)
-#include <cstring>   // for strcasecmp
 #include <direct.h>  // _getcwd
-#include <shlobj.h>  // SHGetFolderPath
+#include <shlobj.h>  // SHGetKnownFolderPath
 #include <windows.h> // FindFirstFile, FindNextFile, FindClose, ...
 #define vtkPVServerFileListingGetCWD _getcwd
 #else
@@ -367,6 +354,7 @@ vtkPVFileInformation::vtkPVFileInformation()
   this->Extension = nullptr;
   this->Size = 0;
   this->GroupFileSequences = true;
+  this->IncludeExamples = true;
 #ifdef _WIN32
   this->ModificationTime = _time64(nullptr);
 #else
@@ -409,6 +397,7 @@ void vtkPVFileInformation::CopyFromObject(vtkObject* object)
   }
 
   this->GroupFileSequences = helper->GetGroupFileSequences();
+  this->IncludeExamples = helper->GetExamplesInSpecialDirectories();
 
   if (helper->GetSpecialDirectories())
   {
@@ -472,40 +461,70 @@ void vtkPVFileInformation::CopyFromObject(vtkObject* object)
 //-----------------------------------------------------------------------------
 void vtkPVFileInformation::GetSpecialDirectories()
 {
-#if defined(_WIN32)
-  // Return favorite directories ...
-
-  wchar_t szPath[MAX_PATH];
-  std::wstring tmp;
-
-  if (SUCCEEDED(SHGetSpecialFolderPathW(nullptr, szPath, CSIDL_PERSONAL, false)))
+  // Always add the "Examples" dir, with a placeholder path
+  // This is using `_examples_path_` as a placeholder because storing the absolute path to the
+  // `Examples` directory causes issues when switching to another ParaView version, because this
+  // path would still point to the previous version's examples. This entry is added even if the
+  // `Examples` directory is not present, but is marked invalid.
+  vtkSmartPointer<vtkPVFileInformation> info;
+  if (this->IncludeExamples)
   {
-    tmp = szPath;
-    vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
-    info->SetFullPath(vtksys::Encoding::ToNarrow(tmp).c_str());
-    info->SetName("My Documents");
-    info->Type = DIRECTORY;
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info->SetFullPath("_examples_path_");
+    info->SetName("Examples");
+    std::string realPath = vtkPVFileInformation::GetParaViewExampleFilesDirectory();
+    info->Type = vtkPVFileInformationGetType(realPath.c_str());
     this->Contents->AddItem(info);
   }
 
-  if (SUCCEEDED(SHGetSpecialFolderPathW(nullptr, szPath, CSIDL_DESKTOPDIRECTORY, false)))
+#if defined(_WIN32)
+  // Return favorite directories ...
+
+  PWSTR szPath = NULL;
+  std::wstring tmp;
+
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Desktop, 0, nullptr, &szPath)))
   {
     tmp = szPath;
-    vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
     info->SetFullPath(vtksys::Encoding::ToNarrow(tmp).c_str());
     info->SetName("Desktop");
     info->Type = DIRECTORY;
     this->Contents->AddItem(info);
+    CoTaskMemFree(szPath);
   }
 
-  if (SUCCEEDED(SHGetSpecialFolderPathW(nullptr, szPath, CSIDL_FAVORITES, false)))
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Downloads, 0, nullptr, &szPath)))
   {
     tmp = szPath;
-    vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info->SetFullPath(vtksys::Encoding::ToNarrow(tmp).c_str());
+    info->SetName("Downloads");
+    info->Type = DIRECTORY;
+    this->Contents->AddItem(info);
+    CoTaskMemFree(szPath);
+  }
+
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, 0, nullptr, &szPath)))
+  {
+    tmp = szPath;
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info->SetFullPath(vtksys::Encoding::ToNarrow(tmp).c_str());
+    info->SetName("Documents");
+    info->Type = DIRECTORY;
+    this->Contents->AddItem(info);
+    CoTaskMemFree(szPath);
+  }
+
+  if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Favorites, 0, nullptr, &szPath)))
+  {
+    tmp = szPath;
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
     info->SetFullPath(vtksys::Encoding::ToNarrow(tmp).c_str());
     info->SetName("Favorites");
     info->Type = DIRECTORY;
     this->Contents->AddItem(info);
+    CoTaskMemFree(szPath);
   }
 
   // Return drive letters ...
@@ -517,7 +536,7 @@ void vtkPVFileInformation::GetSpecialDirectories()
       std::string driveLetter;
       driveLetter += 'A' + i;
       driveLetter += ":\\";
-      vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
+      info = vtkSmartPointer<vtkPVFileInformation>::New();
       info->SetFullPath(driveLetter.c_str());
       info->SetName(driveLetter.c_str());
       info->Type = DRIVE;
@@ -525,7 +544,7 @@ void vtkPVFileInformation::GetSpecialDirectories()
     }
   }
 
-  vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
+  info = vtkSmartPointer<vtkPVFileInformation>::New();
   info->SetFullPath(WindowsNetworkRoot.c_str());
   info->SetName("Windows Network");
   info->Type = NETWORK_ROOT;
@@ -536,7 +555,6 @@ void vtkPVFileInformation::GetSpecialDirectories()
 
   // Add special directories
   vtkNew<vtkPVMacFileInformationHelper> helper;
-  vtkSmartPointer<vtkPVFileInformation> info;
 
   std::string homeDirectory = helper->GetHomeDirectory();
   if (homeDirectory != "")
@@ -605,11 +623,36 @@ void vtkPVFileInformation::GetSpecialDirectories()
 #else
   if (const char* home = getenv("HOME"))
   {
-    vtkSmartPointer<vtkPVFileInformation> info = vtkSmartPointer<vtkPVFileInformation>::New();
+    info = vtkSmartPointer<vtkPVFileInformation>::New();
     info->SetFullPath(home);
     info->SetName("Home");
     info->Type = DIRECTORY;
     this->Contents->AddItem(info);
+
+    // add typical locations for auto-mounted drives
+    // Ubuntu /media/username/HASH, fedora/mint /run/media/username/HASH
+    std::string username;
+    const char* envUser = getenv("USER") ? getenv("USER") : getenv("USERNAME");
+    if (envUser)
+    {
+      username = envUser;
+    }
+    if (!username.empty())
+    {
+      std::vector<std::string> paths = { "/media/" + username, "/run/media/" + username };
+      for (std::string path : paths)
+      {
+        if (vtksys::SystemTools::FileIsDirectory(path))
+        {
+          info = vtkSmartPointer<vtkPVFileInformation>::New();
+          info->SetFullPath(path.c_str());
+          info->SetName("Media");
+          info->Type = DIRECTORY;
+          this->Contents->AddItem(info);
+          break;
+        }
+      }
+    }
   }
 #endif
 #endif // !_WIN32
@@ -1228,6 +1271,12 @@ std::string vtkPVFileInformation::GetParaViewExampleFilesDirectory()
 std::string vtkPVFileInformation::GetParaViewDocDirectory()
 {
   return vtkPVFileInformation::GetParaViewSharedResourcesDirectory() + "/doc";
+}
+
+//-----------------------------------------------------------------------------
+std::string vtkPVFileInformation::GetParaViewTranslationsDirectory()
+{
+  return vtkPVFileInformation::GetParaViewSharedResourcesDirectory() + "/translations";
 }
 
 //-----------------------------------------------------------------------------

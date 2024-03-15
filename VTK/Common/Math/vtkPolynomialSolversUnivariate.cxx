@@ -1,27 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolynomialSolversUnivariate.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================
-  Copyright 2007 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-  Contact: pppebay@sandia.gov,dcthomp@sandia.gov
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2007 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkPolynomialSolversUnivariate.h"
 #include "vtkDataArray.h"
 #include "vtkMath.h"
@@ -31,6 +10,7 @@
 
 #define VTK_SIGN(x) (((x) < 0) ? (-1) : (1))
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolynomialSolversUnivariate);
 
 static const double sqrt3 = sqrt(static_cast<double>(3.));
@@ -962,7 +942,7 @@ static int vtkHabichtOrSturmBisectionSolve(double* P, int d, double* a, double* 
     // So we need to have the following not happen.
     //
     // 1. Not zero at mid.
-    // 2. No "crazy" valus:
+    // 2. No "crazy" values:
     //    a. sign[mid] > sign[0]
     //    b. sign[mid] < sign[1].
     // 3. Does no take too long.
@@ -2226,3 +2206,4 @@ double vtkPolynomialSolversUnivariate::GetDivisionTolerance()
 {
   return vtkPolynomialSolversUnivariate::DivisionTolerance;
 }
+VTK_ABI_NAMESPACE_END

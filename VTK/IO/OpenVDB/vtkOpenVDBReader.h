@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenVDBReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOpenVDBReader
  * @brief   OpenVDB reader
@@ -32,6 +20,7 @@
 #include "vtkPartitionedDataSetCollectionAlgorithm.h"
 #include "vtkSmartPointer.h" // needed for smart pointers
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenVDBReaderInternals;
 
 class VTKIOOPENVDB_EXPORT vtkOpenVDBReader : public vtkPartitionedDataSetCollectionAlgorithm
@@ -141,7 +130,7 @@ public:
 
 protected:
   vtkOpenVDBReader();
-  ~vtkOpenVDBReader() override = default;
+  ~vtkOpenVDBReader() override;
 
   bool LoadFile();
   void InitializeData();
@@ -176,4 +165,5 @@ private:
   std::unique_ptr<vtkOpenVDBReaderInternals> Internals;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

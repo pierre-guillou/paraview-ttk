@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCompositeDataSet.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCompositeDataSet
  * @brief   abstract superclass for composite
@@ -35,9 +23,11 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
+#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 
 #include <vector> // For GetDataSets
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataIterator;
 class vtkCompositeDataSetInternals;
 class vtkDataSet;
@@ -114,21 +104,20 @@ public:
    */
   void Initialize() override;
 
-  ///@{
   /**
-   * Shallow and Deep copy.
+   * The goal of the method is to copy the data up to the dataset pointers only.
+   * The implementation is delegated to the differenent subclasses.
+   * If you want to copy up to array pointers, @see vtkDataObject::ShallowCopy.
+   *
+   * This method just calls vtkDataObject::ShallowCopy.
    */
-  void ShallowCopy(vtkDataObject* src) override;
-  void DeepCopy(vtkDataObject* src) override;
-  ///@}
+  virtual void CompositeShallowCopy(vtkCompositeDataSet* src);
 
   /**
-   * For historical reasons, `vtkCompositeDataSet::ShallowCopy` simply pass
-   * pointers to the leaf non-composite datasets. In some cases, we truly want
-   * to shallow copy those leaf non-composite datasets as well. For those cases,
-   * use this method.
+   * @deprecated RecursiveShallowCopy method, @see ShallowCopy
    */
-  virtual void RecursiveShallowCopy(vtkDataObject* src) = 0;
+  VTK_DEPRECATED_IN_9_3_0("Use ShallowCopy instead.")
+  virtual void RecursiveShallowCopy(vtkDataObject* src);
 
   /**
    * Returns the total number of points of all blocks. This will
@@ -187,6 +176,11 @@ public:
   template <class DataSetT = vtkDataSet>
   static std::vector<DataSetT*> GetDataSets(vtkDataObject* dobj, bool preserveNull = false);
 
+  /**
+   * Returns true for POINT or CELL, false otherwise
+   */
+  bool SupportsGhostArray(int type) override;
+
 protected:
   vtkCompositeDataSet();
   ~vtkCompositeDataSet() override;
@@ -196,6 +190,7 @@ private:
   void operator=(const vtkCompositeDataSet&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #include "vtkCompositeDataSet.txx" // for template implementations
 
 #endif

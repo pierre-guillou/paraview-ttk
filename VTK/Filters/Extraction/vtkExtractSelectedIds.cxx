@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedIds.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // VTK_DEPRECATED_IN_9_2_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 
@@ -39,6 +27,7 @@
 #include "vtkStringArray.h"
 #include "vtkUnstructuredGrid.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractSelectedIds);
 
 //------------------------------------------------------------------------------
@@ -365,6 +354,8 @@ struct vtkExtractSelectedIdsExtractCells
 
     vtkIdType idArrayIndex = 0, labelArrayIndex = 0;
 
+    vtkIdType checkAbortInterval = std::min(numCells / 10 + 1, (vtkIdType)1000);
+
     // Check each cell to see if it's selected
     while (labelArrayIndex < numCells)
     {
@@ -391,6 +382,10 @@ struct vtkExtractSelectedIdsExtractCells
         break;
       }
       self->UpdateProgress(static_cast<double>(idArrayIndex) / (numIds * (passThrough + 1)));
+      if (labelArrayIndex % checkAbortInterval == 0 && self->CheckAbort())
+      {
+        break;
+      }
 
       // Advance through and mark all cells with a label EQUAL TO the
       // current selection id, as well as their points.
@@ -501,6 +496,8 @@ struct vtkExtractSelectedIdsExtractPoints
     vtkIdType numPts = input->GetNumberOfPoints();
     vtkIdType idArrayIndex = 0, labelArrayIndex = 0;
 
+    vtkIdType checkAbortInterval = std::min(numPts / 10 + 1, (vtkIdType)1000);
+
     // Check each point to see if it's selected
     while (labelArrayIndex < numPts)
     {
@@ -522,6 +519,10 @@ struct vtkExtractSelectedIdsExtractPoints
       }
 
       self->UpdateProgress(static_cast<double>(idArrayIndex) / (numIds * (passThrough + 1)));
+      if (labelArrayIndex % checkAbortInterval == 0 && self->CheckAbort())
+      {
+        break;
+      }
       if (idArrayIndex >= numIds)
       {
         // We're out of selection ids, so we're done.
@@ -743,7 +744,7 @@ int vtkExtractSelectedIds::ExtractCells(
   idxArray->Delete();
   labelArray->Delete();
 
-  if (!passThrough)
+  if (!this->CheckAbort() && !passThrough)
   {
     vtkIdType* pointMap = new vtkIdType[numPts]; // maps old point ids into new
     vtkExtractSelectedIdsCopyPoints(input, output, pointInArray->GetPointer(0), pointMap);
@@ -987,3 +988,4 @@ void vtkExtractSelectedIds::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

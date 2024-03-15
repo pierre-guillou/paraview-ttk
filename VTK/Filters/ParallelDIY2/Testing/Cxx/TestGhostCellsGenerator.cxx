@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestGhostCellsGenerator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #define _USE_MATH_DEFINES
 
@@ -22,6 +10,7 @@
 #endif
 
 #include "vtkAbstractPointLocator.h"
+#include "vtkAppendFilter.h"
 #include "vtkCellArray.h"
 #include "vtkCellCenters.h"
 #include "vtkCellData.h"
@@ -29,12 +18,12 @@
 #include "vtkDataArray.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
-#include "vtkGenerateGlobalIds.h"
 #include "vtkGhostCellsGenerator.h"
 #include "vtkIdTypeArray.h"
 #include "vtkImageData.h"
 #include "vtkIntArray.h"
 #include "vtkLogger.h"
+#include "vtkMathUtilities.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiPieceDataSet.h"
 #include "vtkMultiProcessController.h"
@@ -45,14 +34,12 @@
 #include "vtkPointDataToCellData.h"
 #include "vtkPoints.h"
 #include "vtkPolyData.h"
-#include "vtkProcessIdScalars.h"
 #include "vtkRectilinearGrid.h"
 #include "vtkRemoveGhosts.h"
 #include "vtkStaticPointLocator.h"
 #include "vtkStructuredData.h"
 #include "vtkStructuredGrid.h"
 #include "vtkTestUtilities.h"
-#include "vtkThreshold.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -116,6 +103,57 @@ void FillImage(vtkImageData* image)
 }
 
 //----------------------------------------------------------------------------
+void FillImageCellDistance(vtkImageData* image)
+{
+  const vtkIdType nbCells = image->GetNumberOfCells();
+  vtkNew<vtkDoubleArray> array;
+  array->SetNumberOfTuples(nbCells);
+  array->SetName(GridArrayName);
+  image->GetCellData()->AddArray(array);
+
+  for (vtkIdType id = 0; id < nbCells; ++id)
+  {
+    vtkCell* cell = image->GetCell(id);
+    double* bounds = cell->GetBounds();
+    double coords[3] = { (bounds[1] + bounds[0]) / 2.0, (bounds[3] + bounds[2]) / 2.0,
+      (bounds[5] + bounds[4]) / 2.0 };
+    double squaredDistance = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    array->SetValue(id, squaredDistance);
+  }
+}
+
+//----------------------------------------------------------------------------
+void FillImagePointDistance(vtkImageData* image)
+{
+  const vtkIdType nbPoints = image->GetNumberOfPoints();
+  vtkNew<vtkDoubleArray> array;
+  array->SetNumberOfTuples(nbPoints);
+  array->SetName(GridArrayName);
+  image->GetPointData()->AddArray(array);
+
+  for (vtkIdType id = 0; id < nbPoints; ++id)
+  {
+    double* coords = image->GetPoint(id);
+    double squaredDistance = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    array->SetValue(id, squaredDistance);
+  }
+}
+
+//----------------------------------------------------------------------------
+void UpdateFieldData(vtkFieldData* fieldData, double factor)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(fieldData->GetAbstractArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    double value = array->GetValue(id);
+    array->SetValue(id, value * factor);
+  }
+}
+
+//----------------------------------------------------------------------------
 template <class GridDataSetT>
 void CopyGrid(vtkNew<GridDataSetT>& src, vtkStructuredGrid* dest)
 {
@@ -149,6 +187,50 @@ void SetCoordinates(vtkDataArray* array, int min, int max, const double* coordin
   {
     array->InsertTuple1(i, coordinates[MaxExtent + id]);
   }
+}
+
+//----------------------------------------------------------------------------
+bool TestImageCellDataDistance(vtkImageData* image)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(image->GetCellData()->GetArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  // Test that distance was correctly synced
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    vtkCell* cell = image->GetCell(id);
+    double* bounds = cell->GetBounds();
+    double coords[3] = { (bounds[1] + bounds[0]) / 2.0, (bounds[3] + bounds[2]) / 2.0,
+      (bounds[5] + bounds[4]) / 2.0 };
+    double refValue = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    if (!vtkMathUtilities::FuzzyCompare(array->GetValue(id), refValue))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool TestImagePointDataDistance(vtkImageData* image)
+{
+  vtkDoubleArray* array =
+    vtkArrayDownCast<vtkDoubleArray>(image->GetPointData()->GetArray(GridArrayName));
+  const vtkIdType nbTuples = array->GetNumberOfTuples();
+
+  for (vtkIdType id = 0; id < nbTuples; ++id)
+  {
+    double* coords = image->GetPoint(id);
+    double refValue = coords[0] * coords[0] + coords[1] * coords[1] + coords[2] * coords[2];
+    if (!vtkMathUtilities::FuzzyCompare(array->GetValue(id), refValue))
+    {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -415,9 +497,9 @@ bool AllRanksShareSamePointData(vtkMultiProcessController* controller, vtkDataSe
 
   controller->AllReduce(gidRange + 1, &maxGid, 1, vtkCommunicator::MAX_OP);
 
-  vtkIntArray* pidArray = vtkArrayDownCast<vtkIntArray>(pd->GetAbstractArray("ProcessId"));
+  vtkIdTypeArray* pidArray = vtkArrayDownCast<vtkIdTypeArray>(pd->GetProcessIds());
 
-  vtkNew<vtkIntArray> processId;
+  vtkNew<vtkIdTypeArray> processId;
   processId->SetNumberOfValues(maxGid + 1);
   processId->Fill(-1);
 
@@ -428,7 +510,7 @@ bool AllRanksShareSamePointData(vtkMultiProcessController* controller, vtkDataSe
 
   if (controller->GetLocalProcessId() == 0)
   {
-    vtkNew<vtkIntArray> receivedProcessId;
+    vtkNew<vtkIdTypeArray> receivedProcessId;
     receivedProcessId->SetNumberOfValues(maxGid + 1);
 
     controller->Receive(receivedProcessId->GetPointer(0), maxGid + 1, 1, TAG);
@@ -556,14 +638,10 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
     -MaxExtent, MaxExtent);
   FillImage(image);
 
-  vtkNew<vtkGenerateGlobalIds> GIDGenerator;
-  GIDGenerator->SetInputData(image);
-
-  vtkNew<vtkProcessIdScalars> PIDGenerator;
-  PIDGenerator->SetInputConnection(GIDGenerator->GetOutputPort());
-
   vtkNew<vtkGhostCellsGenerator> generator;
-  generator->SetInputConnection(PIDGenerator->GetOutputPort());
+  generator->SetInputData(image);
+  generator->GenerateGlobalIdsOn();
+  generator->GenerateProcessIdsOn();
   generator->BuildIfRequiredOff();
   generator->SetController(controller);
   generator->SetNumberOfGhostLayers(1);
@@ -574,7 +652,7 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
     if (!AllRanksShareSamePointData(controller, output))
     {
       vtkLog(ERROR,
-        "All point data are not the same across blocks."
+        "1: All point data are not the same across blocks."
           << " This is likely happening at the interfaces. The process id of a ghost point needs"
           << " to be the process id of the owner of the point, even at the interfaces.");
       retVal = false;
@@ -582,11 +660,13 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
   }
 
   // Testing point tagging at the interfaces on UG
-  vtkNew<vtkThreshold> UGConverter;
-  UGConverter->SetInputConnection(PIDGenerator->GetOutputPort());
+  vtkNew<vtkAppendFilter> UGConverter;
+  UGConverter->SetInputData(image);
 
   vtkNew<vtkGhostCellsGenerator> UGGenerator;
   UGGenerator->SetInputConnection(UGConverter->GetOutputPort());
+  UGGenerator->GenerateGlobalIdsOn();
+  UGGenerator->GenerateProcessIdsOn();
   UGGenerator->BuildIfRequiredOff();
   UGGenerator->SetNumberOfGhostLayers(0);
   UGGenerator->Update();
@@ -595,9 +675,61 @@ bool TestInterfacePointsSharing(vtkMultiProcessController* controller, int myran
         controller, vtkDataSet::SafeDownCast(UGGenerator->GetOutputDataObject(0))))
   {
     vtkLog(ERROR,
-      "All point data are not the same across blocks."
+      "2: All point data are not the same across blocks."
         << " This is likely happening at the interfaces. The process id of a ghost point needs"
         << " to be the process id of the owner of the point, even at the interfaces.");
+    retVal = false;
+  }
+
+  return retVal;
+}
+
+//----------------------------------------------------------------------------
+bool TestGhostDataSynchronization(vtkMultiProcessController* controller, int myrank)
+{
+  vtkLog(INFO, "Testing ghost data synchronization");
+  bool retVal = true;
+
+  vtkNew<vtkImageData> image;
+  image->SetExtent(myrank == 0 ? -MaxExtent : 0, myrank == 0 ? 0 : MaxExtent, -MaxExtent, MaxExtent,
+    -MaxExtent, MaxExtent);
+
+  // Fill image with distance values, multiplied by a factor depending on rank
+  FillImageCellDistance(image);
+  FillImagePointDistance(image);
+  UpdateFieldData(image->GetCellData(), myrank == 0 ? 2.0 : 0.5);
+  UpdateFieldData(image->GetPointData(), myrank == 0 ? 2.0 : 0.5);
+
+  vtkNew<vtkGhostCellsGenerator> generator;
+  generator->SetInputData(image);
+  generator->GenerateGlobalIdsOn();
+  generator->GenerateProcessIdsOn();
+  generator->SetController(controller);
+  generator->SetNumberOfGhostLayers(2); // Set to 2 to have ghost cells too
+  generator->BuildIfRequiredOff();
+  generator->Update();
+
+  // Multiply again the distance values with ghost to get back to initial distance
+  // So ghosts won't have the right factor, resulting in bad values
+  auto generatorOutput = vtkImageData::SafeDownCast(generator->GetOutputDataObject(0));
+  UpdateFieldData(generatorOutput->GetCellData(), myrank == 0 ? 0.5 : 2.0);
+  UpdateFieldData(generatorOutput->GetPointData(), myrank == 0 ? 0.5 : 2.0);
+
+  vtkNew<vtkGhostCellsGenerator> generatorSync;
+  generatorSync->SetInputData(generatorOutput);
+  generatorSync->SetController(controller);
+  generatorSync->SynchronizeOnlyOn();
+  generatorSync->Update();
+
+  auto syncOutput = vtkImageData::SafeDownCast(generatorSync->GetOutputDataObject(0));
+  if (!TestImageCellDataDistance(syncOutput))
+  {
+    vtkLog(ERROR, "Synchronization of cells failed.");
+    retVal = false;
+  }
+  if (!TestImagePointDataDistance(syncOutput))
+  {
+    vtkLog(ERROR, "Synchronization of points failed.");
     retVal = false;
   }
 
@@ -3248,6 +3380,11 @@ int TestGhostCellsGenerator(int argc, char* argv[])
   }
 
   if (!TestInterfacePointsSharing(contr, myrank))
+  {
+    retVal = EXIT_FAILURE;
+  }
+
+  if (!TestGhostDataSynchronization(contr, myrank))
   {
     retVal = EXIT_FAILURE;
   }

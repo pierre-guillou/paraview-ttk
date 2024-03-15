@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMultiProcessController.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMultiProcessController
  * @brief   Multiprocessing communication superclass
@@ -54,6 +42,7 @@
 
 #include "vtkCommunicator.h" // Needed for direct access to communicator
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkBoundingBox;
 class vtkCollection;
 class vtkDataObject;
@@ -632,7 +621,7 @@ public:
    * Gathers vtkMultiProcessStream (\c sendBuffer) from all ranks to the \c
    * destProcessId.
    * @param[in]  sendBuffer - vtkMultiProcessStream to send from local process.
-   * @param[out] recvBuffer - vector of vtkMultiProcessStream instances recevied
+   * @param[out] recvBuffer - vector of vtkMultiProcessStream instances received
    *             on the receiving rank (identified by \c destProcessId).
    * @param[in]  destProcessId - process id to gather on.
    * @return     1 on success, 0 on failure.
@@ -1409,6 +1398,26 @@ public:
   int AllReduce(vtkDataArraySelection* sendBuffer, vtkDataArraySelection* recvBuffer);
   ///@}
 
+  /**
+   * Check if this controller implements a probe operation
+   */
+  virtual bool CanProbe() { return this->Communicator->CanProbe(); }
+
+  /**
+   * Blocking test for checking for a message tagged with tag from source process (if
+   * source == ANY_SOURCE check for any message). Rank in actualSource is rank sending
+   * a message.
+   *
+   * Check if implemented in the current communicator using the CanProbe method before
+   * using.
+   *
+   * Returns 1 on success and 0 on failure.
+   */
+  virtual int Probe(int source, int tag, int* actualSource)
+  {
+    return this->Communicator->Probe(source, tag, actualSource);
+  }
+
   // Internally implemented RMI to break the process loop.
 
 protected:
@@ -1906,4 +1915,5 @@ inline vtkIdType vtkMultiProcessController::GetCount()
   return 0;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

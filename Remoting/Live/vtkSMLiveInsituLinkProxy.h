@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    $RCSfile$
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMLiveInsituLinkProxy
  * @brief   Performs additional operation on
@@ -41,29 +29,29 @@ public:
   vtkTypeMacro(vtkSMLiveInsituLinkProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Provides access to the a dummy proxy manager representing the
    * insitu visualization pipeline.
    */
   vtkSMSessionProxyManager* GetInsituProxyManager();
   void SetInsituProxyManager(vtkSMSessionProxyManager*);
-  //@}
+  ///@}
 
   bool HasExtract(const char* reg_group, const char* reg_name, int port_number);
 
-  //@{
+  ///@{
   vtkSMProxy* CreateExtract(const char* reg_group, const char* reg_name, int port_number);
   void RemoveExtract(vtkSMProxy*);
-  //@}
-  //@{
+  ///@}
+  ///@{
   /**
    * Wakes up Insitu side if simulation is paused. Handles correctly
    * several calls on the LIVE side.
    */
   void LiveChanged();
   vtkIdType GetTimeStep() { return this->TimeStep; }
-  //@}
+  ///@}
 
   /**
    * Overridden to handle server-notification messages.

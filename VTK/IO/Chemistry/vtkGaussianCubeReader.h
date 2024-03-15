@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGaussianCubeReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGaussianCubeReader
  * @brief   read ASCII Gaussian Cube Data files
@@ -30,6 +18,7 @@
 #include "vtkIOChemistryModule.h" // For export macro
 #include "vtkMoleculeReaderBase.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkImageData;
 class vtkTransform;
 
@@ -61,4 +50,5 @@ private:
   void operator=(const vtkGaussianCubeReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

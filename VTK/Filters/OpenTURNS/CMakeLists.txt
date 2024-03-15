@@ -1,6 +1,9 @@
 find_package(OpenTURNS 1.8 REQUIRED)
-# XXX(fixme)
-include(${OPENTURNS_USE_FILE})
+
+if (EXISTS "${OPENTURNS_USE_FILE}")
+  # removed in 1.21
+  include (${OPENTURNS_USE_FILE})
+endif ()
 
 set(classes
   vtkOTDensityMap
@@ -29,3 +32,4 @@ vtk_module_link(VTK::FiltersOpenTURNS
 vtk_module_include(VTK::FiltersOpenTURNS
   PRIVATE
     ${OPENTURNS_INCLUDE_DIRS})
+vtk_add_test_mangling(VTK::FiltersOpenTURNS)

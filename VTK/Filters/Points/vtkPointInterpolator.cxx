@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointInterpolator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPointInterpolator.h"
 
 #include "vtkAbstractPointLocator.h"
@@ -39,6 +27,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointInterpolator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Locator, vtkAbstractPointLocator);
 vtkCxxSetObjectMacro(vtkPointInterpolator, Kernel, vtkInterpolationKernel);
@@ -518,3 +507,4 @@ void vtkPointInterpolator::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Pass Cell Arrays: " << (this->PassCellArrays ? "On" : " Off") << "\n";
   os << indent << "Pass Field Arrays: " << (this->PassFieldArrays ? "On" : " Off") << "\n";
 }
+VTK_ABI_NAMESPACE_END

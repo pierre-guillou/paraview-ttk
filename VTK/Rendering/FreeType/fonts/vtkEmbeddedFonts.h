@@ -1,20 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEmbeddedFonts.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkEmbeddedFonts_h
 #define vtkEmbeddedFonts_h
+
+#include "vtkABINamespace.h"
 
 #include <stddef.h>
 
@@ -23,6 +13,7 @@
 // Gothic L Book
 // Contributed by URW
 
+VTK_ABI_NAMESPACE_BEGIN
 extern size_t face_arial_buffer_length;
 extern unsigned char face_arial_buffer[];
 
@@ -105,4 +96,5 @@ extern unsigned char face_times_bold_italic_buffer[];
 extern size_t face_times_italic_buffer_length;
 extern unsigned char face_times_italic_buffer[];
 
+VTK_ABI_NAMESPACE_END
 #endif

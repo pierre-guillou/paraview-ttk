@@ -1,6 +1,5 @@
-/*=============================================================================
-Copyright and License information
-=============================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkPVExtractHistogram2D
  * @brief Extract 2D histogram for a parallel dataset
@@ -20,6 +19,7 @@ Copyright and License information
 // Forward declarations
 class vtkDataArray;
 class vtkMultiProcessController;
+class vtkUnsignedCharArray;
 
 class VTKPVVTKEXTENSIONSMISC_EXPORT vtkPVExtractHistogram2D : public vtkImageAlgorithm
 {
@@ -152,6 +152,8 @@ protected:
   // Cache of internal array and range
   int ComponentIndexCache[2];
   vtkDataArray* ComponentArrayCache[2];
+  vtkUnsignedCharArray* GhostArray;
+  unsigned char GhostsToSkip;
   double ComponentRangeCache[2][2];
 
   void InitializeCache();

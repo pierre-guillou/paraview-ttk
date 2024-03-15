@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageGradient.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageGradient.h"
 
 #include "vtkDataArray.h"
@@ -25,6 +13,7 @@
 #include <cmath>
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageGradient);
 
 //------------------------------------------------------------------------------
@@ -123,7 +112,7 @@ int vtkImageGradient::RequestUpdateExtent(
     }
   }
 
-  // Store the update extent needed from the intput.
+  // Store the update extent needed from the input.
   inInfo->Set(vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(), inUExt, 6);
 
   return 1;
@@ -334,3 +323,4 @@ void vtkImageGradient::ThreadedRequestData(vtkInformation*, vtkInformationVector
       return;
   }
 }
+VTK_ABI_NAMESPACE_END

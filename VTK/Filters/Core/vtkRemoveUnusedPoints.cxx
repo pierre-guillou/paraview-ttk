@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRemoveUnusedPoints.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkRemoveUnusedPoints.h"
 
 #include "vtkArrayDispatch.h"
@@ -32,6 +20,7 @@
 #include <numeric>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 template <typename ArrayT>
@@ -44,12 +33,15 @@ private:
 
   using ValueType = typename ArrayT::ValueType;
   vtkSMPThreadLocal<std::vector<ValueType>> Tuple;
+  vtkRemoveUnusedPoints* Filter;
 
 public:
-  RemapPointIdsFunctor(ArrayT* input, vtkDataArray* output, const std::vector<vtkIdType>& pointMap)
+  RemapPointIdsFunctor(ArrayT* input, vtkDataArray* output, const std::vector<vtkIdType>& pointMap,
+    vtkRemoveUnusedPoints* filter)
     : Input(input)
     , Output(vtkArrayDownCast<ArrayT>(output))
     , PointMap(pointMap)
+    , Filter(filter)
   {
   }
 
@@ -62,8 +54,22 @@ public:
   void operator()(vtkIdType begin, vtkIdType end)
   {
     auto& tuple = this->Tuple.Local();
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((end - begin) / 10 + 1, (vtkIdType)1000);
     for (vtkIdType cc = begin; cc < end; ++cc)
     {
+      if (cc % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       this->Input->GetTypedTuple(cc, tuple.data());
       std::transform(tuple.begin(), tuple.end(), tuple.begin(),
         [this](vtkIdType id) { return this->PointMap[id]; });
@@ -77,17 +83,18 @@ public:
 struct RemapPointIdsWorker
 {
   template <typename ArrayT>
-  void operator()(ArrayT* input, vtkDataArray* output, const std::vector<vtkIdType>& pointMap)
+  void operator()(ArrayT* input, vtkDataArray* output, const std::vector<vtkIdType>& pointMap,
+    vtkRemoveUnusedPoints* filter)
   {
-    RemapPointIdsFunctor<ArrayT> functor(input, output, pointMap);
+    RemapPointIdsFunctor<ArrayT> functor(input, output, pointMap, filter);
     vtkSMPTools::For(0, input->GetNumberOfTuples(), functor);
   }
 };
 
 // Copies cell connectivity and other related information from input to output
 // while mapping point ids using the pointMap.
-bool CopyConnectivity(
-  vtkUnstructuredGrid* input, vtkUnstructuredGrid* output, const std::vector<vtkIdType>& pointMap)
+bool CopyConnectivity(vtkUnstructuredGrid* input, vtkUnstructuredGrid* output,
+  const std::vector<vtkIdType>& pointMap, vtkRemoveUnusedPoints* filter)
 {
   auto inCellArray = input->GetCells();
   auto inConnectivity = inCellArray->GetConnectivityArray();
@@ -103,7 +110,7 @@ bool CopyConnectivity(
   RemapPointIdsWorker worker;
   using SupportedArrays = vtkCellArray::StorageArrayList;
   using Dispatch = vtkArrayDispatch::DispatchByArray<SupportedArrays>;
-  if (!Dispatch::Execute(inConnectivity, worker, outConnectivity, pointMap))
+  if (!Dispatch::Execute(inConnectivity, worker, outConnectivity, pointMap, filter))
   {
     return false;
   }
@@ -116,7 +123,7 @@ bool CopyConnectivity(
     outFaces->SetNumberOfComponents(inFaces->GetNumberOfComponents());
     outFaces->SetNumberOfTuples(inFaces->GetNumberOfTuples());
     using DispatchFaces = vtkArrayDispatch::DispatchByArray<SupportedFacesArrays>;
-    if (!DispatchFaces::Execute(inFaces, worker, outFaces, pointMap))
+    if (!DispatchFaces::Execute(inFaces, worker, outFaces, pointMap, filter))
     {
       return false;
     }
@@ -220,7 +227,7 @@ int vtkRemoveUnusedPoints::RequestData(vtkInformation* vtkNotUsed(request),
     return 1;
   }
 
-  if (!::CopyConnectivity(input, output, pointMap))
+  if (!::CopyConnectivity(input, output, pointMap, this))
   {
     vtkErrorMacro("Error copy connectivity!");
     return 0;
@@ -269,3 +276,4 @@ void vtkRemoveUnusedPoints::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "OriginalPointIdsArrayName: "
      << (this->OriginalPointIdsArrayName ? this->OriginalPointIdsArrayName : "(null)") << endl;
 }
+VTK_ABI_NAMESPACE_END

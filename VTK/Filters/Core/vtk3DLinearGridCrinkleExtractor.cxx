@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtk3DLinearGridCrinkleExtractor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtk3DLinearGridCrinkleExtractor.h"
 
@@ -40,6 +28,7 @@
 #include <atomic>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtk3DLinearGridCrinkleExtractor);
 vtkCxxSetObjectMacro(vtk3DLinearGridCrinkleExtractor, ImplicitFunction, vtkImplicitFunction);
 
@@ -123,12 +112,14 @@ template <typename TP>
 struct PlaneClassifyPoints : public Classify
 {
   TP* Points;
+  vtk3DLinearGridCrinkleExtractor* Filter;
   double Origin[3];
   double Normal[3];
 
-  PlaneClassifyPoints(vtkPoints* pts, vtkPlane* plane)
+  PlaneClassifyPoints(vtkPoints* pts, vtkPlane* plane, vtk3DLinearGridCrinkleExtractor* filter)
     : Classify(pts)
   {
+    this->Filter = filter;
     this->Points = static_cast<TP*>(pts->GetVoidPointer(0));
     plane->GetOrigin(this->Origin);
     plane->GetNormal(this->Normal);
@@ -140,8 +131,21 @@ struct PlaneClassifyPoints : public Classify
     double *n = this->Normal, *o = this->Origin;
     TP* pts = this->Points + 3 * ptId;
     unsigned char* ioa = this->InOutArray + ptId;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
     for (; ptId < endPtId; ++ptId)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // Access each point
       p[0] = static_cast<double>(*pts);
       ++pts;
@@ -166,10 +170,13 @@ struct FunctionClassifyPoints : public Classify
 {
   TP* Points;
   vtkImplicitFunction* Function;
+  vtk3DLinearGridCrinkleExtractor* Filter;
 
-  FunctionClassifyPoints(vtkPoints* pts, vtkImplicitFunction* f)
+  FunctionClassifyPoints(
+    vtkPoints* pts, vtkImplicitFunction* f, vtk3DLinearGridCrinkleExtractor* filter)
     : Classify(pts)
     , Function(f)
+    , Filter(filter)
   {
     this->Points = static_cast<TP*>(pts->GetVoidPointer(0));
   }
@@ -179,8 +186,21 @@ struct FunctionClassifyPoints : public Classify
     double p[3], zero = double(0), eval;
     TP* pts = this->Points + 3 * ptId;
     unsigned char* ioa = this->InOutArray + ptId;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
     for (; ptId < endPtId; ++ptId)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // Access each point
       p[0] = static_cast<double>(*pts);
       ++pts;
@@ -237,9 +257,11 @@ struct ExtractCellsBase
   vtkIdType* CellMap;
   int NumThreadsUsed;
   vtkSMPThreadLocal<LocalDataType> LocalData;
+  vtk3DLinearGridCrinkleExtractor* Filter;
 
   ExtractCellsBase(vtkIdType inNumPts, CellIter* c, unsigned char* inout, vtkUnstructuredGrid* grid,
-    vtkCellArray* cells, bool copyPtData, bool copyCellData)
+    vtkCellArray* cells, bool copyPtData, bool copyCellData,
+    vtk3DLinearGridCrinkleExtractor* filter)
     : InOut(inout)
     , Iter(c)
     , InputNumPts(inNumPts)
@@ -253,6 +275,7 @@ struct ExtractCellsBase
     , PointMap(nullptr)
     , CellMap(nullptr)
     , NumThreadsUsed(0)
+    , Filter(filter)
   {
   }
 
@@ -269,8 +292,9 @@ struct ExtractCellsBase
 struct ExtractCells : public ExtractCellsBase
 {
   ExtractCells(vtkIdType inNumPts, CellIter* c, unsigned char* inout, vtkUnstructuredGrid* grid,
-    vtkCellArray* cells, bool copyPtData, bool copyCellData)
-    : ExtractCellsBase(inNumPts, c, inout, grid, cells, copyPtData, copyCellData)
+    vtkCellArray* cells, bool copyPtData, bool copyCellData,
+    vtk3DLinearGridCrinkleExtractor* filter)
+    : ExtractCellsBase(inNumPts, c, inout, grid, cells, copyPtData, copyCellData, filter)
   {
   }
 
@@ -289,8 +313,22 @@ struct ExtractCells : public ExtractCellsBase
     vtkIdType& lNumCells = localData.LocalNumCells;
     vtkIdType npts;
 
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endCellId - cellId) / 10 + 1, (vtkIdType)1000);
+
     for (; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // Does the implicit function cut this cell?
       npts = cellIter->NumVerts;
       if (Classify::Intersects(inout, npts, c))
@@ -367,8 +405,9 @@ struct ExtractCells : public ExtractCellsBase
 struct ExtractPointsAndCells : public ExtractCellsBase
 {
   ExtractPointsAndCells(vtkIdType inNumPts, CellIter* c, unsigned char* inout,
-    vtkUnstructuredGrid* grid, vtkCellArray* cells, bool copyPtData, bool copyCellData)
-    : ExtractCellsBase(inNumPts, c, inout, grid, cells, copyPtData, copyCellData)
+    vtkUnstructuredGrid* grid, vtkCellArray* cells, bool copyPtData, bool copyCellData,
+    vtk3DLinearGridCrinkleExtractor* filter)
+    : ExtractCellsBase(inNumPts, c, inout, grid, cells, copyPtData, copyCellData, filter)
   {
     this->PointMap = new vtkIdType[inNumPts];
     std::fill_n(this->PointMap, inNumPts, (-1));
@@ -390,8 +429,22 @@ struct ExtractPointsAndCells : public ExtractCellsBase
     vtkIdType npts;
     vtkIdType* pointMap = this->PointMap;
 
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endCellId - cellId) / 10 + 1, (vtkIdType)1000);
+
     for (; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       // Does the implicit function cut this cell?
       npts = cellIter->NumVerts;
       if (Classify::Intersects(inout, npts, c))
@@ -490,17 +543,33 @@ struct CopyCellAttributes
 {
   ArrayList* Arrays;
   const vtkIdType* CellMap;
+  vtk3DLinearGridCrinkleExtractor* Filter;
 
-  CopyCellAttributes(ArrayList* arrays, const vtkIdType* cellMap)
+  CopyCellAttributes(
+    ArrayList* arrays, const vtkIdType* cellMap, vtk3DLinearGridCrinkleExtractor* filter)
     : Arrays(arrays)
     , CellMap(cellMap)
+    , Filter(filter)
   {
   }
 
   void operator()(vtkIdType cellId, vtkIdType endCellId)
   {
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endCellId - cellId) / 10 + 1, (vtkIdType)1000);
     for (; cellId < endCellId; ++cellId)
     {
+      if (cellId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
       this->Arrays->Copy(this->CellMap[cellId], cellId);
     }
   }
@@ -513,11 +582,14 @@ struct GeneratePoints
   const TPIn* InPts;
   const vtkIdType* PointMap;
   TPOut* OutPts;
+  vtk3DLinearGridCrinkleExtractor* Filter;
 
-  GeneratePoints(TPIn* inPts, vtkIdType* ptMap, TPOut* outPts)
+  GeneratePoints(
+    TPIn* inPts, vtkIdType* ptMap, TPOut* outPts, vtk3DLinearGridCrinkleExtractor* filter)
     : InPts(inPts)
     , PointMap(ptMap)
     , OutPts(outPts)
+    , Filter(filter)
   {
   }
 
@@ -526,9 +598,23 @@ struct GeneratePoints
     const TPIn* p = this->InPts + 3 * ptId;
     const vtkIdType* ptMap = this->PointMap;
     TPOut *outPts = this->OutPts, *x;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
 
     for (; ptId < endPtId; ++ptId, p += 3)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       if (ptMap[ptId] >= 0)
       {
         x = outPts + 3 * ptMap[ptId];
@@ -545,18 +631,35 @@ struct CopyPointAttributes
 {
   ArrayList* Arrays;
   const vtkIdType* PointMap;
+  vtk3DLinearGridCrinkleExtractor* Filter;
 
-  CopyPointAttributes(ArrayList* arrays, const vtkIdType* ptMap)
+  CopyPointAttributes(
+    ArrayList* arrays, const vtkIdType* ptMap, vtk3DLinearGridCrinkleExtractor* filter)
     : Arrays(arrays)
     , PointMap(ptMap)
+    , Filter(filter)
   {
   }
 
   void operator()(vtkIdType ptId, vtkIdType endPtId)
   {
     const vtkIdType* ptMap = this->PointMap;
+    bool isFirst = vtkSMPTools::GetSingleThread();
+    vtkIdType checkAbortInterval = std::min((endPtId - ptId) / 10 + 1, (vtkIdType)1000);
     for (; ptId < endPtId; ++ptId)
     {
+      if (ptId % checkAbortInterval == 0)
+      {
+        if (isFirst)
+        {
+          this->Filter->CheckAbort();
+        }
+        if (this->Filter->GetAbortOutput())
+        {
+          break;
+        }
+      }
+
       if (ptMap[ptId] >= 0)
       {
         this->Arrays->Copy(ptId, ptMap[ptId]);
@@ -659,13 +762,13 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
   { // plane fast path
     if (ptsType == VTK_FLOAT)
     {
-      PlaneClassifyPoints<float> classify(inPts, static_cast<vtkPlane*>(f));
+      PlaneClassifyPoints<float> classify(inPts, static_cast<vtkPlane*>(f), this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, classify);
       inout = classify.InOutArray;
     }
     else if (ptsType == VTK_DOUBLE)
     {
-      PlaneClassifyPoints<double> classify(inPts, static_cast<vtkPlane*>(f));
+      PlaneClassifyPoints<double> classify(inPts, static_cast<vtkPlane*>(f), this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, classify);
       inout = classify.InOutArray;
     }
@@ -674,13 +777,13 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
   { // general implicit function fast path
     if (ptsType == VTK_FLOAT)
     {
-      FunctionClassifyPoints<float> classify(inPts, f);
+      FunctionClassifyPoints<float> classify(inPts, f, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, classify);
       inout = classify.InOutArray;
     }
     else if (ptsType == VTK_DOUBLE)
     {
-      FunctionClassifyPoints<double> classify(inPts, f);
+      FunctionClassifyPoints<double> classify(inPts, f, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, classify);
       inout = classify.InOutArray;
     }
@@ -698,7 +801,7 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
   if (!this->RemoveUnusedPoints)
   {
     ExtractCells extract(
-      numPts, cellIter, inout, grid, newCells, this->CopyPointData, this->CopyCellData);
+      numPts, cellIter, inout, grid, newCells, this->CopyPointData, this->CopyCellData, this);
     EXECUTE_REDUCED_SMPFOR(
       this->SequentialProcessing, numCells, extract, this->NumberOfThreadsUsed);
 
@@ -716,7 +819,7 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
   else
   {
     ExtractPointsAndCells extract(
-      numPts, cellIter, inout, grid, newCells, this->CopyPointData, this->CopyCellData);
+      numPts, cellIter, inout, grid, newCells, this->CopyPointData, this->CopyCellData, this);
     EXECUTE_REDUCED_SMPFOR(
       this->SequentialProcessing, numCells, extract, this->NumberOfThreadsUsed);
 
@@ -734,7 +837,7 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
     ArrayList arrays;
     outCD->CopyAllocate(inCD, outNumCells);
     arrays.AddArrays(outNumCells, inCD, outCD);
-    CopyCellAttributes copyCellData(&arrays, cellMap);
+    CopyCellAttributes copyCellData(&arrays, cellMap, this);
     EXECUTE_SMPFOR(this->SequentialProcessing, outNumCells, copyCellData);
     delete[] cellMap;
   }
@@ -766,22 +869,22 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
     outPtr = outPts->GetData()->GetVoidPointer(0);
     if (inType == VTK_DOUBLE && outType == VTK_DOUBLE)
     {
-      GeneratePoints<double, double> generatePts((double*)inPtr, ptMap, (double*)outPtr);
+      GeneratePoints<double, double> generatePts((double*)inPtr, ptMap, (double*)outPtr, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, generatePts);
     }
     else if (inType == VTK_FLOAT && outType == VTK_FLOAT)
     {
-      GeneratePoints<float, float> generatePts((float*)inPtr, ptMap, (float*)outPtr);
+      GeneratePoints<float, float> generatePts((float*)inPtr, ptMap, (float*)outPtr, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, generatePts);
     }
     else if (inType == VTK_DOUBLE && outType == VTK_FLOAT)
     {
-      GeneratePoints<double, float> generatePts((double*)inPtr, ptMap, (float*)outPtr);
+      GeneratePoints<double, float> generatePts((double*)inPtr, ptMap, (float*)outPtr, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, generatePts);
     }
     else // if ( inType == VTK_FLOAT && outType == VTK_DOUBLE )
     {
-      GeneratePoints<float, double> generatePts((float*)inPtr, ptMap, (double*)outPtr);
+      GeneratePoints<float, double> generatePts((float*)inPtr, ptMap, (double*)outPtr, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, generatePts);
     }
     grid->SetPoints(outPts);
@@ -794,7 +897,7 @@ int vtk3DLinearGridCrinkleExtractor::ProcessPiece(
       ArrayList arrays;
       outPD->CopyAllocate(inPD, outNumPts);
       arrays.AddArrays(outNumPts, inPD, outPD);
-      CopyPointAttributes copyPointData(&arrays, ptMap);
+      CopyPointAttributes copyPointData(&arrays, ptMap, this);
       EXECUTE_SMPFOR(this->SequentialProcessing, numPts, copyPointData);
       delete[] ptMap;
     }
@@ -912,6 +1015,10 @@ int vtk3DLinearGridCrinkleExtractor::RequestData(
     inIter.TakeReference(inputCDS->NewIterator());
     for (inIter->InitTraversal(); !inIter->IsDoneWithTraversal(); inIter->GoToNextItem())
     {
+      if (this->GetAbortOutput())
+      {
+        break;
+      }
       auto ds = inIter->GetCurrentDataObject();
       if ((grid = vtkUnstructuredGrid::SafeDownCast(ds)))
       {
@@ -1018,3 +1125,4 @@ void vtk3DLinearGridCrinkleExtractor::PrintSelf(ostream& os, vtkIndent indent)
 #undef EXECUTE_SMPFOR
 #undef EXECUTE_REDUCED_SMPFOR
 #undef MAX_CELL_VERTS
+VTK_ABI_NAMESPACE_END

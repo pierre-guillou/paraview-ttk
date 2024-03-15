@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIOMySQL_AutoInit.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkMySQLDatabase.h"
 
@@ -20,6 +8,7 @@
 #include <string>
 
 // Registration of MySQL dynamically with the vtkSQLDatabase factory method.
+VTK_ABI_NAMESPACE_BEGIN
 vtkSQLDatabase* MySQLCreateFunction(const char* URL)
 {
   std::string urlstr(URL ? URL : "");
@@ -44,3 +33,4 @@ VTKIOMYSQL_EXPORT void vtkIOMySQL_AutoInit_Construct()
     vtkSQLDatabase::RegisterCreateFromURLCallback(MySQLCreateFunction);
   }
 }
+VTK_ABI_NAMESPACE_END

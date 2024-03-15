@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #pragma once
 
 #include "vtkLogger.h"
@@ -16,6 +18,7 @@
 
 namespace RTW
 {
+VTK_ABI_NAMESPACE_BEGIN
     class Renderer : public Object
     {
     public:
@@ -143,4 +146,5 @@ namespace RTW
 
         std::vector<VisRTX::Light*> lastLights;
     };
+VTK_ABI_NAMESPACE_END
 }

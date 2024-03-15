@@ -132,6 +132,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestGarbageCollector.cxx
   TestGenericDataArrayAPI.cxx
   TestInformationKeyLookup.cxx
+  TestInherits.cxx
   TestLogger.cxx
   TestLoggerThreadName.cxx
   TestLookupTable.cxx
@@ -150,11 +151,14 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestSOADataArray.cxx
   TestSortDataArray.cxx
   TestSparseArrayValidation.cxx
+  TestStringToken.cxx
   TestSystemInformation.cxx
   TestTemplateMacro.cxx
   TestTimePointUtility.cxx
+  TestValueFromString.cxx
   TestVariant.cxx
   TestVariantComparison.cxx
+  TestVariantConversionFromString.cxx
   TestWeakPointer.cxx
   TestXMLFileOutputWindow.cxx
   UnitTestInformationKeys.cxx
@@ -169,6 +173,16 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   ${data_array_tests}
 
   ${scale_soa_test}
+
+  TestAffineArray.cxx
+  TestCompositeArray.cxx
+  TestCompositeImplicitBackend.cxx
+  TestConstantArray.cxx
+  TestImplicitArraysBase.cxx
+  TestImplicitArrayTraits.cxx
+  TestIndexedArray.cxx
+  TestIndexedImplicitBackend.cxx
+  TestStdFunctionArray.cxx
   )
 
 # Special test to check whether disabling loguru signal handling, i.e.,

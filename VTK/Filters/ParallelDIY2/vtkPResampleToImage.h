@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPResampleToImage.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPResampleToImage
  * @brief   sample dataset on a uniform grid in parallel
@@ -28,6 +16,7 @@
 #include "vtkFiltersParallelDIY2Module.h" // For export macro
 #include "vtkResampleToImage.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkImageData;
 class vtkMultiProcessController;
@@ -62,4 +51,5 @@ private:
   void operator=(const vtkPResampleToImage&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

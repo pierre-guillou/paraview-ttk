@@ -1,8 +1,11 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUniforms.h"
 #include "vtkObjectFactory.h"
 
 //------------------------------------------------------------------------------
 // Return nullptr if no override is supplied.
+VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractObjectFactoryNewMacro(vtkUniforms);
 
 //------------------------------------------------------------------------------
@@ -78,3 +81,4 @@ int vtkUniforms::StringToScalarType(const std::string& s)
     return VTK_VOID;
   }
 }
+VTK_ABI_NAMESPACE_END

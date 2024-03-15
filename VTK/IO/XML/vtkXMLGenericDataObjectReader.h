@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLGenericDataObjectReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLGenericDataObjectReader
  * @brief   Read any type of vtk data object
@@ -30,6 +18,7 @@
 #include "vtkSmartPointer.h" // for API
 #include "vtkXMLDataReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkHierarchicalBoxDataSet;
 class vtkMultiBlockDataSet;
 class vtkImageData;
@@ -121,4 +110,5 @@ private:
   void operator=(const vtkXMLGenericDataObjectReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

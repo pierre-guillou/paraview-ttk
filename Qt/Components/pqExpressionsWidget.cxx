@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqExpressionsWidget.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqExpressionsWidget.h"
 
@@ -49,7 +21,7 @@ pqExpressionsWidget::pqExpressionsWidget(QWidget* parent, const QString& groupNa
   , OneLiner(nullptr)
 {
   QGridLayout* grid = new QGridLayout(this);
-  grid->setMargin(0);
+  grid->setContentsMargins(0, 0, 0, 0);
   grid->setSpacing(0);
 
   if (!groupName.isEmpty())
@@ -60,13 +32,18 @@ pqExpressionsWidget::pqExpressionsWidget(QWidget* parent, const QString& groupNa
   this->setLayout(grid);
 }
 
+void pqExpressionsWidget::clear()
+{
+  lineEdit()->clear();
+}
+
 void pqExpressionsWidget::setupButtons(const QString& groupName)
 {
   auto grid = dynamic_cast<QGridLayout*>(this->layout());
 
   this->OneLiner = new pqOneLinerTextEdit(this);
   this->OneLiner->setObjectName("OneLiner");
-  grid->addWidget(this->OneLiner, 0, 0, 1, 4);
+  grid->addWidget(this->OneLiner, 0, 0, 1, 5);
 
   // add stats line
   auto statusLine = new QLabel(this);
@@ -82,13 +59,18 @@ void pqExpressionsWidget::setupButtons(const QString& groupName)
   auto addToList = new QToolButton(this);
   addToList->setObjectName("AddToList");
   addToList->setIcon(QIcon(":/pqWidgets/Icons/pqSave.svg"));
-  addToList->setToolTip("Save expression");
+  addToList->setToolTip(tr("Save expression"));
   grid->addWidget(addToList, 1, 2);
   auto openManager = new QToolButton(this);
   openManager->setObjectName("OpenManager");
   openManager->setIcon(QIcon(":/pqWidgets/Icons/pqAdvanced.svg"));
-  openManager->setToolTip("Open Expressions Manager");
+  openManager->setToolTip(tr("Open Expressions Manager"));
   grid->addWidget(openManager, 1, 3);
+  auto clearExpression = new QToolButton(this);
+  clearExpression->setObjectName("ClearExpression");
+  clearExpression->setIcon(QIcon(":/pqWidgets/Icons/pqCancel.svg"));
+  clearExpression->setToolTip(tr("Clear expression"));
+  grid->addWidget(clearExpression, 1, 4);
 
   QObject::connect(chooser, SIGNAL(expressionSelected(const QString&)), this->OneLiner,
     SLOT(setPlainText(const QString&)));
@@ -96,7 +78,7 @@ void pqExpressionsWidget::setupButtons(const QString& groupName)
   this->connect(addToList, &QToolButton::clicked, [=]() {
     bool saved =
       pqExpressionsManager::addExpressionToSettings(groupName, this->OneLiner->toPlainText());
-    statusLine->setText(saved ? "Saved! " : "Already Exists");
+    statusLine->setText(saved ? tr("Saved! ") : tr("Already Exists"));
     statusLine->show();
     QTimer::singleShot(5000, [=]() { statusLine->hide(); });
   });
@@ -108,6 +90,8 @@ void pqExpressionsWidget::setupButtons(const QString& groupName)
       &QTextEdit::setPlainText);
     dialog.exec();
   });
+
+  this->connect(clearExpression, &QToolButton::clicked, [=]() { this->OneLiner->clear(); });
 }
 
 pqOneLinerTextEdit* pqExpressionsWidget::lineEdit()

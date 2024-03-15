@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImplicitBoolean.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImplicitBoolean.h"
 
 #include "vtkImplicitFunctionCollection.h"
@@ -19,6 +7,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImplicitBoolean);
 
 // Construct with union operation.
@@ -55,7 +44,7 @@ vtkMTimeType vtkImplicitBoolean::GetMTime()
 // Add another implicit function to the list of functions.
 void vtkImplicitBoolean::AddFunction(vtkImplicitFunction* f)
 {
-  if (!this->FunctionList->IsItemPresent(f))
+  if (this->FunctionList->IndexOfFirstOccurence(f) < 0)
   {
     this->Modified();
     this->FunctionList->AddItem(f);
@@ -65,7 +54,7 @@ void vtkImplicitBoolean::AddFunction(vtkImplicitFunction* f)
 // Remove a function from the list of implicit functions to boolean.
 void vtkImplicitBoolean::RemoveFunction(vtkImplicitFunction* f)
 {
-  if (this->FunctionList->IsItemPresent(f))
+  if (this->FunctionList->IndexOfFirstOccurence(f) >= 0)
   {
     this->Modified();
     this->FunctionList->RemoveItem(f);
@@ -258,3 +247,4 @@ void vtkImplicitBoolean::PrintSelf(ostream& os, vtkIndent indent)
     os << "VTK_DIFFERENCE\n";
   }
 }
+VTK_ABI_NAMESPACE_END

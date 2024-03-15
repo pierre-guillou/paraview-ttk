@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqPipelineContextMenuBehavior.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPipelineContextMenuBehavior.h"
 
 #include "pqActiveObjects.h"
@@ -54,17 +26,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 namespace
 {
 //-----------------------------------------------------------------------------
-std::pair<QList<unsigned int>, QStringList> getSelectedBlocks(
-  pqDataRepresentation* repr, unsigned int blockIndex, int rank)
+enum class SelectionSourceType
+{
+  BlockSelectors,
+  BlockIds,
+  None
+};
+
+//-----------------------------------------------------------------------------
+QStringList getSelectedBlocks(pqDataRepresentation* repr, unsigned int blockIndex, int rank)
 {
   auto producerPort = repr ? repr->getOutputPortFromInput() : nullptr;
   auto dataInfo = producerPort ? producerPort->getDataInformation() : nullptr;
+  auto rDataInfo = producerPort ? producerPort->getRankDataInformation(rank) : nullptr;
   if (producerPort == nullptr || !dataInfo->IsCompositeDataSet())
   {
-    return std::pair<QList<unsigned int>, QStringList>();
+    return QStringList();
   }
 
-  QList<unsigned int> legacyPickedBlocks;
+  const std::string assemblyName = vtkSMPropertyHelper(repr->getProxy(), "Assembly").GetAsString();
+  const auto hierarchy = dataInfo->GetHierarchy();
+  const auto rHierarchy = rDataInfo->GetHierarchy();
+  const auto assembly = dataInfo->GetDataAssembly(assemblyName.c_str());
+  const auto rAssembly = rDataInfo->GetDataAssembly(assemblyName.c_str());
+
   QStringList pickedSelectors;
 
   auto appendSelections = producerPort->getSelectionInput();
@@ -75,51 +60,95 @@ std::pair<QList<unsigned int>, QStringList> getSelectedBlocks(
   {
     auto selectionSource =
       vtkSMSourceProxy::SafeDownCast(vtkSMPropertyHelper(appendSelections, "Input").GetAsProxy(i));
+
     // if actively selected data a block-type of selection, then we show properties
     // for the selected set of blocks.
+    SelectionSourceType selectionSourceType = SelectionSourceType::None;
+    std::string blockSelectorsAssemblyName;
+    std::vector<std::string> selectors;
     if (strcmp(selectionSource->GetXMLName(), "BlockSelectorsSelectionSource") == 0)
     {
+      selectionSourceType = SelectionSourceType::BlockSelectors;
+      // get assembly name for selectors
+      blockSelectorsAssemblyName =
+        vtkSMPropertyHelper(selectionSource, "BlockSelectorsAssemblyName").GetAsString();
+      // get block selectors
       auto svp =
         vtkSMStringVectorProperty::SafeDownCast(selectionSource->GetProperty("BlockSelectors"));
-      const auto& elements = svp->GetElements();
-      std::transform(elements.begin(), elements.end(), std::back_inserter(pickedSelectors),
-        [](const std::string& str) { return QString::fromStdString(str); });
-
-      // convert selectors to ids (should we do this only for MBs, since it's
-      // going to be incorrect for PDCs or PDCs in parallel?
-      auto ids =
-        vtkDataAssemblyUtilities::GetSelectedCompositeIds(elements, dataInfo->GetHierarchy());
-      std::copy(ids.begin(), ids.end(), std::back_inserter(legacyPickedBlocks));
-      blockSelectionDetected = true;
+      selectors = svp->GetElements();
     }
     else if (strcmp(selectionSource->GetXMLName(), "BlockSelectionSource") == 0)
     {
+      selectionSourceType = SelectionSourceType::BlockIds;
+      blockSelectorsAssemblyName = vtkDataAssemblyUtilities::HierarchyName();
+      // get block ids
       auto idvp = vtkSMIdTypeVectorProperty::SafeDownCast(selectionSource->GetProperty("Blocks"));
       const auto& elements = idvp->GetElements();
-      std::copy(elements.begin(), elements.end(), std::back_inserter(legacyPickedBlocks));
 
-      // convert ids to selectors; should we only do this for PDCs?
-      const auto selectors = vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(
-        std::vector<unsigned int>(elements.begin(), elements.end()), dataInfo->GetHierarchy());
+      // convert ids to hierarchy selectors; should we only do this for PDCs?
+      selectors = vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(
+        std::vector<unsigned int>(elements.begin(), elements.end()), hierarchy);
+    }
+    // check if there was a block selection
+    const bool localBlockSelectionDetected = selectionSourceType != SelectionSourceType::None;
+    if (!localBlockSelectionDetected)
+    {
+      continue;
+    }
+    if (blockSelectorsAssemblyName != vtkDataAssemblyUtilities::HierarchyName() &&
+      assemblyName == vtkDataAssemblyUtilities::HierarchyName())
+    {
+      // This can't be done because we would need access to the PDC (which we can't have here),
+      // so that we can convert the assembly selectors to composite ids.
+      qCritical("Can't convert a selection source from '%s' to '%s'.",
+        blockSelectorsAssemblyName.c_str(), assemblyName.c_str());
+      continue;
+    }
+    blockSelectionDetected |= localBlockSelectionDetected;
+    // if we have a block selection
+    if (localBlockSelectionDetected)
+    {
+      // if there is a need for conversion
+      if (assemblyName != blockSelectorsAssemblyName)
+      {
+        Q_ASSERT(blockSelectorsAssemblyName == vtkDataAssemblyUtilities::HierarchyName());
+        Q_ASSERT(assemblyName != vtkDataAssemblyUtilities::HierarchyName());
+        // convert the hierarchy selectors to composite ids
+        auto compositeIds = vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectors, hierarchy);
+        // convert the composite ids to assembly selectors
+        selectors =
+          vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(compositeIds, hierarchy, assembly);
+      }
+      // insert the converted selectors into the list of picked selectors.
       std::transform(selectors.begin(), selectors.end(), std::back_inserter(pickedSelectors),
         [](const std::string& str) { return QString::fromStdString(str); });
-      blockSelectionDetected = true;
     }
   }
   // If no active selection or no block selection detected, the blocks will be simply the
   // one the user clicked on.
   if (!blockSelectionDetected)
   {
-    legacyPickedBlocks.push_back(blockIndex);
-    auto rankDataInfo = producerPort->getRankDataInformation(rank);
-    auto selector =
-      vtkDataAssemblyUtilities::GetSelectorForCompositeId(blockIndex, rankDataInfo->GetHierarchy());
-    if (!selector.empty())
+    std::vector<std::string> selectors;
+    if (assemblyName == vtkDataAssemblyUtilities::HierarchyName())
     {
-      pickedSelectors.push_back(QString::fromStdString(selector));
+      // get the hierarchy selector for the composite id
+      selectors = vtkDataAssemblyUtilities::GetSelectorsForCompositeIds({ blockIndex }, rHierarchy);
     }
+    else
+    {
+      // convert the composite ids to assembly selectors
+      selectors = vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(
+        { blockIndex }, rHierarchy, rAssembly);
+    }
+    std::transform(selectors.begin(), selectors.end(), std::back_inserter(pickedSelectors),
+      [](const std::string& str) { return QString::fromStdString(str); });
   }
-  return std::make_pair(legacyPickedBlocks, pickedSelectors);
+  // remove selectors that are empty
+  pickedSelectors.erase(std::remove_if(pickedSelectors.begin(), pickedSelectors.end(),
+                          [](const QString& str) { return str.isEmpty(); }),
+    pickedSelectors.end());
+
+  return pickedSelectors;
 }
 } // end of namespace {}
 
@@ -208,9 +237,7 @@ void pqPipelineContextMenuBehavior::buildMenu(
 {
   pqRenderView* view = qobject_cast<pqRenderView*>(pqActiveObjects::instance().activeView());
 
-  QList<unsigned int> legacyPickedBlocks;
-  QStringList pickedSelectors;
-  std::tie(legacyPickedBlocks, pickedSelectors) = ::getSelectedBlocks(repr, blockIndex, rank);
+  const QStringList pickedSelectors = ::getSelectedBlocks(repr, blockIndex, rank);
 
   this->Menu->clear();
 
@@ -224,7 +251,8 @@ void pqPipelineContextMenuBehavior::buildMenu(
   for (auto mbldr : interfaces)
   {
     if (mbldr &&
-      (mbldr->contextMenu(this->Menu, view, this->Position, repr, legacyPickedBlocks) ||
+      (mbldr->contextMenu(
+         this->Menu, view, this->Position, repr, QList<unsigned int>() /*not used*/) ||
         mbldr->contextMenu(this->Menu, view, this->Position, repr, pickedSelectors)))
     {
       break;

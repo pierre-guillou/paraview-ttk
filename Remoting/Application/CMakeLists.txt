@@ -1,33 +1,6 @@
-#==========================================================================
-#
-#     Program: ParaView
-#
-#     Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-#     All rights reserved.
-#
-#     ParaView is a free software; you can redistribute it and/or modify it
-#     under the terms of the ParaView license version 1.2.
-#
-#     See License_v1.2.txt for the full ParaView license.
-#     A copy of this license can be obtained by contacting
-#     Kitware Inc.
-#     28 Corporate Drive
-#     Clifton Park, NY 12065
-#     USA
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-#  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-#  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-#  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-#  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-#  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-#  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-#
-#==========================================================================
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+# SPDX-License-Identifier: BSD-3-Clause
 set(classes
   vtkInitializationHelper)
 
@@ -68,6 +41,12 @@ if (TARGET VTK::FiltersAMR)
     Resources/filters_filtersamr.xml
     Resources/sources_filtersamr.xml)
 endif ()
+
+if (TARGET VTK::FiltersCellGrid)
+  list(APPEND xml_files
+    Resources/filters_filterscellgrid.xml
+  )
+endif()
 
 if (TARGET VTK::FiltersCore)
   list(APPEND xml_files
@@ -197,6 +176,11 @@ if (TARGET VTK::FiltersParallelVerdict)
     Resources/filters_filtersparallelverdict.xml)
 endif ()
 
+if (TARGET VTK::FiltersTensor)
+  list(APPEND xml_files
+    Resources/filters_filterstensors.xml)
+endif ()
+
 if (TARGET VTK::FiltersTexture)
   list(APPEND xml_files
     Resources/filters_filterstexture.xml)
@@ -207,10 +191,21 @@ if (TARGET VTK::FiltersVerdict)
     Resources/filters_filtersverdict.xml)
 endif ()
 
+if (TARGET VTK::IOCellGrid)
+  list(APPEND xml_files
+    Resources/readers_iocellgrid.xml
+  )
+endif()
+
 if (TARGET VTK::IOXML AND TARGET VTK::IOParallelXML)
   list(APPEND xml_files
     Resources/readers_ioxml.xml
     Resources/writers_ioxml.xml)
+endif ()
+
+if (TARGET VTK::IOAlembic)
+  list(APPEND xml_files
+    Resources/proxies_alembic.xml)
 endif ()
 
 if (TARGET VTK::IONetCDF)
@@ -265,11 +260,8 @@ endif ()
 
 if (TARGET VTK::IOADIOS2)
   list(APPEND xml_files
-    Resources/proxies_adios2_core.xml)
-  if(PARAVIEW_USE_MPI)
-    list(APPEND xml_files
-      Resources/proxies_adios2_vtx.xml)
-  endif()
+    Resources/proxies_adios2_core.xml
+    Resources/proxies_adios2_vtx.xml)
 endif ()
 
 if (TARGET VTK::IOFides)
@@ -297,6 +289,12 @@ if (TARGET VTK::IOGeometry)
     Resources/readers_iogeometry.xml
     Resources/writers_iogeometry.xml)
 endif()
+
+if (TARGET VTK::IOOCCT)
+  list(APPEND xml_files
+    Resources/readers_ioocct.xml)
+endif ()
+
 if (TARGET VTK::IOPLY)
   list(APPEND xml_files
     Resources/readers_ioply.xml)
@@ -363,6 +361,11 @@ if (TARGET VTK::IOCGNSReader)
     Resources/readers_iocgns.xml)
 endif()
 
+if (TARGET VTK::IOFLUENTCFF)
+  list(APPEND xml_files
+    Resources/readers_iofluentcff.xml)
+endif()
+
 if (TARGET ParaView::VTKExtensionsIOCGNSWriter)
   list(APPEND xml_files
     Resources/writers_iocgns.xml)
@@ -408,7 +411,8 @@ endif()
 
 if (TARGET VTK::IOIOSS)
   list(APPEND xml_files
-    Resources/readers_ioioss.xml)
+    Resources/readers_ioioss.xml
+    Resources/writers_ioioss.xml)
 endif()
 
 if (TARGET VTK::IOOpenVDB)
@@ -420,6 +424,11 @@ endif()
 if (TARGET VTK::IOCatalystConduit)
   list(APPEND xml_files
     Resources/proxies_conduit.xml)
+endif()
+
+if (TARGET VTK::IOFDS)
+  list(APPEND xml_files
+    Resources/readers_iofds.xml)
 endif()
 
 if (PARAVIEW_USE_PYTHON)

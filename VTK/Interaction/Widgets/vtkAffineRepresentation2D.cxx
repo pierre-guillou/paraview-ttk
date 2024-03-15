@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAffineRepresentation2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAffineRepresentation2D.h"
 #include "vtkActor2D.h"
 #include "vtkAssemblyPath.h"
@@ -34,6 +22,7 @@
 #include "vtkTransform.h"
 #include "vtkWindow.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAffineRepresentation2D);
 
 vtkCxxSetObjectMacro(vtkAffineRepresentation2D, Property, vtkProperty2D);
@@ -1000,14 +989,18 @@ void vtkAffineRepresentation2D::ShallowCopy(vtkProp* prop)
 //------------------------------------------------------------------------------
 void vtkAffineRepresentation2D::GetActors2D(vtkPropCollection* pc)
 {
-  this->BoxActor->GetActors2D(pc);
-  this->HBoxActor->GetActors2D(pc);
-  this->CircleActor->GetActors2D(pc);
-  this->HCircleActor->GetActors2D(pc);
-  this->XAxis->GetActors2D(pc);
-  this->YAxis->GetActors2D(pc);
-  this->HXAxis->GetActors2D(pc);
-  this->HYAxis->GetActors2D(pc);
+  if (pc != nullptr && this->GetVisibility())
+  {
+    this->BoxActor->GetActors2D(pc);
+    this->HBoxActor->GetActors2D(pc);
+    this->CircleActor->GetActors2D(pc);
+    this->HCircleActor->GetActors2D(pc);
+    this->XAxis->GetActors2D(pc);
+    this->YAxis->GetActors2D(pc);
+    this->HXAxis->GetActors2D(pc);
+    this->HYAxis->GetActors2D(pc);
+  }
+  this->Superclass::GetActors2D(pc);
 }
 
 //------------------------------------------------------------------------------
@@ -1115,3 +1108,4 @@ void vtkAffineRepresentation2D::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << "Text Property: (none)\n";
   }
 }
+VTK_ABI_NAMESPACE_END

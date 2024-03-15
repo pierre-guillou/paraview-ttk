@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStreamSurface.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-   This software is distributed WITHOUT ANY WARRANTY; without even
-   the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-   PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkStreamSurface
  * @brief   Advect a stream surface in a vector field
@@ -29,6 +17,7 @@
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 #include "vtkStreamTracer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkAppendPolyData;
 class vtkRuledSurfaceFilter;
 
@@ -71,7 +60,7 @@ private:
    * loop: 1.advect one step at a time
    * 2. then form surface strip and add it to existing surface
    * 3. then check if points have diverged and insert new ones if necessary
-   * field is the vecotr values dataset in which the streamsurface is advected
+   * field is the vector values dataset in which the streamsurface is advected
    * seeds is the polydata with the start curve
    * output is the final streamsurface
    * @param field: vector field in which the surfave is advected
@@ -92,4 +81,5 @@ private:
   vtkNew<vtkStreamTracer> StreamTracer;
   vtkNew<vtkAppendPolyData> AppendSurfaces;
 };
+VTK_ABI_NAMESPACE_END
 #endif

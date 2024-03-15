@@ -1,23 +1,12 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsImpl.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "SMP/Common/vtkSMPToolsImpl.h"
 #include "SMP/OpenMP/vtkSMPToolsImpl.txx"
 
 #include <cstdlib> // For std::getenv()
 #include <omp.h>
+#include <stack> // For std::stack
 
 namespace vtk
 {
@@ -25,7 +14,9 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 static int specifiedNumThreads = 0;
+static std::stack<int> threadIdStack;
 
 //------------------------------------------------------------------------------
 template <>
@@ -61,10 +52,23 @@ int GetNumberOfThreadsOpenMP()
 }
 
 //------------------------------------------------------------------------------
+bool GetSingleThreadOpenMP()
+{
+  return threadIdStack.top() == omp_get_thread_num();
+}
+
+//------------------------------------------------------------------------------
 template <>
 int vtkSMPToolsImpl<BackendType::OpenMP>::GetEstimatedNumberOfThreads()
 {
   return GetNumberOfThreadsOpenMP();
+}
+
+//------------------------------------------------------------------------------
+template <>
+bool vtkSMPToolsImpl<BackendType::OpenMP>::GetSingleThread()
+{
+  return GetSingleThreadOpenMP();
 }
 
 //------------------------------------------------------------------------------
@@ -79,13 +83,20 @@ void vtkSMPToolsImplForOpenMP(vtkIdType first, vtkIdType last, vtkIdType grain,
 
   omp_set_nested(nestedActivated);
 
+#pragma omp single
+  threadIdStack.emplace(omp_get_thread_num());
+
 #pragma omp parallel for schedule(runtime)
   for (vtkIdType from = first; from < last; from += grain)
   {
     functorExecuter(functor, from, grain, last);
   }
+
+#pragma omp single
+  threadIdStack.pop();
 }
 
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk

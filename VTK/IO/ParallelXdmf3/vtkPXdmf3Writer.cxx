@@ -1,18 +1,5 @@
-
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPXdmf3Writer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPXdmf3Writer.h"
 
@@ -22,6 +9,7 @@
 #include "vtkObjectFactory.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPXdmf3Writer);
 
 //------------------------------------------------------------------------------
@@ -75,3 +63,4 @@ int vtkPXdmf3Writer::GlobalContinueExecuting(int localContinue)
   }
   return globalContinue;
 }
+VTK_ABI_NAMESPACE_END

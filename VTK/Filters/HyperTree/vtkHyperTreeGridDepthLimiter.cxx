@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridDepthLimiter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHyperTreeGridDepthLimiter.h"
 
 #include "vtkBitArray.h"
@@ -22,6 +10,7 @@
 #include "vtkInformation.h"
 #include "vtkObjectFactory.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridDepthLimiter);
 
 //------------------------------------------------------------------------------
@@ -128,6 +117,10 @@ int vtkHyperTreeGridDepthLimiter::ProcessTrees(vtkHyperTreeGrid* input, vtkDataO
   vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor;
   while (it.GetNextTree(inIndex))
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     // Initialize new grid cursor at root of current input tree
     input->InitializeNonOrientedCursor(inCursor, inIndex);
 
@@ -181,6 +174,10 @@ void vtkHyperTreeGridDepthLimiter::RecursivelyProcessTree(
     int numChildren = inCursor->GetNumberOfChildren();
     for (int child = 0; child < numChildren; ++child)
     {
+      if (this->CheckAbort())
+      {
+        break;
+      }
       inCursor->ToChild(child);
       // Descend into child in output grid as well
       outCursor->ToChild(child);
@@ -192,3 +189,4 @@ void vtkHyperTreeGridDepthLimiter::RecursivelyProcessTree(
     }
   }
 }
+VTK_ABI_NAMESPACE_END

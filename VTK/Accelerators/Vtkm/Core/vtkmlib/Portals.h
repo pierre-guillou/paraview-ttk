@@ -1,18 +1,7 @@
-//=============================================================================
-//
-//  Copyright (c) Kitware, Inc.
-//  All rights reserved.
-//  See LICENSE.txt for details.
-//
-//  This software is distributed WITHOUT ANY WARRANTY; without even
-//  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-//  PURPOSE.  See the above copyright notice for more information.
-//
-//  Copyright 2012 Sandia Corporation.
-//  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-//  the U.S. Government retains certain rights in this software.
-//
-//=============================================================================
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-FileCopyrightText: Copyright 2012 Sandia Corporation.
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 
 #ifndef vtkmlib_Portals_h
 #define vtkmlib_Portals_h
@@ -21,13 +10,16 @@
 #include "vtkAcceleratorsVTKmCoreModule.h"
 #include "vtkmConfigCore.h" //required for general vtkm setup
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkPoints;
+VTK_ABI_NAMESPACE_END
 
 #include <vtkm/cont/internal/IteratorFromArrayPortal.h>
 
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 template <typename Type, typename VTKDataArrayType_>
 class VTKM_ALWAYS_EXPORT vtkArrayPortal
@@ -116,12 +108,14 @@ private:
   ComponentType* Array;
   vtkm::Id Size;
 };
+VTK_ABI_NAMESPACE_END
 }
 
 #ifndef vtkmlib_Portals_cxx
 #include <vtkm/cont/internal/ArrayPortalFromIterators.h>
 namespace tovtkm
 {
+VTK_ABI_NAMESPACE_BEGIN
 // T extern template instantiations
 extern template class VTKACCELERATORSVTKMCORE_TEMPLATE_EXPORT
   vtkPointsPortal<vtkm::Vec<vtkm::Float32, 3> const>;
@@ -131,9 +125,11 @@ extern template class VTKACCELERATORSVTKMCORE_TEMPLATE_EXPORT
   vtkPointsPortal<vtkm::Vec<vtkm::Float32, 3>>;
 extern template class VTKACCELERATORSVTKMCORE_TEMPLATE_EXPORT
   vtkPointsPortal<vtkm::Vec<vtkm::Float64, 3>>;
+VTK_ABI_NAMESPACE_END
 }
 
 #endif // defined vtkmlib_Portals_cxx
 
 #include "Portals.hxx"
 #endif // vtkmlib_Portals_h
+/* VTK-HeaderTest-Exclude: Portals.h */

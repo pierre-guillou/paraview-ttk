@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkLogger.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkLogger
  * @brief logging framework for use in VTK and in applications based on VTK
@@ -49,7 +37,24 @@
  * that, use `vtkLogger::SetThreadName`. Calling `vtkLogger::Init` will set the name
  * for the main thread.
  *
- * To prevent the logging framework from intercepting signals from your application,
+ * You can choose to turn on signal handlers for intercepting signals. By default,
+ * all signal handlers are disabled. The following is a list of signal handlers
+ * and the corresponding static variable that can be used to enable/disable each
+ * signal handler.
+ *
+ * - SIGABRT - `vtkLogger::EnableSigabrtHandler`
+ * - SIGBUS - `vtkLogger::EnableSigbusHandler`
+ * - SIGFPE - `vtkLogger::EnableSigfpeHandler`
+ * - SIGILL - `vtkLogger::EnableSigillHandler`
+ * - SIGINT - `vtkLogger::EnableSigintHandler`
+ * - SIGSEGV - `vtkLogger::EnableSigsegvHandler`
+ * - SIGTERM - `vtkLogger::EnableSigtermHandler`
+ *
+ * To enable any of these signal handlers, set their value to `true` prior to calling
+ * `vtkLogger::Init(argc, argv)` or `vtkLogger::Init()`.
+ *
+ * When signal handlers are enabled,
+ * to prevent the logging framework from intercepting signals from your application,
  * you can set the static variable `vtkLogger::EnableUnsafeSignalHandler` to `false`
  * prior to calling `vtkLogger::Init(argc, argv)` or `vtkLogger::Init()`.
  *
@@ -174,6 +179,7 @@
 #define VTK_FORMAT_STRING_TYPE const char*
 #endif
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkLogger : public vtkObjectBase
 {
 public:
@@ -431,6 +437,13 @@ public:
    * certain circumstances.
    */
   static bool EnableUnsafeSignalHandler;
+  static bool EnableSigabrtHandler;
+  static bool EnableSigbusHandler;
+  static bool EnableSigfpeHandler;
+  static bool EnableSigillHandler;
+  static bool EnableSigintHandler;
+  static bool EnableSigsegvHandler;
+  static bool EnableSigtermHandler;
 
 protected:
   vtkLogger();
@@ -465,7 +478,7 @@ private:
 #define vtkVLog(level, x)                                                                          \
   if ((level) <= vtkLogger::GetCurrentVerbosityCutoff())                                           \
   {                                                                                                \
-    vtkOStrStreamWrapper::EndlType endl;                                                           \
+    vtkOStrStreamWrapper::EndlType const endl;                                                     \
     vtkOStrStreamWrapper::UseEndl(endl);                                                           \
     vtkOStrStreamWrapper vtkmsg;                                                                   \
     vtkmsg << "" x;                                                                                \
@@ -548,4 +561,5 @@ private:
  */
 #define vtkLogIdentifier(vtkobject) vtkLogger::GetIdentifier(vtkobject).c_str()
 
+VTK_ABI_NAMESPACE_END
 #endif

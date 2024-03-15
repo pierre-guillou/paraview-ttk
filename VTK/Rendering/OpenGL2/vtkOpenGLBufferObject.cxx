@@ -1,21 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLBufferObject.h"
 #include "vtkObjectFactory.h"
 
 #include "vtk_glew.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenGLBufferObject);
 
 namespace
@@ -36,6 +26,32 @@ inline GLenum convertType(vtkOpenGLBufferObject::ObjectType type)
       return GL_ARRAY_BUFFER;
   }
 }
+
+inline GLenum convertUsage(vtkOpenGLBufferObject::ObjectUsage type)
+{
+  switch (type)
+  {
+    case vtkOpenGLBufferObject::StreamDraw:
+      return GL_STREAM_DRAW;
+    case vtkOpenGLBufferObject::StreamRead:
+      return GL_STREAM_READ;
+    case vtkOpenGLBufferObject::StreamCopy:
+      return GL_STREAM_COPY;
+    case vtkOpenGLBufferObject::StaticDraw:
+      return GL_STATIC_DRAW;
+    case vtkOpenGLBufferObject::StaticRead:
+      return GL_STATIC_READ;
+    case vtkOpenGLBufferObject::StaticCopy:
+      return GL_STATIC_COPY;
+    case vtkOpenGLBufferObject::DynamicDraw:
+      return GL_DYNAMIC_DRAW;
+    case vtkOpenGLBufferObject::DynamicRead:
+      return GL_DYNAMIC_READ;
+    case vtkOpenGLBufferObject::DynamicCopy:
+    default:
+      return GL_DYNAMIC_COPY;
+  }
+}
 }
 
 struct vtkOpenGLBufferObject::Private
@@ -44,8 +60,10 @@ struct vtkOpenGLBufferObject::Private
   {
     this->Handle = 0;
     this->Type = GL_ARRAY_BUFFER;
+    this->Usage = GL_STATIC_DRAW;
   }
   GLenum Type;
+  GLenum Usage;
   GLuint Handle;
 };
 
@@ -96,9 +114,57 @@ vtkOpenGLBufferObject::ObjectType vtkOpenGLBufferObject::GetType() const
   }
 }
 
+void vtkOpenGLBufferObject::SetUsage(vtkOpenGLBufferObject::ObjectUsage value)
+{
+  this->Internal->Usage = convertUsage(value);
+}
+
+vtkOpenGLBufferObject::ObjectUsage vtkOpenGLBufferObject::GetUsage() const
+{
+  switch (this->Internal->Usage)
+  {
+    case GL_STREAM_DRAW:
+      return vtkOpenGLBufferObject::StreamDraw;
+    case GL_STREAM_READ:
+      return vtkOpenGLBufferObject::StreamRead;
+    case GL_STREAM_COPY:
+      return vtkOpenGLBufferObject::StreamCopy;
+    case GL_STATIC_DRAW:
+      return vtkOpenGLBufferObject::StaticDraw;
+    case GL_STATIC_READ:
+      return vtkOpenGLBufferObject::StaticRead;
+    case GL_STATIC_COPY:
+      return vtkOpenGLBufferObject::StaticCopy;
+    case GL_DYNAMIC_DRAW:
+      return vtkOpenGLBufferObject::DynamicDraw;
+    case GL_DYNAMIC_READ:
+      return vtkOpenGLBufferObject::DynamicRead;
+    case GL_DYNAMIC_COPY:
+    default:
+      return vtkOpenGLBufferObject::DynamicCopy;
+  }
+}
+
 int vtkOpenGLBufferObject::GetHandle() const
 {
   return static_cast<int>(this->Internal->Handle);
+}
+
+bool vtkOpenGLBufferObject::Allocate(size_t size, ObjectType objectType, ObjectUsage objectUsage)
+{
+  const bool generated = this->GenerateBuffer(objectType);
+  if (!generated)
+  {
+    this->Error = "Trying to upload array buffer to incompatible buffer.";
+    return false;
+  }
+
+  glBindBuffer(this->Internal->Type, this->Internal->Handle);
+  vtkDebugMacro(<< "glBufferData: " << size << " bytes");
+  glBufferData(
+    this->Internal->Type, static_cast<GLsizeiptr>(size), nullptr, convertUsage(objectUsage));
+  this->Dirty = true;
+  return true;
 }
 
 bool vtkOpenGLBufferObject::Bind()
@@ -137,6 +203,14 @@ bool vtkOpenGLBufferObject::GenerateBuffer(vtkOpenGLBufferObject::ObjectType obj
 bool vtkOpenGLBufferObject::UploadInternal(
   const void* buffer, size_t size, vtkOpenGLBufferObject::ObjectType objectType)
 {
+  this->Allocate(size, objectType, this->GetUsage());
+  return this->UploadRangeInternal(buffer, 0, size, objectType);
+}
+
+//------------------------------------------------------------------------------
+bool vtkOpenGLBufferObject::UploadRangeInternal(
+  const void* buffer, ptrdiff_t offset, ptrdiff_t size, ObjectType objectType)
+{
   const bool generated = this->GenerateBuffer(objectType);
   if (!generated)
   {
@@ -145,7 +219,10 @@ bool vtkOpenGLBufferObject::UploadInternal(
   }
 
   glBindBuffer(this->Internal->Type, this->Internal->Handle);
-  glBufferData(this->Internal->Type, size, static_cast<const GLvoid*>(buffer), GL_STATIC_DRAW);
+  vtkDebugMacro(<< "glBufferSubData: "
+                << "(offset: " << offset << ", size: " << size << ")");
+  glBufferSubData(
+    this->Internal->Type, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), buffer);
   this->Dirty = false;
   return true;
 }
@@ -155,3 +232,4 @@ void vtkOpenGLBufferObject::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

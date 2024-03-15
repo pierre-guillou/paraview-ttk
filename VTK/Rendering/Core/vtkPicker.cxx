@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPicker.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPicker.h"
 
 #include "vtkAbstractVolumeMapper.h"
@@ -40,6 +28,7 @@
 #include "vtkVertex.h"
 #include "vtkVolume.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPicker);
 
 //------------------------------------------------------------------------------
@@ -266,8 +255,7 @@ int vtkPicker::Pick3DPoint(double pos[3], vtkRenderer* renderer)
           {
             this->MarkPicked(path, static_cast<vtkProp3D*>(propCandidate), mapper, 0.0, pos);
 
-            // The IsItemPresent method returns "index+1"
-            int prevIndex = this->Prop3Ds->IsItemPresent(prop) - 1;
+            int prevIndex = this->Prop3Ds->IndexOfFirstOccurence(prop);
 
             if (prevIndex < 0)
             {
@@ -670,8 +658,7 @@ int vtkPicker::Pick3DInternal(vtkRenderer* renderer, double p1World[4], double p
             p[1] = (1.0 - t) * p1World[1] + t * p2World[1];
             p[2] = (1.0 - t) * p1World[2] + t * p2World[2];
 
-            // The IsItemPresent method returns "index+1"
-            int prevIndex = this->Prop3Ds->IsItemPresent(prop) - 1;
+            int prevIndex = this->Prop3Ds->IndexOfFirstOccurence(prop);
 
             if (prevIndex >= 0)
             {
@@ -891,3 +878,4 @@ void vtkPicker::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "MapperPosition: (" << this->MapperPosition[0] << "," << this->MapperPosition[1]
      << "," << this->MapperPosition[2] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

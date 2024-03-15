@@ -55,6 +55,16 @@ public:
   VTKM_EXEC_CONT void ClearInGhostCell() { this->reset(this->IN_GHOST_CELL_BIT); }
   VTKM_EXEC_CONT bool CheckInGhostCell() const { return this->test(this->IN_GHOST_CELL_BIT); }
 
+  VTKM_EXEC_CONT void SetZeroVelocity() { this->set(this->ZERO_VELOCITY); }
+  VTKM_EXEC_CONT void ClearZeroVelocity() { this->reset(this->ZERO_VELOCITY); }
+  VTKM_EXEC_CONT bool CheckZeroVelocity() const { return this->test(this->ZERO_VELOCITY); }
+
+  VTKM_EXEC_CONT bool CanContinue() const
+  {
+    return this->CheckOk() && !this->CheckTerminate() && !this->CheckSpatialBounds() &&
+      !this->CheckTemporalBounds() && !this->CheckInGhostCell() && !this->CheckZeroVelocity();
+  }
+
 private:
   static constexpr vtkm::Id SUCCESS_BIT = 0;
   static constexpr vtkm::Id TERMINATE_BIT = 1;
@@ -62,6 +72,7 @@ private:
   static constexpr vtkm::Id TEMPORAL_BOUNDS_BIT = 3;
   static constexpr vtkm::Id TOOK_ANY_STEPS_BIT = 4;
   static constexpr vtkm::Id IN_GHOST_CELL_BIT = 5;
+  static constexpr vtkm::Id ZERO_VELOCITY = 6;
 };
 
 inline VTKM_CONT std::ostream& operator<<(std::ostream& s, const vtkm::ParticleStatus& status)
@@ -71,6 +82,7 @@ inline VTKM_CONT std::ostream& operator<<(std::ostream& s, const vtkm::ParticleS
   s << " spat= " << status.CheckSpatialBounds();
   s << " temp= " << status.CheckTemporalBounds();
   s << " ghst= " << status.CheckInGhostCell();
+  s << " zvel= " << status.CheckZeroVelocity();
   s << "]";
   return s;
 }
@@ -87,7 +99,7 @@ public:
            const vtkm::Id& numSteps = 0,
            const vtkm::ParticleStatus& status = vtkm::ParticleStatus(),
            const vtkm::FloatDefault& time = 0)
-    : Pos(p)
+    : Position(p)
     , ID(id)
     , NumSteps(numSteps)
     , Status(status)
@@ -97,7 +109,7 @@ public:
 
   VTKM_EXEC_CONT
   Particle(const vtkm::Particle& p)
-    : Pos(p.Pos)
+    : Position(p.Position)
     , ID(p.ID)
     , NumSteps(p.NumSteps)
     , Status(p.Status)
@@ -113,9 +125,25 @@ public:
     // troublesome with CUDA __host__ __device__ markup.
   }
 
+  VTKM_EXEC_CONT const vtkm::Vec3f& GetPosition() const { return this->Position; }
+  VTKM_EXEC_CONT void SetPosition(const vtkm::Vec3f& position) { this->Position = position; }
+
+  VTKM_EXEC_CONT vtkm::Id GetID() const { return this->ID; }
+  VTKM_EXEC_CONT void SetID(vtkm::Id id) { this->ID = id; }
+
+  VTKM_EXEC_CONT vtkm::Id GetNumberOfSteps() const { return this->NumSteps; }
+  VTKM_EXEC_CONT void SetNumberOfSteps(vtkm::Id numSteps) { this->NumSteps = numSteps; }
+
+  VTKM_EXEC_CONT vtkm::ParticleStatus GetStatus() const { return this->Status; }
+  VTKM_EXEC_CONT vtkm::ParticleStatus& GetStatus() { return this->Status; }
+  VTKM_EXEC_CONT void SetStatus(vtkm::ParticleStatus status) { this->Status = status; }
+
+  VTKM_EXEC_CONT vtkm::FloatDefault GetTime() const { return this->Time; }
+  VTKM_EXEC_CONT void SetTime(vtkm::FloatDefault time) { this->Time = time; }
+
   VTKM_EXEC_CONT
   vtkm::Vec3f Velocity(const vtkm::VecVariable<vtkm::Vec3f, 2>& vectors,
-                       const vtkm::FloatDefault& vtkmNotUsed(length))
+                       const vtkm::FloatDefault& vtkmNotUsed(length)) const
   {
     // Velocity is evaluated from the Velocity field
     // and is not influenced by the particle
@@ -127,21 +155,34 @@ public:
   vtkm::Vec3f GetEvaluationPosition(const vtkm::FloatDefault& deltaT) const
   {
     (void)deltaT; // unused for a general particle advection case
-    return this->Pos;
+    return this->Position;
   }
 
   inline VTKM_CONT friend std::ostream& operator<<(std::ostream& out, const vtkm::Particle& p)
   {
-    out << "v(" << p.Time << ") = " << p.Pos << ", ID: " << p.ID << ", NumSteps: " << p.NumSteps
-        << ", Status: " << p.Status;
+    out << "v(" << p.Time << ") = " << p.Position << ", ID: " << p.ID
+        << ", NumSteps: " << p.NumSteps << ", Status: " << p.Status;
     return out;
   }
 
-  vtkm::Vec3f Pos;
+private:
+  vtkm::Vec3f Position;
   vtkm::Id ID = -1;
   vtkm::Id NumSteps = 0;
   vtkm::ParticleStatus Status;
   vtkm::FloatDefault Time = 0;
+
+public:
+  static size_t Sizeof()
+  {
+    constexpr std::size_t sz = sizeof(vtkm::Vec3f) // Pos
+      + sizeof(vtkm::Id)                           // ID
+      + sizeof(vtkm::Id)                           // NumSteps
+      + sizeof(vtkm::UInt8)                        // Status
+      + sizeof(vtkm::FloatDefault);                // Time
+
+    return sz;
+  }
 };
 
 class ChargedParticle
@@ -153,14 +194,14 @@ public:
   VTKM_EXEC_CONT
   ChargedParticle(const vtkm::Vec3f& position,
                   const vtkm::Id& id,
-                  const vtkm::FloatDefault& mass,
-                  const vtkm::FloatDefault& charge,
-                  const vtkm::FloatDefault& weighting,
+                  const vtkm::Float64& mass,
+                  const vtkm::Float64& charge,
+                  const vtkm::Float64& weighting,
                   const vtkm::Vec3f& momentum,
                   const vtkm::Id& numSteps = 0,
                   const vtkm::ParticleStatus& status = vtkm::ParticleStatus(),
                   const vtkm::FloatDefault& time = 0)
-    : Pos(position)
+    : Position(position)
     , ID(id)
     , NumSteps(numSteps)
     , Status(status)
@@ -173,21 +214,60 @@ public:
   }
 
   VTKM_EXEC_CONT
-  vtkm::FloatDefault Gamma(vtkm::Vec3f momentum, bool reciprocal = false) const
+  ChargedParticle(const vtkm::ChargedParticle& other)
+    : Position(other.Position)
+    , ID(other.ID)
+    , NumSteps(other.NumSteps)
+    , Status(other.Status)
+    , Time(other.Time)
+    , Mass(other.Mass)
+    , Charge(other.Charge)
+    , Weighting(other.Weighting)
+    , Momentum(other.Momentum)
+  {
+  }
+
+  vtkm::ChargedParticle& operator=(const vtkm::ChargedParticle&) = default;
+
+  VTKM_EXEC_CONT
+  ~ChargedParticle() noexcept
+  {
+    // This must not be defaulted, since defaulted virtual destructors are
+    // troublesome with CUDA __host__ __device__ markup.
+  }
+
+  VTKM_EXEC_CONT const vtkm::Vec3f& GetPosition() const { return this->Position; }
+  VTKM_EXEC_CONT void SetPosition(const vtkm::Vec3f& position) { this->Position = position; }
+
+  VTKM_EXEC_CONT vtkm::Id GetID() const { return this->ID; }
+  VTKM_EXEC_CONT void SetID(vtkm::Id id) { this->ID = id; }
+
+  VTKM_EXEC_CONT vtkm::Id GetNumberOfSteps() const { return this->NumSteps; }
+  VTKM_EXEC_CONT void SetNumberOfSteps(vtkm::Id numSteps) { this->NumSteps = numSteps; }
+
+  VTKM_EXEC_CONT vtkm::ParticleStatus GetStatus() const { return this->Status; }
+  VTKM_EXEC_CONT vtkm::ParticleStatus& GetStatus() { return this->Status; }
+  VTKM_EXEC_CONT void SetStatus(vtkm::ParticleStatus status) { this->Status = status; }
+
+  VTKM_EXEC_CONT vtkm::FloatDefault GetTime() const { return this->Time; }
+  VTKM_EXEC_CONT void SetTime(vtkm::FloatDefault time) { this->Time = time; }
+
+  VTKM_EXEC_CONT
+  vtkm::Float64 Gamma(const vtkm::Vec3f& momentum, bool reciprocal = false) const
   {
     constexpr vtkm::FloatDefault c2 = SPEED_OF_LIGHT * SPEED_OF_LIGHT;
-    const auto fMom2 = vtkm::MagnitudeSquared(momentum);
-    const auto m2 = this->Mass * this->Mass;
-    const auto m2_c2_reci = 1.0 / (m2 * c2);
+    const vtkm::Float64 fMom2 = vtkm::MagnitudeSquared(momentum);
+    const vtkm::Float64 m2 = this->Mass * this->Mass;
+    const vtkm::Float64 m2_c2_reci = 1.0 / (m2 * c2);
     if (reciprocal)
-      return static_cast<vtkm::FloatDefault>(vtkm::RSqrt(1.0 + fMom2 * m2_c2_reci));
+      return vtkm::RSqrt(1.0 + fMom2 * m2_c2_reci);
     else
-      return static_cast<vtkm::FloatDefault>(vtkm::Sqrt(1.0 + fMom2 * m2_c2_reci));
+      return vtkm::Sqrt(1.0 + fMom2 * m2_c2_reci);
   }
 
   VTKM_EXEC_CONT
   vtkm::Vec3f Velocity(const vtkm::VecVariable<vtkm::Vec3f, 2>& vectors,
-                       const vtkm::FloatDefault& length)
+                       const vtkm::FloatDefault& length) const
   {
     VTKM_ASSERT(vectors.GetNumberOfComponents() == 2);
 
@@ -197,19 +277,17 @@ public:
     vtkm::Vec3f eField = vectors[0];
     vtkm::Vec3f bField = vectors[1];
 
-    const vtkm::FloatDefault QoM = this->Charge / this->Mass;
+    const vtkm::Float64 QoM = this->Charge / this->Mass;
     const vtkm::Vec3f mom_minus = this->Momentum + (0.5 * this->Charge * eField * length);
 
     // Get reciprocal of Gamma
-    vtkm::Vec3f gamma_reci = this->Gamma(mom_minus, true);
+    vtkm::Vec3f gamma_reci = static_cast<vtkm::FloatDefault>(this->Gamma(mom_minus, true));
     const vtkm::Vec3f t = 0.5 * QoM * length * bField * gamma_reci;
     const vtkm::Vec3f s = 2.0f * t * (1.0 / (1.0 + vtkm::Magnitude(t)));
     const vtkm::Vec3f mom_prime = mom_minus + vtkm::Cross(mom_minus, t);
     const vtkm::Vec3f mom_plus = mom_minus + vtkm::Cross(mom_prime, s);
 
     const vtkm::Vec3f mom_new = mom_plus + 0.5 * this->Charge * eField * length;
-    //TODO : Sould this be a const method?
-    // If yes, need a better way to update momentum
     this->Momentum = mom_new;
 
     // momentum = velocity * mass * gamma;
@@ -225,28 +303,50 @@ public:
     // Translation is in -ve Z direction,
     // this needs to be a parameter.
     auto translation = this->NumSteps * deltaT * SPEED_OF_LIGHT * vtkm::Vec3f{ 0., 0., -1.0 };
-    return this->Pos + translation;
+    return this->Position + translation;
   }
 
-  vtkm::Vec3f Pos;
+  inline VTKM_CONT friend std::ostream& operator<<(std::ostream& out,
+                                                   const vtkm::ChargedParticle& p)
+  {
+    out << "v(" << p.Time << ") = " << p.Position << ", ID: " << p.ID
+        << ", NumSteps: " << p.NumSteps << ", Status: " << p.Status;
+    return out;
+  }
+
+private:
+  vtkm::Vec3f Position;
   vtkm::Id ID = -1;
   vtkm::Id NumSteps = 0;
   vtkm::ParticleStatus Status;
   vtkm::FloatDefault Time = 0;
-
-private:
-  vtkm::FloatDefault Mass;
-  vtkm::FloatDefault Charge;
-  vtkm::FloatDefault Weighting;
-  vtkm::Vec3f Momentum;
+  vtkm::Float64 Mass;
+  vtkm::Float64 Charge;
+  vtkm::Float64 Weighting;
+  mutable vtkm::Vec3f Momentum;
   constexpr static vtkm::FloatDefault SPEED_OF_LIGHT =
     static_cast<vtkm::FloatDefault>(2.99792458e8);
 
   friend struct mangled_diy_namespace::Serialization<vtkm::ChargedParticle>;
+
+public:
+  static size_t Sizeof()
+  {
+    constexpr std::size_t sz = sizeof(vtkm::Vec3f) // Pos
+      + sizeof(vtkm::Id)                           // ID
+      + sizeof(vtkm::Id)                           // NumSteps
+      + sizeof(vtkm::UInt8)                        // Status
+      + sizeof(vtkm::FloatDefault)                 // Time
+      + sizeof(vtkm::Float64)                      //Mass
+      + sizeof(vtkm::Float64)                      //Charge
+      + sizeof(vtkm::Float64)                      //Weighting
+      + sizeof(vtkm::Vec3f);                       //Momentum
+
+    return sz;
+  }
 };
 
 } //namespace vtkm
-
 
 namespace mangled_diy_namespace
 {
@@ -256,20 +356,34 @@ struct Serialization<vtkm::Particle>
 public:
   static VTKM_CONT void save(BinaryBuffer& bb, const vtkm::Particle& p)
   {
-    vtkmdiy::save(bb, p.Pos);
-    vtkmdiy::save(bb, p.ID);
-    vtkmdiy::save(bb, p.NumSteps);
-    vtkmdiy::save(bb, p.Status);
-    vtkmdiy::save(bb, p.Time);
+    vtkmdiy::save(bb, p.GetPosition());
+    vtkmdiy::save(bb, p.GetID());
+    vtkmdiy::save(bb, p.GetNumberOfSteps());
+    vtkmdiy::save(bb, p.GetStatus());
+    vtkmdiy::save(bb, p.GetTime());
   }
 
   static VTKM_CONT void load(BinaryBuffer& bb, vtkm::Particle& p)
   {
-    vtkmdiy::load(bb, p.Pos);
-    vtkmdiy::load(bb, p.ID);
-    vtkmdiy::load(bb, p.NumSteps);
-    vtkmdiy::load(bb, p.Status);
-    vtkmdiy::load(bb, p.Time);
+    vtkm::Vec3f pos;
+    vtkmdiy::load(bb, pos);
+    p.SetPosition(pos);
+
+    vtkm::Id id;
+    vtkmdiy::load(bb, id);
+    p.SetID(id);
+
+    vtkm::Id numSteps;
+    vtkmdiy::load(bb, numSteps);
+    p.SetNumberOfSteps(numSteps);
+
+    vtkm::ParticleStatus status;
+    vtkmdiy::load(bb, status);
+    p.SetStatus(status);
+
+    vtkm::FloatDefault time;
+    vtkmdiy::load(bb, time);
+    p.SetTime(time);
   }
 };
 
@@ -279,7 +393,7 @@ struct Serialization<vtkm::ChargedParticle>
 public:
   static VTKM_CONT void save(BinaryBuffer& bb, const vtkm::ChargedParticle& e)
   {
-    vtkmdiy::save(bb, e.Pos);
+    vtkmdiy::save(bb, e.Position);
     vtkmdiy::save(bb, e.ID);
     vtkmdiy::save(bb, e.NumSteps);
     vtkmdiy::save(bb, e.Status);
@@ -292,7 +406,7 @@ public:
 
   static VTKM_CONT void load(BinaryBuffer& bb, vtkm::ChargedParticle& e)
   {
-    vtkmdiy::load(bb, e.Pos);
+    vtkmdiy::load(bb, e.Position);
     vtkmdiy::load(bb, e.ID);
     vtkmdiy::load(bb, e.NumSteps);
     vtkmdiy::load(bb, e.Status);

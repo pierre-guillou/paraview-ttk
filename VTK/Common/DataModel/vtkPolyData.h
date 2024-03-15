@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyData
  * @brief   concrete dataset represents vertices, lines, polygons, and triangle strips
@@ -69,6 +57,7 @@
 #include "vtkCellLinks.h"         // Needed for inline methods
 #include "vtkPolyDataInternals.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkVertex;
 class vtkPolyVertex;
 class vtkLine;
@@ -173,6 +162,12 @@ public:
    * Return the maximum cell size in this poly data.
    */
   int GetMaxCellSize() override;
+
+  /**
+   * Get the maximum spatial dimensionality of the data
+   * which is the maximum dimension of all cells.
+   */
+  int GetMaxSpatialDimension() override;
 
   /**
    * Maps the cell at position `cellId` inside the `vtkPolyData` to its location in the
@@ -710,6 +705,8 @@ protected:
   vtkPolyData();
   ~vtkPolyData() override;
 
+  void ReportReferences(vtkGarbageCollector*) override;
+
   using TaggedCellId = vtkPolyData_detail::TaggedCellId;
   using CellMap = vtkPolyData_detail::CellMap;
 
@@ -751,7 +748,6 @@ protected:
 private:
   void Cleanup();
 
-private:
   vtkPolyData(const vtkPolyData&) = delete;
   void operator=(const vtkPolyData&) = delete;
 };
@@ -994,4 +990,5 @@ inline void vtkPolyData::GetCellPoints(
   cells->GetCellAtId(tag.GetCellId(), npts, pts, ptIds);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

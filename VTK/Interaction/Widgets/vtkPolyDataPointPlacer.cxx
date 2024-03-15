@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataPointPlacer.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPolyDataPointPlacer.h"
 
 #include "vtkAssemblyNode.h"
@@ -23,6 +11,7 @@
 #include "vtkPropPicker.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolyDataPointPlacer);
 
 //------------------------------------------------------------------------------
@@ -63,9 +52,18 @@ void vtkPolyDataPointPlacer::RemoveAllProps()
 }
 
 //------------------------------------------------------------------------------
-int vtkPolyDataPointPlacer::HasProp(vtkProp* prop)
+vtkTypeBool vtkPolyDataPointPlacer::HasProp(vtkProp* prop)
 {
-  return this->SurfaceProps->IsItemPresent(prop);
+  int index = this->SurfaceProps->IndexOfFirstOccurence(prop);
+
+#if defined(VTK_LEGACY_REMOVE)
+  return (index >= 0);
+#else
+  // The implementation used to call IsItemPresent(), which, despite its name,
+  // returned an index, not a boolean.  Preserve the old behaviour.  0 means
+  // the item is not found, otherwise return the index + 1.
+  return index + 1;
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -180,3 +178,4 @@ void vtkPolyDataPointPlacer::PrintSelf(ostream& os, vtkIndent indent)
     this->SurfaceProps->PrintSelf(os, indent.GetNextIndent());
   }
 }
+VTK_ABI_NAMESPACE_END

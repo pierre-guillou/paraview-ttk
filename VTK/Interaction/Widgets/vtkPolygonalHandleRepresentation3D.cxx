@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolygonalHandleRepresentation3D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPolygonalHandleRepresentation3D.h"
 #include "vtkActor.h"
 #include "vtkCamera.h"
@@ -25,6 +13,7 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderer.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolygonalHandleRepresentation3D);
 
 //------------------------------------------------------------------------------
@@ -61,3 +50,4 @@ void vtkPolygonalHandleRepresentation3D::PrintSelf(ostream& os, vtkIndent indent
 
   os << indent << "Offset: (" << this->Offset[0] << "," << this->Offset[1] << ")\n";
 }
+VTK_ABI_NAMESPACE_END

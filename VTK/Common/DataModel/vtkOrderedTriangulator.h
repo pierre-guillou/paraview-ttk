@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOrderedTriangulator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkOrderedTriangulator
  * @brief   helper class to generate triangulations
@@ -88,6 +76,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkUnstructuredGrid;
 class vtkCellArray;
 class vtkHeap;
@@ -301,6 +290,13 @@ public:
   vtkIdType AddTetras(int classification, vtkIdList* ptIds, vtkPoints* pts);
 
   /**
+   * Add the tetrahedra classified (0=inside,1=outside) to the list
+   * of ids. These assume that the first four points
+   * form a tetrahedron, the next four the next, and so on.
+   */
+  vtkIdType AddTetras(int classification, vtkIdList* ptIds);
+
+  /**
    * Add the triangle faces classified (2=boundary) to the connectivity
    * list provided. The method returns the number of triangles.
    */
@@ -358,9 +354,9 @@ private:
   void AddTemplate();
   TemplateIDType ComputeTemplateIndex();
 
-private:
   vtkOrderedTriangulator(const vtkOrderedTriangulator&) = delete;
   void operator=(const vtkOrderedTriangulator&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

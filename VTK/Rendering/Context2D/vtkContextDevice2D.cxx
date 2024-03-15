@@ -1,22 +1,11 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextDevice2D.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkContextDevice2D.h"
 #include "vtkAbstractMapper.h" // for VTK_SCALAR_MODE defines
 #include "vtkBrush.h"
 #include "vtkCellIterator.h"
+#include "vtkFloatArray.h"
 #include "vtkMathTextUtilities.h"
 #include "vtkPen.h"
 #include "vtkPolyData.h"
@@ -28,6 +17,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkAbstractObjectFactoryNewMacro(vtkContextDevice2D);
 
 vtkContextDevice2D::vtkContextDevice2D()
@@ -191,3 +181,41 @@ void vtkContextDevice2D::DrawColoredPolygon(float*, int, unsigned char*, int)
 {
   vtkErrorMacro("DrawColoredPolygon not implemented on this device.");
 }
+
+//------------------------------------------------------------------------------
+void vtkContextDevice2D::DrawPoints(
+  vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t)
+{
+  float* f = vtkArrayDownCast<vtkFloatArray>(positions)->GetPointer(0);
+  const int nv = positions->GetNumberOfTuples();
+
+  auto c = (colors && colors->GetNumberOfTuples() > 0) ? colors->GetPointer(0) : nullptr;
+  const int nc_comps = colors ? colors->GetNumberOfComponents() : 0;
+  this->DrawPoints(f, nv, c, nc_comps);
+}
+
+//------------------------------------------------------------------------------
+void vtkContextDevice2D::DrawPointSprites(
+  vtkImageData* sprite, vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t)
+{
+  float* f = vtkArrayDownCast<vtkFloatArray>(positions)->GetPointer(0);
+  const int nv = positions->GetNumberOfTuples();
+
+  auto c = (colors && colors->GetNumberOfTuples() > 0) ? colors->GetPointer(0) : nullptr;
+  const int nc_comps = colors ? colors->GetNumberOfComponents() : 0;
+  this->DrawPointSprites(sprite, f, nv, c, nc_comps);
+}
+
+//------------------------------------------------------------------------------
+void vtkContextDevice2D::DrawMarkers(
+  int shape, bool highlight, vtkDataArray* positions, vtkUnsignedCharArray* colors, std::uintptr_t)
+{
+  float* f = vtkArrayDownCast<vtkFloatArray>(positions)->GetPointer(0);
+  const int nv = positions->GetNumberOfTuples();
+
+  auto c = (colors && colors->GetNumberOfTuples() > 0) ? colors->GetPointer(0) : nullptr;
+  const int nc_comps = colors ? colors->GetNumberOfComponents() : 0;
+  this->DrawMarkers(shape, highlight, f, nv, c, nc_comps);
+}
+
+VTK_ABI_NAMESPACE_END

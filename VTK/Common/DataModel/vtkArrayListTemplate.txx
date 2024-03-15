@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkArrayListTemplate.txx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Kitware, Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkArrayListTemplate.h"
 #include "vtkFloatArray.h"
 
@@ -22,9 +11,10 @@
 
 //----------------------------------------------------------------------------
 // Sort of a little object factory (in conjunction w/ vtkTemplateMacro())
+VTK_ABI_NAMESPACE_BEGIN
 template <typename T>
 void CreateArrayPair(ArrayList* list, T* inData, T* outData, vtkIdType numTuples, int numComp,
-  vtkAbstractArray* outArray, T nullValue)
+  vtkAbstractArray* outArray, double nullValue)
 {
   ArrayPair<T>* pair = new ArrayPair<T>(inData, outData, numTuples, numComp, outArray, nullValue);
   list->Arrays.push_back(pair);
@@ -116,10 +106,8 @@ inline void ArrayList::AddArrays(vtkIdType numOutPts, vtkDataSetAttributes* inPD
   int iType, oType;
   void *iD, *oD;
   int iNumComp, oNumComp;
-  int i;
 
-  for (i = outPD->RequiredArrays.BeginIndex(); !outPD->RequiredArrays.End();
-       i = outPD->RequiredArrays.NextIndex())
+  for (auto& i : outPD->RequiredArrays)
   {
     iArray = inPD->Data[i];
     oArray = outPD->Data[outPD->TargetIndices[i]];
@@ -149,8 +137,8 @@ inline void ArrayList::AddArrays(vtkIdType numOutPts, vtkDataSetAttributes* inPD
         oD = oArray->GetVoidPointer(0);
         switch (iType)
         {
-          vtkTemplateMacro(CreateArrayPair(this, static_cast<VTK_TT*>(iD), static_cast<VTK_TT*>(oD),
-            numOutPts, oNumComp, oArray, static_cast<VTK_TT>(nullValue)));
+          vtkExtendedTemplateMacro(CreateArrayPair(this, static_cast<VTK_TT*>(iD),
+            static_cast<VTK_TT*>(oD), numOutPts, oNumComp, oArray, nullValue));
         }  // over all VTK types
       }    // if matching types
       else // promoted type
@@ -199,4 +187,5 @@ inline void ArrayList::AddSelfInterpolatingArrays(
   }     // for each candidate array
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

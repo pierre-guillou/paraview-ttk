@@ -1,24 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkParseData.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright (c) 2010 David Gobbi.
-
-  Contributed to the VisualizationToolkit by the author in May 2010
-  under the terms of the Visualization Toolkit 2008 copyright.
--------------------------------------------------------------------------*/
-
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2010 David Gobbi
+// SPDX-License-Identifier: BSD-3-Clause
 /*
   Data structures used by vtkParse.
 */
@@ -233,35 +215,35 @@ typedef struct UsingInfo_
  */
 typedef struct ClassInfo_
 {
-  parse_item_t ItemType;
-  parse_access_t Access;
   const char* Name;
   const char* Comment;
   TemplateInfo* Template;
-  int NumberOfSuperClasses;
   const char** SuperClasses;
-  int NumberOfItems;
   ItemInfo* Items;
-  int NumberOfClasses;
   struct ClassInfo_** Classes;
-  int NumberOfFunctions;
   FunctionInfo** Functions;
-  int NumberOfConstants;
   ValueInfo** Constants;
-  int NumberOfVariables;
   ValueInfo** Variables;
-  int NumberOfEnums;
   struct ClassInfo_** Enums;
-  int NumberOfTypedefs;
   ValueInfo** Typedefs;
-  int NumberOfUsings;
   UsingInfo** Usings;
-  int NumberOfNamespaces;
   struct ClassInfo_** Namespaces;
-  int NumberOfComments;
   CommentInfo** Comments;
   const char* DeprecatedReason;
   const char* DeprecatedVersion;
+  parse_item_t ItemType;
+  parse_access_t Access;
+  int NumberOfSuperClasses;
+  int NumberOfItems;
+  int NumberOfClasses;
+  int NumberOfFunctions;
+  int NumberOfConstants;
+  int NumberOfVariables;
+  int NumberOfEnums;
+  int NumberOfTypedefs;
+  int NumberOfUsings;
+  int NumberOfNamespaces;
+  int NumberOfComments;
   int IsAbstract;
   int IsFinal;
   int HasDelete;

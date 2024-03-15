@@ -1,21 +1,9 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkValuePass.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkValuePass.h"
 
 #include "vtkCompositeDataSet.h"
-#include "vtkCompositePolyDataMapper2.h"
+#include "vtkCompositePolyDataMapper.h"
 #include "vtkDataSet.h"
 #include "vtkExecutive.h"
 #include "vtkFloatArray.h"
@@ -47,6 +35,7 @@
 #include <cassert>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkValuePass::Parameters
 {
   Parameters()
@@ -60,7 +49,7 @@ struct vtkValuePass::Parameters
     ScalarRange[0] = 1.0;
     ScalarRange[1] = -1.0;
     LookupTable = nullptr;
-  };
+  }
 
   int ArrayMode;
   int ArrayAccessMode;
@@ -175,7 +164,7 @@ public:
     , InvertibleLookupTable(nullptr)
   {
     this->CreateInvertibleLookupTable();
-  };
+  }
 
   ~vtkInternalsInvertible()
   {
@@ -183,7 +172,7 @@ public:
     {
       this->InvertibleLookupTable->Delete();
     }
-  };
+  }
 
   //-------------------------------------------------------------------
   void ClearInvertibleColor(vtkMapper* mapper, vtkProperty* property)
@@ -195,7 +184,7 @@ public:
       this->OriginalState.LookupTable->UnRegister(Pass);
 
     this->OriginalState = Parameters();
-  };
+  }
 
   /**
    * Makes a lookup table that can be used for deferred colormaps.
@@ -220,7 +209,7 @@ public:
       }
       this->InvertibleLookupTable = table;
     }
-  };
+  }
 
   /**
    * Floating point value to an RGB triplet.
@@ -236,7 +225,7 @@ public:
     color[0] = (unsigned char)((valueI & 0xff0000) >> 16);
     color[1] = (unsigned char)((valueI & 0x00ff00) >> 8);
     color[2] = (unsigned char)((valueI & 0x0000ff));
-  };
+  }
 
   /**
    * RGB triplet to a floating point value.
@@ -248,7 +237,7 @@ public:
       ((int)(*(color + 0))) << 16 | ((int)(*(color + 1))) << 8 | ((int)(*(color + 2)));
     double const valueS = (valueI - 0x1) / (double)0xfffffe; // 0 is reserved as "nothing"
     value = valueS * scale + min;
-  };
+  }
 
   //-------------------------------------------------------------------
   void UseInvertibleColorFor(
@@ -270,7 +259,7 @@ public:
     }
 
     this->SetStateInMapper((*passParams), mapper);
-  };
+  }
 
   //-------------------------------------------------------------------
   void CacheMapperState(vtkMapper* mapper)
@@ -284,7 +273,7 @@ public:
     mapper->GetScalarRange(state.ScalarRange);
     state.LookupTable = mapper->GetLookupTable();
     state.LookupTable->Register(Pass);
-  };
+  }
 
   //-------------------------------------------------------------------
   void SetStateInMapper(Parameters& state, vtkMapper* mapper)
@@ -305,7 +294,7 @@ public:
     }
 
     mapper->SetLookupTable(state.LookupTable);
-  };
+  }
 
   vtkValuePass* Pass;
 
@@ -397,8 +386,12 @@ void vtkValuePass::PopulateCellCellMap(const vtkRenderState* s)
     vtkProperty* property = actor->GetProperty();
     vtkMapper* mapper = actor->GetMapper();
 
+    // The mapper may be a vtkCompositePolyDataMapper, in that case, we should not return.
+    // It is hard to determine if that CPDM uses OpenGL delegates. But if execution reaches
+    // here, it is very likely that OpenGL classes are used.
     vtkOpenGLPolyDataMapper* pdm = vtkOpenGLPolyDataMapper::SafeDownCast(mapper);
-    if (!pdm)
+    vtkCompositePolyDataMapper* cpdm = vtkCompositePolyDataMapper::SafeDownCast(mapper);
+    if (!pdm && !cpdm)
     {
       continue;
     }
@@ -412,7 +405,6 @@ void vtkValuePass::PopulateCellCellMap(const vtkRenderState* s)
     this->ImplFloat->CellCellMap.clear();
     this->ImplFloat->CCMapTime = maptime;
 
-    vtkCompositePolyDataMapper2* cpdm = vtkCompositePolyDataMapper2::SafeDownCast(mapper);
     if (cpdm)
     {
       vtkIdType offset = 0;
@@ -694,8 +686,7 @@ vtkFloatArray* vtkValuePass::GetFloatImageDataArray(vtkRenderer* ren)
 }
 
 //------------------------------------------------------------------------------
-void vtkValuePass::GetFloatImageData(
-  int const format, int const width, int const height, void* data)
+void vtkValuePass::GetFloatImageData(int format, int width, int height, void* data)
 {
   auto ostate = this->ImplFloat->ValueFBO->GetContext()->GetState();
 
@@ -813,7 +804,10 @@ void vtkValuePass::RenderPieceStart(vtkDataArray* dataArr, vtkMapper* mapper)
   // In the parallel case however (ParaView with IceT), the solution below causes
   // data not to be uploaded at all (leading to empty images). Because of this, data
   // is uploaded on every render pass.
-  vtkOpenGLPolyDataMapper* pdm = vtkOpenGLPolyDataMapper::SafeDownCast(mapper);
+  // The mapper may be a vtkCompositePolyDataMapper, in that case, we should not return.
+  // It is hard to determine if that CPDM uses OpenGL delegates. But if execution reaches
+  // here, it is very likely that OpenGL classes are used.
+  vtkPolyDataMapper* pdm = vtkPolyDataMapper::SafeDownCast(mapper);
   if (!pdm)
   {
     return;
@@ -1031,7 +1025,7 @@ vtkDataArray* vtkValuePass::GetCurrentArray(vtkMapper* mapper, Parameters* array
 vtkAbstractArray* vtkValuePass::GetArrayFromCompositeData(vtkMapper* mapper, Parameters* arrayPar)
 {
   vtkAbstractArray* abstractArray = nullptr;
-  vtkCompositePolyDataMapper2* cpdm = vtkCompositePolyDataMapper2::SafeDownCast(mapper);
+  vtkCompositePolyDataMapper* cpdm = vtkCompositePolyDataMapper::SafeDownCast(mapper);
   if (cpdm)
   {
     std::vector<vtkPolyData*> pdl = cpdm->GetRenderedList();
@@ -1061,3 +1055,4 @@ vtkAbstractArray* vtkValuePass::GetArrayFromCompositeData(vtkMapper* mapper, Par
 
   return abstractArray;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkQtStringToImage.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkQtStringToImage
@@ -28,6 +16,7 @@
 #include "vtkSmartPointer.h"      // For SP ivars
 #include "vtkStringToImage.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkQImageToImageSource;
 
 class VTKRENDERINGQT_EXPORT vtkQtStringToImage : public vtkStringToImage
@@ -84,4 +73,5 @@ private:
   void operator=(const vtkQtStringToImage&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkQtStringToImage_h

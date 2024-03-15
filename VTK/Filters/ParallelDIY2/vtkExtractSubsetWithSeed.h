@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSubsetWithSeed.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkExtractSubsetWithSeed
  * @brief extract a line or plane in the ijk space starting with a seed
@@ -36,6 +24,7 @@
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkFiltersParallelDIY2Module.h" // for export macros
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkMultiProcessController;
 
 class VTKFILTERSPARALLELDIY2_EXPORT vtkExtractSubsetWithSeed : public vtkDataObjectAlgorithm
@@ -106,4 +95,5 @@ private:
   vtkMultiProcessController* Controller = nullptr;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

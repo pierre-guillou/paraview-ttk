@@ -103,7 +103,7 @@ struct pqEventTranslator::pqImplementation
   /// Stores the working set of widget translators
   QList<pqWidgetEventTranslator*> Translators;
   /// Stores the set of objects that should be ignored when translating events
-  QMap<QObject*, QRegExp> IgnoredObjects;
+  QMap<QObject*, QRegularExpression> IgnoredObjects;
 
   // list of widgets for which mouse propagation will happen
   // we'll only translate the first and ignore the rest
@@ -272,7 +272,7 @@ pqEventComment* pqEventTranslator::eventComment() const
 }
 
 // ----------------------------------------------------------------------------
-void pqEventTranslator::ignoreObject(QObject* object, QRegExp commandFilter)
+void pqEventTranslator::ignoreObject(QObject* object, QRegularExpression commandFilter)
 {
   this->Implementation->IgnoredObjects.insert(object, commandFilter);
 }
@@ -282,12 +282,10 @@ bool pqEventTranslator::eventFilter(QObject* object, QEvent* event)
 {
   if (this->Implementation->Recording)
   {
-#if QT_VERSION >= 0x050000
     if (object->isWindowType())
     {
       return false;
     }
-#endif
 
     // Only widgets
     QWidget* widget = qobject_cast<QWidget*>(object);
@@ -583,11 +581,17 @@ void pqEventTranslator::onRecordEvent(
 {
   if (this->Implementation->IgnoredObjects.contains(Object))
   {
-    QRegExp commandFilter = this->Implementation->IgnoredObjects.value(Object);
+    QRegularExpression commandFilter = this->Implementation->IgnoredObjects.value(Object);
     if (Command.contains(commandFilter))
     {
       return;
     }
+  }
+
+  QVariant blockRecordCommands = Object->property("BlockRecordCommands");
+  if (blockRecordCommands.isValid() && Command.contains(blockRecordCommands.toRegularExpression()))
+  {
+    return;
   }
 
   QString name;
@@ -678,4 +682,18 @@ void pqEventTranslator::setOverlayGeometry(const QRect& geometry, bool specific)
     this->Implementation->CheckOverlay->setGeometry(geometry);
   }
   this->Implementation->CheckOverlay->Specific = specific;
+}
+
+// ----------------------------------------------------------------------------
+void pqEventTranslator::recordDashboardModeToggle(QObject* object, bool toggle)
+{
+  QString name = pqObjectNaming::GetName(*object);
+  if (name.isEmpty())
+  {
+    qWarning() << "Error recording a dashboard mode event";
+    return;
+  }
+
+  Q_EMIT recordEvent(
+    name, "dashboard_mode", QVariant(toggle).toString(), pqEventTypes::ACTION_EVENT);
 }

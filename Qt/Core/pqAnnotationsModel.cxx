@@ -1,46 +1,21 @@
-/*=========================================================================
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
-   Program: ParaView
-   Module:  pqAnnotationsModel.cxx
+// Hide PARAVIEW_DEPRECATED_IN_5_12_0() warnings for this class.
+#define PARAVIEW_DEPRECATION_LEVEL 0
 
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
 #include "pqAnnotationsModel.h"
 
+#include "vtkSMStringListDomain.h"
+
+#include <QIODevice>
 #include <QMimeData>
 #include <QPainter>
 #include <QPixmap>
 
-#include "vtkSMStringListDomain.h"
-
 #include <cassert>
 #include <set>
-
-#include <cassert>
 
 static const int SWATCH_RADIUS = 17;
 namespace
@@ -220,9 +195,7 @@ public:
 //=============================================================================
 pqAnnotationsModel::pqAnnotationsModel(QObject* parentObject)
   : Superclass(parentObject)
-  , MissingColorIcon(":/pqWidgets/Icons/pqUnknownData16.png")
-  , GlobalOpacity(1.0)
-  , SupportsReorder(false)
+  , MissingColorIcon(":/pqWidgets/Icons/pqUnknownData16.png") // PARAVIEW_DEPRECATED_IN_5_12_0
   , Internals(new pqInternals())
 {
 }
@@ -294,7 +267,18 @@ bool pqAnnotationsModel::setData(const QModelIndex& idx, const QVariant& value, 
 //-----------------------------------------------------------------------------
 QVariant pqAnnotationsModel::data(const QModelIndex& idx, int role) const
 {
-  if (role == Qt::DecorationRole || role == Qt::DisplayRole)
+  if (role == Qt::DisplayRole)
+  {
+    int col = idx.column();
+    if (col == COLOR || col == OPACITY || col == VISIBILITY)
+    {
+      // Must be invalid in order to prevent pqTreeViewSelectionHelper to enable
+      // the sort / regex filters for this columns in the context menu
+      return QVariant();
+    }
+    return this->Internals->Items[idx.row()].data(col);
+  }
+  else if (role == Qt::DecorationRole)
   {
     return this->Internals->Items[idx.row()].data(idx.column());
   }
@@ -370,6 +354,10 @@ QVariant pqAnnotationsModel::headerData(int section, Qt::Orientation orientation
   {
     return createOpacitySwatch(this->GlobalOpacity);
   }
+  else if (orientation == Qt::Horizontal && role == Qt::EditRole && section == OPACITY)
+  {
+    return this->GlobalOpacity;
+  }
   else if (orientation == Qt::Horizontal && role == Qt::CheckStateRole && section == VISIBILITY)
   {
     if (this->Internals->Items.empty())
@@ -399,9 +387,19 @@ bool pqAnnotationsModel::setHeaderData(
   {
     for (int row = 0; row < this->rowCount(); row++)
     {
-      this->setData(this->index(row, VISIBILITY), value, role);
+      this->setData(this->index(row, section), value, role);
     }
-
+    Q_EMIT this->headerDataChanged(orientation, section, section);
+    return true;
+  }
+  else if (orientation == Qt::Horizontal && role == Qt::EditRole && section == OPACITY)
+  {
+    this->GlobalOpacity = value.toDouble();
+    for (int row = 0; row < this->rowCount(); row++)
+    {
+      this->setData(this->index(row, section), value, role);
+    }
+    Q_EMIT this->headerDataChanged(orientation, section, section);
     return true;
   }
 
@@ -820,26 +818,6 @@ std::vector<double> pqAnnotationsModel::indexedOpacities() const
     opacities.push_back(item.Opacity);
   }
   return opacities;
-}
-
-//-----------------------------------------------------------------------------
-void pqAnnotationsModel::setGlobalOpacity(double opacity)
-{
-  this->GlobalOpacity = opacity;
-  bool opacityFlag = false;
-  for (std::size_t cc = 0; cc < this->Internals->Items.size(); cc++)
-  {
-    if (this->Internals->Items[cc].Opacity == -1 || this->Internals->Items[cc].Opacity != opacity)
-    {
-      this->Internals->Items[cc].setData(OPACITY, opacity);
-      opacityFlag = true;
-    }
-  }
-  if (opacityFlag)
-  {
-    Q_EMIT this->dataChanged(this->index(0, OPACITY),
-      this->index(static_cast<int>(this->Internals->Items.size()) - 1, OPACITY));
-  }
 }
 
 //-----------------------------------------------------------------------------

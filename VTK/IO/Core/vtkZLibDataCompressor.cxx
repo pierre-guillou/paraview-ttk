@@ -1,21 +1,10 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkZLibDataCompressor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkZLibDataCompressor.h"
 #include "vtkObjectFactory.h"
 #include "vtk_zlib.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkZLibDataCompressor);
 
 //------------------------------------------------------------------------------
@@ -110,3 +99,4 @@ size_t vtkZLibDataCompressor::GetMaximumCompressionSpace(size_t size)
   // ZLib specifies that destination buffer must be 0.1% larger + 12 bytes.
   return size + (size + 999) / 1000 + 12;
 }
+VTK_ABI_NAMESPACE_END

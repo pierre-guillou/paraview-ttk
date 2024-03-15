@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVXMLParser.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVXMLParser
  *
@@ -45,7 +33,7 @@ public:
    */
   vtkPVXMLElement* GetRootElement();
 
-  //@{
+  ///@{
   /**
    * If on, then the Parse method will NOT report an error using vtkErrorMacro.
    * Rather, it will just return false.  This feature is useful when simply
@@ -55,7 +43,7 @@ public:
   vtkGetMacro(SuppressErrorMessages, int);
   vtkSetMacro(SuppressErrorMessages, int);
   vtkBooleanMacro(SuppressErrorMessages, int);
-  //@}
+  ///@}
 
   /**
    * Convenience method to parse XML contents. Will return nullptr is the

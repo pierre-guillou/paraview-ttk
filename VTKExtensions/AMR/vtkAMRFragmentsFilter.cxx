@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAMRFragmentsFilter.cxx
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-  Copyright 2014 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright 2014 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 #include "vtkAMRFragmentsFilter.h"
 
 #include "vtkInformation.h"
@@ -192,12 +181,12 @@ int vtkAMRFragmentsFilter::RequestData(vtkInformation* vtkNotUsed(request),
     if (UseWatertightSurface)
     {
       this->Contour->Update();
-      mbdsOutput1->ShallowCopy(this->Contour->GetOutput());
+      mbdsOutput1->CompositeShallowCopy(this->Contour->GetOutput());
     }
     else
     {
       this->Extract->Update();
-      mbdsOutput1->ShallowCopy(this->Extract->GetOutput());
+      mbdsOutput1->CompositeShallowCopy(this->Extract->GetOutput());
     }
   }
   else
@@ -208,7 +197,7 @@ int vtkAMRFragmentsFilter::RequestData(vtkInformation* vtkNotUsed(request),
   if (this->IntegrateFragments)
   {
     this->Integration->Update();
-    mbdsOutput0->ShallowCopy(this->Integration->GetOutput());
+    mbdsOutput0->CompositeShallowCopy(this->Integration->GetOutput());
   }
 
   return 1;

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVMetaSliceDataSet.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVMetaSliceDataSet.h"
 
 #include "vtkAlgorithm.h"
@@ -27,15 +15,12 @@
 #include "vtkObjectFactory.h"
 #include "vtkPVCutter.h"
 #include "vtkPVPlane.h"
-#include "vtkSmartPointer.h"
 
 class vtkPVMetaSliceDataSet::vtkInternals
 {
 public:
   vtkNew<vtkPVCutter> Cutter;
   vtkNew<vtkExtractGeometry> ExtractCells;
-  vtkNew<vtkMergePoints> MergeLocator;
-  vtkNew<vtkNonMergingPointLocator> NonMergeLocator;
 
   vtkInternals()
   {
@@ -55,6 +40,7 @@ vtkPVMetaSliceDataSet::vtkPVMetaSliceDataSet()
   this->SetOutputType(VTK_POLY_DATA);
 
   this->Internal = new vtkInternals();
+  this->Locator = nullptr;
 
   this->RegisterFilter(this->Internal->Cutter.GetPointer());
   this->RegisterFilter(this->Internal->ExtractCells.GetPointer());
@@ -145,10 +131,10 @@ void vtkPVMetaSliceDataSet::SetGenerateTriangles(int status)
 //----------------------------------------------------------------------------
 void vtkPVMetaSliceDataSet::SetMergePoints(bool status)
 {
-  this->Internal->Cutter->SetLocator(status
-      ? static_cast<vtkPointLocator*>(this->Internal->MergeLocator.Get())
-      : this->Internal->NonMergeLocator.Get());
-  this->Modified();
+  vtkSmartPointer<vtkIncrementalPointLocator> locator = status
+    ? vtk::TakeSmartPointer<vtkIncrementalPointLocator>(vtkMergePoints::New())
+    : vtk::TakeSmartPointer<vtkIncrementalPointLocator>(vtkNonMergingPointLocator::New());
+  this->SetLocator(locator);
 }
 
 //----------------------------------------------------------------------------
@@ -185,4 +171,24 @@ int vtkPVMetaSliceDataSet::RequestDataObject(
   }
 
   return this->Superclass::RequestDataObject(request, inputVector, outputVector);
+}
+
+//------------------------------------------------------------------------------
+// Specify a spatial locator for merging points.
+void vtkPVMetaSliceDataSet::SetLocator(vtkIncrementalPointLocator* locator)
+{
+  if (this->Locator == locator)
+  {
+    return;
+  }
+
+  this->Locator = locator;
+  this->Internal->Cutter->SetLocator(this->Locator);
+  this->Modified();
+}
+
+//----------------------------------------------------------------------------
+vtkIncrementalPointLocator* vtkPVMetaSliceDataSet::GetLocator()
+{
+  return this->Locator.Get();
 }

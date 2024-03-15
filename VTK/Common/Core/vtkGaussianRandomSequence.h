@@ -1,16 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkGaussianRandomSequence.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkGaussianRandomSequence
  * @brief   Gaussian sequence of pseudo random numbers
@@ -28,6 +17,7 @@
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkRandomSequence.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKCOMMONCORE_EXPORT vtkGaussianRandomSequence : public vtkRandomSequence
 {
 public:
@@ -64,4 +54,5 @@ private:
   void operator=(const vtkGaussianRandomSequence&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // #ifndef vtkGaussianRandomSequence_h

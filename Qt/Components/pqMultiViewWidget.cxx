@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    $RCSfile$
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqMultiViewWidget.h"
 #include "ui_pqPopoutPlaceholder.h"
 
@@ -121,14 +93,14 @@ public:
       [self](int location, double fraction) {
         if (auto vlayout = self->layoutManager())
         {
-          BEGIN_UNDO_SET("Resize Frame");
+          BEGIN_UNDO_SET(QCoreApplication::translate("pqInternals", "Resize Frame"));
           vlayout->SetSplitFraction(location, fraction);
           END_UNDO_SET();
         }
       });
 
     QVBoxLayout* slayout = new QVBoxLayout(self);
-    slayout->setMargin(0);
+    slayout->setContentsMargins(0, 0, 0, 0);
     slayout->addWidget(this->Container);
 
     this->PopoutPlaceholder.reset(new QWidget());
@@ -756,7 +728,7 @@ void pqMultiViewWidget::standardButtonPressed(int button)
     case pqViewFrame::SplitVertical:
     case pqViewFrame::SplitHorizontal:
     {
-      BEGIN_UNDO_SET("Split View");
+      BEGIN_UNDO_SET(tr("Split View"));
       int new_index = this->layoutManager()->Split(index.toInt(),
         (button == pqViewFrame::SplitVertical ? vtkSMViewLayoutProxy::VERTICAL
                                               : vtkSMViewLayoutProxy::HORIZONTAL),
@@ -780,7 +752,7 @@ void pqMultiViewWidget::standardButtonPressed(int button)
 
     case pqViewFrame::Close:
     {
-      BEGIN_UNDO_SET("Close View");
+      BEGIN_UNDO_SET(tr("Close View"));
       vtkSmartPointer<vtkSMViewProxy> viewProxy = this->layoutManager()->GetView(index.toInt());
       if (viewProxy)
       {
@@ -810,7 +782,7 @@ void pqMultiViewWidget::standardButtonPressed(int button)
 //-----------------------------------------------------------------------------
 void pqMultiViewWidget::destroyAllViews()
 {
-  BEGIN_UNDO_SET("Destroy all views");
+  BEGIN_UNDO_SET(tr("Destroy all views"));
   pqObjectBuilder* builder = pqApplicationCore::instance()->getObjectBuilder();
   QList<vtkSMViewProxy*> views = this->viewProxies();
   Q_FOREACH (vtkSMViewProxy* view, views)
@@ -875,7 +847,7 @@ void pqMultiViewWidget::swapPositions(const QString& uid_str)
     return;
   }
 
-  BEGIN_UNDO_SET("Swap Views");
+  BEGIN_UNDO_SET(tr("Swap Views"));
   vlayout->SwapCells(id1, id2);
   END_UNDO_SET();
   this->reload();
@@ -907,7 +879,7 @@ bool pqMultiViewWidget::togglePopout()
           Qt::WindowCloseButtonHint));
       internals.PopoutWindow->setObjectName("PopoutWindow");
       auto l = new QVBoxLayout(internals.PopoutWindow.data());
-      l->setMargin(0);
+      l->setContentsMargins(0, 0, 0, 0);
       internals.PopoutWindow->resize(this->size());
     }
 
@@ -955,7 +927,9 @@ QSize pqMultiViewWidget::preview(const QSize& nsize)
     }
     SM_SCOPED_TRACE(PropertiesModified)
       .arg("proxy", vlayout)
-      .arg("comment", nsize.isEmpty() ? "Exit preview mode" : "Enter preview mode");
+      .arg("comment",
+        nsize.isEmpty() ? qPrintable(tr("Exit preview mode"))
+                        : qPrintable(tr("Enter preview mode")));
 
     vtkSMPropertyHelper(vlayout, "PreviewMode").Set(resolution, 2);
     //< results in a call to "layoutPropertyModified" if changed.

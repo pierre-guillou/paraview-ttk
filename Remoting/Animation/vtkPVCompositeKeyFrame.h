@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCompositeKeyFrame.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCompositeKeyFrame
  * @brief   composite keyframe.
@@ -50,7 +38,7 @@ public:
     SINUSOID = 4
   };
 
-  //@{
+  ///@{
   /**
    * Overridden to pass on to the internal keyframe proxies.
    */
@@ -59,27 +47,27 @@ public:
   void SetKeyValue(double val) override { this->Superclass::SetKeyValue(val); }
   void SetKeyValue(unsigned int index, double val) override;
   void SetNumberOfKeyValues(unsigned int num) override;
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Passed on to the ExponentialKeyFrame.
    */
   void SetBase(double val);
   void SetStartPower(double val);
   void SetEndPower(double val);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Passed on to the SinusoidKeyFrame.
    */
   void SetPhase(double val);
   void SetFrequency(double val);
   void SetOffset(double val);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Get/Set the type of keyframe to be used as the active type.
    * Default is RAMP.
@@ -89,7 +77,7 @@ public:
   const char* GetTypeAsString() { return this->GetTypeAsString(this->Type); }
   static const char* GetTypeAsString(int);
   static int GetTypeFromString(const char* string);
-  //@}
+  ///@}
 
   /**
    * This method will do the actual interpolation.

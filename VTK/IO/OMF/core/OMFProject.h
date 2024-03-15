@@ -1,29 +1,21 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    OMFProject.h
-  Language:  C++
-
-  Copyright (c) 1993-2002 Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef OMFProject_h
 #define OMFProject_h
 
+#include "vtkABINamespace.h"
+
 #include <memory> // for std::unique_ptr
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkPartitionedDataSetCollection;
+VTK_ABI_NAMESPACE_END
 
 namespace omf
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 class OMFProject
 {
@@ -50,6 +42,7 @@ private:
   std::unique_ptr<ProjectImpl> Impl;
 };
 
+VTK_ABI_NAMESPACE_END
 } // end namespace omf
 
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPlotBar.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPlotBar.h"
 
@@ -44,6 +32,7 @@
 #include <vector>
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 
@@ -534,12 +523,11 @@ vtkStandardNewMacro(vtkPlotBar);
 vtkPlotBar::vtkPlotBar()
 {
   this->Private = new vtkPlotBarPrivate(this);
+  // Points is not a vtkSmartPointer, so set it explicitly to nullptr
   this->Points = nullptr;
-  this->AutoLabels = nullptr;
   this->Width = 1.0;
   this->Pen->SetWidth(1.0);
   this->Offset = 1.0;
-  this->ColorSeries = nullptr;
   this->Orientation = vtkPlotBar::VERTICAL;
   this->ScalarVisibility = false;
   this->EnableOpacityMapping = true;
@@ -611,6 +599,10 @@ void vtkPlotBar::GetBounds(double bounds[4], bool unscaled)
 
   // Get the x and y arrays (index 0 and 1 respectively)
   vtkTable* table = this->Data->GetInput();
+  if (!table)
+  {
+    return;
+  }
   vtkDataArray* x =
     this->UseIndexForXSeries ? nullptr : this->Data->GetInputArrayToProcess(0, table);
   vtkDataArray* y = this->Data->GetInputArrayToProcess(1, table);
@@ -944,7 +936,8 @@ void vtkPlotBar::CreateDefaultLookupTable()
   // rainbow - blue to red
   lut->SetHueRange(0.6667, 0.0);
   lut->Build();
-  double bounds[4];
+  // set reasonable defaults in case no data has been set
+  double bounds[4] = { 0.0, 1.0, 0.0, 1.0 };
   this->GetBounds(bounds);
   lut->SetRange(bounds[0], bounds[1]);
   this->LookupTable = lut;
@@ -1100,3 +1093,4 @@ void vtkPlotBar::GetDataBounds(double bounds[2])
     table->GetRowData()->GetRange(x->GetName(), bounds);
   }
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCutter.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVCutter.h"
 
 #include "vtkDataSet.h"
@@ -80,7 +68,7 @@ int vtkPVCutter::RequestData(
     }
     else
     {
-      return this->Superclass::RequestData(request, inputVector, outputVector);
+      return this->CutUsingSuperclassInstance(request, inputVector, outputVector);
     }
   }
   else
@@ -94,9 +82,40 @@ int vtkPVCutter::RequestData(
     }
     else
     {
-      return this->Superclass::RequestData(request, inputVector, outputVector);
+      return this->CutUsingSuperclassInstance(request, inputVector, outputVector);
     }
   }
+}
+
+int vtkPVCutter::CutUsingSuperclassInstance(
+  vtkInformation*, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  vtkNew<Superclass> instance;
+
+  for (vtkIdType i = 0; i < this->GetNumberOfContours(); ++i)
+  {
+    instance->SetValue(i, this->GetValue(i));
+  }
+
+  instance->SetCutFunction(this->GetCutFunction());
+  instance->SetGenerateCutScalars(this->GetGenerateCutScalars());
+  instance->SetGenerateTriangles(this->GetGenerateTriangles());
+  instance->SetLocator(this->GetLocator());
+  instance->SetSortBy(this->GetSortBy());
+  instance->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+
+  vtkDataObject* inputDO = vtkDataObject::GetData(inputVector[0], 0);
+  vtkDataObject* outputDO = vtkDataObject::GetData(outputVector, 0);
+
+  instance->SetInputDataObject(inputDO);
+  instance->SetInputArrayToProcess(0, this->GetInputArrayInformation(0));
+  if (instance->GetExecutive()->Update())
+  {
+    outputDO->ShallowCopy(instance->GetOutput());
+    return 1;
+  }
+
+  return 0;
 }
 
 //----------------------------------------------------------------------------

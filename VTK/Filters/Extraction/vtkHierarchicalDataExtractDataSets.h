@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHierarchicalDataExtractDataSets.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHierarchicalDataExtractDataSets
  * @brief   extract a number of datasets
@@ -28,6 +16,7 @@
 #include "vtkExtractDataSets.h"
 #include "vtkFiltersExtractionModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 struct vtkHierarchicalDataExtractDataSetsInternals;
 
 class VTKFILTERSEXTRACTION_EXPORT vtkHierarchicalDataExtractDataSets : public vtkExtractDataSets
@@ -46,4 +35,5 @@ private:
   void operator=(const vtkHierarchicalDataExtractDataSets&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

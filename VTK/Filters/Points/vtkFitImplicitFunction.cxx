@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkFitImplicitFunction.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkFitImplicitFunction.h"
 
 #include "vtkImplicitFunction.h"
@@ -20,6 +8,7 @@
 #include "vtkPoints.h"
 #include "vtkSMPTools.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkFitImplicitFunction);
 vtkCxxSetObjectMacro(vtkFitImplicitFunction, ImplicitFunction, vtkImplicitFunction);
 
@@ -139,3 +128,4 @@ void vtkFitImplicitFunction::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Implicit Function: " << static_cast<void*>(this->ImplicitFunction) << "\n";
   os << indent << "Threshold: " << this->Threshold << "\n";
 }
+VTK_ABI_NAMESPACE_END

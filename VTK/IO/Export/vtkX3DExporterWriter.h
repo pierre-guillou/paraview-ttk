@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkX3DExporterWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkX3DExporterWriter
  * @brief   X3D Exporter Writer
@@ -28,6 +16,7 @@
 #include "vtkObject.h"
 
 // Forward declarations
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkUnsignedCharArray;
 class vtkCellArray;
@@ -199,4 +188,5 @@ private:
   vtkX3DExporterWriter(const vtkX3DExporterWriter&) = delete;
   void operator=(const vtkX3DExporterWriter&) = delete;
 };
+VTK_ABI_NAMESPACE_END
 #endif

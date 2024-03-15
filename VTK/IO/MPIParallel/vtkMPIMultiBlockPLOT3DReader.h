@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkMPIMultiBlockPLOT3DReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkMPIMultiBlockPLOT3DReader
  * @brief   vtkMultiBlockPLOT3DReader subclass that
@@ -28,6 +16,7 @@
 #include "vtkIOMPIParallelModule.h" // For export macro
 #include "vtkMultiBlockPLOT3DReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKIOMPIPARALLEL_EXPORT vtkMPIMultiBlockPLOT3DReader : public vtkMultiBlockPLOT3DReader
 {
 public:
@@ -71,4 +60,5 @@ private:
   void operator=(const vtkMPIMultiBlockPLOT3DReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

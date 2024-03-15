@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkKMeansStatistics.h"
 #include "vtkKMeansAssessFunctor.h"
 #include "vtkKMeansDistanceFunctor.h"
@@ -21,6 +23,7 @@
 #include <sstream>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkKMeansStatistics);
 vtkCxxSetObjectMacro(vtkKMeansStatistics, DistanceFunctor, vtkKMeansDistanceFunctor);
 
@@ -894,3 +897,4 @@ void vtkKMeansAssessFunctor::operator()(vtkDoubleArray* result, vtkIdType row)
     result->SetValue(resIndex++, this->ClusterMemberIDs->GetValue(row * this->NumRuns + runID));
   }
 }
+VTK_ABI_NAMESPACE_END

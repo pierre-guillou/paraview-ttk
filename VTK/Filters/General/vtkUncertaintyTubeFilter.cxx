@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUncertaintyTubeFilter.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkUncertaintyTubeFilter.h"
 
 #include "vtkCellArray.h"
@@ -27,6 +15,7 @@
 #include "vtkPolyData.h"
 #include "vtkPolyLine.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkUncertaintyTubeFilter);
 
 //
@@ -232,6 +221,10 @@ int vtkUncertaintyTubeFilter::RequestData(vtkInformation* vtkNotUsed(request),
   double* normal;
   for (k = 0, inLines->InitTraversal(); inLines->GetNextCell(npts, pts); k++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
     singlePolyline->Reset();                   // avoid instantiation
     singlePolyline->InsertNextCell(npts, pts); // avoid crossing confusion
     if (!vtkPolyLine::GenerateSlidingNormals(inPts, singlePolyline, newNormals))
@@ -347,6 +340,11 @@ int vtkUncertaintyTubeFilter::BuildTubes(
   //
   for (cellId = 0; cellId < this->NumberOfTubes; cellId++)
   {
+    if (this->CheckAbort())
+    {
+      break;
+    }
+
     if ((numPts = this->Tubes[cellId].GetNumberOfPoints()) < 2)
     {
       continue;
@@ -425,3 +423,4 @@ void vtkUncertaintyTubeFilter::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "Number Of Sides: " << this->NumberOfSides << "\n";
 }
+VTK_ABI_NAMESPACE_END

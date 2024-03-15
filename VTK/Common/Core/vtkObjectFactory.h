@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkObjectFactory.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkObjectFactory
  * @brief   abstract base class for vtkObjectFactories
@@ -45,6 +33,7 @@
 
 #include <string> // for std::string
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkObjectFactoryCollection;
 class vtkOverrideInformationCollection;
 class vtkCollection;
@@ -101,7 +90,7 @@ public:
    * return 1 if one of the registered factories
    * overrides the given class name
    */
-  static int HasOverrideAny(const char* className);
+  static vtkTypeBool HasOverrideAny(const char* className);
 
   /**
    * Fill the given collection with all the overrides for
@@ -182,11 +171,11 @@ public:
   /**
    * Return 1 if this factory overrides the given class name, 0 otherwise.
    */
-  virtual int HasOverride(const char* className);
+  virtual vtkTypeBool HasOverride(const char* className);
   /**
    * Return 1 if this factory overrides the given class name, 0 otherwise.
    */
-  virtual int HasOverride(const char* className, const char* subclassName);
+  virtual vtkTypeBool HasOverride(const char* className, const char* subclassName);
 
   /**
    * Set all enable flags for the given class to 0.  This will
@@ -264,7 +253,6 @@ private:
   char* LibraryVTKVersion;
   char* LibraryPath;
 
-private:
   vtkObjectFactory(const vtkObjectFactory&) = delete;
   void operator=(const vtkObjectFactory&) = delete;
 };
@@ -288,6 +276,7 @@ static vtkObjectFactoryRegistryCleanup vtkObjectFactoryRegistryCleanupInstance;
 #define VTK_CREATE_CREATE_FUNCTION(classname)                                                      \
   static vtkObject* vtkObjectFactoryCreate##classname() { return classname::New(); }
 
+VTK_ABI_NAMESPACE_END
 #endif
 
 #define VTK_FACTORY_INTERFACE_EXPORT VTKCOMMONCORE_EXPORT

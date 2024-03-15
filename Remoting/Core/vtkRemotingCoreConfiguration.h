@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkRemotingCoreConfiguration.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkRemotingCoreConfiguration
  * @brief runtime configuration options for vtkRemotingCore module.
@@ -129,6 +117,11 @@ public:
    * remaining time available for server access.
    */
   const std::string& GetTimeoutCommand() const { return this->TimeoutCommand; }
+
+  /**
+   * On server processes, the interval in seconds between consecutive calls of `TimeoutCommand`.
+   */
+  vtkGetMacro(TimeoutCommandInterval, int);
 
   /**
    * On client processes, this returns the server connection url to use to
@@ -316,6 +309,7 @@ private:
   std::string ServerResourceName;
   int Timeout = 0;
   std::string TimeoutCommand;
+  int TimeoutCommandInterval = 60;
   bool UseStereoRendering = false;
   int StereoType = 0;
   double EyeSeparation = 0.06;

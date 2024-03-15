@@ -97,15 +97,8 @@ struct WaveletField : public vtkm::worklet::WorkletVisitPointsWithCells
 } // namespace wavelet
 
 Wavelet::Wavelet(vtkm::Id3 minExtent, vtkm::Id3 maxExtent)
-  : Center{ minExtent - ((minExtent - maxExtent) / 2) }
-  , Origin{ minExtent }
-  , Spacing{ 1. }
-  , Frequency{ 60., 30., 40. }
-  , Magnitude{ 10., 18., 5. }
-  , MinimumExtent{ minExtent }
-  , MaximumExtent{ maxExtent }
-  , MaximumValue{ 255. }
-  , StandardDeviation{ 0.5 }
+  : MinimumExtent(minExtent)
+  , MaximumExtent(maxExtent)
 {
 }
 
@@ -133,13 +126,13 @@ vtkm::cont::DataSet Wavelet::GenerateDataSet(vtkm::cont::CoordinateSystem coords
   return dataSet;
 }
 
-vtkm::cont::DataSet Wavelet::Execute() const
+vtkm::cont::DataSet Wavelet::DoExecute() const
 {
   VTKM_LOG_SCOPE_FUNCTION(vtkm::cont::LogLevel::Perf);
 
   // Create points:
   const vtkm::Id3 dims{ this->MaximumExtent - this->MinimumExtent + vtkm::Id3{ 1 } };
-  vtkm::cont::CoordinateSystem coords{ "coordinates", dims, this->Origin, this->Spacing };
+  vtkm::cont::CoordinateSystem coords{ "coordinates", dims, this->GetOrigin(), this->Spacing };
 
   // Compile the dataset:
   if (this->MaximumExtent[2] - this->MinimumExtent[2] < vtkm::Epsilon<vtkm::FloatDefault>())

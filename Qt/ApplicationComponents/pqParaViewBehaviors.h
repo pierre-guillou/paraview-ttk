@@ -1,40 +1,13 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqParaViewBehaviors.h
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #ifndef pqParaViewBehaviors_h
 #define pqParaViewBehaviors_h
 
 #include "pqApplicationComponentsModule.h"
 
-#include "vtkSetGet.h" // for VTK_LEGACY.
+#include "vtkParaViewDeprecation.h" // for deprecation
+#include "vtkSetGet.h"              // for VTK_LEGACY.
 
 #include <QFlags>
 #include <QObject>
@@ -109,26 +82,29 @@ public:
   PQ_BEHAVIOR_DEFINE_METHODS(PythonShellResetBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(CustomShortcutBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(MainWindowEventBehavior);
-  PQ_BEHAVIOR_DEFINE_METHODS(AddExamplesInFavoritesBehavior);
 
-  //@{
+  PARAVIEW_DEPRECATED_IN_5_12_0("Use AddExamplesInFileDialogBehavior instead")
+  PQ_BEHAVIOR_DEFINE_METHODS(AddExamplesInFavoritesBehavior);
+  PQ_BEHAVIOR_DEFINE_METHODS(AddExamplesInFileDialogBehavior);
+
+  ///@{
   /**
    * Controls whether `pqUsageLoggingBehavior` is created. Disabled by default
    * (except in the ParaView application itself).
    * @sa pqUsageLoggingBehavior.
    */
   PQ_BEHAVIOR_DEFINE_METHODS(UsageLoggingBehavior);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Controls whether `pqLiveSourceBehavior` is created.
    * @sa pqLiveSourceBehavior
    */
   PQ_BEHAVIOR_DEFINE_METHODS(LiveSourceBehavior);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * By default, widgets like QComboBox, QSlider handle wheel event even when
    * the widget doesn't have the focus. While that's handy, in many use-cases,
@@ -138,7 +114,7 @@ public:
    * QSlider, QAbstractSpinBox and subclasses.
    */
   PQ_BEHAVIOR_DEFINE_METHODS(WheelNeedsFocusBehavior);
-  //@}
+  ///@}
 
   pqParaViewBehaviors(QMainWindow* window, QObject* parent = nullptr);
   ~pqParaViewBehaviors() override;
@@ -177,7 +153,9 @@ private:
   PQ_BEHAVIOR_DECLARE_FLAG(CustomShortcutBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(MainWindowEventBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(UsageLoggingBehavior);
+  // PARAVIEW_DEPRECATED_IN_5_12_0
   PQ_BEHAVIOR_DECLARE_FLAG(AddExamplesInFavoritesBehavior);
+  PQ_BEHAVIOR_DECLARE_FLAG(AddExamplesInFileDialogBehavior);
 };
 
 #undef PQ_BEHAVIOR_DECLARE_FLAG

@@ -1,17 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    vtkDepthImageProcessingPass.cxx
-
-  Copyright (c) Sandia Corporation, Kitware Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation, Kitware Inc
+// SPDX-License-Identifier: BSD-3-Clause
 /*----------------------------------------------------------------------
 Acknowledgement:
 This algorithm is the result of joint work by Electricité de France,
@@ -34,6 +23,7 @@ Ph.D. thesis of Christian BOUCHENY.
 #include "vtkPixelBufferObject.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 vtkDepthImageProcessingPass::vtkDepthImageProcessingPass()
 {
   this->Origin[0] = 0;
@@ -162,3 +152,4 @@ void vtkDepthImageProcessingPass::ReadWindowSize(const vtkRenderState* s)
     this->Height = size[1];
   }
 }
+VTK_ABI_NAMESPACE_END

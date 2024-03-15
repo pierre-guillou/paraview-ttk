@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCell3D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCell3D
  * @brief   abstract class to specify 3D cell interface
@@ -30,6 +18,7 @@
 #include "vtkCell.h"
 #include "vtkCommonDataModelModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOrderedTriangulator;
 class vtkTetra;
 class vtkCellArray;
@@ -48,7 +37,8 @@ public:
    * the point ids of the mesh that the cell belongs to. The edgeId must
    * range between 0<=edgeId<this->GetNumberOfEdges().
    */
-  virtual void GetEdgePoints(vtkIdType edgeId, const vtkIdType*& pts) = 0;
+  virtual void GetEdgePoints(vtkIdType edgeId, const vtkIdType*& pts) VTK_SIZEHINT(pts, 2)
+    VTK_EXPECTS(0 <= edgeId && edgeId < GetNumberOfEdges()) = 0;
 
   /**
    * Get the list of vertices that define a face. The list is terminated
@@ -59,7 +49,8 @@ public:
    *
    * @return The number of points in face faceId
    */
-  virtual vtkIdType GetFacePoints(vtkIdType faceId, const vtkIdType*& pts) = 0;
+  virtual vtkIdType GetFacePoints(vtkIdType faceId, const vtkIdType*& pts) VTK_SIZEHINT(pts, _)
+    VTK_EXPECTS(0 <= faceId && faceId < GetNumberOfFaces()) = 0;
 
   /**
    * Get the ids of the two adjacent faces to edge of id edgeId.
@@ -68,7 +59,8 @@ public:
    * not the face ids of the mesh that the cell belongs to. The edgeId must range
    * between 0<=edgeId<this->GetNumberOfEdges().
    */
-  virtual void GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& faceIds) = 0;
+  virtual void GetEdgeToAdjacentFaces(vtkIdType edgeId, const vtkIdType*& faceIds)
+    VTK_SIZEHINT(faceIds, 2) VTK_EXPECTS(0 <= edgeId && edgeId < GetNumberOfEdges()) = 0;
 
   /**
    * Get the ids of the adjacent faces to face of id faceId. The order of
@@ -85,7 +77,8 @@ public:
    * inverted.
    * @return The number of adjacent faces to faceId.
    */
-  virtual vtkIdType GetFaceToAdjacentFaces(vtkIdType faceId, const vtkIdType*& faceIds) = 0;
+  virtual vtkIdType GetFaceToAdjacentFaces(vtkIdType faceId, const vtkIdType*& faceIds)
+    VTK_SIZEHINT(faceIds, _) VTK_EXPECTS(0 <= faceId && faceId < GetNumberOfFaces()) = 0;
 
   /**
    * Get the ids of the incident edges to point of id pointId. Edges are
@@ -101,7 +94,8 @@ public:
    * inverted.
    * @return The valence of point pointId.
    */
-  virtual vtkIdType GetPointToIncidentEdges(vtkIdType pointId, const vtkIdType*& edgeIds) = 0;
+  virtual vtkIdType GetPointToIncidentEdges(vtkIdType pointId, const vtkIdType*& edgeIds)
+    VTK_SIZEHINT(edgeIds, _) VTK_EXPECTS(0 <= pointId && pointId < GetNumberOfPoints()) = 0;
 
   /**
    * Get the ids of the incident faces point of id pointId. Faces are
@@ -119,7 +113,8 @@ public:
    * inverted.
    * @return The valence of point pointId.
    */
-  virtual vtkIdType GetPointToIncidentFaces(vtkIdType pointId, const vtkIdType*& faceIds) = 0;
+  virtual vtkIdType GetPointToIncidentFaces(vtkIdType pointId, const vtkIdType*& faceIds)
+    VTK_SIZEHINT(faceIds, _) VTK_EXPECTS(0 <= pointId && pointId < GetNumberOfPoints()) = 0;
 
   /**
    * Get the ids of a one-ring surrounding point of id pointId. Points are
@@ -132,7 +127,8 @@ public:
    * The pointId must be between 0<pointId<this->GetNumberOfPoints().
    * @return The valence of point pointId.
    */
-  virtual vtkIdType GetPointToOneRingPoints(vtkIdType pointId, const vtkIdType*& pts) = 0;
+  virtual vtkIdType GetPointToOneRingPoints(vtkIdType pointId, const vtkIdType*& pts)
+    VTK_SIZEHINT(pts, _) VTK_EXPECTS(0 <= pointId && pointId < GetNumberOfPoints()) = 0;
 
   /**
    * Returns true if the normals of the vtkCell3D point inside the cell.
@@ -211,4 +207,5 @@ private:
   void operator=(const vtkCell3D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

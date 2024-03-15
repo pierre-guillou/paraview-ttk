@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageMaskBits.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageMaskBits.h"
 
 #include "vtkImageData.h"
@@ -20,6 +8,7 @@
 
 #include <cmath>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageMaskBits);
 
 vtkImageMaskBits::vtkImageMaskBits()
@@ -176,3 +165,4 @@ void vtkImageMaskBits::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Masks: (" << this->Masks[0] << ", " << this->Masks[1] << ", " << this->Masks[2]
      << ", " << this->Masks[3] << ")" << endl;
 }
+VTK_ABI_NAMESPACE_END

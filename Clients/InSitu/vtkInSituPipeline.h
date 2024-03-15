@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkInSituPipeline.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkInSituPipeline
  * @brief abstract base class for all in situ pipelines.
@@ -65,9 +53,18 @@ public:
    */
   virtual bool Finalize() { return true; }
 
+  /**
+   * Set/Get the name of the pipeline to be executed.
+   * Each pipeline has to have a name to be valid.
+   */
+  vtkSetStringMacro(Name);
+  vtkGetStringMacro(Name);
+
 protected:
   vtkInSituPipeline();
   ~vtkInSituPipeline() override;
+
+  char* Name;
 
 private:
   vtkInSituPipeline(const vtkInSituPipeline&) = delete;

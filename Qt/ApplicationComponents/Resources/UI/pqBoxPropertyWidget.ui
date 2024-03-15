@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: Copyright (c) Kitware Inc. -->
+<!-- SPDX-License-Identifier: BSD-3-Clause -->
 <ui version="4.0">
  <class>BoxPropertyWidget</class>
  <widget class="QWidget" name="BoxPropertyWidget">
@@ -7,7 +9,7 @@
     <x>0</x>
     <y>0</y>
     <width>230</width>
-    <height>329</height>
+    <height>428</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -117,7 +119,12 @@
      <item>
       <widget class="QLabel" name="referenceBoundsLabel">
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Reference Bounds&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Reference Bounds</string>
+       </property>
+       <property name="font">
+        <font>
+         <weight>63</weight>
+        </font>
        </property>
       </widget>
      </item>
@@ -197,7 +204,12 @@
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Interactivity Controls&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+        <string>Interactivity Controls</string>
+       </property>
+       <property name="font">
+        <font>
+         <weight>63</weight>
+        </font>
        </property>
       </widget>
      </item>
@@ -261,6 +273,13 @@
      </property>
      <property name="text">
       <string>Reset Bounds</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="visibleBoundsOnly">
+     <property name="text">
+      <string>Take account of block visibility</string>
      </property>
     </widget>
    </item>

@@ -1,22 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAreaLayoutStrategy.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even
-  the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-  PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-/*-------------------------------------------------------------------------
-  Copyright 2008 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-  the U.S. Government retains certain rights in this software.
--------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2008 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class   vtkAreaLayoutStrategy
  * @brief   abstract superclass for all area layout strategies
@@ -41,6 +25,7 @@
 #include "vtkInfovisLayoutModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTree;
 class vtkDataArray;
 
@@ -77,7 +62,7 @@ public:
    */
   virtual vtkIdType FindVertex(vtkTree* tree, vtkDataArray* array, float pnt[2]) = 0;
 
-  // Descripiton:
+  // Description:
   // The amount that the regions are shrunk as a value from
   // 0.0 (full size) to 1.0 (shrink to nothing).
   vtkSetClampMacro(ShrinkPercentage, double, 0.0, 1.0);
@@ -94,4 +79,5 @@ private:
   void operator=(const vtkAreaLayoutStrategy&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

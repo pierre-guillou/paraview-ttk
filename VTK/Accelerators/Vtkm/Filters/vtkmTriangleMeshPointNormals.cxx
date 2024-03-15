@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkmTriangleMeshPointNormals.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkmTriangleMeshPointNormals.h"
 
 #include "vtkCellArray.h"
@@ -25,10 +13,9 @@
 #include "vtkmlib/ArrayConverters.h"
 #include "vtkmlib/PolyDataConverter.h"
 
-#include "vtkmFilterPolicy.h"
-
 #include "vtkm/filter/vector_analysis/SurfaceNormals.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkmTriangleMeshPointNormals);
 
 //------------------------------------------------------------------------------
@@ -109,3 +96,4 @@ int vtkmTriangleMeshPointNormals::RequestData(
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOverlappingAMR.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOverlappingAMR.h"
 #include "vtkAMRInformation.h"
 #include "vtkCellData.h"
@@ -23,6 +11,7 @@
 #include "vtkUnsignedCharArray.h"
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOverlappingAMR);
 
 vtkInformationKeyMacro(vtkOverlappingAMR, NUMBER_OF_BLANKED_POINTS, IdType);
@@ -246,3 +235,4 @@ bool vtkOverlappingAMR::FindGrid(double q[3], unsigned int& level, unsigned int&
 {
   return this->AMRInfo->FindGrid(q, level, gridId);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHyperTreeGridLocator.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkHyperTreeGridLocator
  * @brief abstract base class for objects that implement accelerated searches through HyperTree
@@ -39,6 +27,8 @@
 #include "vtkObject.h"
 #include "vtkWeakPointer.h" //For HTG member
 
+VTK_ABI_NAMESPACE_BEGIN
+
 class vtkHyperTreeGrid;
 class vtkPoints;
 class vtkIdList;
@@ -61,7 +51,7 @@ public:
    * Initialize or reinitialize the locator (setting or re-setting clean objects in memory)
    * (Does nothing)
    */
-  virtual void Initialize(){};
+  virtual void Initialize() {}
 
   /**
    * Update the locator's internal variables with respect to changes that could have happened
@@ -86,8 +76,8 @@ public:
    * @param[out] weights interpolation weights of the sought point in the cell
    * @return the global index of the cell holding the point (-1 if no cell is found or masked)
    */
-  virtual vtkIdType FindCell(const double point[3], const double tol, vtkGenericCell* cell,
-    int& subId, double pcoords[3], double* weights) = 0;
+  virtual vtkIdType FindCell(const double point[3], double tol, vtkGenericCell* cell, int& subId,
+    double pcoords[3], double* weights) = 0;
 
   /**
    * Pure virtual. Find first intersection of the line defined by (p0, p1) with the HTG
@@ -102,7 +92,7 @@ public:
    * @param[out] cell pointer to a vtkCell object corresponding to cellId
    * @return an integer with 0 if no intersection could be found
    */
-  virtual int IntersectWithLine(const double p0[3], const double p1[3], const double tol, double& t,
+  virtual int IntersectWithLine(const double p0[3], const double p1[3], double tol, double& t,
     double x[3], double pcoords[3], int& subId, vtkIdType& cellId, vtkGenericCell* cell) = 0;
 
   /**
@@ -115,7 +105,7 @@ public:
    * @param[out] cell pointer to a vtkCell object corresponding to the last cellId found
    * @return an integer with 0 if no intersection could be found
    */
-  virtual int IntersectWithLine(const double p0[3], const double p1[3], const double tol,
+  virtual int IntersectWithLine(const double p0[3], const double p1[3], double tol,
     vtkPoints* points, vtkIdList* cellIds, vtkGenericCell* cell) = 0;
 
   ///@{
@@ -148,4 +138,5 @@ private:
 
 }; // vtkHyperTreeGridLocator
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHyperTreeGridLocator_h

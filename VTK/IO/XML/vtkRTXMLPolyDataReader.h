@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRTXMLPolyDataReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRTXMLPolyDataReader
  * @brief   Read RealTime VTK XML PolyData files.
@@ -26,6 +14,7 @@
 #include "vtkIOXMLModule.h" // For export macro
 #include "vtkXMLPolyDataReader.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkRTXMLPolyDataReaderInternals;
 
 class VTKIOXML_EXPORT vtkRTXMLPolyDataReader : public vtkXMLPolyDataReader
@@ -97,4 +86,5 @@ private:
   void operator=(const vtkRTXMLPolyDataReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

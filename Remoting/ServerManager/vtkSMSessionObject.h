@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMSessionObject.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMSessionObject
  * @brief   superclass for any server manager classes
@@ -37,14 +25,14 @@ public:
   vtkTypeMacro(vtkSMSessionObject, vtkSMObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Get/Set the session on wihch this object exists.
    * Note that session is not reference counted.
    */
   virtual void SetSession(vtkSMSession*);
   virtual vtkSMSession* GetSession();
-  //@}
+  ///@}
 
   /**
    * Return the corresponding ProxyManager if any.

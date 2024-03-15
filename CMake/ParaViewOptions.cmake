@@ -39,7 +39,7 @@ set(PARAVIEW_BUILD_TESTING "OFF"
   CACHE STRING "Enable testing")
 set_property(CACHE PARAVIEW_BUILD_TESTING
   PROPERTY
-    STRINGS "ON;OFF;WANT")
+    STRINGS "ON;OFF;WANT;DEFAULT")
 
 cmake_dependent_option(PARAVIEW_BUILD_VTK_TESTING "Enable VTK testing" OFF
   "PARAVIEW_BUILD_TESTING" OFF)
@@ -118,6 +118,9 @@ endif ()
 
 option(PARAVIEW_ENABLE_OPENVDB  "Enable the OpenVDB Writer" OFF)
 
+option(PARAVIEW_GENERATE_SPDX  "Generate SPDX file for each module." OFF)
+mark_as_advanced(PARAVIEW_GENERATE_SPDX)
+
 # Add option to disable Fortran
 if (NOT WIN32)
   include(CheckFortran)
@@ -193,9 +196,13 @@ cmake_dependent_option(PARAVIEW_ENABLE_WEB "Enable/Disable web support" "${parav
 # NvPipe requires an NVIDIA GPU.
 option(PARAVIEW_ENABLE_NVPIPE "Build ParaView with NvPipe remoting. Requires CUDA and an NVIDIA GPU" OFF)
 
+option(PARAVIEW_ENABLE_ALEMBIC "Enable Alembic support." OFF)
+
 option(PARAVIEW_ENABLE_GDAL "Enable GDAL support." OFF)
 
 option(PARAVIEW_ENABLE_LAS "Enable LAS support." OFF)
+
+option(PARAVIEW_ENABLE_GEOVIS "Enable GeoVis support." OFF)
 
 option(PARAVIEW_ENABLE_OPENTURNS "Enable OpenTURNS support." OFF)
 
@@ -225,6 +232,14 @@ option(PARAVIEW_ENABLE_ADIOS2 "Enable ADIOS 2.x support." OFF)
 option(PARAVIEW_ENABLE_FIDES "Enable Fides support." OFF)
 
 option(PARAVIEW_ENABLE_FFMPEG "Enable FFMPEG Support." OFF)
+
+option(PARAVIEW_ENABLE_OCCT "Enable OCCT Support." OFF)
+
+option(PARAVIEW_BUILD_TRANSLATIONS "Generate translation files" OFF)
+if (PARAVIEW_BUILD_TRANSLATIONS)
+  set(PARAVIEW_TRANSLATIONS_DIRECTORY "${CMAKE_BINARY_DIR}/Translations" CACHE STRING
+    "The directory containing translation files")
+endif()
 
 # If building on Unix with MPI enabled, we will present another option to
 # enable building of CosmoTools VTK extensions. This option is by default
@@ -259,6 +274,20 @@ cmake_dependent_option(PARAVIEW_INITIALIZE_MPI_ON_CLIENT
   "Initialize MPI on client-processes by default. Can be overridden using command line arguments" ON
   "PARAVIEW_USE_MPI" OFF)
 mark_as_advanced(PARAVIEW_INITIALIZE_MPI_ON_CLIENT)
+
+set(PARAVIEW_LOGGING_TIME_PRECISION "3"
+  CACHE STRING "Precision of loguru scope timers. 3=ms, 6=us, 9=ns")
+mark_as_advanced(PARAVIEW_LOGGING_TIME_PRECISION)
+set(known_logging_precisions 3 6 9)
+set_property(CACHE PARAVIEW_LOGGING_TIME_PRECISION
+  PROPERTY
+    STRINGS ${known_logging_precisions})
+if (NOT PARAVIEW_LOGGING_TIME_PRECISION IN_LIST known_logging_precisions)
+  string(REPLACE ";" ", " known_logging_precisions_list "${known_logging_precisions}")
+  message(FATAL_ERROR
+    "`PARAVIEW_LOGGING_TIME_PRECISION` must be one of "
+    "${known_logging_precisions_list}; given '${PARAVIEW_LOGGING_TIME_PRECISION}'")
+endif ()
 
 #========================================================================
 # OBSOLETE OPTIONS: mark obsolete settings
@@ -343,6 +372,11 @@ paraview_require_module(
             VTK::mpi
   EXCLUSIVE)
 
+paraview_require_module(
+  CONDITION PARAVIEW_USE_MPI AND PARAVIEW_ENABLE_RENDERING
+  MODULES   VTK::RenderingParallelLIC
+  EXCLUSIVE)
+
 # ensures VTK::Python module is rejected when Python is not enabled.
 paraview_require_module(
   CONDITION PARAVIEW_USE_PYTHON
@@ -365,8 +399,18 @@ paraview_require_module(
   EXCLUSIVE)
 
 paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_RAYTRACING AND VTK_ENABLE_OSPRAY
+  MODULES   ParaView::VTKExtensionsShaderBall
+  EXCLUSIVE)
+
+paraview_require_module(
   CONDITION PARAVIEW_ENABLE_NVPIPE
   MODULES   ParaView::nvpipe
+  EXCLUSIVE)
+
+paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_ALEMBIC
+  MODULES   VTK::IOAlembic
   EXCLUSIVE)
 
 paraview_require_module(
@@ -377,6 +421,11 @@ paraview_require_module(
 paraview_require_module(
   CONDITION PARAVIEW_ENABLE_LAS
   MODULES   VTK::IOLAS
+  EXCLUSIVE)
+
+paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_GEOVIS
+  MODULES   VTK::GeovisCore
   EXCLUSIVE)
 
 paraview_require_module(
@@ -467,6 +516,11 @@ paraview_require_module(
   EXCLUSIVE)
 
 paraview_require_module(
+  CONDITION PARAVIEW_ENABLE_OCCT
+  MODULES   VTK::IOOCCT
+  EXCLUSIVE)
+
+paraview_require_module(
   CONDITION PARAVIEW_BUILD_CANONICAL
   MODULES ParaView::VTKExtensionsFiltersGeneral
           VTK::DomainsChemistry
@@ -486,6 +540,7 @@ paraview_require_module(
           VTK::FiltersParallelVerdict
           VTK::FiltersSources
           VTK::FiltersStatistics
+          VTK::FiltersTensor
           VTK::FiltersTexture
           VTK::FiltersVerdict
           VTK::ImagingCore
@@ -510,6 +565,7 @@ paraview_require_module(
   MODULES   VTK::IOAMR
             VTK::IOCityGML
             VTK::IOCONVERGECFD
+            VTK::IOFDS
             VTK::IOIOSS
             VTK::IOH5part
             VTK::IOH5Rage
@@ -523,7 +579,8 @@ paraview_require_module(
             VTK::IOSegY
             VTK::IOTRUCHAS
             VTK::IOVeraOut
-            VTK::IOTecplotTable)
+            VTK::IOTecplotTable
+            VTK::IOFLUENTCFF)
 
 paraview_require_module(
   CONDITION PARAVIEW_ENABLE_RENDERING AND PARAVIEW_BUILD_CANONICAL
@@ -597,6 +654,7 @@ if (NOT PARAVIEW_ENABLE_NONESSENTIAL)
   endfunction ()
 
   _paraview_io_option_conflict(PARAVIEW_ENABLE_ADIOS2 "ADIOS 2.x")
+  _paraview_io_option_conflict(PARAVIEW_ENABLE_ALEMBIC Alembic)
   _paraview_io_option_conflict(PARAVIEW_ENABLE_FFMPEG FFmpeg)
   _paraview_io_option_conflict(PARAVIEW_ENABLE_FIDES Fides)
   _paraview_io_option_conflict(PARAVIEW_ENABLE_GDAL GDAL)

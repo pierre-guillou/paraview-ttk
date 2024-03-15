@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTextureObject.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTextureObject
  * @brief   abstracts an OpenGL texture object.
@@ -28,6 +16,7 @@
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkWeakPointer.h"            // for render context
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLBufferObject;
 class vtkOpenGLHelper;
 class vtkOpenGLRenderWindow;
@@ -219,6 +208,15 @@ public:
     unsigned int numValues, int numComps, int dataType, vtkOpenGLBufferObject* bo);
 
   /**
+   * Emulates a texture buffer with 2D texture. Useful if hardware doesn't support texture buffers.
+   * Shader program that use this sampler will need to account for the change in indexing scheme.
+   * When VTK is compiled with GLES support, `vtkOpenGLShaderCache::ReplaceShaderValues()`
+   * patches the shader code to ensure all uses of 1D texture buffers work as usual.
+   */
+  bool EmulateTextureBufferWith2DTextures(
+    unsigned int numValues, int numComps, int dataType, vtkOpenGLBufferObject* bo);
+
+  /**
    * Create a cube texture from 6 buffers from client memory.
    * Image data must be provided in the following order: +X -X +Y -Y +Z -Z.
    * numComps must be in [1-4].
@@ -274,8 +272,8 @@ public:
    * of the texture to be created is supported by the implementation and that
    * there is sufficient texture memory available for it.
    */
-  bool AllocateProxyTexture3D(unsigned int const width, unsigned int const height,
-    unsigned int const depth, int const numComps, int const dataType);
+  bool AllocateProxyTexture3D(
+    unsigned int width, unsigned int height, unsigned int depth, int numComps, int dataType);
 
   /**
    * This is used to download raw data from the texture into a pixel buffer. The
@@ -643,16 +641,16 @@ public:
    * for optional extensions are set then the test fails when support
    * for them is not found.
    */
-  static bool IsSupported(vtkOpenGLRenderWindow*, bool /* requireTexFloat */,
-    bool /* requireDepthFloat */, bool /* requireTexInt */)
-  {
-    return true;
-  }
+  static bool IsSupported(vtkOpenGLRenderWindow* renWin, bool requireTexFloat,
+    bool requireDepthFloat, bool requireTexInt);
 
   /**
    * Check for feature support, without any optional features.
    */
-  static bool IsSupported(vtkOpenGLRenderWindow*) { return true; }
+  static bool IsSupported(vtkOpenGLRenderWindow* renWin)
+  {
+    return vtkTextureObject::IsSupported(renWin, false, false, false);
+  }
 
   ///@{
   /**
@@ -735,6 +733,11 @@ protected:
   vtkGenericOpenGLResourceFreeCallback* ResourceCallback;
 
   /**
+   * Load all necessary extensions.
+   */
+  bool LoadRequiredExtensions(vtkOpenGLRenderWindow* renWin);
+
+  /**
    * Creates a texture handle if not already created.
    */
   void CreateTexture();
@@ -800,4 +803,5 @@ private:
   void operator=(const vtkTextureObject&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

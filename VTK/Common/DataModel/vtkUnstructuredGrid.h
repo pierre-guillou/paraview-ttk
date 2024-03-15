@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkUnstructuredGrid.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUnstructuredGrid
  * @brief   dataset represents arbitrary combinations of
@@ -37,8 +25,8 @@
 
 #include "vtkSmartPointer.h" // for smart pointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
-class vtkAbstractCellLinks;
 class vtkBezierCurve;
 class vtkBezierQuadrilateral;
 class vtkBezierHexahedron;
@@ -278,6 +266,12 @@ public:
   int GetMaxCellSize() override;
 
   /**
+   * Get the maximum spatial dimensionality of the data
+   * which is the maximum dimension of all cells.
+   */
+  int GetMaxSpatialDimension() override;
+
+  /**
    * Build topological links from points to lists of cells that use each point.
    * See vtkAbstractCellLinks for more information.
    */
@@ -298,6 +292,7 @@ public:
    * vtkStaticCellLinksTemplate<VTK_ID_TYPE>=4.  (See enum types defined in
    * vtkAbstractCellLinks.)
    */
+  VTK_DEPRECATED_IN_9_3_0("Use GetLinks() instead.")
   vtkAbstractCellLinks* GetCellLinks();
 
   /**
@@ -362,13 +357,23 @@ public:
    * a boundary entity of a specified cell (indicated by cellId). A boundary
    * entity is a topological feature used by exactly one cell. This method is
    * related to GetCellNeighbors() except that it simply indicates whether a
-   * topological feature is boundary - hence the method is faster. CellIds in the
-   * second version are used as a temp buffer to avoid allocation internally, and
-   * it's faster. THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A
+   * topological feature is boundary - hence the method is faster.
+   * THIS METHOD IS THREAD SAFE IF FIRST CALLED FROM A
    * SINGLE THREAD AND THE DATASET IS NOT MODIFIED.
    */
-  bool IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds);
-  bool IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* cellIds);
+  bool IsCellBoundary(
+    vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdType& neighborCellId);
+  bool IsCellBoundary(vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds)
+  {
+    vtkIdType neighborCellId;
+    return this->IsCellBoundary(cellId, npts, ptIds, neighborCellId);
+  }
+  VTK_DEPRECATED_IN_9_3_0("Use the overload that doesn't take a vtkIdList instead.")
+  bool IsCellBoundary(
+    vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* vtkNotUsed(cellIds))
+  {
+    return this->IsCellBoundary(cellId, npts, ptIds);
+  }
   ///@}
 
   ///@{
@@ -559,6 +564,8 @@ protected:
   vtkUnstructuredGrid();
   ~vtkUnstructuredGrid() override;
 
+  void ReportReferences(vtkGarbageCollector*) override;
+
   // These are all the cells that vtkUnstructuredGrid can represent. Used by
   // GetCell() (and similar) methods.
   vtkVertex* Vertex;
@@ -656,4 +663,5 @@ private:
   void Cleanup();
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

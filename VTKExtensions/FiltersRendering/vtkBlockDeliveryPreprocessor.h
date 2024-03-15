@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkBlockDeliveryPreprocessor.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class vtkBlockDeliveryPreprocessor
  * @brief prepares data for certain table-based representations
@@ -43,24 +31,24 @@ public:
   vtkTypeMacro(vtkBlockDeliveryPreprocessor, vtkDataObjectAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * In case of Composite datasets, set the flat index of the subtree to pass.
    * Default or empty results in passing the entire composite tree.
    */
   void AddCompositeDataSetIndex(unsigned int index);
   void RemoveAllCompositeDataSetIndices();
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Allow user to enable/disable cell connectivity generation in the datamodel
    */
   vtkSetMacro(GenerateCellConnectivity, bool);
   vtkGetMacro(GenerateCellConnectivity, bool);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Select the attribute type. Accepted values are
    * \li vtkDataObject::FIELD_ASSOCIATION_POINTS,
@@ -74,18 +62,18 @@ public:
    */
   vtkSetMacro(FieldAssociation, int);
   vtkGetMacro(FieldAssociation, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Flatten the table, i.e. split any multicomponent columns into separate
    * components, internally the vtkSplitColumnComponents filter is used.
    */
   vtkSetMacro(FlattenTable, int);
   vtkGetMacro(FlattenTable, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Corresponds to `vtkSplitColumnComponents::NamingMode`. Pick which mode to
    * use to name arrays when `FlattenTable` is true. Default is
@@ -94,9 +82,9 @@ public:
   vtkSetClampMacro(SplitComponentsNamingMode, int, vtkSplitColumnComponents::NUMBERS_WITH_PARENS,
     vtkSplitColumnComponents::NAMES_WITH_UNDERSCORES);
   vtkGetMacro(SplitComponentsNamingMode, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * When set (default) the vtkOriginalIndices array will be added to the
    * output. Can be overridden by setting this flag to 0.
@@ -104,7 +92,7 @@ public:
    */
   vtkSetMacro(GenerateOriginalIds, bool);
   vtkGetMacro(GenerateOriginalIds, bool);
-  //@}
+  ///@}
 
 protected:
   vtkBlockDeliveryPreprocessor();

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractSelectedTree.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkExtractSelectedTree
  * @brief   return a subtree from a vtkTree
@@ -21,7 +9,7 @@
  * input 1 --- a vtkSelection, containing selected vertices. It may have
  * FILED_type set to POINTS ( a vertex selection) or CELLS (an edge selection).
  * A vertex selection preserves the edges that connect selected vertices.
- * An edge selection perserves the vertices that are adjacent to at least one
+ * An edge selection preserves the vertices that are adjacent to at least one
  * selected edges.
  */
 
@@ -31,6 +19,7 @@
 #include "vtkInfovisCoreModule.h" // For export macro
 #include "vtkTreeAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkTree;
 class vtkIdTypeArray;
 class vtkMutableDirectedGraph;
@@ -62,4 +51,5 @@ private:
   void operator=(const vtkExtractSelectedTree&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

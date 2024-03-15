@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHDRReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkHDRReader.h"
 
 #include "vtkImageData.h"
@@ -26,6 +14,7 @@
 
 #include <sstream>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHDRReader);
 
 #define HDR_DATA_SIZE 3
@@ -657,3 +646,4 @@ void vtkHDRReader::XYZ2RGB(const float convertMatrix[3][3], float& r, float& g, 
   g = convertMatrix[1][0] * x + convertMatrix[1][1] * y + convertMatrix[1][2] * z;
   b = convertMatrix[2][0] * x + convertMatrix[2][1] * y + convertMatrix[2][2] * z;
 }
+VTK_ABI_NAMESPACE_END

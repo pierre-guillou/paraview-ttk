@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkCesiumPointCloudWriter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkCesiumPointCloudWriter
  * @brief   export a vtkPointSet into a Cesium Point Cloud tile format
@@ -24,6 +12,8 @@
 #include "vtkIOCesium3DTilesModule.h" // For export macro
 #include "vtkIdList.h"
 #include "vtkWriter.h"
+
+VTK_ABI_NAMESPACE_BEGIN
 
 class VTKIOCESIUM3DTILES_EXPORT vtkCesiumPointCloudWriter : public vtkWriter
 {
@@ -63,5 +53,6 @@ private:
   void operator=(const vtkCesiumPointCloudWriter&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif
 // VTK-HeaderTest-Exclude: vtkCesiumPointCloudWriter.h

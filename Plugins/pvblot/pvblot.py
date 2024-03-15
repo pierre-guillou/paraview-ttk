@@ -1,30 +1,12 @@
+# SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+# SPDX-FileCopyrightText: Copyright 2009 Sandia Corporation
+# SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 r"""
 
 An interpreter that provides blot-like syntax and functionality.  To run
 the interpreter simply call the start function.
 
 """
-
-#==============================================================================
-#
-#  Program:   ParaView
-#  Module:    pvblot.py
-#
-#  Copyright (c) Kitware, Inc.
-#  All rights reserved.
-#  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-#
-#     This software is distributed WITHOUT ANY WARRANTY; without even
-#     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-#     PURPOSE.  See the above copyright notice for more information.
-#
-#==============================================================================
-
-#-------------------------------------------------------------------------
-# Copyright 2009 Sandia Corporation.
-# Under the terms of Contract DE-AC04-94AL85000 with Sandia Corporation,
-# the U.S. Government retains certain rights in this software.
-#-------------------------------------------------------------------------
 
 import cmd
 import inspect
@@ -147,7 +129,7 @@ class _PVBlotInterp(cmd.Cmd):
         # Update the prompt, some commands cause the prompt to change
         self.prompt = blotish._get_prompt()
         return ret
-      
+
     def emptyline(self):
         """If an object is waiting for asynchronous input pass it the empty string"""
         self.handle_async_input("")
@@ -247,7 +229,7 @@ def execute_file(filename):
         if interpreter._error_flag: break
     blotish._set_interactive(True)
     return exit_flag
-        
+
 
 
 def start(data_file, script_file=None):

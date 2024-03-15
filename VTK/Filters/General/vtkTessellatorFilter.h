@@ -1,17 +1,6 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkTessellatorFilter.h
-Language:  C++
-
-Copyright 2003 Sandia Corporation.
-Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-license for use of this work by or on behalf of the
-U.S. Government. Redistribution and use in source and binary forms, with
-or without modification, are permitted provided that this Notice and any
-statement of authorship are reproduced on all copies.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2003 Sandia Corporation
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-NVIDIA-USGov
 #ifndef vtkTessellatorFilter_h
 #define vtkTessellatorFilter_h
 
@@ -56,6 +45,7 @@ statement of authorship are reproduced on all copies.
 #include "vtkFiltersGeneralModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArray;
 class vtkDataSet;
 class vtkDataSetEdgeSubdivisionCriterion;
@@ -202,4 +192,5 @@ inline int vtkTessellatorFilter::GetOutputDimension() const
 }
 #endif
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkTessellatorFilter_h

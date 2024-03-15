@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkAMRBaseParticlesReader.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkAMRBaseParticlesReader.h"
 #include "vtkCallbackCommand.h"
 #include "vtkDataArraySelection.h"
@@ -24,6 +12,7 @@
 
 #include <cassert>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkCxxSetObjectMacro(vtkAMRBaseParticlesReader, Controller, vtkMultiProcessController);
 
 vtkAMRBaseParticlesReader::vtkAMRBaseParticlesReader()
@@ -170,7 +159,7 @@ bool vtkAMRBaseParticlesReader::IsParallel()
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMRBaseParticlesReader::IsBlockMine(const int blkIdx)
+bool vtkAMRBaseParticlesReader::IsBlockMine(int blkIdx)
 {
   if (!this->IsParallel())
   {
@@ -182,7 +171,7 @@ bool vtkAMRBaseParticlesReader::IsBlockMine(const int blkIdx)
 }
 
 //------------------------------------------------------------------------------
-int vtkAMRBaseParticlesReader::GetBlockProcessId(const int blkIdx)
+int vtkAMRBaseParticlesReader::GetBlockProcessId(int blkIdx)
 {
   if (!this->IsParallel())
   {
@@ -194,7 +183,7 @@ int vtkAMRBaseParticlesReader::GetBlockProcessId(const int blkIdx)
 }
 
 //------------------------------------------------------------------------------
-bool vtkAMRBaseParticlesReader::CheckLocation(const double x, const double y, const double z)
+bool vtkAMRBaseParticlesReader::CheckLocation(double x, double y, double z)
 {
   if (!this->FilterLocation)
   {
@@ -257,3 +246,4 @@ int vtkAMRBaseParticlesReader::RequestData(vtkInformation* vtkNotUsed(request),
 
   return 1;
 }
+VTK_ABI_NAMESPACE_END

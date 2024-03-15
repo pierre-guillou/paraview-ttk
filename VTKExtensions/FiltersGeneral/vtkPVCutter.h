@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVCutter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVCutter
  * @brief   Slice Filter
@@ -43,7 +31,7 @@ public:
    */
   vtkGetMacro(Dual, bool);
   vtkSetMacro(Dual, bool);
-  //@}
+  ///@}
 
 protected:
   vtkPVCutter();
@@ -54,6 +42,8 @@ protected:
   virtual int RequestDataObject(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
   int FillInputPortInformation(int, vtkInformation* info) override;
   int FillOutputPortInformation(int, vtkInformation* info) override;
+
+  int CutUsingSuperclassInstance(vtkInformation*, vtkInformationVector**, vtkInformationVector*);
 
   bool Dual = false;
   vtkNew<vtkPVPlaneCutter> PlaneCutter;

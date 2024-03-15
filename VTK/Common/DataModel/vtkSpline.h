@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSpline.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpline
  * @brief   spline abstract class for interpolating splines
@@ -57,6 +45,7 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkObject.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPiecewiseFunction;
 
 class VTKCOMMONDATAMODEL_EXPORT vtkSpline : public vtkObject
@@ -106,6 +95,16 @@ public:
    * Add a pair of points to be fit with the spline.
    */
   void AddPoint(double t, double x);
+
+  /**
+   * Add all the points to the list of points in one time,
+   * and then sort them only once. Much faster than using
+   * AddPoint for each point.
+   *
+   * Note that the data is copied and this method does not
+   * take ownership of the parameter array.
+   */
+  void FillFromDataPointer(int nb, double* data);
 
   /**
    * Remove a point from the data to be fit with the spline.
@@ -200,4 +199,5 @@ private:
   void operator=(const vtkSpline&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

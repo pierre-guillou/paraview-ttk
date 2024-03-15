@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:  pqVRDockPanel.cxx
-
-   Copyright (c) 2005,2006 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqVRDockPanel.h"
 #include "ui_pqVRDockPanel.h"
 
@@ -37,6 +9,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pqCoreUtilities.h"
 #include "pqFileDialog.h"
 #include "pqLoadStateReaction.h"
+#include "pqProxyWidget.h"
 #include "pqRenderView.h"
 #include "pqSaveStateReaction.h"
 #include "pqServerManagerModel.h"
@@ -60,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
 #include "vtkSMRenderViewProxy.h"
-#include "vtkVRInteractorStyle.h"
+#include "vtkSMVRInteractorStyleProxy.h"
 #include "vtkVRInteractorStyleFactory.h"
 #include "vtkWeakPointer.h"
 
@@ -77,18 +50,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 class pqVRDockPanel::pqInternals : public Ui::VRDockPanel
 {
 public:
-  QString createName(vtkVRInteractorStyle*);
+  QString createName(vtkSMVRInteractorStyleProxy*);
 
   bool IsRunning;
 
   vtkWeakPointer<vtkCamera> Camera;
-  QMap<QString, vtkVRInteractorStyle*> StyleNameMap;
+  QMap<QString, vtkSMVRInteractorStyleProxy*> StyleNameMap;
 };
 
 //-----------------------------------------------------------------------------
 void pqVRDockPanel::constructor()
 {
-  this->setWindowTitle("VR Panel");
+  this->setWindowTitle("CAVE Interaction Manager");
   QWidget* container = new QWidget(this);
   this->Internals = new pqInternals();
   this->Internals->setupUi(container);
@@ -97,18 +70,13 @@ void pqVRDockPanel::constructor()
   this->Internals->IsRunning = false;
   this->updateStartStopButtonStates();
 
-  QFont font = this->Internals->debugLabel->font();
-  font.setFamily("Courier");
-  this->Internals->debugLabel->setFont(font);
+  this->Internals->stylePropertiesLabel->hide();
 
   this->Internals->propertyCombo->setCollapseVectors(true);
 
   vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
-  std::vector<std::string> styleDescs = styleFactory->GetInteractorStyleDescriptions();
-  for (size_t i = 0; i < styleDescs.size(); ++i)
-  {
-    this->Internals->stylesCombo->addItem(QString::fromStdString(styleDescs[i]));
-  }
+  styleFactory->AddObserver(
+    vtkVRInteractorStyleFactory::INTERACTOR_STYLES_UPDATED, this, &pqVRDockPanel::initStyles);
 
   // Connections
   connect(this->Internals->addConnection, SIGNAL(clicked()), this, SLOT(addConnection()));
@@ -151,9 +119,6 @@ void pqVRDockPanel::constructor()
   connect(this->Internals->proxyCombo, SIGNAL(currentProxyChanged(vtkSMProxy*)), this,
     SLOT(proxyChanged(vtkSMProxy*)));
 
-  connect(this->Internals->stylesCombo, SIGNAL(currentIndexChanged(QString)), this,
-    SLOT(styleComboChanged(QString)));
-
   connect(this->Internals->saveState, SIGNAL(clicked()), this, SLOT(saveState()));
 
   connect(this->Internals->restoreState, SIGNAL(clicked()), this, SLOT(restoreState()));
@@ -162,7 +127,6 @@ void pqVRDockPanel::constructor()
 
   connect(this->Internals->stopButton, SIGNAL(clicked()), this, SLOT(stop()));
 
-  this->styleComboChanged(this->Internals->stylesCombo->currentText());
   this->updateConnectionButtons(this->Internals->connectionsTable->currentRow());
   this->updateStyleButtons(this->Internals->stylesTable->currentRow());
 
@@ -182,6 +146,21 @@ pqVRDockPanel::~pqVRDockPanel()
     this->stop();
   }
   delete this->Internals;
+}
+
+//-----------------------------------------------------------------------------
+void pqVRDockPanel::initStyles()
+{
+  vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
+  std::vector<std::string> styleDescs = styleFactory->GetInteractorStyleDescriptions();
+  this->Internals->stylesCombo->clear();
+  for (size_t i = 0; i < styleDescs.size(); ++i)
+  {
+    this->Internals->stylesCombo->addItem(QString::fromStdString(styleDescs[i]));
+  }
+
+  connect(this->Internals->stylesCombo, SIGNAL(currentIndexChanged(QString)), this,
+    SLOT(styleComboChanged(QString)), Qt::UniqueConnection);
 }
 
 //-----------------------------------------------------------------------------
@@ -326,16 +305,20 @@ void pqVRDockPanel::addStyle()
   QString styleString = this->Internals->stylesCombo->currentText();
 
   vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
-  vtkVRInteractorStyle* style =
+  vtkSMVRInteractorStyleProxy* style =
     styleFactory->NewInteractorStyleFromDescription(styleString.toStdString());
 
   if (!style)
   {
+    vtkWarningWithObjectMacro(nullptr, "Unable to add style " << styleString.toStdString());
     return;
   }
 
   style->SetControlledProxy(proxy);
   style->SetControlledPropertyName(property.data());
+
+  style->AddObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_REQUEST_CONFIGURE, this,
+    &pqVRDockPanel::configureStyle);
 
   pqVRAddStyleDialog dialog(this);
   QString name = this->Internals->createName(style);
@@ -352,6 +335,20 @@ void pqVRDockPanel::addStyle()
 }
 
 //-----------------------------------------------------------------------------
+void pqVRDockPanel::configureStyle(vtkObject* caller, unsigned long, void*)
+{
+  vtkSMVRInteractorStyleProxy* styleProxy = vtkSMVRInteractorStyleProxy::SafeDownCast(caller);
+
+  pqVRAddStyleDialog dialog(this);
+  QString name = this->Internals->createName(styleProxy);
+  dialog.setInteractorStyle(styleProxy, name);
+  if (!dialog.isConfigurable() || dialog.exec() == QDialog::Accepted)
+  {
+    dialog.updateInteractorStyle();
+  }
+}
+
+//-----------------------------------------------------------------------------
 void pqVRDockPanel::removeStyle()
 {
   QListWidgetItem* item = this->Internals->stylesTable->currentItem();
@@ -361,7 +358,7 @@ void pqVRDockPanel::removeStyle()
   }
   QString name = item->text();
 
-  vtkVRInteractorStyle* style = this->Internals->StyleNameMap.value(name, nullptr);
+  vtkSMVRInteractorStyleProxy* style = this->Internals->StyleNameMap.value(name, nullptr);
   if (!style)
   {
     return;
@@ -376,11 +373,17 @@ void pqVRDockPanel::updateStyles()
   this->Internals->StyleNameMap.clear();
   this->Internals->stylesTable->clear();
 
-  Q_FOREACH (vtkVRInteractorStyle* style, pqVRQueueHandler::instance()->styles())
+  Q_FOREACH (vtkSMVRInteractorStyleProxy* style, pqVRQueueHandler::instance()->styles())
   {
     QString name = this->Internals->createName(style);
     this->Internals->StyleNameMap.insert(name, style);
     this->Internals->stylesTable->addItem(name);
+
+    if (!style->HasObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_REQUEST_CONFIGURE))
+    {
+      style->AddObserver(vtkSMVRInteractorStyleProxy::INTERACTOR_STYLE_REQUEST_CONFIGURE, this,
+        &pqVRDockPanel::configureStyle);
+    }
   }
 }
 
@@ -399,7 +402,7 @@ void pqVRDockPanel::editStyle(QListWidgetItem* item)
 
   pqVRAddStyleDialog dialog(this);
   QString name = item->text();
-  vtkVRInteractorStyle* style = this->Internals->StyleNameMap.value(name, nullptr);
+  vtkSMVRInteractorStyleProxy* style = this->Internals->StyleNameMap.value(name, nullptr);
   if (!style)
   {
     return;
@@ -418,6 +421,44 @@ void pqVRDockPanel::updateStyleButtons(int row)
   bool enabled = (row >= 0);
   this->Internals->editStyle->setEnabled(enabled);
   this->Internals->removeStyle->setEnabled(enabled);
+
+  // Remove the existing proxy widget
+  pqProxyWidget* proxyWidget = this->widget()->findChild<pqProxyWidget*>();
+  if (proxyWidget)
+  {
+    proxyWidget->parentWidget()->layout()->removeWidget(proxyWidget);
+    proxyWidget->deleteLater();
+    this->Internals->stylePropertiesLabel->hide();
+  }
+
+  if (enabled)
+  {
+    QListWidgetItem* item = this->Internals->stylesTable->currentItem();
+    QString name = item->text();
+    vtkSMVRInteractorStyleProxy* style = this->Internals->StyleNameMap.value(name, nullptr);
+
+    QString propertiesLabelText = "Properties (";
+    propertiesLabelText.append(name);
+    propertiesLabelText.append("):");
+    this->Internals->stylePropertiesLabel->setText(propertiesLabelText);
+    this->Internals->stylePropertiesLabel->show();
+
+    if (!style)
+    {
+      vtkWarningWithObjectMacro(
+        nullptr, "Unable to create proxy widget, no style with name " << name.toStdString());
+      return;
+    }
+
+    proxyWidget = new pqProxyWidget(style, this);
+    proxyWidget->setApplyChangesImmediately(true);
+    QGridLayout* layout = qobject_cast<QGridLayout*>(this->widget()->layout());
+    QVBoxLayout* propertiesLayout = layout->findChild<QVBoxLayout*>("stylePropertiesLayout");
+    if (propertiesLayout)
+    {
+      propertiesLayout->addWidget(proxyWidget);
+    }
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -430,7 +471,8 @@ void pqVRDockPanel::proxyChanged(vtkSMProxy* pxy)
 void pqVRDockPanel::styleComboChanged(const QString& name)
 {
   vtkVRInteractorStyleFactory* styleFactory = vtkVRInteractorStyleFactory::GetInstance();
-  vtkVRInteractorStyle* style = styleFactory->NewInteractorStyleFromDescription(name.toStdString());
+  vtkSMVRInteractorStyleProxy* style =
+    styleFactory->NewInteractorStyleFromDescription(name.toStdString());
   int size = style ? style->GetControlledPropertySize() : -1;
   if (style)
   {
@@ -458,29 +500,14 @@ void pqVRDockPanel::setActiveView(pqView* view)
   {
     this->Internals->proxyCombo->addProxy(0, rview->getSMName(), rview->getProxy());
   }
-
-  this->Internals->Camera = nullptr;
-  if (rview)
-  {
-    vtkSMRenderViewProxy* renPxy = rview->getRenderViewProxy();
-    if (renPxy)
-    {
-      this->Internals->Camera = renPxy->GetActiveCamera();
-      if (this->Internals->Camera)
-      {
-        pqCoreUtilities::connect(
-          this->Internals->Camera, vtkCommand::ModifiedEvent, this, SLOT(updateDebugLabel()));
-      }
-    }
-  }
-  this->updateDebugLabel();
 }
 
 //-----------------------------------------------------------------------------
 void pqVRDockPanel::saveState()
 {
-  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(), "Save CAVE Interaction template",
-    QString(), "CAVE Interaction template files (*.pvvr)");
+  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(),
+    tr("Save CAVE Interaction template"), QString(),
+    QString("%1 (*.pvvr)").arg(tr("CAVE Interaction template files")), false);
 
   fileDialog.setFileMode(pqFileDialog::AnyFile);
 
@@ -511,8 +538,11 @@ void pqVRDockPanel::saveState()
 //-----------------------------------------------------------------------------
 void pqVRDockPanel::restoreState()
 {
-  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(), "Load CAVE Interaction template",
-    QString(), "CAVE Interaction template files (*.pvvr);;ParaView state files (*.pvsm)");
+  pqFileDialog fileDialog(nullptr, pqCoreUtilities::mainWidget(),
+    tr("Load CAVE Interaction template"), QString(),
+    QString("%1 (*.pvvr);;%2 (*.pvsm)")
+      .arg(tr("CAVE Interaction template files").arg(tr("ParaView state files"))),
+    false);
 
   fileDialog.setFileMode(pqFileDialog::ExistingFile);
 
@@ -610,42 +640,9 @@ void pqVRDockPanel::stop()
 }
 
 //-----------------------------------------------------------------------------
-void pqVRDockPanel::updateDebugLabel()
-{
-  if (this->Internals->Camera)
-  {
-    double* pos = this->Internals->Camera->GetPosition();
-    QString debugString =
-      QString("Camera position: %1 %2 %3\n").arg(pos[0]).arg(pos[1]).arg(pos[2]);
-    vtkMatrix4x4* mv = this->Internals->Camera->GetModelViewTransformMatrix();
-    debugString += "ModelView Matrix:\n";
-    for (int i = 0; i < 4; ++i)
-    {
-      double e0 = mv->GetElement(i, 0);
-      double e1 = mv->GetElement(i, 1);
-      double e2 = mv->GetElement(i, 2);
-      double e3 = mv->GetElement(i, 3);
-      debugString += QString("%1 %2 %3 %4\n")
-                       .arg(fabs(e0) < 1e-5 ? 0.0 : e0, 8, 'g', 3)
-                       .arg(fabs(e1) < 1e-5 ? 0.0 : e1, 8, 'g', 3)
-                       .arg(fabs(e2) < 1e-5 ? 0.0 : e2, 8, 'g', 3)
-                       .arg(fabs(e3) < 1e-5 ? 0.0 : e3, 8, 'g', 3);
-    }
-    // Pop off trailing newline
-    debugString.remove(QRegExp("\n$"));
-    this->Internals->debugLabel->setText(debugString);
-    this->Internals->debugLabel->show();
-  }
-  else
-  {
-    this->Internals->debugLabel->hide();
-  }
-}
-
-//-----------------------------------------------------------------------------
 // createName() -- this method returns the string that will appear in the
 //   "Interactions:" list in the Qt VR Panel for the individual given "*style".
-QString pqVRDockPanel::pqInternals::createName(vtkVRInteractorStyle* style)
+QString pqVRDockPanel::pqInternals::createName(vtkSMVRInteractorStyleProxy* style)
 {
   QString description;  // A one-line description of the interaction (style, object, property)
   QString className;    // The name of the style's VTK class (e.g. vtkVRTrackStyle)

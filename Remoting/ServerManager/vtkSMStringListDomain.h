@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMStringListDomain.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMStringListDomain
  * @brief   list of strings
@@ -83,15 +71,15 @@ public:
    */
   void SetAnimationValue(vtkSMProperty*, int, double) override;
 
-  //@{
+  ///@{
   /**
    * Return the string that is used as "none_string" in XML configuration.
    */
   vtkGetStringMacro(NoneString);
   vtkSetStringMacro(NoneString);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * A vtkSMProperty is often defined with a default value in the
    * XML itself. However, many times, the default value must be determined
@@ -107,7 +95,7 @@ public:
 protected:
   vtkSMStringListDomain();
   ~vtkSMStringListDomain() override;
-  //@}
+  ///@}
 
   /**
    * Set the appropriate ivars from the xml element. Should
@@ -123,14 +111,14 @@ protected:
    */
   char* NoneString;
 
-  //@{
+  ///@{
   /**
    * Call to set the strings. Will fire DomainModifiedEvent if the domain values
    * have indeed changed.
    */
   virtual void SetStrings(const std::vector<std::string>& strings);
   const std::vector<std::string>& GetStrings();
-  //@}
+  ///@}
 
 private:
   vtkSMStringListDomain(const vtkSMStringListDomain&) = delete;

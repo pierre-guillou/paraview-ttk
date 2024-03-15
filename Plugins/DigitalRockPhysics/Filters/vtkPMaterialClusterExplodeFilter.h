@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPMaterialClusterExplodeFilter.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPMaterialClusterExplodeFilter
  * @brief   Create an exploded mesh of the material clusters removing the rockfill.
@@ -57,7 +46,7 @@ public:
   vtkTypeMacro(vtkPMaterialClusterExplodeFilter, vtkPolyDataAlgorithm);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set/Get the explode factor.
    * This value determines how far the points will be moved.
@@ -67,16 +56,16 @@ public:
    */
   vtkSetMacro(ExplodeFactor, double);
   vtkGetMacro(ExplodeFactor, double);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set/Get the label of the rockfill material. This material will be
    * ignored in the process. Default is 0.
    */
   vtkSetMacro(RockfillLabel, int);
   vtkGetMacro(RockfillLabel, int);
-  //@}
+  ///@}
 
 protected:
   vtkPMaterialClusterExplodeFilter();

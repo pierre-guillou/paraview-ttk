@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSMPToolsAPI.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "SMP/Common/vtkSMPToolsAPI.h"
 #include "vtkSMP.h"    // For SMP preprocessor information
@@ -28,6 +16,7 @@ namespace detail
 {
 namespace smp
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 vtkSMPToolsAPI::vtkSMPToolsAPI()
@@ -225,6 +214,28 @@ bool vtkSMPToolsAPI::IsParallelScope()
   return false;
 }
 
+//------------------------------------------------------------------------------
+bool vtkSMPToolsAPI::GetSingleThread()
+{
+  // Currently, this will work as expected for one parallel area and or nested
+  // parallel areas. If there are two or more parallel areas that are not nested,
+  // this function will not work properly.
+  switch (this->ActivatedBackend)
+  {
+    case BackendType::Sequential:
+      return this->SequentialBackend->GetSingleThread();
+    case BackendType::STDThread:
+      return this->STDThreadBackend->GetSingleThread();
+    case BackendType::TBB:
+      return this->TBBBackend->GetSingleThread();
+    case BackendType::OpenMP:
+      return this->OpenMPBackend->GetSingleThread();
+    default:
+      return false;
+  }
+}
+
+VTK_ABI_NAMESPACE_END
 } // namespace smp
 } // namespace detail
 } // namespace vtk

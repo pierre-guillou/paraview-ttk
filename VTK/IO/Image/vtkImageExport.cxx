@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkImageExport.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkImageExport.h"
 
 #include "vtkAlgorithmOutput.h"
@@ -25,6 +13,7 @@
 #include <cctype>
 #include <cstring>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkImageExport);
 
 //------------------------------------------------------------------------------
@@ -660,3 +649,4 @@ void vtkImageExport::GetDataDirection(double* ptr)
   this->GetInputAlgorithm()->UpdateInformation();
   this->GetInputInformation()->Get(vtkDataObject::DIRECTION(), ptr);
 }
+VTK_ABI_NAMESPACE_END

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkChartLegend.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkChartLegend
@@ -31,6 +19,7 @@
 #include "vtkNew.h"  // For vtkNew
 #include "vtkRect.h" // For vtkRectf return value
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkChart;
 class vtkPen;
 class vtkBrush;
@@ -316,4 +305,5 @@ private:
   void operator=(const vtkChartLegend&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkChartLegend_h

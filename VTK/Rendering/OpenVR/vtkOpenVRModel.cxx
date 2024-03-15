@@ -1,17 +1,5 @@
-/*=========================================================================
-
-Program:   Visualization Toolkit
-Module:    vtkOpenVRModel.cxx
-
-Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-All rights reserved.
-See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-This software is distributed WITHOUT ANY WARRANTY; without even
-the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenVRModel.h"
 
 #include "vtkObjectFactory.h"
@@ -23,6 +11,7 @@ PURPOSE.  See the above copyright notice for more information.
 /*=========================================================================
 vtkOpenVRModel
 =========================================================================*/
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkOpenVRModel);
 
 //------------------------------------------------------------------------------
@@ -68,7 +57,7 @@ void vtkOpenVRModel::CreateTextureObject(vtkOpenGLRenderWindow* win)
   this->TextureObject->SetContext(win);
   this->TextureObject->Create2DFromRaw(this->RawTexture->unWidth, this->RawTexture->unHeight, 4,
     VTK_UNSIGNED_CHAR,
-    const_cast<void*>(static_cast<const void* const>(this->RawTexture->rubTextureMapData)));
+    const_cast<void*>(static_cast<const void*>(this->RawTexture->rubTextureMapData)));
   this->TextureObject->SetWrapS(vtkTextureObject::ClampToEdge);
   this->TextureObject->SetWrapT(vtkTextureObject::ClampToEdge);
 
@@ -120,3 +109,4 @@ void vtkOpenVRModel::LoadModelAndTexture(vtkOpenGLRenderWindow* win)
     }
   }
 }
+VTK_ABI_NAMESPACE_END

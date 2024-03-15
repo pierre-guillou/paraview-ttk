@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkXMLParser.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkXMLParser
  * @brief   Parse XML to handle element tags and attributes.
@@ -29,12 +17,10 @@
 #include "vtkIOXMLParserModule.h" // For export macro
 #include "vtkObject.h"
 
-extern "C"
-{
-  void vtkXMLParserStartElement(void*, const char*, const char**);
-  void vtkXMLParserEndElement(void*, const char*);
-  void vtkXMLParserCharacterDataHandler(void*, const char*, int);
-}
+VTK_ABI_NAMESPACE_BEGIN
+void vtkXMLParserStartElement(void*, const char*, const char**);
+void vtkXMLParserEndElement(void*, const char*);
+void vtkXMLParserCharacterDataHandler(void*, const char*, int);
 
 class VTKIOXMLPARSER_EXPORT vtkXMLParser : public vtkObject
 {
@@ -106,8 +92,8 @@ public:
    * process text within XML Elements. If this is on, the text will be
    * ignored.
    */
-  vtkSetMacro(IgnoreCharacterData, int);
-  vtkGetMacro(IgnoreCharacterData, int);
+  vtkSetMacro(IgnoreCharacterData, vtkTypeBool);
+  vtkGetMacro(IgnoreCharacterData, vtkTypeBool);
   ///@}
 
   ///@{
@@ -120,6 +106,12 @@ public:
   vtkSetStringMacro(Encoding);
   vtkGetStringMacro(Encoding);
   ///@}
+
+  /**
+   * The Expat library can only handle binary files > 2Gb if either
+   * size_of(long) == 8 or the "large size" feature is present
+   */
+  static bool hasLargeOffsets();
 
 protected:
   vtkXMLParser();
@@ -204,7 +196,7 @@ protected:
   friend void vtkXMLParserEndElement(void*, const char*);
   friend void vtkXMLParserCharacterDataHandler(void*, const char*, int);
 
-  int IgnoreCharacterData;
+  vtkTypeBool IgnoreCharacterData;
 
 private:
   vtkXMLParser(const vtkXMLParser&) = delete;
@@ -220,4 +212,5 @@ inline void vtkXMLParserCharacterDataHandler(void* parser, const char* data, int
   static_cast<vtkXMLParser*>(parser)->CharacterDataHandler(data, length);
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

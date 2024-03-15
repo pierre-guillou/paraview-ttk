@@ -1,12 +1,24 @@
-from vtkmodules.util.vtkAlgorithm import VTKPythonAlgorithmBase
-from vtkmodules.vtkIOExodus import vtkExodusIIReader
 from vtkmodules.vtkCommonDataModel import vtkMultiBlockDataSet
-from vtkmodules.vtkCommonExecutionModel import vtkAlgorithm, vtkCompositeDataPipeline
+from vtkmodules.vtkCommonExecutionModel import (
+    vtkAlgorithm,
+    vtkCompositeDataPipeline,
+)
 from vtkmodules.vtkFiltersParallel import vtkAdaptiveTemporalInterpolator
 from vtkmodules.vtkFiltersGeometry import vtkCompositeDataGeometryFilter
-from vtkmodules.vtkRenderingCore import vtkCompositePolyDataMapper, vtkActor, vtkRenderer, vtkRenderWindow, vtkRenderWindowInteractor, vtkWindowToImageFilter
-from vtkmodules.vtkRenderingOpenGL2 import vtkCompositePolyDataMapper2
+from vtkmodules.vtkIOExodus import vtkExodusIIReader
+from vtkmodules.vtkRenderingCore import (
+    vtkCompositePolyDataMapper,
+    vtkActor,
+    vtkRenderer,
+    vtkRenderWindow,
+    vtkRenderWindowInteractor,
+    vtkWindowToImageFilter,
+)
+import vtkmodules.vtkRenderingOpenGL2
+from vtkmodules.util.vtkAlgorithm import VTKPythonAlgorithmBase
+from vtkmodules.util.misc import vtkGetDataRoot
 
+VTK_DATA_ROOT = vtkGetDataRoot()
 
 class SimpleTimeReader(VTKPythonAlgorithmBase):
     """A reader that exposes two exodus files as a time series"""
@@ -14,7 +26,7 @@ class SimpleTimeReader(VTKPythonAlgorithmBase):
         VTKPythonAlgorithmBase.__init__(self, nInputPorts=0, nOutputPorts=1, outputType='vtkMultiBlockDataSet')
 
         r1 = vtkExodusIIReader()
-        r1.SetFileName("" + str(VTK_DATA_ROOT) + "/Data/simpleamrgrid.e-s000")
+        r1.SetFileName(VTK_DATA_ROOT + "/Data/simpleamrgrid.e-s000")
         r1.SetElementBlockArrayStatus("Unnamed block ID: 12", 1)
         r1.SetElementResultArrayStatus("cell_dist", 1)
         r1.SetElementResultArrayStatus("cell_poly", 1)
@@ -23,7 +35,7 @@ class SimpleTimeReader(VTKPythonAlgorithmBase):
         r1.Update()
 
         r2 = vtkExodusIIReader()
-        r2.SetFileName("" + str(VTK_DATA_ROOT) + "/Data/simpleamrgrid.e-s001")
+        r2.SetFileName(VTK_DATA_ROOT + "/Data/simpleamrgrid.e-s001")
         r2.SetElementBlockArrayStatus("Unnamed block ID: 12", 1)
         r2.SetElementResultArrayStatus("cell_dist", 1)
         r2.SetElementResultArrayStatus("cell_poly", 1)

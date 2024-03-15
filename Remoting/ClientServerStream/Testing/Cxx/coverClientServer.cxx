@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkClientServerStream.h"
 #include "vtkDoubleArray.h"
 #include "vtkNew.h"
@@ -52,10 +54,6 @@ void do_store(vtkClientServerStream& css)
   Help<unsigned long>::Store(css);
   Help<long long>::Store(css);
   Help<unsigned long long>::Store(css);
-#if defined(VTK_TYPE_USE___INT64)
-  Help<__int64>::Store(css);
-  Help<unsigned __int64>::Store(css);
-#endif
   Help<float>::Store(css);
   Help<double>::Store(css);
 
@@ -183,16 +181,6 @@ bool do_check(vtkClientServerStream& css)
     {
       return false;
     }
-#if defined(VTK_TYPE_USE___INT64)
-    if (!Help<__int64>::Check(css, arg))
-    {
-      return false;
-    }
-    if (!Help<unsigned __int64>::Check(css, arg))
-    {
-      return false;
-    }
-#endif
     if (!Help<float>::Check(css, arg))
     {
       return false;

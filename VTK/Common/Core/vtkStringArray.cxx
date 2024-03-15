@@ -1,17 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkStringArray.cxx
-  Language:  C++
-
-  Copyright 2004 Sandia Corporation.
-  Under the terms of Contract DE-AC04-94AL85000, there is a non-exclusive
-  license for use of this work by or on behalf of the
-  U.S. Government. Redistribution and use in source and binary forms, with
-  or without modification, are permitted provided that this Notice and any
-  statement of authorship are reproduced on all copies.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright 2004 Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 // We do not provide a definition for the copy constructor or
 // operator=.  Block the warning.
@@ -39,6 +28,7 @@
 // since we last build the vtkStringArrayLookup.
 typedef std::multimap<vtkStdString, vtkIdType> vtkStringCachedUpdates;
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 auto DefaultDeleteFunction = [](void* ptr) { delete[] reinterpret_cast<vtkStdString*>(ptr); };
@@ -1032,3 +1022,4 @@ void vtkStringArray::LookupValue(const char* value, vtkIdList* ids)
 }
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_END

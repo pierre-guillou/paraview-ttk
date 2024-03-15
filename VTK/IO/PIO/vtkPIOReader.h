@@ -1,26 +1,16 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPIOReader.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) 2021, Triad National Security, LLC
+// SPDX-License-Identifier: LicenseRef-BSD-3-Clause-LANL-Triad-USGov
 /**
- * @class   vtkPIOReader
+ *
+ * @class vtkPIOReader
  * @brief   class for reading PIO (Parallel Input Output) data files
  *
  * This class reads in dump files generated from xRage, a LANL physics code.
  * The PIO (Parallel Input Output) library is used to create the dump files.
  *
- * @sa
- * vtkMultiBlockReader
+ * @par Thanks:
+ * Developed by Patricia Fasel at Los Alamos National Laboratory
  */
 
 #ifndef vtkPIOReader_h
@@ -30,6 +20,7 @@
 #include "vtkMultiBlockDataSetAlgorithm.h"
 #include "vtkStdString.h" // for vtkStdString
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCallbackCommand;
 class vtkDataArraySelection;
 class vtkFloatArray;
@@ -180,4 +171,5 @@ private:
   void operator=(const vtkPIOReader&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

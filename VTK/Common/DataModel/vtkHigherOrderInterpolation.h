@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkHigherOrderInterpolation.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 // .NAME vtkHigherOrderInterpolation
 // .SECTION Description
 // .SECTION See Also
@@ -27,6 +15,7 @@
 // Define this to include support for a "complete" (21- vs 18-point) wedge.
 #define VTK_21_POINT_WEDGE true
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkVector2i;
 class vtkVector3d;
@@ -61,10 +50,10 @@ public:
     const double* fieldVals, int fieldDim, double* fieldDerivs,
     void (*function_evaluate_shape_and_gradient)(int, double, double*, double*));
 
-  static void WedgeShapeFunctions(const int order[3], const vtkIdType numberOfPoints,
+  static void WedgeShapeFunctions(const int order[3], vtkIdType numberOfPoints,
     const double* pcoords, double* shape, vtkHigherOrderTriangle& tri,
     void (*function_evaluate_shape_functions)(int, double, double*));
-  static void WedgeShapeDerivatives(const int order[3], const vtkIdType numberOfPoints,
+  static void WedgeShapeDerivatives(const int order[3], vtkIdType numberOfPoints,
     const double* pcoords, double* derivs, vtkHigherOrderTriangle& tri,
     void (*function_evaluate_shape_and_gradient)(int, double, double*, double*));
 
@@ -75,10 +64,10 @@ public:
   int JacobianInverse(vtkPoints* points, const double* derivs, double** inverse);
   int JacobianInverseWedge(vtkPoints* points, const double* derivs, double** inverse);
 
-  virtual void WedgeEvaluate(const int order[3], const vtkIdType numberOfPoints,
-    const double* pcoords, double* fieldVals, int fieldDim, double* fieldAtPCoords) = 0;
+  virtual void WedgeEvaluate(const int order[3], vtkIdType numberOfPoints, const double* pcoords,
+    double* fieldVals, int fieldDim, double* fieldAtPCoords) = 0;
 
-  void WedgeEvaluate(const int order[3], const vtkIdType numberOfPoints, const double* pcoords,
+  void WedgeEvaluate(const int order[3], vtkIdType numberOfPoints, const double* pcoords,
     double* fieldVals, int fieldDim, double* fieldAtPCoords, vtkHigherOrderTriangle& tri,
     void (*function_evaluate_shape_functions)(int, double, double*));
 
@@ -123,7 +112,7 @@ protected:
   vtkHigherOrderInterpolation();
   ~vtkHigherOrderInterpolation() override;
 
-  void PrepareForOrder(const int order[3], const vtkIdType numberOfPoints);
+  void PrepareForOrder(const int order[3], vtkIdType numberOfPoints);
 
   std::vector<double> ShapeSpace;
   std::vector<double> DerivSpace;
@@ -144,4 +133,5 @@ int vtkHigherOrderInterpolation::NumberOfIntervals(const int order[N])
   return ni;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif // vtkHigherOrderInterpolation_h

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTransform2D.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 /**
  * @class   vtkTransform2D
@@ -40,6 +28,7 @@
 
 #include "vtkMatrix3x3.h" // Needed for inline methods
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints2D;
 
 class VTKCOMMONTRANSFORMS_EXPORT vtkTransform2D : public vtkObject
@@ -212,4 +201,5 @@ private:
   void operator=(const vtkTransform2D&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

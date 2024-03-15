@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSpreadSheetRepresentation.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSpreadSheetRepresentation
  *
@@ -43,8 +31,8 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Overridden to update state of `GenerateCellConnectivity` and `FieldAssociation`
-   * which is specified on the view.
+   * Overridden to update state of `GenerateCellConnectivity`, `ShowFieldData` and
+   * `FieldAssociation` which is specified on the view.
    */
   int ProcessViewRequest(vtkInformationRequestKey* request_type, vtkInformation* inInfo,
     vtkInformation* outInfo) override;
@@ -58,27 +46,28 @@ public:
   vtkAlgorithmOutput* GetExtractedDataProducer();
   vtkAlgorithmOutput* GetSelectionProducer();
 
-  //@{
+  ///@{
   /**
    * Selectors to extract blocks.
    */
   void AddSelector(const char* selector);
   void ClearSelectors();
   void SetActiveAssemblyForSelectors(const char* name);
-  //@}
+  ///@}
 
 protected:
   vtkSpreadSheetRepresentation();
   ~vtkSpreadSheetRepresentation() override;
 
-  //@{
+  ///@{
   /**
    * This is called in `ProcessViewRequest` during the
    * `vtkPVView::REQUEST_UPDATE` pass.
    */
   void SetGenerateCellConnectivity(bool);
+  void SetShowFieldData(bool);
   void SetFieldAssociation(int val);
-  //@}
+  ///@}
 
   /**
    * Fill input port information.
@@ -89,6 +78,8 @@ protected:
    * Overridden to invoke vtkCommand::UpdateDataEvent.
    */
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
+
+  bool ShowFieldData = false;
 
   vtkNew<vtkCleanArrays> CleanArrays;
   vtkNew<vtkDataTabulator> DataConditioner;

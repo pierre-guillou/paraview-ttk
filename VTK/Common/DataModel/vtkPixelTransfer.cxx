@@ -1,6 +1,9 @@
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPixelTransfer.h"
 
 //------------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 int vtkPixelTransfer::Blit(const vtkPixelExtent& srcWholeExt, const vtkPixelExtent& srcExt,
   const vtkPixelExtent& destWholeExt, const vtkPixelExtent& destExt, int nSrcComps, int srcType,
   void* srcData, int nDestComps, int destType, void* destData)
@@ -13,3 +16,4 @@ int vtkPixelTransfer::Blit(const vtkPixelExtent& srcWholeExt, const vtkPixelExte
   }
   return 0;
 }
+VTK_ABI_NAMESPACE_END

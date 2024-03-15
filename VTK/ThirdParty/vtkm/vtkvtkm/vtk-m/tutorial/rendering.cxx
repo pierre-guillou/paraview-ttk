@@ -12,7 +12,6 @@
 #include <vtkm/cont/Initialize.h>
 
 #include <vtkm/io/VTKDataSetReader.h>
-#include <vtkm/io/VTKDataSetWriter.h>
 #include <vtkm/rendering/Actor.h>
 #include <vtkm/rendering/CanvasRayTracer.h>
 #include <vtkm/rendering/MapperRayTracer.h>
@@ -21,8 +20,7 @@
 
 int main(int argc, char** argv)
 {
-  auto opts = vtkm::cont::InitializeOptions::DefaultAnyDevice;
-  vtkm::cont::InitializeResult config = vtkm::cont::Initialize(argc, argv, opts);
+  vtkm::cont::Initialize(argc, argv);
 
   //Loading .vtk File
   vtkm::io::VTKDataSetReader reader("data/kitchen.vtk");
@@ -37,7 +35,7 @@ int main(int argc, char** argv)
 
   //Creating Scene and adding Actor
   vtkm::rendering::Scene scene;
-  scene.AddActor(actor);
+  scene.AddActor(std::move(actor));
 
   //Creating and initializing the View using the Canvas, Ray Tracer Mappers, and Scene
   vtkm::rendering::MapperRayTracer mapper;

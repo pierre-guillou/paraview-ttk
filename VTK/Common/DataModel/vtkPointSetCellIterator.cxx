@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPointSetCellIterator.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkPointSetCellIterator.h"
 
@@ -20,6 +8,7 @@
 #include "vtkPointSet.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPointSetCellIterator);
 
 //------------------------------------------------------------------------------
@@ -94,3 +83,4 @@ void vtkPointSetCellIterator::FetchPoints()
   vtkIdList* pointIds = this->GetPointIds();
   this->PointSetPoints->GetPoints(pointIds, this->Points);
 }
+VTK_ABI_NAMESPACE_END

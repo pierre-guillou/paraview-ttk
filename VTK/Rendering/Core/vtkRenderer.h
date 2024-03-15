@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkRenderer.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkRenderer
  * @brief   abstract specification for renderers
@@ -40,6 +28,7 @@
 
 #include <array> // To store matrices
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkFXAAOptions;
 class vtkRenderWindow;
 class vtkVolume;
@@ -73,7 +62,7 @@ public:
    */
   static vtkRenderer* New();
 
-  ////@{
+  ///@{
   /**
    * Add/Remove different types of props to the renderer.
    * These methods are all synonyms to AddViewProp and RemoveViewProp.
@@ -83,7 +72,7 @@ public:
   void AddVolume(vtkProp* p);
   void RemoveActor(vtkProp* p);
   void RemoveVolume(vtkProp* p);
-  ////@}
+  ///@}
 
   /**
    * Add a light to the list of lights.
@@ -125,7 +114,7 @@ public:
    */
   virtual vtkLight* MakeLight();
 
-  ////@{
+  ///@{
   /**
    * Turn on/off two-sided lighting of surfaces. If two-sided lighting is
    * off, then only the side of the surface facing the light(s) will be lit,
@@ -135,9 +124,9 @@ public:
   vtkGetMacro(TwoSidedLighting, vtkTypeBool);
   vtkSetMacro(TwoSidedLighting, vtkTypeBool);
   vtkBooleanMacro(TwoSidedLighting, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Turn on/off the automatic repositioning of lights as the camera moves.
    * If LightFollowCamera is on, lights that are designated as Headlights
@@ -154,9 +143,9 @@ public:
   vtkSetMacro(LightFollowCamera, vtkTypeBool);
   vtkGetMacro(LightFollowCamera, vtkTypeBool);
   vtkBooleanMacro(LightFollowCamera, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Turn on/off a flag which disables the automatic light creation capability.
    * Normally in VTK if no lights are associated with the renderer, then a light
@@ -168,7 +157,7 @@ public:
   vtkGetMacro(AutomaticLightCreation, vtkTypeBool);
   vtkSetMacro(AutomaticLightCreation, vtkTypeBool);
   vtkBooleanMacro(AutomaticLightCreation, vtkTypeBool);
-  ////@}
+  ///@}
 
   /**
    * Ask the lights in the scene that are not in world space
@@ -206,7 +195,7 @@ public:
    */
   virtual vtkCamera* MakeCamera();
 
-  ////@{
+  ///@{
   /**
    * When this flag is off, the renderer will not erase the background
    * or the Zbuffer.  It is used to have overlapping renderers.
@@ -216,9 +205,9 @@ public:
   vtkSetMacro(Erase, vtkTypeBool);
   vtkGetMacro(Erase, vtkTypeBool);
   vtkBooleanMacro(Erase, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * When this flag is off, render commands are ignored.  It is used to either
    * multiplex a vtkRenderWindow or render only part of a vtkRenderWindow.
@@ -227,7 +216,7 @@ public:
   vtkSetMacro(Draw, vtkTypeBool);
   vtkGetMacro(Draw, vtkTypeBool);
   vtkBooleanMacro(Draw, vtkTypeBool);
-  ////@}
+  ///@}
 
   /**
    * This function is called to capture an instance of vtkProp that requires
@@ -257,22 +246,22 @@ public:
    */
   vtkCullerCollection* GetCullers();
 
-  ////@{
+  ///@{
   /**
    * Set the intensity of ambient lighting.
    */
   vtkSetVector3Macro(Ambient, double);
   vtkGetVectorMacro(Ambient, double, 3);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the amount of time this renderer is allowed to spend
    * rendering its scene. This is used by vtkLODActor's.
    */
   vtkSetMacro(AllocatedRenderTime, double);
   virtual double GetAllocatedRenderTime();
-  ////@}
+  ///@}
 
   /**
    * Get the ratio between allocated time and actual render time.
@@ -293,7 +282,7 @@ public:
   /**
    * Create an image. Subclasses of vtkRenderer must implement this method.
    */
-  virtual void DeviceRender(){};
+  virtual void DeviceRender() {}
 
   /**
    * Render opaque polygonal geometry. Default implementation just calls
@@ -352,16 +341,16 @@ public:
    */
   virtual void ResetCameraClippingRange();
 
-  ////@{
+  ///@{
   /**
    * Reset the camera clipping range based on a bounding box.
    */
   virtual void ResetCameraClippingRange(const double bounds[6]);
   virtual void ResetCameraClippingRange(
     double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Specify tolerance for near clipping plane distance to the camera as a
    * percentage of the far clipping plane distance. By default this will be
@@ -369,9 +358,9 @@ public:
    */
   vtkSetClampMacro(NearClippingPlaneTolerance, double, 0, 0.99);
   vtkGetMacro(NearClippingPlaneTolerance, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Specify enlargement of bounds when resetting the
    * camera clipping range.  By default the range is not expanded by
@@ -379,7 +368,7 @@ public:
    */
   vtkSetClampMacro(ClippingRangeExpansion, double, 0, 0.99);
   vtkGetMacro(ClippingRangeExpansion, double);
-  ////@}
+  ///@}
 
   /**
    * Automatically set up the camera based on the visible actors.
@@ -409,15 +398,21 @@ public:
   /**
    * Automatically set up the camera based on the visible actors.
    * Use a screen space bounding box to zoom closer to the data.
+   *
+   * OffsetRatio can be used to add a zoom offset.
+   * Default value is 0.9, which means that the camera will be 10% further from the data
    */
-  virtual void ResetCameraScreenSpace();
+  virtual void ResetCameraScreenSpace(double offsetRatio = 0.9);
 
   /**
    * Automatically set up the camera based on a specified bounding box
    * (xmin, xmax, ymin, ymax, zmin, zmax).
    * Use a screen space bounding box to zoom closer to the data.
+   *
+   * OffsetRatio can be used to add a zoom offset.
+   * Default value is 0.9, which means that the camera will be 10% further from the data.
    */
-  virtual void ResetCameraScreenSpace(const double bounds[6]);
+  virtual void ResetCameraScreenSpace(const double bounds[6], double offsetRatio = 0.9);
 
   using vtkViewport::DisplayToWorld;
 
@@ -431,15 +426,18 @@ public:
    * observe the \p box in display coordinates.
    * \p OffsetRatio can be used to add a zoom offset.
    */
-  void ZoomToBoxUsingViewAngle(const vtkRecti& box, const double offsetRatio = 1.0);
+  void ZoomToBoxUsingViewAngle(const vtkRecti& box, double offsetRatio = 1.0);
 
   /**
    * Alternative version of ResetCameraScreenSpace(bounds[6]);
+   *
+   * OffsetRatio can be used to add a zoom offset.
+   * Default value is 0.9, which means that the camera will be 10% further from the data.
    */
-  virtual void ResetCameraScreenSpace(
-    double xmin, double xmax, double ymin, double ymax, double zmin, double zmax);
+  virtual void ResetCameraScreenSpace(double xmin, double xmax, double ymin, double ymax,
+    double zmin, double zmax, double offsetRatio = 0.9);
 
-  ////@{
+  ///@{
   /**
    * Specify the rendering window in which to draw. This is automatically set
    * when the renderer is created by MakeRenderer.  The user probably
@@ -448,9 +446,9 @@ public:
   void SetRenderWindow(vtkRenderWindow*);
   vtkRenderWindow* GetRenderWindow() { return this->RenderWindow; }
   vtkWindow* GetVTKWindow() override;
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Turn on/off using backing store. This may cause the re-rendering
    * time to be slightly slower when the view changes. But it is
@@ -460,9 +458,9 @@ public:
   vtkSetMacro(BackingStore, vtkTypeBool);
   vtkGetMacro(BackingStore, vtkTypeBool);
   vtkBooleanMacro(BackingStore, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Turn on/off interactive status.  An interactive renderer is one that
    * can receive events from an interactor.  Should only be set if
@@ -471,9 +469,9 @@ public:
   vtkSetMacro(Interactive, vtkTypeBool);
   vtkGetMacro(Interactive, vtkTypeBool);
   vtkBooleanMacro(Interactive, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the layer that this renderer belongs to.  This is only used if
    * there are layered renderers.
@@ -487,9 +485,9 @@ public:
    */
   virtual void SetLayer(int layer);
   vtkGetMacro(Layer, int);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * By default, the renderer at layer 0 is opaque, and all non-zero layer
    * renderers are transparent. This flag allows this behavior to be overridden.
@@ -503,9 +501,9 @@ public:
   vtkGetMacro(PreserveColorBuffer, vtkTypeBool);
   vtkSetMacro(PreserveColorBuffer, vtkTypeBool);
   vtkBooleanMacro(PreserveColorBuffer, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * By default, the depth buffer is reset for each renderer. If this flag is
    * true, this renderer will use the existing depth buffer for its rendering.
@@ -513,33 +511,33 @@ public:
   vtkSetMacro(PreserveDepthBuffer, vtkTypeBool);
   vtkGetMacro(PreserveDepthBuffer, vtkTypeBool);
   vtkBooleanMacro(PreserveDepthBuffer, vtkTypeBool);
-  ////@}
+  ///@}
 
   /**
    * Returns a boolean indicating if this renderer is transparent.  It is
    * transparent if it is not in the deepest layer of its render window.
    */
-  int Transparent();
+  vtkTypeBool Transparent();
 
   /**
    * Convert world point coordinates to view coordinates.
    */
   void WorldToView() override;
 
-  ////@{
+  ///@{
   /**
    * Convert view point coordinates to world coordinates.
    */
   void ViewToWorld() override;
   void ViewToWorld(double& wx, double& wy, double& wz) override;
-  ////@}
+  ///@}
 
   /**
    * Convert world point coordinates to view coordinates.
    */
   void WorldToView(double& wx, double& wy, double& wz) override;
 
-  ////@{
+  ///@{
   /**
    * Convert to from pose coordinates
    */
@@ -547,7 +545,7 @@ public:
   void PoseToWorld(double& wx, double& wy, double& wz) override;
   void ViewToPose(double& wx, double& wy, double& wz) override;
   void PoseToView(double& wx, double& wy, double& wz) override;
-  ////@}
+  ///@}
 
   /**
    * Given a pixel location, return the Z value. The z value is
@@ -560,14 +558,14 @@ public:
    */
   vtkMTimeType GetMTime() override;
 
-  ////@{
+  ///@{
   /**
    * Get the time required, in seconds, for the last Render call.
    */
   vtkGetMacro(LastRenderTimeInSeconds, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Should be used internally only during a render
    * Get the number of props that were rendered using a
@@ -575,9 +573,9 @@ public:
    * This is used to know if something is in the frame buffer.
    */
   vtkGetMacro(NumberOfPropsRendered, int);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Return the prop (via a vtkAssemblyPath) that has the highest z value
    * at the given x, y position in the viewport.  Basically, the top most
@@ -591,9 +589,9 @@ public:
   }
   vtkAssemblyPath* PickProp(
     double selectionX1, double selectionY1, double selectionX2, double selectionY2) override;
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Return the prop (via a vtkAssemblyPath) that has the highest z value
    * at the given x, y position in the viewport.  Basically, the top most
@@ -611,14 +609,14 @@ public:
   }
   vtkAssemblyPath* PickProp(double selectionX1, double selectionY1, double selectionX2,
     double selectionY2, int fieldAssociation, vtkSmartPointer<vtkSelection> selection) override;
-  ////@}
+  ///@}
 
   /**
    * Do anything necessary between rendering the left and right viewpoints
    * in a stereo render. Doesn't do anything except in the derived
    * vtkIceTRenderer in ParaView.
    */
-  virtual void StereoMidpoint() { return; }
+  virtual void StereoMidpoint() {}
 
   /**
    * Compute the aspect ratio of this renderer for the current tile. When
@@ -635,7 +633,7 @@ public:
    */
   vtkTypeBool IsActiveCameraCreated() { return (this->ActiveCamera != nullptr); }
 
-  ////@{
+  ///@{
   /**
    * Turn on/off rendering of translucent material with depth peeling
    * technique. The render window must have alpha bits (ie call
@@ -649,7 +647,7 @@ public:
   vtkSetMacro(UseDepthPeeling, vtkTypeBool);
   vtkGetMacro(UseDepthPeeling, vtkTypeBool);
   vtkBooleanMacro(UseDepthPeeling, vtkTypeBool);
-  ////@}
+  ///@}
 
   /**
    * This flag is on and the GPU supports it, depth-peel volumes along with
@@ -660,7 +658,7 @@ public:
   vtkGetMacro(UseDepthPeelingForVolumes, bool);
   vtkBooleanMacro(UseDepthPeelingForVolumes, bool);
 
-  ////@{
+  ///@{
   /**
    * In case of use of depth peeling technique for rendering translucent
    * material, define the threshold under which the algorithm stops to
@@ -672,9 +670,9 @@ public:
    */
   vtkSetClampMacro(OcclusionRatio, double, 0.0, 0.5);
   vtkGetMacro(OcclusionRatio, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * In case of depth peeling, define the maximum number of peeling layers.
    * Initial value is 4. A special value of 0 means no maximum limit.
@@ -682,18 +680,18 @@ public:
    */
   vtkSetMacro(MaximumNumberOfPeels, int);
   vtkGetMacro(MaximumNumberOfPeels, int);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Tells if the last call to DeviceRenderTranslucentPolygonalGeometry()
    * actually used depth peeling.
    * Initial value is false.
    */
   vtkGetMacro(LastRenderingUsedDepthPeeling, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Enable or disable Screen Space Ambient Occlusion.
    * SSAO darkens some pixels to improve depth perception.
@@ -701,36 +699,36 @@ public:
   vtkSetMacro(UseSSAO, bool);
   vtkGetMacro(UseSSAO, bool);
   vtkBooleanMacro(UseSSAO, bool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * When using SSAO, define the SSAO hemisphere radius.
    * Default is 0.5
    */
   vtkSetMacro(SSAORadius, double);
   vtkGetMacro(SSAORadius, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * When using SSAO, define the bias when comparing samples.
    * Default is 0.01
    */
   vtkSetMacro(SSAOBias, double);
   vtkGetMacro(SSAOBias, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * When using SSAO, define the number of samples.
    * Default is 32
    */
   vtkSetMacro(SSAOKernelSize, unsigned int);
   vtkGetMacro(SSAOKernelSize, unsigned int);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * When using SSAO, define blurring of the ambient occlusion.
    * Blurring can help to improve the result if samples number is low.
@@ -739,9 +737,9 @@ public:
   vtkSetMacro(SSAOBlur, bool);
   vtkGetMacro(SSAOBlur, bool);
   vtkBooleanMacro(SSAOBlur, bool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get a custom Render call. Allows to hook a Render call from an
    * external project.It will be used in place of vtkRenderer::Render() if it
@@ -750,18 +748,18 @@ public:
    */
   void SetDelegate(vtkRendererDelegate* d);
   vtkGetObjectMacro(Delegate, vtkRendererDelegate);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Get the current hardware selector. If the Selector is set, it implies the
    * current render pass is for selection. Mappers/Properties may choose to
    * behave differently when rendering for hardware selection.
    */
   vtkGetObjectMacro(Selector, vtkHardwareSelector);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the texture to be used for the monocular or stereo left eye
    * background. If set and enabled this gets the priority over the gradient
@@ -771,18 +769,18 @@ public:
   vtkTexture* GetLeftBackgroundTexture();
   virtual void SetBackgroundTexture(vtkTexture*);
   vtkGetObjectMacro(BackgroundTexture, vtkTexture);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the texture to be used for the right eye background. If set
    * and enabled this gets the priority over the gradient background.
    */
   virtual void SetRightBackgroundTexture(vtkTexture*);
   vtkGetObjectMacro(RightBackgroundTexture, vtkTexture);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get whether this viewport should have a textured background.
    * Default is off.
@@ -790,29 +788,29 @@ public:
   vtkSetMacro(TexturedBackground, bool);
   vtkGetMacro(TexturedBackground, bool);
   vtkBooleanMacro(TexturedBackground, bool);
-  ////@}
+  ///@}
 
   // method to release graphics resources in any derived renderers.
   virtual void ReleaseGraphicsResources(vtkWindow*);
 
-  ////@{
+  ///@{
   /**
    * Turn on/off FXAA anti-aliasing, if supported. Initial value is off.
    */
   vtkSetMacro(UseFXAA, bool);
   vtkGetMacro(UseFXAA, bool);
   vtkBooleanMacro(UseFXAA, bool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * The configuration object for FXAA antialiasing.
    */
   vtkGetObjectMacro(FXAAOptions, vtkFXAAOptions);
   virtual void SetFXAAOptions(vtkFXAAOptions*);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Turn on/off rendering of shadows if supported
    * Initial value is off.
@@ -820,9 +818,9 @@ public:
   vtkSetMacro(UseShadows, vtkTypeBool);
   vtkGetMacro(UseShadows, vtkTypeBool);
   vtkBooleanMacro(UseShadows, vtkTypeBool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * If this flag is true and the rendering engine supports it, wireframe
    * geometry will be drawn using hidden line removal.
@@ -830,64 +828,58 @@ public:
   vtkSetMacro(UseHiddenLineRemoval, vtkTypeBool);
   vtkGetMacro(UseHiddenLineRemoval, vtkTypeBool);
   vtkBooleanMacro(UseHiddenLineRemoval, vtkTypeBool);
-  ////@}
+  ///@}
 
   // Set/Get a custom render pass.
   // Initial value is NULL.
   void SetPass(vtkRenderPass* p);
   vtkGetObjectMacro(Pass, vtkRenderPass);
 
-  ////@{
+  ///@{
   /**
    * Set/Get the information object associated with this algorithm.
    */
   vtkGetObjectMacro(Information, vtkInformation);
   virtual void SetInformation(vtkInformation*);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * If this flag is true and the rendering engine supports it, image based
    * lighting is enabled and surface rendering displays environment reflections.
-   * The input cube map have to be set with SetEnvironmentCubeMap.
-   * If not cubemap is specified, this feature is disable.
+   * Image Based Lighting rely on the environment texture to compute lighting
+   * if it has been provided.
    */
   vtkSetMacro(UseImageBasedLighting, bool);
   vtkGetMacro(UseImageBasedLighting, bool);
   vtkBooleanMacro(UseImageBasedLighting, bool);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the environment texture used for image based lighting.
    * This texture is supposed to represent the scene background.
-   * If it is not a cubemap, the texture is supposed to represent an equirectangular projection.
-   * If used with raytracing backends, the texture must be an equirectangular projection and must be
-   * constructed with a valid vtkImageData.
-   * Warning, this texture must be expressed in linear color space.
-   * If the texture is in sRGB color space, set the color flag on the texture or
-   * set the argument isSRGB to true.
    * @sa vtkTexture::UseSRGBColorSpaceOn
    */
   vtkGetObjectMacro(EnvironmentTexture, vtkTexture);
   virtual void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the environment up vector.
    */
   vtkGetVector3Macro(EnvironmentUp, double);
   vtkSetVector3Macro(EnvironmentUp, double);
-  ////@}
+  ///@}
 
-  ////@{
+  ///@{
   /**
    * Set/Get the environment right vector.
    */
   vtkGetVector3Macro(EnvironmentRight, double);
   vtkSetVector3Macro(EnvironmentRight, double);
-  ////@}
+  ///@}
 
 protected:
   vtkRenderer();
@@ -1211,4 +1203,5 @@ inline vtkCullerCollection* vtkRenderer::GetCullers()
   return this->Cullers;
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkSOADataArrayTemplate.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef vtkSOADataArrayTemplate_txx
 #define vtkSOADataArrayTemplate_txx
@@ -31,6 +19,7 @@
 #include <cassert>
 
 //-----------------------------------------------------------------------------
+VTK_ABI_NAMESPACE_BEGIN
 template <class ValueType>
 vtkSOADataArrayTemplate<ValueType>* vtkSOADataArrayTemplate<ValueType>::New()
 {
@@ -539,10 +528,11 @@ void vtkSOADataArrayTemplate<ValueType>::CopyData(vtkSOADataArrayTemplate<ValueT
     std::vector<ValueType> tuple(numberOfComponents);
     for (vtkIdType i = 0; i < numberOfTuples; i++)
     {
-      src->GetTypedTuple(i, &tuple[0]);
-      this->SetTypedTuple(i, &tuple[0]);
+      src->GetTypedTuple(i, tuple.data());
+      this->SetTypedTuple(i, tuple.data());
     }
   }
 }
 
+VTK_ABI_NAMESPACE_END
 #endif

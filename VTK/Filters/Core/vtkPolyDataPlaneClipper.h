@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkPolyDataPlaneClipper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPolyDataPlaneClipper
  * @brief   clip a vtkPolyData with a plane and optionally cap it
@@ -57,6 +45,7 @@
 #include "vtkPolyDataPlaneCutter.h" // For CanFullyProcessDataObject() method
 #include "vtkSmartPointer.h"        // For SmartPointer
 
+VTK_ABI_NAMESPACE_BEGIN
 class VTKFILTERSCORE_EXPORT vtkPolyDataPlaneClipper : public vtkPolyDataAlgorithm
 {
 public:
@@ -188,4 +177,5 @@ private:
   void operator=(const vtkPolyDataPlaneClipper&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

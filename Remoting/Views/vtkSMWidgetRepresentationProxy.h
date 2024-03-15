@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkSMWidgetRepresentationProxy.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMWidgetRepresentationProxy
  * @brief   proxy for a widget representation
@@ -35,7 +23,7 @@ public:
   vtkTypeMacro(vtkSMWidgetRepresentationProxy, vtkSMProxy);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * These method forward the representation state of the client side
    * widget representation to the server.
@@ -43,7 +31,7 @@ public:
   virtual void OnStartInteraction();
   virtual void OnEndInteraction();
   virtual void OnInteraction();
-  //@}
+  ///@}
 
 protected:
   vtkSMWidgetRepresentationProxy();

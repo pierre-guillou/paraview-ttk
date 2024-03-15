@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkExtractHierarchicalBins.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See LICENSE file for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-CLAUSE
 #include "vtkExtractHierarchicalBins.h"
 
 #include "vtkDataArray.h"
@@ -21,6 +9,7 @@
 #include "vtkPointSet.h"
 #include "vtkPoints.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkExtractHierarchicalBins);
 vtkCxxSetObjectMacro(vtkExtractHierarchicalBins, BinningFilter, vtkHierarchicalBinningFilter);
 
@@ -112,3 +101,4 @@ void vtkExtractHierarchicalBins::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Bin: " << this->Bin << "\n";
   os << indent << "Binning Filter: " << static_cast<void*>(this->BinningFilter) << "\n";
 }
+VTK_ABI_NAMESPACE_END

@@ -1,4 +1,5 @@
 if (TARGET VTK::mpi)
+
   set (vtkFiltersParallelDIY2CxxTests-MPI_NUMPROCS 2)
   vtk_add_test_mpi(vtkFiltersParallelDIY2CxxTests-MPI tests
     TESTING_DATA
@@ -9,10 +10,11 @@ if (TARGET VTK::mpi)
     TestPResampleToImage.cxx
     TestPResampleWithDataSet2.cxx
     TestPResampleWithDataSet.cxx
+    TestProbeLineFilter.cxx,NO_VALID
     TestPUniformGridGhostDataGenerator.cxx,NO_VALID
     TestPUnstructuredGridGhostCellsGenerator.cxx,NO_VALID
-    TestProbeLineFilter.cxx,NO_VALID
     TestRedistributeDataSetFilter.cxx
+    TestRedistributeDataSetFilterImplicitArray.cxx,NO_VALID
     TestRedistributeDataSetFilterOnIOSS.cxx,NO_VALID
     TestStructuredGridGhostDataGenerator.cxx,NO_VALID
     TestUnstructuredGridGeometryFilterGhostCells.cxx,NO_VALID)

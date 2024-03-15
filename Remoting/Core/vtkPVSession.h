@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVSession.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkPVSession
  * @brief   extends vtkSession to add API for ParaView sessions.
@@ -96,20 +84,20 @@ public:
    */
   virtual bool IsMultiClients();
 
-  //@{
+  ///@{
   /**
    * Provides access to the progress handler.
    */
   vtkGetObjectMacro(ProgressHandler, vtkPVProgressHandler);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Should be called to begin/end receiving progresses on this session.
    */
   void PrepareProgress();
   void CleanupPendingProgress();
-  //@}
+  ///@}
 
   /**
    * Returns true if the session is within a PrepareProgress() and
@@ -132,13 +120,13 @@ protected:
    */
   virtual bool OnWrongTagEvent(vtkObject* caller, unsigned long eventid, void* calldata);
 
-  //@{
+  ///@{
   /**
    * Virtual methods subclasses can override.
    */
   virtual void PrepareProgressInternal();
   virtual void CleanupPendingProgressInternal();
-  //@}
+  ///@}
 
   vtkPVProgressHandler* ProgressHandler;
 

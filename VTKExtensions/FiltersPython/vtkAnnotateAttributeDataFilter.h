@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkAnnotateAttributeDataFilter.h
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkAnnotateAttributeDataFilter
  * @brief   specialization of
@@ -36,38 +24,38 @@ public:
   vtkTypeMacro(vtkAnnotateAttributeDataFilter, vtkPythonAnnotationFilter);
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  //@{
+  ///@{
   /**
    * Set the attribute array name to annotate with.
    */
   vtkSetStringMacro(ArrayName);
   vtkGetStringMacro(ArrayName);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the element number to annotate with.
    */
   vtkSetMacro(ElementId, vtkIdType);
   vtkGetMacro(ElementId, vtkIdType);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the rank to extract the data from.
    * Default is 0.
    */
   vtkSetMacro(ProcessId, int);
   vtkGetMacro(ProcessId, int);
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   /**
    * Set the text prefix to display in front of the Field value
    */
   vtkSetStringMacro(Prefix);
   vtkGetStringMacro(Prefix);
-  //@}
+  ///@}
 
 protected:
   vtkAnnotateAttributeDataFilter();

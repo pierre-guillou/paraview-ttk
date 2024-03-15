@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkIOSSUtilities.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @namespace vtkIOSSUtilities
  * @brief internal utilities for vtkIOSSReader
@@ -53,11 +41,14 @@
 #include <cassert>
 #include <set>
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
 class vtkDataSet;
+VTK_ABI_NAMESPACE_END
 
 namespace vtkIOSSUtilities
 {
+VTK_ABI_NAMESPACE_BEGIN
 
 enum DatabaseFormatType
 {
@@ -290,7 +281,9 @@ DatabaseFormatType GetFormat(const Ioss::GroupingEntity* entity);
  */
 std::vector<Ioss::StructuredBlock*> GetMatchingStructuredBlocks(
   Ioss::Region* region, const std::string& blockname);
-};
+
+VTK_ABI_NAMESPACE_END
+}
 
 #endif
 // VTK-HeaderTest-Exclude: vtkIOSSUtilities.h

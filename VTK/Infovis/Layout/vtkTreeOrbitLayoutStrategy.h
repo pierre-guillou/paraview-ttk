@@ -1,13 +1,6 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkTreeOrbitLayoutStrategy.h
-
-=========================================================================*/
-/*----------------------------------------------------------------------------
- Copyright (c) Sandia Corporation
- See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-----------------------------------------------------------------------------*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkTreeOrbitLayoutStrategy
  * @brief   hierarchical orbital layout
@@ -26,6 +19,7 @@
 #include "vtkGraphLayoutStrategy.h"
 #include "vtkInfovisLayoutModule.h" // For export macro
 
+VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints;
 class vtkTree;
 
@@ -88,4 +82,5 @@ private:
   void operator=(const vtkTreeOrbitLayoutStrategy&) = delete;
 };
 
+VTK_ABI_NAMESPACE_END
 #endif

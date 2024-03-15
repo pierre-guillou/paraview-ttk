@@ -1,21 +1,18 @@
-/*=========================================================================
-
-  Program:   ParaView
-  Module:    vtkPVRepresentedArrayListSettings.cxx
-
-  Copyright (c) Kitware, Inc.
-  All rights reserved.
-  See Copyright.txt or http://www.paraview.org/HTML/Copyright.html for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkPVRepresentedArrayListSettings.h"
 
+#include "vtkDataArraySelection.h"
 #include "vtkObjectFactory.h"
+#include "vtkPVIOSettings.h"
+#include "vtkSMProxyManager.h"
+#include "vtkSMReaderFactory.h"
+#include "vtkSMSession.h"
+#include "vtkStringArray.h"
 
+#include <vtksys/RegularExpression.hxx>
+
+#include <algorithm>
 #include <cassert>
 #include <string>
 #include <vector>
@@ -26,6 +23,10 @@ class vtkPVRepresentedArrayListSettings::vtkInternals
 {
 public:
   std::vector<std::string> FilterExpressions;
+  std::vector<int> ArrayMagnitudeExceptions;
+
+  std::vector<std::string> ChartsDefaultXAxis;
+  std::vector<vtksys::RegularExpression> ChartsHiddenAttributes;
 };
 
 //----------------------------------------------------------------------------
@@ -107,6 +108,180 @@ const char* vtkPVRepresentedArrayListSettings::GetFilterExpression(int i)
   }
 
   return nullptr;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetNumberOfArrayMagnitudeExceptions(int size)
+{
+  if (static_cast<std::size_t>(size) != this->Internals->ArrayMagnitudeExceptions.size())
+  {
+    this->Internals->ArrayMagnitudeExceptions.resize(size);
+    this->Modified();
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetArrayMagnitudeException(int idx, int ncomp)
+{
+  if (idx >= 0 && static_cast<std::size_t>(idx) < this->Internals->ArrayMagnitudeExceptions.size())
+  {
+    if (this->Internals->ArrayMagnitudeExceptions[idx] != ncomp)
+    {
+      this->Internals->ArrayMagnitudeExceptions[idx] = ncomp;
+      this->Modified();
+    }
+  }
+  else
+  {
+    vtkErrorMacro("Index out of range: " << idx);
+  }
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVRepresentedArrayListSettings::ShouldUseMagnitudeMode(int ncomp) const
+{
+  const auto& exceptions = this->Internals->ArrayMagnitudeExceptions;
+  const auto findComp = std::find(exceptions.cbegin(), exceptions.cend(), ncomp);
+
+  return this->ComputeArrayMagnitude != (findComp != exceptions.end());
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetNumberOfChartsDefaultXAxis(int n)
+{
+  if (n != this->GetNumberOfChartsDefaultXAxis())
+  {
+    this->Internals->ChartsDefaultXAxis.resize(n);
+    this->Modified();
+  }
+}
+
+//----------------------------------------------------------------------------
+int vtkPVRepresentedArrayListSettings::GetNumberOfChartsDefaultXAxis() const
+{
+  return static_cast<int>(this->Internals->ChartsDefaultXAxis.size());
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetChartsDefaultXAxis(int i, const char* expression)
+{
+  if (i >= 0 && i < this->GetNumberOfChartsDefaultXAxis())
+  {
+    if (this->Internals->ChartsDefaultXAxis[i] != expression)
+    {
+      this->Internals->ChartsDefaultXAxis[i] = expression;
+      this->Modified();
+    }
+  }
+  else
+  {
+    vtkErrorMacro("Index out of range: " << i);
+  }
+}
+
+//----------------------------------------------------------------------------
+const char* vtkPVRepresentedArrayListSettings::GetChartsDefaultXAxis(int i) const
+{
+  if (i >= 0 && i < this->GetNumberOfChartsDefaultXAxis())
+  {
+    return this->Internals->ChartsDefaultXAxis[i].c_str();
+  }
+  else
+  {
+    vtkErrorMacro("Index out of range: " << i);
+  }
+
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+const std::vector<std::string>& vtkPVRepresentedArrayListSettings::GetAllChartsDefaultXAxis() const
+{
+  return this->Internals->ChartsDefaultXAxis;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetNumberOfChartsHiddenAttributes(int n)
+{
+  if (n != this->GetNumberOfChartsHiddenAttributes())
+  {
+    this->Internals->ChartsHiddenAttributes.resize(n);
+    this->Modified();
+  }
+}
+
+//----------------------------------------------------------------------------
+int vtkPVRepresentedArrayListSettings::GetNumberOfChartsHiddenAttributes() const
+{
+  return static_cast<int>(this->Internals->ChartsHiddenAttributes.size());
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetChartsHiddenAttributes(int i, const char* expression)
+{
+  if (i >= 0 && i < this->GetNumberOfChartsHiddenAttributes())
+  {
+    if (this->Internals->ChartsHiddenAttributes[i] != expression)
+    {
+      this->Internals->ChartsHiddenAttributes[i].compile(expression);
+      this->Modified();
+    }
+  }
+  else
+  {
+    vtkErrorMacro("Index out of range: " << i);
+  }
+}
+
+//----------------------------------------------------------------------------
+const std::vector<vtksys::RegularExpression>&
+vtkPVRepresentedArrayListSettings::GetAllChartsHiddenAttributes() const
+{
+  return this->Internals->ChartsHiddenAttributes;
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVRepresentedArrayListSettings::GetSeriesVisibilityDefault(const char* name) const
+{
+  for (auto& regex : this->Internals->ChartsHiddenAttributes)
+  {
+    if (regex.is_valid() && regex.find(name))
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetNumberOfExcludedNameFilters(int n)
+{
+  vtkPVIOSettings::GetInstance()->SetNumberOfExcludedNameFilters(n);
+}
+
+//----------------------------------------------------------------------------
+int vtkPVRepresentedArrayListSettings::GetNumberOfExcludedNameFilters()
+{
+  return vtkPVIOSettings::GetInstance()->GetNumberOfExcludedNameFilters();
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRepresentedArrayListSettings::SetExcludedNameFilter(int i, const char* expression)
+{
+  vtkPVIOSettings::GetInstance()->SetExcludedNameFilter(i, expression);
+}
+
+//----------------------------------------------------------------------------
+const char* vtkPVRepresentedArrayListSettings::GetExcludedNameFilter(int i)
+{
+  return vtkPVIOSettings::GetInstance()->GetExcludedNameFilter(i);
+}
+
+//----------------------------------------------------------------------------
+vtkStringArray* vtkPVRepresentedArrayListSettings::GetAllNameFilters()
+{
+  return vtkPVIOSettings::GetInstance()->GetAllNameFilters();
 }
 
 //----------------------------------------------------------------------------

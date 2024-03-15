@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkOpenGLGlyph3DMapper.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLGlyph3DMapper.h"
 
 #include "vtkActor.h"
@@ -22,6 +10,7 @@
 #include "vtkCompositeDataSetRange.h"
 #include "vtkDataObjectTree.h"
 #include "vtkDataObjectTreeIterator.h"
+#include "vtkDataObjectTreeRange.h"
 #include "vtkHardwareSelector.h"
 #include "vtkMath.h"
 #include "vtkMatrix3x3.h"
@@ -38,6 +27,7 @@
 
 #include <map>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 int getNumberOfChildren(vtkDataObjectTree* tree)
@@ -108,7 +98,7 @@ public:
   {
     this->NumberOfPoints = 0;
     this->DataObject = nullptr;
-  };
+  }
   ~vtkOpenGLGlyph3DMapperEntry()
   {
     this->ClearMappers();
@@ -116,7 +106,7 @@ public:
     {
       this->DataObject->Delete();
     }
-  };
+  }
   void ClearMappers()
   {
     for (MapperMap::iterator it = this->Mappers.begin(); it != this->Mappers.end(); ++it)
@@ -133,7 +123,7 @@ public:
   std::vector<vtkOpenGLGlyph3DMapper::vtkOpenGLGlyph3DMapperEntry*> Entries;
   vtkTimeStamp BuildTime;
   vtkOpenGLGlyph3DMapperSubArray() = default;
-  ~vtkOpenGLGlyph3DMapperSubArray() { this->ClearEntries(); };
+  ~vtkOpenGLGlyph3DMapperSubArray() { this->ClearEntries(); }
   void ClearEntries()
   {
     std::vector<vtkOpenGLGlyph3DMapper::vtkOpenGLGlyph3DMapperEntry*>::iterator miter =
@@ -159,7 +149,7 @@ public:
       delete miter->second;
     }
     this->Entries.clear();
-  };
+  }
 };
 
 vtkStandardNewMacro(vtkOpenGLGlyph3DMapper);
@@ -228,6 +218,100 @@ void vtkOpenGLGlyph3DMapper::CopyInformationToSubMapper(vtkOpenGLGlyph3DHelper* 
 void vtkOpenGLGlyph3DMapper::SetupColorMapper()
 {
   this->ColorMapper->ShallowCopy(this);
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenGLGlyph3DMapper::RenderChildren(
+  vtkRenderer* renderer, vtkActor* actor, vtkDataObject* dobj, unsigned int& flatIndex)
+{
+  // Push overridden attributes onto the stack.
+  // Keep track of attributes that were pushed so that they can be popped after they're applied to
+  // the batch element.
+  vtkCompositeDataDisplayAttributes* cda = this->BlockAttributes;
+  bool overrides_visibility = (cda && cda->HasBlockVisibility(dobj));
+  if (overrides_visibility)
+  {
+    this->BlockState.Visibility.push(cda->GetBlockVisibility(dobj));
+  }
+  bool overrides_pickability = (cda && cda->HasBlockPickability(dobj));
+  if (overrides_pickability)
+  {
+    this->BlockState.Pickability.push(cda->GetBlockPickability(dobj));
+  }
+  bool overrides_opacity = (cda && cda->HasBlockOpacity(dobj));
+  if (overrides_opacity)
+  {
+    this->BlockState.Opacity.push(cda->GetBlockOpacity(dobj));
+  }
+  bool overrides_color = (cda && cda->HasBlockColor(dobj));
+  if (overrides_color)
+  {
+    vtkColor3d color = cda->GetBlockColor(dobj);
+    this->BlockState.Color.push(color);
+  }
+  // Advance flat-index. After this point, flatIndex no longer points to this
+  // block.
+  const auto originalFlatIndex = flatIndex;
+  flatIndex++;
+
+  if (auto dObjTree = vtkDataObjectTree::SafeDownCast(dobj))
+  {
+    using Opts = vtk::DataObjectTreeOptions;
+    for (vtkDataObject* child : vtk::Range(dObjTree, Opts::None))
+    {
+      if (!child)
+      {
+        ++flatIndex;
+      }
+      else
+      {
+        this->RenderChildren(renderer, actor, child, flatIndex);
+      }
+    }
+  }
+  else
+  {
+    auto ds = vtkDataSet::SafeDownCast(dobj);
+    // Skip invisible blocks and unpickable ones when performing selection:
+    bool blockVis = this->BlockState.Visibility.top();
+    bool blockPick = this->BlockState.Pickability.top();
+    auto selector = renderer->GetSelector();
+    bool skip = (!blockVis || (selector && !blockPick));
+    if (!skip)
+    {
+      if (ds)
+      {
+        if (selector)
+        {
+          selector->RenderCompositeIndex(originalFlatIndex);
+        }
+        actor->GetProperty()->SetColor(this->BlockState.Color.top().GetData());
+        actor->GetProperty()->SetOpacity(this->BlockState.Opacity.top());
+        this->Render(renderer, actor, ds);
+      }
+      else
+      {
+        vtkErrorMacro(<< "Expected a vtkDataObjectTree or vtkDataSet input. Got "
+                      << dobj->GetClassName());
+      }
+    }
+  }
+  if (overrides_color)
+  {
+    this->BlockState.Color.pop();
+  }
+  if (overrides_opacity)
+  {
+    this->BlockState.Opacity.pop();
+  }
+  if (overrides_pickability)
+  {
+    this->BlockState.Pickability.pop();
+  }
+  if (overrides_visibility)
+  {
+    this->BlockState.Visibility.pop();
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -338,45 +422,20 @@ void vtkOpenGLGlyph3DMapper::Render(vtkRenderer* ren, vtkActor* actor)
     double origColor[4];
     blockProp->GetColor(origColor);
 
-    using Opts = vtk::CompositeDataSetOptions;
-    for (auto node : vtk::Range(cd, Opts::SkipEmptyNodes))
-    {
-      auto curIndex = node.GetFlatIndex();
-      auto currentObj = node.GetDataObject();
+    // Push base-values on the state stack.
+    this->BlockState.Visibility.push(true);
+    this->BlockState.Pickability.push(true);
+    this->BlockState.Opacity.push(blockProp->GetOpacity());
+    this->BlockState.Color.emplace(origColor);
 
-      // Skip invisible blocks and unpickable ones when performing selection:
-      bool blockVis =
-        (this->BlockAttributes && this->BlockAttributes->HasBlockVisibility(currentObj))
-        ? this->BlockAttributes->GetBlockVisibility(currentObj)
-        : true;
-      bool blockPick =
-        (this->BlockAttributes && this->BlockAttributes->HasBlockPickability(currentObj))
-        ? this->BlockAttributes->GetBlockPickability(currentObj)
-        : true;
-      if (!blockVis || (selector && !blockPick))
-      {
-        continue;
-      }
-      ds = vtkDataSet::SafeDownCast(currentObj);
-      if (ds)
-      {
-        if (selector)
-        {
-          selector->RenderCompositeIndex(curIndex);
-        }
-        else if (this->BlockAttributes && this->BlockAttributes->HasBlockColor(currentObj))
-        {
-          double color[3];
-          this->BlockAttributes->GetBlockColor(currentObj, color);
-          blockProp->SetColor(color);
-        }
-        else
-        {
-          blockProp->SetColor(origColor);
-        }
-        this->Render(ren, blockAct.GetPointer(), ds);
-      }
-    }
+    unsigned int flatIndex = 0;
+    this->RenderChildren(ren, blockAct, cd, flatIndex);
+
+    // Pop base-values from the state stack.
+    this->BlockState.Visibility.pop();
+    this->BlockState.Pickability.pop();
+    this->BlockState.Opacity.pop();
+    this->BlockState.Color.pop();
   }
 
   if (selector)
@@ -1023,3 +1082,4 @@ void vtkOpenGLGlyph3DMapper::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

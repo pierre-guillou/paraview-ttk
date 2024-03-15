@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkContextActor.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkContextActor.h"
 
 #include "vtkContext2D.h"
@@ -26,6 +14,7 @@
 
 #include <algorithm>
 
+VTK_ABI_NAMESPACE_BEGIN
 namespace
 {
 // vtkViewportSpecification is a helper class that makes it easier to do some
@@ -221,7 +210,9 @@ int vtkContextActor::RenderOverlay(vtkViewport* viewport)
   }
 
   // Pass the viewport details onto the context device.
-  int size[2];
+  int origin[2], size[2];
+  origin[0] = view_viewport_pixels.x();
+  origin[1] = view_viewport_pixels.y();
   size[0] = view_viewport_pixels.width();
   size[1] = view_viewport_pixels.height();
   vtkRecti viewportRect(actual_viewport_pixels.x() - view_viewport_pixels.x(),
@@ -234,6 +225,7 @@ int vtkContextActor::RenderOverlay(vtkViewport* viewport)
   // First initialize the drawing device.
 
   this->Context->GetDevice()->Begin(viewport);
+  this->Scene->SetOrigin(origin);
   this->Scene->SetGeometry(size);
   this->Scene->Paint(this->Context);
   this->Context->GetDevice()->End();
@@ -258,3 +250,4 @@ void vtkContextActor::PrintSelf(ostream& os, vtkIndent indent)
     this->Context->PrintSelf(os, indent.GetNextIndent());
   }
 }
+VTK_ABI_NAMESPACE_END

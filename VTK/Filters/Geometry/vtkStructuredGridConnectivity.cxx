@@ -1,17 +1,5 @@
-/*=========================================================================
-
- Program:   Visualization Toolkit
- Module:    vtkStructuredGridConnectivity.cxx
-
- Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
- All rights reserved.
- See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
- This software is distributed WITHOUT ANY WARRANTY; without even
- the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- PURPOSE.  See the above copyright notice for more information.
-
- =========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkStructuredGridConnectivity.h"
 
 // VTK includes
@@ -22,12 +10,15 @@
 #include "vtkStructuredNeighbor.h"
 #include "vtkUnsignedCharArray.h"
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkStructuredGridConnectivity);
+VTK_ABI_NAMESPACE_END
 
 // Description:
 // An enum to define the 6 block faces
 namespace BlockFace
 {
+VTK_ABI_NAMESPACE_BEGIN
 enum
 {
   FRONT = 0,  // (+k diretion)
@@ -38,8 +29,10 @@ enum
   BOTTOM = 5, // (-j direction)
   NOT_ON_BLOCK_FACE = 6
 };
+VTK_ABI_NAMESPACE_END
 }
 
+VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 vtkStructuredGridConnectivity::vtkStructuredGridConnectivity()
 {
@@ -170,7 +163,7 @@ void vtkStructuredGridConnectivity::PrintSelf(std::ostream& os, vtkIndent indent
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::RegisterGrid(const int gridID, int ext[6],
+void vtkStructuredGridConnectivity::RegisterGrid(int gridID, int ext[6],
   vtkUnsignedCharArray* nodesGhostArray, vtkUnsignedCharArray* cellGhostArray,
   vtkPointData* pointData, vtkCellData* cellData, vtkPoints* gridNodes)
 {
@@ -207,8 +200,7 @@ void vtkStructuredGridConnectivity::AcquireDataDescription()
 }
 
 //------------------------------------------------------------------------------
-vtkStructuredNeighbor vtkStructuredGridConnectivity::GetGridNeighbor(
-  const int gridID, const int nei)
+vtkStructuredNeighbor vtkStructuredGridConnectivity::GetGridNeighbor(int gridID, int nei)
 {
   assert("pre: gridID out-of-bounds!" &&
     (gridID >= 0 && gridID < static_cast<int>(this->NumberOfGrids)));
@@ -219,7 +211,7 @@ vtkStructuredNeighbor vtkStructuredGridConnectivity::GetGridNeighbor(
 }
 
 //------------------------------------------------------------------------------
-vtkIdList* vtkStructuredGridConnectivity::GetNeighbors(const int gridID, int* extents)
+vtkIdList* vtkStructuredGridConnectivity::GetNeighbors(int gridID, int* extents)
 {
   assert("pre: input extents array is nullptr" && (extents != nullptr));
 
@@ -283,7 +275,7 @@ void vtkStructuredGridConnectivity::ComputeNeighbors()
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::SearchNeighbors(
-  const int gridID, const int i, const int j, const int k, vtkIdList* neiList)
+  int gridID, int i, int j, int k, vtkIdList* neiList)
 {
   assert("pre: neiList should not be nullptr" && (neiList != nullptr));
   assert("pre: gridID is out-of-bounds" &&
@@ -303,7 +295,7 @@ void vtkStructuredGridConnectivity::SearchNeighbors(
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::MarkCellProperty(
-  unsigned char& pfield, unsigned char* nodeGhostFields, const int numNodes)
+  unsigned char& pfield, unsigned char* nodeGhostFields, int numNodes)
 {
   // Sanity check
   assert("pre: node ghostfields should not be nullptr" && (nodeGhostFields != nullptr));
@@ -321,8 +313,8 @@ void vtkStructuredGridConnectivity::MarkCellProperty(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::MarkNodeProperty(const int gridID, const int i, const int j,
-  const int k, int ext[6], int realExtent[6], unsigned char& p)
+void vtkStructuredGridConnectivity::MarkNodeProperty(
+  int gridID, int i, int j, int k, int ext[6], int realExtent[6], unsigned char& p)
 {
   p = 0;
 
@@ -379,7 +371,7 @@ void vtkStructuredGridConnectivity::MarkNodeProperty(const int gridID, const int
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::FillNodesGhostArray(const int gridID, const int dataDescription,
+void vtkStructuredGridConnectivity::FillNodesGhostArray(int gridID, int dataDescription,
   int GridExtent[6], int RealExtent[6], vtkUnsignedCharArray* nodesArray)
 {
   int ijk[3];
@@ -403,8 +395,8 @@ void vtkStructuredGridConnectivity::FillNodesGhostArray(const int gridID, const 
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::FillCellsGhostArray(const int dataDescription,
-  const int numNodesPerCell, int dims[3], int CellExtent[6], vtkUnsignedCharArray* nodesArray,
+void vtkStructuredGridConnectivity::FillCellsGhostArray(int dataDescription, int numNodesPerCell,
+  int dims[3], int CellExtent[6], vtkUnsignedCharArray* nodesArray,
   vtkUnsignedCharArray* cellsArray)
 {
   assert("pre: nodes array should not be nullptr" && (nodesArray != nullptr));
@@ -455,7 +447,7 @@ void vtkStructuredGridConnectivity::FillCellsGhostArray(const int dataDescriptio
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::FillGhostArrays(
-  const int gridID, vtkUnsignedCharArray* nodesArray, vtkUnsignedCharArray* cellsArray)
+  int gridID, vtkUnsignedCharArray* nodesArray, vtkUnsignedCharArray* cellsArray)
 {
   if (nodesArray == nullptr)
   {
@@ -496,8 +488,7 @@ void vtkStructuredGridConnectivity::FillGhostArrays(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::GetRealExtent(
-  const int gridID, int GridExtent[6], int RealExtent[6])
+void vtkStructuredGridConnectivity::GetRealExtent(int gridID, int GridExtent[6], int RealExtent[6])
 {
   for (int i = 0; i < 6; ++i)
   {
@@ -631,7 +622,7 @@ void vtkStructuredGridConnectivity::GetRealExtent(
 
 //------------------------------------------------------------------------------
 bool vtkStructuredGridConnectivity::IsNodeOnSharedBoundary(
-  const int gridID, int RealExtent[6], const int i, const int j, const int k)
+  int gridID, int RealExtent[6], int i, int j, int k)
 {
   if (this->IsNodeOnBoundaryOfExtent(i, j, k, RealExtent))
   {
@@ -655,7 +646,7 @@ bool vtkStructuredGridConnectivity::IsNodeOnSharedBoundary(
 
 //------------------------------------------------------------------------------
 bool vtkStructuredGridConnectivity::IsGhostNode(
-  int GridExtent[6], int RealExtent[6], const int i, const int j, const int k)
+  int GridExtent[6], int RealExtent[6], int i, int j, int k)
 {
   // STEP 0: Check if there are any ghost-layers. Note, if the original data
   // that the user is registering contains ghost-layers, the users must set
@@ -676,13 +667,13 @@ bool vtkStructuredGridConnectivity::IsGhostNode(
 }
 
 //------------------------------------------------------------------------------
-bool vtkStructuredGridConnectivity::IsNodeOnBoundary(const int i, const int j, const int k)
+bool vtkStructuredGridConnectivity::IsNodeOnBoundary(int i, int j, int k)
 {
   return (this->IsNodeOnBoundaryOfExtent(i, j, k, this->WholeExtent));
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::EstablishNeighbors(const int i, const int j)
+void vtkStructuredGridConnectivity::EstablishNeighbors(int i, int j)
 {
   assert("pre: i < j" && (i < j));
 
@@ -756,7 +747,7 @@ void vtkStructuredGridConnectivity::EstablishNeighbors(const int i, const int j)
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::DetectNeighbors(
-  const int i, const int j, int ex1[6], int ex2[6], int orientation[3], int ndim)
+  int i, int j, int ex1[6], int ex2[6], int orientation[3], int ndim)
 {
   std::vector<int> status;
   status.resize(ndim);
@@ -801,7 +792,7 @@ void vtkStructuredGridConnectivity::DetectNeighbors(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::SetBlockTopology(const int gridID)
+void vtkStructuredGridConnectivity::SetBlockTopology(int gridID)
 {
   int gridExtent[6];
   this->GetGridExtent(gridID, gridExtent);
@@ -845,7 +836,7 @@ void vtkStructuredGridConnectivity::SetBlockTopology(const int gridID)
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::SetNeighbors(
-  const int i, const int j, int i2jOrientation[3], int j2iOrientation[3], int overlapExtent[6])
+  int i, int j, int i2jOrientation[3], int j2iOrientation[3], int overlapExtent[6])
 {
   vtkStructuredNeighbor Ni2j(j, overlapExtent, i2jOrientation);
   vtkStructuredNeighbor Nj2i(i, overlapExtent, j2iOrientation);
@@ -920,7 +911,7 @@ int vtkStructuredGridConnectivity::DoPartialOverlap(int s[2], int S[2], int over
 
 //------------------------------------------------------------------------------
 int vtkStructuredGridConnectivity::PartialOverlap(
-  int A[2], const int CardinalityOfA, int B[2], const int CardinalityOfB, int overlap[2])
+  int A[2], int CardinalityOfA, int B[2], int CardinalityOfB, int overlap[2])
 {
   if (CardinalityOfA > CardinalityOfB)
   {
@@ -951,7 +942,7 @@ int vtkStructuredGridConnectivity::IntervalOverlap(int A[2], int B[2], int overl
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::GetIJKBlockOrientation(
-  const int i, const int j, const int k, int ext[6], int orientation[3])
+  int i, int j, int k, int ext[6], int orientation[3])
 {
   orientation[0] = orientation[1] = orientation[2] = BlockFace::NOT_ON_BLOCK_FACE;
 
@@ -1003,7 +994,7 @@ void vtkStructuredGridConnectivity::GetIJKBlockOrientation(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::CreateGhostedExtent(const int gridID, const int N)
+void vtkStructuredGridConnectivity::CreateGhostedExtent(int gridID, int N)
 {
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
     (gridID < static_cast<int>(this->NumberOfGrids)));
@@ -1054,7 +1045,7 @@ void vtkStructuredGridConnectivity::CreateGhostedExtent(const int gridID, const 
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::CreateGhostedMaskArrays(const int gridID)
+void vtkStructuredGridConnectivity::CreateGhostedMaskArrays(int gridID)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1165,8 +1156,7 @@ void vtkStructuredGridConnectivity::CreateGhostedMaskArrays(const int gridID)
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::AllocatePointData(
-  vtkPointData* RPD, const int N, vtkPointData* PD)
+void vtkStructuredGridConnectivity::AllocatePointData(vtkPointData* RPD, int N, vtkPointData* PD)
 {
   assert("pre: Reference point data is nullptr" && (RPD != nullptr));
   assert("pre: point data is nullptr" && (PD != nullptr));
@@ -1188,7 +1178,7 @@ void vtkStructuredGridConnectivity::AllocatePointData(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::AllocateCellData(vtkCellData* RCD, const int N, vtkCellData* CD)
+void vtkStructuredGridConnectivity::AllocateCellData(vtkCellData* RCD, int N, vtkCellData* CD)
 {
   assert("pre: Reference cell data is nullptr" && (RCD != nullptr));
   assert("pre: cell data is nullptr" && (CD != nullptr));
@@ -1210,7 +1200,7 @@ void vtkStructuredGridConnectivity::AllocateCellData(vtkCellData* RCD, const int
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::InitializeGhostData(const int gridID)
+void vtkStructuredGridConnectivity::InitializeGhostData(int gridID)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1302,7 +1292,7 @@ void vtkStructuredGridConnectivity::CopyFieldData(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::TransferRegisteredDataToGhostedData(const int gridID)
+void vtkStructuredGridConnectivity::TransferRegisteredDataToGhostedData(int gridID)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1383,7 +1373,7 @@ void vtkStructuredGridConnectivity::TransferRegisteredDataToGhostedData(const in
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::TransferGhostDataFromNeighbors(const int gridID)
+void vtkStructuredGridConnectivity::TransferGhostDataFromNeighbors(int gridID)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1400,7 +1390,7 @@ void vtkStructuredGridConnectivity::TransferGhostDataFromNeighbors(const int gri
 
 //------------------------------------------------------------------------------
 void vtkStructuredGridConnectivity::TransferLocalNeighborData(
-  const int gridID, const vtkStructuredNeighbor& Neighbor)
+  int gridID, const vtkStructuredNeighbor& Neighbor)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1485,7 +1475,7 @@ void vtkStructuredGridConnectivity::TransferLocalNeighborData(
 }
 
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::ComputeNeighborSendAndRcvExtent(const int gridID, const int N)
+void vtkStructuredGridConnectivity::ComputeNeighborSendAndRcvExtent(int gridID, int N)
 {
   // Sanity check
   assert("pre: gridID is out-of-bounds!" && (gridID >= 0) &&
@@ -1510,7 +1500,7 @@ void vtkStructuredGridConnectivity::ComputeNeighborSendAndRcvExtent(const int gr
   }
 }
 //------------------------------------------------------------------------------
-void vtkStructuredGridConnectivity::CreateGhostLayers(const int N)
+void vtkStructuredGridConnectivity::CreateGhostLayers(int N)
 {
   if (N == 0)
   {
@@ -1532,3 +1522,4 @@ void vtkStructuredGridConnectivity::CreateGhostLayers(const int N)
     this->TransferGhostDataFromNeighbors(i);
   } // END for all grids
 }
+VTK_ABI_NAMESPACE_END

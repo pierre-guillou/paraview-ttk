@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    TestCityGMLReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 
 // .NAME Test of an RGBA texture on a vtkActor.
 // .SECTION Description
@@ -36,26 +24,8 @@
 #include "vtkTexture.h"
 #include "vtksys/SystemTools.hxx"
 
-int TestCityGMLReader(int argc, char* argv[])
+void AddActors(vtkRenderer* renderer, vtkMultiBlockDataSet* mb, const char* fname)
 {
-  char* fname =
-    vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/CityGML/Part-4-Buildings-V4-one.gml");
-
-  std::cout << fname << std::endl;
-  vtkNew<vtkRenderer> renderer;
-  renderer->SetBackground(0.5, 0.7, 0.7);
-
-  vtkNew<vtkRenderWindow> renWin;
-  renWin->AddRenderer(renderer);
-
-  vtkNew<vtkRenderWindowInteractor> interactor;
-  interactor->SetRenderWindow(renWin);
-
-  vtkNew<vtkCityGMLReader> reader;
-  reader->SetFileName(fname);
-  reader->Update();
-  vtkMultiBlockDataSet* mb = reader->GetOutput();
-
   vtkSmartPointer<vtkCompositeDataIterator> it;
   for (it.TakeReference(mb->NewIterator()); !it->IsDoneWithTraversal(); it->GoToNextItem())
   {
@@ -88,6 +58,29 @@ int TestCityGMLReader(int argc, char* argv[])
       }
     }
   }
+}
+
+int TestCityGMLReader(int argc, char* argv[])
+{
+  char* fname =
+    vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/CityGML/Part-4-Buildings-V4-one.gml");
+
+  std::cout << fname << std::endl;
+  vtkNew<vtkRenderer> renderer;
+  renderer->SetBackground(0.5, 0.7, 0.7);
+
+  vtkNew<vtkRenderWindow> renWin;
+  renWin->AddRenderer(renderer);
+
+  vtkNew<vtkRenderWindowInteractor> interactor;
+  interactor->SetRenderWindow(renWin);
+
+  vtkNew<vtkCityGMLReader> reader;
+  reader->SetFileName(fname);
+  reader->Update();
+  vtkMultiBlockDataSet* mb = reader->GetOutput();
+
+  AddActors(renderer, mb, fname);
 
   renderer->ResetCamera();
   renderer->GetActiveCamera()->Azimuth(90);

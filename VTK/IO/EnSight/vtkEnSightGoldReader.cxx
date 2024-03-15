@@ -1,17 +1,5 @@
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkEnSightGoldReader.cxx
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
+// SPDX-License-Identifier: BSD-3-Clause
 #include "vtkEnSightGoldReader.h"
 
 #include "vtkCellData.h"
@@ -30,6 +18,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtksys/FStream.hxx"
 
+#include <algorithm>
 #include <cctype>
 #include <map>
 #include <numeric>
@@ -37,6 +26,7 @@
 #include <string>
 #include <vector>
 
+VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkEnSightGoldReader);
 
 class vtkEnSightGoldReader::FileOffsetMapInternal
@@ -178,6 +168,14 @@ int vtkEnSightGoldReader::ReadGeometryFile(
     return 0;
   }
   std::string sfilename;
+  std::string filename_string(fileName);
+  char quotes = '\"';
+  size_t found = filename_string.find(quotes);
+  if (found != std::string::npos)
+  {
+    filename_string.erase(
+      std::remove(filename_string.begin(), filename_string.end(), quotes), filename_string.end());
+  }
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -185,12 +183,12 @@ int vtkEnSightGoldReader::ReadGeometryFile(
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filename_string;
     vtkDebugMacro("full path to geometry file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filename_string;
   }
 
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
@@ -377,6 +375,14 @@ int vtkEnSightGoldReader::ReadMeasuredGeometryFile(
     return 0;
   }
   std::string sfilename;
+  std::string filename_string(fileName);
+  char quotes = '\"';
+  size_t found = filename_string.find(quotes);
+  if (found != std::string::npos)
+  {
+    filename_string.erase(
+      std::remove(filename_string.begin(), filename_string.end(), quotes), filename_string.end());
+  }
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -384,12 +390,12 @@ int vtkEnSightGoldReader::ReadMeasuredGeometryFile(
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filename_string;
     vtkDebugMacro("full path to measured geometry file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filename_string;
   }
 
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
@@ -509,6 +515,14 @@ bool vtkEnSightGoldReader::OpenVariableFile(const char* fileName, const char* va
   }
 
   std::string sfilename;
+  std::string filename_string(fileName);
+  char quotes = '\"';
+  size_t found = filename_string.find(quotes);
+  if (found != std::string::npos)
+  {
+    filename_string.erase(
+      std::remove(filename_string.begin(), filename_string.end(), quotes), filename_string.end());
+  }
   if (this->FilePath)
   {
     sfilename = this->FilePath;
@@ -516,12 +530,12 @@ bool vtkEnSightGoldReader::OpenVariableFile(const char* fileName, const char* va
     {
       sfilename += "/";
     }
-    sfilename += fileName;
+    sfilename += filename_string;
     vtkDebugMacro("full path to variable (" << variableType << ") file: " << sfilename);
   }
   else
   {
-    sfilename = fileName;
+    sfilename = filename_string;
   }
 
   this->IS = new vtksys::ifstream(sfilename.c_str(), ios::in);
@@ -2694,3 +2708,4 @@ void vtkEnSightGoldReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
 }
+VTK_ABI_NAMESPACE_END

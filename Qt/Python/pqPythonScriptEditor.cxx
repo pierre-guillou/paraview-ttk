@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqPythonScriptEditor.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 #include "pqPythonScriptEditor.h"
 
 #include "pqApplicationCore.h"
@@ -188,29 +160,28 @@ void pqPythonScriptEditor::createMenus()
   this->editMenu->addAction(&this->Actions[Action::Redo]);
 
   this->Actions.updateScriptsList(this->PythonManager);
-  auto menu = menuBar()->addMenu(this->tr("&Scripts"));
+  auto menu = menuBar()->addMenu(tr("&Scripts"));
   menu->setToolTipsVisible(true);
   menu->addAction(&this->Actions[Action::SaveFileAsScript]);
   menu->addSeparator();
 
-  this->scriptMenus[ScriptActionType::Open] = menu->addMenu(this->tr("Open..."));
-  this->scriptMenus[ScriptActionType::Open]->setStatusTip(
-    this->tr("Open a python script in a new tab"));
+  this->scriptMenus[ScriptActionType::Open] = menu->addMenu(tr("Open..."));
+  this->scriptMenus[ScriptActionType::Open]->setStatusTip(tr("Open a python script in a new tab"));
   this->scriptMenus[ScriptActionType::Open]->setToolTipsVisible(true);
 
   this->scriptMenus[ScriptActionType::Load] =
-    menu->addMenu(this->tr("Load script into current editor tab..."));
+    menu->addMenu(tr("Load script into current editor tab..."));
   this->scriptMenus[ScriptActionType::Load]->setStatusTip(
-    this->tr("Load a python script in the current opened tab and override its content"));
+    tr("Load a python script in the current opened tab and override its content"));
   this->scriptMenus[ScriptActionType::Load]->setToolTipsVisible(true);
 
-  this->scriptMenus[ScriptActionType::Delete] = menu->addMenu(this->tr("Delete..."));
-  this->scriptMenus[ScriptActionType::Delete]->setStatusTip(this->tr("Delete the script"));
+  this->scriptMenus[ScriptActionType::Delete] = menu->addMenu(tr("Delete..."));
+  this->scriptMenus[ScriptActionType::Delete]->setStatusTip(tr("Delete the script"));
   this->scriptMenus[ScriptActionType::Delete]->setToolTipsVisible(true);
 
-  this->scriptMenus[ScriptActionType::Run] = menu->addMenu(this->tr("Run..."));
+  this->scriptMenus[ScriptActionType::Run] = menu->addMenu(tr("Run..."));
   this->scriptMenus[ScriptActionType::Run]->setStatusTip(
-    this->tr("Load a python script in a new tab and run it"));
+    tr("Load a python script in a new tab and run it"));
   this->scriptMenus[ScriptActionType::Run]->setToolTipsVisible(true);
 
   menu->addSeparator();

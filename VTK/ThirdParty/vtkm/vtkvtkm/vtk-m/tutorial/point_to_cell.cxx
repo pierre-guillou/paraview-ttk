@@ -53,39 +53,32 @@ namespace vtkm
 namespace filter
 {
 
-struct ConvertPointFieldToCells : vtkm::filter::FilterField<ConvertPointFieldToCells>
+struct ConvertPointFieldToCells : vtkm::filter::FilterField
 {
-  template <typename ArrayHandleType, typename Policy>
-  VTKM_CONT vtkm::cont::DataSet DoExecute(const vtkm::cont::DataSet& inDataSet,
-                                          const ArrayHandleType& inField,
-                                          const vtkm::filter::FieldMetadata& fieldMetadata,
-                                          vtkm::filter::PolicyBase<Policy>);
+  VTKM_CONT vtkm::cont::DataSet DoExecute(const vtkm::cont::DataSet& inDataSet) override;
 };
 
-template <typename ArrayHandleType, typename Policy>
-VTKM_CONT cont::DataSet ConvertPointFieldToCells::DoExecute(
-  const vtkm::cont::DataSet& inDataSet,
-  const ArrayHandleType& inField,
-  const vtkm::filter::FieldMetadata& fieldMetadata,
-  vtkm::filter::PolicyBase<Policy> policy)
+VTKM_CONT cont::DataSet ConvertPointFieldToCells::DoExecute(const vtkm::cont::DataSet& inDataSet)
 {
-  VTKM_IS_ARRAY_HANDLE(ArrayHandleType);
+  const auto& inField = this->GetFieldFromDataSet(inDataSet);
 
-  using ValueType = typename ArrayHandleType::ValueType;
+  vtkm::cont::UnknownArrayHandle outArray;
+  auto resolveType = [&](const auto& inConcrete) {
+    using ValueType = typename std::decay_t<decltype(inConcrete)>::ValueType;
 
-  vtkm::cont::ArrayHandle<ValueType> outField;
-  this->Invoke(vtkm::worklet::ConvertPointFieldToCells{},
-               vtkm::filter::ApplyPolicyCellSet(inDataSet.GetCellSet(), policy, *this),
-               inField,
-               outField);
+    vtkm::cont::ArrayHandle<ValueType> outConcrete;
+    this->Invoke(
+      vtkm::worklet::ConvertPointFieldToCells{}, inDataSet.GetCellSet(), inConcrete, outConcrete);
+    outArray = outConcrete;
+  };
+  this->CastAndCallScalarField(inField, resolveType);
 
   std::string outFieldName = this->GetOutputFieldName();
   if (outFieldName == "")
   {
-    outFieldName = fieldMetadata.GetName();
+    outFieldName = inField.GetName();
   }
-
-  return vtkm::filter::CreateResultFieldCell(inDataSet, outField, outFieldName);
+  return this->CreateResultFieldCell(inDataSet, outFieldName, outArray);
 }
 
 } // namespace filter
