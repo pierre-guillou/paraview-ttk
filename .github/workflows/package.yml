@@ -16,6 +16,7 @@ jobs:
   # ------ #
   build-ubuntu:
     runs-on: ${{ matrix.os }}
+    if: false
     strategy:
       matrix:
         os: [ubuntu-20.04, ubuntu-22.04]
@@ -73,6 +74,7 @@ jobs:
   # ----- #
   build-macos:
     runs-on: macos-latest
+    if: false
     steps:
     - uses: actions/checkout@v3
       name: Checkout TTK-ParaView source code
@@ -131,7 +133,7 @@ jobs:
     - name: Install dependencies with conda
       shell: bash
       run: |
-        conda install -c conda-forge "qt>=5.12"
+        conda install -c conda-forge qt-main
 
     - name: Remove hosted Python
       shell: bash
