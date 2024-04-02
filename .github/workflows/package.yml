@@ -164,7 +164,7 @@ jobs:
       shell: bash
       run: |
         cd ../b
-        cpack -G NSIS64
+        cpack -G NSIS64 -C Release --verbose
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
     - name: Upload install executable
