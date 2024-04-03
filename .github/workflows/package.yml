@@ -150,7 +150,7 @@ jobs:
         cmake ^
           -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
           -DCMAKE_BUILD_TYPE=Release ^
-          -DPARAVIEW_USE_VTKM=OFF ^
+          -DVTKm_MODULE_ENABLE_vtkm_filter_scalar_topology=NO ^
           -G"Visual Studio 17 2022" ^
           %GITHUB_WORKSPACE%
 
@@ -164,15 +164,7 @@ jobs:
       shell: bash
       run: |
         cd ../b
-        cpack -G NSIS64 -C Release --verbose || true
-        echo
-        ls -l _CPack_Packages
-        echo
-        ls -l _CPack_Packages/win64
-        echo
-        ls -l _CPack_Packages/win64/NSIS64
-        echo
-        cat _CPack_Packages/win64/NSIS64/NSISOutput.log
+        cpack -G NSIS64
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
     - name: Upload install executable
