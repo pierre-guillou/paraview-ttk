@@ -171,7 +171,7 @@ jobs:
         echo
         ls -l _CPack_Packages/win64/NSIS64
         echo
-        cat _CPack_Packages/win64/NSIS64/project.nsi
+        cat _CPack_Packages/win64/NSIS64/NSISOutput.log
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
     - name: Upload install executable
