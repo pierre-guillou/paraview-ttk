@@ -14,6 +14,16 @@ get_filename_component(VTK_TOP_DIR "${VTKTestExternal_SOURCE_DIR}/../.." ABSOLUT
 set(ExternalData_SOURCE_ROOT "${VTK_TOP_DIR}")
 set(VTK_SOURCE_DIR "${VTK_TOP_DIR}")
 
+configure_file(
+  "${VTK_SOURCE_DIR}/CMake/CTestCustom.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake"
+  @ONLY)
+
+add_library(vtkbuild INTERFACE)
+add_library(VTKTestingExternal::vtkbuild ALIAS vtkbuild)
+
+include("${VTK_SOURCE_DIR}/CMake/vtkCompilerWarningFlags.cmake")
+
 # Find the VTK build or install tree.  Assume the version matches exactly.
 # One should provide VTK_DIR explicitly in our intended use cases.
 find_package(VTK REQUIRED NO_MODULE)
@@ -57,6 +67,7 @@ set(_vtk_build_TEST_DATA_TARGET "VTKData")
 set(_vtk_build_TEST_INPUT_DATA_DIRECTORY "${VTK_TOP_DIR}/Testing")
 set(_vtk_build_TEST_OUTPUT_DATA_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing")
 set(_vtk_build_TEST_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/Testing/Temporary")
+set(_vtk_build_UTILITY_TARGET "VTKTestingExternal::vtkbuild")
 
 get_property(vtk_test_modules GLOBAL
   PROPERTY  _vtk_module_test_modules)

@@ -4,6 +4,7 @@
 
 #include "vtkAbstractChartExporter.h"
 #include "vtkAnnotationLink.h"
+#include "vtkCSVExporter.h"
 #include "vtkCamera.h"
 #include "vtkChart.h"
 #include "vtkChartRepresentation.h"

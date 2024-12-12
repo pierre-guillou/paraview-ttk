@@ -135,7 +135,7 @@ vtkRenderWindowInteractor::vtkRenderWindowInteractor()
 
   this->RecognizeGestures = true;
   this->PointersDownCount = 0;
-  this->CurrentGesture = vtkCommand::StartEvent;
+  this->SetCurrentGesture(vtkCommand::StartEvent);
   this->Done = false;
 }
 
@@ -608,26 +608,26 @@ void vtkRenderWindowInteractor::RecognizeGesture(vtkCommand::EventIds event)
       }
     }
     // we do not know what the gesture is yet
-    this->CurrentGesture = vtkCommand::StartEvent;
+    this->SetCurrentGesture(vtkCommand::StartEvent);
     return;
   }
 
   // end the gesture if needed
   if (event == vtkCommand::LeftButtonReleaseEvent)
   {
-    if (this->CurrentGesture == vtkCommand::PinchEvent)
+    if (this->GetCurrentGesture() == vtkCommand::PinchEvent)
     {
       this->EndPinchEvent();
     }
-    if (this->CurrentGesture == vtkCommand::RotateEvent)
+    if (this->GetCurrentGesture() == vtkCommand::RotateEvent)
     {
       this->EndRotateEvent();
     }
-    if (this->CurrentGesture == vtkCommand::PanEvent)
+    if (this->GetCurrentGesture() == vtkCommand::PanEvent)
     {
       this->EndPanEvent();
     }
-    this->CurrentGesture = vtkCommand::StartEvent;
+    this->SetCurrentGesture(vtkCommand::StartEvent);
     return;
   }
 
@@ -686,59 +686,93 @@ void vtkRenderWindowInteractor::RecognizeGesture(vtkCommand::EventIds event)
 
     // do we know what gesture we are doing yet? If not
     // see if we can figure it out
-    if (this->CurrentGesture == vtkCommand::StartEvent)
+    // pinch is a move to/from the center point
+    // rotate is a move along the circumference
+    // pan is a move of the center point
+    // compute the distance along each of these axes in pixels
+    // the first to break thresh wins
+    vtkCommand::EventIds gest = vtkCommand::NoEvent;
+    double thresh = 0.01 *
+      sqrt(static_cast<double>(this->Size[0] * this->Size[0] + this->Size[1] * this->Size[1]));
+    if (thresh < 15.0)
     {
-      // pinch is a move to/from the center point
-      // rotate is a move along the circumference
-      // pan is a move of the center point
-      // compute the distance along each of these axes in pixels
-      // the first to break thresh wins
-      double thresh = 0.01 *
-        sqrt(static_cast<double>(this->Size[0] * this->Size[0] + this->Size[1] * this->Size[1]));
-      if (thresh < 15.0)
+      thresh = 15.0;
+    }
+    double pinchDistance = fabs(newDistance - originalDistance);
+    double rotateDistance = newDistance * vtkMath::Pi() * fabs(angleDeviation) / 360.0;
+    double panDistance = sqrt(trans[0] * trans[0] + trans[1] * trans[1]);
+    if (pinchDistance > thresh && pinchDistance > rotateDistance && pinchDistance > panDistance)
+    {
+      gest = vtkCommand::PinchEvent;
+    }
+    else if (rotateDistance > thresh && rotateDistance > panDistance)
+    {
+      gest = vtkCommand::RotateEvent;
+    }
+    else if (panDistance > thresh)
+    {
+      gest = vtkCommand::PanEvent;
+    }
+    if (this->GetCurrentGesture() != gest)
+    {
+      // If there was some other gesture being processed, end it
+      switch (this->GetCurrentGesture())
       {
-        thresh = 15.0;
+        case vtkCommand::PinchEvent:
+          this->EndPinchEvent();
+          break;
+        case vtkCommand::RotateEvent:
+          this->EndRotateEvent();
+          break;
+        case vtkCommand::PanEvent:
+          this->EndPanEvent();
+          break;
+        default:
+          break;
       }
-      double pinchDistance = fabs(newDistance - originalDistance);
-      double rotateDistance = newDistance * vtkMath::Pi() * fabs(angleDeviation) / 360.0;
-      double panDistance = sqrt(trans[0] * trans[0] + trans[1] * trans[1]);
-      if (pinchDistance > thresh && pinchDistance > rotateDistance && pinchDistance > panDistance)
+
+      this->SetCurrentGesture(gest);
+
+      // If this is the start of a gesture, invoke the start specific event
+      switch (this->GetCurrentGesture())
       {
-        this->CurrentGesture = vtkCommand::PinchEvent;
-        this->Scale = 1.0;
-        this->StartPinchEvent();
-      }
-      else if (rotateDistance > thresh && rotateDistance > panDistance)
-      {
-        this->CurrentGesture = vtkCommand::RotateEvent;
-        this->Rotation = 0.0;
-        this->StartRotateEvent();
-      }
-      else if (panDistance > thresh)
-      {
-        this->CurrentGesture = vtkCommand::PanEvent;
-        this->Translation[0] = 0.0;
-        this->Translation[1] = 0.0;
-        this->StartPanEvent();
+        case vtkCommand::PinchEvent:
+          this->SetCurrentGesture(vtkCommand::PinchEvent);
+          this->Scale = 1.0;
+          this->StartPinchEvent();
+          break;
+        case vtkCommand::RotateEvent:
+          this->SetCurrentGesture(vtkCommand::RotateEvent);
+          this->Rotation = 0.0;
+          this->StartRotateEvent();
+          break;
+        case vtkCommand::PanEvent:
+          this->SetCurrentGesture(vtkCommand::PanEvent);
+          this->Translation[0] = 0.0;
+          this->Translation[1] = 0.0;
+          this->StartPanEvent();
+          break;
+        default:
+          // Nothing special here
+          break;
       }
     }
 
     // if we have found a specific type of movement then
     // handle it
-    if (this->CurrentGesture == vtkCommand::RotateEvent)
+    if (this->GetCurrentGesture() == vtkCommand::RotateEvent)
     {
       this->SetRotation(angleDeviation);
       this->RotateEvent();
     }
 
-    if (this->CurrentGesture == vtkCommand::PinchEvent)
+    if (this->GetCurrentGesture() == vtkCommand::PinchEvent)
     {
-      vtkErrorMacro("See pinch");
       this->SetScale(newDistance / originalDistance);
       this->PinchEvent();
     }
 
-    if (this->CurrentGesture == vtkCommand::PanEvent)
+    if (this->GetCurrentGesture() == vtkCommand::PanEvent)
     {
       this->SetTranslation(trans);
       this->PanEvent();
@@ -1094,6 +1128,11 @@ void vtkRenderWindowInteractor::LeftButtonReleaseEvent()
     return;
   }
 
+  // Left button release event is responsible for ending any current multi-touch gestures being
+  // processed. Before invoking a release event on the first pointer and decrementing the pointers
+  // down count, note the current down count. This can be used later to call RecognizeGesture and
+  // end the gesture with a release event.
+  int previousPointersDownCount = this->PointersDownCount;
   if (this->RecognizeGestures)
   {
     if (this->PointersDown[this->PointerIndex])
@@ -1102,7 +1141,7 @@ void vtkRenderWindowInteractor::LeftButtonReleaseEvent()
       this->PointersDownCount--;
     }
     // do we have multitouch
-    if (this->PointersDownCount > 1)
+    if (previousPointersDownCount > 1)
     {
       // handle the gesture
       this->RecognizeGesture(vtkCommand::LeftButtonReleaseEvent);
@@ -1411,4 +1450,17 @@ void vtkRenderWindowInteractor::SwipeEvent()
   }
   this->InvokeEvent(vtkCommand::SwipeEvent, nullptr);
 }
+
+//------------------------------------------------------------------
+vtkCommand::EventIds vtkRenderWindowInteractor::GetCurrentGesture() const
+{
+  return this->CurrentGesture;
+}
+
+//------------------------------------------------------------------
+void vtkRenderWindowInteractor::SetCurrentGesture(vtkCommand::EventIds eid)
+{
+  this->CurrentGesture = eid;
+}
+
 VTK_ABI_NAMESPACE_END

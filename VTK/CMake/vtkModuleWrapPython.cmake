@@ -194,6 +194,10 @@ $<$<BOOL:${_vtk_python_hierarchy_files}>:\n--types \'$<JOIN:${_vtk_python_hierar
     PROPERTY  "headers"
     VARIABLE  _vtk_python_headers)
   set(_vtk_python_classes)
+  cmake_policy(PUSH)
+  if(POLICY CMP0116)
+    cmake_policy(SET CMP0116 NEW) # DEPFILE argument is relative to CMAKE_CURRENT_BINARY_DIR
+  endif()
   foreach (_vtk_python_header IN LISTS _vtk_python_headers)
     # Assume the class name matches the basename of the header. This is VTK
     # convention.
@@ -250,6 +254,7 @@ $<$<BOOL:${_vtk_python_hierarchy_files}>:\n--types \'$<JOIN:${_vtk_python_hierar
         "$<TARGET_FILE:${_vtk_python_wrap_target}>"
         ${_vtk_python_command_depends})
   endforeach ()
+  cmake_policy(POP)
 
   set("${sources}"
     "${_vtk_python_sources}"
@@ -408,6 +413,16 @@ function (_vtk_module_wrap_python_library name)
     set(_vtk_python_wrap_target "VTKCompileTools::WrapPythonInit")
   endif ()
 
+  set(_vtk_python_depends_args)
+  if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+    list(APPEND _vtk_python_depends_args
+      DEPENDS_EXPLICIT_ONLY)
+  endif ()
+
+  cmake_policy(PUSH)
+  if(POLICY CMP0116)
+    cmake_policy(SET CMP0116 NEW) # DEPFILE argument is relative to CMAKE_CURRENT_BINARY_DIR
+  endif()
   add_custom_command(
     OUTPUT  "${_vtk_python_init_output}"
             "${_vtk_python_init_impl_output}"
@@ -419,7 +434,9 @@ function (_vtk_module_wrap_python_library name)
     COMMENT "Generating the Python module initialization sources for ${name}"
     DEPENDS
       "${_vtk_python_init_data_file}"
-      "$<TARGET_FILE:${_vtk_python_wrap_target}>")
+      "$<TARGET_FILE:${_vtk_python_wrap_target}>"
+    ${_vtk_python_depends_args})
+  cmake_policy(POP)
 
   if (_vtk_python_BUILD_STATIC)
     set(_vtk_python_module_header_file
@@ -450,16 +467,32 @@ extern PyObject* PyInit_${_vtk_python_library_name}();
       PROPERTY
         GENERATED 1)
 
-    if (_vtk_python_INSTALL_HEADERS)
-      install(
-        FILES       "${_vtk_python_module_header_file}"
+    set(_vtk_python_header_set_install_args)
+    add_library("${name}" STATIC)
+    if (NOT _vtk_build_USE_FILE_SETS)
+      if (_vtk_python_INSTALL_HEADERS)
+        install(
+          FILES       "${_vtk_python_module_header_file}"
+          DESTINATION "${_vtk_python_HEADERS_DESTINATION}"
+          COMPONENT   "${_vtk_python_headers_component}")
+      endif ()
+    else ()
+      list(APPEND _vtk_python_header_set_install_args
+        FILE_SET vtk_module_python_header_files
         DESTINATION "${_vtk_python_HEADERS_DESTINATION}"
         COMPONENT   "${_vtk_python_headers_component}")
+      _vtk_module_add_file_set("${name}"
+        NAME vtk_module_python_header_files
+        FILES "${_vtk_python_module_header_file}")
     endif ()
 
-    add_library("${name}" STATIC
-      ${_vtk_python_library_sources}
-      "${_vtk_python_module_header_file}")
+    target_sources("${name}"
+      PRIVATE
+        ${_vtk_python_library_sources})
+    _vtk_module_add_file_set("${name}"
+      NAME      vtk_module_python_headers
+      BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/${_vtk_python_HEADERS_DESTINATION}"
+      FILES     "${_vtk_python_module_header_file}")
     target_include_directories("${name}"
       INTERFACE
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/${_vtk_python_HEADERS_DESTINATION}>")
@@ -477,8 +510,14 @@ extern PyObject* PyInit_${_vtk_python_library_name}();
       PROPERTY
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${_vtk_python_STATIC_MODULE_DESTINATION}")
   else ()
-    add_library("${name}" MODULE
-      ${_vtk_python_library_sources})
+    add_library("${name}" MODULE)
+    target_sources("${name}"
+      PRIVATE
+        ${_vtk_python_library_sources})
+    # Add a dummy file set to optimize dependencies. See CMP0154.
+    _vtk_module_add_file_set("${name}"
+      BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}"
+      NAME      dummy)
     if (WIN32 AND NOT CYGWIN)
       # This is enabled explicitly by the USE_DEBUG_SUFFIX argument because
       # there's no reliable way to detect whether we're using a debug build of
@@ -564,7 +603,8 @@ extern PyObject* PyInit_${_vtk_python_library_name}();
     COMPONENT           "${_vtk_python_wrap_component}"
     RUNTIME DESTINATION "${_vtk_python_MODULE_DESTINATION}/${_vtk_python_package_path}"
     LIBRARY DESTINATION "${_vtk_python_MODULE_DESTINATION}/${_vtk_python_package_path}"
-    ARCHIVE DESTINATION "${_vtk_python_STATIC_MODULE_DESTINATION}")
+    ARCHIVE DESTINATION "${_vtk_python_STATIC_MODULE_DESTINATION}"
+    ${_vtk_python_header_set_install_args})
 endfunction ()
 
 #[==[.rst:
@@ -1055,8 +1095,13 @@ static void ${_vtk_python_TARGET_NAME}_load() {\n")
         OUTPUT  "${_vtk_python_static_importer_file}"
         CONTENT "${_vtk_python_static_importer_content}")
 
-      add_library("${_vtk_python_static_importer_name}" MODULE
-        ${_vtk_python_static_importer_file})
+      add_library("${_vtk_python_static_importer_name}" MODULE)
+      target_sources("${_vtk_python_static_importer_name}"
+        PRIVATE
+          "${_vtk_python_static_importer_file}")
+      _vtk_module_add_file_set("${_vtk_python_static_importer_name}"
+        BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}"
+        NAME      dummy)
       if (WIN32 AND NOT CYGWIN)
         set_property(TARGET "${_vtk_python_static_importer_name}"
           PROPERTY
@@ -1128,6 +1173,16 @@ static void ${_vtk_python_TARGET_NAME}_load() {\n")
         set(_generate_pyi_static_importer_arg)
       endif ()
 
+      set(_vtk_python_depends_args)
+      if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+        list(APPEND _vtk_python_depends_args
+          DEPENDS_EXPLICIT_ONLY)
+      endif ()
+
+      cmake_policy(PUSH)
+      if(POLICY CMP0116)
+        cmake_policy(SET CMP0116 NEW) # DEPFILE argument is relative to CMAKE_CURRENT_BINARY_DIR
+      endif()
       add_custom_command(
         OUTPUT    ${_vtk_python_pyi_files}
         COMMAND   ${_vtk_python_exe} # Do not quote; may contain arguments.
@@ -1141,7 +1196,9 @@ static void ${_vtk_python_TARGET_NAME}_load() {\n")
         DEPENDS   ${_vtk_python_module_targets}
                   ${_vtk_python_static_importer_name}
                   "${_vtk_pyi_script}"
-        COMMENT   "Creating .pyi files for ${_vtk_python_TARGET_NAME}")
+        COMMENT   "Creating .pyi files for ${_vtk_python_TARGET_NAME}"
+        ${_vtk_python_depends_args})
+      cmake_policy(POP)
 
       install(
         FILES       ${_vtk_python_pyi_files}
@@ -1234,6 +1291,10 @@ function (vtk_module_add_python_package name)
   endif ()
 
   set(_vtk_add_python_package_file_outputs)
+  cmake_policy(PUSH)
+  if(POLICY CMP0116)
+    cmake_policy(SET CMP0116 NEW) # DEPFILE argument is relative to CMAKE_CURRENT_BINARY_DIR
+  endif()
   foreach (_vtk_add_python_package_file IN LISTS _vtk_add_python_package_FILES)
     if (IS_ABSOLUTE "${_vtk_add_python_package_file}")
       file(RELATIVE_PATH _vtk_add_python_package_name
@@ -1246,6 +1307,12 @@ function (vtk_module_add_python_package name)
         "${CMAKE_CURRENT_SOURCE_DIR}/")
     endif ()
 
+    set(_vtk_python_package_depends_args)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+      list(APPEND _vtk_python_package_depends_args
+        DEPENDS_EXPLICIT_ONLY)
+    endif ()
+
     set(_vtk_add_python_package_file_output
       "${CMAKE_BINARY_DIR}/${_vtk_add_python_package_MODULE_DESTINATION}/${_vtk_add_python_package_name}")
     add_custom_command(
@@ -1254,7 +1321,8 @@ function (vtk_module_add_python_package name)
       COMMAND "${CMAKE_COMMAND}" -E copy_if_different
               "${_vtk_add_python_package_file}"
               "${_vtk_add_python_package_file_output}"
-      COMMENT "Copying ${_vtk_add_python_package_name} to the binary directory")
+      COMMENT "Copying ${_vtk_add_python_package_name} to the binary directory"
+      ${_vtk_python_package_depends_args})
     list(APPEND _vtk_add_python_package_file_outputs
       "${_vtk_add_python_package_file_output}")
     if (BUILD_SHARED_LIBS)
@@ -1265,6 +1333,7 @@ function (vtk_module_add_python_package name)
         COMPONENT   "${_vtk_add_python_package_COMPONENT}")
     endif ()
   endforeach ()
+  cmake_policy(POP)
 
   get_property(_vtk_add_python_package_module GLOBAL
     PROPERTY "_vtk_module_${_vtk_build_module}_target_name")

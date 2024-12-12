@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkFDSReader.h"
+
+#include "vtkArrayDispatch.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkDataAssemblyVisitor.h"
@@ -108,6 +110,7 @@ struct BoundaryFieldData
   vtkIdType GridID;
   std::string FieldName;
   std::string FileName;
+  bool CellCentered = false;
   std::vector<float> TimeValues;
 };
 
@@ -138,6 +141,76 @@ struct DeviceData
   std::string Name;
   std::array<double, 3> Position;
   std::array<double, 3> Direction;
+};
+
+typedef vtkTypeList::Create<vtkFloatArray, vtkDoubleArray> ValidArrayTypes;
+
+enum BinaryFileType
+{
+  Slice = 0,
+  Boundary
+};
+
+//------------------------------------------------------------------------------
+/**
+ * "Convert" point data to cell data. In .bf and .sf files, the number of values
+ * always correspond to the number of points. For cell-centered data, we then need
+ * to discard extra-values. Discarded values depends of the type of  file read.
+ * In the case of slices, we need to drop the values at the first index in each dimension.
+ * In the case of boundaries, we need to drop the values at the last index in each dimension.
+ * For example, if the slice extent is [2, 20] [4, 15] [0, 5], we need to keep data
+ * attached to [3, 20] [5, 15] [1, 5] for slices, and [2, 19] [4, 14] [0, 4] for boundaries.
+ */
+struct ConvertToCellCenteredField
+{
+  template <typename ArrayT1, typename ArrayT2>
+  void operator()(ArrayT1* inArray, ArrayT2* outArray, const std::array<vtkIdType, 6>& extent,
+    BinaryFileType type)
+  {
+    vtkIdType xExtent = extent[1] - extent[0] + 1;
+    vtkIdType yExtent = extent[3] - extent[2] + 1;
+    vtkIdType zExtent = extent[5] - extent[4] + 1;
+
+    vtkIdType bound = 1;
+
+    // Clamp the size to 1 (case with 0 cell-width on a given dimension)
+    vtkIdType xSize = std::max(bound, xExtent - 1);
+    vtkIdType ySize = std::max(bound, yExtent - 1);
+    vtkIdType zSize = std::max(bound, zExtent - 1);
+
+    outArray->SetNumberOfComponents(1);
+    outArray->SetNumberOfTuples(xSize * ySize * zSize);
+
+    std::array<vtkIdType, 6> range = { 0, xExtent, 0, yExtent, 0, zExtent };
+
+    if (type == Boundary)
+    {
+      // End loop at "extent - 1", or 1 in case of 0 cell-width
+      range[1] = (std::max)(bound, xExtent - 1);
+      range[3] = (std::max)(bound, yExtent - 1);
+      range[5] = (std::max)(bound, zExtent - 1);
+    }
+    else
+    {
+      // Start loop at 1, or 0 in case of 0 cell-width
+      range[0] = (std::min)(bound, xExtent - 1);
+      range[2] = (std::min)(bound, yExtent - 1);
+      range[4] = (std::min)(bound, zExtent - 1);
+    }
+
+    vtkIdType count = 0;
+    for (vtkIdType z = range[4]; z < range[5]; z++)
+    {
+      for (vtkIdType y = range[2]; y < range[3]; y++)
+      {
+        for (vtkIdType x = range[0]; x < range[1]; x++)
+        {
+          outArray->SetValue(count, inArray->GetValue(z * yExtent * xExtent + y * xExtent + x));
+          count++;
+        }
+      }
+    }
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -770,20 +843,42 @@ public:
 
     vtkSmartPointer<vtkRectilinearGrid> slice =
       ::GenerateSubGrid(gData->Geometry, sData.GridSubExtent);
-    vtkIdType nEntities =
-      sData.CellCentered ? slice->GetNumberOfCells() : slice->GetNumberOfPoints();
+
+    // Retrieve field values of the slice. The number of values retrieved is always equal
+    // to the number of points of the slice.
     vtkSmartPointer<vtkDataArray> field =
-      ::ReadSliceFile(sData.FileName, requestedTimeStep, nEntities, 1);
+      ::ReadSliceFile(sData.FileName, requestedTimeStep, slice->GetNumberOfPoints(), 1);
     if (!field)
     {
       vtkErrorMacro(
         "Could not read slice " << this->OutputPDSC->GetDataAssembly()->GetNodeName(nodeId));
       return;
     }
-    field->SetName("Values");
-    vtkFieldData* fData = sData.CellCentered ? static_cast<vtkFieldData*>(slice->GetCellData())
-                                             : static_cast<vtkFieldData*>(slice->GetPointData());
-    fData->AddArray(field);
+
+    if (sData.CellCentered)
+    {
+      // If data is cell-centered, convert point data to cell data by dropping specific values
+      vtkSmartPointer<vtkDataArray> cellCenteredField;
+      cellCenteredField.TakeReference(field->NewInstance());
+
+      using Dispatcher =
+        vtkArrayDispatch::Dispatch2ByArrayWithSameValueType<ValidArrayTypes, ValidArrayTypes>;
+      ::ConvertToCellCenteredField worker;
+      if (!Dispatcher::Execute(
+            field.Get(), cellCenteredField.Get(), worker, sData.GridSubExtent, ::Slice))
+      {
+        vtkErrorMacro("Failed to dispatch arrays to convert to cell-centered data.");
+        return;
+      }
+
+      cellCenteredField->SetName("Values");
+      slice->GetCellData()->AddArray(cellCenteredField);
+    }
+    else
+    {
+      field->SetName("Values");
+      slice->GetPointData()->AddArray(field);
+    }
 
     unsigned int lastIndex = this->OutputPDSC->GetNumberOfPartitionedDataSets();
     this->OutputPDSC->SetNumberOfPartitionedDataSets(lastIndex + 1);
@@ -857,8 +952,34 @@ public:
                                                     << bfieldData.GridID + 1);
         continue;
       }
-      field->SetName(bfieldData.FieldName.c_str());
-      copy->GetPointData()->AddArray(field);
+
+      if (bfieldData.CellCentered)
+      {
+        // If data is cell-centered, convert point data to cell data by dropping specific values
+        vtkSmartPointer<vtkDataArray> cellCenteredField;
+        cellCenteredField.TakeReference(field->NewInstance());
+
+        using Dispatcher =
+          vtkArrayDispatch::Dispatch2ByArrayWithSameValueType<ValidArrayTypes, ValidArrayTypes>;
+        ::ConvertToCellCenteredField worker;
+
+        const auto* ext = copy->GetExtent();
+        const std::array<vtkIdType, 6> extent = { ext[0], ext[1], ext[2], ext[3], ext[4], ext[5] };
+
+        if (!Dispatcher::Execute(field.Get(), cellCenteredField.Get(), worker, extent, ::Boundary))
+        {
+          vtkErrorMacro("Failed to dispatch arrays to convert to cell-centered data.");
+          return;
+        }
+
+        cellCenteredField->SetName(bfieldData.FieldName.c_str());
+        copy->GetCellData()->AddArray(cellCenteredField);
+      }
+      else
+      {
+        field->SetName(bfieldData.FieldName.c_str());
+        copy->GetPointData()->AddArray(field);
+      }
     }
 
     unsigned int lastIndex = this->OutputPDSC->GetNumberOfPartitionedDataSets();
@@ -1067,19 +1188,35 @@ int vtkFDSReader::RequestInformation(vtkInformation* vtkNotUsed(request),
         return 0;
       }
     }
-    else if (keyWord == "SLCF" || keyWord == "SLCC")
+    else if (keyWord == "SLCF")
     {
-      if (!this->ParseSLCFSLCC(baseNodes))
+      if (!this->ParseSLCFSLCC(baseNodes, false))
       {
-        vtkErrorMacro("Failed parsing of " << keyWord);
+        vtkErrorMacro("Failed parsing of SLCF");
+        return 0;
+      }
+    }
+    else if (keyWord == "SLCC")
+    {
+      if (!this->ParseSLCFSLCC(baseNodes, true))
+      {
+        vtkErrorMacro("Failed parsing of SLCC");
         return 0;
       }
     }
     else if (keyWord == "BNDF")
     {
-      if (!this->ParseBNDF())
+      if (!this->ParseBNDFBNDC(false))
       {
         vtkErrorMacro("Failed parsing of BNDF");
+        return 0;
+      }
+    }
+    else if (keyWord == "BNDC")
+    {
+      if (!this->ParseBNDFBNDC(true))
+      {
+        vtkErrorMacro("Failed parsing of BNDC");
         return 0;
       }
     }
@@ -1375,7 +1512,7 @@ bool vtkFDSReader::ParseGRID(const std::vector<int>& baseNodes)
   if (!parser.Parse(nBlockages))
   {
     vtkErrorMacro("Could not read line " << parser.LineNumber
-                                         << " where expected number of blocakges of obstacle.");
+                                         << " where expected number of blockages of obstacle.");
     return false;
   }
 
@@ -1385,45 +1522,28 @@ bool vtkFDSReader::ParseGRID(const std::vector<int>& baseNodes)
     return false;
   }
 
-  std::vector<::ObstacleData> gridBoundaries;
+  // Discard nBlockages lines, which only contains unused or duplicate info
+  // (extents coordinates). Blockage identifier seems not useful.
   for (vtkIdType iBlock = 0; iBlock < nBlockages; ++iBlock)
   {
-    ::ObstacleData oData;
-    for (vtkIdType iExtent = 0; iExtent < 6; ++iExtent)
-    {
-      // throw out the extents which are duplicate info with the grid indexes that come after
-      double trash = 0.0;
-      if (!parser.Parse(trash))
-      {
-        vtkErrorMacro(
-          "Could not parse " << iExtent << " obstacle extent value at line " << parser.LineNumber);
-        return false;
-      }
-    }
-
-    // Get blockage ID
-    if (!parser.Parse(oData.BlockageNumber))
-    {
-      vtkErrorMacro("Could not parse obstacle blockage ID at line " << parser.LineNumber);
-      return false;
-    }
-
-    // Discard the rest of the line
     if (!parser.DiscardLine())
     {
       return false;
     }
-    gridBoundaries.emplace_back(oData);
   }
 
+  // Following nBlockages lines contain extents
+  std::vector<::ObstacleData> gridBoundaries;
   for (vtkIdType iBlock = 0; iBlock < nBlockages; ++iBlock)
   {
-    auto& oData = gridBoundaries[iBlock];
+    ::ObstacleData oData;
+    // Blockage number is used to retrieve corresponding data in .bf files
+    oData.BlockageNumber = iBlock + 1;
     oData.AssociatedGrid = &(this->Internals->Grids[idx]);
     std::array<vtkIdType, 6> subExtent;
     for (vtkIdType iExtent = 0; iExtent < 6; ++iExtent)
     {
-      // throw out the extents which are duplicate info with the grid indexes that come after
+      // store the extent of the blockages
       if (!parser.Parse(subExtent[iExtent]))
       {
         vtkErrorMacro("Could not parse " << iExtent << " obstacle sub extent value at line "
@@ -1439,6 +1559,7 @@ bool vtkFDSReader::ParseGRID(const std::vector<int>& baseNodes)
     {
       return false;
     }
+    gridBoundaries.emplace_back(oData);
   }
 
   for (vtkIdType iBlock = 0; iBlock < nBlockages; ++iBlock)
@@ -1632,7 +1753,7 @@ bool vtkFDSReader::ParseDEVICE(const std::vector<int>& baseNodes)
 }
 
 // ----------------------------------------------------------------------------
-bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
+bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes, bool cellCentered)
 {
   std::string FDSRootDir = vtksys::SystemTools::GetFilenamePath(this->FileName);
 
@@ -1640,11 +1761,7 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
 
   ::SliceData sData;
 
-  // Contrary to the documentation, it would seem this is false
-  // if (keyWord == "SLCC")
-  //{
-  // sData.CellCentered = true;
-  //}
+  sData.CellCentered = cellCentered;
 
   // Parse grid ID
   if (!parser.Parse(sData.AssociatedGridNumber))
@@ -1656,26 +1773,55 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
 
   // Search for dimensions
   // We can have a specified slice ID before that but it's not mandatory
-  std::string name;
-  if (!parser.Parse(name))
+  std::string SLCFID;
+  // create a token for parser.Parse
+  std::string token;
+  if (!parser.Parse(token))
   {
-    vtkErrorMacro("Could not parse name of slice at line " << parser.LineNumber);
+    vtkErrorMacro("Could not parse SLCF ID of slice at line " << parser.LineNumber);
     return false;
   }
 
-  // if we have an ampersand immediately, it means no name prefix was provided.
-  if (name == "&")
+  SLCFID = token;
+
+  // if we have an ampersand immediately, it means no prefix was provided.
+  if (SLCFID == "&")
   {
-    name = "";
+    SLCFID = "";
   }
   else
   {
-    // if there is a space between the name and a % or # symbol
-    if (name == "%" || name == "#")
+
+    // Discard immediately the % or # symbol if there is a space between it and the slice id
+    // for FDS version 6.8+, the first keyword will indicate the SLICETYPE
+    if (token == "%" || token == "#")
     {
-      if (!parser.Parse(name))
+      if (!parser.Parse(token))
       {
         vtkErrorMacro("Could not parse name of slice at line " << parser.LineNumber);
+        return false;
+      }
+      SLCFID = token;
+    }
+    // The SLCF ID can have spaces in it, so we should capture all text up till the ampersand
+    while (token != "&")
+    {
+      if (!parser.Parse(token))
+      {
+        vtkErrorMacro(
+          "Error parsing SLCF ID at end of " << SLCFID << " at line " << parser.LineNumber);
+        return false;
+      }
+
+      // build the SLCFID until we hit the ampersand
+      if (token != "&")
+      {
+        SLCFID.append("_" + token);
+      }
+
+      if (parser.Result == vtkParseResult::EndOfLine)
+      {
+        vtkErrorMacro("Expected & at end of " << SLCFID << " at line " << parser.LineNumber);
         return false;
       }
     }
@@ -1684,26 +1830,11 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
     std::array<std::string, 2> wildcards = { "#", "%" };
     for (const auto& wildcard : wildcards)
     {
-      for (std::string::size_type iStr = name.find(wildcard); iStr != std::string::npos;
-           iStr = name.find(wildcard))
+      for (std::string::size_type iStr = SLCFID.find(wildcard); iStr != std::string::npos;
+           iStr = SLCFID.find(wildcard))
       {
-        name.erase(iStr, 1);
+        SLCFID.erase(iStr, 1);
       }
-    }
-
-    // Parse ampersand after the name
-    std::string ampersand;
-    if (!parser.Parse(ampersand))
-    {
-      vtkErrorMacro(
-        "Error parsing ampersand at end of " << name << " at line " << parser.LineNumber);
-      return false;
-    }
-
-    if (ampersand != "&")
-    {
-      vtkErrorMacro("Expected & at end of " << name << " at line " << parser.LineNumber);
-      return false;
     }
   }
 
@@ -1742,11 +1873,11 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
     return false;
   }
 
-  if (!name.empty())
+  if (!SLCFID.empty())
   {
-    name += "_";
+    SLCFID += "_";
   }
-  name += namePostFix;
+  SLCFID += namePostFix;
 
   if (!parser.DiscardLine())
   {
@@ -1767,8 +1898,8 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
 
   sData.TimeValues = ::ParseTimeStepsInSliceFile(sData.FileName);
 
-  name = this->SanitizeName(name);
-  const int idx = this->Assembly->AddNode(name.c_str(), baseNodes[SLICES]);
+  SLCFID = this->SanitizeName(SLCFID);
+  const int idx = this->Assembly->AddNode(SLCFID.c_str(), baseNodes[SLICES]);
   this->Internals->Slices.emplace(idx, sData);
   this->Internals->MaxNbOfPartitions++;
 
@@ -1776,13 +1907,15 @@ bool vtkFDSReader::ParseSLCFSLCC(const std::vector<int>& baseNodes)
 }
 
 // ----------------------------------------------------------------------------
-bool vtkFDSReader::ParseBNDF()
+bool vtkFDSReader::ParseBNDFBNDC(bool cellCentered)
 {
   std::string FDSRootDir = vtksys::SystemTools::GetFilenamePath(this->FileName);
 
   ::FDSParser& parser = *(this->Internals->SMVParser);
 
   ::BoundaryFieldData bfData;
+
+  bfData.CellCentered = cellCentered;
 
   if (!parser.Parse(bfData.GridID))
   {
@@ -1841,7 +1974,6 @@ bool vtkFDSReader::ParseBNDF()
 
   return true;
 }
-
 // ----------------------------------------------------------------------------
 int vtkFDSReader::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** vtkNotUsed(inputVector), vtkInformationVector* outputVector)

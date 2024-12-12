@@ -13,11 +13,16 @@
 
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkPVVTKExtensionsFiltersRenderingModule.h" // needed for export macro
-#include "vtkParaViewDeprecation.h"                   // for PARAVIEW_DEPRECATED_IN_5_11_0
+#include "vtkParaViewDeprecation.h"                   // For PARAVIEW_DEPRECATED_IN_5_13_0
+#include "vtkSmartPointer.h"                          // needed for vtkSmartPointer
+
+#include "vtkNew.h" // for vtkNew
 
 class vtkCallbackCommand;
 class vtkCellGrid;
 class vtkDataSet;
+class vtkDataObjectMeshCache;
+class vtkDataObjectTree;
 class vtkExplicitStructuredGrid;
 class vtkFeatureEdges;
 class vtkGenericDataSet;
@@ -31,6 +36,7 @@ class vtkInformationVector;
 class vtkMultiProcessController;
 class vtkOutlineSource;
 class vtkPolyData;
+class vtkPolyDataNormals;
 class vtkRecoverGeometryWireframe;
 class vtkRectilinearGrid;
 class vtkStructuredGrid;
@@ -67,7 +73,7 @@ public:
    * Set/get whether to produce feature edges (vs. surface).
    * If both this and UseOutline are true, then an outline will be produced.
    */
-  vtkSetMacro(GenerateFeatureEdges, bool);
+  void SetGenerateFeatureEdges(bool);
   vtkGetMacro(GenerateFeatureEdges, bool);
   ///@}
 
@@ -81,48 +87,46 @@ public:
 
   ///@{
   /**
-   * When input is structured data, this flag will generate faces with
-   * triangle strips.  This should render faster and use less memory, but no
-   * cell data is copied.  By default, UseStrips is Off.
+   * Whether to generate cell normals.
+   *
+   * The default value is false.
    */
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  void SetUseStrips(int) {}
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual int GetUseStrips() VTK_FUTURE_CONST { return false; }
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual void UseStripsOn() {}
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual void UseStripsOff() {}
-
-  // Description:
-  // Makes set use strips call modified after it changes the setting.
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  void SetForceUseStrips(int) {}
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual int GetForceUseStrips() VTK_FUTURE_CONST { return false; }
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual void ForceUseStripsOn() {}
-  PARAVIEW_DEPRECATED_IN_5_11_0(
-    "Removed; the backing implementation has done nothing since VTK 9.1.0")
-  virtual void ForceUseStripsOff() {}
+  void SetGenerateCellNormals(int);
+  vtkGetMacro(GenerateCellNormals, int);
+  vtkBooleanMacro(GenerateCellNormals, int);
   ///@}
 
   ///@{
   /**
-   * Whether to generate cell normals.  They can only be used
-   * for poly cells now.  This option does nothing if the output
-   * contains lines, verts, or strips.
+   * Whether to generate point normals.
+   *
+   * The default value is false.
    */
-  vtkSetMacro(GenerateCellNormals, int);
-  vtkGetMacro(GenerateCellNormals, int);
-  vtkBooleanMacro(GenerateCellNormals, int);
+  void SetGeneratePointNormals(bool);
+  vtkGetMacro(GeneratePointNormals, bool);
+  vtkBooleanMacro(GeneratePointNormals, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Specify the angle that defines a sharp edge. If the difference in
+   * angle across neighboring polygons is greater than this value, the
+   * shared edge is considered "sharp".
+   *
+   * The default value is 30 degrees.
+   */
+  void SetFeatureAngle(double);
+  vtkGetMacro(FeatureAngle, double);
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off the splitting of sharp edges.
+   *
+   * The default value is true.
+   */
+  void SetSplitting(bool);
+  vtkBooleanMacro(Splitting, vtkTypeBool);
   ///@}
 
   ///@{
@@ -229,10 +233,15 @@ public:
 
   // These keys are put in the output composite-data metadata for multipieces
   // since this filter merges multipieces together.
+  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
   static vtkInformationIntegerVectorKey* POINT_OFFSETS();
+  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
   static vtkInformationIntegerVectorKey* VERTS_OFFSETS();
+  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
   static vtkInformationIntegerVectorKey* LINES_OFFSETS();
+  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
   static vtkInformationIntegerVectorKey* POLYS_OFFSETS();
+  PARAVIEW_DEPRECATED_IN_5_13_0("They are not used anymore.")
   static vtkInformationIntegerVectorKey* STRIPS_OFFSETS();
 
 protected:
@@ -252,9 +261,6 @@ protected:
   int RequestData(vtkInformation* request, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override;
   ///@}
-
-  // Create a default executive.
-  vtkExecutive* CreateDefaultExecutive() override;
 
   /**
    * Produce geometry for a block in the dataset.
@@ -296,29 +302,41 @@ protected:
 
   void CellGridExecute(vtkCellGrid* input, vtkPolyData* output, int doCommunicate);
 
+  ///@{
   /**
    * Cleans up the output polydata. If doCommunicate is true the method is free
    * to communicate with other processes as needed.
    */
-  void CleanupOutputData(vtkPolyData* output, int doCommunicate);
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use CleanupOutputData(vtkPolyData* output) instead.")
+  void CleanupOutputData(vtkPolyData* output, int vtkNotUsed(doCommunicate))
+  {
+    this->CleanupOutputData(output);
+  }
+  void CleanupOutputData(vtkPolyData* output);
+  ///@}
 
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use ExecuteNormalsComputation instead.")
   void ExecuteCellNormals(vtkPolyData* output, int doCommunicate);
 
   int OutlineFlag;
   int UseOutline;
   int BlockColorsDistinctValues;
-  int GenerateCellNormals;
+  bool GenerateCellNormals;
+  bool GeneratePointNormals;
+  bool Splitting;
+  double FeatureAngle;
   int Triangulate;
   int NonlinearSubdivisionLevel;
   int MatchBoundariesIgnoringCellOrder = 0;
 
   vtkMultiProcessController* Controller;
-  vtkOutlineSource* OutlineSource;
-  vtkGeometryFilter* GeometryFilter;
-  vtkGenericGeometryFilter* GenericGeometryFilter;
-  vtkUnstructuredGridGeometryFilter* UnstructuredGridGeometryFilter;
-  vtkRecoverGeometryWireframe* RecoverWireframeFilter;
-  vtkFeatureEdges* FeatureEdgesFilter;
+  vtkSmartPointer<vtkOutlineSource> OutlineSource;
+  vtkSmartPointer<vtkGeometryFilter> GeometryFilter;
+  vtkSmartPointer<vtkGenericGeometryFilter> GenericGeometryFilter;
+  vtkSmartPointer<vtkUnstructuredGridGeometryFilter> UnstructuredGridGeometryFilter;
+  vtkSmartPointer<vtkRecoverGeometryWireframe> RecoverWireframeFilter;
+  vtkSmartPointer<vtkFeatureEdges> FeatureEdgesFilter;
+  vtkSmartPointer<vtkPolyDataNormals> PolyDataNormals;
 
   /**
    * Call CheckAttributes on the \c input which ensures that all attribute
@@ -332,12 +350,6 @@ protected:
   int FillInputPortInformation(int, vtkInformation*) override;
 
   void ReportReferences(vtkGarbageCollector*) override;
-
-  /**
-   * Overridden to request ghost-cells for vtkUnstructuredGrid inputs so that we
-   * don't generate internal surfaces.
-   */
-  int RequestUpdateExtent(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
 
   bool GenerateProcessIds;
   int PassThroughCellIds;
@@ -362,6 +374,40 @@ private:
   void AddHierarchicalIndex(vtkPolyData* pd, unsigned int level, unsigned int index);
   class BoundsReductionOperation;
   ///@}
+
+  /**
+   * Generate feature edges for the input hyper tree grid.
+   * We need this dedicated function because generating feature edges
+   * for an HTG is different than for other data objects: the
+   * vtkHyperTreeGridFeatureEdges filter operates on the input HTG
+   * directly, and not on the output polydata of the internal geometry
+   * filter.
+   */
+  void GenerateFeatureEdgesHTG(vtkHyperTreeGrid* input, vtkPolyData* output);
+
+  /**
+   * Execute normals computation for the output polydata.
+   */
+  void ExecuteNormalsComputation(vtkPolyData* output);
+
+  /**
+   * Generate the "vtkProcessId" point and cell data arrays on the output
+   * vtkPolydata.
+   */
+  void GenerateProcessIdsArrays(vtkPolyData* output);
+
+  /**
+   * Use cache to fill output from input if possible.
+   * Return true on success.
+   */
+  bool UseCacheIfPossible(vtkDataObject* input, vtkDataObject* output);
+
+  /**
+   * Update cache content with given data object.
+   */
+  void UpdateCache(vtkDataObject* output);
+
+  vtkNew<vtkDataObjectMeshCache> MeshCache;
 };
 
 #endif

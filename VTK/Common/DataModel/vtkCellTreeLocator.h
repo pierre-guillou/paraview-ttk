@@ -41,7 +41,6 @@
 
 #include "vtkAbstractCellLocator.h"
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_2_0
 
 namespace detail
 {
@@ -158,11 +157,10 @@ public:
   void GenerateRepresentation(int level, vtkPolyData* pd) override;
   ///@}
 
-  VTK_DEPRECATED_IN_9_2_0("This method is deprecated because LazyEvaluation has been deprecated")
-  virtual void BuildLocatorIfNeeded() {}
-
   /**
    * Shallow copy of a vtkCellTreeLocator.
+   *
+   * Before you shallow copy, make sure to call SetDataSet()
    */
   void ShallowCopy(vtkAbstractCellLocator* locator) override;
 

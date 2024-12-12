@@ -16,9 +16,6 @@
 #include "vtkOptions.h"
 #include "vtkVariant.h"
 
-#include "vtk_nlohmannjson.h"
-#include VTK_NLOHMANN_JSON(json.hpp)
-
 #include <fstream>
 #include <sstream>
 
@@ -160,98 +157,13 @@ std::string dataTypeToString(int dataType)
   return "unhandled";
 }
 
-struct WriteDataArrayWorker
+bool vtkCellGridWriter::ToJSON(nlohmann::json& data, vtkCellGrid* grid)
 {
-  WriteDataArrayWorker(nlohmann::json& result)
-    : m_result(result)
-  {
-  }
-
-  template <typename InArrayT>
-  void operator()(InArrayT* inArray)
-  {
-    using T = vtk::GetAPIType<InArrayT>;
-    const auto inRange = vtk::DataArrayValueRange(inArray);
-    T val;
-    for (const auto& value : inRange)
-    {
-      val = value;
-      m_result.push_back(val);
-    }
-  }
-
-  nlohmann::json& m_result;
-};
-
-nlohmann::json serializeArrayValues(vtkAbstractArray* arr)
-{
-  auto result = nlohmann::json::array();
-  if (!arr)
-  {
-    return result;
-  }
-
-  if (auto* darr = vtkDataArray::SafeDownCast(arr))
-  {
-    using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
-    WriteDataArrayWorker worker(result);
-    if (!Dispatcher::Execute(darr, worker))
-    {
-      worker(darr);
-    }
-  }
-  else
-  {
-    for (vtkIdType ii = 0; ii < arr->GetNumberOfValues(); ++ii)
-    {
-      result.push_back(arr->GetVariantValue(ii).ToString());
-    }
-  }
-  return result;
-}
-
-void vtkCellGridWriter::WriteData()
-{
-  if (!this->FileName || !this->FileName[0])
-  {
-    vtkErrorMacro("No filename set.");
-    return;
-  }
-
-  auto* grid = this->GetInput();
-  if (!grid)
-  {
-    vtkErrorMacro("No input dataset to write to \"" << this->FileName << "\"");
-    return;
-  }
-
-  std::ofstream output(this->FileName);
-  if (!output.good())
-  {
-    vtkErrorMacro("Could not open \"" << this->FileName << "\" for writing.");
-    return;
-  }
-
-  auto cellTypes = nlohmann::json::array();
-  for (const auto& cellType : grid->CellTypeArray())
-  {
-    auto entry = nlohmann::json::object({ { "type", cellType.Data() } });
-    cellTypes.push_back(entry);
-  }
-  // Now provide vtkCellMetadata subclasses with a chance to add to \a cellTypes.
-  vtkNew<vtkCellGridIOQuery> query;
-  query->PrepareToSerialize(cellTypes);
-  if (!grid->Query(query))
-  {
-    vtkErrorMacro("Could not prepare cell metadata.");
-    return;
-  }
-
   // Iterate all the vtkDataSetAttributes held by the grid.
   // As we go, store a map from each array in each vtkDataSetAttributes
   // to a "location" for the array so we can refer to the arrays later
   // by a persistent name instead of by pointer.
-  std::map<vtkAbstractArray*, nlohmann::json> arrayLocations;
+  std::unordered_map<vtkAbstractArray*, vtkStringToken> arrayLocations;
   auto arrayGroups = nlohmann::json::object();
   for (const auto& entry : grid->GetArrayGroups())
   {
@@ -287,10 +199,10 @@ void vtkCellGridWriter::WriteData()
       {
         continue;
       }
-      arrayLocations[arr] = nlohmann::json::array({ groupName, arr->GetName() });
+      arrayLocations[arr] = groupName;
       nlohmann::json arrayRecord{ { "name", arr->GetName() },
         { "tuples", arr->GetNumberOfTuples() }, { "components", arr->GetNumberOfComponents() },
-        { "type", dataTypeToString(arr->GetDataType()) }, { "data", serializeArrayValues(arr) } };
+        { "type", dataTypeToString(arr->GetDataType()) }, { "data", arr->SerializeValues() } };
       if (arr == groupScalars)
       {
         arrayRecord["default_scalars"] = true;
@@ -343,32 +255,8 @@ void vtkCellGridWriter::WriteData()
     if (cellAtt)
     {
       nlohmann::json record{ { "name", cellAtt->GetName().Data() },
-        { "type", cellAtt->GetAttributeType().Data() }, { "space", cellAtt->GetSpace().Data() },
+        { "space", cellAtt->GetSpace().Data() },
         { "components", cellAtt->GetNumberOfComponents() } };
-      auto arraysForCellType = nlohmann::json::object();
-      for (const auto& cellTypeObj : cellTypes)
-      {
-        auto cellType = cellTypeObj.at("type").get<std::string>();
-        auto arraysByRole = nlohmann::json::object();
-        for (const auto& entry : cellAtt->GetArraysForCellType(cellType))
-        {
-          auto it = arrayLocations.find(entry.second);
-          if (it == arrayLocations.end() || !entry.second)
-          {
-            vtkErrorMacro("Array " << entry.second << " not held by any attributes object.");
-            continue;
-          }
-          arraysByRole[entry.first.Data()] = it->second;
-        }
-        if (!arraysByRole.empty())
-        {
-          arraysForCellType[cellType] = arraysByRole;
-        }
-      }
-      if (!arraysForCellType.empty())
-      {
-        record["arrays"] = arraysForCellType;
-      }
       if (cellAtt == shapeAtt)
       {
         record["shape"] = true;
@@ -377,24 +265,75 @@ void vtkCellGridWriter::WriteData()
     }
   }
 
+  auto cellTypes = nlohmann::json::array();
+#if 0
+  for (const auto& cellType : grid->CellTypeArray())
+  {
+    auto entry = nlohmann::json::object({ { "type", cellType.Data() } });
+    cellTypes.push_back(entry);
+  }
+#endif
+  // Now provide vtkCellMetadata subclasses with a chance to add to \a cellTypes.
+  vtkNew<vtkCellGridIOQuery> query;
+  query->PrepareToSerialize(cellTypes, attributes, arrayLocations);
+  if (!grid->Query(query))
+  {
+    vtkErrorMacro("Could not prepare cell metadata.");
+    return false;
+  }
+
   auto schemaName = grid->GetSchemaName();
   if (!schemaName.IsValid())
   {
     schemaName = "dg leaf";
   }
-  nlohmann::json data = {
+  // clang-format off
+  data = {
     { "data-type", "cell-grid" }, { "arrays", arrayGroups }, { "attributes", attributes },
     { "cell-types", cellTypes },
     { "format-version", 1 }, // A version number for the file format (i.e.., JSON)
-    { "schema-name",
-      schemaName.Data() }, // A name for the schema (key/value structure) of this file's content.
+    { "schema-name", schemaName.Data() }, // A name for the schema (key/value structure) of this file's content.
     { "schema-version", grid->GetSchemaVersion() }, // A version number for the file's schema.
-    { "content-version",
-      grid->GetContentVersion() } // A version number for the file's content (key/value data).
+    { "content-version", grid->GetContentVersion() } // A version number for the file's content (key/value data).
   };
+  // clang-format on
 
-  output << data;
-  output.close();
+  return true;
+}
+
+void vtkCellGridWriter::WriteData()
+{
+  if (!this->FileName || !this->FileName[0])
+  {
+    vtkErrorMacro("No filename set.");
+    return;
+  }
+
+  auto* grid = this->GetInput();
+  if (!grid)
+  {
+    vtkErrorMacro("No input dataset to write to \"" << this->FileName << "\"");
+    return;
+  }
+
+  std::ofstream output(this->FileName);
+  if (!output.good())
+  {
+    vtkErrorMacro("Could not open \"" << this->FileName << "\" for writing.");
+    return;
+  }
+
+  nlohmann::json data;
+  if (this->ToJSON(data, grid))
+  {
+    output << data;
+    output.close();
+  }
+  else
+  {
+    vtkErrorMacro("Could not write JSON to \"" << this->FileName << "\".");
+    return; /* 0 */
+  }
 }
 
 VTK_ABI_NAMESPACE_END

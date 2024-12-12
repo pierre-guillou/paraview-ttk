@@ -5,6 +5,7 @@ set(classes
   vtkAppendCompositeDataLeaves
   vtkAppendDataSets
   vtkAppendFilter
+  vtkAppendPartitionedDataSetCollection
   vtkAppendPolyData
   vtkAppendSelection
   vtkArrayCalculator
@@ -35,6 +36,9 @@ set(classes
   vtkDataObjectToDataSetFilter
   vtkDataSetEdgeSubdivisionCriterion
   vtkDataSetToDataObjectFilter
+  vtkDecimatePolylineAngleStrategy
+  vtkDecimatePolylineCustomFieldStrategy
+  vtkDecimatePolylineDistanceStrategy
   vtkDecimatePolylineFilter
   vtkDecimatePro
   vtkDelaunay2D
@@ -53,12 +57,14 @@ set(classes
   vtkFlyingEdges2D
   vtkFlyingEdges3D
   vtkFlyingEdgesPlaneCutter
+  vtkGenerateIds
   vtkGlyph2D
   vtkGlyph3D
   vtkGridSynchronizedTemplates3D
   vtkHedgeHog
   vtkHull
   vtkHyperTreeGridProbeFilter
+  vtkHyperTreeGridProbeFilterUtilities
   vtkIdFilter
   vtkImageAppend
   vtkImageDataToExplicitStructuredGrid
@@ -75,6 +81,7 @@ set(classes
   vtkMergeFilter
   vtkMoleculeAppend
   vtkMultiObjectMassProperties
+  vtkOrientPolyData
   vtkPackLabels
   vtkPassThrough
   vtkPlaneCutter
@@ -99,6 +106,7 @@ set(classes
   vtkSimpleElevationFilter
   vtkSmoothPolyDataFilter
   vtkSphereTreeFilter
+  vtkSplitSharpEdgesPolyData
   vtkStructuredDataPlaneCutter
   vtkStaticCleanPolyData
   vtkStaticCleanUnstructuredGrid
@@ -127,10 +135,15 @@ set(classes
   vtkVoronoi2D
   vtkWindowedSincPolyDataFilter)
 
+set(headers
+  vtkDecimatePolylineStrategy.h)
+
 set(private_headers
   vtk3DLinearGridInternal.h)
 
 vtk_module_add_module(VTK::FiltersCore
   CLASSES ${classes}
+  HEADERS ${headers}
   PRIVATE_HEADERS ${private_headers})
+
 vtk_add_test_mangling(VTK::FiltersCore)

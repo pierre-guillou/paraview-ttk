@@ -11,6 +11,9 @@ set(shader_files
   glsl/vtkCellGridShaderBases.glsl
   glsl/vtkCellGridShaderCommonDefs.glsl
   glsl/vtkCellGridShaderFragment.glsl
+  glsl/vtkCellGridShaderTessellationControl.glsl
+  glsl/vtkCellGridShaderTessellationDebugGeometry.glsl
+  glsl/vtkCellGridShaderTessellationEvaluation.glsl
   glsl/vtkCellGridShaderUtil.glsl
   glsl/vtkCellGridShaderVertex.glsl
 )
@@ -18,7 +21,7 @@ unset(shader_h_files)
 foreach(file IN LISTS shader_files)
   vtk_encode_string(
     INPUT         "${file}"
-    EXPORT_SYMBOL "VTKRENDERINGCELLGRID_EXPORT"
+    EXPORT_SYMBOL "VTKRENDERINGCELLGRID_NO_EXPORT"
     EXPORT_HEADER "vtkRenderingCellGridModule.h"
     HEADER_OUTPUT header
     SOURCE_OUTPUT source

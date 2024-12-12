@@ -1,19 +1,14 @@
 set(python_files
   paraview/__init__.py.in
   paraview/_backwardscompatibilityhelper.py
-  paraview/_colorMaps.py
   paraview/algorithms/__init__.py
   paraview/algorithms/openpmd.py
   paraview/algorithms/savgreader.py
   paraview/apps/__init__.py
   paraview/apps/__main__.py
   paraview/apps/_internals.py
-  paraview/apps/divvy.py
-  paraview/apps/flow.py
   paraview/apps/glance.py
-  paraview/apps/lite.py
   paraview/apps/trame.py
-  paraview/apps/visualizer.py
   paraview/benchmark/__init__.py
   paraview/benchmark/basic.py
   paraview/benchmark/logbase.py
@@ -49,7 +44,6 @@ set(python_files
   paraview/incubator/__init__.py.in
   paraview/inspect.py
   paraview/live.py
-  paraview/lookuptable.py
   paraview/modules/__init__.py.in
   paraview/numeric.py
   paraview/numpy_support.py
@@ -66,6 +60,7 @@ set(python_files
   paraview/tests/__init__.py
   paraview/tests/internals.py
   paraview/tests/__main__.py
+  paraview/tests/proxy_deprecation.py
   paraview/tests/validate_extracts.py
   paraview/tests/verify_eyedomelighting.py
   paraview/tpl/__init__.py
@@ -95,6 +90,12 @@ foreach (_paraview_python_module IN LISTS paraview_python_wrapped_modules)
     "    \'${_paraview_python_library_name}\',\n")
 endforeach ()
 
+set(_python_depends_args)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+  list(APPEND _python_depends_args
+    DEPENDS_EXPLICIT_ONLY)
+endif ()
+
 set(python_copied_modules)
 foreach (python_file IN LISTS python_files)
   set(output_python_file
@@ -112,7 +113,8 @@ foreach (python_file IN LISTS python_files)
       COMMAND "${CMAKE_COMMAND}" -E copy_if_different
               "${CMAKE_CURRENT_SOURCE_DIR}/${python_file}"
               "${output_python_file}"
-      COMMENT "Copying ${python_file} to the binary directory")
+      COMMENT "Copying ${python_file} to the binary directory"
+      ${_python_depends_args})
   endif ()
   if (BUILD_SHARED_LIBS)
     get_filename_component(python_file_directory "${python_file}" DIRECTORY)

@@ -57,7 +57,7 @@
  * @code
  * struct Const42
  * {
- *   int operator()(int idx) const { return 42; }
+ *   int operator()(vtkIdType idx) const { return 42; }
  * };
  * vtkNew<vtkImplicitArray<Const42>> arr42;
  * @endcode
@@ -120,7 +120,7 @@
  * @code
  * struct Const42
  * {
- *   int operator()(int idx) const { return 42; }
+ *   int operator()(vtkIdType idx) const { return 42; }
  * };
  * vtkNew<vtkImplicitArray<Const42>> arr42;
  * arr42->SetNumberOfTuples(11);
@@ -241,6 +241,11 @@ public:
   /**
    * Use of this method is discouraged, it creates a memory copy of the data into
    * a contiguous AoS-ordered buffer internally.
+   *
+   * Implicit array aims to limit memory consumption. Calling this method breaks
+   * this paradigm and can cause unexpected memory consumption,
+   * specially when called indirectly by some implementation details.
+   * E.g. when using the numpy wrapping, see #19304.
    */
   void* GetVoidPointer(vtkIdType valueIdx) override;
 
@@ -504,6 +509,8 @@ class vtkCompositeImplicitBackend;
 template <typename ValueType>
 struct vtkConstantImplicitBackend;
 template <typename ValueType>
+class vtkStructuredPointBackend;
+template <typename ValueType>
 class vtkIndexedImplicitBackend;
 VTK_ABI_NAMESPACE_END
 #include <functional>
@@ -527,6 +534,8 @@ VTK_ABI_NAMESPACE_END
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
     vtkImplicitArray<vtkConstantImplicitBackend<ValueType>>, ValueType)                            \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
+    vtkImplicitArray<vtkStructuredPointBackend<ValueType>>, ValueType)                             \
+  VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(                                                            \
     vtkImplicitArray<vtkIndexedImplicitBackend<ValueType>>, ValueType)                             \
   VTK_INSTANTIATE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<ValueType(int)>>, ValueType)
 
@@ -548,6 +557,8 @@ template <typename ValueType>
 class vtkCompositeImplicitBackend;
 template <typename ValueType>
 struct vtkConstantImplicitBackend;
+template <typename ValueType>
+class vtkStructuredPointBackend;
 template <typename ValueType>
 class vtkIndexedImplicitBackend;
 VTK_ABI_NAMESPACE_END
@@ -586,6 +597,8 @@ VTK_ABI_NAMESPACE_END
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
     vtkImplicitArray<vtkConstantImplicitBackend<ValueType>>, ValueType)                            \
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
+    vtkImplicitArray<vtkStructuredPointBackend<ValueType>>, ValueType)                             \
+  VTK_DECLARE_VALUERANGE_ARRAYTYPE(                                                                \
     vtkImplicitArray<vtkIndexedImplicitBackend<ValueType>>, ValueType)                             \
   VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<ValueType(int)>>, ValueType)
 
@@ -610,6 +623,7 @@ VTK_ABI_NAMESPACE_BEGIN
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkAffineImplicitBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkConstantImplicitBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkCompositeImplicitBackend)
+VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkStructuredPointBackend)
 VTK_DECLARE_VALUERANGE_IMPLICIT_BACKENDTYPE(vtkIndexedImplicitBackend)
 
 VTK_DECLARE_VALUERANGE_ARRAYTYPE(vtkImplicitArray<std::function<float(int)>>, double)

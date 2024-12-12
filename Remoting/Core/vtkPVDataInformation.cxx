@@ -6,12 +6,8 @@
 #include "vtkAlgorithm.h"
 #include "vtkAlgorithmOutput.h"
 #include "vtkBoundingBox.h"
-#include "vtkByteSwap.h"
-#include "vtkCellData.h"
 #include "vtkCellGrid.h"
 #include "vtkClientServerStream.h"
-#include "vtkClientServerStreamInstantiator.h"
-#include "vtkCollection.h"
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataSet.h"
 #include "vtkCompositeDataSetRange.h"
@@ -25,15 +21,9 @@
 #include "vtkExecutive.h"
 #include "vtkExplicitStructuredGrid.h"
 #include "vtkExtractBlockUsingDataAssembly.h"
-#include "vtkGraph.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkImageData.h"
 #include "vtkInformation.h"
-#include "vtkLegacy.h"
-#include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
-#include "vtkMultiPieceDataSet.h"
-#include "vtkMultiProcessController.h"
 #include "vtkMultiProcessStream.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -41,22 +31,15 @@
 #include "vtkPVDataSetAttributesInformation.h"
 #include "vtkPVInformationKeys.h"
 #include "vtkPVLogger.h"
-#include "vtkPartitionedDataSet.h"
 #include "vtkPartitionedDataSetCollection.h"
-#include "vtkPointData.h"
 #include "vtkProcessModule.h"
 #include "vtkRectilinearGrid.h"
-#include "vtkSelection.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStructuredGrid.h"
-#include "vtkTable.h"
-#include "vtkUniformGrid.h"
 #include "vtkUniformGridAMR.h"
 
 #include <algorithm>
 #include <cassert>
-#include <map>
-#include <numeric>
 #include <set>
 #include <string>
 #include <vector>
@@ -330,6 +313,13 @@ void vtkPVDataInformation::Initialize()
 }
 
 //----------------------------------------------------------------------------
+vtkSmartPointer<vtkCompositeDataSet> vtkPVDataInformation::SimplifyCompositeDataSet(
+  vtkCompositeDataSet* cd)
+{
+  return cd;
+}
+
+//----------------------------------------------------------------------------
 void vtkPVDataInformation::CopyFromObject(vtkObject* object)
 {
   this->Initialize();
@@ -409,9 +399,10 @@ void vtkPVDataInformation::CopyFromObject(vtkObject* object)
   vtkPVDataInformationAccumulator accumulator;
   if (auto cd = vtkCompositeDataSet::SafeDownCast(subset))
   {
+    vtkSmartPointer<vtkCompositeDataSet> simpleCD = this->SimplifyCompositeDataSet(cd);
     decltype(this->FirstLeafCompositeIndex) leaf_index = 0;
     using Opts = vtk::CompositeDataSetOptions;
-    for (const auto& item : vtk::Range(cd, Opts::None))
+    for (const auto& item : vtk::Range(simpleCD, Opts::None))
     {
       if (leaf_index == 0)
       {
@@ -430,7 +421,7 @@ void vtkPVDataInformation::CopyFromObject(vtkObject* object)
 
     // if cd is a data-object tree, the iteration also misses non-leaf nodes and their
     // field data; so process that too.
-    if (auto dtree = vtkDataObjectTree::SafeDownCast(cd))
+    if (auto dtree = vtkDataObjectTree::SafeDownCast(simpleCD))
     {
       using DTOpts = vtk::DataObjectTreeOptions;
       for (const auto& item : vtk::Range(dtree, DTOpts::TraverseSubTree))
@@ -589,6 +580,7 @@ void vtkPVDataInformation::CopyFromDataObject(vtkDataObject* dobj)
   else if (auto cg = vtkCellGrid::SafeDownCast(dobj))
   {
     cg->GetBounds(this->Bounds);
+    this->NumberOfElements[vtkDataObject::CELL] = cg->GetNumberOfCells();
     // this->AttributeInformations[cc]->CopyFromDataObject(dobj);
   }
 }
@@ -798,6 +790,8 @@ const char* vtkPVDataInformation::GetPrettyDataTypeString(int dataType)
       return "Partitioned Dataset";
     case VTK_PARTITIONED_DATA_SET_COLLECTION:
       return "Partitioned Dataset Collection";
+    case VTK_CELL_GRID:
+      return "Cell Grid";
     default:
       break;
   }
@@ -954,7 +948,8 @@ bool vtkPVDataInformation::IsAttributeValid(int fieldAssociation) const
 
       case vtkDataObject::FIELD_ASSOCIATION_CELLS:
         return vtkDataObjectTypes::TypeIdIsA(dtype, VTK_DATA_SET) ||
-          vtkDataObjectTypes::TypeIdIsA(dtype, VTK_HYPER_TREE_GRID);
+          vtkDataObjectTypes::TypeIdIsA(dtype, VTK_HYPER_TREE_GRID) ||
+          vtkDataObjectTypes::TypeIdIsA(dtype, VTK_CELL_GRID);
 
       case vtkDataObject::FIELD_ASSOCIATION_VERTICES:
         return vtkDataObjectTypes::TypeIdIsA(dtype, VTK_GRAPH);

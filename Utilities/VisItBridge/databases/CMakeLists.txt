@@ -130,19 +130,12 @@ if(VISIT_BUILD_READER_Mili)
     visit_mili_reader.xml)
 endif()
 
-set(sources
-  AvtAlgorithms/vtkAvtFileFormatAlgorithm.cxx
-  AvtAlgorithms/vtkAvtMTMDFileFormatAlgorithm.cxx
-  AvtAlgorithms/vtkAvtMTSDFileFormatAlgorithm.cxx
-  AvtAlgorithms/vtkAvtSTMDFileFormatAlgorithm.cxx
-  AvtAlgorithms/vtkAvtSTSDFileFormatAlgorithm.cxx)
-
-set(headers
-  AvtAlgorithms/vtkAvtFileFormatAlgorithm.h
-  AvtAlgorithms/vtkAvtMTMDFileFormatAlgorithm.h
-  AvtAlgorithms/vtkAvtMTSDFileFormatAlgorithm.h
-  AvtAlgorithms/vtkAvtSTMDFileFormatAlgorithm.h
-  AvtAlgorithms/vtkAvtSTSDFileFormatAlgorithm.h)
+set(classes
+  AvtAlgorithms/vtkAvtFileFormatAlgorithm
+  AvtAlgorithms/vtkAvtMTMDFileFormatAlgorithm
+  AvtAlgorithms/vtkAvtMTSDFileFormatAlgorithm
+  AvtAlgorithms/vtkAvtSTMDFileFormatAlgorithm
+  AvtAlgorithms/vtkAvtSTSDFileFormatAlgorithm)
 
 set(private_headers
   AvtAlgorithms/vtkFileCloseSemiProperty.h)
@@ -153,14 +146,17 @@ get_property(visit_db_headers GLOBAL PROPERTY _visit_db_headers)
 get_property(visit_include_dirs GLOBAL PROPERTY _visit_db_include_dirs)
 
 vtk_module_add_module(ParaView::IOVisItBridge
+  HEADER_DIRECTORIES
   SPDX_SKIP_REGEX ".*"
-  SOURCES ${visit_server_sources} ${visit_db_sources} ${sources}
-  HEADERS ${headers} ${visit_db_headers}
+  CLASSES ${classes}
+  SOURCES ${visit_server_sources} ${visit_db_sources}
+  HEADERS ${visit_db_headers}
   PRIVATE_HEADERS ${private_headers})
 vtk_module_include(ParaView::IOVisItBridge
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/AvtAlgorithms>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
+    "$<INSTALL_INTERFACE:${_vtk_build_HEADERS_DESTINATION}/AvtAlgorithms>"
   PRIVATE
     ${visit_include_dirs})
 

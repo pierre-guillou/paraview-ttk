@@ -17,6 +17,7 @@
 #include "vtkRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkType.h"                   // for ivar
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <map>                         // for ivar
 #include <set>                         // for ivar
 #include <string>                      // for ivar
@@ -37,7 +38,7 @@ class vtkTextureUnitManager;
 class vtkGenericOpenGLResourceFreeCallback;
 class vtkOpenGLState;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLRenderWindow : public vtkRenderWindow
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLRenderWindow : public vtkRenderWindow
 {
 public:
   vtkTypeMacro(vtkOpenGLRenderWindow, vtkRenderWindow);
@@ -366,9 +367,16 @@ public:
   void ReleaseGraphicsResources(vtkWindow*) override;
 
   /**
-   * Blit a display framebuffer into a currently bound draw destination
+   * Blit a display framebuffer into a currently bound draw destination,
+   * color only
    */
   void BlitDisplayFramebuffer();
+
+  /**
+   * Blit a display framebuffer into a currently bound draw destination,
+   * color and depth
+   */
+  void BlitDisplayFramebufferColorAndDepth();
 
   /**
    * Blit a display buffer into a currently bound draw destination
@@ -392,9 +400,10 @@ public:
    */
   enum FrameBlitModes
   {
-    BlitToHardware, // hardware buffers
-    BlitToCurrent,  // currently bound draw framebuffer
-    NoBlit          // no blit, GUI or external code will handle the blit
+    BlitToHardware,         // hardware buffers
+    BlitToCurrent,          // currently bound draw framebuffer, without depth buffer
+    BlitToCurrentWithDepth, // currently bound draw framebuffer, including depth buffer
+    NoBlit                  // no blit, GUI or external code will handle the blit
   };
 
   ///@{
@@ -418,13 +427,19 @@ public:
    *   It is useful when an external framebuffer is bound just before
    *   the vtkRenderWindow::Frame() call. You’ll need this when integrating
    *   VTK with other UI frameworks because these UI frameworks create/have
-   *   their own framebuffers.
+   *   their own framebuffers. This only blits the color buffer.
+   * - BlitToCurrentWithDepth: Almost the same as BlitToCurrent, but this mode
+   *   also blits the depth buffer.
    * - NoBlit: no blit. The GUI or external code will handle the blit.
    */
   vtkSetClampMacro(FrameBlitMode, FrameBlitModes, BlitToHardware, NoBlit);
   vtkGetMacro(FrameBlitMode, FrameBlitModes);
   void SetFrameBlitModeToBlitToHardware() { this->SetFrameBlitMode(BlitToHardware); }
   void SetFrameBlitModeToBlitToCurrent() { this->SetFrameBlitMode(BlitToCurrent); }
+  void SetFrameBlitModeToBlitToCurrentWithDepth()
+  {
+    this->SetFrameBlitMode(BlitToCurrentWithDepth);
+  }
   void SetFrameBlitModeToNoBlit() { this->SetFrameBlitMode(NoBlit); }
   ///@}
 
@@ -435,6 +450,14 @@ public:
   vtkSetMacro(FramebufferFlipY, bool);
   vtkGetMacro(FramebufferFlipY, bool);
   vtkBooleanMacro(FramebufferFlipY, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Give a target bit size for depth buffers of created Framebuffer Objects. Default is 32.
+   */
+  vtkSetMacro(RenderBufferTargetDepthSize, int);
+  vtkGetMacro(RenderBufferTargetDepthSize, int);
   ///@}
 
   ///@{
@@ -504,7 +527,7 @@ protected:
     const vtkRecti& rect, int front, int glFormat, int glType, void* data, int right = 0);
 
   /**
-   * Create the offScreen framebuffer
+   * Create the offScreen framebuffers or resize them if they are already created.
    * Return if the creation was successful or not.
    * \pre positive_width: width>0
    * \pre positive_height: height>0
@@ -571,6 +594,9 @@ protected:
 
   // keep track of in case we need to recreate the framebuffer
   int LastMultiSamples;
+
+  // how much bits to use for depth of created Framebuffers
+  int RenderBufferTargetDepthSize;
 
   int ScreenSize[2];
 

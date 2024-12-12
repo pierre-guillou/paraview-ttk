@@ -38,6 +38,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestGraphAttributes.cxx
   TestHigherOrderCell.cxx
   TestHyperTreeGridBitmask.cxx
+  TestHyperTreeGridBounds.cxx
   TestHyperTreeGridCursors.cxx
   TestHyperTreeGridElderChildIndex.cxx
   TestImageDataFindCell.cxx
@@ -58,6 +59,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestPolyDataRemoveCell.cxx
   TestPolygon.cxx
   TestPolygonBoundedTriangulate.cxx
+  TestPolygonNormalOverflow.cxx
   TestPolyhedron0.cxx
   TestPolyhedron1.cxx
   TestPolyhedron3.cxx
@@ -65,6 +67,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestPolyhedronConvexity.cxx
   TestPolyhedronConvexityMultipleCells.cxx
   TestPolyhedronTriangulateFaces.cxx
+  TestPolyhedralCellsInUG.cxx
   TestPyramid.cxx
   TestQuadraticPolygon.cxx
   TestRect.cxx
@@ -74,6 +77,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestSimpleIncrementalOctreePointLocator.cxx
   TestSortFieldData.cxx
   TestStaticCellLocator.cxx
+  TestStructuredCellArray.cxx
   TestTable.cxx
   TestThreadedCopy.cxx
   TestTreeBFSIterator.cxx
@@ -120,51 +124,23 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests data_tests
   quadraticIntersection.cxx
   TestCellIterators.cxx,NO_VALID,NO_OUTPUT
   TestCellLocator.cxx,NO_DATA
+  TestCellLocatorsEdgeCases.cxx,NO_VALID
   TestIncrementalOctreePointLocator.cxx,NO_VALID
   TestMeanValueCoordinatesInterpolation1.cxx
   TestMeanValueCoordinatesInterpolation2.cxx
+  TestPolyhedron2.cxx,NO_VALID
   TestPolyhedron4.cxx,NO_VALID,NO_OUTPUT
+  TestPolyhedronContouring.cxx,NO_VALID
+  TestPolyhedronCutter.cxx,NO_VALID
   TestPolyhedronDecompose.cxx,NO_DATA
   TestSmoothErrorMetric.cxx
+  TestStaticCellLocatorEdgeCases.cxx,NO_VALID
   TestQuadraticPolygonFilters.cxx
   TestNonlinearSubdivisionOfDegenerateCells.cxx,NO_DATA
-  )
-# add to the list but don't define a test
-list(APPEND data_tests
-  TestCellLocatorsEdgeCases.cxx
-  TestPolyhedron2.cxx
-  TestPolyhedronContouring.cxx
-  TestPolyhedronCutter.cxx
-  TestStaticCellLocatorEdgeCases.cxx
   )
 
 vtk_add_test_cxx(vtkCommonDataModelCxxTests output_tests
   TestKdTreeRepresentation.cxx,NO_DATA
-  )
-ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
-  NAME VTK::CommonDataModelCxxTests-TestCellLocatorsEdgeCases
-  COMMAND vtkCommonDataModelCxxTests TestCellLocatorsEdgeCases
-  DATA{../Data/test_surface.vtp} DATA{../Data/cone.vtp}
-  )
-ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
-  NAME VTK::CommonDataModelCxxTests-TestPolyhedron2
-  COMMAND vtkCommonDataModelCxxTests TestPolyhedron2
-  -D DATA{../Data/polyhedron_mesh.vtu}
-  )
-ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
-  NAME VTK::CommonDataModelCxxTests-TestPolyhedronContouring
-  COMMAND vtkCommonDataModelCxxTests TestPolyhedronContouring
-   DATA{../Data/cell_850113.vtu} DATA{../Data/cell_12851_26.vtu}
-  )
-ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
-  NAME VTK::CommonDataModelCxxTests-TestPolyhedronCutter
-  COMMAND vtkCommonDataModelCxxTests TestPolyhedronCutter
-  DATA{../Data/onePolyhedron.vtu} DATA{../Data/sliceOfPolyhedron.vtu}
-  )
-ExternalData_add_test(${_vtk_build_TEST_DATA_TARGET}
-  NAME VTK::CommonDataModelCxxTests-TestStaticCellLocatorEdgeCases
-  COMMAND vtkCommonDataModelCxxTests TestStaticCellLocatorEdgeCases
-  DATA{../Data/test_surface.vtp}
   )
 
 set(all_tests

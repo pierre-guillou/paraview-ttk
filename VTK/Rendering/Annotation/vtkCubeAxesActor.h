@@ -49,6 +49,7 @@
 #include "vtkNew.h"                       // For vtkNew
 #include "vtkRenderingAnnotationModule.h" // For export macro
 #include "vtkSmartPointer.h"              // For vtkSmartPointer
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor;
@@ -56,7 +57,7 @@ class vtkCamera;
 class vtkTextProperty;
 class vtkStringArray;
 
-class VTKRENDERINGANNOTATION_EXPORT vtkCubeAxesActor : public vtkActor
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkCubeAxesActor : public vtkActor
 {
 public:
   vtkTypeMacro(vtkCubeAxesActor, vtkActor);
@@ -426,15 +427,31 @@ public:
   vtkBooleanMacro(DrawZGridpolys, bool);
   ///@}
 
+  ///@{
   /**
    * Returns the text property for the title on an axis.
    */
   vtkTextProperty* GetTitleTextProperty(int);
+  void SetXAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetXAxesTitleProperty();
+  void SetYAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetYAxesTitleProperty();
+  void SetZAxesTitleProperty(vtkTextProperty*);
+  vtkTextProperty* GetZAxesTitleProperty();
+  ///@}
 
+  ///@{
   /**
    * Returns the text property for the labels on an axis.
    */
   vtkTextProperty* GetLabelTextProperty(int);
+  void SetXAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetXAxesLabelProperty();
+  void SetYAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetYAxesLabelProperty();
+  void SetZAxesLabelProperty(vtkTextProperty*);
+  vtkTextProperty* GetZAxesLabelProperty();
+  ///@}
 
   ///@{
   /**

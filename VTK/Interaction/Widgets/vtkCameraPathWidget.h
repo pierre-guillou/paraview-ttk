@@ -15,15 +15,14 @@
 #define vtkCameraPathWidget_h
 
 #include "vtkAbstractWidget.h"
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkNew.h"                      // for vtkNew
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCameraPathRepresentation;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkCameraPathWidget : public vtkAbstractWidget
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkCameraPathWidget : public vtkAbstractWidget
 {
 public:
   static vtkCameraPathWidget* New();
@@ -51,7 +50,7 @@ public:
 
 protected:
   vtkCameraPathWidget();
-  ~vtkCameraPathWidget() override = default;
+  ~vtkCameraPathWidget() override;
 
   int WidgetState = vtkCameraPathWidget::Start;
   enum WidgetStateType
@@ -59,10 +58,6 @@ protected:
     Start = 0,
     Active
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef WidgetStateType _WidgetState;
-#endif
 
   // These methods handle events
   static void SelectAction(vtkAbstractWidget*);

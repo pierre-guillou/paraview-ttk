@@ -17,21 +17,18 @@
 #endif
 
 #if defined(VTK_USE_FENV)
-//------------------------------------------------------------------------------
-// Signal handler for floating point exceptions in anonymous namespace
-namespace
-{
 
+#define signal_handler VTK_ABI_NAMESPACE_MANGLE(signal_handler)
 extern "C" void signal_handler(int signal)
 {
   // NOLINTNEXTLINE(bugprone-signal-handler)
   fprintf(stderr, "Error: Floating point exception detected. Signal %d\n", signal);
-  // This should possibly throw an exception rather than abort, abort should
-  // at least give access to the stack when it fails here.
+  // Call `abort()` so that a backtrace is created. We already broke signal
+  // handler rules by calling `fprintf`, so any kind of "recovery" is
+  // ill-advised.
   abort();
 }
 
-} // End anonymous namespace
 #endif
 
 //------------------------------------------------------------------------------

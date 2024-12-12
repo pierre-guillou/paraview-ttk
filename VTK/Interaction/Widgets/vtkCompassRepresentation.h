@@ -21,10 +21,9 @@
 #include "vtkCenteredSliderRepresentation.h" // to use in a SP
 #include "vtkContinuousValueWidgetRepresentation.h"
 #include "vtkCoordinate.h"               // For vtkViewportCoordinateMacro
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkSmartPointer.h"             // used for SmartPointers
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor2D;
@@ -42,7 +41,7 @@ class vtkTransformPolyDataFilter;
 class vtkTextProperty;
 class vtkTextActor;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkCompassRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkCompassRepresentation
   : public vtkContinuousValueWidgetRepresentation
 {
 public:
@@ -208,10 +207,6 @@ public:
     DistanceIn,
     DistanceAdjusting
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
 protected:
   vtkCompassRepresentation();

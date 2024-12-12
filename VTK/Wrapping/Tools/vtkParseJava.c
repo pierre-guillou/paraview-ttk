@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-HierarchyInfo* hierarchyInfo = NULL;
-StringCache* stringCache = NULL;
-int numberOfWrappedFunctions = 0;
-FunctionInfo* wrappedFunctions[1000];
-FunctionInfo* thisFunction;
+static HierarchyInfo* hierarchyInfo = NULL;
+static StringCache* stringCache = NULL;
+static int numberOfWrappedFunctions = 0;
+static FunctionInfo* wrappedFunctions[1000];
+static FunctionInfo* thisFunction;
 
 void outputScalarParamDeclarations(FILE* fp, int i, unsigned int aType)
 {
@@ -248,9 +248,10 @@ void return_result_native(FILE* fp)
  * return 0 if the types do not map to the same type */
 static int CheckMatch(unsigned int type1, unsigned int type2, const char* c1, const char* c2)
 {
+  /* VTK_PARSE_UNKNOWN is used for enum types, which are mapped to java's int type */
   static unsigned int byteTypes[] = { VTK_PARSE_UNSIGNED_CHAR, VTK_PARSE_SIGNED_CHAR, 0 };
   static unsigned int shortTypes[] = { VTK_PARSE_UNSIGNED_SHORT, VTK_PARSE_SHORT, 0 };
-  static unsigned int intTypes[] = { VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
+  static unsigned int intTypes[] = { VTK_PARSE_UNKNOWN, VTK_PARSE_UNSIGNED_INT, VTK_PARSE_INT, 0 };
   static unsigned int longTypes[] = { VTK_PARSE_UNSIGNED_LONG, VTK_PARSE_UNSIGNED_LONG_LONG,
     VTK_PARSE_LONG, VTK_PARSE_LONG_LONG, 0 };
 
@@ -339,7 +340,7 @@ int DoneOne(void)
 {
   int i, j;
   int match;
-  FunctionInfo* fi;
+  const FunctionInfo* fi;
 
   for (i = 0; i < numberOfWrappedFunctions; i++)
   {
@@ -442,7 +443,7 @@ void HandleDataArray(FILE* fp, const ClassInfo* data)
 
 static int isClassWrapped(const char* classname)
 {
-  HierarchyEntry* entry;
+  const HierarchyEntry* entry;
 
   if (hierarchyInfo)
   {
@@ -982,8 +983,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   if (!fp)
   {
     fprintf(stderr, "Error opening output file %s\n", options->OutputFileName);
-    vtkParse_Finalize();
-    return 1;
+    return vtkParse_FinalizeMain(1);
   }
 
   /* get the main class */
@@ -993,11 +993,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     WriteDummyClass(fp, data, options->OutputFileName);
     fclose(fp);
     vtkWrap_WarnEmpty(options);
-    if (vtkParse_Finalize())
-    {
-      return 1;
-    }
-    return 0;
+    return vtkParse_FinalizeMain(0);
   }
 
   if (data->Template)
@@ -1005,11 +1001,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     WriteDummyClass(fp, data, options->OutputFileName);
     fclose(fp);
     vtkWrap_WarnEmpty(options);
-    if (vtkParse_Finalize())
-    {
-      return 1;
-    }
-    return 0;
+    return vtkParse_FinalizeMain(0);
   }
 
   for (i = 0; i < data->NumberOfSuperClasses; ++i)
@@ -1019,11 +1011,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
       WriteDummyClass(fp, data, options->OutputFileName);
       fclose(fp);
       vtkWrap_WarnEmpty(options);
-      if (vtkParse_Finalize())
-      {
-        return 1;
-      }
-      return 0;
+      return vtkParse_FinalizeMain(0);
     }
   }
 
@@ -1034,11 +1022,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
       WriteDummyClass(fp, data, options->OutputFileName);
       fclose(fp);
       vtkWrap_WarnEmpty(options);
-      if (vtkParse_Finalize())
-      {
-        return 1;
-      }
-      return 0;
+      return vtkParse_FinalizeMain(0);
     }
 
     /* resolve using declarations within the header files */
@@ -1168,7 +1152,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     size_t cc;
     size_t len;
     char* dir;
-    char* fname;
+    const char* fname;
     const char javaDone[] = "VTKJavaWrapped";
     FILE* tfp;
     fname = options->OutputFileName;
@@ -1200,10 +1184,6 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   }
 
   vtkParse_Free(file_info);
-  if (vtkParse_Finalize())
-  {
-    return 1;
-  }
 
-  return 0;
+  return vtkParse_FinalizeMain(0);
 }

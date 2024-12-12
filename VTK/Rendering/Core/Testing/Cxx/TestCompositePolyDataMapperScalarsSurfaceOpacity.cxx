@@ -162,6 +162,12 @@ int TestCompositePolyDataMapperScalarsSurfaceOpacity(int argc, char* argv[])
   // after rendering set one cylinder to white
   mapper->SetBlockColor(911, 1.0, 1.0, 1.0);
   mapper->SetBlockOpacity(911, 1.0);
+  // turn off scalar visibility on the 911'st block, because the default global ScalarVisibility is
+  // on and the 911'st block has scalars.
+  auto* cda = mapper->GetCompositeDataDisplayAttributes();
+  auto dataObj =
+    vtkCompositeDataDisplayAttributes::DataObjectFromIndex(911, mapper->GetInputDataObject(0, 0));
+  cda->SetBlockScalarVisibility(dataObj, false);
 
   // set intermediate block invisible
   mapper->SetBlockVisibility(911, false);
@@ -196,7 +202,7 @@ int TestCompositePolyDataMapperScalarsSurfaceOpacity(int argc, char* argv[])
     cout << "Avg Frame time: " << t / numFrames << " Frame Rate: " << numFrames / t << "\n";
   }
 
-  int retVal = vtkRegressionTestImageThreshold(win.GetPointer(), 15);
+  int retVal = vtkRegressionTestImageThreshold(win.GetPointer(), 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

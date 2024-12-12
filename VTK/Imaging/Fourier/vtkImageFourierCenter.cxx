@@ -90,13 +90,21 @@ void vtkImageFourierCenter::ThreadedRequestData(vtkInformation* vtkNotUsed(reque
     outputVector->GetInformationObject(0)->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT());
   // permute to make the filtered axis come first
   this->PermuteExtent(outExt, min0, max0, min1, max1, min2, max2);
-  this->PermuteIncrements(inData->GetIncrements(), inInc0, inInc1, inInc2);
-  this->PermuteIncrements(outData->GetIncrements(), outInc0, outInc1, outInc2);
+
+  // Compute the increments into a local array as `GetIncrements()` introduces
+  // a data race on `vtkImageData::Increments`.
+  vtkIdType inIncrements[3];
+  vtkIdType outIncrements[3];
+  inData->GetIncrements(inIncrements);
+  outData->GetIncrements(outIncrements);
+
+  this->PermuteIncrements(inIncrements, inInc0, inInc1, inInc2);
+  this->PermuteIncrements(outIncrements, outInc0, outInc1, outInc2);
 
   // Determine the mid for the filtered axis
   wholeMin0 = wholeExtent[this->Iteration * 2];
   wholeMax0 = wholeExtent[this->Iteration * 2 + 1];
-  mid0 = (wholeMin0 + wholeMax0) / 2;
+  mid0 = (wholeMin0 + wholeMax0 + 1) / 2;
 
   // initialize input coordinates
   inCoords[0] = outExt[0];

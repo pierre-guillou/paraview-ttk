@@ -193,6 +193,9 @@ int TestCompositePolyDataMapperOverrideLUT(int argc, char* argv[])
   attributes->SetBlockArrayName(
     polydata5, cellScalars->GetName()); // cellScalars is the the first array on the celldata.
   // polydata6: override scalar array mode to use cell data array.
+  const double redColor[3] = { 1., 0., 0. };
+  attributes->SetBlockColor(polydata6, redColor); // the mapper should still color by scalar because
+                                                  // scalar visibility is true (by default).
   attributes->SetBlockScalarMode(polydata6, VTK_SCALAR_MODE_USE_CELL_FIELD_DATA);
   // polydata6: use indexed lookup table for
   attributes->SetBlockLookupTable(polydata6, lutD);
@@ -233,7 +236,7 @@ int TestCompositePolyDataMapperOverrideLUT(int argc, char* argv[])
   renderer->ResetCamera();
 
   renWin->Render();
-  int retVal = vtkRegressionTestImageThreshold(renWin.GetPointer(), 15);
+  int retVal = vtkRegressionTestImageThreshold(renWin.GetPointer(), 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

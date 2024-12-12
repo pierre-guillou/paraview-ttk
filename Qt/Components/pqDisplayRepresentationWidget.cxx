@@ -13,14 +13,12 @@
 #include "vtkPVXMLElement.h"
 #include "vtkSMColorMapEditorHelper.h"
 #include "vtkSMPVRepresentationProxy.h"
-#include "vtkSMRepresentationProxy.h"
 #include "vtkSMViewProxy.h"
 
 #include <QPointer>
 #include <QSet>
 
 #include <cassert>
-#include <cstdlib>
 
 //=============================================================================
 class pqDisplayRepresentationWidget::PropertyLinksConnection : public pqPropertyLinksConnection
@@ -57,7 +55,7 @@ protected:
       // (it means that the user clicked on `Volume` while no array was selected)
       // This needs to be done before calling SetRepresentationType, as this method
       // will setup a LUT proxy.
-      vtkSMProxy* lutProxy = vtkSMColorMapEditorHelper::GetLUTProxy(reprPVProxy, view);
+      vtkSMProxy* lutProxy = vtkSMColorMapEditorHelper::GetLookupTable(reprPVProxy, view);
       const QString& type = value.toString();
 
       // Let'set the new representation
@@ -67,7 +65,8 @@ protected:
       // because volume redering can only be done when using a scalar field.
       if (!lutProxy && type == QString("Volume"))
       {
-        pqDisplayColorWidget::updateScalarBarVisibility(view, reprProxy);
+        pqDisplayColorWidget::updateScalarBarVisibility(
+          view, reprProxy, vtkSMColorMapEditorHelper::Representation);
       }
     }
     END_UNDO_SET();
@@ -111,8 +110,8 @@ pqDisplayRepresentationWidget::pqDisplayRepresentationWidget(QWidget* _p)
 {
   this->Internal = new pqDisplayRepresentationWidget::pqInternals();
   this->Internal->setupUi(this);
-  this->connect(this->Internal->comboBox, SIGNAL(currentIndexChanged(const QString&)),
-    SLOT(comboBoxChanged(const QString&)));
+  QObject::connect(this->Internal->comboBox, &QComboBox::currentTextChanged, this,
+    &pqDisplayRepresentationWidget::comboBoxChanged);
 }
 
 //-----------------------------------------------------------------------------

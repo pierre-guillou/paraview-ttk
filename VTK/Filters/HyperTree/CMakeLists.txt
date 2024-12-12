@@ -6,13 +6,16 @@ set(classes
   vtkHyperTreeGridContour
   vtkHyperTreeGridDepthLimiter
   vtkHyperTreeGridEvaluateCoarse
+  vtkHyperTreeGridExtractGhostCells
   vtkHyperTreeGridFeatureEdges
   vtkHyperTreeGridGeometry
   vtkHyperTreeGridGradient
   vtkHyperTreeGridPlaneCutter
+  vtkHyperTreeGridRemoveGhostCells
   vtkHyperTreeGridThreshold
   vtkHyperTreeGridToDualGrid
   vtkHyperTreeGridToUnstructuredGrid
+  vtkHyperTreeGridVisibleLeavesSize
   vtkImageDataToHyperTreeGrid
 )
 

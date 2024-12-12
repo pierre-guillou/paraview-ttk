@@ -11,7 +11,6 @@
 #define vtk_m_cont_ArrayHandleUniformPointCoordinates_h
 
 #include <vtkm/Range.h>
-#include <vtkm/cont/ArrayExtractComponent.h>
 #include <vtkm/cont/ArrayHandleImplicit.h>
 #include <vtkm/internal/ArrayPortalUniformPointCoordinates.h>
 
@@ -51,25 +50,34 @@ public:
     ArrayHandleUniformPointCoordinates,
     (vtkm::cont::ArrayHandle<vtkm::Vec3f, vtkm::cont::StorageTagUniformPoints>));
 
+  /// Create an `ArrayHandleUniformPointCoordinates` with the given specifications.
   VTKM_CONT
   ArrayHandleUniformPointCoordinates(vtkm::Id3 dimensions,
                                      ValueType origin = ValueType(0.0f, 0.0f, 0.0f),
                                      ValueType spacing = ValueType(1.0f, 1.0f, 1.0f));
 
-  /// Implemented so that it is defined exclusively in the control environment.
-  /// If there is a separate device for the execution environment (for example,
-  /// with CUDA), then the automatically generated destructor could be
-  /// created for all devices, and it would not be valid for all devices.
-  ///
+  // Implemented so that it is defined exclusively in the control environment.
+  // If there is a separate device for the execution environment (for example,
+  // with CUDA), then the automatically generated destructor could be
+  // created for all devices, and it would not be valid for all devices.
   ~ArrayHandleUniformPointCoordinates();
 
+  /// Get the number of points of the uniform grid in the x, y, and z directions.
   VTKM_CONT vtkm::Id3 GetDimensions() const;
+  /// Get the coordinates of the "lower-left" cornder of the mesh.
   VTKM_CONT vtkm::Vec3f GetOrigin() const;
+  /// Get the spacing between points of the grid in the x, y, and z directions.
   VTKM_CONT vtkm::Vec3f GetSpacing() const;
 };
 
+template <typename T>
+class ArrayHandleStride;
+
 namespace internal
 {
+
+template <typename S>
+struct ArrayExtractComponentImpl;
 
 template <>
 struct VTKM_CONT_EXPORT ArrayExtractComponentImpl<vtkm::cont::StorageTagUniformPoints>
@@ -109,7 +117,7 @@ namespace cont
 template <>
 struct SerializableTypeString<vtkm::cont::ArrayHandleUniformPointCoordinates>
 {
-  static VTKM_CONT const std::string Get() { return "AH_UniformPointCoordinates"; }
+  static VTKM_CONT std::string Get() { return "AH_UniformPointCoordinates"; }
 };
 
 template <>

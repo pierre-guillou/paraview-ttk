@@ -35,6 +35,8 @@ set(geometry_files
 foreach (geometry_file IN LISTS geometry_files)
   vtk_encode_string(
     INPUT         "${geometry_file}"
+    EXPORT_HEADER "vtkRenderingVRModule.h"
+    EXPORT_SYMBOL "VTKRENDERINGVR_NO_EXPORT"
     HEADER_OUTPUT header
     SOURCE_OUTPUT source
     BINARY
@@ -78,6 +80,6 @@ if (VTK_ENABLE_VR_COLLABORATION)
     endif ()
   endif ()
 
-  vtk_module_link(VTK::RenderingVR PRIVATE "${zmq_target}")
+  vtk_module_link(VTK::RenderingVR NO_KIT_EXPORT_IF_SHARED PRIVATE "${zmq_target}")
 endif ()
 vtk_add_test_mangling(VTK::RenderingVR)

@@ -4,6 +4,7 @@
 // This test was written by Philippe Pebay, NexGen Analytics 2017
 // This work was supported by Commissariat a l'Energie Atomique (CEA/DIF)
 
+#include "vtkBitArray.h"
 #include "vtkCamera.h"
 #include "vtkCellData.h"
 #include "vtkHyperTreeGrid.h"
@@ -37,6 +38,17 @@ int TestHyperTreeGridBinary3DContour(int argc, char* argv[])
   htGrid->Update();
   vtkHyperTreeGrid* htg = vtkHyperTreeGrid::SafeDownCast(htGrid->GetOutput());
   htg->GetCellData()->SetScalars(htg->GetCellData()->GetArray("Depth"));
+
+  // Create a mask array, fill it with 0s
+  vtkNew<vtkBitArray> mask;
+  mask->SetNumberOfValues(338);
+  for (int i = 0; i < mask->GetNumberOfValues(); i++)
+  {
+    mask->SetValue(i, 0);
+  }
+  // Mask a refined cell, small enough that the baseline does not change
+  mask->SetValue(130, 1);
+  htg->SetMask(mask);
 
   // Contour
   vtkNew<vtkHyperTreeGridContour> contour;
@@ -111,7 +123,7 @@ int TestHyperTreeGridBinary3DContour(int argc, char* argv[])
   // Render and test
   renWin->Render();
 
-  int retVal = vtkRegressionTestImageThreshold(renWin, 60);
+  int retVal = vtkRegressionTestImageThreshold(renWin, 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

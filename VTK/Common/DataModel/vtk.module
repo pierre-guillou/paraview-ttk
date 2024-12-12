@@ -26,6 +26,7 @@ DEPENDS
 PRIVATE_DEPENDS
   VTK::CommonMisc
   VTK::CommonSystem
+  VTK::pegtl
   VTK::pugixml
   VTK::vtksys
 TEST_DEPENDS
@@ -38,6 +39,7 @@ TEST_DEPENDS
   VTK::FiltersGeneric
   VTK::FiltersGeometry
   VTK::FiltersModeling
+  VTK::FiltersHyperTree
   VTK::ImagingCore
   VTK::ImagingSources
   VTK::IOGeometry
@@ -55,3 +57,4 @@ TEST_DEPENDS
   VTK::ViewsContext2D
 TEST_OPTIONAL_DEPENDS
   VTK::FiltersPython
+INCLUDE_MARSHAL

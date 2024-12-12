@@ -20,6 +20,7 @@
 #define vtkXYChartRepresentation_h
 
 #include "vtkChartRepresentation.h"
+#include "vtkParaViewDeprecation.h" // for deprecation
 
 class vtkChartXY;
 class vtkScalarsToColors;
@@ -129,12 +130,14 @@ public:
   vtkGetStringMacro(SeriesLabelPrefix);
   ///@}
 
+  ///@{
   /**
    * Called by vtkPVContextView::Export() to export the representation's data to
    * a CSV file. Return false on failure which will call the exporting process
    * to abort and raise an error. Default implementation simply returns false.
    */
   bool Export(vtkAbstractChartExporter* exporter) override;
+  ///@}
 
 protected:
   vtkXYChartRepresentation();

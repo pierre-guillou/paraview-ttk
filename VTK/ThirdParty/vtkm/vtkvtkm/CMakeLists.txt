@@ -16,7 +16,7 @@ if ("TBB" IN_LIST vtk_smp_backends)
 endif ()
 
 set(VTKm_ENABLE_CUDA "${VTK_USE_CUDA}")
-set(VTKm_ENABLE_KOKKOS "${VTK_USE_HIP}")
+set(VTKm_ENABLE_KOKKOS "${VTK_USE_KOKKOS}")
 
 set(VTKm_INSTALL_LIB_DIR "${_vtk_build_LIBRARY_DESTINATION}")
 set(VTKm_INSTALL_INCLUDE_DIR "${_vtk_build_HEADERS_DESTINATION}/vtkvtkm/vtk-m")
@@ -63,6 +63,16 @@ set(VTKm_NO_DEPRECATED_VIRTUAL ON)
 # Ignore existing CMake variable in vtk-m
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
+# vtk-m prior to v2.2 does not set rpath
+set(CMAKE_BUILD_RPATH_USE_ORIGIN 1)
+if (UNIX)
+  if (APPLE)
+    list(APPEND CMAKE_INSTALL_RPATH "@loader_path")
+  else ()
+    list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
+  endif ()
+endif ()
+
 add_subdirectory(vtk-m)
 vtkm_setup_job_pool()
 
@@ -70,14 +80,23 @@ vtk_module_add_module(VTK::vtkvtkm
   HEADER_ONLY)
 # vtkm_cont_testing does not refer to unit tests but to the vtkm testing library.
 vtk_module_link(VTK::vtkvtkm INTERFACE vtkm_cont vtkm_cont_testing vtkm_filter)
-
-if (VTK_USE_HIP AND NOT TARGET vtkm_kokkos_hip)
-  message(FATAL_ERROR "VTK_USE_HIP=ON but Kokkos HIP backend not found, exiting.")
+if(VTK_USE_KOKKOS)
+  if (VTK_KOKKOS_BACKEND STREQUAL "HIP" AND NOT TARGET vtkm_kokkos_hip)
+    message(FATAL_ERROR "VTK_KOKKOS_BACKEND=HIP but Kokkos HIP backend not found, exiting.")
+  endif()
+  if (VTK_KOKKOS_BACKEND STREQUAL "CUDA" AND NOT TARGET vtkm_kokkos_cuda)
+    message(FATAL_ERROR "VTK_KOKKOS_BACKEND=CUDA but Kokkos CUDA backend not found, exiting.")
+  endif()
 endif()
 
 if (TARGET vtkm_cuda)
   add_library("vtkm::cuda" INTERFACE IMPORTED GLOBAL)
   target_link_libraries("vtkm::cuda" INTERFACE vtkm_cuda)
+endif()
+
+if (TARGET vtkm_kokkos_cuda)
+  add_library("vtkm::kokkos_cuda" INTERFACE IMPORTED GLOBAL)
+  target_link_libraries("vtkm::kokkos_cuda" INTERFACE vtkm_kokkos_cuda)
 endif()
 
 if (TARGET vtkm_kokkos_hip)

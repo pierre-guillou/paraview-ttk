@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkSMPVRepresentationProxy
- * @brief   representation for "Render View" like
- * views in ParaView.
+ * @brief   representation for "Render View" like views in ParaView.
  *
  * vtkSMPVRepresentationProxy combines surface representation and volume
  * representation proxies typically used for displaying data.
@@ -23,10 +22,13 @@
 #ifndef vtkSMPVRepresentationProxy_h
 #define vtkSMPVRepresentationProxy_h
 
-#include "vtkParaViewDeprecation.h" // for deprecation
+#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_13_0
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSMRepresentationProxy.h"
 #include "vtkSmartPointer.h" // For LastLUTProxy
+
+#include <set>           // needed for std::set
+#include <unordered_map> // needed for std::unordered_map
 
 class vtkPVArrayInformation;
 
@@ -42,43 +44,58 @@ public:
    * Set/get last LUT proxy.
    * Used as a memory of what was the last LUT proxy linked to this representation.
    */
-  void SetLastLUTProxy(vtkSMProxy* proxy);
-  vtkSMProxy* GetLastLUTProxy();
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use SetLastLookupTable instead")
+  void SetLastLUTProxy(vtkSMProxy* proxy) { this->SetLastLookupTable(proxy); }
+  void SetLastLookupTable(vtkSMProxy* proxy);
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use GetLastLookupTable instead")
+  vtkSMProxy* GetLastLUTProxy() { return this->GetLastLookupTable(); }
+  vtkSMProxy* GetLastLookupTable();
+  void SetLastBlockLookupTable(const std::string& blockSelector, vtkSMProxy* proxy)
+  {
+    this->SetLastBlocksLookupTable({ blockSelector }, proxy);
+  }
+  void SetLastBlocksLookupTable(const std::vector<std::string>& blockSelectors, vtkSMProxy* proxy);
+  vtkSMProxy* GetLastBlockLookupTable(const std::string& blockSelector)
+  {
+    return this->GetLastBlocksLookupTables({ blockSelector }).front();
+  }
+  std::vector<vtkSMProxy*> GetLastBlocksLookupTables(
+    const std::vector<std::string>& blockSelectors);
   ///@}
 
+  ///@{
   /**
    * Returns true if scalar coloring is enabled. This checks whether a property
    * named "ColorArrayName" exists and has a non-empty string. This does not
    * check for the validity of the array.
    */
   virtual bool GetUsingScalarColoring();
+  virtual bool GetBlockUsingScalarColoring(const std::string& blockSelector)
+  {
+    return this->GetBlocksUsingScalarColoring({ blockSelector }).front();
+  }
+  virtual std::vector<vtkTypeBool> GetBlocksUsingScalarColoring(
+    const std::vector<std::string>& blockSelectors);
+  virtual bool GetAnyBlockUsingScalarColoring();
+  ///@}
 
+  ///@{
   /**
    * Returns the lut proxy of this representation in the given view.
    * This method will return `nullptr` if no lut proxy exists in this view.
    */
-  vtkSMProxy* GetLUTProxy(vtkSMProxy* view);
-
-  ///@{
-  /**
-   * Safely call GetUsingScalarColoring() after casting the proxy to appropriate
-   * type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool GetUsingScalarColoring(vtkSMProxy* proxy)
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use GetLookupTable instead")
+  vtkSMProxy* GetLUTProxy(vtkSMProxy* view) { return this->GetLookupTable(view); }
+  vtkSMProxy* GetLookupTable(vtkSMProxy* view);
+  vtkSMProxy* GetBlockLookupTable(vtkSMProxy* view, const std::string& blockSelector)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->GetUsingScalarColoring() : false;
+    return this->GetBlocksLookupTables(view, { blockSelector }).front();
   }
+  std::vector<vtkSMProxy*> GetBlocksLookupTables(
+    vtkSMProxy* view, const std::vector<std::string>& blockSelectors);
   ///@}
 
-  /**
-   * Given the input registered representation `proxy`, sets up a lookup table associated with the
-   * representation if a scalar bar is being used for `proxy`.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static void SetupLookupTable(vtkSMProxy* proxy);
-
+  ///@{
   /**
    * Updates the ranges shown in the scalar bar.
    * If deleteRange is true, then the range stored for current representation proxy is deleted.
@@ -87,53 +104,47 @@ public:
    * with the new range value.
    */
   bool UpdateScalarBarRange(vtkSMProxy* view, bool deleteRange);
-
-  /**
-   * Enable/disable scalar coloring using the specified array. This will set up a
-   * color and opacity transfer functions using vtkSMTransferFunctionProxy
-   * instance. If arrayname is nullptr, then scalar coloring is turned off.
-   * \c attribute_type must be one of vtkDataObject::AttributeTypes.
-   */
-  virtual bool SetScalarColoring(const char* arrayname, int attribute_type);
-
-  /**
-   * Enable/disable scalar coloring using the specified array. This will set up a
-   * color and opacity transfer functions using vtkSMTransferFunctionProxy
-   * instance. If arrayname is nullptr, then scalar coloring is turned off.
-   * \param arrayname the name of the array.
-   * \param attribute_type must be one of vtkDataObject::AttributeTypes.
-   * \param component enables choosing a component to color with,
-   * -1 will change to Magnitude, >=0 will change to corresponding component.
-   */
-  virtual bool SetScalarColoring(const char* arrayname, int attribute_type, int component);
-
-  ///@{
-  /**
-   * Safely call SetScalarColoring() after casting the proxy to the appropriate
-   * type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool SetScalarColoring(vtkSMProxy* proxy, const char* arrayname, int attribute_type)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->SetScalarColoring(arrayname, attribute_type) : false;
-  }
+  std::vector<vtkTypeBool> UpdateBlocksScalarBarRange(vtkSMProxy* view, bool deleteRange);
   ///@}
 
   ///@{
   /**
-   * Safely call SetScalarColoring() after casting the proxy to the appropriate
-   * type, component version
+   * Enable/disable scalar coloring using the specified array. This will set up a
+   * color and opacity transfer functions using vtkSMTransferFunctionProxy
+   * instance. If arrayName is nullptr, then scalar coloring is turned off.
+   * \c attributeType must be one of vtkDataObject::AttributeTypes.
    */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool SetScalarColoring(
-    vtkSMProxy* proxy, const char* arrayname, int attribute_type, int component)
+  virtual bool SetScalarColoring(const char* arrayName, int attributeType);
+  virtual bool SetBlockScalarColoring(
+    const std::string& blockSelector, const char* arrayName, int attributeType)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->SetScalarColoring(arrayname, attribute_type, component) : false;
+    return this->SetBlocksScalarColoring({ blockSelector }, arrayName, attributeType).front();
   }
+  virtual std::vector<vtkTypeBool> SetBlocksScalarColoring(
+    const std::vector<std::string>& blockSelectors, const char* arrayName, int attributeType);
   ///@}
 
+  ///@{
+  /**
+   * Enable/disable scalar coloring using the specified array. This will set up a
+   * color and opacity transfer functions using vtkSMTransferFunctionProxy
+   * instance. If arrayName is nullptr, then scalar coloring is turned off. if
+   * component name is -1, then the magnitude of the array is used. If component
+   * name is >=0, then the corresponding component is used.
+   */
+  virtual bool SetScalarColoring(const char* arrayName, int attributeType, int component);
+  virtual bool SetBlockScalarColoring(
+    const std::string& blockSelector, const char* arrayName, int attributeType, int component)
+  {
+    return this->SetBlocksScalarColoring({ blockSelector }, arrayName, attributeType, component)
+      .front();
+  }
+  virtual std::vector<vtkTypeBool> SetBlocksScalarColoring(
+    const std::vector<std::string>& blockSelectors, const char* arrayName, int attributeType,
+    int component);
+  ///@}
+
+  ///@{
   /**
    * Rescales the color transfer function and opacity transfer function using the
    * current data range. Returns true if rescale was successful.
@@ -141,13 +152,24 @@ public:
    * only be extended as needed to fit the data range.
    * If \c force is false (true by default), then the transfer function range is
    * not changed if locked.
-   * @param[in] extend Extend existing range instead of clamping to the new
+   *
+   * blockSelector the block selector.
+   * extend Extend existing range instead of clamping to the new
    * range (default: false).
-   * @param[in] force Update transfer function even if the range is locked
+   * force Update transfer function even if the range is locked
    * (default: true).
    */
   virtual bool RescaleTransferFunctionToDataRange(bool extend = false, bool force = true);
+  virtual bool RescaleBlockTransferFunctionToDataRange(
+    const std::string& blockSelector, bool extend = false, bool force = true)
+  {
+    return this->RescaleBlocksTransferFunctionToDataRange({ blockSelector }, extend, force).front();
+  }
+  virtual std::vector<vtkTypeBool> RescaleBlocksTransferFunctionToDataRange(
+    const std::vector<std::string>& blockSelectors, bool extend = false, bool force = true);
+  ///@}
 
+  ///@{
   /**
    * Rescales the color transfer function and opacity transfer function using the
    * current data range for the chosen data-array. Returns true if rescale was
@@ -156,86 +178,62 @@ public:
    * only be extended as needed to fit the data range.
    * If \c force is false (true by default), then the transfer function range is
    * not changed if locked.
-   * @param arrayname the name of the array.
-   * @param attribute_type must be one of vtkDataObject::AttributeTypes.
-   * @param[in] extend Extend existing range instead of clamping to the new
+   *
+   * blockSelector the block selector.
+   * arrayName the name of the array.
+   * attributeType must be one of vtkDataObject::AttributeTypes.
+   * extend Extend existing range instead of clamping to the new
    * range (default: false).
-   * @param[in] force Update transfer function even if the range is locked
+   * force Update transfer function even if the range is locked
    * (default: true).
    */
   virtual bool RescaleTransferFunctionToDataRange(
-    const char* arrayname, int attribute_type, bool extend = false, bool force = true);
-
-  ///@{
-  /**
-   * Safely call RescaleTransferFunctionToDataRange() after casting the proxy to
-   * appropriate type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToDataRange(
-    vtkSMProxy* proxy, bool extend = false, bool force = true)
+    const char* arrayName, int attributeType, bool extend = false, bool force = true);
+  virtual bool RescaleBlockTransferFunctionToDataRange(const std::string& blockSelector,
+    const char* arrayName, int attributeType, bool extend = false, bool force = true)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToDataRange(extend, force) : false;
+    return this
+      ->RescaleBlocksTransferFunctionToDataRange(
+        { blockSelector }, arrayName, attributeType, extend, force)
+      .front();
   }
+  virtual std::vector<vtkTypeBool> RescaleBlocksTransferFunctionToDataRange(
+    const std::vector<std::string>& blockSelectors, const char* arrayName, int attributeType,
+    bool extend = false, bool force = true);
   ///@}
 
   ///@{
-  /**
-   * Safely call RescaleTransferFunctionToDataRange() after casting the proxy to
-   * appropriate type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToDataRange(vtkSMProxy* proxy, const char* arrayname,
-    int attribute_type, bool extend = false, bool force = true)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToDataRange(arrayname, attribute_type, extend, force)
-                : false;
-  }
-  ///@}
-
   /**
    * Rescales the color transfer function and opacity transfer function using the
    * current data range over time. Returns true if rescale was successful.
    */
   virtual bool RescaleTransferFunctionToDataRangeOverTime();
+  virtual bool RescaleBlockTransferFunctionToDataRangeOverTime(const std::string& blockSelector)
+  {
+    return this->RescaleBlocksTransferFunctionToDataRangeOverTime({ blockSelector }).front();
+  }
+  virtual std::vector<vtkTypeBool> RescaleBlocksTransferFunctionToDataRangeOverTime(
+    const std::vector<std::string>& blockSelectors);
+  ///@}
 
+  ///@{
   /**
    * Rescales the color transfer function and opacity transfer function using the
    * current data range over time for the chosen data-array. Returns true if rescale was
    * successful. \c field_association must be one of
    * vtkDataObject::AttributeTypes,
    */
-  virtual bool RescaleTransferFunctionToDataRangeOverTime(
-    const char* arrayname, int attribute_type);
-
-  ///@{
-  /**
-   * Safely call RescaleTransferFunctionToDataRangeOverTime() after casting the proxy to
-   * appropriate type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToDataRangeOverTime(vtkSMProxy* proxy)
+  virtual bool RescaleTransferFunctionToDataRangeOverTime(const char* arrayName, int attributeType);
+  virtual bool RescaleBlockTransferFunctionToDataRangeOverTime(
+    const std::string& blockSelector, const char* arrayName, int attributeType)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToDataRangeOverTime() : false;
+    return this
+      ->RescaleBlocksTransferFunctionToDataRangeOverTime(
+        { blockSelector }, arrayName, attributeType)
+      .front();
   }
-  ///@}
-
-  ///@{
-  /**
-   * Safely call RescaleTransferFunctionToDataRangeOverTime() after casting the proxy to
-   * appropriate type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToDataRangeOverTime(
-    vtkSMProxy* proxy, const char* arrayname, int attribute_type)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToDataRangeOverTime(arrayname, attribute_type)
-                : false;
-  }
+  virtual std::vector<vtkTypeBool> RescaleBlocksTransferFunctionToDataRangeOverTime(
+    const std::vector<std::string>& blockSelectors, const char* arrayName, int attributeType);
   ///@}
 
   ///@{
@@ -245,28 +243,7 @@ public:
    */
   virtual bool RescaleTransferFunctionToVisibleRange(vtkSMProxy* view);
   virtual bool RescaleTransferFunctionToVisibleRange(
-    vtkSMProxy* view, const char* arrayname, int attribute_type);
-  ///@}
-
-  ///@{
-  /**
-   * Safely call RescaleTransferFunctionToVisibleRange() after casting the proxy
-   * to the appropriate type.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToVisibleRange(vtkSMProxy* proxy, vtkSMProxy* view)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToVisibleRange(view) : false;
-  }
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool RescaleTransferFunctionToVisibleRange(
-    vtkSMProxy* proxy, vtkSMProxy* view, const char* arrayname, int attribute_type)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->RescaleTransferFunctionToVisibleRange(view, arrayname, attribute_type)
-                : false;
-  }
+    vtkSMProxy* view, const char* arrayName, int attributeType);
   ///@}
 
   ///@{
@@ -275,12 +252,13 @@ public:
    * Scalar bar is only shown if scalar coloring is indeed being used.
    */
   virtual bool SetScalarBarVisibility(vtkSMProxy* view, bool visible);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool SetScalarBarVisibility(vtkSMProxy* proxy, vtkSMProxy* view, bool visible)
+  virtual bool SetBlockScalarBarVisibility(
+    vtkSMProxy* view, const std::string& blockSelector, bool visible)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->SetScalarBarVisibility(view, visible) : false;
+    return this->SetBlocksScalarBarVisibility(view, { blockSelector }, visible).front();
   }
+  virtual std::vector<vtkTypeBool> SetBlocksScalarBarVisibility(
+    vtkSMProxy* view, const std::vector<std::string>& blockSelectors, bool visible);
   ///@}
 
   ///@{
@@ -292,12 +270,7 @@ public:
    * scalar bar.
    */
   virtual bool HideScalarBarIfNotNeeded(vtkSMProxy* view);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool HideScalarBarIfNotNeeded(vtkSMProxy* repr, vtkSMProxy* view)
-  {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(repr);
-    return self ? self->HideScalarBarIfNotNeeded(view) : false;
-  }
+  virtual bool HideBlocksScalarBarIfNotNeeded(vtkSMProxy* view);
   ///@}
 
   ///@{
@@ -306,12 +279,12 @@ public:
    * representation and view is visible, return false otherwise.
    */
   virtual bool IsScalarBarVisible(vtkSMProxy* view);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static bool IsScalarBarVisible(vtkSMProxy* repr, vtkSMProxy* view)
+  virtual bool IsBlockScalarBarVisible(vtkSMProxy* view, const std::string& blockSelector)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(repr);
-    return self ? self->IsScalarBarVisible(view) : false;
+    return this->IsBlocksScalarBarVisible(view, { blockSelector }).front();
   }
+  virtual std::vector<vtkTypeBool> IsBlocksScalarBarVisible(
+    vtkSMProxy* view, const std::vector<std::string>& blockSelectors);
   ///@}
 
   ///@{
@@ -321,13 +294,13 @@ public:
    * If none is found, returns nullptr.
    */
   virtual vtkPVArrayInformation* GetArrayInformationForColorArray(bool checkRepresentedData = true);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static vtkPVArrayInformation* GetArrayInformationForColorArray(
-    vtkSMProxy* proxy, bool checkRepresentedData = true)
+  virtual vtkPVArrayInformation* GetBlockArrayInformationForColorArray(
+    const std::string& blockSelector)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->GetArrayInformationForColorArray(checkRepresentedData) : nullptr;
+    return this->GetBlocksArrayInformationForColorArray({ blockSelector }).front();
   }
+  virtual std::vector<vtkPVArrayInformation*> GetBlocksArrayInformationForColorArray(
+    const std::vector<std::string>& blockSelectors);
   ///@}
 
   ///@{
@@ -337,27 +310,33 @@ public:
    */
   virtual vtkPVProminentValuesInformation* GetProminentValuesInformationForColorArray(
     double uncertaintyAllowed = 1e-6, double fraction = 1e-3, bool force = false);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static vtkPVProminentValuesInformation* GetProminentValuesInformationForColorArray(
-    vtkSMProxy* proxy, double uncertaintyAllowed = 1e-6, double fraction = 1e-3, bool force = false)
+  virtual vtkPVProminentValuesInformation* GetBlockProminentValuesInformationForColorArray(
+    const std::string& blockSelector, double uncertaintyAllowed = 1e-6, double fraction = 1e-3,
+    bool force = false)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self
-      ? self->GetProminentValuesInformationForColorArray(uncertaintyAllowed, fraction, force)
-      : nullptr;
+    return this
+      ->GetBlocksProminentValuesInformationForColorArray(
+        { blockSelector }, uncertaintyAllowed, fraction, force)
+      .front();
   }
+  virtual std::vector<vtkPVProminentValuesInformation*>
+  GetBlocksProminentValuesInformationForColorArray(const std::vector<std::string>& blockSelectors,
+    double uncertaintyAllowed = 1e-6, double fraction = 1e-3, bool force = false);
   ///@}
 
+  ///@{
   /**
    * Get an estimated number of annotation shown on this representation scalar bar
    */
   int GetEstimatedNumberOfAnnotationsOnScalarBar(vtkSMProxy* view);
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use static functions from vtkSMColorMapEditorHelper instead")
-  static int GetEstimatedNumberOfAnnotationsOnScalarBar(vtkSMProxy* proxy, vtkSMProxy* view)
+  int GetBlockEstimatedNumberOfAnnotationsOnScalarBar(
+    vtkSMProxy* view, const std::string& blockSelector)
   {
-    vtkSMPVRepresentationProxy* self = vtkSMPVRepresentationProxy::SafeDownCast(proxy);
-    return self ? self->GetEstimatedNumberOfAnnotationsOnScalarBar(view) : -1;
+    return this->GetBlocksEstimatedNumberOfAnnotationsOnScalarBars(view, { blockSelector }).front();
   }
+  std::vector<int> GetBlocksEstimatedNumberOfAnnotationsOnScalarBars(
+    vtkSMProxy* view, const std::vector<std::string>& blockSelectors);
+  ///@}
 
   /**
    * Overridden to ensure when picking representation types that require scalar
@@ -383,6 +362,12 @@ public:
    * it returns -1.
    */
   int IsScalarBarStickyVisible(vtkSMProxy* view);
+  int IsBlockScalarBarStickyVisible(vtkSMProxy* view, const std::string& blockSelector)
+  {
+    return this->IsBlocksScalarBarStickyVisible(view, { blockSelector }).front();
+  }
+  std::vector<int> IsBlocksScalarBarStickyVisible(
+    vtkSMProxy* view, const std::vector<std::string>& blockSelectors);
   ///@}
 
   /**
@@ -390,17 +375,46 @@ public:
    */
   void ViewUpdated(vtkSMProxy* view) override;
 
+  ///@{
+  /**
+   * Set/Get the block color array name.
+   */
+  std::pair<int, std::string> GetBlockColorArray(const std::string& blockSelector)
+  {
+    return this->GetBlocksColorArrays({ blockSelector }).front();
+  }
+  std::vector<std::pair<int, std::string>> GetBlocksColorArrays(
+    const std::vector<std::string>& blockSelectors);
+  int GetBlockColorArrayAssociation(const std::string& blockSelector)
+  {
+    return this->GetBlockColorArray(blockSelector).first;
+  }
+  std::string GetBlockColorArrayName(const std::string& blockSelector)
+  {
+    return this->GetBlockColorArray(blockSelector).second;
+  }
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get if we should use a separate color map for this block.
+   */
+  void SetBlockUseSeparateColorMap(const std::string& blockSelector, bool use)
+  {
+    this->SetBlocksUseSeparateColorMap({ blockSelector }, use);
+  }
+  void SetBlocksUseSeparateColorMap(const std::vector<std::string>& blockSelectors, bool use);
+  bool GetBlockUseSeparateColorMap(const std::string& blockSelector)
+  {
+    return this->GetBlocksUseSeparateColorMaps({ blockSelector }).front();
+  }
+  std::vector<vtkTypeBool> GetBlocksUseSeparateColorMaps(
+    const std::vector<std::string>& blockSelectors);
+  ///@}
+
 protected:
   vtkSMPVRepresentationProxy();
   ~vtkSMPVRepresentationProxy() override;
-
-  /**
-   * Rescales transfer function ranges using the array information provided.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Internal logic should be in vtkSMColorMapEditorHelper, use "
-                                "exposed functions of the helper instead")
-  virtual bool RescaleTransferFunctionToDataRange(
-    vtkPVArrayInformation* info, bool extend = false, bool force = true);
 
   /**
    * Overridden to ensure that the RepresentationTypesInfo and
@@ -425,35 +439,19 @@ protected:
   int ReadXMLAttributes(vtkSMSessionProxyManager* pm, vtkPVXMLElement* element) override;
 
   /**
-   * In case of UseSeparateColorMap enabled, this function prefix the given
-   * arrayname with unique identifier, otherwise it acts as a passthrough.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Internal logic should be in vtkSMColorMapEditorHelper, use "
-                                "exposed functions of the helper instead")
-  std::string GetDecoratedArrayName(const std::string& arrayname);
-
-  /**
-   * Internal method to set scalar coloring, do not use directly.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Internal logic should be in vtkSMColorMapEditorHelper, use "
-                                "exposed functions of the helper instead")
-  virtual bool SetScalarColoringInternal(
-    const char* arrayname, int attribute_type, bool useComponent, int component);
-
-  /**
    * Used as a memory of what was the last LUT proxy linked to this representation.
    * This is used in `UpdateScalarBarRange` to update the scalar bar range when
    * turning off the coloring for this representation.
    */
-  vtkSmartPointer<vtkSMProxy> LastLUTProxy;
+  vtkSmartPointer<vtkSMProxy> LastLookupTable;
+  std::unordered_map<std::string, vtkSmartPointer<vtkSMProxy>> LastBlocksLookupTables;
 
 private:
   vtkSMPVRepresentationProxy(const vtkSMPVRepresentationProxy&) = delete;
   void operator=(const vtkSMPVRepresentationProxy&) = delete;
 
   bool InReadXMLAttributes;
-  class vtkStringSet;
-  vtkStringSet* RepresentationSubProxies;
+  std::set<std::string> RepresentationSubProxies;
 };
 
 #endif

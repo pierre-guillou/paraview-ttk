@@ -1,12 +1,32 @@
 r"""
-Internal module used by paraview.servermanager to help warn about properties
-changed or removed.
+Internal module used by paraview.servermanager to help warn about
+proxies/properties changed or removed. To help
+with backward compatibility, the _backwardscompatibilityhelper module
+should be updated to handle deprecated proxies and properties.
 
-If the compatibility version is less than the version where a particular
-property was removed, `check_attr` should ideally continue to work as before
-or return a value of appropriate form so old code doesn't fail. Otherwise
-`check_attr` should throw the NotSupportedException with appropriate debug
-message.
+Each proxy is associated to a kind of python class. When a proxy is removed,
+this class is no more generated and older scripts will raise `NameError`
+exception. To avoid this, deprecated proxies should be added in `get_deprecated_proxies`
+returned map, so a fallback proxy can be used.
+See also `GetProxy`.
+
+Properties are defined as attribute of the python object. When a property
+is removed, old scripts using it will fail with `AttributeError`.
+When everything else fails, `NotSupportedException` is thrown.
+See `setattr` and `getattr` methods.
+
+Each compatibility code is called depending on the current version
+and on the compatibility version asked by the script.
+Compatibility version should be specified before importing `simple` module.
+For instance:
+```
+import paraview
+paraview.compatibility.major=5
+paraview.compatibility.minor=11
+from paraview.simple import *
+```
+Will create fallback proxies and properties for deprecation done since 5.11
+and will fail for object deprecated before 5.11.
 """
 
 import paraview
@@ -314,8 +334,9 @@ def setattr(proxy, pname, value):
                 'Please set the DestinationMesh property instead.')
 
     # In 5.7, we removed `ArrayName` property on the `GenerateIdScalars` filter
-    # and replaced it with `CellIdsArrayName` and `PointIdsArrayName`.
-    if pname == "ArrayName" and proxy.SMProxy.GetXMLName() == "GenerateIdScalars":
+    # and replaced it with `CellIdsArrayName` and `PointIdsArrayName`. Filter was also renamed
+    # in "PointAndCellIds" in 5.13
+    if pname == "ArrayName" and proxy.SMProxy.GetXMLName() in ("GenerateIdScalars", "PointAndCellIds"):
         if compatibility_version < (5, 7):
             proxy.GetProperty("PointIdsArrayName").SetData(value)
             proxy.GetProperty("CellIdsArrayName").SetData(value)
@@ -477,6 +498,26 @@ def setattr(proxy, pname, value):
                 raise Continue()
             else:
                 raise NotSupportedException("'MergePoints' is obsolete.  Use 'Locator' property instead.")
+
+    # 5.12 -> 5.13
+    # breaking change on Representation properties
+    # Renamed Position into Translation
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName().endswith("Representation"):
+        if pname == "Position":
+            if compatibility_version < (5, 13):
+                proxy.GetProperty("Translation").SetData(value)
+                raise Continue()
+            else:
+                raise NotSupportedException("'Position' is obsolete.  Use 'Translation' property instead.")
+    # FlipTextures has been deprecated in favor of TextureTransform
+    if pname == "FlipTextures" and proxy.SMProxy.IsA("vtkSMRepresentationProxy"):
+        if compatibility_version < (5, 13):
+            scale = [1, -1 if value else 1, 1]
+            proxy.GetProperty("TextureTransform").GetProxy(0).GetProperty("Scale").SetElements(scale)
+            raise Continue()
+        else:
+            raise NotSupportedException(
+                "'FlipTextures' is obsolete.  Use 'TextureTransform' property of representation instead.")
 
     if not hasattr(proxy, pname):
         raise AttributeError()
@@ -784,7 +825,7 @@ def getattr(proxy, pname):
 
     # In 5.7, we removed `ArrayName` property on the `GenerateIdScalars` filter
     # and replaced it with `CellIdsArrayName` and `PointIdsArrayName`.
-    if pname == "ArrayName" and proxy.SMProxy.GetXMLName() == "GenerateIdScalars":
+    if pname == "ArrayName" and proxy.SMProxy.GetXMLName() in ("GenerateIdScalars", "PointAndCellIds"):
         if compatibility_version < (5, 7):
             return proxy.GetProperty("PointIdsArrayName")
         else:
@@ -981,6 +1022,24 @@ def getattr(proxy, pname):
         if pname == "PlayMode" and proxy.GetProperty(pname).GetData() == "Real Time":
             raise NotSupportedException("'Real Time' is an obsolete value for 'PlayMode'. Use 'Sequence' instead.")
 
+    # 5.12 -> 5.13 breaking change on vtkOpenFoamReader
+    # DecomposePolyhedra property has been removed
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName() == "OpenFOAMReader":
+        if pname == "DecomposePolyhedra":
+            if compatibility_version < (5, 13):
+                paraview.print_warning("'%s' is no longer supported and will have no effect. " % pname)
+                raise Continue()
+            else:
+                raise NotSupportedException("'DecomposePolyhedra' property has been removed in ParaView 5.13")
+
+    # 5.12 -> 5.13 breaking change on Representation properties
+    # Renamed Position into Translation
+    if proxy.SMProxy and proxy.SMProxy.GetXMLName().endswith("Representation"):
+        if pname == "Position":
+            if compatibility_version < (5, 13):
+                return proxy.GetProperty("Translation").GetData()
+            else:
+                raise NotSupportedException("'Position' property has been removed in ParaView 5.13")
     raise Continue()
 
 
@@ -1026,13 +1085,6 @@ def GetProxy(module, key, **kwargs):
             # into a unique 'Gradient" filter.
             gradient = builtins.getattr(module, "GradientLegacy")(**kwargs)
             return gradient
-    if compatibility_version <= (5, 10):
-        if key in ["ParticleTracer, ParticlePath, StreakLine"]:
-            # in 5.11, we changed the StaticMesh flag of ParticleTracer, ParticlePath and StreakLine
-            # This restores the previous StaticMesh.
-            particleTracerBase = builtins.getattr(module, key)(**kwargs)
-            particleTracerBase.MeshOverTime = 0
-            return particleTracerBase
     if compatibility_version <= (5, 11):
         proxy = builtins.getattr(module, key)(**kwargs)
         if hasattr(proxy, "Assembly"):
@@ -1042,8 +1094,49 @@ def GetProxy(module, key, **kwargs):
                 if assemblyDomain:
                     assemblyDomain.SetBackwardCompatibilityMode(True)
                     return proxy
+    if compatibility_version <= (5, 12):
+        if key in ["ParticlePath", "StreakLine"]:
+            return builtins.getattr(module, 'Legacy' + key)(**kwargs)
+
+    # deprecation case
+    if type(key) == tuple and len(key) == 2:
+        proxy = builtins.getattr(module, key[1])(**kwargs)
+
+        return proxy
 
     return builtins.getattr(module, key)(**kwargs)
+
+
+def get_deprecated_proxies(proxiesNS):
+    """
+    Provide a map between deprecated proxies and their fallback proxy
+    The key is the previous name, value the new.
+    By name we mean the actual python method name to construct the proxy,
+    not the proxy name.
+    Python method name is constructed from proxy label, sanitized to be
+    a valid python method name.
+    """
+    compatibility_version = get_paraview_compatibility_version()
+    proxies = {}
+    proxies[proxiesNS.sources] = []
+    proxies[proxiesNS.filters] = []
+
+    if compatibility_version <= (5, 13):
+        proxies[proxiesNS.filters] += [("GhostCellsGenerator", "GhostCells")]
+        proxies[proxiesNS.filters] += [("AddFieldArrays", "FieldArraysFromFile")]
+        proxies[proxiesNS.filters] += [("AppendArcLength", "PolylineLength")]
+        proxies[proxiesNS.filters] += [("AppendLocationAttributes", "Coordinates")]
+        proxies[proxiesNS.filters] += [("BlockScalars", "BlockIds")]
+        proxies[proxiesNS.filters] += [("ComputeConnectedSurfaceProperties", "ConnectedSurfaceProperties")]
+        proxies[proxiesNS.filters] += [("GenerateGlobalIds", "GlobalPointAndCellIds")]
+        proxies[proxiesNS.filters] += [("GenerateIds", "PointAndCellIds")]
+        proxies[proxiesNS.filters] += [("GenerateProcessIds", "ProcessIds")]
+        proxies[proxiesNS.filters] += [("GenerateSpatioTemporalHarmonics", "SpatioTemporalHarmonics")]
+        proxies[proxiesNS.filters] += [("GenerateSurfaceNormals", "SurfaceNormals")]
+        proxies[proxiesNS.filters] += [("GenerateSurfaceTangents", "SurfaceTangents")]
+        proxies[proxiesNS.filters] += [("LevelScalarsOverlappingAMR", "OverlappingAMRLevelIds")]
+
+    return proxies
 
 
 def lookupTableUpdate(lutName):

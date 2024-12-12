@@ -14,6 +14,7 @@
 
 #include "vtkRenderPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 #include <string> // For std::string
 
@@ -24,7 +25,7 @@ class vtkProp;
 class vtkShaderProgram;
 class vtkOpenGLVertexArrayObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLRenderPass : public vtkRenderPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLRenderPass : public vtkRenderPass
 {
 public:
   vtkTypeMacro(vtkOpenGLRenderPass, vtkRenderPass);
@@ -79,9 +80,21 @@ protected:
   void PreRender(const vtkRenderState* s);
 
   /**
+   * Called in PreRender to give a chance to subclasses to set additonal information keys.
+   * This will be called for each filtered prop in the state.
+   */
+  virtual void PreRenderProp(vtkProp* prop);
+
+  /**
    * Call after rendering to clean up the actors' information keys.
    */
   void PostRender(const vtkRenderState* s);
+
+  /**
+   * Called in PreRender to give a chance to subclasses to clean up information keys.
+   * This will be called for each filtered prop in the state.
+   */
+  virtual void PostRenderProp(vtkProp* prop);
 
   unsigned int ActiveDrawBuffers = 0;
 

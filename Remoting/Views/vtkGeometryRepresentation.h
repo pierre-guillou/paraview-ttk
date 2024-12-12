@@ -17,6 +17,7 @@
 #define vtkGeometryRepresentation_h
 
 #include "vtkPVDataRepresentation.h"
+#include "vtkParaViewDeprecation.h" // for PV_DEPRECATED
 #include "vtkProperty.h"            // needed for VTK_POINTS etc.
 #include "vtkRemotingViewsModule.h" // needed for exports
 #include "vtkVector.h"              // for vtkVector.
@@ -24,6 +25,7 @@
 #include <set>           // needed for std::set
 #include <string>        // needed for std::string
 #include <unordered_map> // needed for std::unordered_map
+#include <vector>        // needed for std::vector
 
 class vtkCompositeDataDisplayAttributes;
 class vtkMapper;
@@ -32,6 +34,7 @@ class vtkPVGeometryFilter;
 class vtkPVLODActor;
 class vtkScalarsToColors;
 class vtkTexture;
+class vtkTransform;
 
 namespace vtkGeometryRepresentation_detail
 {
@@ -77,6 +80,16 @@ public:
    */
   virtual void SetSuppressLOD(bool suppress) { this->SuppressLOD = suppress; }
 
+  ///@{
+  /**
+   * Disables the lighting on the object.
+   * It only displays the Diffuse component
+   * of the lighting color of the object.
+   */
+  vtkBooleanMacro(DisableLighting, bool);
+  vtkSetMacro(DisableLighting, bool);
+  vtkGetMacro(DisableLighting, bool);
+  ///@}
   ///@{
   /**
    * Set the lighting properties of the object. vtkGeometryRepresentation
@@ -166,12 +179,16 @@ public:
   void SetNonlinearSubdivisionLevel(int);
   void SetMatchBoundariesIgnoringCellOrder(int);
   virtual void SetGenerateFeatureEdges(bool);
+  void SetComputePointNormals(bool);
+  void SetSplitting(bool);
+  void SetFeatureAngle(double);
 
   //***************************************************************************
   // Forwarded to vtkProperty.
   virtual void SetAmbientColor(double r, double g, double b);
   virtual void SetColor(double r, double g, double b);
   virtual void SetDiffuseColor(double r, double g, double b);
+  virtual void SetLighting(bool lighting);
   virtual void SetEdgeColor(double r, double g, double b);
   virtual void SetInteractiveSelectionColor(double r, double g, double b);
   virtual void SetInterpolation(int val);
@@ -215,10 +232,13 @@ public:
   virtual void SetScale(double, double, double);
   virtual void SetTexture(vtkTexture*);
   virtual void SetUserTransform(const double[16]);
+  PARAVIEW_DEPRECATED_IN_5_13_0("Use SetTextureTransform instead")
   virtual void SetFlipTextures(bool);
 
   //***************************************************************************
   // Forwarded to all textures
+  virtual void SetTextureTransform(vtkTransform*);
+  vtkGetObjectMacro(TextureTransform, vtkTransform);
   virtual void SetRepeatTextures(bool);
   vtkGetMacro(RepeatTextures, bool);
   virtual void SetInterpolateTextures(bool);
@@ -270,24 +290,61 @@ public:
   /**
    * Update list of selectors that determine the selected blocks.
    */
-  void AddBlockSelector(const char*);
+  void AddBlockSelector(const char* selector);
   void RemoveAllBlockSelectors();
   ///@}
 
   ///@{
   /**
-   * Set/get the color for a single block.
+   * Set the color for a single block.
    */
-  void SetBlockColor(const char*, double, double, double);
+  void SetBlockColor(const char* selector, double r, double g, double b);
   void RemoveAllBlockColors();
   ///@}
 
   ///@{
   /**
-   * Set/get the opacityfor a single block.
+   * Set the opacity for a single block.
    */
-  void SetBlockOpacity(const char*, double);
+  void SetBlockOpacity(const char* selector, double opacity);
   void RemoveAllBlockOpacities();
+  ///@}
+
+  ///@{
+  /**
+   * Set if to interpolate scalars before mapping for a single block.
+   */
+  void SetBlockInterpolateScalarsBeforeMapping(const char* selector, bool interpolate);
+  void RemoveAllBlockInterpolateScalarsBeforeMappings();
+  ///@}
+
+  ///@{
+  /**
+   * Set the block to map scalars for a single block.
+   *
+   * Note: Similar to SetMapScalars, but for blocks.
+   */
+  void SetBlockMapScalars(const char* selector, int val);
+  void RemoveAllBlockMapScalars();
+  ///@}
+
+  ///@{
+  /**
+   * Set the color array for a single block.
+   */
+  void SetBlockArrayName(const char* selector, int assoc, const char* arrayName);
+  void RemoveAllBlockArrayNames();
+  ///@}
+
+  ///@{
+  /**
+   * Set the look up table for a single block.
+   *
+   * Note: we need two methods because we can't wrap a string and a vtkObject using either
+   * vtkSMStringVectorProperty or vtkSMProxyProperty.
+   */
+  void SetBlockLookupTable(vtkScalarsToColors* lut);
+  void RemoveAllBlockLookupTables();
   ///@}
 
   /**
@@ -351,6 +408,23 @@ public:
    * Use nullptr to use default ones. ("vtkOriginalPointIds" and "vtkOriginalCellIds")
    */
   void SetArrayIdNames(const char* pointArray, const char* cellArray) override;
+
+  ///@{
+  /**
+   * Set/Get the placeholder data type.
+   *
+   * This value is set by the proxy and is needed to ensure that the client knows the type of the
+   * input that lives on the server.
+   *
+   * In the past, we were always creating a placeholder of type vtkMultiBlockDataSet when no
+   * input was available on the client. This is no longer valid because vtkPVGeometryFilter
+   * can now generate also vtkPartitionedDataSetCollection.
+   *
+   * This can be potentially removed in the future once vtkMultiBlockDataSet is deprecated.
+   */
+  void SetPlaceHolderDataType(int datatype);
+  vtkGetMacro(PlaceHolderDataType, int);
+  ///@}
 
 protected:
   vtkGeometryRepresentation();
@@ -447,6 +521,11 @@ protected:
    */
   virtual void SetPointArrayToProcess(int p, const char* val);
 
+  /**
+   * This is called whenever the texture transformation matrix changes.
+   */
+  void UpdateGeneralTextureTransform();
+
   vtkAlgorithm* GeometryFilter;
   vtkAlgorithm* MultiBlockMaker;
   vtkGeometryRepresentation_detail::DecimationFilterType* Decimator;
@@ -461,6 +540,7 @@ protected:
   bool RepeatTextures;
   bool InterpolateTextures;
   bool UseMipmapTextures;
+  vtkTransform* TextureTransform;
   double Ambient;
   double Specular;
   double Diffuse;
@@ -482,11 +562,34 @@ protected:
   vtkTimeStamp BlockAttributeTime;
   bool UpdateBlockAttrLOD = false;
 
-  std::set<std::string> BlockSelectors;
-  std::unordered_map<std::string, double> BlockOpacities;
-  std::unordered_map<std::string, vtkVector3d> BlockColors;
+  // This is used to be able to create the correct placeHolder in RequestData for the client
+  int PlaceHolderDataType = VTK_PARTITIONED_DATA_SET_COLLECTION;
 
+  // These block variables are similar to the ones in vtkCompositeDataDisplayAttributes
+  // Some of them are exposed and some others are not because, as of now, they are not needed.
+
+  ///@{
+  /**
+   * Configurable through vtkGeometryRepresentation API
+   */
+  std::vector<std::string> BlockSelectors;
+  std::vector<std::pair<std::string, vtkVector3d>> BlockColors;
+  std::vector<std::pair<std::string, double>> BlockOpacities;
+  std::vector<std::pair<std::string, bool>> BlockInterpolateScalarsBeforeMapping;
+  std::vector<std::pair<std::string, int>> BlockColorModes;
+  std::vector<std::pair<std::string, std::pair<int /*assoc*/, std::string>>> BlockArrayNames;
+  std::vector<vtkScalarsToColors*> BlockLookupTables;
+  ///@}
+  ///@{
+  /**
+   * Configured internally in vtkGeometryRepresentation
+   */
+  std::vector<std::pair<std::string, bool>> BlockScalarVisibilities;
+  std::vector<std::pair<std::string, bool>> BlockUseLookupTableScalarRanges;
+  std::vector<std::pair<vtkDataObject*, vtkIdType>> BlockFieldDataTupleIds;
+  ///@}
 private:
+  bool DisableLighting = false;
   vtkGeometryRepresentation(const vtkGeometryRepresentation&) = delete;
   void operator=(const vtkGeometryRepresentation&) = delete;
 };

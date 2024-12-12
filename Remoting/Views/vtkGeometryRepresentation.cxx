@@ -10,19 +10,16 @@
 #include "vtkCompositeCellGridMapper.h"
 #include "vtkCompositeDataDisplayAttributes.h"
 #include "vtkCompositePolyDataMapper.h"
-#include "vtkConvertToPartitionedDataSetCollection.h"
 #include "vtkDataAssembly.h"
 #include "vtkDataAssemblyUtilities.h"
-#include "vtkDataObjectTreeIterator.h"
 #include "vtkDataObjectTreeRange.h"
+#include "vtkDataObjectTypes.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkIntArray.h"
 #include "vtkMath.h"
 #include "vtkMatrix4x4.h"
-#include "vtkMultiBlockDataSet.h"
-#include "vtkMultiBlockDataSetAlgorithm.h"
 #include "vtkMultiProcessController.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
@@ -45,7 +42,6 @@
 #include "vtkStringToken.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
-#include "vtkUnstructuredGrid.h"
 
 #if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
 #include "vtkOSPRayActorNode.h"
@@ -54,120 +50,146 @@
 #include <vtk_jsoncpp.h>
 #include <vtksys/SystemTools.hxx>
 
+#include <algorithm>
 #include <memory>
 #include <numeric>
 #include <tuple>
 #include <vector>
 
+namespace vtkGeometryRepresentation_detail
+{
+vtkStandardNewMacro(DecimationFilterType);
+}
+
 //*****************************************************************************
-// This is used to convert a vtkPolyData to a vtkMultiBlockDataSet. If input is
-// vtkMultiBlockDataSet, then this is simply a pass-through filter. This makes
-// it easier to unify the code to select and render data by simply dealing with
-// vtkMultiBlockDataSet always.
-class vtkGeometryRepresentationMultiBlockMaker : public vtkMultiBlockDataSetAlgorithm
+// This is used to convert a vtkPolyData to a vtkPartitionedDataSetCollection.
+// If the input is a vtkPartitionedDataSetCollection/vtkMultiBlockDataSet,
+// then this is simply a pass-through filter. This makes it easier to unify
+// the code to select and render data by simply dealing with vtkDataObjectTrees always.
+class vtkGeometryRepresentationMultiBlockMaker : public vtkDataObjectAlgorithm
 {
 public:
   static vtkGeometryRepresentationMultiBlockMaker* New();
-  vtkTypeMacro(vtkGeometryRepresentationMultiBlockMaker, vtkMultiBlockDataSetAlgorithm);
+  vtkTypeMacro(vtkGeometryRepresentationMultiBlockMaker, vtkDataObjectAlgorithm);
 
 protected:
   int RequestData(vtkInformation*, vtkInformationVector** inputVector,
     vtkInformationVector* outputVector) override
   {
-    vtkDataObject* inputDO = vtkDataObject::GetData(inputVector[0], 0);
-    vtkMultiBlockDataSet* inputMB = vtkMultiBlockDataSet::SafeDownCast(inputDO);
-    vtkMultiBlockDataSet* outputMB = vtkMultiBlockDataSet::GetData(outputVector, 0);
+    auto inputDO = vtkDataObject::GetData(inputVector[0], 0);
+    auto inputDOT = vtkDataObjectTree::SafeDownCast(inputDO);
+    auto outputDOT = vtkDataObjectTree::GetData(outputVector, 0);
 
     vtkInformation* infoNormals = this->GetInputArrayInformation(0);
     vtkInformation* infoTCoords = this->GetInputArrayInformation(1);
     vtkInformation* infoTangents = this->GetInputArrayInformation(2);
 
-    std::string normalsName;
-    std::string tcoordsName;
-    std::string tangentsName;
+    const std::string normalsName = infoNormals && infoNormals->Has(vtkDataObject::FIELD_NAME())
+      ? infoNormals->Get(vtkDataObject::FIELD_NAME())
+      : "";
+    const std::string tcoordsName = infoTCoords && infoTCoords->Has(vtkDataObject::FIELD_NAME())
+      ? infoTCoords->Get(vtkDataObject::FIELD_NAME())
+      : "";
+    const std::string tangentsName = infoTangents && infoTangents->Has(vtkDataObject::FIELD_NAME())
+      ? infoTangents->Get(vtkDataObject::FIELD_NAME())
+      : "";
 
-    const char* normalField = infoNormals ? infoNormals->Get(vtkDataObject::FIELD_NAME()) : nullptr;
-    const char* tcoordField = infoTCoords ? infoTCoords->Get(vtkDataObject::FIELD_NAME()) : nullptr;
-    const char* tangentField =
-      infoTangents ? infoTangents->Get(vtkDataObject::FIELD_NAME()) : nullptr;
+    if (inputDOT)
+    {
+      outputDOT->ShallowCopy(inputDOT);
 
-    if (normalField)
-    {
-      normalsName = normalField;
-    }
-    if (tcoordField)
-    {
-      tcoordsName = tcoordField;
-    }
-    if (tangentField)
-    {
-      tangentsName = tangentField;
-    }
-
-    if (inputMB)
-    {
-      outputMB->ShallowCopy(inputMB);
-
-      vtkNew<vtkDataObjectTreeIterator> iter;
-      iter->SetDataSet(outputMB);
+      auto iter = vtk::TakeSmartPointer(outputDOT->NewTreeIterator());
       iter->SkipEmptyNodesOn();
       iter->VisitOnlyLeavesOn();
       for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
       {
-        this->SetArrays(vtkDataSet::SafeDownCast(iter->GetCurrentDataObject()), normalsName,
-          tcoordsName, tangentsName);
+        this->SetArrays(iter->GetCurrentDataObject(), normalsName, tcoordsName, tangentsName);
       }
-
       return 1;
     }
+    else
+    {
+      auto clone = vtkSmartPointer<vtkDataObject>::Take(inputDO->NewInstance());
+      clone->ShallowCopy(inputDO);
+      auto outputPDC = vtkPartitionedDataSetCollection::SafeDownCast(outputDOT);
+      outputPDC->SetNumberOfPartitionedDataSets(1);
+      outputPDC->SetPartition(0, 0, clone);
+      this->SetArrays(clone, normalsName, tcoordsName, tangentsName);
 
-    auto clone = vtkSmartPointer<vtkDataObject>::Take(inputDO->NewInstance());
-    clone->ShallowCopy(inputDO);
-    outputMB->SetBlock(0, clone);
-    this->SetArrays(vtkDataSet::SafeDownCast(clone), normalsName, tcoordsName, tangentsName);
-    // if we created a MB out of a non-composite dataset, we add this array to
-    // make it possible for `PopulateBlockAttributes` to be aware of that.
-
-    vtkNew<vtkIntArray> marker;
-    marker->SetName("vtkGeometryRepresentationMultiBlockMaker");
-    outputMB->GetFieldData()->AddArray(marker);
-    return 1;
+      // if we created a PDC out of a non-composite dataset, we add this array to
+      // make it possible for `PopulateBlockAttributes` to be aware of that.
+      vtkNew<vtkIntArray> marker;
+      marker->SetName("vtkGeometryRepresentationMultiBlockMaker");
+      outputPDC->GetFieldData()->AddArray(marker);
+      return 1;
+    }
   }
 
-  void SetArrays(vtkDataSet* dataSet, const std::string& normal, const std::string& tcoord,
+  void SetArrays(vtkDataObject* dataSet, const std::string& normal, const std::string& tcoord,
     const std::string& tangent)
   {
-    if (dataSet)
+    if (dataSet && dataSet->GetAttributes(vtkDataObject::POINT))
     {
-      if (!normal.empty())
+      auto pointData = dataSet->GetAttributes(vtkDataObject::POINT);
+      if (!normal.empty() && normal != "None")
       {
-        dataSet->GetPointData()->SetActiveNormals(normal.c_str());
+        pointData->SetActiveNormals(normal.c_str());
       }
-      if (!tcoord.empty())
+      else if (pointData->GetNormals())
       {
-        dataSet->GetPointData()->SetActiveTCoords(tcoord.c_str());
+        pointData->SetActiveNormals(pointData->GetNormals()->GetName());
       }
-      if (!tangent.empty())
+      if (!tcoord.empty() && tcoord != "None")
       {
-        dataSet->GetPointData()->SetActiveTangents(tangent.c_str());
+        pointData->SetActiveTCoords(tcoord.c_str());
+      }
+      else if (pointData->GetTCoords())
+      {
+        pointData->SetActiveTCoords(pointData->GetTCoords()->GetName());
+      }
+      if (!tangent.empty() && tangent != "None")
+      {
+        pointData->SetActiveTangents(tangent.c_str());
+      }
+      else if (pointData->GetTangents())
+      {
+        pointData->SetActiveTangents(pointData->GetTangents()->GetName());
       }
     }
   }
 
-  int FillInputPortInformation(int, vtkInformation* info) override
+  int FillInputPortInformation(int vtkNotUsed(port), vtkInformation* info) override
   {
     info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPolyData");
+    info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCellGrid");
+    info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPartitionedDataSetCollection");
     info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkMultiBlockDataSet");
     return 1;
   }
+
+  int RequestDataObject(vtkInformation* vtkNotUsed(request), vtkInformationVector** inputVector,
+    vtkInformationVector* outputVector) override
+  {
+    auto inputDO = vtkDataObject::GetData(inputVector[0], 0);
+    int outputType = VTK_PARTITIONED_DATA_SET_COLLECTION;
+    if (inputDO && inputDO->GetDataObjectType() == VTK_MULTIBLOCK_DATA_SET)
+    {
+      outputType = VTK_MULTIBLOCK_DATA_SET;
+    }
+
+    return vtkDataObjectAlgorithm::SetOutputDataObject(
+             outputType, outputVector->GetInformationObject(0), /*exact*/ true)
+      ? 1
+      : 0;
+  }
 };
+//----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkGeometryRepresentationMultiBlockMaker);
 
-//*****************************************************************************
-
-vtkStandardNewMacro(vtkGeometryRepresentation);
 //----------------------------------------------------------------------------
+vtkStandardNewMacro(vtkGeometryRepresentation);
 
+//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::HandleGeometryRepresentationProgress(
   vtkObject* caller, unsigned long, void*)
 {
@@ -238,6 +260,7 @@ vtkGeometryRepresentation::vtkGeometryRepresentation()
   this->RepeatTextures = true;
   this->InterpolateTextures = false;
   this->UseMipmapTextures = false;
+  this->TextureTransform = nullptr;
   this->Ambient = 0.0;
   this->Diffuse = 1.0;
   this->Specular = 0.0;
@@ -275,6 +298,11 @@ vtkGeometryRepresentation::~vtkGeometryRepresentation()
   this->LODMapper->Delete();
   this->Actor->Delete();
   this->Property->Delete();
+  if (this->TextureTransform)
+  {
+    this->TextureTransform->Delete();
+    this->TextureTransform = nullptr;
+  }
 }
 
 //----------------------------------------------------------------------------
@@ -373,7 +401,7 @@ int vtkGeometryRepresentation::ProcessViewRequest(
 
   if (request_type == vtkPVView::REQUEST_UPDATE())
   {
-    // provide the "geometry" to the view so the view can delivery it to the
+    // provide the "geometry" to the view so the view can deliver it to the
     // rendering nodes as and when needed.
     vtkPVView::SetPiece(inInfo, this, this->MultiBlockMaker->GetOutputDataObject(0));
 
@@ -514,28 +542,32 @@ int vtkGeometryRepresentation::RequestData(
 {
   if (inputVector[0]->GetNumberOfInformationObjects() == 1)
   {
-    // vtkLogF(INFO, "%s->RequestData", this->GetLogName().c_str());
     vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-    if (inInfo->Has(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()))
+    vtkAlgorithmOutput* internalOutputPort = this->GetInternalOutputPort();
+    auto prod = vtkPVTrivialProducer::SafeDownCast(internalOutputPort->GetProducer());
+    if (inInfo->Has(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()) && prod)
     {
-      vtkAlgorithmOutput* aout = this->GetInternalOutputPort();
-      vtkPVTrivialProducer* prod = vtkPVTrivialProducer::SafeDownCast(aout->GetProducer());
-      if (prod)
-      {
-        prod->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
-      }
+      prod->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
     }
-    this->GeometryFilter->SetInputConnection(this->GetInternalOutputPort());
+    this->GeometryFilter->SetInputConnection(internalOutputPort);
   }
   else
   {
-    vtkNew<vtkMultiBlockDataSet> placeholder;
-    this->GeometryFilter->SetInputDataObject(0, placeholder);
+    auto placeHolder =
+      vtk::TakeSmartPointer(vtkDataObjectTypes::NewDataObject(this->PlaceHolderDataType));
+    placeHolder->Initialize();
+    this->GeometryFilter->SetInputDataObject(0, placeHolder);
   }
 
   // essential to re-execute geometry filter consistently on all ranks since it
   // does use parallel communication (see #19963).
-  this->GeometryFilter->Modified();
+  // do this only when multiple processes exists, so GeometryFilter can do
+  // some "filter unmodified" optimization.
+  auto controller = vtkMultiProcessController::GetGlobalController();
+  if (controller->GetNumberOfProcesses() > 1)
+  {
+    this->GeometryFilter->Modified();
+  }
   this->MultiBlockMaker->Update();
   return this->Superclass::RequestData(request, inputVector, outputVector);
 }
@@ -725,6 +757,7 @@ void vtkGeometryRepresentation::UpdateColoringParameters()
   double diffuse = this->Diffuse;
   double specular = this->Specular;
   double ambient = this->Ambient;
+  bool lighting = !this->DisableLighting;
 
   if (this->Representation != SURFACE && this->Representation != SURFACE_WITH_EDGES)
   {
@@ -743,6 +776,7 @@ void vtkGeometryRepresentation::UpdateColoringParameters()
   this->Property->SetAmbient(ambient);
   this->Property->SetSpecular(specular);
   this->Property->SetDiffuse(diffuse);
+  this->Property->SetLighting(lighting);
 
   switch (this->Representation)
   {
@@ -910,6 +944,12 @@ void vtkGeometryRepresentation::SetStatic(int val)
 void vtkGeometryRepresentation::SetColor(double r, double g, double b)
 {
   this->Property->SetColor(r, g, b);
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetLighting(bool lighting)
+{
+  this->Property->SetLighting(lighting);
 }
 
 //----------------------------------------------------------------------------
@@ -1216,14 +1256,21 @@ void vtkGeometryRepresentation::SetSelection(vtkSelection* selection)
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetFlipTextures(bool flip)
 {
-  vtkInformation* info = this->Actor->GetPropertyKeys();
-  info->Remove(vtkProp::GeneralTextureTransform());
-  if (flip)
+  if (this->TextureTransform)
   {
-    double mat[] = { 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
-    info->Set(vtkProp::GeneralTextureTransform(), mat, 16);
+    if (flip)
+    {
+      static constexpr double mat[] = { 1, 0, 0, 0, 0, -1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+      this->TextureTransform->SetMatrix(mat);
+      this->TextureTransform->Modified();
+    }
+    else
+    {
+      static constexpr double mat[] = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+      this->TextureTransform->SetMatrix(mat);
+      this->TextureTransform->Modified();
+    }
   }
-  this->Actor->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -1235,6 +1282,32 @@ void vtkGeometryRepresentation::SetTexture(vtkTexture* val)
     val->SetRepeat(this->RepeatTextures);
     val->SetInterpolate(this->InterpolateTextures);
     val->SetMipmap(this->UseMipmapTextures);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetTextureTransform(vtkTransform* transform)
+{
+  vtkSetObjectBodyMacro(TextureTransform, vtkTransform, transform);
+  if (this->TextureTransform && this->Actor &&
+    !this->TextureTransform->HasObserver(vtkCommand::ModifiedEvent))
+  {
+    this->UpdateGeneralTextureTransform();
+    this->TextureTransform->AddObserver(
+      vtkCommand::ModifiedEvent, this, &vtkGeometryRepresentation::UpdateGeneralTextureTransform);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::UpdateGeneralTextureTransform()
+{
+  if (this->Actor && this->Actor->GetPropertyKeys())
+  {
+    vtkInformation* info = this->Actor->GetPropertyKeys();
+    info->Remove(vtkProp::GeneralTextureTransform());
+    info->Set(vtkProp::GeneralTextureTransform(),
+      &(this->TextureTransform->GetMatrix()->Element[0][0]), 16);
+    this->Actor->Modified();
   }
 }
 
@@ -1314,74 +1387,109 @@ void vtkGeometryRepresentation::SetSeamlessV(bool rep)
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetUseOutline(int val)
 {
-  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
   {
-    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)->SetUseOutline(val);
+    geometryFilter->SetUseOutline(val);
   }
-
-  // since geometry filter needs to execute, we need to mark the representation
-  // modified.
+  // since geometry filter needs to execute, we need to mark the representation modified.
   this->MarkModified();
 }
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetTriangulate(int val)
 {
-  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
   {
-    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)->SetTriangulate(val);
+    geometryFilter->SetTriangulate(val);
   }
-
-  // since geometry filter needs to execute, we need to mark the representation
-  // modified.
+  // since geometry filter needs to execute, we need to mark the representation modified.
   this->MarkModified();
 }
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetNonlinearSubdivisionLevel(int val)
 {
-  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
   {
-    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)->SetNonlinearSubdivisionLevel(val);
+    geometryFilter->SetNonlinearSubdivisionLevel(val);
   }
-
-  // since geometry filter needs to execute, we need to mark the representation
-  // modified.
+  // since geometry filter needs to execute, we need to mark the representation modified.
   this->MarkModified();
 }
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetMatchBoundariesIgnoringCellOrder(int val)
 {
-  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
   {
-    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)
-      ->SetMatchBoundariesIgnoringCellOrder(val);
+    geometryFilter->SetMatchBoundariesIgnoringCellOrder(val);
   }
-
-  // since geometry filter needs to execute, we need to mark the representation
-  // modified.
+  // since geometry filter needs to execute, we need to mark the representation modified.
   this->MarkModified();
 }
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetGenerateFeatureEdges(bool val)
 {
-  if (vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
   {
-    vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter)->SetGenerateFeatureEdges(val);
+    geometryFilter->SetGenerateFeatureEdges(val);
   }
-
-  // since geometry filter needs to execute, we need to mark the representation
-  // modified.
+  // since geometry filter needs to execute, we need to mark the representation modified.
   this->MarkModified();
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetComputePointNormals(bool val)
+{
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  {
+    geometryFilter->SetGeneratePointNormals(val);
+  }
+  // since geometry filter needs to execute, we need to mark the representation modified.
+  this->MarkModified();
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetSplitting(bool val)
+{
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  {
+    geometryFilter->SetSplitting(val);
+  }
+  // since geometry filter needs to execute, we need to mark the representation modified.
+  this->MarkModified();
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetFeatureAngle(double val)
+{
+  if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
+  {
+    geometryFilter->SetFeatureAngle(val);
+  }
+  // since geometry filter needs to execute, we need to mark the representation modified.
+  this->MarkModified();
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetPlaceHolderDataType(int datatype)
+{
+  if (this->PlaceHolderDataType != datatype)
+  {
+    this->PlaceHolderDataType = datatype;
+    this->MarkModified();
+  }
 }
 
 //----------------------------------------------------------------------------
 void vtkGeometryRepresentation::AddBlockSelector(const char* selector)
 {
-  if (selector != nullptr && this->BlockSelectors.insert(selector).second)
+  if (selector != nullptr &&
+    std::find(this->BlockSelectors.begin(), this->BlockSelectors.end(), selector) ==
+      this->BlockSelectors.end())
   {
+    this->BlockSelectors.push_back(selector);
     this->BlockAttrChanged = true;
   }
 }
@@ -1401,10 +1509,12 @@ void vtkGeometryRepresentation::SetBlockColor(const char* selector, double r, do
 {
   if (selector != nullptr)
   {
-    auto iter = this->BlockColors.find(selector);
+    auto iter = std::find_if(this->BlockColors.begin(), this->BlockColors.end(),
+      [selector](
+        const std::pair<std::string, vtkVector3d>& apair) { return apair.first == selector; });
     if (iter == this->BlockColors.end())
     {
-      this->BlockColors.insert(std::make_pair(selector, vtkVector3d(r, g, b)));
+      this->BlockColors.emplace_back(selector, vtkVector3d(r, g, b));
       this->BlockAttrChanged = true;
     }
     else if (iter->second != vtkVector3d(r, g, b))
@@ -1430,10 +1540,11 @@ void vtkGeometryRepresentation::SetBlockOpacity(const char* selector, double alp
 {
   if (selector != nullptr)
   {
-    auto iter = this->BlockOpacities.find(selector);
+    auto iter = std::find_if(this->BlockOpacities.begin(), this->BlockOpacities.end(),
+      [selector](const std::pair<std::string, double>& apair) { return apair.first == selector; });
     if (iter == this->BlockOpacities.end())
     {
-      this->BlockOpacities.insert(std::make_pair(selector, alpha));
+      this->BlockOpacities.emplace_back(selector, alpha);
       this->BlockAttrChanged = true;
     }
     else if (iter->second != alpha)
@@ -1455,12 +1566,145 @@ void vtkGeometryRepresentation::RemoveAllBlockOpacities()
 }
 
 //----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetBlockInterpolateScalarsBeforeMapping(
+  const char* selector, bool interpolate)
+{
+  if (selector != nullptr)
+  {
+    auto iter = std::find_if(this->BlockInterpolateScalarsBeforeMapping.begin(),
+      this->BlockInterpolateScalarsBeforeMapping.end(),
+      [selector](const std::pair<std::string, bool>& apair) { return apair.first == selector; });
+    if (iter == this->BlockInterpolateScalarsBeforeMapping.end())
+    {
+      this->BlockInterpolateScalarsBeforeMapping.emplace_back(selector, interpolate);
+      this->BlockAttrChanged = true;
+    }
+    else if (iter->second != interpolate)
+    {
+      iter->second = interpolate;
+      this->BlockAttrChanged = true;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::RemoveAllBlockInterpolateScalarsBeforeMappings()
+{
+  if (!this->BlockInterpolateScalarsBeforeMapping.empty())
+  {
+    this->BlockInterpolateScalarsBeforeMapping.clear();
+    this->BlockAttrChanged = true;
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetBlockMapScalars(const char* selector, int val)
+{
+  if (val < 0 || val > 1)
+  {
+    vtkWarningMacro(<< "Invalid parameter for vtkGeometryRepresentation::SetBlockMapScalars: "
+                    << val);
+    val = 0;
+  }
+  static const int mapToColorMode[] = { VTK_COLOR_MODE_DIRECT_SCALARS, VTK_COLOR_MODE_MAP_SCALARS };
+  const int colorMode = mapToColorMode[val];
+  if (selector != nullptr)
+  {
+    auto iter = std::find_if(this->BlockColorModes.begin(), this->BlockColorModes.end(),
+      [selector](const std::pair<std::string, int>& apair) { return apair.first == selector; });
+    if (iter == this->BlockColorModes.end())
+    {
+      this->BlockColorModes.emplace_back(selector, colorMode);
+      this->BlockAttrChanged = true;
+    }
+    else if (iter->second != colorMode)
+    {
+      iter->second = colorMode;
+      this->BlockAttrChanged = true;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::RemoveAllBlockMapScalars()
+{
+  if (!this->BlockColorModes.empty())
+  {
+    this->BlockColorModes.clear();
+    this->BlockAttrChanged = true;
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetBlockArrayName(
+  const char* selector, int assoc, const char* colorArray)
+{
+  if (selector != nullptr && colorArray != nullptr)
+  {
+    auto iter = std::find_if(this->BlockArrayNames.begin(), this->BlockArrayNames.end(),
+      [selector](const std::pair<std::string, std::pair<int, std::string>>& apair) {
+        return apair.first == selector;
+      });
+    if (iter == this->BlockArrayNames.end())
+    {
+      this->BlockArrayNames.emplace_back(selector, std::make_pair(assoc, colorArray));
+      this->BlockAttrChanged = true;
+    }
+    else if (iter->second.first != assoc && iter->second.second != colorArray)
+    {
+      iter->second = std::make_pair(assoc, colorArray);
+      this->BlockAttrChanged = true;
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::RemoveAllBlockArrayNames()
+{
+  if (!this->BlockArrayNames.empty())
+  {
+    this->BlockArrayNames.clear();
+    this->BlockAttrChanged = true;
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetBlockLookupTable(vtkScalarsToColors* lut)
+{
+  if (lut != nullptr)
+  {
+    this->BlockLookupTables.push_back(lut);
+    this->BlockAttrChanged = true;
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkGeometryRepresentation::RemoveAllBlockLookupTables()
+{
+  if (!this->BlockLookupTables.empty())
+  {
+    this->BlockLookupTables.clear();
+    this->BlockAttrChanged = true;
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::PopulateBlockAttributes(
   vtkCompositeDataDisplayAttributes* attrs, vtkDataObject* outputData)
 {
+  // exposed properties
   attrs->RemoveBlockVisibilities();
   attrs->RemoveBlockOpacities();
   attrs->RemoveBlockColors();
+  attrs->RemoveBlockInterpolateScalarsBeforeMappings();
+  attrs->RemoveBlockColorModes();
+  attrs->RemoveBlockScalarModes();
+  attrs->RemoveBlockArrayNames();
+  attrs->RemoveBlockLookupTables();
+  // internal properties
+  attrs->RemoveBlockScalarVisibilities();
+  attrs->RemoveBlockUseLookupTableScalarRanges();
+  attrs->RemoveBlockFieldDataTupleIds();
 
   auto dtree = vtkDataObjectTree::SafeDownCast(outputData);
   if (dtree == nullptr ||
@@ -1470,12 +1714,6 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
     {
       attrs->SetBlockVisibility(dtree, true); // make the root visible.
     }
-    return;
-  }
-
-  vtkNew<vtkDataAssembly> hierarchy;
-  if (!vtkDataAssemblyUtilities::GenerateHierarchy(dtree, hierarchy))
-  {
     return;
   }
 
@@ -1489,72 +1727,71 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
 
   // Handle visibilities.
   attrs->SetBlockVisibility(dtree, false); // start by marking root invisible first.
-  // create a vector of selectors for block visibilities
-  const std::vector<std::string> blockVisibilitySelectors(
-    this->BlockSelectors.begin(), this->BlockSelectors.end());
-  // get the selectors for block colors and opacities
-  std::set<std::string> blockColorsAndOpacitiesSelectorsSet;
+  // get the selectors for block properties
+  std::set<std::string> blockPropertiesSelectorsSet;
   for (const auto& item : this->BlockColors)
   {
-    blockColorsAndOpacitiesSelectorsSet.emplace(item.first);
+    blockPropertiesSelectorsSet.emplace(item.first);
   }
   for (const auto& item : this->BlockOpacities)
   {
-    blockColorsAndOpacitiesSelectorsSet.emplace(item.first);
+    blockPropertiesSelectorsSet.emplace(item.first);
   }
-  // create a vector of selectors for block colors and opacities
-  const std::vector<std::string> blockColorsAndOpacitiesSelectors(
-    blockColorsAndOpacitiesSelectorsSet.begin(), blockColorsAndOpacitiesSelectorsSet.end());
-
-  std::vector<unsigned int> cids;
-  std::map<std::string, std::vector<std::string>> selectorsMap;
-  const bool isAssembly =
-    this->ActiveAssembly != nullptr && strcmp(this->ActiveAssembly, "Assembly") == 0;
-  // TODO, in the future, when vtkPVGeometryFilter produces PDC, we won't need to read the
-  // vtkDataAssembly from the output data's field data and convert the output to a PDC.
-  if (isAssembly && outputData->GetFieldData()->HasArray("vtkDataAssembly"))
+  for (const auto& item : this->BlockInterpolateScalarsBeforeMapping)
   {
-    const auto dataAssemblyArray = outputData->GetFieldData()->GetAbstractArray("vtkDataAssembly");
-    const auto dataAssemblyString = dataAssemblyArray->GetVariantValue(0).ToString();
-    vtkNew<vtkConvertToPartitionedDataSetCollection> converter;
-    converter->SetInputDataObject(outputData);
-    converter->Update();
-    auto outputPDC =
-      vtkPartitionedDataSetCollection::SafeDownCast(converter->GetOutputDataObject(0));
-    vtkNew<vtkDataAssembly> dataAssembly;
-    dataAssembly->InitializeFromXML(dataAssemblyString.c_str());
-    outputPDC->SetDataAssembly(dataAssembly);
-    // construct a hierarchy for the input partitioned data set collection.
-    vtkNew<vtkDataAssembly> pdcHierarchy;
-    if (!vtkDataAssemblyUtilities::GenerateHierarchy(outputPDC, pdcHierarchy))
-    {
-      vtkErrorMacro("Failed to generate hierarchy for input partitioned data set collection.");
-      return;
-    }
+    blockPropertiesSelectorsSet.emplace(item.first);
+  }
+  for (const auto& item : this->BlockColorModes)
+  {
+    blockPropertiesSelectorsSet.emplace(item.first);
+  }
+  for (const auto& item : this->BlockArrayNames)
+  {
+    blockPropertiesSelectorsSet.emplace(item.first);
+  }
+
+  // create a vector of selectors for block properties
+  const std::vector<std::string> blockPropertiesSelectors(
+    blockPropertiesSelectorsSet.begin(), blockPropertiesSelectorsSet.end());
+  std::vector<unsigned int> cids;
+  std::unordered_map<std::string, std::vector<unsigned int>> selectorsCids;
+
+  const auto outputPDC = vtkPartitionedDataSetCollection::SafeDownCast(outputData);
+  const bool hasAssembly = outputPDC && outputPDC->GetDataAssembly();
+  const bool isAssemblySelected =
+    this->ActiveAssembly != nullptr && strcmp(this->ActiveAssembly, "Assembly") == 0;
+  if (hasAssembly && isAssemblySelected)
+  {
     // we need to convert assembly selectors to composite ids.
     cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(
-      blockVisibilitySelectors, outputPDC->GetDataAssembly(), outputPDC);
+      this->BlockSelectors, outputPDC->GetDataAssembly(), outputPDC);
 
-    for (auto& selector : blockColorsAndOpacitiesSelectors)
+    // create a composite ids map for the assembly selectors.
+    for (const auto& selector : blockPropertiesSelectors)
     {
-      // compute the composite ids for the assembly selectors.
-      auto selectorCids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(
+      const auto selectorCIds = vtkDataAssemblyUtilities::GetSelectedCompositeIds(
         { selector }, outputPDC->GetDataAssembly(), outputPDC);
-      // compute the hierarchy selectors for the composite ids.
-      selectorsMap[selector] =
-        vtkDataAssemblyUtilities::GetSelectorsForCompositeIds(selectorCids, pdcHierarchy);
+      selectorsCids[selector] = selectorCIds;
     }
   }
   else
   {
-    // compute the composite ids for the hierarchy selectors
-    cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(blockVisibilitySelectors, hierarchy);
-    // set selectors map
-    for (const auto& selector : blockColorsAndOpacitiesSelectors)
+    const vtkNew<vtkDataAssembly> hierarchy;
+    if (!vtkDataAssemblyUtilities::GenerateHierarchy(dtree, hierarchy))
     {
-      selectorsMap[selector] = { selector };
+      return;
+    }
+    // compute the composite ids for the hierarchy selectors
+    cids = vtkDataAssemblyUtilities::GetSelectedCompositeIds(this->BlockSelectors, hierarchy);
+    // create a composite ids map for the hierarchy selectors.
+    for (const auto& selector : blockPropertiesSelectors)
+    {
+      const auto selectorCIds =
+        vtkDataAssemblyUtilities::GetSelectedCompositeIds({ selector }, hierarchy);
+      selectorsCids[selector] = selectorCIds;
     }
   }
+  // Handle visibility.
   for (const auto& id : cids)
   {
     auto iter = cid_to_dobj.find(id);
@@ -1567,28 +1804,106 @@ void vtkGeometryRepresentation::PopulateBlockAttributes(
   // Handle color.
   for (const auto& item : this->BlockColors)
   {
-    const auto ids =
-      vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectorsMap[item.first], hierarchy);
+    const auto& ids = selectorsCids[item.first];
     for (const auto& id : ids)
     {
       auto iter = cid_to_dobj.find(id);
       if (iter != cid_to_dobj.end())
       {
         attrs->SetBlockColor(iter->second, item.second.GetData());
+        attrs->SetBlockScalarVisibility(iter->second, false);
       }
     }
   }
 
+  // Handle opacity.
   for (const auto& item : this->BlockOpacities)
   {
-    const auto ids =
-      vtkDataAssemblyUtilities::GetSelectedCompositeIds(selectorsMap[item.first], hierarchy);
+    const auto& ids = selectorsCids[item.first];
     for (const auto& id : ids)
     {
       auto iter = cid_to_dobj.find(id);
       if (iter != cid_to_dobj.end())
       {
         attrs->SetBlockOpacity(iter->second, item.second);
+      }
+    }
+  }
+
+  // Handle InterpolateScalarsBeforeMapping.
+  for (const auto& item : this->BlockInterpolateScalarsBeforeMapping)
+  {
+    const auto& ids = selectorsCids[item.first];
+    for (const auto& id : ids)
+    {
+      auto iter = cid_to_dobj.find(id);
+      if (iter != cid_to_dobj.end())
+      {
+        attrs->SetBlockInterpolateScalarsBeforeMapping(iter->second, item.second);
+      }
+    }
+  }
+
+  // Handle color mode.
+  for (const auto& item : this->BlockColorModes)
+  {
+    const auto& ids = selectorsCids[item.first];
+    for (const auto& id : ids)
+    {
+      auto iter = cid_to_dobj.find(id);
+      if (iter != cid_to_dobj.end())
+      {
+        attrs->SetBlockColorMode(iter->second, item.second);
+      }
+    }
+  }
+
+  // Handle array names.
+  for (const auto& item : this->BlockArrayNames)
+  {
+    const auto& ids = selectorsCids[item.first];
+    for (const auto& id : ids)
+    {
+      auto iter = cid_to_dobj.find(id);
+      if (iter != cid_to_dobj.end())
+      {
+        switch (/*assoc*/ item.second.first)
+        {
+          case vtkDataObject::FIELD_ASSOCIATION_CELLS:
+            attrs->SetBlockScalarMode(iter->second, VTK_SCALAR_MODE_USE_CELL_FIELD_DATA);
+            break;
+
+          case vtkDataObject::FIELD_ASSOCIATION_NONE:
+            attrs->SetBlockScalarMode(iter->second, VTK_SCALAR_MODE_USE_FIELD_DATA);
+            // Color entire block by zeroth tuple in the field data
+            attrs->SetBlockFieldDataTupleId(iter->second, 0);
+            break;
+
+          case vtkDataObject::FIELD_ASSOCIATION_POINTS:
+          default:
+            attrs->SetBlockScalarMode(iter->second, VTK_SCALAR_MODE_USE_POINT_FIELD_DATA);
+            break;
+        }
+        attrs->SetBlockArrayName(iter->second, item.second.second);
+        attrs->SetBlockScalarVisibility(iter->second, true);
+        attrs->SetBlockUseLookupTableScalarRange(iter->second, true);
+      }
+    }
+  }
+
+  // Handle lookup tables
+  if (this->BlockLookupTables.size() == this->BlockArrayNames.size())
+  {
+    for (size_t i = 0, numLUTs = this->BlockLookupTables.size(); i < numLUTs; ++i)
+    {
+      const auto& ids = selectorsCids[this->BlockArrayNames[i].first];
+      for (const auto& id : ids)
+      {
+        auto iter = cid_to_dobj.find(id);
+        if (iter != cid_to_dobj.end())
+        {
+          attrs->SetBlockLookupTable(iter->second, this->BlockLookupTables[i]);
+        }
       }
     }
   }

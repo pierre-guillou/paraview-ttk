@@ -14,6 +14,7 @@
 
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <stack>                       // for ivar
 
 #include "vtkWindows.h" // For windows API
@@ -21,7 +22,8 @@
 VTK_ABI_NAMESPACE_BEGIN
 class vtkIdList;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkWin32OpenGLRenderWindow : public vtkOpenGLRenderWindow
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkWin32OpenGLRenderWindow
+  : public vtkOpenGLRenderWindow
 {
 public:
   static vtkWin32OpenGLRenderWindow* New();
@@ -150,13 +152,16 @@ public:
   /**
    * Get the window id.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   HWND GetWindowId();
 
   ///@{
   /**
    * Set the window id to a pre-existing window.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetWindowId(HWND);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetWindowId(void* foo) override { this->SetWindowId((HWND)foo); }
   ///@}
 

@@ -112,6 +112,11 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "vtkParse.tab.c.*bugprone-sizeof-expression"
   "vtkParse.tab.c.*bugprone-suspicious-include"
   "mocs_compilation.cpp.*bugprone-suspicious-include"
+  "vtkkwiml/test/test_.*: warning: .* \\[modernize-redundant-void-arg\\]"
+
+  # Ignore warnings from the standard library.
+  "warning:.*__builtin_memcpy.*stringop-overflow="
+  "note: at offset .* into destination object"
 
   # Ignore some tidy warnings from wrapper code.
   "vtk[^\\.]+(Java|Python).cxx:.*\\[(readability-redundant-string-init)\\]"
@@ -120,6 +125,14 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "warning: documented symbol 'template class .*' was not declared or defined."
   "vtkContext2D.h:.*: warning: argument '.*' of command @param is not found in the argument list of vtkContext2D::DrawMarkers"
   "vtkMultiThreshold.h:.*: warning: argument '.*' of command @param is not found in the argument list of vtkMultiThreshold::AddIntervalSet"
+  "QQuickVTKRenderWindow.h:.*: warning: QQuickVTKRenderWindow::captureScreenshot has @param documentation sections but no arguments"
+  "vtkInherits.h:.*: warning: documented symbol 'static vtk::ParentClasses.*::value' was not declared or defined."
+  "vtkPolyhedron.h:.*: warning: vtkPolyhedron::GetCellFaces has @param documentation sections but no arguments"
+
+  # Ignore bits from gcc-12 stdlib. There seem to be some serious issues in GCC
+  # 12 diagnostics. These come from the `quay.io/pypa/manylinux_2_28_x86_64`
+  # container as of now.
+  "/opt/rh/gcc-toolset-12"
   )
 
 set(cdash_show_third_party_warnings "@VTK_ENABLE_CDASH_THIRD_PARTY_WARNINGS@")
@@ -183,6 +196,9 @@ if (NOT cdash_show_third_party_warnings)
     # Boost.Graph uses deprecated Boost headers internally.
     "define BOOST_BIND_GLOBAL_PLACEHOLDERS to retain the current behavior"
 
+    # Boost.Math is C++14; ignore warnings for now.
+    "boost/math/tools/config.hpp.*: warning: .*minimum language standard"
+
     # Warnings due to DIY
     "xmemory.*: warning C4996:.*Default Bounds constructor"
 
@@ -241,6 +257,28 @@ if (NOT "$ENV{CI}" STREQUAL "")
         "Wdeprecated-declarations"
       )
     endif ()
+  endif ()
+
+  # For some reason, warning flags aren't working here.
+  if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "_ext_vtk")
+    list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
+      "Wstringop-overflow="
+      "note: destination object allocated here"
+      "note: destination object '.*' of size .*"
+
+      "Wstringop-overread"
+      "note: source object '.*' of size .*"
+      "note: at offset .* into source object '.*' of size .*"
+      )
+  endif ()
+  if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "wasm")
+    list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
+      # Emscripten tends to use bleeding edge versions of clang.
+      # Suppress warnings from clang's c++ headers about deprecated features.
+      "note: '[a-z]?strstream' has been explicitly marked deprecated here"
+      "note: 'char_traits<vtkfmt::detail::char8_type>' has been explicitly marked deprecated here"
+      "warning: 'char_traits<vtkfmt::detail::char8_type>' is deprecated"
+    )
   endif ()
 endif ()
 

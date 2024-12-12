@@ -28,6 +28,7 @@
 #include "vtkOpenGLShaderDeclaration.h"
 #include "vtkOpenGLShaderProperty.h"
 #include "vtkOpenGLState.h"
+#include "vtkOpenGLUniforms.h"
 #include "vtkOpenGLVertexBufferObject.h"
 #include "vtkPBRFunctions.h"
 #include "vtkPointData.h"
@@ -914,10 +915,25 @@ void vtkOpenGLLowMemoryPolyDataMapper::UpdateShaders(vtkRenderer* renderer, vtkA
 
   auto vertShader = this->GetShader(vtkShader::Vertex);
   auto fragShader = this->GetShader(vtkShader::Fragment);
-  vertShader->SetSource(vtkPolyDataVS);
-  fragShader->SetSource(vtkPolyDataFS);
+  auto* sp = vtkOpenGLShaderProperty::SafeDownCast(actor->GetShaderProperty());
+  if (sp->HasVertexShaderCode())
+  {
+    vertShader->SetSource(sp->GetVertexShaderCode());
+  }
+  else
+  {
+    vertShader->SetSource(vtkPolyDataVS);
+  }
+
+  if (sp->HasFragmentShaderCode())
+  {
+    fragShader->SetSource(sp->GetFragmentShaderCode());
+  }
+  else
+  {
+    fragShader->SetSource(vtkPolyDataFS);
+  }
   // user specified pre replacements
-  vtkOpenGLShaderProperty* sp = vtkOpenGLShaderProperty::SafeDownCast(actor->GetShaderProperty());
   vtkOpenGLShaderProperty::ReplacementMap repMap = sp->GetAllShaderReplacements();
   for (const auto& i : repMap)
   {
@@ -932,8 +948,23 @@ void vtkOpenGLLowMemoryPolyDataMapper::UpdateShaders(vtkRenderer* renderer, vtkA
   auto vsSource = vertShader->GetSource();
   auto fsSource = fragShader->GetSource();
   this->ReplaceShaderValues(renderer, actor, vsSource, fsSource);
+  auto* vu = vtkOpenGLUniforms::SafeDownCast(sp->GetVertexCustomUniforms());
+  vtkShaderProgram::Substitute(vsSource, "//VTK::CustomUniforms::Dec", vu->GetDeclarations());
+  auto* fu = vtkOpenGLUniforms::SafeDownCast(sp->GetFragmentCustomUniforms());
+  vtkShaderProgram::Substitute(fsSource, "//VTK::CustomUniforms::Dec", fu->GetDeclarations());
   vertShader->SetSource(vsSource);
   fragShader->SetSource(fsSource);
+  // user specified post replacements
+  for (const auto& i : repMap)
+  {
+    if (!i.first.ReplaceFirst)
+    {
+      std::string ssrc = this->Shaders[i.first.ShaderType]->GetSource();
+      vtkShaderProgram::Substitute(
+        ssrc, i.first.OriginalValue, i.second.Replacement, i.second.ReplaceAll);
+      this->Shaders[i.first.ShaderType]->SetSource(ssrc);
+    }
+  }
 #ifdef vtkOpenGLLowMemoryPolyDataMapper_DEBUG
   std::cout << "VS: " << vsSource << std::endl;
   std::cout << "FS: " << fsSource << std::endl;
@@ -983,7 +1014,7 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderValues(
   vtkRenderer* renderer, vtkActor* actor, std::string& vsSource, std::string& fsSource)
 {
   // Pre-pass.
-  std::string emptyGS;
+  std::string emptyGS, emptyTCS, emptyTES;
   ::ReplaceShaderRenderPass(vsSource, emptyGS, fsSource, this, actor, true);
   this->ReplaceShaderPosition(renderer, actor, vsSource, fsSource);
   this->ReplaceShaderNormal(renderer, actor, vsSource, fsSource);
@@ -1016,7 +1047,8 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderValues(
       lightMod->SetUseAnisotropy(this->HasPointNormals && this->HasTangents && this->HasAnisotropy);
       lightMod->SetUseClearCoat(this->HasClearCoat);
     }
-    mod->ReplaceShaderValues(oglRenderer, vsSource, emptyGS, fsSource, this, actor);
+    mod->ReplaceShaderValues(
+      oglRenderer, vsSource, emptyTCS, emptyTES, emptyGS, fsSource, this, actor);
     this->GetGLSLModCollection()->AddItem(mod);
   }
   this->ReplaceShaderTCoord(renderer, actor, vsSource, fsSource);
@@ -1084,7 +1116,7 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderPosition(
   vtkShaderProgram::Substitute(vsSource, "//VTK::CustomBegin::Impl", oss.str());
   // Assign position vector outputs.
   vtkShaderProgram::Substitute(vsSource, "//VTK::PositionVC::Impl",
-    "vertexPositionVCVS = MCVCMatrix * vertexMC;\n"
+    "vertexVCVSOutput = MCVCMatrix * vertexMC;\n"
     "  gl_Position = MCDCMatrix * vertexMC;\n");
 }
 
@@ -1245,9 +1277,12 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderNormal(
       // We have no point or cell normals, so compute something.
       // Caveat: this assumes that neighboring fragments are present,
       // result is undefined (maybe NaN?) if neighbors are missing.
+      // The partial derivatives are scaled by the inverse of fwidth
+      // to avoid overflow or underflow in the following computations.
       vtkShaderProgram::Substitute(fsSource, "//VTK::UniformFlow::Impl",
-        "vec3 fdx = dFdx(vertexVC.xyz);\n"
-        "  vec3 fdy = dFdy(vertexVC.xyz);\n"
+        "float scale = 1.0/length(fwidth(vertexVC.xyz));\n"
+        "  vec3 fdx = dFdx(vertexVC.xyz)*scale;\n"
+        "  vec3 fdy = dFdy(vertexVC.xyz)*scale;\n"
         "  //VTK::UniformFlow::Impl\n" // For further replacements
       );
       std::ostringstream fsImpl;
@@ -1427,11 +1462,11 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderImplementationCustomUniforms
 {
   // Sends primitiveSize as a uniform
   vtkShaderProgram::Substitute(vsSource, "//VTK::CustomUniforms::Dec",
-    "//VTK::CustomUniforms::Dec;\n"
+    "//VTK::CustomUniforms::Dec\n"
     "uniform highp int primitiveSize;\n"
     "uniform highp int usesEdgeValues;\n");
   vtkShaderProgram::Substitute(fsSource, "//VTK::CustomUniforms::Dec",
-    "//VTK::CustomUniforms::Dec;\n"
+    "//VTK::CustomUniforms::Dec\n"
     "uniform highp int primitiveSize;\n"
     "uniform highp int usesEdgeValues;\n");
 }
@@ -1673,7 +1708,7 @@ void vtkOpenGLLowMemoryPolyDataMapper::ReplaceShaderTCoord(
     auto texBufIter = this->Arrays.find(samplerBufferName);
     if (texBufIter == this->Arrays.end())
     {
-      vtkWarningMacro(<< "No array for " << samplerBufferName << " | " << tcoordname);
+      // vtkWarningMacro(<< "No array for " << samplerBufferName << " | " << tcoordname);
       continue;
     }
     int tcoordComps = texBufIter->second.Arrays.front()->GetNumberOfComponents();
@@ -2075,6 +2110,9 @@ void vtkOpenGLLowMemoryPolyDataMapper::SetShaderParameters(vtkRenderer* renderer
       vtkOpenGLCheckErrorMacro("failed after Render");
     }
   }
+
+  // allow the program to set what it wants
+  this->InvokeEvent(vtkCommand::UpdateShaderEvent, this->ShaderProgram);
 }
 
 //------------------------------------------------------------------------------

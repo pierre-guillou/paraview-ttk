@@ -38,7 +38,6 @@ class vtkCPCxxHelper;
 class vtkInSituPipeline;
 class vtkSMProxy;
 class vtkSMSourceProxy;
-
 // forward declare conduit_node and its typedef.
 // it has to be identical to the one in conduit.hpp
 struct conduit_node_impl;
@@ -80,7 +79,7 @@ public:
    * can point to a Python script, a directory containing a Python package or a
    * zip-file which containing a Python package.
    */
-  static vtkInSituPipeline* AddPipeline(const std::string& name, const std::string& path);
+  static vtkInSituPipeline* AddPipeline(const std::string& pipeline_name, const std::string& path);
 
   /**
    * Add a vtkInSituPipeline instance.
@@ -118,8 +117,18 @@ public:
   /**
    * Executes pipelines.
    */
-  static bool ExecutePipelines(int timestep, double time, const conduit_node* pipelines,
+  static bool ExecutePipelines(int timestep, double time,
+    const std::vector<std::string>& pipelines = {},
     const std::vector<std::string>& parameters = {});
+
+  // This overload accept the "catalyst/state" node of the ParaView Blueprint.
+  // When using this overload the conduit node will become available also via the catalyst script
+  static bool ExecutePipelines(const conduit_node* catalyst_state);
+
+  /**
+   * Call Results() on all pipelines.
+   */
+  static bool GetResultsFromPipelines(conduit_node* catalyst_params);
 
   ///@{
   /**
@@ -129,6 +138,14 @@ public:
   static int GetTimeStep();
   static double GetTime();
   ///@}
+
+  /**
+   * Provides access to the conduit node that the simulation passed as argument
+   * to "catalyst_execute" for this timestep.  This should be treated as
+   * READ-ONLY since any change could directly modify simulation data.  The
+   * value is not valid outside `ExecutePipelines`.
+   */
+  static conduit_node* GetCatalystParameters();
 
   /**
    * Returns true if vtkInSituInitializationHelper has been initialized; which
@@ -141,7 +158,15 @@ public:
    */
   static bool IsPythonSupported();
 
+  /**
+   * Fill the vector with all steerable proxies and extracts associated to the pipeline.
+   */
   static void GetSteerableProxies(std::vector<std::pair<std::string, vtkSMProxy*>>& proxies);
+
+  /**
+   * Update the internal list of steerable proxies or extracts by adding the proxy passed in
+   * parameters.
+   */
   static void UpdateSteerableParameters(
     vtkSMProxy* steerableProxy, const char* steerableSourceName);
 

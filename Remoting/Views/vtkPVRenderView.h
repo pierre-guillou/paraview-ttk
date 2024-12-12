@@ -18,7 +18,6 @@
 #include "vtkBoundingBox.h" // needed for iVar
 #include "vtkNew.h"         // needed for iVar
 #include "vtkPVView.h"
-#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" //needed for exports
 #include "vtkSmartPointer.h"        // needed for iVar
 #include "vtkWeakPointer.h"         // needed for iVar
@@ -41,6 +40,7 @@ class vtkLight;
 class vtkLightKit;
 class vtkMatrix4x4;
 class vtkOrderedCompositingHelper;
+class vtkPolarAxesActor2D;
 class vtkProp;
 class vtkPVAxesWidget;
 class vtkPVCameraCollection;
@@ -613,6 +613,11 @@ public:
    */
   virtual void SetLegendGridActor(vtkLegendScaleActor*);
 
+  /**
+   * Set the vtkPolarAxesActor to use for the view.
+   */
+  virtual void SetPolarGridActor(vtkPolarAxesActor2D*);
+
   ///@{
   /**
    * Forwarded to orientation axes widget.
@@ -1000,15 +1005,6 @@ public:
   void SetRouletteDepth(int);
   int GetRouletteDepth();
   ///@}
-  ///@{
-  /**
-   * Set the path tracers volume anisotropy
-   */
-  PARAVIEW_DEPRECATED_IN_5_11_0("Use vtkVolumeProperty::SetScatteringAnisotropy instead")
-  void SetVolumeAnisotropy(double);
-  PARAVIEW_DEPRECATED_IN_5_11_0("Use vtkVolumeProperty::GetScatteringAnisotropy instead")
-  double GetVolumeAnisotropy();
-  ///@}
 
   ///@{
   /**
@@ -1245,6 +1241,7 @@ protected:
   vtkSelection* LastSelection;
   vtkSmartPointer<vtkPVGridAxes3DActor> GridAxes3DActor;
   vtkSmartPointer<vtkLegendScaleActor> LegendGridActor;
+  vtkSmartPointer<vtkPolarAxesActor2D> PolarAxesActor;
   vtkNew<vtkSkybox> Skybox;
   vtkNew<vtkCameraOrientationWidget> CameraOrientationWidget;
 

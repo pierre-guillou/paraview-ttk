@@ -2868,6 +2868,22 @@
         </Hints>
       </ProxyProperty>
 
+      <ProxyProperty name="PolarGrid"
+                     command="SetPolarGridActor"
+                     panel_widget="proxy_editor">
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="annotations" name="PolarGridActor" />
+        </ProxyListDomain>
+        <Hints>
+          <ProxyEditorPropertyWidget property="Visibility">
+            <!-- UI hint: pqProxyEditorPropertyWidget will display a checkbox
+              for the "Visibility" property next to the "Edit" button -->
+          </ProxyEditorPropertyWidget>
+          <PropertyWidgetDecorator type="GenericDecorator" mode="enabled_state"
+            property="CameraParallelProjection" value="1" />
+        </Hints>
+      </ProxyProperty>
+
       <IntVectorProperty command="SetUseRenderViewSettingsForBackground"
                          name="UseColorPaletteForBackground"
                          number_of_elements="1"
@@ -3013,6 +3029,11 @@
                                    mode="visibility"
                                    property="EnableOSPRay"
                                    values="1" />
+          <WarnOnPropertyChange onlyonce="true">
+            <Text title="Warning: Potentially slow operation">
+OSPRay pathtracer may need to transfer default materials from client to server. This operation can take a few seconds in client-server mode.
+            </Text>
+          </WarnOnPropertyChange>
         </Hints>
       </StringVectorProperty>
       <IntVectorProperty
@@ -4488,8 +4509,13 @@
                                        inverse="1" />
             </Hints>
           </PropertyGroup>
-
-          <PropertyGroup label="Lighting">
+          <PropertyGroup name="Lighting">
+            <Property name="DisableLighting"
+                      panel_visibility="advanced" />
+            <Property name="Diffuse"
+                      panel_visibility="advanced" />
+          </PropertyGroup>
+          <PropertyGroup name="Lighting">
             <Property name="Interpolation"
                       panel_visibility="advanced" />
             <Property name="Specular"
@@ -4504,7 +4530,6 @@
             <Property name="Luminosity"
                       panel_visibility="advanced" />
             <Property name="Ambient" panel_visibility="advanced"/>
-            <Property name="Diffuse" panel_visibility="advanced"/>
             <Property name="Roughness" panel_visibility="advanced"/>
             <Property name="Metallic" panel_visibility="advanced"/>
             <Property name="EdgeTint"
@@ -4519,9 +4544,57 @@
             <Property name="CoatColor"
                       panel_widget="color_selector"
                       panel_visibility="advanced" />
-            <Property name="SelectTCoordArray" panel_visibility="advanced"/>
             <Property name="SelectNormalArray" panel_visibility="advanced"/>
             <Property name="SelectTangentArray" panel_visibility="advanced"/>
+            <Hints>
+              <PropertyWidgetDecorator type="CompositeDecorator">
+                <Expression type="and">
+                  <!-- Hide when DisableLighting selected -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="DisableLighting"
+                                           value="0" />
+                  <!-- Hide for volume representation -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="Representation"
+                                           value="Volume"
+                                           inverse="1" />
+                </Expression>
+              </PropertyWidgetDecorator>
+            </Hints>
+          </PropertyGroup>
+          <PropertyGroup name="Surface Normals">
+            <Property name="ComputePointNormals"
+                      panel_visibility="default"/>
+            <Property name="Splitting"
+                      panel_visibility="default"/>
+            <Property name="FeatureAngle"
+                      panel_visibility="default"/>
+            <Hints>
+              <PropertyWidgetDecorator type="CompositeDecorator">
+                <Expression type="or">
+                  <!-- Show for Surface representation -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="Representation"
+                                           value="Surface"/>
+                  <!-- Show for Surface With Edges representation -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="Representation"
+                                           value="Surface With Edges"/>
+                  <!-- Show for Surface LIC representation -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="Representation"
+                                           value="Surface LIC"/>
+                </Expression>
+              </PropertyWidgetDecorator>
+            </Hints>
+          </PropertyGroup>
+          <PropertyGroup label="Texturing">
+            <Property name="SelectTCoordArray" panel_visibility="advanced"/>
             <Property name="Texture" panel_visibility="advanced"/>
             <Property name="RepeatTextures" panel_visibility="advanced"/>
             <Property name="InterpolateTextures" panel_visibility="advanced"/>
@@ -4539,14 +4612,23 @@
             <Property name="AnisotropyTexture" panel_visibility="advanced"/>
             <Property name="EmissiveTexture" panel_visibility="advanced"/>
             <Property name="EmissiveFactor" panel_visibility="advanced"/>
-            <Property name="FlipTextures" panel_visibility="advanced"/>
+            <Property name="TextureTransform" panel_visibility="advanced"/>
             <Hints>
-              <!--Hide for volume representation-->
-              <PropertyWidgetDecorator type="GenericDecorator"
-                                       mode="visibility"
-                                       property="Representation"
-                                       value="Volume"
-                                       inverse="1" />
+              <PropertyWidgetDecorator type="CompositeDecorator">
+                <Expression type="and">
+                  <!-- Hide when DisableLighting selected -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="DisableLighting"
+                                           value="0" />
+                  <!-- Hide for volume representation -->
+                  <PropertyWidgetDecorator type="GenericDecorator"
+                                           mode="visibility"
+                                           property="Representation"
+                                           value="Volume"
+                                           inverse="1" />
+                </Expression>
+              </PropertyWidgetDecorator>
             </Hints>
           </PropertyGroup>
 
@@ -4575,6 +4657,7 @@
 
           <PropertyGroup label="Transforming">
             <Property name="Position"
+                      exposed_name="Translation"
                       panel_visibility="advanced" />
             <Property name="Scale"
                       panel_visibility="advanced" />
@@ -4623,14 +4706,33 @@
                          panel_widget="DataAssemblyEditor"
                          panel_visibility="multiblock_inspector">
             <Property name="Assembly"       function="ActiveAssembly" />
+            <Property name="SelectedBlockSelectors" function="SelectedSelectors" />
             <Property name="BlockSelectors" function="Selectors" />
-            <Property name="BlockColors"    function="Colors" />
-            <Property name="BlockOpacities" function="Opacities" />
             <Hints>
               <DataAssemblyPropertyWidget use_inputname_as_header="1" link_active_selection="1"/>
             </Hints>
           </PropertyGroup>
 
+          <PropertyGroup label="Block Coloring"
+                         panel_visibility="multiblock_inspector"
+                         panel_widget="BlockColorEditor">
+            <Property name="BlockColors"/>
+            <Property name="BlockColorArrayNames"/>
+            <Property name="BlockLookupTables"/>
+            <Property name="BlockUseSeparateColorMaps"/>
+          </PropertyGroup>
+
+          <PropertyGroup label="Block Scalar Coloring"
+                         panel_visibility="multiblock_inspector"
+                         panel_widget="BlockPropertiesEditor">
+            <Property name="BlockMapScalars" function="MapScalars"/>
+            <Property name="BlockInterpolateScalarsBeforeMappings" function="InterpolateScalarsBeforeMappings"/>
+            <Property name="BlockOpacities" function="Opacities"/>
+            <!-- The following properties are used to create a GUI which edits the above properties -->
+            <Property name="BlockMapScalarsGUI" function="MapScalarsGUI"/>
+            <Property name="BlockInterpolateScalarsBeforeMappingsGUI" function="InterpolateScalarsBeforeMappingsGUI"/>
+            <Property name="BlockOpacitiesGUI" function="OpacitiesGUI"/>
+          </PropertyGroup>
         </ExposedProperties>
       </SubProxy>
       <SubProxy>
@@ -4936,6 +5038,13 @@
                proxyname="CellGridSurfaceRepresentation"></Proxy>
         <ExposedProperties>
           <PropertyGroup panel_visibility="default"
+                         label="Style" >
+            <Property name="SidesToShow" />
+            <Property name="PreserveRenderableInputs" />
+            <Property name="OmitSidesForRenderableInputs" />
+          </PropertyGroup>
+
+          <PropertyGroup panel_visibility="default"
                          panel_widget="ColorEditor"
                          label="Coloring" >
             <Property name="AmbientColor" />
@@ -4970,10 +5079,10 @@
                       panel_visibility="advanced"
                       panel_visibility_default_for_representation="points"/>
           </PropertyGroup>
-
-          <PropertyGroup label="Lighting">
+          <PropertyGroup name="Lighting">
             <Property name="Interpolation"
                       panel_visibility="advanced" />
+            <Property name="Diffuse" panel_visibility="advanced"/>
             <Property name="Specular"
                       panel_visibility="default" />
             <Property name="SpecularColor"
@@ -4986,7 +5095,6 @@
             <Property name="Luminosity"
                       panel_visibility="advanced" />
             <Property name="Ambient" panel_visibility="advanced"/>
-            <Property name="Diffuse" panel_visibility="advanced"/>
           </PropertyGroup>
 
           <PropertyGroup label="Edge Styling">
@@ -4998,6 +5106,7 @@
 
           <PropertyGroup label="Transforming">
             <Property name="Position"
+                      exposed_name="Translation"
                       panel_visibility="advanced" />
             <Property name="Scale"
                       panel_visibility="advanced" />
@@ -5025,16 +5134,33 @@
           <PropertyGroup label="Blocks"
                          panel_widget="DataAssemblyEditor"
                          panel_visibility="multiblock_inspector">
-            <!--
-               place holder for future work
-               <Property name="Assembly"       function="ActiveAssembly" />
-            -->
-            <Property name="BlockSelectors" function="Selectors" />
-            <Property name="BlockColors"    function="Colors" />
-            <Property name="BlockOpacities" function="Opacities" />
+            <Property name="Assembly" function="ActiveAssembly"/>
+            <Property name="SelectedBlockSelectors" function="SelectedSelectors"/>
+            <Property name="BlockSelectors" function="Selectors"/>
             <Hints>
               <DataAssemblyPropertyWidget use_inputname_as_header="1" link_active_selection="1"/>
             </Hints>
+          </PropertyGroup>
+
+          <PropertyGroup label="Block Coloring"
+                         panel_visibility="multiblock_inspector"
+                         panel_widget="BlockColorEditor">
+            <Property name="BlockColors"/>
+            <Property name="BlockColorArrayNames"/>
+            <Property name="BlockLookupTables"/>
+            <Property name="BlockUseSeparateColorMaps"/>
+          </PropertyGroup>
+
+          <PropertyGroup label="Block Scalar Coloring"
+                         panel_visibility="multiblock_inspector"
+                         panel_widget="BlockPropertiesEditor">
+            <Property name="BlockMapScalars" function="MapScalars"/>
+            <Property name="BlockInterpolateScalarsBeforeMappings" function="InterpolateScalarsBeforeMappings"/>
+            <Property name="BlockOpacities" function="Opacities"/>
+            <!-- The following properties are used to create a GUI which edits the above properties -->
+            <Property name="BlockMapScalarsGUI" function="MapScalarsGUI"/>
+            <Property name="BlockInterpolateScalarsBeforeMappingsGUI" function="InterpolateScalarsBeforeMappingsGUI"/>
+            <Property name="BlockOpacitiesGUI" function="OpacitiesGUI"/>
           </PropertyGroup>
 
         </ExposedProperties>
@@ -7738,13 +7864,13 @@
       </StringVectorProperty>
 
       <StringVectorProperty name="BlockSelectors"
-        command="AddBlockSelector"
-        clean_command="RemoveAllBlockSelectors"
-        repeat_command="1"
-        number_of_elements_per_command="1"
-        panel_visibility="multiblock_inspector"
-        number_of_elements="1"
-        default_values="/">
+                            command="AddBlockSelector"
+                            clean_command="RemoveAllBlockSelectors"
+                            repeat_command="1"
+                            number_of_elements_per_command="1"
+                            panel_visibility="multiblock_inspector"
+                            number_of_elements="1"
+                            default_values="/">
         <DataAssemblyDomain name="data_assembly">
           <RequiredProperties>
             <Property function="Input" name="Input" />
@@ -8200,6 +8326,41 @@
           <String value="Outline" />
         </StringListDomain>
       </StringVectorProperty>
+      <IntVectorProperty name="SidesToShow"
+        number_of_elements="1"
+        default_values="37"
+        command="SetSidesToShow">
+        <EnumerationDomain name="enum">
+          <!--
+          <Entry text="Vertices of Edges"     value="1"/>
+          <Entry text="Vertices of Surfaces"  value="2"/>
+          <Entry text="Edges of Surfaces"     value="4"/>
+          <Entry text="Vertices of Volumes"   value="8"/>
+          <Entry text="Edges of Volumes"      value="16"/>
+          <Entry text="Surfaces of Volumes"   value="32"/>
+          -->
+          <Entry text="Surfaces of Inputs"    value="32"/>
+          <Entry text="Edges of Inputs"       value="20"/>
+          <Entry text="Vertices of Inputs"    value="11"/>
+          <Entry text="All Sides"             value="63"/>
+          <Entry text="Next Lowest Dimension" value="37"/>
+        </EnumerationDomain>
+        <Documentation>Choose how to render the input.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="PreserveRenderableInputs"
+        number_of_elements="1"
+        default_values="1"
+        command="SetPreserveRenderableInputs">
+        <BooleanDomain name="bool" />
+        <Documentation>Set whether to preserve renderable inputs or only show their boundaries.</Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="OmitSidesForRenderableInputs"
+        number_of_elements="1"
+        default_values="1"
+        command="SetOmitSidesForRenderableInputs">
+        <BooleanDomain name="bool" />
+        <Documentation>Set whether to compute sides for renderable inputs or only for volumetric cells.</Documentation>
+      </IntVectorProperty>
       <DoubleVectorProperty command="SetAmbient"
                             default_values="0.0"
                             name="Ambient"
@@ -8520,7 +8681,6 @@
       <StringVectorProperty name="Assembly"
         command="SetActiveAssembly"
         number_of_elements="1"
-        default_values="Hierarchy"
         panel_visibility="multiblock_inspector">
         <DataAssemblyListDomain name="data_assembly">
           <RequiredProperties>
@@ -8533,14 +8693,33 @@
         </Documentation>
       </StringVectorProperty>
 
+      <StringVectorProperty name="SelectedBlockSelectors"
+                            repeat_command="1"
+                            number_of_elements_per_command="1"
+                            number_of_elements="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          Used by the multiblock inspector to track the selected block selectors.
+        </Documentation>
+      </StringVectorProperty>
+
       <StringVectorProperty name="BlockSelectors"
-        command="AddBlockSelector"
-        clean_command="RemoveAllBlockSelectors"
-        repeat_command="1"
-        number_of_elements_per_command="1"
-        panel_visibility="multiblock_inspector"
-        number_of_elements="1"
-        default_values="/">
+                            command="AddBlockSelector"
+                            clean_command="RemoveAllBlockSelectors"
+                            repeat_command="1"
+                            number_of_elements_per_command="1"
+                            panel_visibility="multiblock_inspector"
+                            number_of_elements="1"
+                            default_values="/">
         <DataAssemblyDomain name="data_assembly">
           <RequiredProperties>
             <Property function="Input" name="Input" />
@@ -8566,8 +8745,116 @@
             <Property function="ActiveAssembly" name="Assembly" />
           </RequiredProperties>
         </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
         <Documentation>
           For composite datasets, specify colors associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockColorArrayNames"
+                            command="SetBlockArrayName"
+                            clean_command="RemoveAllBlockArrayNames"
+                            element_types="2 0 2"
+                            number_of_elements_per_command="3"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <RepresentedArrayListDomain name="array_list" input_domain_name="input_array_any">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+            <Property function="Selectors" name="SelectedBlockSelectors"/>
+          </RequiredProperties>
+        </RepresentedArrayListDomain>
+        <Documentation>
+          For composite datasets, specify the color array name associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+      </StringVectorProperty>
+
+      <ProxyProperty command="SetBlockLookupTable"
+                     name="BlockLookupTables"
+                     clean_command="RemoveAllBlockLookupTables"
+                     repeat_command="1"
+                     panel_visibility="multiblock_inspector">
+        <ProxyGroupDomain name="groups">
+          <Group name="lookup_tables"/>
+        </ProxyGroupDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          Set the block lookup-table to use to map data array to colors.
+          Lookup table is only used with MapScalars to ON or BlockMapScalars to ON.
+        </Documentation>
+      </ProxyProperty>
+
+      <StringVectorProperty name="BlockUseSeparateColorMaps"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          By default, ParaView shares a single color map among all datasets colored
+          by arrays that have the same name. When this option is enabled, the block of the active dataset will
+          be assigned a separate color map not shared by other blocks or datasets.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockMapScalars"
+                            command="SetBlockMapScalars"
+                            clean_command="RemoveAllBlockMapScalars"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          For composite datasets, specify if to map scalars associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockInterpolateScalarsBeforeMappings"
+                            command="SetBlockInterpolateScalarsBeforeMapping"
+                            clean_command="RemoveAllBlockInterpolateScalarsBeforeMappings"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          For composite datasets, specify if to interpolate scalars before mapping associated with selectors
           on the assembly chosen using **Assembly**.
         </Documentation>
       </StringVectorProperty>
@@ -8585,23 +8872,52 @@
             <Property function="ActiveAssembly" name="Assembly" />
           </RequiredProperties>
         </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
         <Documentation>
           For composite datasets, specify opacities associated with selectors
           on the assembly chosen using **Assembly**.
         </Documentation>
       </StringVectorProperty>
 
-      <PropertyGroup label="Blocks"
-                     panel_widget="DataAssemblyEditor"
-                     panel_visibility="multiblock_inspector">
-        <Property name="Assembly"       function="ActiveAssembly" />
-        <Property name="BlockSelectors" function="Selectors" />
-        <Property name="BlockColors"    function="Colors" />
-        <Property name="BlockOpacities" function="Opacities" />
-        <Hints>
-          <DataAssemblyPropertyWidget use_inputname_as_header="1"  link_active_selection="1"/>
-        </Hints>
-      </PropertyGroup>
+      <IntVectorProperty default_values="1"
+                         label="Map Scalars"
+                         name="BlockMapScalarsGUI"
+                         number_of_elements="1"
+                         panel_visibility="multiblock_properties">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          For composite datasets, specify if to map scalars associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty default_values="1"
+                         label="Interpolate Scalars Before Mapping"
+                         name="BlockInterpolateScalarsBeforeMappingsGUI"
+                         number_of_elements="1"
+                         panel_visibility="multiblock_properties">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          For composite datasets, specify if to interpolate scalars before mapping associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty default_values="1.0"
+                            label="Opacity"
+                            name="BlockOpacitiesGUI"
+                            number_of_elements="1"
+                            panel_visibility="multiblock_properties">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range"/>
+        <Documentation>
+          For composite datasets, specify opacities associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </DoubleVectorProperty>
 
       <IntVectorProperty command="SetBlockColorsDistinctValues"
                          default_values="7"
@@ -12756,14 +13072,14 @@
         Depends on the Number Of Polar Axes for automatic computation.
         </Documentation>
       </DoubleVectorProperty>
-      <IntVectorProperty command="SetEnableCustomRadius"
+      <IntVectorProperty command="SetEnableCustomMinRadius"
                          default_values="1"
                          name="CustomMinRadius"
                          number_of_elements="1">
         <BooleanDomain name="bool" />
         <Documentation>Activate the use of custom minimum radius.
         If off, Minimum Radius is computed relatively to pole position.
-        Maximum radius is always automatically computed.</Documentation>
+        </Documentation>
       </IntVectorProperty>
       <DoubleVectorProperty command="SetMinRadius"
                             default_values="0"
@@ -12779,6 +13095,29 @@
           </PropertyWidgetDecorator>
         </Hints>
         <Documentation>Set the minimum radius.</Documentation>
+      </DoubleVectorProperty>
+      <IntVectorProperty command="SetEnableCustomMaxRadius"
+                         default_values="0"
+                         name="CustomMaxRadius"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>Activate the use of custom maximum radius.
+        If off, Maximum Radius is computed relatively to pole position.</Documentation>
+      </IntVectorProperty>
+      <DoubleVectorProperty command="SetMaxRadius"
+                            default_values="1"
+                            name="MaximumRadius"
+                            number_of_elements="1">
+        <DoubleRangeDomain min="0"
+                           max="100"
+                           name="range" />
+        <Hints>
+          <PropertyWidgetDecorator type="ShowWidgetDecorator">
+            <Property name="CustomMaxRadius"
+                      function="boolean" />
+          </PropertyWidgetDecorator>
+        </Hints>
+        <Documentation>Set the maximum radius.</Documentation>
       </DoubleVectorProperty>
       <IntVectorProperty command="SetEnableCustomAngle"
                          default_values="1"
@@ -12854,6 +13193,8 @@
         <Property name="DeltaRangePolarAxes" />
         <Property name="CustomMinRadius" />
         <Property name="MinimumRadius" />
+        <Property name="CustomMaxRadius" />
+        <Property name="MaximumRadius" />
         <Property name="CustomAngles" />
         <Property name="MinimumAngle" />
         <Property name="MaximumAngle" />
@@ -14702,6 +15043,23 @@
                          processes="client|renderserver|dataserver">
       <Documentation>Representation to show any dataset in a 3D render
       view.</Documentation>
+
+      <IntVectorProperty command="SetPlaceHolderDataType"
+                         default_values="38"
+                         name="PlaceHolderDataType"
+                         panel_visibility="never"
+                         number_of_elements="1">
+        <DataTypeQueryDomain name="data_type_query">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+          </RequiredProperties>
+        </DataTypeQueryDomain>
+        <Documentation>
+          Property to set the placeholder data type.
+        </Documentation>
+      </IntVectorProperty>
+
       <IntVectorProperty command="SetVisibility"
                          default_values="1"
                          name="Visibility"
@@ -14747,7 +15105,7 @@
           automatically be disabled.
         </Documentation>
         <RepresentedArrayListDomain name="array_list"
-                                    input_domain_name="input_array_any">>
+                                    input_domain_name="input_array_any">
           <RequiredProperties>
             <Property function="Input" name="Input" />
           </RequiredProperties>
@@ -14862,6 +15220,16 @@
           </RequiredProperties>
         </RepresentedArrayListDomain>
       </StringVectorProperty>
+      <IntVectorProperty command="SetDisableLighting"
+                      default_values="0"
+                      name="DisableLighting"
+                      number_of_elements="1">
+        <Documentation>
+          Disables the render view lighting interactions on this object.
+          It only shows the diffuse lighting component of the object.
+        </Documentation>
+        <BooleanDomain name="bool" />
+      </IntVectorProperty>
       <DoubleVectorProperty command="SetAmbient"
                             default_values="0.0"
                             name="Ambient"
@@ -15093,6 +15461,9 @@
           <TextureSelectorWidget check_tcoords="1" />
           <!-- enable the texture selector only when tcoords is available. -->
         </Hints>
+        <Documentation>
+          This property allows you to specify the texture to apply to the surface.
+        </Documentation>
       </ProxyProperty>
       <IntVectorProperty command="SetRepeatTextures"
                          default_values="1"
@@ -15331,16 +15702,61 @@
                                    inverse="1" />
         </Hints>
       </DoubleVectorProperty>
-      <IntVectorProperty command="SetFlipTextures"
-                         default_values="0"
-                         name="FlipTextures"
-                         number_of_elements="1">
+      <ProxyProperty command="SetTextureTransform"
+                     name="TextureTransform"
+                     null_on_empty="1">
+        <ProxyGroupDomain name="groups">
+          <Group name="transforms"/>
+        </ProxyGroupDomain>
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="extended_sources"
+                 name="Transform2"/>
+        </ProxyListDomain>
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="Texture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="BaseColorTexture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="NormalTexture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="CoatNormalTexture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="MaterialTexture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="AnisotropyTexture"
+                                       value="null"
+                                       inverse="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="visibility"
+                                       property="EmissiveTexture"
+                                       value="null"
+                                       inverse="1"/>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
         <Documentation>
-          Enable texture coordinate flip on Y axis. Depending on some format specification, the
-          origin of the texture could be either at the bottom left or the top left of the image.
+          Set the texture transform for the textures.
         </Documentation>
-        <BooleanDomain name="bool" />
-      </IntVectorProperty>
+      </ProxyProperty>
       <IntVectorProperty command="SetSuppressLOD"
                          default_values="0"
                          name="SuppressLOD"
@@ -15500,6 +15916,68 @@
           if two adjacent cells are connected.
         </Documentation>
       </IntVectorProperty>
+
+      <IntVectorProperty command="SetComputePointNormals"
+                         default_values="0"
+                         name="ComputePointNormals"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          When enabled, and point normals are not present, they will be computed.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetSplitting"
+                         default_values="1"
+                         name="Splitting"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          This property controls the splitting of sharp edges. If
+          sharp edges are split (property value = 1), then points are duplicated
+          along these edges, and separate normals are computed for both sets of
+          points to give crisp (rendered) surface definition.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="enabled_state"
+                                   property="ComputePointNormals"
+                                   value="1"/>
+          <!-- show this widget when ComputePointNormals==1 -->
+        </Hints>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty command="SetFeatureAngle"
+                            default_values="30"
+                            name="FeatureAngle"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="180"
+                           min="0"
+                           name="range"/>
+        <Documentation>
+          The value of this property defines a feature edge. If
+          the surface normal between two adjacent triangles is at least as large
+          as this Feature Angle, a feature edge exists. If Splitting is on,
+          points are duplicated along these feature edges. (See the Splitting property.)
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="and">
+              <!-- Show when ComputePointNormals is on -->
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="enabled_state"
+                                       property="ComputePointNormals"
+                                       value="1"/>
+              <!-- Show when Splitting is on -->
+              <PropertyWidgetDecorator type="GenericDecorator"
+                                       mode="enabled_state"
+                                       property="Splitting"
+                                       value="1"/>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </DoubleVectorProperty>
+
       <DoubleVectorProperty command="SetOpacity"
                             default_values="1.0"
                             name="Opacity"
@@ -15731,14 +16209,33 @@
         </Documentation>
       </StringVectorProperty>
 
+      <StringVectorProperty name="SelectedBlockSelectors"
+                            repeat_command="1"
+                            number_of_elements_per_command="1"
+                            number_of_elements="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          Used by the multiblock inspector to track the selected block selectors.
+        </Documentation>
+      </StringVectorProperty>
+
       <StringVectorProperty name="BlockSelectors"
-        command="AddBlockSelector"
-        clean_command="RemoveAllBlockSelectors"
-        repeat_command="1"
-        number_of_elements_per_command="1"
-        panel_visibility="multiblock_inspector"
-        number_of_elements="1"
-        default_values="/">
+                            command="AddBlockSelector"
+                            clean_command="RemoveAllBlockSelectors"
+                            repeat_command="1"
+                            number_of_elements_per_command="1"
+                            panel_visibility="multiblock_inspector"
+                            number_of_elements="1"
+                            default_values="/">
         <DataAssemblyDomain name="data_assembly">
           <RequiredProperties>
             <Property function="Input" name="Input" />
@@ -15764,8 +16261,116 @@
             <Property function="ActiveAssembly" name="Assembly" />
           </RequiredProperties>
         </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
         <Documentation>
           For composite datasets, specify colors associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockColorArrayNames"
+                            command="SetBlockArrayName"
+                            clean_command="RemoveAllBlockArrayNames"
+                            element_types="2 0 2"
+                            number_of_elements_per_command="3"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <RepresentedArrayListDomain name="array_list" input_domain_name="input_array_any">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+            <Property function="Selectors" name="SelectedBlockSelectors"/>
+          </RequiredProperties>
+        </RepresentedArrayListDomain>
+        <Documentation>
+          For composite datasets, specify the color array name associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+      </StringVectorProperty>
+
+      <ProxyProperty command="SetBlockLookupTable"
+                     name="BlockLookupTables"
+                     clean_command="RemoveAllBlockLookupTables"
+                     repeat_command="1"
+                     panel_visibility="multiblock_inspector">
+        <ProxyGroupDomain name="groups">
+          <Group name="lookup_tables"/>
+        </ProxyGroupDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          Set the block lookup-table to use to map data array to colors.
+          Lookup table is only used with MapScalars to ON or BlockMapScalars to ON.
+        </Documentation>
+      </ProxyProperty>
+
+      <StringVectorProperty name="BlockUseSeparateColorMaps"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          By default, ParaView shares a single color map among all datasets colored
+          by arrays that have the same name. When this option is enabled, the block of the active dataset will
+          be assigned a separate color map not shared by other blocks or datasets.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockMapScalars"
+                            command="SetBlockMapScalars"
+                            clean_command="RemoveAllBlockMapScalars"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          For composite datasets, specify if to map scalars associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </StringVectorProperty>
+
+      <StringVectorProperty name="BlockInterpolateScalarsBeforeMappings"
+                            command="SetBlockInterpolateScalarsBeforeMapping"
+                            clean_command="RemoveAllBlockInterpolateScalarsBeforeMappings"
+                            element_types="2 0"
+                            number_of_elements_per_command="2"
+                            repeat_command="1"
+                            panel_visibility="multiblock_inspector">
+        <DataAssemblyDomain name="data_assembly">
+          <RequiredProperties>
+            <Property function="Input" name="Input"/>
+            <Property function="ActiveAssembly" name="Assembly"/>
+          </RequiredProperties>
+        </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
+        <Documentation>
+          For composite datasets, specify if to interpolate scalars before mapping associated with selectors
           on the assembly chosen using **Assembly**.
         </Documentation>
       </StringVectorProperty>
@@ -15783,23 +16388,52 @@
             <Property function="ActiveAssembly" name="Assembly" />
           </RequiredProperties>
         </DataAssemblyDomain>
+        <Hints>
+          <NoDefault/>
+        </Hints>
         <Documentation>
           For composite datasets, specify opacities associated with selectors
           on the assembly chosen using **Assembly**.
         </Documentation>
       </StringVectorProperty>
 
-      <PropertyGroup label="Blocks"
-                     panel_widget="DataAssemblyEditor"
-                     panel_visibility="multiblock_inspector">
-        <Property name="Assembly"       function="ActiveAssembly" />
-        <Property name="BlockSelectors" function="Selectors" />
-        <Property name="BlockColors"    function="Colors" />
-        <Property name="BlockOpacities" function="Opacities" />
-        <Hints>
-          <DataAssemblyPropertyWidget use_inputname_as_header="1"  link_active_selection="1"/>
-        </Hints>
-      </PropertyGroup>
+      <IntVectorProperty default_values="1"
+                         label="Map Scalars"
+                         name="BlockMapScalarsGUI"
+                         number_of_elements="1"
+                         panel_visibility="multiblock_properties">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          For composite datasets, specify if to map scalars associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty default_values="1"
+                         label="Interpolate Scalars Before Mapping"
+                         name="BlockInterpolateScalarsBeforeMappingsGUI"
+                         number_of_elements="1"
+                         panel_visibility="multiblock_properties">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          For composite datasets, specify if to interpolate scalars before mapping associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty default_values="1.0"
+                            label="Opacity"
+                            name="BlockOpacitiesGUI"
+                            number_of_elements="1"
+                            panel_visibility="multiblock_properties">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range"/>
+        <Documentation>
+          For composite datasets, specify opacities associated with selectors
+          on the assembly chosen using **Assembly**.
+        </Documentation>
+      </DoubleVectorProperty>
 
       <IntVectorProperty command="SetBlockColorsDistinctValues"
                          default_values="7"

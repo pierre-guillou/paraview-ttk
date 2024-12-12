@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkStaticCellLocator.h"
 
@@ -1709,7 +1707,6 @@ void vtkStaticCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkStaticCellLocator
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
   this->SetAutomatic(cellLocator->GetAutomatic());
 
@@ -1798,6 +1795,7 @@ void vtkStaticCellLocator::ShallowCopy(vtkAbstractCellLocator* locator)
       processor->OffsetsShardPtr.get() ? processor->OffsetsShardPtr->data() : nullptr;
     this->Processor = processor;
   }
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

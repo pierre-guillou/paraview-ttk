@@ -56,6 +56,9 @@ public:
   //--------------------------------------------------------------------------------
   int GetEstimatedNumberOfThreads();
 
+  //--------------------------------------------------------------------------------
+  int GetEstimatedDefaultNumberOfThreads();
+
   //------------------------------------------------------------------------------
   void SetNestedParallelism(bool isNested);
 
@@ -220,6 +223,14 @@ public:
   vtkSMPToolsAPI(vtkSMPToolsAPI const&) = delete;
   void operator=(vtkSMPToolsAPI const&) = delete;
 
+protected:
+  //--------------------------------------------------------------------------------
+  // Address the static initialization order 'fiasco' by implementing
+  // the schwarz counter idiom.
+  static void ClassInitialize();
+  static void ClassFinalize();
+  friend class vtkSMPToolsAPIInitialize;
+
 private:
   //--------------------------------------------------------------------------------
   vtkSMPToolsAPI();
@@ -285,6 +296,20 @@ private:
   std::unique_ptr<vtkSMPToolsDefaultImpl> OpenMPBackend;
 #endif
 };
+
+//--------------------------------------------------------------------------------
+class VTKCOMMONCORE_EXPORT vtkSMPToolsAPIInitialize
+{
+public:
+  vtkSMPToolsAPIInitialize();
+  ~vtkSMPToolsAPIInitialize();
+};
+
+//--------------------------------------------------------------------------------
+// This instance will show up in any translation unit that uses vtkSMPToolsAPI singleton.
+// It will make sure vtkSMPToolsAPI is initialized before it is used and finalized when it
+// is done being used.
+static vtkSMPToolsAPIInitialize vtkSMPToolsAPIInitializer;
 
 VTK_ABI_NAMESPACE_END
 } // namespace smp

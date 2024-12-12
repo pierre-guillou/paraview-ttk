@@ -48,6 +48,8 @@ set(classes
   pqColorToolbar
   pqCommandButtonPropertyWidget
   pqCommandLineOptionsBehavior
+  pqConfigureCategoriesDialog
+  pqConfigureCategoriesReaction
   pqCopyReaction
   pqCrashRecoveryBehavior
   pqCreateCustomFilterReaction
@@ -91,6 +93,7 @@ set(classes
   pqIgnoreSourceTimeReaction
   pqImageCompressorWidget
   pqImplicitPlanePropertyWidget
+  pqImportReaction
   pqInputDataTypeDecorator
   pqInteractiveProperty2DWidget
   pqInteractivePropertyWidget
@@ -118,7 +121,6 @@ set(classes
   pqManageLinksReaction
   pqManagePluginsReaction
   pqMasterOnlyReaction
-  pqMenuReactionUtils
   pqMetaDataPropertyWidget
   pqModelTransformSupportBehavior
   pqMoleculePropertyWidget
@@ -127,7 +129,7 @@ set(classes
   pqOMETransferFunctionsPropertyWidget
   pqOpacityTableModel
   pqOSPRayHidingDecorator
-  pqPVAnimationWidget
+  pqQuickLaunchDialogExtended
   pqPVApplicationCore
   pqParaViewBehaviors
   pqParaViewMenuBuilders
@@ -141,14 +143,15 @@ set(classes
   pqPointPickingHelper
   pqPreviewMenuManager
   pqPropertyCollectionWidget
+  pqProxyCategory
   pqProxyGroupMenuManager
+  pqProxyInfo
   pqReaction
   pqReloadFilesReaction
   pqRenameProxyReaction
   pqRenderViewSelectionReaction
   pqRepresentationToolbar
   pqRescaleScalarRangeReaction
-  pqResetScalarRangeReaction
   pqResetDefaultSettingsReaction
   pqSaveAnimationGeometryReaction
   pqAnimatedExportReaction
@@ -183,7 +186,6 @@ set(classes
   pqTemporalExportReaction
   pqTestingReaction
   pqTextLocationWidget
-  pqTimeInspectorWidget
   pqTimelineItemDelegate
   pqTimelineModel
   pqTimelinePainter
@@ -228,6 +230,7 @@ set(ui_files
   Resources/UI/pqColorMapEditor.ui
   Resources/UI/pqColorOpacityEditorWidget.ui
   Resources/UI/pqColorToolbar.ui
+  Resources/UI/pqConfigureCategoriesDialog.ui
   Resources/UI/pqCustomResolutionDialog.ui
   Resources/UI/pqCylinderPropertyWidget.ui
   Resources/UI/pqCustomizeShortcutsDialog.ui
@@ -251,6 +254,8 @@ set(ui_files
   Resources/UI/pqMoleculePropertyWidget.ui
   Resources/UI/pqOMETransferFunctionsPropertyWidget.ui
   Resources/UI/pqOMETransferFunctionsPropertyWidgetPage.ui
+  Resources/UI/pqPauseLiveSourcePropertyWidget.ui
+  Resources/UI/pqQuickLaunchDialogExtended.ui
   Resources/UI/pqPropertyCollectionWidget.ui
   Resources/UI/pqResetScalarRangeToDataOverTime.ui
   Resources/UI/pqSavePresetOptions.ui
@@ -260,7 +265,6 @@ set(ui_files
   Resources/UI/pqSplinePropertyWidget.ui
   Resources/UI/pqSpreadSheetViewDecorator.ui
   Resources/UI/pqTextLocationWidget.ui
-  Resources/UI/pqTimeInspectorWidget.ui
   Resources/UI/pqTimeManagerWidget.ui
   Resources/UI/pqTransferFunctionWidgetPropertyDialog.ui
   Resources/UI/pqVCRToolbar.ui
@@ -319,6 +323,9 @@ if (PARAVIEW_USE_QTHELP)
     pqPluginDocumentationBehavior)
 endif ()
 
+set (private_classes
+  pqProxyActionListModel)
+
 vtk_module_find_package(
   PACKAGE     "Qt${PARAVIEW_QT_MAJOR_VERSION}"
   COMPONENTS  ${qt_components})
@@ -346,8 +353,10 @@ if (PARAVIEW_BUILD_TRANSLATIONS)
     OUTPUT_TS "${PARAVIEW_TRANSLATIONS_DIRECTORY}/Qt_ApplicationComponents.ts")
   add_dependencies(localization "ApplicationComponents.ts")
 endif ()
+
 vtk_module_add_module(ParaView::pqApplicationComponents
   CLASSES ${classes}
+  PRIVATE_CLASSES ${private_classes}
   HEADERS ${headers}
   SOURCES ${ui_files}
           ${resource_files})

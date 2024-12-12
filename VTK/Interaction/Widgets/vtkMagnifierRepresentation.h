@@ -18,10 +18,9 @@
 #define vtkMagnifierRepresentation_h
 
 #include "vtkCoordinate.h"               //Because of the viewport coordinate macro
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPropCollection;
@@ -31,7 +30,8 @@ class vtkPolyDataMapper2D;
 class vtkActor2D;
 class vtkProperty2D;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkMagnifierRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkMagnifierRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   /**
@@ -74,10 +74,13 @@ public:
    * different than that of the associated renderer, it is possible to create
    * special effects and/or remove props from what is shown in the magnifier.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddViewProp(vtkProp*);
   vtkPropCollection* GetViewProps() { return this->Props; }
   int HasViewProp(vtkProp*);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveViewProp(vtkProp*);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveAllViewProps();
   ///@{
 
@@ -114,10 +117,6 @@ public:
     Invisible = 0,
     Visible
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
   ///@{
   /**

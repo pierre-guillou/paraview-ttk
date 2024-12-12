@@ -51,10 +51,29 @@ vtkSMPToolsAPI::vtkSMPToolsAPI()
 }
 
 //------------------------------------------------------------------------------
+// Must NOT be initialized. Default initialization to zero is necessary.
+vtkSMPToolsAPI* vtkSMPToolsAPIInstanceAsPointer;
+
+//------------------------------------------------------------------------------
 vtkSMPToolsAPI& vtkSMPToolsAPI::GetInstance()
 {
-  static vtkSMPToolsAPI instance;
-  return instance;
+  return *vtkSMPToolsAPIInstanceAsPointer;
+}
+
+//------------------------------------------------------------------------------
+void vtkSMPToolsAPI::ClassInitialize()
+{
+  if (!vtkSMPToolsAPIInstanceAsPointer)
+  {
+    vtkSMPToolsAPIInstanceAsPointer = new vtkSMPToolsAPI;
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkSMPToolsAPI::ClassFinalize()
+{
+  delete vtkSMPToolsAPIInstanceAsPointer;
+  vtkSMPToolsAPIInstanceAsPointer = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -141,6 +160,23 @@ void vtkSMPToolsAPI::RefreshNumberOfThread()
       this->OpenMPBackend->Initialize(numThreads);
       break;
   }
+}
+
+//------------------------------------------------------------------------------
+int vtkSMPToolsAPI::GetEstimatedDefaultNumberOfThreads()
+{
+  switch (this->ActivatedBackend)
+  {
+    case BackendType::Sequential:
+      return this->SequentialBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::STDThread:
+      return this->STDThreadBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::TBB:
+      return this->TBBBackend->GetEstimatedDefaultNumberOfThreads();
+    case BackendType::OpenMP:
+      return this->OpenMPBackend->GetEstimatedDefaultNumberOfThreads();
+  }
+  return 0;
 }
 
 //------------------------------------------------------------------------------
@@ -232,6 +268,28 @@ bool vtkSMPToolsAPI::GetSingleThread()
       return this->OpenMPBackend->GetSingleThread();
     default:
       return false;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Must NOT be initialized. Default initialization to zero is necessary.
+unsigned int vtkSMPToolsAPIInitializeCount;
+
+//------------------------------------------------------------------------------
+vtkSMPToolsAPIInitialize::vtkSMPToolsAPIInitialize()
+{
+  if (++vtkSMPToolsAPIInitializeCount == 1)
+  {
+    vtkSMPToolsAPI::ClassInitialize();
+  }
+}
+
+//------------------------------------------------------------------------------
+vtkSMPToolsAPIInitialize::~vtkSMPToolsAPIInitialize()
+{
+  if (--vtkSMPToolsAPIInitializeCount == 0)
+  {
+    vtkSMPToolsAPI::ClassFinalize();
   }
 }
 

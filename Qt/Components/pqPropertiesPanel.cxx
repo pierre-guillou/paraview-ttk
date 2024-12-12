@@ -13,6 +13,7 @@
 #include "pqOutputPort.h"
 #include "pqPipelineSource.h"
 #include "pqProxyWidget.h"
+#include "pqScopedOverrideCursor.h"
 #include "pqSearchBox.h"
 #include "pqServerManagerModel.h"
 #include "pqSettings.h"
@@ -357,42 +358,6 @@ void pqPropertiesPanel::setPanelMode(int val)
   this->Internals->Ui.ViewButton->setVisible(has_multiples_types && has_view);
 
   this->updatePanel();
-}
-
-//-----------------------------------------------------------------------------
-void pqPropertiesPanel::setAutoApply(bool enabled)
-{
-  VTK_LEGACY_REPLACED_BODY(
-    pqPropertiesPanel::setAutoApply, "ParaView 5.11", vtkPVGeneralSettings::SetAutoApply());
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  generalSettings->SetAutoApply(enabled);
-}
-
-//-----------------------------------------------------------------------------
-bool pqPropertiesPanel::autoApply()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    pqPropertiesPanel::autoApply, "ParaView 5.11", vtkPVGeneralSettings::GetAutoApply());
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  return generalSettings->GetAutoApply();
-}
-
-//-----------------------------------------------------------------------------
-void pqPropertiesPanel::setAutoApplyDelay(int delay)
-{
-  VTK_LEGACY_REPLACED_BODY(pqPropertiesPanel::setAutoApplyDelay, "ParaView 5.11",
-    vtkPVGeneralSettings::SetAutoApplyDelay());
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  return generalSettings->SetAutoApplyDelay(delay);
-}
-
-//-----------------------------------------------------------------------------
-int pqPropertiesPanel::autoApplyDelay()
-{
-  VTK_LEGACY_REPLACED_BODY(
-    pqPropertiesPanel::autoApplyDelay, "ParaView 5.11", vtkPVGeneralSettings::GetAutoApplyDelay());
-  vtkPVGeneralSettings* generalSettings = vtkPVGeneralSettings::GetInstance();
-  return generalSettings->GetAutoApplyDelay();
 }
 
 //-----------------------------------------------------------------------------
@@ -801,6 +766,8 @@ void pqPropertiesPanel::apply()
   vtkTimerLog::MarkStartEvent("PropertiesPanel::Apply");
 
   BEGIN_UNDO_SET(tr("Apply"));
+
+  pqScopedOverrideCursor scopedWaitCursor(Qt::WaitCursor);
 
   bool onlyApplyCurrentPanel = vtkPVGeneralSettings::GetInstance()->GetAutoApplyActiveOnly();
 

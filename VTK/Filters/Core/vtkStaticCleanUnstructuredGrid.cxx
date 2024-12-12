@@ -17,7 +17,6 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnstructuredGrid.h"
 
-#include <algorithm>
 #include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -44,7 +43,6 @@ void MarkUses(vtkIdType numIds, UType* connArray, vtkIdType* mergeMap, PointUses
 template <typename InArrayT, typename OutArrayT>
 struct CopyPointsAlgorithm
 {
-  vtkIdType* PtMap;
   InArrayT* InPts;
   OutArrayT* OutPts;
   ArrayList Arrays;
@@ -52,12 +50,11 @@ struct CopyPointsAlgorithm
 
   CopyPointsAlgorithm(vtkIdType* ptMap, InArrayT* inPts, vtkPointData* inPD, vtkIdType numNewPts,
     OutArrayT* outPts, vtkPointData* outPD)
-    : PtMap(ptMap)
-    , InPts(inPts)
+    : InPts(inPts)
     , OutPts(outPts)
   {
     // Prepare for threaded copying
-    this->Arrays.AddArrays(numNewPts, inPD, outPD);
+    this->Arrays.AddArrays(numNewPts, inPD, outPD, 0.0, /*promote=*/false);
 
     // Need to define a reverse point map (which maps the new/output points
     // to the input points from which they were merged). This could be
@@ -190,17 +187,15 @@ struct AverageAlgorithm
 {
   InArrayT* InPts;
   OutArrayT* OutPts;
-  vtkIdType* PtMap;
   vtkIdType* Links;
   vtkIdType* Offsets;
   bool AverageCoords;
   ArrayList Arrays;
 
   AverageAlgorithm(InArrayT* inPts, vtkPointData* inPD, vtkIdType numNewPts, OutArrayT* outPts,
-    vtkPointData* outPD, vtkIdType* ptMap, vtkIdType* links, vtkIdType* offsets, double tol)
+    vtkPointData* outPD, vtkIdType* links, vtkIdType* offsets, double tol)
     : InPts(inPts)
     , OutPts(outPts)
-    , PtMap(ptMap)
     , Links(links)
     , Offsets(offsets)
   {
@@ -275,12 +270,12 @@ struct AverageWorklet
 {
   template <typename InArrayT, typename OutArrayT>
   void operator()(InArrayT* inPts, OutArrayT* outPts, vtkPointData* inPD, vtkPointData* outPD,
-    vtkIdType* ptMap, vtkIdType* links, vtkIdType* offsets, double tol)
+    vtkIdType* links, vtkIdType* offsets, double tol)
   {
     const vtkIdType numNewPts = outPts->GetNumberOfTuples();
 
     AverageAlgorithm<InArrayT, OutArrayT> algo(
-      inPts, inPD, numNewPts, outPts, outPD, ptMap, links, offsets, tol);
+      inPts, inPD, numNewPts, outPts, outPD, links, offsets, tol);
     vtkSMPTools::For(0, numNewPts, algo);
   }
 };
@@ -313,25 +308,9 @@ void UpdateCellArrayConnectivity(vtkCellArray* ca, vtkIdType* ptMap)
 }
 
 //  Update the polyhedra face connectivity array.
-void UpdatePolyhedraFaces(vtkIdTypeArray* a, vtkIdType* ptMap)
+void UpdatePolyhedraFaces(vtkCellArray* a, vtkIdType* ptMap)
 {
-  vtkIdType num = a->GetNumberOfTuples();
-  vtkIdType* c = a->GetPointer(0);
-
-  for (vtkIdType idx = 0; idx < num;)
-  {
-    vtkIdType numFaces = c[idx++];
-    vtkIdType npts;
-    for (vtkIdType faceNum = 0; faceNum < numFaces; ++faceNum)
-    {
-      npts = c[idx++];
-      for (vtkIdType i = 0; i < npts; ++i)
-      {
-        c[idx + i] = ptMap[c[idx + i]];
-      }
-      idx += npts;
-    }
-  }
+  UpdateCellArrayConnectivity(a, ptMap);
 }
 
 } // anonymous namespace
@@ -523,15 +502,15 @@ int vtkStaticCleanUnstructuredGrid::RequestData(vtkInformation* vtkNotUsed(reque
 
   // If the unstructured grid contains polyhedra, the face connectivity needs
   // to be updated as well.
-  vtkIdTypeArray* faceLocations = input->GetFaceLocations();
-  vtkIdTypeArray* faces = input->GetFaces();
+  vtkCellArray* faceLocations = input->GetPolyhedronFaceLocations();
+  vtkCellArray* faces = input->GetPolyhedronFaces();
   if (faces != nullptr)
   {
     UpdatePolyhedraFaces(faces, pmap);
   }
 
   // Finally, assemble the filter output.
-  output->SetCells(input->GetCellTypesArray(), outCells, faceLocations, faces);
+  output->SetPolyhedralCells(input->GetCellTypesArray(), outCells, faceLocations, faces);
 
   // Free unneeded memory
   this->Locator->Initialize();
@@ -625,14 +604,14 @@ void vtkStaticCleanUnstructuredGrid::AveragePoints(vtkPoints* inPts, vtkPointDat
 
   // Create an array of atomics with initial count=0. This will keep
   // track of point merges. Count them in parallel.
-  std::unique_ptr<std::atomic<vtkIdType>> uCounts(new std::atomic<vtkIdType>[numOutPts]());
+  std::unique_ptr<std::atomic<vtkIdType>[]> uCounts(new std::atomic<vtkIdType>[numOutPts]());
   std::atomic<vtkIdType>* counts = uCounts.get();
   CountUses count(ptMap, counts);
   vtkSMPTools::For(0, numInPts, count);
 
   // Perform a prefix sum to determine the offsets.
   vtkIdType ptId, npts;
-  std::unique_ptr<vtkIdType> uOffsets(new vtkIdType[numOutPts + 1]); // extra +1 for convenience
+  std::unique_ptr<vtkIdType[]> uOffsets(new vtkIdType[numOutPts + 1]); // extra +1 for convenience
   vtkIdType* offsets = uOffsets.get();
   offsets[0] = 0;
   for (ptId = 1; ptId <= numOutPts; ++ptId)
@@ -644,7 +623,7 @@ void vtkStaticCleanUnstructuredGrid::AveragePoints(vtkPoints* inPts, vtkPointDat
   // Configure the "links" which are, for each output point, lists
   // the input points merged to that output point. The offsets point into
   // the links.
-  std::unique_ptr<vtkIdType> uLinks(new vtkIdType[offsets[numOutPts]]);
+  std::unique_ptr<vtkIdType[]> uLinks(new vtkIdType[offsets[numOutPts]]);
   vtkIdType* links = uLinks.get();
 
   // Now insert cell ids into cell links.
@@ -654,9 +633,9 @@ void vtkStaticCleanUnstructuredGrid::AveragePoints(vtkPoints* inPts, vtkPointDat
   // Okay, now we can actually average the point coordinates and
   // point attribute data.
   AverageWorklet average;
-  if (!Dispatcher::Execute(inArray, outArray, average, inPD, outPD, ptMap, links, offsets, tol))
+  if (!Dispatcher::Execute(inArray, outArray, average, inPD, outPD, links, offsets, tol))
   { // Fallback to slow path for unusual types:
-    average(inArray, outArray, inPD, outPD, ptMap, links, offsets, tol);
+    average(inArray, outArray, inPD, outPD, links, offsets, tol);
   }
 }
 

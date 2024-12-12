@@ -152,7 +152,7 @@ static void vtkWrapPython_PrintProtocol(
   FILE* fp, const char* classname, const ClassInfo* data, FileInfo* finfo, SpecialTypeInfo* info)
 {
   int i;
-  FunctionInfo* func;
+  const FunctionInfo* func;
 
   /* look in the file for "operator<<" for printing */
   for (i = 0; i < finfo->Contents->NumberOfFunctions; i++)
@@ -201,7 +201,7 @@ static void vtkWrapPython_RichCompareProtocol(
   static const char* compare_tokens[6] = { "<", "<=", "==", "!=", ">", ">=" };
   int compare_ops = 0;
   int i, n;
-  FunctionInfo* func;
+  const FunctionInfo* func;
 
   /* look for comparison operator methods */
   n = data->NumberOfFunctions + finfo->Contents->NumberOfFunctions;
@@ -365,8 +365,8 @@ static void vtkWrapPython_SequenceProtocol(FILE* fp, const char* classname, Clas
 {
   int i;
   FunctionInfo* func;
-  FunctionInfo* getItemFunc = 0;
-  FunctionInfo* setItemFunc = 0;
+  const FunctionInfo* getItemFunc = 0;
+  const FunctionInfo* setItemFunc = 0;
 
   /* look for [] operator */
   for (i = 0; i < data->NumberOfFunctions; i++)
@@ -818,10 +818,11 @@ void vtkWrapPython_GenerateSpecialType(FILE* fp, const char* module, const char*
       "  PyTypeObject *pytype = PyVTKSpecialType_Add(\n"
       "    &Py%s_Type,\n"
       "    Py%s_Methods,\n"
+      "    Py%s_GetSets,\n"
       "    Py%s_%*.*s_Methods,\n"
       "    &Py%s_CCopy);\n"
       "\n",
-      classname, classname, classname, (int)n, (int)n, constructor, classname);
+      classname, classname, classname, classname, (int)n, (int)n, constructor, classname);
   }
   else if (constructor)
   {
@@ -829,10 +830,11 @@ void vtkWrapPython_GenerateSpecialType(FILE* fp, const char* module, const char*
       "  PyTypeObject *pytype = PyVTKSpecialType_Add(\n"
       "    &Py%s_Type,\n"
       "    Py%s_Methods,\n"
+      "    Py%s_GetSets,\n"
       "    Py%s_%*.*s_Methods,\n"
       "    nullptr);\n"
       "\n",
-      classname, classname, classname, (int)n, (int)n, constructor);
+      classname, classname, classname, classname, (int)n, (int)n, constructor);
   }
   else
   {
@@ -840,10 +842,11 @@ void vtkWrapPython_GenerateSpecialType(FILE* fp, const char* module, const char*
       "  PyTypeObject *pytype = PyVTKSpecialType_Add(\n"
       "    &Py%s_Type,\n"
       "    Py%s_Methods,\n"
+      "    Py%s_GetSets,\n"
       "    nullptr,\n"
       "    nullptr);\n"
       "\n",
-      classname, classname);
+      classname, classname, classname);
   }
 
   /* if type is already ready, then return */

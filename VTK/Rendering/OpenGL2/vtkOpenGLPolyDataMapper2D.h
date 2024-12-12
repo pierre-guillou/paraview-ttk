@@ -19,6 +19,7 @@
 #include "vtkOpenGLHelper.h" // used for ivars
 #include "vtkPolyDataMapper2D.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <map>                         //for used data arrays & vbos
 #include <string>                      // For API.
 #include <vector>                      //for ivars
@@ -36,7 +37,8 @@ class vtkRenderer;
 class vtkTextureObject;
 class vtkTransform;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLPolyDataMapper2D : public vtkPolyDataMapper2D
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLPolyDataMapper2D
+  : public vtkPolyDataMapper2D
 {
 public:
   vtkTypeMacro(vtkOpenGLPolyDataMapper2D, vtkPolyDataMapper2D);
@@ -78,7 +80,12 @@ protected:
   virtual void UpdateShaders(vtkOpenGLHelper& cellBO, vtkViewport* viewport, vtkActor2D* act);
 
   /**
-   * Set the shader parameters related to the mapper/input data, called by UpdateShader
+   * Set the value of user-defined uniform variables, called by UpdateShaders
+   */
+  virtual void SetCustomUniforms(vtkOpenGLHelper& cellBO, vtkActor2D* actor);
+
+  /**
+   * Set the shader parameters related to the mapper/input data, called by UpdateShaders
    */
   virtual void SetMapperShaderParameters(
     vtkOpenGLHelper& cellBO, vtkViewport* viewport, vtkActor2D* act);

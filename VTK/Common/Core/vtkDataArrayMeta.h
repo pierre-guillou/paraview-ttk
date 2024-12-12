@@ -31,11 +31,12 @@
 #define VTK_ITER_ASSERT(x, msg)
 #endif
 
-#if defined(VTK_ALWAYS_OPTIMIZE_ARRAY_ITERATORS) && !defined(VTK_DEBUG_RANGE_ITERATORS)
+#if (defined(VTK_ALWAYS_OPTIMIZE_ARRAY_ITERATORS) || !defined(VTK_DEBUG_RANGE_ITERATORS)) &&       \
+  !defined(VTK_COMPILER_MSVC)
 #define VTK_ITER_INLINE VTK_ALWAYS_INLINE
 #define VTK_ITER_ASSUME VTK_ASSUME_NO_ASSERT
 #define VTK_ITER_OPTIMIZE_START VTK_ALWAYS_OPTIMIZE_START
-#define VTK_ITER_OPTIMIZE_END VTK_ALWAYS_OPTIMIZE_START
+#define VTK_ITER_OPTIMIZE_END VTK_ALWAYS_OPTIMIZE_END
 #else
 #define VTK_ITER_INLINE inline
 #define VTK_ITER_ASSUME VTK_ASSUME
@@ -162,15 +163,15 @@ struct GenericTupleSize<DynamicTupleSize>
   ComponentIdType value;
 };
 
-template <typename ArrayType>
+template <typename ArrayType, typename ForceValueTypeForVtkDataArray = double>
 struct GetAPITypeImpl
 {
   using APIType = typename ArrayType::ValueType;
 };
-template <>
-struct GetAPITypeImpl<vtkDataArray>
+template <typename ForceValueTypeForVtkDataArray>
+struct GetAPITypeImpl<vtkDataArray, ForceValueTypeForVtkDataArray>
 {
-  using APIType = double;
+  using APIType = ForceValueTypeForVtkDataArray;
 };
 
 VTK_ABI_NAMESPACE_END
@@ -180,8 +181,10 @@ VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Typedef for double if vtkDataArray, or the array's ValueType for subclasses.
-template <typename ArrayType, typename = detail::EnableIfVtkDataArray<ArrayType>>
-using GetAPIType = typename detail::GetAPITypeImpl<ArrayType>::APIType;
+template <typename ArrayType, typename ForceValueTypeForVtkDataArray = double,
+  typename = detail::EnableIfVtkDataArray<ArrayType>>
+using GetAPIType =
+  typename detail::GetAPITypeImpl<ArrayType, ForceValueTypeForVtkDataArray>::APIType;
 
 VTK_ABI_NAMESPACE_END
 

@@ -16,9 +16,6 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
-static constexpr const vtkIdType SMP_THRESHOLD = 10000;
-
-//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkDataSetAttributes);
 
 //------------------------------------------------------------------------------
@@ -169,6 +166,10 @@ void vtkDataSetAttributes::DeepCopy(vtkFieldData* fd)
         dsa->CopyAttributeFlags[PASSDATA][attributeType];
     }
     this->CopyFlags(dsa);
+
+    this->GhostsToSkip = fd->GetGhostsToSkip();
+    this->GhostArray =
+      vtkArrayDownCast<vtkUnsignedCharArray>(this->GetAbstractArray(this->GhostArrayName()));
   }
   // If the source is field data, do a field data copy
   else
@@ -213,6 +214,10 @@ void vtkDataSetAttributes::ShallowCopy(vtkFieldData* fd)
         dsa->CopyAttributeFlags[PASSDATA][attributeType];
     }
     this->CopyFlags(dsa);
+
+    this->GhostsToSkip = fd->GetGhostsToSkip();
+    this->GhostArray =
+      vtkArrayDownCast<vtkUnsignedCharArray>(this->GetAbstractArray(this->GhostArrayName()));
   }
   // If the source is field data, do a field data copy
   else
@@ -983,7 +988,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (fromIds->GetNumberOfIds() < SMP_THRESHOLD)
+  if (fromIds->GetNumberOfIds() <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {
@@ -1021,7 +1026,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (fromIds->GetNumberOfIds() < SMP_THRESHOLD)
+  if (fromIds->GetNumberOfIds() <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {
@@ -1060,7 +1065,7 @@ void vtkDataSetAttributes::CopyData(
     return;
   }
 
-  if (n < SMP_THRESHOLD)
+  if (n <= vtkSMPTools::THRESHOLD)
   {
     for (const auto& i : this->RequiredArrays)
     {

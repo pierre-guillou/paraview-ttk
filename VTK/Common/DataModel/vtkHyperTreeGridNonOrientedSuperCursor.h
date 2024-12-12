@@ -4,7 +4,6 @@
  * @class   vtkHyperTreeGridNonOrientedSuperCursor
  * @brief   Objects for traversal a HyperTreeGrid.
  *
- * JB A REVOIR
  * Objects that can perform depth traversal of a hyper tree grid,
  * take into account more parameters (related to the grid structure) than
  * the compact hyper tree cursor implemented in vtkHyperTree can.
@@ -16,7 +15,7 @@
  * which have neighborhood traversal abilities.
  *
  * @sa
- * vtkHyperTreeCursor vtkHyperTree vtkHyperTreeGrid
+ * vtkHyperTree vtkHyperTreeGrid
  *
  * @par Thanks:
  * This class was written by Guenole Harel and Jacques-Bernard Lekien, 2014.
@@ -58,7 +57,7 @@ public:
 
   /**
    * Initialize cursor at root of given tree index in grid.
-   * JB Le create ne s'applique que sur le HT central.
+   * The create option only applies to the central HT.
    */
   virtual void Initialize(vtkHyperTreeGrid* grid, vtkIdType treeIndex, bool create = false) = 0;
 
@@ -71,13 +70,13 @@ public:
 
   ///@{
   /**
-   * Return if a Tree pointing exist
+   * Return if a Tree pointing exist.
    */
   bool HasTree();
   ///@}
 
   /**
-   * JB Return if a Tree pointing exist
+   * Return if a HyperTree pointing exist.
    */
   bool HasTree(unsigned int icursor);
 
@@ -96,19 +95,20 @@ public:
   vtkIdType GetVertexId(unsigned int icursor);
 
   /**
-   * Return the global index (relative to the grid) of the
-   * current vertex in the tree.
+   * Return the global index (relative to the hypertree grid and
+   * defined by server) of the current vertex in the tree.
    */
   vtkIdType GetGlobalNodeIndex();
 
   /**
-   * JB Return the global index (relative to the grid) of the
-   * neighbor icursor current vertex in the tree.
+   * Return the global index (relative to the hypertree grid and
+   * defined by server) of the neighbor icursor current vertex in
+   * the tree.
    */
   vtkIdType GetGlobalNodeIndex(unsigned int icursor);
 
   /**
-   * JB
+   * Combine three get information into one
    */
   vtkHyperTree* GetInformation(
     unsigned int icursor, unsigned int& level, bool& leaf, vtkIdType& id);
@@ -126,19 +126,28 @@ public:
   unsigned char GetNumberOfChildren();
 
   /**
-   * JB
+   * Calls this method once per HyperTree to set the global index of the first cell.
+   * This initializes implicit indexing.
+   * /!\ This appeal is inconsistent with SetGlobalIndexFromLocal's appeal.
    */
   void SetGlobalIndexStart(vtkIdType index);
 
   /**
-   * JB
+   * Calls this method for each cell in the HT to set the global index
+   * associated with them. This initializes explicit indexing.
+   * /!\ This appeal is inconsistent with SetGlobalIndexStart's appeal.
    */
   void SetGlobalIndexFromLocal(vtkIdType index);
 
   /**
-   * JB
+   * Get the origin cell
    */
   double* GetOrigin();
+  double* GetOrigin(unsigned int icursor);
+
+  /**
+   * Get the size cell
+   */
   double* GetSize();
 
   /**
@@ -154,17 +163,22 @@ public:
   bool IsMasked();
   bool IsMasked(unsigned int icursor);
 
+  ///@{
   /**
-   * JB Coordonnees de la boite englobante
+   * Returns the coordinates of the bounding box :
+   *  (xmin, xmax, ymin, ymax, zmin, zmax).
    */
   void GetBounds(double bounds[6]);
   void GetBounds(unsigned int icursor, double bounds[6]);
+  ///@}
 
+  ///@{
   /**
-   * JB Coordonnees du centre de la maille
+   * Returns the coordinates cell center
    */
   void GetPoint(double point[3]);
   void GetPoint(unsigned int icursor, double point[3]);
+  ///@}
 
   /**
    * Is the cursor pointing to a leaf?
@@ -173,12 +187,12 @@ public:
   bool IsLeaf(unsigned int icursor);
 
   /**
-   * JB Fait chier normalement on devrait passer par GetEntry
+   * Subdivide Leaf.
    */
   void SubdivideLeaf();
 
   /**
-   * Is the cursor at tree root?
+   * Answer if a cursor is root.
    */
   bool IsRoot();
 
@@ -212,9 +226,14 @@ public:
   void ToParent();
 
   /**
-   * JB
+   * Get the number of cursors to describe neighboring cells and the current cell
    */
-  unsigned int GetNumberOfCursors() { return this->NumberOfCursors; }
+  unsigned int GetNumberOfCursors() const { return this->NumberOfCursors; }
+
+  /**
+   * Get the indice of central cursor, the current cell
+   */
+  unsigned int GetIndiceCentralCursor() const { return this->IndiceCentralCursor; }
 
   /**
    * Return the cursor pointing into i-th neighbor.
@@ -244,54 +263,60 @@ protected:
   ~vtkHyperTreeGridNonOrientedSuperCursor() override;
 
   /**
-   * JB Reference sur l'hyper tree grid parcouru actuellement.
+   * The pointer to the HyperTreeGrid instance during the crossing.
    */
   vtkHyperTreeGrid* Grid;
 
   /**
-   * JB
+   * Describes the central cursor necessary an instance of
+   * vtkHyperTreeGridNonOrientedGeometryCursor.
    */
-  // JB  vtkNew< vtkHyperTreeGridNonOrientedGeometryCursor > CentralCursor;
   vtkSmartPointer<vtkHyperTreeGridNonOrientedGeometryCursor> CentralCursor;
 
   /**
-   * JB Hyper tree grid to which the cursor is attached
+   * Hyper tree grid to which the cursor is attached
    */
   unsigned int CurrentFirstNonValidEntryByLevel;
   std::vector<unsigned int> FirstNonValidEntryByLevel;
   std::vector<vtkHyperTreeGridGeometryLevelEntry> Entries;
 
   /**
-   * JB La derniere reference valide pour decrire tous les voisins.
-   * C'est donc aussi l'offset du premier voisin du dernier niveau.
+   * The last valid reference describing neighbors.
+   * It is also the offset of the first neighbor at the last level.
    */
   unsigned int FirstCurrentNeighboorReferenceEntry;
   std::vector<unsigned int> ReferenceEntries;
 
   /**
-   * JB
+   * Get index entry of icursor.
    */
   unsigned int GetIndiceEntry(unsigned int icursor);
 
   /**
-   * JB La valeur precedente. Dans le voisinage, ce n'est pas forcement un parent.
+   * The previous value. In the neighborhood, it does not have to be a parent.
    */
   unsigned int GetIndicePreviousEntry(unsigned int icursor);
 
   /**
-   * JB
+   * Index central cursor
    */
   unsigned int IndiceCentralCursor;
 
-  // Number of cursors in supercursor
+  /*
+   * Number of cursors in supercursor.
+   */
   unsigned int NumberOfCursors;
 
-  // Super cursor traversal table to go retrieve the parent index for each cursor
-  // of the child node. There are f^d * NumberOfCursors entries in the table.
+  /*
+   * Super cursor traversal table to go retrieve the parent index for each cursor
+   * of the child node. There are f^d * NumberOfCursors entries in the table.
+   */
   const unsigned int* ChildCursorToParentCursorTable;
 
-  // Super cursor traversal table to go retrieve the child index for each cursor
-  // of the child node. There are f^d * NumberOfCursors entries in the table.
+  /*
+   * Super cursor traversal table to go retrieve the child index for each cursor
+   * of the child node. There are f^d * NumberOfCursors entries in the table.
+   */
   const unsigned int* ChildCursorToChildTable;
 
 private:

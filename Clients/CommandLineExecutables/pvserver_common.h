@@ -14,7 +14,7 @@
 #include "vtkSMProxyManager.h"
 #include "vtkSmartPointer.h"
 
-#ifdef PARAVIEW_USE_PYTHON
+#if PARAVIEW_USE_PYTHON
 extern "C"
 {
   void vtkPVInitializePythonModules();
@@ -25,9 +25,11 @@ extern "C"
 
 static int RealMain(int argc, char* argv[], vtkProcessModule::ProcessTypes type)
 {
+  vtkInitializationHelper::SetApplicationName("ParaViewServer");
+
   auto cliApp = vtk::TakeSmartPointer(vtkCLIOptions::New());
   cliApp->SetAllowExtras(false);
-  cliApp->SetStopOnUnrecognizedArgument(false);
+  cliApp->SetStopOnUnrecognizedArgument(true);
   switch (type)
   {
     case vtkProcessModule::PROCESS_DATA_SERVER:
@@ -79,7 +81,7 @@ static int RealMain(int argc, char* argv[], vtkProcessModule::ProcessTypes type)
 
   auto config = vtkRemotingCoreConfiguration::GetInstance();
 
-#ifdef PARAVIEW_USE_PYTHON
+#if PARAVIEW_USE_PYTHON
   // register callback to initialize modules statically. The callback is
   // empty when BUILD_SHARED_LIBS is ON.
   vtkPVInitializePythonModules();

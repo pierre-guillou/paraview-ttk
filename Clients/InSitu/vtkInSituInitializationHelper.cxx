@@ -7,6 +7,7 @@
 #include "vtkCallbackCommand.h"
 #if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
 #include "vtkConduitSource.h"
+#include <catalyst_conduit.hpp>
 #endif
 #include "vtkDataArrayAccessor.h"
 #include "vtkFieldData.h"
@@ -24,6 +25,7 @@
 #include "vtkSMIntVectorProperty.h"
 #include "vtkSMParaViewPipelineController.h"
 #include "vtkSMProxyManager.h"
+#include "vtkSMProxyProperty.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSmartPointer.h"
@@ -36,11 +38,7 @@
 #include <set>
 #include <string>
 
-#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
-#include <catalyst_conduit.hpp>
-#endif
-
-#if VTK_MODULE_ENABLE_ParaView_PythonCatalyst
+#if VTK_MODULE_ENABLE_ParaView_PythonInitializer
 extern "C"
 {
   void vtkPVInitializePythonModules();
@@ -64,6 +62,7 @@ public:
     bool Initialized;
     bool InitializationFailed;
     bool ExecuteFailed;
+    bool ResultsFailed;
   };
 
   vtkSmartPointer<vtkCPCxxHelper> CPCxxHelper;
@@ -73,10 +72,16 @@ public:
   std::map<std::string, vtkSmartPointer<vtkSMSourceProxy>> Producers;
   std::vector<PipelineInfo> Pipelines;
   std::map<vtkSMProxy*, std::string> SteerableProxies;
+  std::map<vtkSMProxy*, std::string> SteerableExtracts;
 
   bool InExecutePipelines = false;
+  bool InResultsPipelines = false;
   int TimeStep = 0;
   double Time = 0.0;
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+  // pointer arguments of the current catalyst call
+  conduit_node* catalyst_params = nullptr;
+#endif
 };
 
 template <typename PropertyType>
@@ -174,7 +179,7 @@ void vtkInSituInitializationHelper::Initialize(vtkTypeUInt64 comm)
   // deprecate Legacy Catalyst API.
   internals.CPCxxHelper.TakeReference(vtkCPCxxHelper::New());
 
-#if VTK_MODULE_ENABLE_ParaView_PythonCatalyst
+#if VTK_MODULE_ENABLE_ParaView_PythonInitializer
   // register static Python modules built, if any.
   vtkPVInitializePythonModules();
 #endif
@@ -247,13 +252,14 @@ vtkInSituPipeline* vtkInSituInitializationHelper::AddPipeline(
 #else
       char splitChar = ':';
 #endif
+      std::string fileName = vtksys::SystemTools::GetFilenameName(path);
       std::vector<std::string> paths = vtksys::SystemTools::SplitString(pythonPath, splitChar);
       for (auto& p : paths)
       {
 #if defined(_WIN32) && !defined(__MINGW32__)
-        std::string testPath = p + "\\" + path;
+        std::string testPath = p + "\\" + fileName;
 #else
-        std::string testPath = p + "/" + path;
+        std::string testPath = p + "/" + fileName;
 #endif
         if (vtkPSystemTools::FileExists(testPath.c_str()))
         {
@@ -283,7 +289,8 @@ void vtkInSituInitializationHelper::AddPipeline(vtkInSituPipeline* pipeline)
   if (pipeline)
   {
     auto& internals = (*vtkInSituInitializationHelper::Internals);
-    internals.Pipelines.push_back(vtkInternals::PipelineInfo{ pipeline, false, false, false });
+    internals.Pipelines.push_back(
+      vtkInternals::PipelineInfo{ pipeline, false, false, false, false });
   }
 }
 
@@ -375,13 +382,64 @@ void vtkInSituInitializationHelper::MarkProducerModified(vtkSMSourceProxy* produ
 }
 
 //----------------------------------------------------------------------------
-bool vtkInSituInitializationHelper::ExecutePipelines(
+bool vtkInSituInitializationHelper::ExecutePipelines(const conduit_node* params)
+{
 #if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
-  int timestep, double time, const conduit_node* pipelines,
-  const std::vector<std::string>& parameters)
+
+  auto& internals = (*vtkInSituInitializationHelper::Internals);
+  // store a pointer to the catalyst_execute parameters. This will be accessible from python.
+  internals.catalyst_params = const_cast<conduit_node*>(params);
+
+  const conduit_cpp::Node& cpp_params = conduit_cpp::cpp_node(const_cast<conduit_node*>(params));
+  const auto& root = cpp_params["catalyst"];
+
+  const int timestep = root.has_path("state/timestep")
+    ? root["state/timestep"].to_int64()
+    : (root.has_path("state/cycle") ? root["state/cycle"].to_int64() : 0);
+  const double time = root.has_path("state/time") ? root["state/time"].to_float64() : 0;
+
+  std::vector<std::string> pipelines;
+  if (root.has_path("state/pipelines"))
+  {
+    const auto state_pipelines = root["state/pipelines"];
+    const conduit_index_t nchildren = state_pipelines.number_of_children();
+    for (conduit_index_t i = 0; i < nchildren; ++i)
+    {
+      pipelines.push_back(state_pipelines.child(i).as_string());
+    }
+  }
+  else
+  {
+    for (auto& item : internals.Pipelines)
+    {
+      if (item.Pipeline->GetName())
+      {
+        pipelines.push_back(item.Pipeline->GetName());
+      }
+    }
+  }
+
+  std::vector<std::string> parameters;
+  if (root.has_path("state/parameters"))
+  {
+    const auto state_parameters = root["state/parameters"];
+    const conduit_index_t nchildren = state_parameters.number_of_children();
+    for (conduit_index_t i = 0; i < nchildren; ++i)
+    {
+      parameters.push_back(state_parameters.child(i).as_string());
+    }
+  }
+
+  return vtkInSituInitializationHelper::ExecutePipelines(timestep, time, pipelines, parameters);
 #else
-  int timestep, double time, const conduit_node*, const std::vector<std::string>& parameters)
+  vtkLogF(ERROR, "ParaView is compiled without Conduit support");
+  (void)(params);
+  return false;
 #endif
+}
+
+bool vtkInSituInitializationHelper::ExecutePipelines(int timestep, double time,
+  const std::vector<std::string>& pipelines, const std::vector<std::string>& parameters)
 {
   if (vtkInSituInitializationHelper::Internals == nullptr)
   {
@@ -404,71 +462,104 @@ bool vtkInSituInitializationHelper::ExecutePipelines(
 
   UpdateSteerableProxies();
 
-  // If there is a pipelines node, it gives up the list of pipelines
-  // to execute. Create a set from the pipelines to be used when
-  // executing them.
-  std::set<std::string> to_execute;
-#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
-  if (pipelines)
+  std::set<std::string> toExecute;
+  for (auto& p : pipelines)
   {
-    const conduit_cpp::Node cpp_pipelines =
-      conduit_cpp::cpp_node(const_cast<conduit_node*>(pipelines));
-
-    const conduit_index_t nchildren = cpp_pipelines.number_of_children();
-    for (conduit_index_t i = 0; i < nchildren; ++i)
-    {
-      try
-      {
-        to_execute.insert(cpp_pipelines.child(i).as_string());
-      }
-      catch (conduit_cpp::Error&)
-      {
-      }
-    }
+    toExecute.insert(p);
   }
-  else
-  {
-    // If there is no pipelines node, insert all pipelines into
-    // the set of pipelines to execute.
-    for (auto& item : internals.Pipelines)
-    {
-      to_execute.insert(item.Pipeline->GetName());
-    }
-  }
-#endif
 
   for (auto& item : internals.Pipelines)
   {
+    if (item.Pipeline->GetName() && toExecute.find(item.Pipeline->GetName()) == toExecute.end())
+    {
+      continue;
+    }
+
     if (!item.Initialized)
     {
       item.InitializationFailed = !item.Pipeline->Initialize();
-
       item.Initialized = true;
     }
 
     if (!item.InitializationFailed && !item.ExecuteFailed)
     {
-#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
-      // Check the to_execute set to see if the pipeline is to be executed.
-      if (item.Pipeline->GetName() && to_execute.find(item.Pipeline->GetName()) != to_execute.end())
-#endif
+      // set the execute parameters for this pipeline
+      auto pipeline = vtkInSituPipelinePython::SafeDownCast(item.Pipeline);
+      if (pipeline)
       {
-        // set the execute parameters for this pipeline
-        auto pipeline = vtkInSituPipelinePython::SafeDownCast(item.Pipeline);
-        if (pipeline)
-        {
-          pipeline->SetParameters(parameters);
-        }
-        // If `Initialize` failed, don't call `Execute` on the Pipeline.
-        // If Execute fails even once, we no longer call Execute on this pipeline
-        // in subsequent calls to `ExecutePipelines`.
-        item.ExecuteFailed = !item.Pipeline->Execute(timestep, time);
+        pipeline->SetParameters(parameters);
       }
+      // If `Initialize` failed, don't call `Execute` on the Pipeline.
+      // If Execute fails even once, we no longer call Execute on this pipeline
+      // in subsequent calls to `ExecutePipelines`.
+      item.ExecuteFailed = !item.Pipeline->Execute(timestep, time);
     }
   }
 
   internals.InExecutePipelines = false;
   return true;
+}
+
+bool vtkInSituInitializationHelper::GetResultsFromPipelines(conduit_node* catalyst_params)
+{
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+  auto& internals = (*vtkInSituInitializationHelper::Internals);
+  if (internals.InExecutePipelines)
+  {
+    vtkLogF(ERROR, "Calling ExecutePipelines during GetResultsFromPipelines is not supported!");
+    return false;
+  }
+
+  if (internals.InResultsPipelines)
+  {
+    vtkLogF(ERROR, "Recursive call to 'GetResultsFromPipelines' not supported!");
+    return false;
+  }
+
+  internals.InResultsPipelines = true;
+
+  // store a pointer to the catalyst_results parameters. This will be accessible from python.
+  internals.catalyst_params = catalyst_params;
+
+  // By default we use the time & timestep information from the previous catalyst_execute run.
+  // However, a user may override it using the "catalyst/state/time" and "catalyst/state/timestep"
+  // paths
+  const conduit_cpp::Node& cpp_params = conduit_cpp::cpp_node(catalyst_params);
+  if (cpp_params.has_path("catalyst"))
+  {
+    const auto& root = cpp_params["catalyst"];
+
+    if (root.has_path("state/timestep"))
+    {
+      internals.TimeStep = root["state/timestep"].to_int64();
+    }
+    else if (root.has_path("state/cycle"))
+    {
+      internals.TimeStep = root["state/cycle"].to_int64();
+    }
+
+    if (root.has_path("state/time"))
+    {
+      internals.Time = root["state/time"].to_float64();
+    }
+  }
+
+  for (auto& item : internals.Pipelines)
+  {
+    if (!item.InitializationFailed && !item.ExecuteFailed && !item.ResultsFailed)
+    {
+      item.ResultsFailed = !item.Pipeline->Results();
+    }
+  }
+
+  internals.InResultsPipelines = false;
+
+  return true;
+#else
+  vtkLogF(ERROR, "ParaView is compiled without Conduit support");
+  (void)(catalyst_params);
+  return false;
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -503,18 +594,19 @@ void vtkInSituInitializationHelper::UpdateSteerableProxies()
 
   for (auto& steerable_proxies : internals.SteerableProxies)
   {
-    auto hints = steerable_proxies.first->GetHints();
+    vtkPVXMLElement* hints = steerable_proxies.first->GetHints();
     if (!hints)
     {
       continue;
     }
-    auto mesh_hint = hints->FindNestedElementByName("CatalystInitializePropertiesWithMesh");
+    vtkPVXMLElement* mesh_hint =
+      hints->FindNestedElementByName("CatalystInitializePropertiesWithMesh");
     if (!mesh_hint)
     {
       continue;
     }
 
-    auto mesh_name = mesh_hint->GetAttribute("mesh");
+    const char* mesh_name = mesh_hint->GetAttribute("mesh");
     if (!mesh_name)
     {
       vtkLog(ERROR, "`CatalystInitializePropertiesWithMesh` missing 'mesh' attribute.");
@@ -659,9 +751,10 @@ int vtkInSituInitializationHelper::GetTimeStep()
   }
 
   auto& internals = (*vtkInSituInitializationHelper::Internals);
-  if (!internals.InExecutePipelines)
+  if (!internals.InExecutePipelines && !internals.InResultsPipelines)
   {
-    vtkLogF(ERROR, "'GetTimeStep' cannot be called outside 'ExecutePipelines'.");
+    vtkLogF(ERROR,
+      "'GetTimeStep' cannot be called outside 'ExecutePipelines' or 'GetResultsFromPipelines'.");
     return 0;
   }
 
@@ -678,13 +771,40 @@ double vtkInSituInitializationHelper::GetTime()
   }
 
   auto& internals = (*vtkInSituInitializationHelper::Internals);
-  if (!internals.InExecutePipelines)
+  if (!internals.InExecutePipelines && !internals.InResultsPipelines)
   {
-    vtkLogF(ERROR, "'GetTime' cannot be called outside 'ExecutePipelines'.");
+    vtkLogF(
+      ERROR, "'GetTime' cannot be called outside 'ExecutePipelines' or 'GetResultsFromPipelines'.");
     return 0;
   }
 
   return internals.Time;
+}
+
+//----------------------------------------------------------------------------
+conduit_node* vtkInSituInitializationHelper::GetCatalystParameters()
+{
+#if VTK_MODULE_ENABLE_VTK_IOCatalystConduit
+  if (vtkInSituInitializationHelper::Internals == nullptr)
+  {
+    vtkLogF(ERROR, "'GetCatalystParameters' cannot be called before 'Initialize'.");
+    return nullptr;
+  }
+
+  auto& internals = (*vtkInSituInitializationHelper::Internals);
+  if (!internals.InExecutePipelines && !internals.InResultsPipelines)
+  {
+    vtkLogF(ERROR,
+      "'GetCatalystParameters' cannot be called outside 'ExecutePipelines' or "
+      "'GetCatalystParameters'.");
+    return nullptr;
+  }
+
+  return internals.catalyst_params;
+#else
+  vtkLogF(ERROR, "ParaView is compiled without Conduit support");
+  return nullptr;
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -710,10 +830,23 @@ void vtkInSituInitializationHelper::GetSteerableProxies(
   if (vtkInSituInitializationHelper::Internals != nullptr)
   {
     auto internals = vtkInSituInitializationHelper::Internals;
-    proxies.reserve(proxies.size() + internals->SteerableProxies.size());
+    proxies.reserve(
+      proxies.size() + internals->SteerableProxies.size() + internals->SteerableExtracts.size());
     for (auto& proxy : internals->SteerableProxies)
     {
       proxies.emplace_back(proxy.second, proxy.first);
+    }
+
+    for (auto& proxy : internals->SteerableExtracts)
+    {
+      // The dataset to be serialized is the input of the extract
+      vtkSMProxy* inputProxy =
+        vtkSMProxyProperty::SafeDownCast(proxy.first->GetProperty("Producer"))->GetProxy(0);
+
+      if (inputProxy)
+      {
+        proxies.emplace_back(proxy.second, inputProxy);
+      }
     }
   }
 }
@@ -731,10 +864,21 @@ void vtkInSituInitializationHelper::UpdateSteerableParameters(
   {
     auto internals = vtkInSituInitializationHelper::Internals;
 
-    auto it = internals->SteerableProxies.lower_bound(steerableProxy);
-    if (it == internals->SteerableProxies.end() || it->first != steerableProxy)
+    if (strcmp(steerableProxy->GetXMLName(), "SteeringExtractor") == 0)
     {
-      internals->SteerableProxies.emplace_hint(it, steerableProxy, steerableSourceName);
+      auto it = internals->SteerableExtracts.lower_bound(steerableProxy);
+      if (it == internals->SteerableExtracts.end() || it->first != steerableProxy)
+      {
+        internals->SteerableExtracts.emplace_hint(it, steerableProxy, steerableSourceName);
+      }
+    }
+    else
+    {
+      auto it = internals->SteerableProxies.lower_bound(steerableProxy);
+      if (it == internals->SteerableProxies.end() || it->first != steerableProxy)
+      {
+        internals->SteerableProxies.emplace_hint(it, steerableProxy, steerableSourceName);
+      }
     }
 
     UpdateSteerableProxies();

@@ -60,6 +60,9 @@ int vtkPVPlaneCutter::RequestData(
     double* normal = plane->GetNormal();
     if (plane->GetAxisAligned())
     {
+      // PARAVIEW_DEPRECATED_IN_5_13_0("Use vtkAxisAlignedCutter instead")
+      vtkWarningMacro("Axis-Aligned plane cut function usage in this filter is deprecated."
+        << "Please consider using the dedicated \"Axis-Aligned Slice\" filter instead.");
       int planeNormalAxis = 0;
       if (normal[1] > normal[0])
       {
@@ -69,7 +72,7 @@ int vtkPVPlaneCutter::RequestData(
       {
         planeNormalAxis = 2;
       }
-      this->HTGAxisAlignedPlaneCutter->SetPlanePosition(-plane->EvaluateFunction(0, 0, 0));
+      this->HTGAxisAlignedPlaneCutter->SetPlanePosition(-plane->FunctionValue(0, 0, 0));
       this->HTGAxisAlignedPlaneCutter->SetPlaneNormalAxis(planeNormalAxis);
       this->HTGAxisAlignedPlaneCutter->SetInputData(inHyperTreeGrid);
       this->HTGAxisAlignedPlaneCutter->Update();
@@ -79,7 +82,7 @@ int vtkPVPlaneCutter::RequestData(
     else
     {
       this->HTGPlaneCutter->SetPlane(
-        normal[0], normal[1], normal[2], -plane->EvaluateFunction(0, 0, 0));
+        normal[0], normal[1], normal[2], -plane->FunctionValue(0, 0, 0));
       this->HTGPlaneCutter->SetDual(this->GetDual());
       this->HTGPlaneCutter->SetInputData(inHyperTreeGrid);
       this->HTGPlaneCutter->Update();
@@ -93,6 +96,9 @@ int vtkPVPlaneCutter::RequestData(
     double* origin = plane->GetOrigin();
     if (plane->GetAxisAligned())
     {
+      // PARAVIEW_DEPRECATED_IN_5_13_0("Use vtkAxisAlignedCutter instead")
+      vtkWarningMacro("Axis-Aligned plane cut function usage in this filter is deprecated."
+        << "Please consider using the dedicated \"Axis-Aligned Slice\" filter instead.");
       int planeNormalAxis = vtkAMRSliceFilter::X_NORMAL;
       if (normal[1] > normal[0])
       {
@@ -190,6 +196,7 @@ int vtkPVPlaneCutter::RequestDataObject(
   {
     if (plane->GetAxisAligned())
     {
+      // PARAVIEW_DEPRECATED_IN_5_13_0("Use vtkAxisAlignedCutter instead")
       outputType = VTK_HYPER_TREE_GRID;
     }
     else
@@ -201,6 +208,7 @@ int vtkPVPlaneCutter::RequestDataObject(
   {
     if (plane->GetAxisAligned())
     {
+      // PARAVIEW_DEPRECATED_IN_5_13_0("Use vtkAxisAlignedCutter instead")
       outputType = VTK_OVERLAPPING_AMR;
     }
     else

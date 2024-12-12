@@ -8,6 +8,10 @@ set(VTK_ABI_NAMESPACE_NAME
   "<DEFAULT>"
   CACHE STRING "Inline namespace name for mangling VTK symbols.")
 mark_as_advanced(VTK_ABI_NAMESPACE_NAME)
+set(VTK_ABI_NAMESPACE_ATTRIBUTES
+  "<DEFAULT>"
+  CACHE STRING "Inline namespace attributes for mangling VTK symbols.")
+mark_as_advanced(VTK_ABI_NAMESPACE_ATTRIBUTES)
 
 if (VTK_ABI_NAMESPACE_NAME STREQUAL "<DEFAULT>")
   # The default is to not have an ABI namespace.
@@ -15,16 +19,39 @@ if (VTK_ABI_NAMESPACE_NAME STREQUAL "<DEFAULT>")
   set(VTK_ABI_NAMESPACE_NAME "")
 endif ()
 set_property(GLOBAL PROPERTY _vtk_abi_namespace_name "${VTK_ABI_NAMESPACE_NAME}")
+
+if (VTK_ABI_NAMESPACE_ATTRIBUTES STREQUAL "<DEFAULT>")
+  set(VTK_ABI_NAMESPACE_ATTRIBUTES "")
+endif()
+set_property(GLOBAL PROPERTY _vtk_abi_namespace_attributes "${VTK_ABI_NAMESPACE_ATTRIBUTES}")
+
 if (VTK_ABI_NAMESPACE_NAME STREQUAL "")
   set(VTK_HAS_ABI_NAMESPACE OFF)
   set(VTK_ABI_NAMESPACE_BEGIN "")
   set(VTK_ABI_NAMESPACE_END "")
 else ()
   message(STATUS "VTK ABI namespace: ${VTK_ABI_NAMESPACE_NAME}")
+  set(_vtk_abi_namespace_name_regex "^[a-zA-Z0-9_]+$")
+  if (NOT VTK_ABI_NAMESPACE_NAME MATCHES "${_vtk_abi_namespace_name_regex}")
+    message(FATAL_ERROR
+      "The configured VTK_ABI_NAMESPACE_NAME='${VTK_ABI_NAMESPACE_NAME}' is "
+      "not supported, it must match the regular expression "
+      "'${_vtk_abi_namespace_name_regex}'.  To add things like attributes, "
+      "configure VTK with -DVTK_ABI_NAMESPACE_ATTRIBUTES='"
+      "__attribute__((visibility(\"hidden\")))'.")
+  endif()
+  unset(_vtk_abi_namespace_name_regex)
   set(VTK_HAS_ABI_NAMESPACE ON)
-  set(VTK_ABI_NAMESPACE_BEGIN "inline namespace ${VTK_ABI_NAMESPACE_NAME} {")
+  set(VTK_ABI_NAMESPACE_BEGIN "inline namespace ${VTK_ABI_NAMESPACE_ATTRIBUTES} ${VTK_ABI_NAMESPACE_NAME} {")
   set(VTK_ABI_NAMESPACE_END "}")
 endif ()
+
+if (VTK_ABI_NAMESPACE_ATTRIBUTES STREQUAL "")
+  set(VTK_HAS_ABI_NAMESPACE_ATTRIBUTES OFF)
+else ()
+  set(VTK_HAS_ABI_NAMESPACE_ATTRIBUTES ON)
+endif ()
+
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtkABINamespace.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkABINamespace.h"
@@ -117,6 +144,7 @@ option(VTK_DISPATCH_TYPED_ARRAYS "Include vtkTypedDataArray subclasses (e.g. old
 option(VTK_DISPATCH_AFFINE_ARRAYS "Include implicit vtkDataArray subclasses based on an affine function backend in dispatcher" OFF)
 option(VTK_DISPATCH_CONSTANT_ARRAYS "Include implicit vtkDataArray subclasses based on a constant backend in dispatcher" OFF)
 option(VTK_DISPATCH_STD_FUNCTION_ARRAYS "Include implicit vtkDataArray subclasses based on std::function in dispatcher" OFF)
+option(VTK_DISPATCH_STRUCTURED_POINT_ARRAYS "Include implicit vtkDataArray subclasses based on structured point backend dispatcher" ON)
 
 option(VTK_WARN_ON_DISPATCH_FAILURE "If enabled, vtkArrayDispatch will print a warning when a dispatch fails." OFF)
 
@@ -128,6 +156,7 @@ mark_as_advanced(
   VTK_DISPATCH_AFFINE_ARRAYS
   VTK_DISPATCH_CONSTANT_ARRAYS
   VTK_DISPATCH_STD_FUNCTION_ARRAYS
+  VTK_DISPATCH_STRUCTURED_POINT_ARRAYS
 
   VTK_WARN_ON_DISPATCH_FAILURE)
 
@@ -149,8 +178,9 @@ configure_file(
 # create a list of source files for explicit array type instantiations
 set(instantiation_sources)
 
-# steal the list of array types from vtkCreateArrayDispatchArrayList.cmake
-foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtkArrayDispatch_all_types)
+include(vtkTypeLists)
+
+foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtk_numeric_types)
   # only instantiate fundamental types, not typedefs
   if (INSTANTIATION_VALUE_TYPE STREQUAL "vtkIdType")
     continue()
@@ -169,6 +199,8 @@ foreach (INSTANTIATION_VALUE_TYPE IN LISTS vtkArrayDispatch_all_types)
     vtkIndexedImplicitBackendInstantiate
     vtkSOADataArrayTemplateInstantiate
     vtkStdFunctionArrayInstantiate
+    vtkStructuredPointBackendInstantiate
+    vtkStructuredPointArrayInstantiate
     vtkTypedDataArrayInstantiate)
   if (VTK_BUILD_SCALED_SOA_ARRAYS)
     list(APPEND _list "vtkScaledSOADataArrayTemplateInstantiate")
@@ -220,6 +252,7 @@ set(classes
   vtkDataArraySelection
   vtkDebugLeaks
   vtkDebugLeaksManager
+  vtkDeserializer
   vtkDoubleArray
   vtkDynamicLoader
   vtkEventForwarderCommand
@@ -263,9 +296,11 @@ set(classes
   vtkLongLongArray
   vtkLookupTable
   vtkMath
+  vtkMarshalContext
   vtkMersenneTwister
   vtkMinimalStandardRandomSequence
   vtkMultiThreader
+  vtkNumberToString
   vtkOStrStreamWrapper
   vtkOStreamWrapper
   vtkObject
@@ -282,6 +317,7 @@ set(classes
   vtkRandomPool
   vtkRandomSequence
   vtkReferenceCount
+  vtkSerializer
   vtkScalarsToColors
   vtkShortArray
   vtkSignedCharArray
@@ -305,10 +341,7 @@ set(classes
   vtkWeakPointerBase
   vtkWeakReference
   vtkWindow
-  vtkXMLFileOutputWindow
-
-  # These classes are deprecated.
-  vtkCriticalSection)
+  vtkXMLFileOutputWindow)
 
 set(template_classes
   vtkAOSDataArrayTemplate
@@ -328,12 +361,38 @@ set(nowrap_template_classes
   vtkCompositeImplicitBackend
   vtkImplicitArray
   vtkIndexedImplicitBackend
+  vtkStructuredPointBackend
   vtkTypeList)
+
+# Hand written (de)serialization routines
+set(serialization_helper_sources)
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND serialization_helper_sources
+    vtkDataArraySerDesHelper.cxx
+    vtkStringArraySerDesHelper.cxx)
+endif ()
 
 set(sources
   vtkArrayIteratorTemplateInstantiate.cxx
   vtkGenericDataArray.cxx
   vtkValueFromString.cxx
+
+  vtkDataArray_CopyComponent.cxx
+  vtkDataArray_DeepCopy.cxx
+  vtkDataArray_FiniteScalarRange.cxx
+  vtkDataArray_FiniteVectorRange.cxx
+  vtkDataArray_GetTuples_ids.cxx
+  vtkDataArray_GetTuples_range.cxx
+  vtkDataArray_InsertTuples_array_idlist.cxx
+  vtkDataArray_InsertTuples_array_idlist_range.cxx
+  vtkDataArray_InsertTuples_array_range.cxx
+  vtkDataArray_InterpolateTuple_time.cxx
+  vtkDataArray_InterpolateTuple_weights.cxx
+  vtkDataArray_ScalarRange.cxx
+  vtkDataArray_SetTuple_array.cxx
+  vtkDataArray_VectorRange.cxx
+
+  ${serialization_helper_sources}
   ${instantiation_sources}
   ${vtk_smp_sources})
 
@@ -350,6 +409,7 @@ set(headers
   vtkArrayIteratorIncludes.h
   vtkAssume.h
   vtkAutoInit.h
+  vtkBatch.h
   vtkBuffer.h
   vtkCompiler.h
   vtkDataArrayIteratorMacro.h
@@ -477,6 +537,12 @@ foreach (smp_backend IN LISTS smp_backends)
   endif ()
 endforeach ()
 
+if (VTK_BUILD_VERSION LESS "20000101")
+  set(VTK_EPOCH_VERSION "${VTK_BUILD_VERSION}")
+else ()
+  set(VTK_EPOCH_VERSION "20230101")
+endif ()
+
 set(nowrap_headers
   vtkAffineArray.h
   vtkAffineImplicitBackend.h
@@ -489,11 +555,13 @@ set(nowrap_headers
   vtkDataArrayTupleRange_Generic.h
   vtkDataArrayValueRange_AOS.h
   vtkDataArrayValueRange_Generic.h
+  vtkHashCombiner.h
   vtkImplicitArrayTraits.h
   vtkIndexedArray.h
   vtkInherits.h
   vtkMathPrivate.hxx
   vtkStdFunctionArray.h
+  vtkStructuredPointArray.h
   vtkTypeName.h
   ${vtk_smp_nowrap_headers}
   "${CMAKE_CURRENT_BINARY_DIR}/vtkVTK_DISPATCH_IMPLICIT_ARRAYS.h"
@@ -510,7 +578,8 @@ set(generated_headers
   vtkSMP.h
   vtkThreads.h
   vtkVersionFull.h
-  vtkVersionMacros.h)
+  vtkVersionMacros.h
+  vtkVersionQuick.h)
 foreach (generated_header IN LISTS generated_headers)
   configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/${generated_header}.in"
@@ -521,6 +590,8 @@ foreach (generated_header IN LISTS generated_headers)
 endforeach ()
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/vtkTypeArrays.cmake")
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/vtkImplicitArrays.cmake")
 
 include(CheckCXXSourceCompiles)
 
@@ -624,8 +695,7 @@ vtk_module_add_module(VTK::CommonCore
   NOWRAP_HEADERS    ${nowrap_headers}
   PRIVATE_HEADERS   ${private_headers}
   PRIVATE_TEMPLATES ${private_templates})
-vtk_add_test_mangling(VTK::CommonCore
-  EXEMPTIONS GetVTKVersion)
+vtk_add_test_mangling(VTK::CommonCore)
 if (vtk_include_dirs)
   vtk_module_include(VTK::CommonCore
     PRIVATE

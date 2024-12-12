@@ -34,6 +34,7 @@
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkSmartPointer.h"        // For vtkSmartPointer
 #include "vtkWindow.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkFloatArray;
@@ -59,6 +60,7 @@ class vtkUnsignedCharArray;
 #define VTK_STEREO_SPLITVIEWPORT_HORIZONTAL 9
 #define VTK_STEREO_FAKE 10
 #define VTK_STEREO_EMULATE 11
+#define VTK_STEREO_ZSPACE_INSPIRE 12
 
 #define VTK_CURSOR_DEFAULT 0
 #define VTK_CURSOR_ARROW 1
@@ -73,7 +75,7 @@ class vtkUnsignedCharArray;
 #define VTK_CURSOR_CROSSHAIR 10
 #define VTK_CURSOR_CUSTOM 11
 
-class VTKRENDERINGCORE_EXPORT vtkRenderWindow : public vtkWindow
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkRenderWindow : public vtkWindow
 {
 public:
   vtkTypeMacro(vtkRenderWindow, vtkWindow);
@@ -710,10 +712,77 @@ public:
   vtkBooleanMacro(UseSRGBColorSpace, bool);
   ///@}
 
+  enum
+  {
+    PhysicalToWorldMatrixModified = vtkCommand::UserEvent + 200
+  };
+
+  ///@{
   /**
-   * Get physical to world transform matrix. Some subclasses may define a
-   * Physical coordinate system such as in VR. This method provides access
-   * to the matrix mapping that space to world coordinates.
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * View direction is the -Z axis of the physical coordinate system
+   * in world coordinate system.
+   * \sa SetPhysicalViewUp, \sa SetPhysicalTranslation,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
+   */
+  virtual void SetPhysicalViewDirection(double, double, double);
+  virtual void SetPhysicalViewDirection(double[3]);
+  vtkGetVector3Macro(PhysicalViewDirection, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * View up is the +Y axis of the physical coordinate system
+   * in world coordinate system.
+   * \sa SetPhysicalViewDirection, \sa SetPhysicalTranslation,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
+   */
+  virtual void SetPhysicalViewUp(double, double, double);
+  virtual void SetPhysicalViewUp(double[3]);
+  vtkGetVector3Macro(PhysicalViewUp, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * Position of the physical coordinate system origin
+   * in world coordinates.
+   * \sa SetPhysicalViewDirection, \sa SetPhysicalViewUp,
+   * \sa SetPhysicalScale, \sa SetPhysicalToWorldMatrix
+   */
+  virtual void SetPhysicalTranslation(double, double, double);
+  virtual void SetPhysicalTranslation(double[3]);
+  vtkGetVector3Macro(PhysicalTranslation, double);
+  ///@}
+
+  ///@{
+  /**
+   * Set/get physical coordinate system in world coordinate system.
+   *
+   * Ratio of distance in world coordinate and physical and system
+   * (PhysicalScale = distance_World / distance_Physical).
+   * Example: if world coordinate system is in mm then
+   * PhysicalScale = 1000.0 makes objects appear in real size.
+   * PhysicalScale = 100.0 makes objects appear 10x larger than real size.
+   */
+  virtual void SetPhysicalScale(double);
+  vtkGetMacro(PhysicalScale, double);
+  ///@}
+
+  /**
+   * Set physical to world transform matrix. Members calculated and set from the matrix:
+   * \sa PhysicalViewDirection, \sa PhysicalViewUp, \sa PhysicalTranslation, \sa PhysicalScale
+   * The x axis scale is used for \sa PhysicalScale
+   */
+  virtual void SetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
+
+  /**
+   * Get physical to world transform matrix. Members used to calculate the matrix:
+   * \sa PhysicalViewDirection, \sa PhysicalViewUp, \sa PhysicalTranslation, \sa PhysicalScale
    */
   virtual void GetPhysicalToWorldMatrix(vtkMatrix4x4* matrix);
 
@@ -725,6 +794,18 @@ public:
    */
   virtual bool GetDeviceToWorldMatrixForDevice(
     vtkEventDataDevice device, vtkMatrix4x4* deviceToWorldMatrix);
+
+  ///@{
+  /**
+   * Set/Get if we want this window to use a translucent surface with alpha channel support.
+   * Note that some implementations do not support this.
+   * Must be set before window initialization.
+   * Default is false.
+   */
+  vtkGetMacro(EnableTranslucentSurface, bool);
+  vtkSetMacro(EnableTranslucentSurface, bool);
+  vtkBooleanMacro(EnableTranslucentSurface, bool);
+  ///@}
 
 protected:
   vtkRenderWindow();
@@ -771,6 +852,17 @@ protected:
   double AbortCheckTime;
 
   vtkRenderWindow* SharedRenderWindow;
+
+  // -Z axis of the Physical to World matrix
+  double PhysicalViewDirection[3] = { 0.0, 0.0, -1.0 };
+  // Y axis of the Physical to World matrix
+  double PhysicalViewUp[3] = { 0.0, 1.0, 0.0 };
+  // Inverse of the translation component of the Physical to World matrix, in mm
+  double PhysicalTranslation[3] = { 0.0, 0.0, 0.0 };
+  // Scale of the Physical to World matrix
+  double PhysicalScale = 1.0;
+
+  bool EnableTranslucentSurface = false;
 
 private:
   vtkRenderWindow(const vtkRenderWindow&) = delete;

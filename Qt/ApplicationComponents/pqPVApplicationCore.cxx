@@ -12,14 +12,12 @@
 #include "pqCoreConfiguration.h"
 #include "pqCoreUtilities.h"
 #include "pqItemViewSearchWidget.h"
+#include "pqLiveSourceManager.h"
 #include "pqLoadDataReaction.h"
 #include "pqPresetGroupsManager.h"
-#include "pqPropertiesPanel.h"
-#include "pqQuickLaunchDialog.h"
+#include "pqQuickLaunchDialogExtended.h"
 #include "pqSelectionManager.h"
-#include "pqSetName.h"
 #include "pqSpreadSheetViewModel.h"
-#include "vtkPVLogger.h"
 #include "vtkProcessModule.h"
 
 #if VTK_MODULE_ENABLE_ParaView_pqPython
@@ -32,6 +30,7 @@
 #include <QDebug>
 #include <QFileOpenEvent>
 #include <QList>
+#include <QPointer>
 
 //-----------------------------------------------------------------------------
 pqPVApplicationCore::pqPVApplicationCore(int& argc, char** argv, vtkCLIOptions* options,
@@ -44,28 +43,16 @@ pqPVApplicationCore::pqPVApplicationCore(int& argc, char** argv, vtkCLIOptions* 
 #endif
   this->AnimationManager = new pqAnimationManager(this);
   this->SelectionManager = new pqSelectionManager(this);
+  this->LiveSourceManager = nullptr;
 
   pqApplicationCore::instance()->registerManager("SELECTION_MANAGER", this->SelectionManager);
 
-  pqPresetGroupsManager* presetGroupManager = new pqPresetGroupsManager(this);
-  bool loadedFromSettings = presetGroupManager->loadGroupsFromSettings();
+  QPointer<pqPresetGroupsManager> presetGroupManager = new pqPresetGroupsManager(this);
+  const bool loadedFromSettings = presetGroupManager->loadGroupsFromSettings();
   // If the groups could not be loaded from the settings, use the default groups
   if (!loadedFromSettings)
   {
-    QString groupString;
-    QFile groupsFile(":pqWidgets/pqPresetGroups.json");
-
-    if (!groupsFile.open(QIODevice::ReadOnly))
-    {
-      qWarning() << "Could not load preset group list.";
-    }
-    else
-    {
-      groupString = groupsFile.readAll();
-    }
-    groupsFile.close();
-
-    presetGroupManager->loadGroups(groupString);
+    presetGroupManager->loadGroups(pqPresetGroupsManager::getPresetGroupsJson());
   }
   pqApplicationCore::instance()->registerManager("PRESET_GROUP_MANAGER", presetGroupManager);
 
@@ -86,6 +73,7 @@ pqPVApplicationCore::~pqPVApplicationCore()
 {
   delete this->AnimationManager;
   delete this->SelectionManager;
+  delete this->LiveSourceManager;
 #if VTK_MODULE_ENABLE_ParaView_pqPython
   delete this->PythonManager;
 #endif
@@ -106,8 +94,8 @@ void pqPVApplicationCore::quickLaunch()
   Q_EMIT this->aboutToShowQuickLaunch();
   if (!this->QuickLaunchMenus.empty())
   {
-    pqQuickLaunchDialog dialog(pqCoreUtilities::mainWidget());
-    Q_FOREACH (QWidget* menu, this->QuickLaunchMenus)
+    QList<QAction*> searchableActions;
+    for (QWidget* menu : this->QuickLaunchMenus)
     {
       if (menu)
       {
@@ -118,19 +106,19 @@ void pqPVApplicationCore::quickLaunch()
         //         actions() should be used instead of findChildren()
         if (menu->findChildren<QAction*>().empty())
         {
-          dialog.addActions(menu->actions());
+          searchableActions << menu->actions();
         }
         else
         {
-          dialog.addActions(menu->findChildren<QAction*>());
+          searchableActions << menu->findChildren<QAction*>();
         }
       }
     }
+
+    pqQuickLaunchDialogExtended dialog(pqCoreUtilities::mainWidget(), searchableActions);
+    QObject::connect(&dialog, &pqQuickLaunchDialogExtended::applyRequested, this,
+      &pqPVApplicationCore::triggerApply);
     dialog.exec();
-    if (dialog.quickApply())
-    {
-      this->applyPipeline();
-    }
   }
 }
 
@@ -181,8 +169,14 @@ pqPythonManager* pqPVApplicationCore::pythonManager() const
 #if VTK_MODULE_ENABLE_ParaView_pqPython
   return this->PythonManager;
 #else
-  return 0;
+  return nullptr;
 #endif
+}
+
+//-----------------------------------------------------------------------------
+pqLiveSourceManager* pqPVApplicationCore::liveSourceManager() const
+{
+  return this->LiveSourceManager;
 }
 
 //-----------------------------------------------------------------------------
@@ -248,4 +242,13 @@ void pqPVApplicationCore::loadStateFromPythonFile(
   (void)location;
   qCritical() << "Cannot load a python state file since ParaView was not built with Python.";
 #endif
+}
+
+//-----------------------------------------------------------------------------
+void pqPVApplicationCore::instantiateLiveSourceManager()
+{
+  if (!this->LiveSourceManager)
+  {
+    this->LiveSourceManager = new pqLiveSourceManager(this);
+  }
 }

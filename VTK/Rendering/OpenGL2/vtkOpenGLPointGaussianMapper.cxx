@@ -41,75 +41,11 @@
 
 #include "vtk_glew.h"
 
+#include "vtkOpenGLPointGaussianMapperHelper.h"
+
 #include <numeric>
 
 VTK_ABI_NAMESPACE_BEGIN
-class vtkOpenGLPointGaussianMapperHelper : public vtkOpenGLPolyDataMapper
-{
-public:
-  static vtkOpenGLPointGaussianMapperHelper* New();
-  vtkTypeMacro(vtkOpenGLPointGaussianMapperHelper, vtkOpenGLPolyDataMapper);
-
-  vtkPointGaussianMapper* Owner;
-
-  // set from parent
-  float* OpacityTable;  // the table
-  double OpacityScale;  // used for quick lookups
-  double OpacityOffset; // used for quick lookups
-  float* ScaleTable;    // the table
-  double ScaleScale;    // used for quick lookups
-  double ScaleOffset;   // used for quick lookups
-
-  vtkIdType FlatIndex;
-
-  bool UsingPoints;
-  double BoundScale;
-
-  // called by our Owner skips some stuff
-  void GaussianRender(vtkRenderer* ren, vtkActor* act);
-
-protected:
-  vtkOpenGLPointGaussianMapperHelper();
-  ~vtkOpenGLPointGaussianMapperHelper() override;
-
-  // Description:
-  // Create the basic shaders before replacement
-  void GetShaderTemplate(
-    std::map<vtkShader::Type, vtkShader*> shaders, vtkRenderer*, vtkActor*) override;
-
-  // Description:
-  // Perform string replacements on the shader templates
-  void ReplaceShaderColor(
-    std::map<vtkShader::Type, vtkShader*> shaders, vtkRenderer*, vtkActor*) override;
-  void ReplaceShaderPositionVC(
-    std::map<vtkShader::Type, vtkShader*> shaders, vtkRenderer*, vtkActor*) override;
-
-  // Description:
-  // Set the shader parameters related to the Camera
-  void SetCameraShaderParameters(vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act) override;
-
-  // Description:
-  // Set the shader parameters related to the actor/mapper
-  void SetMapperShaderParameters(vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act) override;
-
-  // Description:
-  // Does the VBO/IBO need to be rebuilt
-  bool GetNeedToRebuildBufferObjects(vtkRenderer* ren, vtkActor* act) override;
-
-  // Description:
-  // Update the VBO to contain point based values
-  void BuildBufferObjects(vtkRenderer* ren, vtkActor* act) override;
-
-  void RenderPieceDraw(vtkRenderer* ren, vtkActor* act) override;
-
-  // Description:
-  // Does the shader source need to be recomputed
-  bool GetNeedToRebuildShaders(vtkOpenGLHelper& cellBO, vtkRenderer* ren, vtkActor* act) override;
-
-private:
-  vtkOpenGLPointGaussianMapperHelper(const vtkOpenGLPointGaussianMapperHelper&) = delete;
-  void operator=(const vtkOpenGLPointGaussianMapperHelper&) = delete;
-};
 
 //------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkOpenGLPointGaussianMapperHelper);
@@ -127,6 +63,19 @@ vtkOpenGLPointGaussianMapperHelper::vtkOpenGLPointGaussianMapperHelper()
   this->ScaleScale = 1.0;
   this->OpacityOffset = 0.0;
   this->ScaleOffset = 0.0;
+}
+
+//------------------------------------------------------------------------------
+void vtkOpenGLPointGaussianMapperHelper::PrintSelf(ostream& os, vtkIndent indent)
+{
+  this->Superclass::PrintSelf(os, indent);
+  os << indent << "UsingPoints: " << (this->UsingPoints ? "true" : "false") << endl;
+  os << indent << "BoundScale: " << this->BoundScale << endl;
+  os << indent << "FlatIndex: " << this->FlatIndex << endl;
+  os << indent << "OpacityScale: " << this->OpacityScale << endl;
+  os << indent << "ScaleScale: " << this->ScaleScale << endl;
+  os << indent << "OpacityOffset: " << this->OpacityOffset << endl;
+  os << indent << "ScaleOffset: " << this->ScaleOffset << endl;
 }
 
 //------------------------------------------------------------------------------
@@ -161,6 +110,24 @@ void vtkOpenGLPointGaussianMapperHelper::ReplaceShaderPositionVC(
     vtkShaderProgram::Substitute(VSSource, "//VTK::Camera::Dec",
       "uniform mat4 VCDCMatrix;\n"
       "uniform mat4 MCVCMatrix;");
+
+    if (this->Owner->GetAnisotropic())
+    {
+      vtkShaderProgram::Substitute(VSSource, "//VTK::Covariance::Dec",
+        "in vec3 radiusMC;\n"
+        "in vec4 rotationMC;");
+
+      vtkShaderProgram::Substitute(VSSource, "//VTK::Covariance::Impl",
+        "mat3 cov = T * computeCov3D(radiusMC, rotationMC) * transpose(T);");
+    }
+    else
+    {
+      vtkShaderProgram::Substitute(VSSource, "//VTK::Covariance::Dec", "in float radiusMC;");
+
+      vtkShaderProgram::Substitute(VSSource, "//VTK::Covariance::Impl",
+        "float radius = scaleFactor * radiusMC;\n"
+        "mat3 cov = (radius * radius) * T * transpose(T);");
+    }
 
     shaders[vtkShader::Vertex]->SetSource(VSSource);
     shaders[vtkShader::Fragment]->SetSource(FSSource);
@@ -283,6 +250,7 @@ void vtkOpenGLPointGaussianMapperHelper::SetMapperShaderParameters(
   {
     cellBO.Program->SetUniformf("boundScale", this->BoundScale);
     cellBO.Program->SetUniformf("scaleFactor", this->Owner->GetScaleFactor());
+    cellBO.Program->SetUniform3f("lowpassMatrix", this->Owner->GetLowpassMatrix());
   }
   this->Superclass::SetMapperShaderParameters(cellBO, ren, actor);
 }
@@ -479,7 +447,15 @@ void vtkOpenGLPointGaussianMapperHelper::BuildBufferObjects(
 
   this->VBOs->CacheDataArray("vertexMC", poly->GetPoints()->GetData(), ren, VTK_FLOAT);
 
-  if (!this->UsingPoints)
+  if (this->Owner->GetAnisotropic())
+  {
+    this->VBOs->CacheDataArray(
+      "radiusMC", poly->GetPointData()->GetArray(this->Owner->GetScaleArray()), ren, VTK_FLOAT);
+
+    this->VBOs->CacheDataArray("rotationMC",
+      poly->GetPointData()->GetArray(this->Owner->GetRotationArray()), ren, VTK_FLOAT);
+  }
+  else if (!this->UsingPoints)
   {
     vtkNew<vtkFloatArray> offsets;
     offsets->SetNumberOfComponents(1);
@@ -523,7 +499,7 @@ void vtkOpenGLPointGaussianMapperHelper::BuildBufferObjects(
 
   this->VBOs->BuildAllVBOs(ren);
 
-  // we use no IBO
+  // reset all IBOs
   for (int i = PrimitiveStart; i < PrimitiveEnd; i++)
   {
     this->Primitives[i].IBO->IndexCount = 0;

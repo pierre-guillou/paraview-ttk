@@ -4,7 +4,9 @@
 
 #include "vtkAOSDataArrayTemplate.h"
 #include "vtkArrayDispatch.h"
+#include "vtkCollectionRange.h"
 #include "vtkDataArray.h"
+#include "vtkDataArrayCollection.h"
 #include "vtkImplicitArray.h"
 #include "vtkSmartPointer.h"
 
@@ -19,7 +21,7 @@ VTK_ABI_NAMESPACE_BEGIN
 template <typename ValueType>
 struct TypedArrayCache
 {
-  virtual ValueType GetValue(int idx) const = 0;
+  virtual ValueType GetValue(vtkIdType idx) const = 0;
   virtual ~TypedArrayCache() = default;
   virtual unsigned long getMemorySize() const = 0;
 };
@@ -37,7 +39,7 @@ public:
   {
   }
 
-  ValueType GetValue(int idx) const override
+  ValueType GetValue(vtkIdType idx) const override
   {
     return static_cast<ValueType>(this->Array->GetValue(idx));
   }
@@ -61,9 +63,9 @@ public:
   {
   }
 
-  ValueType GetValue(int idx) const override
+  ValueType GetValue(vtkIdType idx) const override
   {
-    int iTup = idx / this->Array->GetNumberOfComponents();
+    vtkIdType iTup = idx / this->Array->GetNumberOfComponents();
     int iComp = idx - iTup * this->Array->GetNumberOfComponents();
     return static_cast<ValueType>(this->Array->GetComponent(iTup, iComp));
   }
@@ -107,7 +109,7 @@ struct TypedCacheWrapper
     }
   }
 
-  ValueType operator()(int idx) const { return this->Cache->GetValue(idx); }
+  ValueType operator()(vtkIdType idx) const { return this->Cache->GetValue(idx); }
 
   unsigned long getMemorySize() const { return this->Cache->getMemorySize(); }
 
@@ -136,12 +138,35 @@ struct vtkCompositeImplicitBackend<ValueType>::Internals
   template <class Iterator>
   Internals(Iterator first, Iterator last)
   {
+    this->Initialize(first, last);
+  }
+
+  Internals(vtkDataArrayCollection* collection)
+  {
+    auto arrayRange = vtk::Range(collection);
+    this->Initialize(arrayRange.begin(), arrayRange.end());
+  }
+
+  std::vector<vtkSmartPointer<CachedArray>> CachedArrays;
+  std::vector<vtkIdType> Offsets;
+
+private:
+  template <class Iterator>
+  void Initialize(Iterator first, Iterator last)
+  {
     this->CachedArrays.resize(std::distance(first, last));
     std::transform(first, last, this->CachedArrays.begin(), [](vtkDataArray* arr) {
       vtkNew<CachedArray> newCache;
       newCache->SetBackend(std::make_shared<CachedBackend>(arr));
       newCache->SetNumberOfComponents(1);
-      newCache->SetNumberOfTuples(arr->GetNumberOfTuples() * arr->GetNumberOfComponents());
+      if (arr)
+      {
+        newCache->SetNumberOfTuples(arr->GetNumberOfTuples() * arr->GetNumberOfComponents());
+      }
+      else
+      {
+        newCache->SetNumberOfTuples(0);
+      }
       return newCache;
     });
     if (this->CachedArrays.size() > 0)
@@ -155,9 +180,6 @@ struct vtkCompositeImplicitBackend<ValueType>::Internals
         });
     }
   }
-
-  std::vector<vtkSmartPointer<CachedArray>> CachedArrays;
-  std::vector<std::size_t> Offsets;
 };
 
 //-----------------------------------------------------------------------
@@ -170,15 +192,22 @@ vtkCompositeImplicitBackend<ValueType>::vtkCompositeImplicitBackend(
 
 //-----------------------------------------------------------------------
 template <typename ValueType>
+vtkCompositeImplicitBackend<ValueType>::vtkCompositeImplicitBackend(vtkDataArrayCollection* arrays)
+  : Internal(std::unique_ptr<Internals>(new Internals(arrays)))
+{
+}
+
+//-----------------------------------------------------------------------
+template <typename ValueType>
 vtkCompositeImplicitBackend<ValueType>::~vtkCompositeImplicitBackend() = default;
 
 //-----------------------------------------------------------------------
 template <typename ValueType>
-ValueType vtkCompositeImplicitBackend<ValueType>::operator()(int idx) const
+ValueType vtkCompositeImplicitBackend<ValueType>::operator()(vtkIdType idx) const
 {
   auto itPos =
     std::upper_bound(this->Internal->Offsets.begin(), this->Internal->Offsets.end(), idx);
-  int locIdx = itPos == this->Internal->Offsets.begin() ? idx : idx - *(itPos - 1);
+  vtkIdType locIdx = itPos == this->Internal->Offsets.begin() ? idx : idx - *(itPos - 1);
   return this->Internal->CachedArrays[std::distance(this->Internal->Offsets.begin(), itPos)]
     ->GetValue(locIdx);
 }

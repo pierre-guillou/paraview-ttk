@@ -13,27 +13,22 @@
 #include "pqOutputPort.h"
 #include "pqPipelineFilter.h"
 #include "pqPluginManager.h"
+#include "pqProxyAction.h"
 #include "pqProxyGroupMenuManager.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
 #include "pqSourcesMenuReaction.h"
 #include "pqUndoStack.h"
-#include "vtkSMCollaborationManager.h"
-#include "vtkSMDocumentation.h"
-#include "vtkSMInputProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxyManager.h"
 #include "vtkSMProxySelectionModel.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
-#include "vtkSmartPointer.h"
 
 #include <QCoreApplication>
 #include <QDebug>
 #include <QMap>
-#include <string>
-#include <vector>
 
 //-----------------------------------------------------------------------------
 pqFiltersMenuReaction::pqFiltersMenuReaction(
@@ -62,6 +57,8 @@ pqFiltersMenuReaction::pqFiltersMenuReaction(
   QObject::connect(pqApplicationCore::instance(), SIGNAL(updateMasterEnableState(bool)), this,
     SLOT(setEnableStateDirty()));
 
+  QObject::connect(menuManager, SIGNAL(categoriesUpdated()), this, SLOT(setEnableStateDirty()));
+
   // force the state to compute the first time
   this->IsDirty = true;
   this->updateEnableState(false);
@@ -88,61 +85,7 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
     return;
   }
 
-  pqActiveObjects* activeObjects = &pqActiveObjects::instance();
-  pqServer* server = activeObjects->activeServer();
-  bool enabled = (server != nullptr);
-  enabled = enabled ? server->isMaster() : enabled;
-
-  // Make sure we already have a selection model
-  vtkSMProxySelectionModel* selModel = pqActiveObjects::instance().activeSourcesSelectionModel();
-  enabled = enabled && (selModel != nullptr);
-
-  // selected ports.
-  QList<pqOutputPort*> outputPorts;
-
-  // If active proxy is non-existent, then also the filters are disabled.
-  if (enabled)
-  {
-    pqApplicationCore* core = pqApplicationCore::instance();
-    pqServerManagerModel* smmodel = core->getServerManagerModel();
-
-    for (unsigned int cc = 0; cc < selModel->GetNumberOfSelectedProxies(); cc++)
-    {
-      pqServerManagerModelItem* item =
-        smmodel->findItem<pqServerManagerModelItem*>(selModel->GetSelectedProxy(cc));
-      pqOutputPort* opPort = qobject_cast<pqOutputPort*>(item);
-      pqPipelineSource* source = qobject_cast<pqPipelineSource*>(item);
-      if (opPort)
-      {
-        source = opPort->getSource();
-      }
-      else if (source)
-      {
-        opPort = source->getOutputPort(0);
-      }
-      if (source && source->modifiedState() == pqProxy::UNINITIALIZED)
-      {
-        enabled = false;
-        // we will update when the active representation updates the data.
-        break;
-      }
-
-      // Make sure we still have a valid port, this issue came up with multi-server
-      if (opPort)
-      {
-        outputPorts.append(opPort);
-      }
-    }
-    if (selModel->GetNumberOfSelectedProxies() == 0 || outputPorts.empty())
-    {
-      enabled = false;
-    }
-  }
-
   pqProxyGroupMenuManager* mgr = static_cast<pqProxyGroupMenuManager*>(this->parent());
-  mgr->setEnabled(enabled);
-
-  bool some_enabled = false;
   QList<QAction*> actionsList;
   if (updateOnlyToolbars)
   {
@@ -161,125 +104,36 @@ void pqFiltersMenuReaction::updateEnableState(bool updateOnlyToolbars)
   {
     actionsList = mgr->actions();
   }
-  Q_FOREACH (QAction* action, actionsList)
+
+  pqProxyAction::updateActionsState(actionsList);
+
+  for (QAction* action : actionsList)
   {
-    vtkSMProxy* prototype = mgr->getPrototype(action);
-    if (!prototype || !enabled)
+    if (!action->isEnabled() && this->HideDisabledActions)
     {
-      action->setEnabled(false);
-      if (this->HideDisabledActions)
-      {
-        action->setVisible(false);
-      }
-      action->setStatusTip(tr("Requires an input"));
-      continue;
+      action->setVisible(false);
     }
-
-    int numProcs = outputPorts[0]->getServer()->getNumberOfPartitions();
-    vtkSMSourceProxy* sp = vtkSMSourceProxy::SafeDownCast(prototype);
-    if (sp &&
-      ((sp->GetProcessSupport() == vtkSMSourceProxy::SINGLE_PROCESS && numProcs > 1) ||
-        (sp->GetProcessSupport() == vtkSMSourceProxy::MULTIPLE_PROCESSES && numProcs == 1)))
-    {
-      // Skip single process filters when running in multiprocesses and vice
-      // versa.
-      action->setEnabled(false);
-      if (this->HideDisabledActions)
-      {
-        action->setVisible(false);
-      }
-      if (numProcs > 1)
-      {
-        action->setStatusTip(tr("Not supported in parallel"));
-      }
-      else
-      {
-        action->setStatusTip(tr("Supported only in parallel"));
-      }
-      continue;
-    }
-
-    // TODO: Handle case where a proxy has multiple input properties.
-    vtkSMInputProperty* input = pqMenuReactionUtils::getInputProperty(prototype);
-    if (input)
-    {
-      if (!input->GetMultipleInput() && outputPorts.size() > 1)
-      {
-        action->setEnabled(false);
-        if (this->HideDisabledActions)
-        {
-          action->setVisible(false);
-        }
-        action->setStatusTip(tr("Multiple inputs not support"));
-        continue;
-      }
-
-      input->RemoveAllUncheckedProxies();
-      for (int cc = 0; cc < outputPorts.size(); cc++)
-      {
-        pqOutputPort* port = outputPorts[cc];
-        input->AddUncheckedInputConnection(port->getSource()->getProxy(), port->getPortNumber());
-      }
-
-      vtkSMDomain* domain = nullptr;
-      if (input->IsInDomains(&domain))
-      {
-        action->setEnabled(true);
-        action->setVisible(true);
-        some_enabled = true;
-        const char* help = prototype->GetDocumentation()->GetShortHelp();
-        action->setStatusTip(help ? QCoreApplication::translate("ServerManagerXML", help) : "");
-      }
-      else
-      {
-        action->setEnabled(false);
-        if (this->HideDisabledActions)
-        {
-          action->setVisible(false);
-        }
-        // Here we need to go to the domain that returned false and find out why
-        // it said the domain criteria wasn't met.
-        action->setStatusTip(pqMenuReactionUtils::getDomainDisplayText(domain));
-      }
-      input->RemoveAllUncheckedProxies();
-    }
-  }
-
-  if (!some_enabled)
-  {
-    mgr->setEnabled(false);
   }
 
   // Hide unused submenus
-  if (this->HideDisabledActions)
+  QMenu* menu = mgr->menu();
+  bool anyMenuShown = false;
+  QList<QAction*> menuActions = menu->findChildren<QAction*>();
+  for (QAction* menuAction : menuActions)
   {
-    QMenu* menu = mgr->menu();
-    bool anyMenuShown = false;
-    QList<QAction*> menuActions = menu->actions();
-    for (QAction* menuAction : menuActions)
+    if (menuAction->isSeparator() || !menuAction->menu() ||
+      menuAction->menu() == mgr->getFavoritesMenu())
     {
-      if (menuAction->isSeparator() || !menuAction->menu() ||
-        menuAction->menu() == mgr->getFavoritesMenu())
-      {
-        continue;
-      }
-      bool anySubMenuShown = false;
-      QList<QAction*> subMenuActions = menuAction->menu()->actions();
-
-      for (QAction* subMenuAction : subMenuActions)
-      {
-        if (subMenuAction->isVisible())
-        {
-          anySubMenuShown = true;
-          anyMenuShown = true;
-          break;
-        }
-      }
-
-      menuAction->setVisible(anySubMenuShown);
+      continue;
     }
-    menu->setEnabled(anyMenuShown);
+
+    bool visible = (menuAction->menu() && !menuAction->menu()->isEmpty());
+    menuAction->setVisible(visible);
+    anyMenuShown = anyMenuShown || visible;
+
+    QList<QAction*> subMenuActions = menuAction->menu()->actions();
   }
+  menu->setEnabled(anyMenuShown);
 
   // If we updated only the toolbars, then the state of other actions may still
   // be dirty
@@ -343,7 +197,7 @@ pqPipelineSource* pqFiltersMenuReaction::createFilter(
     vtkSMPropertyHelper helper(filterProxy, inputPortNames[0]);
     helper.RemoveAllValues();
 
-    Q_FOREACH (pqOutputPort* outputPort, selectedOutputPorts)
+    for (pqOutputPort* outputPort : selectedOutputPorts)
     {
       helper.Add(outputPort->getSource()->getProxy(), outputPort->getPortNumber());
     }

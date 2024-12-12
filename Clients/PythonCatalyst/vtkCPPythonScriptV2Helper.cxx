@@ -32,6 +32,10 @@
 #include "vtkLiveInsituLink.h"
 #endif
 
+#if PARAVIEW_USE_EXTERNAL_VTK
+#include "vtkPVPythonInterpreterPath.h"
+#endif
+
 namespace
 {
 template <typename T>
@@ -144,6 +148,9 @@ bool vtkCPPythonScriptV2Helper::vtkInternals::FlushErrors()
 //----------------------------------------------------------------------------
 bool vtkCPPythonScriptV2Helper::vtkInternals::Prepare(const std::string& fname)
 {
+#if PARAVIEW_USE_EXTERNAL_VTK
+  vtkPVPythonInterpreterPath();
+#endif
   vtkPythonInterpreter::Initialize();
   vtkPythonScopeGilEnsurer gilEnsurer;
   if (!this->LoadAPIModule())
@@ -417,6 +424,31 @@ bool vtkCPPythonScriptV2Helper::CatalystExecute(
   {
     this->DoLive(timestep, time);
   }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkCPPythonScriptV2Helper::CatalystResults()
+{
+  vtkScopedSet<vtkCPPythonScriptV2Helper*> scoped(vtkCPPythonScriptV2Helper::ActiveInstance, this);
+
+  if (!this->IsImported())
+  {
+    return false;
+  }
+
+  auto& internals = (*this->Internals);
+
+  vtkPythonScopeGilEnsurer gilEnsurer;
+  vtkSmartPyObject method(PyUnicode_FromString("do_catalyst_results"));
+  vtkSmartPyObject result(PyObject_CallMethodObjArgs(
+    internals.APIModule, method, internals.Package.GetPointer(), nullptr));
+  if (!result)
+  {
+    vtkInternals::FlushErrors();
+    return false;
+  }
+
   return true;
 }
 

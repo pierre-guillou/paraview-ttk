@@ -64,6 +64,7 @@
 #include "vtkImageReslice.h"                 // for VTK_RESLICE_NEAREST, VTK_RESLICE_CUBIC
 #include "vtkRenderingVolumeOpenGL2Module.h" // For export macro
 #include "vtkVolumeMapper.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkFixedPointVolumeRayCastMapper;
@@ -71,12 +72,13 @@ class vtkGPUVolumeRayCastMapper;
 class vtkImageResample;
 class vtkMultiBlockVolumeMapper;
 class vtkOSPRayVolumeInterface;
+class vtkAnariVolumeInterface;
 class vtkRenderWindow;
 class vtkVolume;
 class vtkVolumeProperty;
 class vtkImageMagnitude;
 
-class VTKRENDERINGVOLUMEOPENGL2_EXPORT vtkSmartVolumeMapper : public vtkVolumeMapper
+class VTKRENDERINGVOLUMEOPENGL2_EXPORT VTK_MARSHALAUTO vtkSmartVolumeMapper : public vtkVolumeMapper
 {
 public:
   static vtkSmartVolumeMapper* New();
@@ -129,8 +131,9 @@ public:
     RayCastRenderMode = 1,
     GPURenderMode = 2,
     OSPRayRenderMode = 3,
-    UndefinedRenderMode = 4,
-    InvalidRenderMode = 5
+    AnariRenderMode = 4,
+    UndefinedRenderMode = 5,
+    InvalidRenderMode = 6
   };
 
   /**
@@ -165,6 +168,12 @@ public:
    * This option will use intel OSPRay to do software rendering exclusively.
    */
   void SetRequestedRenderModeToOSPRay();
+
+  /**
+   * Set the requested render mode to vtkSmartVolumeMapper::AnariRenderMode.
+   * This option will use ANARI to do rendering exclusively.
+   */
+  void SetRequestedRenderModeToAnari();
 
   ///@{
   /**
@@ -584,6 +593,7 @@ private:
   void operator=(const vtkSmartVolumeMapper&) = delete;
 
   vtkOSPRayVolumeInterface* OSPRayMapper;
+  vtkAnariVolumeInterface* AnariMapper;
 };
 
 VTK_ABI_NAMESPACE_END

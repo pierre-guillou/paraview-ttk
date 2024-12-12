@@ -25,6 +25,7 @@
 #ifndef vtkGLTFDocumentLoader_h
 #define vtkGLTFDocumentLoader_h
 
+#include "GLTFSampler.h"         // For "Sampler"
 #include "vtkIOGeometryModule.h" // For export macro
 #include "vtkObject.h"
 #include "vtkResourceStream.h" // For "vtkResourceStream"
@@ -188,6 +189,20 @@ public:
     int Material;
     int Mode;
     int CellSize; // 1, 2 or 3, depending on draw mode
+
+    // Primitive-specific extension metadata
+    struct Extensions
+    {
+      // KHR_draco_mesh_compression extension
+      // Only metadata are read (decoding and modifying the internal model is not done yet)
+      struct KHRDracoMeshCompression
+      {
+        int BufferView = -1;
+        std::map<std::string, int> AttributeIndices;
+      };
+      Primitive::Extensions::KHRDracoMeshCompression KHRDracoMetaData;
+    };
+    Primitive::Extensions ExtensionMetaData;
   };
 
   /**
@@ -333,27 +348,8 @@ public:
    * This struct describes a glTF sampler object.
    * Samplers specify filter and wrapping options corresponding to GL types.
    */
-  struct Sampler
+  struct Sampler : public GLTFSampler
   {
-    enum FilterType : unsigned short
-    {
-      NEAREST = 9728,
-      LINEAR = 9729,
-      NEAREST_MIPMAP_NEAREST = 9984,
-      LINEAR_MIPMAP_NEAREST = 9985,
-      NEAREST_MIPMAP_LINEAR = 9986,
-      LINEAR_MIPMAP_LINEAR = 9987
-    };
-    enum WrapType : unsigned short
-    {
-      CLAMP_TO_EDGE = 33071,
-      MIRRORED_REPEAT = 33648,
-      REPEAT = 10497
-    };
-    FilterType MagFilter;
-    FilterType MinFilter;
-    WrapType WrapS;
-    WrapType WrapT;
     std::string Name;
   };
 
@@ -574,7 +570,7 @@ public:
   /**
    * Get the list of extensions that are supported by this loader
    */
-  const std::vector<std::string>& GetSupportedExtensions();
+  virtual std::vector<std::string> GetSupportedExtensions();
 
   /**
    * Get the list of extensions that are used by the current model
@@ -599,6 +595,24 @@ public:
    */
   static void ComputeJointMatrices(const Model& model, const Skin& skin, Node& node,
     std::vector<vtkSmartPointer<vtkMatrix4x4>>& jointMats);
+
+  /**
+   * Some extensions require a preparation on the model before building VTK objects.
+   * For example, a subclass supporting KHR_draco_mesh_compression could override this function
+   * to consume the extension metadata and modify the internal model.
+   * This is not done in VTK yet which does not modify the internal model once read.
+   */
+  virtual void PrepareData() {}
+
+  ///@{
+  /**
+   * Set/Get the Stream start, where the GLB starts. By default it is 0,
+   * but can be different than 0 for file formats have a GLB embeded in it,
+   * for instance 3D Tiles B3DM.
+   */
+  vtkSetMacro(GLBStart, vtkTypeInt64);
+  vtkGetMacro(GLBStart, vtkTypeInt64);
+  ///@}
 
 protected:
   vtkGLTFDocumentLoader() = default;
@@ -654,6 +668,7 @@ private:
 
   static const std::vector<std::string> SupportedExtensions;
   std::vector<std::string> UsedExtensions;
+  vtkTypeInt64 GLBStart = 0;
 };
 
 VTK_ABI_NAMESPACE_END

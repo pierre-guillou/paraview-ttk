@@ -90,7 +90,7 @@ static void vtkWrapPython_GenerateSpecialHeaders(
   const char* classname;
   const char* ownincfile = "";
   ClassInfo* data;
-  ValueInfo* val;
+  const ValueInfo* val;
   const char** includedHeaders = NULL;
   size_t nIncludedHeaders = 0;
 
@@ -232,6 +232,13 @@ static void vtkWrapPython_GenerateSpecialHeaders(
       "#include \"vtkScaledSOADataArrayTemplate.h\"\n"
       "#endif\n");
   }
+  /* special case for the way vtkGenericDataArray template is used */
+  if (data && strcmp(data->Name, "vtkAlgorithm") == 0)
+  {
+    fprintf(fp, "#include \"vtkAlgorithmOutput.h\"\n");
+    fprintf(fp, "#include \"vtkTrivialProducer.h\"\n");
+    fprintf(fp, "#include \"vtkDataObject.h\"\n");
+  }
 
   free((char**)types);
 }
@@ -299,8 +306,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     char* etext = strerror(e);
     etext = (etext ? etext : "Unknown error");
     fprintf(stderr, "Error %d opening output file %s: %s\n", e, options->OutputFileName, etext);
-    vtkParse_Finalize();
-    return 1;
+    return vtkParse_FinalizeMain(1);
   }
 
   /* get the filename without the extension */
@@ -597,10 +603,5 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
     vtkWrap_WarnEmpty(options);
   }
 
-  if (vtkParse_Finalize())
-  {
-    return 1;
-  }
-
-  return 0;
+  return vtkParse_FinalizeMain(0);
 }

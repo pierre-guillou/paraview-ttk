@@ -25,11 +25,10 @@
 #ifndef vtkDisplaySizedImplicitPlaneRepresentation_h
 #define vtkDisplaySizedImplicitPlaneRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkNew.h"                      // For vtkNew command
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
@@ -53,7 +52,7 @@ class vtkSphereSource;
 class vtkTransform;
 class vtkTubeFilter;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkDisplaySizedImplicitPlaneRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkDisplaySizedImplicitPlaneRepresentation
   : public vtkWidgetRepresentation
 {
 public:
@@ -453,10 +452,6 @@ public:
     ResizeDiskRadius,
     Scaling
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
   ///@{
   /**

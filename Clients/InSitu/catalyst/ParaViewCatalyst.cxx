@@ -17,6 +17,7 @@
 #include "vtkInSituPipelinePython.h"
 #include "vtkMultiBlockDataSet.h"
 #include "vtkPVLogger.h"
+#include "vtkPartitionedDataSet.h"
 #include "vtkSMPluginManager.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyManager.h"
@@ -172,28 +173,47 @@ static bool process_script_args(vtkInSituPipelinePython* pipeline, const conduit
   return true;
 }
 
+/**
+ * Fill a conduit node's channel with a specified name with the dataset given by the proxy's
+ * ClientSideObject. Return true if the mesh conversion to conduit was successful if it happened,
+ * even if the channel is empty.
+ */
 static bool convert_to_blueprint_mesh(
   vtkSMProxy* proxy, const std::string& name, conduit_cpp::Node& node)
 {
-  if (proxy != nullptr)
+  if (proxy == nullptr)
   {
-    if (auto steeringDataGenerator = vtkAlgorithm::SafeDownCast(proxy->GetClientSideObject()))
+    return true;
+  }
+
+  auto sourceDataset = vtkAlgorithm::SafeDownCast(proxy->GetClientSideObject());
+  if (sourceDataset == nullptr)
+  {
+    return true;
+  }
+
+  sourceDataset->Update();
+  vtkDataObject* outputDataObject = sourceDataset->GetOutputDataObject(0);
+  if (outputDataObject == nullptr)
+  {
+    return true;
+  }
+
+  conduit_cpp::Node channel = node[name];
+  if (auto multi_block = vtkMultiBlockDataSet::SafeDownCast(outputDataObject))
+  {
+    if (auto data_object = multi_block->GetBlock(0))
     {
-      steeringDataGenerator->Update();
-      if (vtkDataObject* outputDataObject = steeringDataGenerator->GetOutputDataObject(0))
-      {
-        if (auto multi_block = vtkMultiBlockDataSet::SafeDownCast(outputDataObject))
-        {
-          if (auto data_object = multi_block->GetBlock(0))
-          {
-            auto channel = node[name];
-            return vtkDataObjectToConduit::FillConduitNode(data_object, channel);
-          }
-        }
-      }
+      return vtkDataObjectToConduit::FillConduitNode(data_object, channel);
     }
   }
-  return true;
+  else if (auto partitioned = vtkPartitionedDataSet::SafeDownCast(outputDataObject))
+  {
+    return vtkDataObjectToConduit::FillConduitNode(
+      partitioned->GetPartitionAsDataObject(0), channel);
+  }
+
+  return vtkDataObjectToConduit::FillConduitNode(outputDataObject, channel);
 }
 
 enum paraview_catalyst_status
@@ -497,28 +517,7 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
       "No 'catalyst/channels' found. No meshes will be processed.");
   }
 
-  // check for optional 'parameters'
-  std::vector<std::string> parameters;
-  if (root.has_path("state/parameters"))
-  {
-    const auto state_parameters = root["state/parameters"];
-    const conduit_index_t nchildren = state_parameters.number_of_children();
-    for (conduit_index_t i = 0; i < nchildren; ++i)
-    {
-      parameters.push_back(state_parameters.child(i).as_string());
-    }
-  }
-
-  if (root.has_path("state/pipelines"))
-  {
-    const auto state_pipelines = root["state/pipelines"];
-    vtkInSituInitializationHelper::ExecutePipelines(
-      timestep, time, conduit_cpp::c_node(&state_pipelines), parameters);
-  }
-  else
-  {
-    vtkInSituInitializationHelper::ExecutePipelines(timestep, time, nullptr, parameters);
-  }
+  vtkInSituInitializationHelper::ExecutePipelines(params);
 
   return catalyst_status_ok;
 }
@@ -575,6 +574,8 @@ enum catalyst_status catalyst_results_paraview(conduit_node* params)
   {
     is_success &= convert_to_blueprint_mesh(proxy.second, proxy.first, catalyst_node);
   }
+
+  vtkInSituInitializationHelper::GetResultsFromPipelines(params);
 
   return is_success ? catalyst_status_ok : pvcatalyst_err(results);
 }

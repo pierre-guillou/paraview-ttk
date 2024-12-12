@@ -112,6 +112,30 @@ cmake_dependent_option(VTKm_ENABLE_TESTING_LIBRARY "Enable VTKm Testing Library"
   OFF "NOT VTKm_ENABLE_TESTING;NOT VTKm_ENABLE_BENCHMARKS" ON)
 mark_as_advanced(VTKm_ENABLE_TESTING_LIBRARY)
 
+# The ANARI interop library uses a bit of code in vtkm_rendering, so this option
+# currently requires vtkm_rendering to be built. Eventually this dependency
+# should go away as vtkm_anari doesn't require applications to use anything from
+# vtkm_rendering directly.
+cmake_dependent_option(VTKm_ENABLE_ANARI "Enable ANARI interop support"
+  OFF "VTKm_ENABLE_RENDERING" OFF)
+
+# If you are building Doxygen, you also have the option to build the User's Guide with Sphinx
+cmake_dependent_option(VTKm_ENABLE_USERS_GUIDE
+  "Build User's Guide with Sphinx"
+  ON
+  "VTKm_ENABLE_DOCUMENTATION"
+  OFF
+  )
+# If you are building the User's Guide, you may only need the XML output from Doxygen, which
+# is much faster than generating the HTML. Thus, give the option to turn on/off the HTML output.
+cmake_dependent_option(VTKm_Doxygen_HTML_output
+  "Build HTML output"
+  ON
+  "VTKm_ENABLE_USERS_GUIDE"
+  ON
+  )
+mark_as_advanced(VTKm_Doxygen_HTML_output)
+
 # We may want to make finer controls on whether libraries/modules get built.
 # VTK uses the concept of groups for its modules
 vtkm_option(VTKm_BUILD_ALL_LIBRARIES
@@ -127,6 +151,11 @@ vtkm_option(VTKm_ENABLE_HDF5_IO "Enable HDF5 support" OFF)
 if (VTKm_ENABLE_HDF5_IO)
   find_package(HDF5 REQUIRED COMPONENTS HL)
 endif()
+
+# If the linked HDF5 is parallel, we need to add the MPI include directory
+# for its dependencies
+vtkm_option(VTKm_HDF5_IS_PARALLEL "HDF5 library is parallel" OFF)
+mark_as_advanced(VTKm_HDF5_IS_PARALLEL)
 
 # VTK-m will turn on logging by default, but will set the default
 # logging level to WARN.  This option should not be visible by default
@@ -216,6 +245,7 @@ vtkm_module_force_group(Testing
   DISABLE_VALUE "DONT_WANT"
   )
 vtkm_module_force_group(Benchmarking ENABLE_OPTION VTKm_ENABLE_BENCHMARKS)
+vtkm_module_force_group(ANARI ENABLE_OPTION VTKm_ENABLE_ANARI)
 
 # The tutorial requires several common filters. This logic might need to
 # become more complicated (or less compliated if we decide to always
@@ -237,12 +267,19 @@ include(VTKmWrappers)
 cmake_dependent_option(VTKm_ENABLE_KOKKOS_THRUST "Enable Kokkos thrust support (only valid with CUDA and HIP)"
   ON "VTKm_ENABLE_KOKKOS;Kokkos_ENABLE_CUDA OR Kokkos_ENABLE_HIP" OFF)
 
+# CUDA already provides thrust
+if (VTKm_ENABLE_KOKKOS_THRUST AND TARGET vtkm_kokkos_hip)
+  find_package(rocthrust REQUIRED CONFIG)
+endif()
+
 # Create vtkm_compiler_flags library. This is an interface library that
 # holds all the C++ compiler flags that are needed for consumers and
 # when building VTK-m.
 include(VTKmCompilerFlags)
 
-
+if (VTKM_EXAMPLE_CONTOURTREE_ENABLE_DEBUG_PRINT)
+  add_compile_definitions(DEBUG_PRINT)
+endif()
 #-----------------------------------------------------------------------------
 # We need to check and see if git lfs is installed so that test data will
 # be available for use
@@ -297,28 +334,6 @@ check_type_size(long VTKm_SIZE_LONG BUILTIN_TYPES_ONLY)
 check_type_size("long long" VTKm_SIZE_LONG_LONG BUILTIN_TYPES_ONLY)
 
 #-----------------------------------------------------------------------------
-# Add subdirectories
-add_subdirectory(vtkmstd)
-
-#-----------------------------------------------------------------------------
-# Process modules
-vtkm_modules_scan(
-  SCAN_DIRECTORIES vtkm benchmarking
-  PROVIDED_MODULES all_modules
-  )
-vtkm_modules_build(
-  PROVIDED_MODULES ${all_modules}
-  WANT_BY_DEFAULT ${VTKm_BUILD_ALL_LIBRARIES}
-  WANT_BY_DEFAULT_REASON "VTKm_BUILD_ALL_LIBRARIES is `${VTKm_BUILD_ALL_LIBRARIES}`"
-  )
-
-#-----------------------------------------------------------------------------
-# Build documentation
-if (VTKm_ENABLE_DOCUMENTATION)
-  include(VTKmBuildDocumentation)
-endif()
-
-#-----------------------------------------------------------------------------
 # Ready files for find_package
 include(CMakePackageConfigHelpers)
 
@@ -337,7 +352,29 @@ configure_package_config_file(
 write_basic_package_version_file(
   ${VTKm_BUILD_CMAKE_BASE_DIR}/${VTKm_INSTALL_CONFIG_DIR}/VTKmConfigVersion.cmake
   VERSION ${VTKm_VERSION}
-  COMPATIBILITY ExactVersion )
+  COMPATIBILITY SameMajorVersion )
+
+#-----------------------------------------------------------------------------
+# Add subdirectories
+add_subdirectory(vtkmstd)
+
+#-----------------------------------------------------------------------------
+# Process modules
+vtkm_modules_scan(
+  SCAN_DIRECTORIES vtkm benchmarking docs
+  PROVIDED_MODULES all_modules
+  )
+vtkm_modules_build(
+  PROVIDED_MODULES ${all_modules}
+  WANT_BY_DEFAULT ${VTKm_BUILD_ALL_LIBRARIES}
+  WANT_BY_DEFAULT_REASON "VTKm_BUILD_ALL_LIBRARIES is `${VTKm_BUILD_ALL_LIBRARIES}`"
+  )
+
+#-----------------------------------------------------------------------------
+# Build documentation
+if (VTKm_ENABLE_DOCUMENTATION)
+  include(VTKmBuildDocumentation)
+endif()
 
 #-----------------------------------------------------------------------------
 # Create makefile/package files for projects not using CMake

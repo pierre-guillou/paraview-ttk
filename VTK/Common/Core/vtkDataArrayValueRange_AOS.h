@@ -30,8 +30,10 @@ VTK_ABI_NAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // ValueRange
-template <typename ValueTypeT, ComponentIdType TupleSize>
-struct ValueRange<vtkAOSDataArrayTemplate<ValueTypeT>, TupleSize>
+// For vtkAOSDataArrayTemplate, the `ForceValueTypeForVtkDataArray` template parameter is not used
+// at all.
+template <typename ValueTypeT, ComponentIdType TupleSize, typename ForceValueTypeForVtkDataArray>
+struct ValueRange<vtkAOSDataArrayTemplate<ValueTypeT>, TupleSize, ForceValueTypeForVtkDataArray>
 {
 private:
   static_assert(IsValidTupleSize<TupleSize>::value, "Invalid tuple size.");
@@ -66,8 +68,8 @@ public:
   ValueRange(ArrayType* arr, ValueIdType beginValue, ValueIdType endValue) noexcept
     : Array(arr)
     , NumComps(arr)
-    , Begin(arr->GetPointer(beginValue))
-    , End(arr->GetPointer(endValue))
+    , BeginValue(beginValue)
+    , EndValue(endValue)
   {
     assert(this->Array);
     assert(beginValue >= 0 && beginValue <= endValue);
@@ -78,12 +80,15 @@ public:
   ValueRange GetSubRange(ValueIdType beginValue = 0, ValueIdType endValue = -1) const noexcept
   {
     const ValueIdType realBegin =
-      std::distance(this->Array->GetPointer(0), this->Begin) + beginValue;
+      std::distance(this->Array->GetPointer(0), this->Array->GetPointer(this->BeginValue)) +
+      beginValue;
     const ValueIdType realEnd = endValue >= 0
-      ? std::distance(this->Array->GetPointer(0), this->Begin) + endValue
-      : std::distance(this->Array->GetPointer(0), this->End);
+      ? std::distance(this->Array->GetPointer(0), this->Array->GetPointer(this->BeginValue)) +
+        endValue
+      : std::distance(this->Array->GetPointer(0), this->Array->GetPointer(this->EndValue));
 
-    return ValueRange{ this->Array, realBegin, realEnd };
+    return ValueRange<ArrayType, TupleSize, ForceValueTypeForVtkDataArray>{ this->Array, realBegin,
+      realEnd };
   }
 
   VTK_ITER_INLINE
@@ -95,53 +100,71 @@ public:
   VTK_ITER_INLINE
   ValueIdType GetBeginValueId() const noexcept
   {
-    return static_cast<ValueIdType>(this->Begin - this->Array->GetPointer(0));
+    return static_cast<ValueIdType>(
+      this->Array->GetPointer(this->BeginValue) - this->Array->GetPointer(0));
   }
 
   VTK_ITER_INLINE
   ValueIdType GetEndValueId() const noexcept
   {
-    return static_cast<ValueIdType>(this->End - this->Array->GetPointer(0));
+    return static_cast<ValueIdType>(
+      this->Array->GetPointer(this->EndValue) - this->Array->GetPointer(0));
   }
 
   VTK_ITER_INLINE
-  size_type size() const noexcept { return static_cast<size_type>(this->End - this->Begin); }
+  size_type size() const noexcept
+  {
+    return static_cast<size_type>(
+      this->Array->GetPointer(this->EndValue) - this->Array->GetPointer(this->BeginValue));
+  }
 
   VTK_ITER_INLINE
-  iterator begin() noexcept { return this->Begin; }
+  iterator begin() noexcept { return this->Array->GetPointer(this->BeginValue); }
   VTK_ITER_INLINE
-  iterator end() noexcept { return this->End; }
+  iterator end() noexcept { return this->Array->GetPointer(this->EndValue); }
 
   VTK_ITER_INLINE
-  const_iterator begin() const noexcept { return this->Begin; }
+  const_iterator begin() const noexcept { return this->Array->GetPointer(this->BeginValue); }
   VTK_ITER_INLINE
-  const_iterator end() const noexcept { return this->End; }
+  const_iterator end() const noexcept { return this->Array->GetPointer(this->EndValue); }
 
   VTK_ITER_INLINE
-  const_iterator cbegin() const noexcept { return this->Begin; }
+  const_iterator cbegin() const noexcept { return this->Array->GetPointer(this->BeginValue); }
   VTK_ITER_INLINE
-  const_iterator cend() const noexcept { return this->End; }
+  const_iterator cend() const noexcept { return this->Array->GetPointer(this->EndValue); }
 
   VTK_ITER_INLINE
-  reference operator[](size_type i) noexcept { return this->Begin[i]; }
+  reference operator[](size_type i) noexcept
+  {
+    return this->Array->Buffer->GetBuffer()[this->BeginValue + i];
+  }
   VTK_ITER_INLINE
-  const_reference operator[](size_type i) const noexcept { return this->Begin[i]; }
+  const_reference operator[](size_type i) const noexcept
+  {
+    return this->Array->Buffer->GetBuffer()[this->BeginValue + i];
+  }
+
+  // Danger! pointer is non-const!
+  value_type* data() noexcept { return this->Array->Buffer->GetBuffer(); }
+
+  value_type* data() const noexcept { return this->Array->Buffer->GetBuffer(); }
 
 private:
   mutable ArrayType* Array{ nullptr };
   NumCompsType NumComps{};
-  ValueType* Begin{ nullptr };
-  ValueType* End{ nullptr };
+  ValueIdType BeginValue{ 0 };
+  ValueIdType EndValue{ 0 };
 };
 
 // Unimplemented, only used inside decltype in SelectValueRange:
-template <typename ArrayType, ComponentIdType TupleSize,
+template <typename ArrayType, ComponentIdType TupleSize, typename ForceValueTypeForVtkDataArray,
   // Convenience:
   typename ValueType = typename ArrayType::ValueType,
   typename AOSArrayType = vtkAOSDataArrayTemplate<ValueType>,
   // SFINAE to select AOS arrays:
   typename = typename std::enable_if<IsAOSDataArray<ArrayType>::value>::type>
-ValueRange<AOSArrayType, TupleSize> DeclareValueRangeSpecialization(ArrayType*);
+ValueRange<AOSArrayType, TupleSize, ForceValueTypeForVtkDataArray> DeclareValueRangeSpecialization(
+  ArrayType*);
 
 VTK_ABI_NAMESPACE_END
 }

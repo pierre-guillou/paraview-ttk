@@ -354,6 +354,7 @@ vtkDataSetSurfaceFilter::vtkDataSetSurfaceFilter()
   this->NonlinearSubdivisionLevel = 1;
   this->MatchBoundariesIgnoringCellOrder = 0;
 
+  this->AllowInterpolation = true;
   this->Delegation = false;
 }
 
@@ -1289,6 +1290,7 @@ void vtkDataSetSurfaceFilter::PrintSelf(ostream& os, vtkIndent indent)
   os << indent
      << "MatchBoundariesIgnoringCellOrder: " << this->GetMatchBoundariesIgnoringCellOrder() << endl;
   os << indent << "FastMode: " << this->GetFastMode() << endl;
+  os << indent << "AllowInterpolation: " << this->GetAllowInterpolation() << endl;
   os << indent << "Delegation: " << this->GetDelegation() << endl;
 }
 
@@ -1583,12 +1585,17 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
       {
         input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
 
-        if (this->NonlinearSubdivisionLevel == 0)
+        if (this->NonlinearSubdivisionLevel <= 1)
         {
-          // Straight line for NonlinearSubdivisionLevel = 0
-          newLines->InsertNextCell(2);
+          int numCellPtsAfterSubdivision = this->NonlinearSubdivisionLevel == 0 ? 2 : numCellPts;
+          newLines->InsertNextCell(numCellPtsAfterSubdivision);
           outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
+          for (i = 2; i < numCellPtsAfterSubdivision; i++)
+          {
+            outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
+            newLines->InsertCellPoint(outPtId);
+          }
           outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
@@ -1599,19 +1606,74 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
           newLines->InsertNextCell(numCellPtsAfterSubdivision);
           outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
+          double paramCoordDelta = 1. / (numCellPtsAfterSubdivision - 1);
+          input->GetCell(cellId, cell);
+          weights.resize(cell->GetNumberOfPoints());
+          double inParamCoords[3];
+          inParamCoords[1] = inParamCoords[2] = 0.;
+          for (i = 0; i < (numCellPts - 1); i++)
+          {
+            for (j = 0; j < numDeltaPtsAfterSubdivision - 1; j++)
+            {
+              inParamCoords[0] = paramCoordDelta * (numDeltaPtsAfterSubdivision * i + j + 1);
+              outPtId = GetInterpolatedPointId(
+                input, cell, inParamCoords, weights.data(), newPts, outputPD);
+              newLines->InsertCellPoint(outPtId);
+            }
+            if (i < numCellPts - 2)
+            {
+              outPtId = this->GetOutputPointId(ids[i + 2], input, newPts, outputPD);
+              newLines->InsertCellPoint(outPtId);
+            }
+          }
+          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
+          newLines->InsertCellPoint(outPtId);
+        }
+        this->RecordOrigCellId(this->NumberOfNewCells, cellId);
+        outputCD->CopyData(cd, cellId, this->NumberOfNewCells++);
+        break;
+      }
+      case VTK_BEZIER_CURVE:
+      {
+        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
+        if (this->NonlinearSubdivisionLevel == 0 || !AllowInterpolation)
+        {
+          int numCellPtsAfterSubdivision = this->NonlinearSubdivisionLevel == 0 ? 2 : numCellPts;
+          newLines->InsertNextCell(numCellPtsAfterSubdivision);
+          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
+          newLines->InsertCellPoint(outPtId);
+          for (i = 2; i < numCellPtsAfterSubdivision; i++)
+          {
+            outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
+            newLines->InsertCellPoint(outPtId);
+          }
+          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
+          newLines->InsertCellPoint(outPtId);
+        }
+        else
+        {
+          int numDeltaPtsAfterSubdivision = std::pow(2, this->NonlinearSubdivisionLevel - 1);
+          int numCellPtsAfterSubdivision = numDeltaPtsAfterSubdivision * (numCellPts - 1) + 1;
+          newLines->InsertNextCell(numCellPtsAfterSubdivision);
+          input->GetCell(cellId, cell);
+          input->SetCellOrderAndRationalWeights(cellId, cell);
+          weights.resize(cell->GetNumberOfPoints());
+          double* pc = cell->GetParametricCoords();
+
+          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
+          newLines->InsertCellPoint(outPtId);
           if (this->NonlinearSubdivisionLevel == 1)
           {
             for (i = 2; i < numCellPts; i++)
             {
-              outPtId = this->GetOutputPointId(ids[i], input, newPts, outputPD);
+              outPtId = this->GetOutputPointIdAndInterpolate(
+                i, input, cell, pc, weights.data(), newPts, outputPD);
               newLines->InsertCellPoint(outPtId);
             }
           }
           else
           {
             double paramCoordDelta = 1. / (numCellPtsAfterSubdivision - 1);
-            input->GetCell(cellId, cell);
-            weights.resize(cell->GetNumberOfPoints());
             double inParamCoords[3];
             inParamCoords[1] = inParamCoords[2] = 0.;
             for (i = 0; i < (numCellPts - 1); i++)
@@ -1625,7 +1687,8 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
               }
               if (i < numCellPts - 2)
               {
-                outPtId = this->GetOutputPointId(ids[i + 2], input, newPts, outputPD);
+                outPtId = this->GetOutputPointIdAndInterpolate(
+                  i + 2, input, cell, pc, weights.data(), newPts, outputPD);
                 newLines->InsertCellPoint(outPtId);
               }
             }
@@ -1633,41 +1696,7 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
           outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
           newLines->InsertCellPoint(outPtId);
         }
-        this->RecordOrigCellId(this->NumberOfNewCells, cellId);
-        outputCD->CopyData(cd, cellId, this->NumberOfNewCells++);
-        break;
-      }
-      case VTK_BEZIER_CURVE:
-      {
-        input->GetCellPoints(cellId, numCellPts, ids, pointIdList);
-        if (this->NonlinearSubdivisionLevel == 0)
-        {
-          // Straight line for NonlinearSubdivisionLevel = 0
-          newLines->InsertNextCell(2);
-          outPtId = this->GetOutputPointId(ids[0], input, newPts, outputPD);
-          newLines->InsertCellPoint(outPtId);
-          outPtId = this->GetOutputPointId(ids[1], input, newPts, outputPD);
-          newLines->InsertCellPoint(outPtId);
-        }
-        else
-        {
-          input->GetCell(cellId, cell);
-          input->SetCellOrderAndRationalWeights(cellId, cell);
-          weights.resize(cell->GetNumberOfPoints());
-          int numCellPtsAfterSubdivision =
-            std::pow(2, this->NonlinearSubdivisionLevel - 1) * (numCellPts - 1) + 1;
-          newLines->InsertNextCell(numCellPtsAfterSubdivision);
-          double paramCoordDelta = 1. / (numCellPtsAfterSubdivision - 1);
-          double inParamCoords[3];
-          inParamCoords[1] = inParamCoords[2] = 0.;
-          for (i = 0; i < numCellPtsAfterSubdivision; i++)
-          {
-            inParamCoords[0] = paramCoordDelta * i;
-            outPtId =
-              GetInterpolatedPointId(input, cell, inParamCoords, weights.data(), newPts, outputPD);
-            newLines->InsertCellPoint(outPtId);
-          }
-        }
+
         this->RecordOrigCellId(this->NumberOfNewCells, cellId);
         outputCD->CopyData(cd, cellId, this->NumberOfNewCells++);
         break;
@@ -2007,29 +2036,24 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
       numFacePts = cell->GetNumberOfPoints();
       outPts->Reset();
       weights.resize(numFacePts);
-      switch (cellType)
+      // For Bezier cells, the points that are not at the corners are overload to get the
+      // projection of the non-interpolate points. numFacePtsToCopy is the number of points to be
+      // copied, and numFacePts - numFacePtsToCopy will be the number of points that are
+      // interpolated.
+      vtkIdType numFacePtsToCopy = !AllowInterpolation ||
+          (cellType != VTK_BEZIER_QUADRILATERAL && cellType != VTK_BEZIER_TRIANGLE)
+        ? numFacePts
+        : (cellType == VTK_BEZIER_QUADRILATERAL ? 4 : 3);
+      // Points that are copied:
+      for (i = 0; i < numFacePtsToCopy; i++)
       {
-        case VTK_BEZIER_QUADRILATERAL:
-        case VTK_BEZIER_TRIANGLE:
-        {
-          // For Bezier cells, the points are overload to get the projection of the non-interpolate
-          // points.
-          for (i = 0; i < numFacePts; i++)
-          {
-            outPts->InsertNextId(this->GetOutputPointIdAndInterpolate(
-              i, input, cell, pc, weights.data(), newPts, outputPD));
-          }
-          break;
-        }
-        default:
-        {
-          for (i = 0; i < numFacePts; i++)
-          {
-            outPts->InsertNextId(
-              this->GetOutputPointId(cell->GetPointId(i), input, newPts, outputPD));
-          }
-          break;
-        }
+        outPts->InsertNextId(this->GetOutputPointId(cell->GetPointId(i), input, newPts, outputPD));
+      }
+      // Points that are interpolated (only for Bezier cells when AllowInterpolation is true )
+      for (i = numFacePtsToCopy; i < numFacePts; i++)
+      {
+        outPts->InsertNextId(this->GetOutputPointIdAndInterpolate(
+          i, input, cell, pc, weights.data(), newPts, outputPD));
       }
 
       bool isDegenerateCell = false;

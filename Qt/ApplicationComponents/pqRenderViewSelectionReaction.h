@@ -42,6 +42,7 @@ public:
     SELECT_SURFACE_CELLS_POLYGON,
     SELECT_SURFACE_POINTS_POLYGON,
     SELECT_BLOCKS,
+    SELECT_FRUSTUM_BLOCKS,
     SELECT_CUSTOM_BOX,
     SELECT_CUSTOM_POLYGON,
     ZOOM_TO_BOX,
@@ -184,7 +185,6 @@ private:
   Q_DISABLE_COPY(pqRenderViewSelectionReaction)
   QPointer<pqRenderView> View;
   QPointer<pqDataRepresentation> Representation;
-  QMetaObject::Connection RepresentationConnection;
   SelectionMode Mode;
   int PreviousRenderViewMode;
   vtkWeakPointer<vtkObject> ObservedObject;

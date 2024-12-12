@@ -147,6 +147,12 @@ bool vtkSMExtractsController::Extract(vtkCollection* collection)
 //----------------------------------------------------------------------------
 bool vtkSMExtractsController::Extract(vtkSMProxy* extractor)
 {
+  if (std::string(extractor->GetXMLName()) == "SteeringExtractor")
+  {
+    // Nothing to extract here for steering extractors
+    return false;
+  }
+
   if (!this->IsTriggerActivated(extractor))
   {
     // skipping, nothing to do.
@@ -426,6 +432,47 @@ vtkSMProxy* vtkSMExtractsController::CreateExtractor(
 }
 
 //----------------------------------------------------------------------------
+vtkSMProxy* vtkSMExtractsController::CreateSteeringExtractor(
+  vtkSMProxy* proxy, const char* registrationName /*=nullptr*/) const
+{
+  if (!proxy)
+  {
+    return nullptr;
+  }
+
+  vtkNew<vtkSMParaViewPipelineController> controller;
+  auto pxm = proxy->GetSessionProxyManager();
+
+  const std::string pname = registrationName ? std::string(registrationName)
+                                             : pxm->GetUniqueProxyName("extractors", "steering");
+  auto extractor =
+    vtkSmartPointer<vtkSMProxy>::Take(pxm->NewProxy("extractors", "SteeringExtractor"));
+
+  SM_SCOPED_TRACE(CreateSteeringExtractor)
+    .arg("producer", proxy)
+    .arg("extractor", extractor)
+    .arg("registrationName", pname.c_str());
+
+  controller->PreInitializeProxy(extractor);
+
+  if (auto port = vtkSMOutputPort::SafeDownCast(proxy))
+  {
+    vtkSMPropertyHelper(extractor, "Producer").Set(port->GetSourceProxy());
+  }
+  else
+  {
+    vtkSMPropertyHelper(extractor, "Producer").Set(proxy);
+  }
+
+  controller->PostInitializeProxy(extractor);
+  extractor->UpdateVTKObjects();
+
+  pxm->RegisterProxy("extractors", pname.c_str(), extractor);
+
+  return extractor;
+}
+
+//----------------------------------------------------------------------------
 const char* vtkSMExtractsController::GetRealExtractsOutputDirectory() const
 {
   return (this->EnvironmentExtractsOutputDirectory ? this->EnvironmentExtractsOutputDirectory
@@ -468,7 +515,10 @@ bool vtkSMExtractsController::CreateDir(
   }
   else
   {
-    vtkErrorMacro("Failed to create directory: " << dname.c_str());
+    // Expand directory name for better error message
+    std::string fullPath = vtksys::SystemTools::CollapseFullPath(dname);
+
+    vtkErrorMacro("Failed to create directory: " << fullPath.c_str());
     return false;
   }
 }

@@ -61,12 +61,15 @@ struct vtkOpenGLBufferObject::Private
     this->Handle = 0;
     this->Type = GL_ARRAY_BUFFER;
     this->Usage = GL_STATIC_DRAW;
+    this->Size = 0;
   }
   GLenum Type;
   GLenum Usage;
   GLuint Handle;
+  size_t Size;
 };
 
+//------------------------------------------------------------------------------
 vtkOpenGLBufferObject::vtkOpenGLBufferObject()
 {
   this->Dirty = true;
@@ -74,6 +77,7 @@ vtkOpenGLBufferObject::vtkOpenGLBufferObject()
   this->Internal->Type = convertType(vtkOpenGLBufferObject::ArrayBuffer);
 }
 
+//------------------------------------------------------------------------------
 vtkOpenGLBufferObject::~vtkOpenGLBufferObject()
 {
   if (this->Internal->Handle != 0)
@@ -83,6 +87,7 @@ vtkOpenGLBufferObject::~vtkOpenGLBufferObject()
   delete this->Internal;
 }
 
+//------------------------------------------------------------------------------
 void vtkOpenGLBufferObject::ReleaseGraphicsResources()
 {
   if (this->Internal->Handle != 0)
@@ -93,11 +98,13 @@ void vtkOpenGLBufferObject::ReleaseGraphicsResources()
   }
 }
 
+//------------------------------------------------------------------------------
 void vtkOpenGLBufferObject::SetType(vtkOpenGLBufferObject::ObjectType value)
 {
   this->Internal->Type = convertType(value);
 }
 
+//------------------------------------------------------------------------------
 vtkOpenGLBufferObject::ObjectType vtkOpenGLBufferObject::GetType() const
 {
   if (this->Internal->Type == GL_ARRAY_BUFFER)
@@ -114,11 +121,13 @@ vtkOpenGLBufferObject::ObjectType vtkOpenGLBufferObject::GetType() const
   }
 }
 
+//------------------------------------------------------------------------------
 void vtkOpenGLBufferObject::SetUsage(vtkOpenGLBufferObject::ObjectUsage value)
 {
   this->Internal->Usage = convertUsage(value);
 }
 
+//------------------------------------------------------------------------------
 vtkOpenGLBufferObject::ObjectUsage vtkOpenGLBufferObject::GetUsage() const
 {
   switch (this->Internal->Usage)
@@ -145,11 +154,13 @@ vtkOpenGLBufferObject::ObjectUsage vtkOpenGLBufferObject::GetUsage() const
   }
 }
 
+//------------------------------------------------------------------------------
 int vtkOpenGLBufferObject::GetHandle() const
 {
   return static_cast<int>(this->Internal->Handle);
 }
 
+//------------------------------------------------------------------------------
 bool vtkOpenGLBufferObject::Allocate(size_t size, ObjectType objectType, ObjectUsage objectUsage)
 {
   const bool generated = this->GenerateBuffer(objectType);
@@ -164,9 +175,16 @@ bool vtkOpenGLBufferObject::Allocate(size_t size, ObjectType objectType, ObjectU
   glBufferData(
     this->Internal->Type, static_cast<GLsizeiptr>(size), nullptr, convertUsage(objectUsage));
   this->Dirty = true;
+  this->Internal->Size = size;
   return true;
 }
 
+size_t vtkOpenGLBufferObject::GetSize()
+{
+  return this->Internal->Size;
+}
+
+//------------------------------------------------------------------------------
 bool vtkOpenGLBufferObject::Bind()
 {
   if (!this->Internal->Handle)
@@ -178,6 +196,25 @@ bool vtkOpenGLBufferObject::Bind()
   return true;
 }
 
+//------------------------------------------------------------------------------
+bool vtkOpenGLBufferObject::BindShaderStorage(int index)
+{
+#ifdef GL_SHADER_STORAGE_BUFFER
+  if (!this->Internal->Handle)
+  {
+    return false;
+  }
+
+  this->Bind();
+
+  glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, this->Internal->Handle);
+#else
+  (void)index;
+#endif
+  return true;
+}
+
+//------------------------------------------------------------------------------
 bool vtkOpenGLBufferObject::Release()
 {
   if (!this->Internal->Handle)
@@ -189,6 +226,7 @@ bool vtkOpenGLBufferObject::Release()
   return true;
 }
 
+//------------------------------------------------------------------------------
 bool vtkOpenGLBufferObject::GenerateBuffer(vtkOpenGLBufferObject::ObjectType objectType)
 {
   GLenum objectTypeGL = convertType(objectType);
@@ -200,6 +238,7 @@ bool vtkOpenGLBufferObject::GenerateBuffer(vtkOpenGLBufferObject::ObjectType obj
   return (this->Internal->Type == objectTypeGL);
 }
 
+//------------------------------------------------------------------------------
 bool vtkOpenGLBufferObject::UploadInternal(
   const void* buffer, size_t size, vtkOpenGLBufferObject::ObjectType objectType)
 {
@@ -224,6 +263,18 @@ bool vtkOpenGLBufferObject::UploadRangeInternal(
   glBufferSubData(
     this->Internal->Type, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(size), buffer);
   this->Dirty = false;
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool vtkOpenGLBufferObject::DownloadRangeInternal(void* buffer, ptrdiff_t offset, size_t size)
+{
+  glBindBuffer(this->Internal->Type, this->Internal->Handle);
+  void* ptr = glMapBufferRange(this->Internal->Type, static_cast<GLintptr>(offset),
+    static_cast<GLsizeiptr>(size), GL_MAP_READ_BIT);
+  memcpy(buffer, ptr, size);
+  glUnmapBuffer(this->Internal->Type);
+  glBindBuffer(this->Internal->Type, 0);
   return true;
 }
 

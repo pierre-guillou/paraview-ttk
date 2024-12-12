@@ -3,10 +3,12 @@
 
 #include "vtkHyperTreeGridContour.h"
 
+#include "vtkArrayDispatch.h"
 #include "vtkBitArray.h"
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
+#include "vtkCompositeArray.h"
 #include "vtkContourHelper.h"
 #include "vtkContourValues.h"
 #include "vtkDoubleArray.h"
@@ -18,9 +20,11 @@
 #include "vtkHyperTreeGridNonOrientedMooreSuperCursor.h"
 #include "vtkIdTypeArray.h"
 #include "vtkIncrementalPointLocator.h"
+#include "vtkIndexedArray.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkLine.h"
+#include "vtkMathUtilities.h"
 #include "vtkMergePoints.h"
 #include "vtkObjectFactory.h"
 #include "vtkPixel.h"
@@ -32,6 +36,7 @@
 #include "vtkUnstructuredGrid.h"
 #include "vtkVoxel.h"
 
+#include <algorithm>
 #include <memory>
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -51,17 +56,261 @@ const unsigned int* MooreCursors[3] = {
 // Conversion table of canonical ids from voxel to polyhedron
 constexpr vtkIdType CANONICAL_FACES[24] = { 2, 3, 1, 0, 1, 5, 4, 0, 4, 6, 2, 0, 3, 7, 5, 1, 2, 6, 7,
   3, 5, 7, 6, 4 };
-constexpr std::size_t POLY_FACES_SIZE = 31;
 constexpr vtkIdType POLY_FACES_NB = 6;
 constexpr vtkIdType POLY_FACES_POINTS_NB = 4;
 constexpr vtkIdType POLY_POINTS_NB = 8;
+
+constexpr int MAX_NB_OF_CONTOURS = std::numeric_limits<unsigned char>::max() + 1; // 256
+
+// Return true if all faces of the cell are planar.
+// The cell is expected to be a vtkVoxel instance.
+bool AreAllFacesPlanar(vtkCell* cell)
+{
+  bool allFacesArePlanar = true;
+
+  std::array<std::array<double, 3>, POLY_FACES_POINTS_NB> facePoints{};
+
+  // For each face
+  for (int faceId = 0, canonicalId = 0; faceId < ::POLY_FACES_NB; faceId++)
+  {
+    // Retrieve face points
+    for (int i = 0; i < ::POLY_FACES_POINTS_NB; i++, canonicalId++)
+    {
+      auto point = cell->GetPoints()->GetPoint(::CANONICAL_FACES[canonicalId]);
+      facePoints[i][0] = point[0];
+      facePoints[i][1] = point[1];
+      facePoints[i][2] = point[2];
+    }
+
+    // Test if 3 vectors of the face are coplanar
+    std::array<double, 3> v1{};
+    v1[0] = facePoints[1][0] - facePoints[0][0];
+    v1[1] = facePoints[1][1] - facePoints[0][1];
+    v1[2] = facePoints[1][2] - facePoints[0][2];
+
+    std::array<double, 3> v2{};
+    v2[0] = facePoints[2][0] - facePoints[0][0];
+    v2[1] = facePoints[2][1] - facePoints[0][1];
+    v2[2] = facePoints[2][2] - facePoints[0][2];
+
+    std::array<double, 3> v3{};
+    v3[0] = facePoints[3][0] - facePoints[0][0];
+    v3[1] = facePoints[3][1] - facePoints[0][1];
+    v3[2] = facePoints[3][2] - facePoints[0][2];
+
+    double cross[3] = { 0. };
+    vtkMath::Cross(v1, v2, cross);
+
+    if (!vtkMathUtilities::FuzzyCompare(vtkMath::Dot(cross, v3), 0.))
+    {
+      allFacesArePlanar = false;
+      break;
+    }
+  }
+
+  return allFacesArePlanar;
+}
+
+// Given contour values, find a "valid" epsilon value, allowing to discriminate values
+// by fuzzy comparison. Returned espilon correspond to the min difference between contour
+// values divided by 10.
+double FindEpsilon(vtkDataArray* contourValues)
+{
+  vtkIdType numberOfContours = contourValues->GetNumberOfTuples();
+  if (numberOfContours == 0)
+  {
+    vtkErrorWithObjectMacro(nullptr, "No contour values found");
+    return 0;
+  }
+
+  // Sort contour values
+  std::vector<double> sortedContourValues;
+  sortedContourValues.reserve(numberOfContours);
+  for (int contourId = 0; contourId < numberOfContours; contourId++)
+  {
+    sortedContourValues.emplace_back(contourValues->GetTuple1(contourId));
+  }
+  std::sort(sortedContourValues.begin(), sortedContourValues.end());
+
+  // Find smallest difference between 2 values
+  double epsilon = std::numeric_limits<double>::max();
+  double contourValue1 = sortedContourValues[0];
+  for (int contourId = 1; contourId < numberOfContours; contourId++)
+  {
+    double contourValue2 = sortedContourValues[contourId];
+    double difference = contourValue2 - contourValue1;
+    contourValue1 = contourValue2; // For next iteration
+
+    // Avoid dupplicated contour values (compare using std::numeric_limits<double>::epsilon)
+    if (vtkMathUtilities::FuzzyCompare(difference, 0.))
+    {
+      continue;
+    }
+    if (difference < epsilon)
+    {
+      epsilon = difference;
+    }
+  }
+
+  // Ensure there is no overlap by dividing min diff by 10
+  return epsilon * 0.1;
+}
+
+// Given the contour array and the contour values, generate handles by associating
+// each value of contourArray to its corresponding index in contourValues
+vtkSmartPointer<vtkUnsignedCharArray> GenerateHandles(
+  vtkDataArray* contourArray, vtkDataArray* contourValues)
+{
+  vtkIdType nbOfPoints = contourArray->GetNumberOfTuples();
+  vtkIdType numberOfContours = contourValues->GetNumberOfTuples();
+
+  // Initialize handles
+  vtkNew<vtkUnsignedCharArray> handles;
+  handles->SetNumberOfComponents(1);
+  handles->SetNumberOfTuples(nbOfPoints);
+  // numberOfContours plays the role of id pointing to the default value
+  // that will be used if no contourValue index is found
+  handles->Fill(numberOfContours);
+
+  double epsilon = ::FindEpsilon(contourValues);
+
+  for (vtkIdType pointId = 0; pointId < nbOfPoints; pointId++)
+  {
+    int contourId = 0;
+    for (; contourId < numberOfContours; contourId++)
+    {
+      if (vtkMathUtilities::FuzzyCompare(
+            contourArray->GetTuple1(pointId), contourValues->GetTuple1(contourId), epsilon))
+      {
+        handles->SetValue(pointId, contourId);
+        break;
+      }
+    }
+    if (contourId == numberOfContours)
+    {
+      vtkErrorWithObjectMacro(nullptr,
+        "Unable to retrieve contour value for point " << pointId << " with value "
+                                                      << contourArray->GetTuple1(pointId));
+    }
+  }
+
+  return handles;
+}
+
+// Given the contour array, the contour values and the output attributes,
+// replace the contour array found in the attibutes by an implicit array.
+struct ConvertToIndexedArrayWorker
+{
+  template <typename ArrayType>
+  void operator()(ArrayType* contourArray, vtkContourValues* contourValues,
+    vtkDataSetAttributes* outputAttributes) const
+  {
+    vtkIdType nbOfPoints = contourArray->GetNumberOfTuples();
+    int numberOfContours = contourValues->GetNumberOfContours();
+
+    using ValueType = vtk::GetAPIType<ArrayType>;
+
+    // Fill values indexed by handles
+    vtkNew<ArrayType> valuesArray;
+    valuesArray->SetNumberOfComponents(1);
+    valuesArray->SetNumberOfTuples(numberOfContours);
+    for (int i = 0; i < numberOfContours; i++)
+    {
+      ValueType newVal = 0;
+      vtkMath::RoundDoubleToIntegralIfNecessary(contourValues->GetValue(i), &newVal);
+      valuesArray->SetValue(i, newVal);
+    }
+
+    // Fill handles
+    vtkSmartPointer<vtkUnsignedCharArray> handles = ::GenerateHandles(contourArray, valuesArray);
+
+    // Create array carrying the fallback default value
+    vtkNew<ArrayType> defaultValueArray;
+    defaultValueArray->SetNumberOfComponents(1);
+    defaultValueArray->SetNumberOfTuples(1);
+    if (defaultValueArray->GetDataType() == VTK_FLOAT ||
+      defaultValueArray->GetDataType() == VTK_DOUBLE)
+    {
+      defaultValueArray->SetValue(0, vtkMath::Nan());
+    }
+    else
+    {
+      defaultValueArray->SetValue(0, 0);
+    }
+
+    // Create composite array (indexed values + default value)
+    std::vector<vtkDataArray*> arrays({ valuesArray, defaultValueArray });
+
+    vtkNew<vtkCompositeArray<ValueType>> compositeArr;
+    compositeArr->SetBackend(std::make_shared<vtkCompositeImplicitBackend<ValueType>>(arrays));
+    compositeArr->SetNumberOfComponents(1);
+    // Allocate one more tuple to store the default value
+    compositeArr->SetNumberOfTuples(valuesArray->GetNumberOfTuples() + 1);
+
+    // Create indexed array from handles and composite array
+    auto contourArrayName = contourArray->GetName();
+    vtkNew<vtkIndexedArray<ValueType>> indexedArray;
+    indexedArray->SetBackend(
+      std::make_shared<vtkIndexedImplicitBackend<ValueType>>(handles, compositeArr));
+    indexedArray->SetNumberOfComponents(1);
+    indexedArray->SetNumberOfTuples(nbOfPoints);
+    indexedArray->SetName(contourArrayName);
+
+    // Replace the interpolated contour values by indexed ones
+    outputAttributes->RemoveArray(contourArrayName);
+    outputAttributes->AddArray(indexedArray);
+  }
+};
+
+// Given the contour array name, the contour values and the output attributes,
+// replace the contour array found in the attibutes by an indexed array.
+// If there are less than 256 contour values:
+// - store these values in a new array, removing duplicates
+// - use a vtkUnsignedCharArray to index these values (handles)
+// If there is strictly more than 256 contour values, this function will do nothing.
+void ReplaceWithIndexedArray(const std::string& contourArrayName, vtkContourValues* contourValues,
+  vtkDataSetAttributes* outputAttributes)
+{
+  int numberOfContours = contourValues->GetNumberOfContours();
+  if (numberOfContours > MAX_NB_OF_CONTOURS) // 256
+  {
+    vtkDebugWithObjectMacro(nullptr,
+      "There are more than " << MAX_NB_OF_CONTOURS << " values in contourValues. "
+                             << "ReplaceWithIndexedArray will do nothing.");
+    return;
+  }
+
+  if (!outputAttributes)
+  {
+    vtkErrorWithObjectMacro(nullptr, "Unable to retrieve output attributes");
+    return;
+  }
+
+  auto contourArray =
+    vtkDataArray::SafeDownCast(outputAttributes->GetAbstractArray(contourArrayName.c_str()));
+  if (!contourArray)
+  {
+    vtkErrorWithObjectMacro(
+      nullptr, "Unable to retrieve contour array " << contourArrayName << " from input attributes");
+    return;
+  }
+
+  using Dispatcher = vtkArrayDispatch::DispatchByValueType<vtkArrayDispatch::AllTypes>;
+  ::ConvertToIndexedArrayWorker worker;
+
+  // Dispatch
+  if (!Dispatcher::Execute(contourArray, worker, contourValues, outputAttributes))
+  {
+    vtkErrorWithObjectMacro(nullptr, "Unable to dispatch the contour array " << contourArrayName);
+  }
+}
 }
 
 //------------------------------------------------------------------------------
 struct vtkHyperTreeGridContour::vtkInternals
 {
   // Temporary data structures related to USE_DECOMPOSED_POLYHEDRA strategy
-  std::vector<vtkIdType> Faces;
+  vtkNew<vtkCellArray> Faces;
   vtkNew<vtkPolyhedron> Polyhedron;
   vtkNew<vtkGenericCell> Tetra;
   vtkNew<vtkDoubleArray> TetraScalars;
@@ -107,7 +356,7 @@ vtkHyperTreeGridContour::vtkHyperTreeGridContour()
   // Initialize temporal structures related to USE_DECOMPOSED_POLYHEDRA strategy
   this->Internals->Polyhedron->GetPointIds()->SetNumberOfIds(::POLY_POINTS_NB);
   this->Internals->Polyhedron->GetPoints()->SetNumberOfPoints(::POLY_POINTS_NB);
-  this->Internals->Faces.reserve(::POLY_FACES_SIZE);
+  this->Internals->Faces->AllocateExact(::POLY_FACES_NB, ::POLY_FACES_POINTS_NB * ::POLY_FACES_NB);
 }
 
 //------------------------------------------------------------------------------
@@ -424,6 +673,13 @@ int vtkHyperTreeGridContour::ProcessTrees(vtkHyperTreeGrid* input, vtkDataObject
     output->SetPolys(newPolys);
   }
 
+  // Replace values from contour with implicit array if needed
+  if (this->UseImplicitArrays && numContours <= 256)
+  {
+    const std::string contourValuesArrayName = this->InScalars->GetName();
+    ::ReplaceWithIndexedArray(contourValuesArrayName, this->ContourValues, output->GetPointData());
+  }
+
   // Clean up
   this->SelectedCells->Delete();
   for (vtkIdType c = 0; c < this->GetNumberOfContours(); ++c)
@@ -461,7 +717,7 @@ bool vtkHyperTreeGridContour::RecursivelyPreProcessTree(vtkHyperTreeGridNonOrien
 
   // Descend further into input trees only if cursor is not a leaf
   bool selected = false;
-  if (!cursor->IsLeaf())
+  if (!cursor->IsLeaf() && !cursor->IsMasked())
   {
     // Cursor is not at leaf, recurse to all all children
     int numChildren = cursor->GetNumberOfChildren();
@@ -584,8 +840,7 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
         }
       } // neighbor
     }   // c
-
-    if (selected)
+    if (selected && !supercursor->IsMasked())
     {
       // Node has at least one neighbor containing one contour, recurse to all children
       unsigned int numChildren = supercursor->GetNumberOfChildren();
@@ -660,7 +915,7 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
           cell->PointIds->SetId(_cornerIdx, idN);
 
           // Assign scalar value attached to this contour item
-          this->CellScalars->SetTuple(_cornerIdx, this->InScalars->GetTuple(idN));
+          this->CellScalars->InsertTuple(_cornerIdx, this->InScalars->GetTuple(idN));
         } // cornerIdx
 
         /* If we are in 3D and the contour strategy is set to USE_DECOMPOSED_POLYHEDRA,
@@ -672,7 +927,7 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
          * be insensitive to this issue for now (edge cases are still possible and should be
          * reported if encountered).
          */
-        if (this->Strategy3D == USE_DECOMPOSED_POLYHEDRA && dim == 3)
+        if (this->Strategy3D == USE_DECOMPOSED_POLYHEDRA && dim == 3 && !::AreAllFacesPlanar(cell))
         {
           // Insert points and global point IDs
           for (int i = 0; i < ::POLY_POINTS_NB; ++i)
@@ -682,18 +937,18 @@ void vtkHyperTreeGridContour::RecursivelyProcessTree(
           }
 
           // Construct faces from voxel point ids (global ids)
-          this->Internals->Faces.clear();
-          this->Internals->Faces.emplace_back(::POLY_FACES_NB);
+          this->Internals->Faces->Reset();
           for (int faceId = 0, canonicalId = 0; faceId < ::POLY_FACES_NB; faceId++)
           {
-            this->Internals->Faces.emplace_back(::POLY_FACES_POINTS_NB);
+            this->Internals->Faces->InsertNextCell(::POLY_FACES_POINTS_NB);
             for (int i = 0; i < ::POLY_FACES_POINTS_NB; i++, canonicalId++)
             {
-              this->Internals->Faces.emplace_back(cell->GetPointId(::CANONICAL_FACES[canonicalId]));
+              this->Internals->Faces->InsertCellPoint(
+                cell->GetPointId(::CANONICAL_FACES[canonicalId]));
             }
           }
 
-          this->Internals->Polyhedron->SetFaces(this->Internals->Faces.data());
+          this->Internals->Polyhedron->SetCellFaces(this->Internals->Faces);
           this->Internals->Polyhedron->Initialize();
 
           // Decompose the this->Internals->Polyhedron

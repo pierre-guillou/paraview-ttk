@@ -10,6 +10,7 @@
 #define vtkHDFReaderImplementation_h
 
 #include "vtkHDFReader.h"
+#include "vtkHDFUtilities.h"
 #include "vtk_hdf5.h"
 #include <array>
 #include <map>
@@ -20,6 +21,7 @@ VTK_ABI_NAMESPACE_BEGIN
 class vtkAbstractArray;
 class vtkDataArray;
 class vtkStringArray;
+class vtkDataAssembly;
 
 /**
  * Implementation for the vtkHDFReader. Opens, closes and
@@ -71,6 +73,10 @@ public:
    * Returns the names of arrays for 'attributeType' (point or cell).
    */
   std::vector<std::string> GetArrayNames(int attributeType);
+  /**
+   * Return the name of all children of an HDF group given its path
+   */
+  std::vector<std::string> GetOrderedChildrenOfGroup(const std::string& path);
   ///@{
   /**
    * Reads and returns a new vtkDataArray. The actual type of the array
@@ -83,7 +89,8 @@ public:
   vtkDataArray* NewArray(
     int attributeType, const char* name, const std::vector<hsize_t>& fileExtent);
   vtkDataArray* NewArray(int attributeType, const char* name, hsize_t offset, hsize_t size);
-  vtkAbstractArray* NewFieldArray(const char* name, vtkIdType offset = -1, vtkIdType size = -1);
+  vtkAbstractArray* NewFieldArray(
+    const char* name, vtkIdType offset = -1, vtkIdType size = -1, vtkIdType dimMaxSize = -1);
   ///@}
 
   ///@{
@@ -102,14 +109,18 @@ public:
   std::vector<hsize_t> GetDimensions(const char* dataset);
 
   /**
-   * Fills the given AMR data with the content of the opened HDF file.
-   * The number of level to read is limited by the maximumLevelsToReadByDefault argument.
-   * maximumLevelsToReadByDefault == 0 means to read all levels (no limit).
-   * Only the selected data array in dataArraySelection are added to the AMR data.
-   * Returns true on success.
+   * Return true if current root path is a soft link
    */
-  bool FillAMR(vtkOverlappingAMR* data, unsigned int maximumLevelsToReadByDefault, double origin[3],
-    vtkDataArraySelection* dataArraySelection[3]);
+  bool IsPathSoftLink(const std::string& path);
+
+  ///@{
+  /**
+   * Fills the given Assembly with the content of the opened HDF file.
+   * Return true on success, false if the HDF File isn't a composite or the 'Assembly' is missing.
+   */
+  bool FillAssembly(vtkDataAssembly* data);
+  bool FillAssembly(vtkDataAssembly* data, hid_t assemblyHandle, int assemblyID, std::string path);
+  ///@}
 
   ///@{
   /**
@@ -131,6 +142,51 @@ public:
    * Methods to query for array offsets when steps are present
    */
   vtkIdType GetArrayOffset(vtkIdType step, int attributeType, std::string name);
+
+  /**
+   * Return the field array size (components, tuples) for the current step.
+   * By default it returns {-1,1} which means to have as many components as necessary
+   * and one tuple per step.
+   */
+  std::array<vtkIdType, 2> GetFieldArraySize(vtkIdType step, std::string name);
+
+  /**
+   * Open a sub group of the current file and consider it as the new root file.
+   */
+  bool OpenGroupAsVTKGroup(const std::string& groupPath);
+
+  /**
+   * Initialize meta information of the implementation based on root name specified.
+   */
+  bool RetrieveHDFInformation(const std::string& rootName);
+
+  ///@{
+  /**
+   * Specific public API for AMR supports.
+   */
+  /**
+   * Retrieve for each required level AMRBlocks size and position.
+   */
+  bool ComputeAMRBlocksPerLevels(unsigned int maxLevel);
+
+  /**
+   * Retrieve offset for AMRBox, point/cell/field arrays for each level.
+   */
+  bool ComputeAMROffsetsPerLevels(
+    vtkDataArraySelection* dataArraySelection[3], vtkIdType step, unsigned int maxLevel);
+
+  /**
+   * Read the AMR topology based on offset data on AMRBlocks.
+   */
+  bool ReadAMRTopology(vtkOverlappingAMR* data, unsigned int level, unsigned int maxLevel,
+    double origin[3], bool isTemporalData);
+
+  /**
+   * Read the AMR data based on offset on point/cell/field datas.
+   */
+  bool ReadAMRData(vtkOverlappingAMR* data, unsigned int level, unsigned int maxLevel,
+    vtkDataArraySelection* dataArraySelection[3], bool isTemporalData);
+  ///@}
 
 protected:
   /**
@@ -155,9 +211,10 @@ protected:
   };
 
   /**
-   * Opens the hdf5 dataset given the 'group'
-   * and 'name'.
+   * Opens the hdf5 dataset given the 'group' and 'name'.
    * Returns the hdf dataset and sets 'nativeType' and 'dims'.
+   * The caller needs to close the returned hid_t manually using H5Dclose or a Scoped Handle if it
+   * is not an invalid hid.
    */
   hid_t OpenDataSet(hid_t group, const char* name, hid_t* nativeType, std::vector<hsize_t>& dims);
   /**
@@ -227,15 +284,37 @@ private:
 
   ///@{
   /**
-   * These methods are valid only with AMR data set type.
+   * Specific methods and structure of AMR support.
    */
-  bool ComputeAMRBlocksPerLevels(std::vector<int>& levels);
+  struct AMRBlocksInformation
+  {
+    std::vector<int> BlocksPerLevel;
+    std::vector<int> BlockOffsetsPerLevel;
+    std::map<std::string, std::vector<int>> CellOffsetsPerLevel;
+    std::map<std::string, std::vector<int>> PointOffsetsPerLevel;
+    std::map<std::string, std::vector<int>> FieldOffsetsPerLevel;
+    std::map<std::string, std::vector<int>> FieldSizesPerLevel;
+
+    void Clear()
+    {
+      this->BlocksPerLevel.clear();
+      this->BlockOffsetsPerLevel.clear();
+      this->PointOffsetsPerLevel.clear();
+      this->CellOffsetsPerLevel.clear();
+      this->FieldOffsetsPerLevel.clear();
+      this->FieldSizesPerLevel.clear();
+    }
+  };
+
+  AMRBlocksInformation AMRInformation;
+
   bool ReadLevelSpacing(hid_t levelGroupID, double* spacing);
-  bool ReadAMRBoxRawValues(hid_t levelGroupID, std::vector<int>& amrBoxRawData);
+  bool ReadAMRBoxRawValues(
+    hid_t levelGroupID, std::vector<int>& amrBoxRawData, int level, bool isTemporalData);
   bool ReadLevelTopology(unsigned int level, const std::string& levelGroupName,
-    vtkOverlappingAMR* data, double origin[3]);
+    vtkOverlappingAMR* data, double origin[3], bool isTemporalData);
   bool ReadLevelData(unsigned int level, const std::string& levelGroupName, vtkOverlappingAMR* data,
-    vtkDataArraySelection* dataArraySelection[3]);
+    vtkDataArraySelection* dataArraySelection[3], bool isTemporalData);
   ///@}
 };
 

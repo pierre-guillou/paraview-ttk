@@ -4,6 +4,7 @@
 set(classes
   vtkAnnotateGlobalDataFilter
   vtkAnnotateSelectionFilter
+  vtkAxisAlignedCutter
   vtkCellIntegrator
   vtkConvertPolyhedraFilter
   vtkEquivalenceSet
@@ -25,6 +26,7 @@ set(classes
   vtkPVCutter
   vtkPVDataSetAlgorithmSelectorFilter
   vtkPVExtractComponent
+  vtkPVExtractGhostCells
   vtkPVExtractVOI
   vtkPVGlyphFilter
   vtkPVGradientFilter

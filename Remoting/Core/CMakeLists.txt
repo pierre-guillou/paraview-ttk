@@ -27,8 +27,6 @@ set(classes
   vtkPVInformation
   vtkPVLogInformation
   vtkPVMemoryUseInformation
-  vtkPVOptions
-  vtkPVOptionsXMLParser
   vtkPVPlugin
   vtkPVPluginLoader
   vtkPVPluginsInformation
@@ -90,6 +88,10 @@ endif ()
 set_source_files_properties(vtkProcessModule.cxx
   PROPERTIES
     COMPILE_DEFINITIONS "${vtkProcessModule_defines}")
+
+set_source_files_properties(vtkProcessModuleConfiguration.cxx
+  PROPERTIES
+    COMPILE_DEFINITIONS "PARAVIEW_USE_PYTHON=$<BOOL:${PARAVIEW_USE_PYTHON}>")
 
 # TODO: Expose CMake options for these?
 set(vtkPVOptions_defines)

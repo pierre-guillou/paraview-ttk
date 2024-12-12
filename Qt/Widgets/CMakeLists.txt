@@ -2,10 +2,6 @@
 # SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 set(classes
-  pqAnimationKeyFrame
-  pqAnimationModel
-  pqAnimationTrack
-  pqAnimationWidget
   pqCheckBoxPixMaps
   pqCheckBoxPixMaps
   pqCheckableHeaderView
@@ -29,6 +25,7 @@ set(classes
   pqDoubleSpinBox
   pqExpandableTableView
   pqExpanderButton
+  pqExtendedSortFilterProxyModel
   pqFlatTreeView
   pqHeaderView
   pqHierarchicalGridLayout
@@ -44,6 +41,7 @@ set(classes
   pqQuickLaunchDialog
   pqScaleByButton
   pqScaledSpinBox
+  pqScopedOverrideCursor
   pqSectionVisibilityContextMenu
   pqSeriesGeneratorDialog
   pqSetData
@@ -52,7 +50,6 @@ set(classes
   pqSpinBox
   pqTableView
   pqTextEdit
-  pqTimelineScrollbar
   pqTreeView
   pqTreeViewExpandState
   pqTreeViewSelectionHelper

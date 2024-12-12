@@ -2,6 +2,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
+#ifndef vtkIOSSReader_h
+#define vtkIOSSReader_h
+
 /**
  * @class vtkIOSSReader
  * @brief Reader for IOSS (Sierra IO System)
@@ -156,9 +159,6 @@
  * vtkIOSSWriter, vtkExodusIIReader, vtkCGNSReader
  */
 
-#ifndef vtkIOSSReader_h
-#define vtkIOSSReader_h
-
 #include "vtkIOIOSSModule.h" // for export macros
 #include "vtkNew.h"          // for vtkNew
 #include "vtkReaderAlgorithm.h"
@@ -168,6 +168,7 @@
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataArraySelection;
 class vtkDataAssembly;
+class vtkIOSSReaderInternal;
 class vtkMultiProcessController;
 class vtkStringArray;
 
@@ -265,7 +266,18 @@ public:
 
   ///@{
   /**
-   * When this flag is on, blocks/sets of like exodus types will be merged.
+   * When this flag is on, caching of data across time-steps is enabled.
+   *
+   * This flag is false/off by default.
+   */
+  void SetCaching(bool value);
+  vtkGetMacro(Caching, bool);
+  vtkBooleanMacro(Caching, bool);
+  ///@}
+
+  ///@{
+  /**
+   * When this flag is on, blocks/sets of exodus like types will be merged.
    *
    * Note: This flag is ignored for non-exodus data.
    */
@@ -348,12 +360,14 @@ public:
 
   ///@{
   /**
-   * When set to true (default), the reader will read all files to determine structure of the
-   * dataset because some files might have certain blocks that other files don't have.
-   * Set to false if you are sure that all files have the same structure, i.e. same blocks and sets.
+   * When set to false (default), the reader will read only the first file to determine the
+   * structure, and assume all files have the same structure, i.e. same blocks and sets.
+   * This is on be default because it is faster than reading all files.
    *
-   * @note When set to false, the reader will only read the first file to determine the structure.
-   * which is faster than reading all files.
+   * When set to true the reader will read all files to determine structure of the
+   * dataset because some files might have certain blocks that other files don't have..
+   *
+   * @note vtkIOSSReader will let the user know if there is a need for reading all files.
    */
   void SetReadAllFilesToDetermineStructure(bool);
   vtkGetMacro(ReadAllFilesToDetermineStructure, bool);
@@ -632,10 +646,20 @@ public:
   static vtkInformationIntegerKey* ENTITY_ID();
 
 protected:
+  friend class vtkIOSSReaderInternal;
+
   vtkIOSSReader();
   ~vtkIOSSReader() override;
 
+  // For use by vtkIOSSReaderInternal.
+  std::map<std::string, vtkTypeInt64>& GetEntityIdMap(int type);
+
   int FillOutputPortInformation(int port, vtkInformation* info) override;
+
+  static vtkInformationIntegerKey* ENTITY_TYPE();
+
+  int AssemblyTag;
+  vtkIOSSReaderInternal* Internals;
 
 private:
   vtkIOSSReader(const vtkIOSSReader&) = delete;
@@ -646,6 +670,7 @@ private:
   vtkNew<vtkStringArray> EntityIdMapStrings[NUMBER_OF_ENTITY_TYPES + 1];
 
   vtkMultiProcessController* Controller;
+  bool Caching;
   bool MergeExodusEntityBlocks;
   bool ElementAndSideIds;
   bool GenerateFileId;
@@ -657,14 +682,8 @@ private:
   bool ReadGlobalFields;
   bool ReadQAAndInformationRecords;
   char* DatabaseTypeOverride;
-  int AssemblyTag;
   int FileRange[2];
   int FileStride;
-
-  class vtkInternals;
-  vtkInternals* Internals;
-
-  static vtkInformationIntegerKey* ENTITY_TYPE();
 };
 
 VTK_ABI_NAMESPACE_END

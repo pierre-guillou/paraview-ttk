@@ -445,6 +445,11 @@ public:
   ///@}
 
   /**
+   * Returns true if the proxy has a deprecation tag.
+   */
+  bool IsDeprecated() { return this->Deprecated != nullptr; }
+
+  /**
    * Given a source proxy, makes this proxy point to the same server-side
    * object (with a new id). This method copies connection id as well as
    * server ids. This method can be called only once on an uninitialized
@@ -602,6 +607,11 @@ public:
   const char* GetLogNameOrDefault();
 
   bool GetPropertiesModified() { return this->PropertiesModified; }
+
+  /**
+   * Return the property names that have values different from the otherProxy argument.
+   */
+  virtual std::vector<std::string> GetPropertiesWithDifferentValues(vtkSMProxy* otherProxy);
 
 protected:
   vtkSMProxy();
@@ -857,6 +867,11 @@ protected:
   bool WarnIfDeprecated();
 
   /**
+   * If a proxy need to ensure a plugin is loaded, make sure it is
+   */
+  bool LoadPluginIfEnsured();
+
+  /**
    * This method simply iterates over subproxies and calls
    * UpdatePipelineInformation() on them. vtkSMSourceProxy overrides this method
    * (makes it public) and updates the pipeline information.
@@ -984,12 +999,19 @@ protected:
   void SetHints(vtkPVXMLElement* hints);
   void SetDeprecated(vtkPVXMLElement* deprecated);
 
+  /**
+   * Set the "EnsurePluginLoaded" XML element
+   * that is used in LoadPluginIfEnsured
+   */
+  void SetEnsurePluginLoaded(vtkPVXMLElement* ensurePluginLoaded);
+
   void SetXMLElement(vtkPVXMLElement* element);
   vtkPVXMLElement* XMLElement;
 
   vtkSMDocumentation* Documentation;
-  vtkPVXMLElement* Hints;
-  vtkPVXMLElement* Deprecated;
+  vtkPVXMLElement* Hints = nullptr;
+  vtkPVXMLElement* Deprecated = nullptr;
+  vtkPVXMLElement* EnsurePluginLoaded = nullptr;
 
   // Cached version of State
   vtkSMMessage* State;

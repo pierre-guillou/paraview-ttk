@@ -181,6 +181,12 @@ public:
     return vtkm::cont::internal::CreateBuffers(info, firstArray, secondArray);
   }
 
+  VTKM_CONT static vtkm::IdComponent GetNumberOfComponentsFlat(
+    const std::vector<vtkm::cont::internal::Buffer>&)
+  {
+    return 1;
+  }
+
   VTKM_CONT static void ResizeBuffers(vtkm::Id numValues,
                                       const std::vector<vtkm::cont::internal::Buffer>& buffers,
                                       vtkm::CopyFlag preserve,
@@ -261,13 +267,16 @@ public:
     (ArrayHandleZip<FirstHandleType, SecondHandleType>),
     (typename internal::ArrayHandleZipTraits<FirstHandleType, SecondHandleType>::Superclass));
 
+  /// Create `ArrayHandleZip` with two arrays.
   VTKM_CONT
   ArrayHandleZip(const FirstHandleType& firstArray, const SecondHandleType& secondArray)
     : Superclass(StorageType::CreateBuffers(firstArray, secondArray))
   {
   }
 
+  /// Returns the the array for the first part of the zip pair.
   FirstHandleType GetFirstArray() const { return StorageType::GetFirstArray(this->GetBuffers()); }
+  /// Returns the the array for the second part of the zip pair.
   SecondHandleType GetSecondArray() const
   {
     return StorageType::GetSecondArray(this->GetBuffers());

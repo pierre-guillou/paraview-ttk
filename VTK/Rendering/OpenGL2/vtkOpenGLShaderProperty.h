@@ -21,12 +21,13 @@
 #include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkShader.h"                 // For methods (shader types)
 #include "vtkShaderProperty.h"
-#include <map> // used for ivar
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
+#include <map>                // used for ivar
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLUniforms;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkOpenGLShaderProperty : public vtkShaderProperty
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkOpenGLShaderProperty : public vtkShaderProperty
 {
 public:
   vtkTypeMacro(vtkOpenGLShaderProperty, vtkShaderProperty);
@@ -51,6 +52,12 @@ public:
   void AddGeometryShaderReplacement(const std::string& originalValue,
     bool replaceFirst, // do this replacement before the default
     const std::string& replacementValue, bool replaceAll) override;
+  void AddTessControlShaderReplacement(const std::string& originalValue,
+    bool replaceFirst, // do this replacement before the default
+    const std::string& replacementValue, bool replaceAll) override;
+  void AddTessEvaluationShaderReplacement(const std::string& originalValue,
+    bool replaceFirst, // do this replacement before the default
+    const std::string& replacementValue, bool replaceAll) override;
 
   int GetNumberOfShaderReplacements() override;
   std::string GetNthShaderReplacementTypeAsString(vtkIdType index) override;
@@ -60,9 +67,15 @@ public:
   void ClearVertexShaderReplacement(const std::string& originalValue, bool replaceFirst) override;
   void ClearFragmentShaderReplacement(const std::string& originalValue, bool replaceFirst) override;
   void ClearGeometryShaderReplacement(const std::string& originalValue, bool replaceFirst) override;
+  void ClearTessControlShaderReplacement(
+    const std::string& originalValue, bool replaceFirst) override;
+  void ClearTessEvaluationShaderReplacement(
+    const std::string& originalValue, bool replaceFirst) override;
   void ClearAllVertexShaderReplacements() override;
   void ClearAllFragmentShaderReplacements() override;
   void ClearAllGeometryShaderReplacements() override;
+  void ClearAllTessControlShaderReplacements() override;
+  void ClearAllTessEvalShaderReplacements() override;
   void ClearAllShaderReplacements() override;
 
   ///@{

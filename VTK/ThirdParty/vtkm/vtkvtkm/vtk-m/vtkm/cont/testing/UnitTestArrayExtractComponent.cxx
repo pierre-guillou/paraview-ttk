@@ -12,6 +12,7 @@
 
 #include <vtkm/cont/ArrayHandleCartesianProduct.h>
 #include <vtkm/cont/ArrayHandleCompositeVector.h>
+#include <vtkm/cont/ArrayHandleConstant.h>
 #include <vtkm/cont/ArrayHandleExtractComponent.h>
 #include <vtkm/cont/ArrayHandleGroupVec.h>
 #include <vtkm/cont/ArrayHandleIndex.h>
@@ -154,6 +155,22 @@ void CheckOutputArray(
                                   GetVecFlatIndex(outValue, numComponents - componentId - 1)));
     }
   }
+
+  // Check to make sure you can fill extracted components with a constant value.
+  for (vtkm::IdComponent componentId = 0; componentId < numComponents; ++componentId)
+  {
+    auto componentArray =
+      vtkm::cont::ArrayExtractComponent(outputArray, componentId, vtkm::CopyFlag::Off);
+    componentArray.Fill(TestValue(componentId, ComponentType{}));
+  }
+  for (vtkm::IdComponent componentId = 0; componentId < numComponents; ++componentId)
+  {
+    auto componentArray =
+      vtkm::cont::ArrayExtractComponent(outputArray, componentId, vtkm::CopyFlag::Off);
+    auto constantArray = vtkm::cont::make_ArrayHandleConstant(
+      TestValue(componentId, ComponentType{}), originalArray.GetNumberOfValues());
+    VTKM_TEST_ASSERT(test_equal_ArrayHandles(componentArray, constantArray));
+  }
 }
 
 void DoTest()
@@ -280,6 +297,12 @@ void DoTest()
   {
     std::cout << "ArrayHandleIndex (expect warning)" << std::endl;
     vtkm::cont::ArrayHandleIndex array(ARRAY_SIZE);
+    CheckInputArray(array, vtkm::CopyFlag::On);
+  }
+
+  {
+    std::cout << "ArrayHandleConstant" << std::endl;
+    vtkm::cont::ArrayHandleConstant<vtkm::Vec3f> array(TestValue(0, vtkm::Vec3f{}), ARRAY_SIZE);
     CheckInputArray(array, vtkm::CopyFlag::On);
   }
 

@@ -224,7 +224,7 @@ bool GetBinaryBufferFromUri(
 
 //------------------------------------------------------------------------------
 bool ExtractGLBFileInformation(vtkResourceStream* stream, uint32_t& version, uint32_t& fileLength,
-  std::vector<vtkGLTFUtils::ChunkInfoType>& chunkInfo)
+  uint32_t glbStart, std::vector<vtkGLTFUtils::ChunkInfoType>& chunkInfo)
 {
   // Read version
   if (stream->Read(&version, GLBWordSize) != GLBWordSize)
@@ -241,7 +241,7 @@ bool ExtractGLBFileInformation(vtkResourceStream* stream, uint32_t& version, uin
   }
 
   // Read chunks until end of file
-  while (stream->Tell() != fileLength)
+  while (stream->Tell() - glbStart != fileLength)
   {
     // Read chunk length
     std::uint32_t chunkDataSize;
@@ -254,6 +254,7 @@ bool ExtractGLBFileInformation(vtkResourceStream* stream, uint32_t& version, uin
     // Read chunk type
     std::string chunkType;
     chunkType.resize(GLBWordSize);
+    // NOLINTNEXTLINE(readability-container-data-pointer)
     if (stream->Read(&chunkType[0], chunkType.size()) != chunkType.size())
     {
       vtkErrorWithObjectMacro(nullptr, "Truncated glb file");

@@ -49,9 +49,8 @@
 #include "vtkPythonInterpreterModule.h" // For export macro
 #include "vtkStdString.h"               // needed for vtkStdString.
 
-#if defined(_WIN32)
-#include <vector> // for vtkWideArgsConverter
-#endif
+#include <utility> // For std::pair
+#include <vector>
 
 VTK_ABI_NAMESPACE_BEGIN
 class VTKPYTHONINTERPRETER_EXPORT vtkPythonInterpreter : public vtkObject
@@ -170,7 +169,32 @@ public:
   static int GetLogVerbosity();
   ///@}
 
-  static bool InitializeWithArgs(int initsigs, int argc, char* argv[]);
+  /**
+   * Initialize the Python interpreter, forwarding specified args to it.
+   * If programName is set, use it as the interpreter's program name. Otherwise, it
+   * will be set to "<path to python lib>/vtkpython"
+   */
+  static bool InitializeWithArgs(
+    int initsigs, int argc, char* argv[], const char* programName = nullptr);
+
+  /**
+   * Programs using VTK (such as ParaView) can add one or more paths for additional python modules.
+   * libraryPath and landmark are used for each location of additional python modules,
+   * as in the case for ParaView built with external VTK.
+   * landmark is the relative path to the libraryPath such as 'vtkmodules/__init__.py'
+   * for VTK or 'paraview/__init__.py' for ParaView.
+   */
+  static void AddUserPythonPath(const char* libraryPath, const char* landmark);
+
+  /**
+   * Register a callback to be called when Python exits.
+   *
+   * This may be used to register callbacks before Python is initialized.
+   *
+   * Returns `0` if registration is successful, `-1` on failure, and `1` if
+   * registration is deferred (Python is not yet initialized).
+   */
+  static int AddAtExitCallback(void (*func)());
 
 protected:
   vtkPythonInterpreter();
@@ -213,6 +237,20 @@ private:
    * Verbosity level to use when logging info.
    */
   static int LogVerbosity;
+  ///@{
+
+  /**
+   * Container of pairs used for setting up user python paths for applications using VTK (such as
+   * ParaView). The first element of pair is LibraryPath and second element of pair is Landmark.
+   * Landmark is relative path to the LibraryPath such as 'vtkmodules/__init__.py' for VTK or
+   * 'paraview/__init__.py' for ParaView.
+   */
+  static std::vector<std::pair<std::string, std::string>> UserPythonPaths;
+
+  /**
+   * Container of callbacks to register.
+   */
+  static std::vector<void (*)()> AtExitCallbacks;
 };
 
 // For tracking global interpreters

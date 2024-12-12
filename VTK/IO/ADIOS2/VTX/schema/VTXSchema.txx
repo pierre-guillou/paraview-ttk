@@ -27,7 +27,7 @@ void VTXSchema::GetDataArrayCommon(
 {
   dataArray.IsUpdated = true;
 
-  if (dataArray.Persist)
+  if (variable.Steps() < 2)
   {
     const auto blocksInfo = this->Engine.BlocksInfo(variable, step);
     if (blocksInfo.empty())
@@ -134,7 +134,7 @@ void VTXSchema::InitDataArray(
   }
 
   dataArray.Data->Allocate(elements);
-  dataArray.Data->SetNumberOfComponents(components);
+  dataArray.Data->SetNumberOfComponents(static_cast<int>(components));
   dataArray.Data->SetNumberOfTuples(elements / components);
   dataArray.Data->SetName(name.c_str());
 }

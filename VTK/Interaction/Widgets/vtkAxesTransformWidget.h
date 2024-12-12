@@ -70,15 +70,14 @@
 #define vtkAxesTransformWidget_h
 
 #include "vtkAbstractWidget.h"
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAxesTransformRepresentation;
 class vtkHandleWidget;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkAxesTransformWidget : public vtkAbstractWidget
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkAxesTransformWidget : public vtkAbstractWidget
 {
 public:
   /**
@@ -139,10 +138,6 @@ protected:
     Start = 0,
     Active
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef WidgetStateType _WidgetState;
-#endif
 
   int CurrentHandle;
 

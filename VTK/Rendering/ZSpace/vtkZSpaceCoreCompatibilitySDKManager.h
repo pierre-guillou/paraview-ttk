@@ -96,7 +96,59 @@ public:
   ///@}
 
   /**
-   * Set the render windwow the manager makes viewport computations
+   * Allow the zSpace Core Compatibility API to create its internal OpenGL resources
+   * and prepare to accept eye textures and perform final rendering each frame.
+   * Must be called right after the OpenGL context is created and made current.
+   */
+  void EnableGraphicsBinding() override;
+
+  /**
+   * Submit left / right eyes textures to the zSpace Core Compatibility API in order
+   * to let it handle the final rendering into the mono back buffer.
+   * Note 1: this will modify various parts of the OpenGL state so be sure to
+   * save it before calling this method and restore it right after.
+   * Note 2: the zSpace API will not swap the buffers after rendering in the backbuffer
+   * so it should be done manually after calling this method.
+   */
+  void SubmitFrame(unsigned int leftText, unsigned int rightText) override;
+
+  /**
+   * Request from the zSpace Core Compatibility API the resolution needed to create
+   * left / right eye textures. This can be different to the actual display resolution,
+   * because of the scaling applied e.g. in case of high DPI screen.
+   */
+  void GetPerEyeImageResolution(signed int* width, signed int* height) override;
+
+  /**
+   * Return the actual stereo display mode, depending on zSpace hardware.
+   * Possible values are:
+   * - STEREO_DISPLAY_API for Inspire,
+   * - QUAD_BUFFER_STEREO for other hardware.
+   *
+   * If the manager fails to retrieve it, the default returned value is QUAD_BUFFER_STEREO.
+   */
+  StereoDisplayMode GetStereoDisplayMode() override;
+
+  ///@{
+  /**
+   * Set/Get if the "Stereo Display" is enabled.
+   * When enabled, the zSpace Inspire hardware activates the autostereo lens
+   * to display stereo content (i.e. send left/right image to left/right eye).
+   *
+   * If the manager fails to retrieve it, the default returned value is false.
+   */
+  void SetStereoDisplayEnabled(bool enabled) override;
+  bool GetStereoDisplayEnabled() override;
+  ///@}
+
+  /**
+   * Shutdown the zSpace SDK (clean its internal state).
+   * Useful to re-initialize the zSpace SDK from a clean state.
+   */
+  void ShutDown() override;
+
+  /**
+   * Set the render window the manager makes viewport computations
    * from. Overridden to pass the related Windows window handle to
    * the SDK.
    */

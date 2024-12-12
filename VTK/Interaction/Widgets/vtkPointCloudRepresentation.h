@@ -15,10 +15,9 @@
 #ifndef vtkPointCloudRepresentation_h
 #define vtkPointCloudRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
@@ -35,7 +34,8 @@ class vtkPointSet;
 class vtkGlyphSource2D;
 struct vtkPointCloudPicker;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkPointCloudRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkPointCloudRepresentation
+  : public vtkWidgetRepresentation
 {
   friend struct vtkPointCloudPicker;
 
@@ -114,10 +114,6 @@ public:
     Over,        // mouse is over a point
     Selecting    // user has selected the point
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
   ///@{
   /**
@@ -178,10 +174,6 @@ public:
     HARDWARE_PICKING = 0,
     SOFTWARE_PICKING
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef PickingModeType _Picking_Mode;
-#endif
   vtkSetClampMacro(PickingMode, int, HARDWARE_PICKING, SOFTWARE_PICKING);
   vtkGetMacro(PickingMode, int);
   void SetPickingModeToHardware() { this->SetPickingMode(HARDWARE_PICKING); }

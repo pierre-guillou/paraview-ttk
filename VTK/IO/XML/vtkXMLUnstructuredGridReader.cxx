@@ -155,7 +155,7 @@ int vtkXMLUnstructuredGridReader::ReadPiece(vtkXMLDataElement* ePiece)
     }
   }
 
-  if (!this->CellElements[this->Piece])
+  if (!this->CellElements[this->Piece] && this->NumberOfCells[this->Piece] > 0)
   {
     vtkErrorMacro("A piece is missing its Cells element.");
     return 0;
@@ -225,8 +225,15 @@ int vtkXMLUnstructuredGridReader::ReadPieceData()
   vtkXMLDataElement* eCells = this->CellElements[this->Piece];
   if (!eCells)
   {
-    vtkErrorMacro("Cannot find cell arrays in piece " << this->Piece);
-    return 0;
+    if (this->NumberOfCells[this->Piece] > 0)
+    {
+      vtkErrorMacro("Cannot find cell arrays in piece " << this->Piece);
+      return 0;
+    }
+
+    // An empty grid with no cells is allowed to have the DataArray child elements missing
+    this->UpdateProgressDiscrete(progressRange[1]);
+    return 1;
   }
 
   //  int needToRead = this->CellsNeedToReadTimeStep(eNested,
@@ -312,14 +319,14 @@ int vtkXMLUnstructuredGridReader::ReadPieceData()
   if (!this->FindDataArrayWithName(eCells, "faces") ||
     !this->FindDataArrayWithName(eCells, "faceoffsets"))
   {
-    if (output->GetFaces())
+    if (output->GetPolyhedronFaces())
     {
       // This piece doesn't have any polyhedron but other pieces that
       // we've already processed do so we need to add in face information
       // for cells that don't have that by marking -1.
       for (vtkIdType c = 0; c < numberOfCells; c++)
       {
-        output->GetFaceLocations()->InsertNextValue(-1);
+        output->GetPolyhedronFaceLocations()->InsertNextCell(0);
       }
     }
     return 1;
@@ -329,14 +336,14 @@ int vtkXMLUnstructuredGridReader::ReadPieceData()
   // only used by polyhedron cells. If so far no polyhedron cells have been
   // added, the pointers to the arrays will be nullptr. In this case, we need to
   // initialize the arrays and assign values to the previous non-polyhedron cells.
-  if (!output->GetFaces() || !output->GetFaceLocations())
+  if (!output->GetPolyhedronFaces() || !output->GetPolyhedronFaceLocations())
   {
     output->InitializeFacesRepresentation(this->StartCell);
   }
 
   // Read face arrays.
-  if (!this->ReadFaceArray(
-        this->NumberOfCells[this->Piece], eCells, output->GetFaces(), output->GetFaceLocations()))
+  if (!this->ReadFaceCellArray(this->NumberOfCells[this->Piece], eCells,
+        output->GetPolyhedronFaces(), output->GetPolyhedronFaceLocations()))
   {
     return 0;
   }

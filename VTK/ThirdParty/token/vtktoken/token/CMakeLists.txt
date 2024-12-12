@@ -63,6 +63,7 @@ else()
   endif ()
 
   vtk_module_add_module(VTK::token
+    HEADER_DIRECTORIES
     ${token_module_args}
     SOURCES ${sources}
     HEADERS ${headers}
@@ -78,7 +79,9 @@ target_include_directories(token
     # XXX(kitware): Use path that works with VTK module
     # $<INSTALL_INTERFACE:include/token/${token_VERSION}>
 )
+if (FALSE) # XXX(kitware): VTK handles installation
 token_install_library(token)
+endif ()
 generate_export_header(token EXPORT_FILE_NAME Exports.h)
 
 add_executable(tokenize

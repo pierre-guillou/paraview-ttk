@@ -169,10 +169,6 @@ void vtkOpenXRRenderWindow::Render()
     // Start rendering
     this->Superclass::Render();
   }
-  else
-  {
-    vtkWarningMacro(<< "Not rendered");
-  }
 
   xrManager.EndFrame();
 }
@@ -254,7 +250,7 @@ void vtkOpenXRRenderWindow::RenderOneEye(uint32_t eye)
   FramebufferDesc& eyeFramebufferDesc = this->FramebufferDescs[eye];
 
   if (!xrManager.PrepareRendering(
-        eye, &eyeFramebufferDesc.ResolveColorTextureId, &eyeFramebufferDesc.ResolveDepthTextureId))
+        this, &eyeFramebufferDesc.ResolveColorTextureId, &eyeFramebufferDesc.ResolveDepthTextureId))
   {
     return;
   }
@@ -279,7 +275,6 @@ void vtkOpenXRRenderWindow::RenderModels()
   vtkOpenGLState* ostate = this->GetState();
   ostate->vtkglEnable(GL_DEPTH_TEST);
 
-  auto iren = vtkOpenXRRenderWindowInteractor::SafeDownCast(this->Interactor);
   for (uint32_t hand :
     { vtkOpenXRManager::ControllerIndex::Left, vtkOpenXRManager::ControllerIndex::Right })
   {
@@ -298,13 +293,8 @@ void vtkOpenXRRenderWindow::RenderModels()
     // if we have a model and it is visible
     if (pRenderModel && pRenderModel->GetVisibility())
     {
-      XrPosef* handPose = iren->GetHandPose(hand);
-      if (handPose)
-      {
-        vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
-        vtkOpenXRUtilities::SetMatrixFromXrPose(tdPose, *handPose);
-        pRenderModel->Render(this, tdPose);
-      }
+      vtkMatrix4x4* tdPose = this->GetDeviceToPhysicalMatrixForDeviceHandle(handle);
+      pRenderModel->Render(this, tdPose);
     }
   }
 }

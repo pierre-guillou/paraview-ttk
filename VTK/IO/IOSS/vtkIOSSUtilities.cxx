@@ -27,11 +27,16 @@
 #include <vtksys/RegularExpression.hxx>
 #include <vtksys/SystemTools.hxx>
 
-#include <Ioss_ElementTopology.h>
-#include <Ioss_Field.h>
-#include <Ioss_NodeBlock.h>
-#include <Ioss_SideBlock.h>
-#include <Ioss_SideSet.h>
+// Ioss includes
+#include <vtk_ioss.h>
+// clang-format off
+#include VTK_IOSS(Ioss_ElementTopology.h)
+#include VTK_IOSS(Ioss_Field.h)
+#include VTK_IOSS(Ioss_NodeBlock.h)
+#include VTK_IOSS(Ioss_SideBlock.h)
+#include VTK_IOSS(Ioss_SideSet.h)
+#include VTK_IOSS(Ioss_TransformFactory.h)
+// clang-format on
 
 #include <memory>
 
@@ -269,8 +274,20 @@ vtkSmartPointer<vtkDataArray> GetData(const Ioss::GroupingEntity* entity,
   // vtkLogF(TRACE, "%s: size: %d * %d", fieldname.c_str(), (int)field.raw_count(),
   //  (int)field.raw_storage()->component_count());
   auto array = vtkIOSSUtilities::CreateArray(field);
-  auto count = entity->get_field_data(
-    fieldname, array->GetVoidPointer(0), array->GetDataSize() * array->GetDataTypeSize());
+  auto count = -1;
+  if (field.zero_copy_enabled())
+  {
+    void* data;
+    size_t data_size;
+    count = entity->get_field_data(fieldname, &data, &data_size);
+    array->SetVoidArray(data, static_cast<vtkIdType>(data_size), 1);
+  }
+  else
+  {
+    count = entity->get_field_data(
+      fieldname, array->GetVoidPointer(0), array->GetDataSize() * array->GetDataTypeSize());
+  }
+
   if (static_cast<vtkIdType>(count) != array->GetNumberOfTuples())
   {
     throw std::runtime_error("Failed to read field " + fieldname);
@@ -524,6 +541,12 @@ static vtkIdType GetNumberOfPointsInCellType(int vtk_cell_type, int ioss_num_poi
   {
     case VTK_POLY_VERTEX:
       return -1;
+    case VTK_LAGRANGE_TETRAHEDRON:
+      if (ioss_num_points == 15)
+      {
+        return ioss_num_points;
+      }
+      break;
     case VTK_LAGRANGE_WEDGE:
       if (ioss_num_points == 21)
       {
@@ -670,7 +693,7 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
     // for nodesets, we create a cell array with single cells.
 
     // ioss ids_raw is 1-indexed, let's make it 0-indexed for VTK.
-    auto transform = std::unique_ptr<Ioss::Transform>(Iotr::Factory::create("offset"));
+    auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
     transform->set_property("offset", -1);
     auto ids_raw = vtkIOSSUtilities::GetData(group_entity, "ids_raw", transform.get());
     ids_raw->SetNumberOfComponents(1);
@@ -690,7 +713,7 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
   vtkSmartPointer<vtkCellArray> cellArray = vtkSmartPointer<vtkCellArray>::New();
 
   // ioss connectivity_raw is 1-indexed, let's make it 0-indexed for VTK.
-  auto transform = std::unique_ptr<Ioss::Transform>(Iotr::Factory::create("offset"));
+  auto transform = std::unique_ptr<Ioss::Transform>(Ioss::TransformFactory::create("offset"));
   transform->set_property("offset", -1);
 
   auto connectivity_raw =
@@ -777,6 +800,28 @@ vtkSmartPointer<vtkCellArray> GetConnectivity(
 
           /* body center */
           16
+        };
+        // clang-format on
+      }
+      break;
+
+    case VTK_LAGRANGE_TETRAHEDRON:
+      if (vtk_cell_points == 15)
+      { // tet-15
+        // clang-format off
+        ordering_transform = std::vector<int>{
+          /* corner points */
+          1, 2, 3, 4,
+
+          /* edge centers */
+          5, 6, 7,
+          8, 9, 10,
+
+          /* triangle centers */
+          12, 15, 13, 14,
+
+          /* body center */
+          11
         };
         // clang-format on
       }

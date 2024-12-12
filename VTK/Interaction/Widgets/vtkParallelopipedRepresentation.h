@@ -19,10 +19,9 @@
 #ifndef vtkParallelopipedRepresentation_h
 #define vtkParallelopipedRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkActor;
@@ -38,7 +37,8 @@ class vtkClosedSurfacePointPlacer;
 class vtkPlaneCollection;
 class vtkParallelopipedTopology;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkParallelopipedRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkParallelopipedRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   /**
@@ -186,10 +186,6 @@ public:
     ScalingParallelopiped,
     RotatingParallelopiped
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
   // Methods to manipulate the piped.
   virtual void Translate(double translation[3]);

@@ -46,7 +46,6 @@ LandmarkPnt::~LandmarkPnt()
 // MedImage Constructors
 //
 MetaLandmark::MetaLandmark()
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaLandmark()" );
   m_NPoints = 0;
@@ -55,7 +54,6 @@ MetaLandmark::MetaLandmark()
 
 //
 MetaLandmark::MetaLandmark(const char * _headerName)
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaLandmark()" );
   m_NPoints = 0;
@@ -65,7 +63,6 @@ MetaLandmark::MetaLandmark(const char * _headerName)
 
 //
 MetaLandmark::MetaLandmark(const MetaLandmark * _tube)
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaLandmark()" );
   m_NPoints = 0;
@@ -416,7 +413,8 @@ MetaLandmark::M_Write()
     int                           elementSize;
     MET_SizeOfType(m_ElementType, &elementSize);
 
-    char * data = new char[(m_NDims + 4) * m_NPoints * elementSize];
+    const size_t dataSize = (m_NDims + 4) * m_NPoints * elementSize;
+    char * data = new char[dataSize];
     int    i = 0;
     int    d;
     while (it != itEnd)
@@ -425,14 +423,14 @@ MetaLandmark::M_Write()
       {
         float x = (*it)->m_X[d];
         MET_SwapByteIfSystemMSB(&x, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(x), m_ElementType, data, i++);
+        MET_DoubleToValueN(static_cast<double>(x), m_ElementType, data, dataSize, i++);
       }
 
       for (d = 0; d < 4; d++)
       {
         float c = (*it)->m_Color[d];
         MET_SwapByteIfSystemMSB(&c, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(c), m_ElementType, data, i++);
+        MET_DoubleToValueN(static_cast<double>(c), m_ElementType, data, dataSize, i++);
       }
       ++it;
     }

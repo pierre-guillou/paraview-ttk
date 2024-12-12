@@ -6,6 +6,26 @@ if (VTK_USE_X)
   list(APPEND extra_opengl2_tests TestInteractorTimers.cxx,NO_VALID)
 endif()
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(_vtk_test_cxx_wasm_enabled_in_browser ON)
+  set(_proxy_to_pthread_flag "0")
+  if (VTK_WEBASSEMBLY_THREADS)
+    set(_proxy_to_pthread_flag "1")
+  endif ()
+  set(_vtk_test_emscripten_extra_linker_args
+    # O2 or higher make wasm-opt terribly slow.
+    # test executables take a minute to link.
+    "-O1"
+    # don't keep runtime alive after exit() is called.
+    "-sEXIT_RUNTIME=1"
+    # this flag runs main() on a pthread i.e, a web worker.
+    # the primary reason we desire this is to make the unit test access
+    # data files through synchronous XHR which is only posssible from web-worker.
+    "-sPROXY_TO_PTHREAD=${_proxy_to_pthread_flag}"
+    "-sALLOW_MEMORY_GROWTH=1"
+    "-sOFFSCREENCANVAS_SUPPORT=${_proxy_to_pthread_flag}")
+endif ()
+
 vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   ${extra_opengl2_tests}
   FrustumClip.cxx
@@ -15,7 +35,7 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   otherLookupTableWithEnabling.cxx,NO_VALID
   RenderNonFinite.cxx
   RGrid.cxx
-  SurfacePlusEdges.cxx
+# SurfacePlusEdges.cxx #19221
   TestActor2D.cxx
   TestActor2DTextures.cxx
   TestActorLightingFlag.cxx
@@ -48,9 +68,11 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestCompositePolyDataMapperPickability.cxx,NO_DATA
   TestCompositePolyDataMapperPicking.cxx,NO_DATA
   TestCompositePolyDataMapperScalars.cxx,NO_DATA
-  TestCompositePolyDataMapperScalarsSurfaceOpacity.cxx,NO_DATA
+# TestCompositePolyDataMapperScalarsSurfaceOpacity.cxx,NO_DATA #19221
   TestCompositePolyDataMapperSharedArray.cxx,NO_DATA
+  TestCompositePolyDataMapperStaticBounds.cxx,NO_DATA,NO_VALID
   TestCompositePolyDataMapperSpheres.cxx,NO_DATA
+  TestCompositePolyDataMapperToggleScalarVisibilities.cxx,NO_DATA
   TestCompositePolyDataMapperVertices.cxx,NO_DATA
   TestDirectScalarsToColors.cxx
   TestDiscretizableColorTransferFunction.cxx,NO_VALID
@@ -71,6 +93,8 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestGlyph3DMapperQuaternionArray.cxx
   TestGlyph3DMapperTreeIndexing.cxx,NO_DATA
   TestGradientBackground.cxx
+  TestGradientBackgroundWithTiledViewport.cxx,NO_DATA
+  TestGradientBackgroundWithTiledViewports.cxx,NO_DATA
   TestHomogeneousTransformOfActor.cxx
   TestImageAndAnnotations.cxx,NO_DATA
   TestInteractorStyleImageProperty.cxx,NO_VALID
@@ -90,6 +114,8 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestPointSelection.cxx,NO_VALID
   TestPointSelectionWithCellData.cxx,NO_VALID
   TestPolygonSelection.cxx
+  TestPolyDataMapperNormals.cxx
+  TestRenderLinesAsTubes.cxx
   TestResetCameraScreenSpace.cxx
   TestResetCameraVerticalAspectRatio.cxx
   TestResetCameraVerticalAspectRatioParallel.cxx

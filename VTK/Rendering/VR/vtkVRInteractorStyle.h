@@ -54,16 +54,16 @@ public:
   /**
    * Interaction mode entry points.
    */
-  void StartPick(vtkEventDataDevice3D*);
-  void EndPick(vtkEventDataDevice3D*);
-  void StartLoadCamPose(vtkEventDataDevice3D*);
-  void EndLoadCamPose(vtkEventDataDevice3D*);
-  void StartPositionProp(vtkEventDataDevice3D*);
-  void EndPositionProp(vtkEventDataDevice3D*);
-  void StartClip(vtkEventDataDevice3D*);
-  void EndClip(vtkEventDataDevice3D*);
-  void StartMovement3D(int interactionState, vtkEventDataDevice3D*);
-  void EndMovement3D(vtkEventDataDevice3D*);
+  virtual void StartPick(vtkEventDataDevice3D*);
+  virtual void EndPick(vtkEventDataDevice3D*);
+  virtual void StartLoadCamPose(vtkEventDataDevice3D*);
+  virtual void EndLoadCamPose(vtkEventDataDevice3D*);
+  virtual void StartPositionProp(vtkEventDataDevice3D*);
+  virtual void EndPositionProp(vtkEventDataDevice3D*);
+  virtual void StartClip(vtkEventDataDevice3D*);
+  virtual void EndClip(vtkEventDataDevice3D*);
+  virtual void StartMovement3D(int interactionState, vtkEventDataDevice3D*);
+  virtual void EndMovement3D(vtkEventDataDevice3D*);
   ///@}
 
   ///@{
@@ -110,6 +110,8 @@ public:
    */
   void MapInputToAction(vtkCommand::EventIds eid, int state);
   void MapInputToAction(vtkCommand::EventIds eid, vtkEventDataAction action, int state);
+  int GetMappedAction(
+    vtkCommand::EventIds eid, vtkEventDataAction action = vtkEventDataAction::Press);
   ///@}
 
   /**
@@ -161,11 +163,29 @@ public:
 
   /**
    * Return interaction state for the specified device (dolly, pick, none, etc...).
+   *
+   * \sa SetInteractionState()
    */
   int GetInteractionState(vtkEventDataDevice device)
   {
+    int deviceIndex = static_cast<int>(device);
+    if (deviceIndex < 0 || deviceIndex >= vtkEventDataNumberOfDevices)
+    {
+      // Since VTKIS_*STATE* are expected to be >= VTKIS_NONE with VTKIS_NONE == 0,
+      // return -1 if device is invalid.
+      return -1;
+    }
     return this->InteractionState[static_cast<int>(device)];
   }
+
+  /**
+   * Set interaction state for the specified device (dolly, pick, none, etc...).
+   *
+   * This method **does not** call `this->Modified()`.
+   *
+   * \sa GetInteractionState()
+   */
+  void SetInteractionState(vtkEventDataDevice device, int state);
 
   ///@{
   /**
@@ -231,7 +251,7 @@ protected:
   /**
    * Update and draw the ray.
    */
-  void UpdateRay(vtkEventDataDevice controller);
+  virtual void UpdateRay(vtkEventDataDevice controller);
 
   void EndPickCallback(vtkSelection* sel);
   static void MenuCallback(

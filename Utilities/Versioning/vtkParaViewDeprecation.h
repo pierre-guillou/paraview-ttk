@@ -5,7 +5,7 @@
 #ifndef vtkParaViewDeprecation_h
 #define vtkParaViewDeprecation_h
 
-#include "vtkPVVersion.h"
+#include "vtkPVVersionQuick.h"
 
 //----------------------------------------------------------------------------
 // These macros may be used to deprecate APIs in ParaView. They act as
@@ -50,11 +50,15 @@
 // The level at which warnings should be made.
 #ifndef PARAVIEW_DEPRECATION_LEVEL
 // ParaView defaults to deprecation of its current version.
+#ifdef PARAVIEW_VERSION_NUMBER
 #define PARAVIEW_DEPRECATION_LEVEL PARAVIEW_VERSION_NUMBER
+#else
+#define PARAVIEW_DEPRECATION_LEVEL PARAVIEW_VERSION_NUMBER_QUICK
+#endif
 #endif
 
-// API deprecated before 5.10.0 have already been removed.
-#define PARAVIEW_MINIMUM_DEPRECATION_LEVEL PARAVIEW_VERSION_CHECK(5, 10, 0)
+// API deprecated before 5.11.0 have already been removed.
+#define PARAVIEW_MINIMUM_DEPRECATION_LEVEL PARAVIEW_VERSION_CHECK(5, 11, 0)
 
 // Force the deprecation level to be at least that of ParaView's build
 // configuration.
@@ -93,28 +97,23 @@
 #endif
 #endif
 
-// APIs deprecated in the next release.
+// APIs deprecated in 5.13.0.
 #if defined(__VTK_WRAP__)
-#define PARAVIEW_DEPRECATED_IN_5_12_0(reason) [[vtk::deprecated(reason, "5.12.0")]]
-#elif PARAVIEW_DEPRECATION_LEVEL >= PARAVIEW_VERSION_CHECK(5, 12, 0)
-#define PARAVIEW_DEPRECATED_IN_5_12_0(reason) PARAVIEW_DEPRECATION(reason)
+#define PARAVIEW_DEPRECATED_IN_5_13_0(reason) [[vtk::deprecated(reason, "5.13.0")]]
+#elif PARAVIEW_DEPRECATION_LEVEL >= PARAVIEW_VERSION_CHECK(5, 12, 20230101)
+#define PARAVIEW_DEPRECATED_IN_5_13_0(reason) PARAVIEW_DEPRECATION(reason)
 #else
-#define PARAVIEW_DEPRECATED_IN_5_12_0(reason)
-#endif
-
-// APIs deprecated in 5.11.0.
-#if defined(__VTK_WRAP__)
-#define PARAVIEW_DEPRECATED_IN_5_11_0(reason) [[vtk::deprecated(reason, "5.11.0")]]
-#elif PARAVIEW_DEPRECATION_LEVEL >= PARAVIEW_VERSION_CHECK(5, 11, 0)
-#define PARAVIEW_DEPRECATED_IN_5_11_0(reason) PARAVIEW_DEPRECATION(reason)
-#else
-#define PARAVIEW_DEPRECATED_IN_5_11_0(reason)
+#define PARAVIEW_DEPRECATED_IN_5_13_0(reason)
 #endif
 
 // APIs deprecated in the older release always warn.
 #if defined(__VTK_WRAP__)
+#define PARAVIEW_DEPRECATED_IN_5_12_0(reason) [[vtk::deprecated(reason, "5.12.0")]]
+#define PARAVIEW_DEPRECATED_IN_5_11_0(reason) [[vtk::deprecated(reason, "5.11.0")]]
 #define PARAVIEW_DEPRECATED_IN_5_10_0(reason) [[vtk::deprecated(reason, "5.10.0")]]
 #else
+#define PARAVIEW_DEPRECATED_IN_5_12_0(reason) PARAVIEW_DEPRECATION(reason)
+#define PARAVIEW_DEPRECATED_IN_5_11_0(reason) PARAVIEW_DEPRECATION(reason)
 #define PARAVIEW_DEPRECATED_IN_5_10_0(reason) PARAVIEW_DEPRECATION(reason)
 #endif
 

@@ -5,6 +5,7 @@
 
 #include "vtkActor.h"
 #include "vtkCamera.h"
+#include "vtkDataAssembly.h"
 #include "vtkDoubleArray.h"
 #include "vtkEventForwarderCommand.h"
 #include "vtkFloatArray.h"
@@ -353,6 +354,12 @@ vtkGLTFImporter::~vtkGLTFImporter()
 }
 
 //------------------------------------------------------------------------------
+void vtkGLTFImporter::InitializeLoader()
+{
+  this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
+}
+
+//------------------------------------------------------------------------------
 int vtkGLTFImporter::ImportBegin()
 {
   // Make sure we have a file to read.
@@ -364,7 +371,8 @@ int vtkGLTFImporter::ImportBegin()
 
   this->Textures.clear();
 
-  this->Loader = vtkSmartPointer<vtkGLTFDocumentLoader>::New();
+  this->InitializeLoader();
+  this->SceneHierarchy.TakeReference(vtkDataAssembly::New());
 
   vtkNew<vtkEventForwarderCommand> forwarder;
   forwarder->SetTarget(this);
@@ -414,15 +422,18 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
     return;
   }
 
-  int scene = model->DefaultScene;
+  const int& scene = model->DefaultScene;
 
   // List of nodes to import
   std::stack<int> nodeIdStack;
+  std::stack<int> dasmParents;
+  int flatActorId = 0;
 
   // Add root nodes to the stack
   for (int nodeId : model->Scenes[scene].Nodes)
   {
     nodeIdStack.push(nodeId);
+    dasmParents.push(0);
   }
 
   this->OutputsDescription = "";
@@ -433,14 +444,29 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
   while (!nodeIdStack.empty())
   {
     // Get current node
-    int nodeId = nodeIdStack.top();
+    const int nodeId = nodeIdStack.top();
     nodeIdStack.pop();
-    vtkGLTFDocumentLoader::Node& node = model->Nodes[nodeId];
+    const auto& node = model->Nodes[nodeId];
+
+    // Add this node into the scene hierarchy
+    const int dasmParent = dasmParents.top();
+    dasmParents.pop();
+    std::string dasmNodeName;
+    if (!node.Name.empty())
+    {
+      dasmNodeName = vtkDataAssembly::MakeValidNodeName(node.Name.c_str());
+    }
+    else
+    {
+      dasmNodeName = "node" + std::to_string(nodeId);
+    }
+    const int dasmNode = this->SceneHierarchy->AddNode(dasmNodeName.c_str(), dasmParent);
 
     // Import node's geometry
     if (node.Mesh >= 0)
     {
       auto mesh = model->Meshes[node.Mesh];
+      int primitiveId = 0;
       for (auto primitive : mesh.Primitives)
       {
         auto pointData = primitive.Geometry->GetPointData();
@@ -477,10 +503,20 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
 
         actor->SetMapper(mapper);
         actor->SetUserMatrix(node.GlobalTransform);
-
+        std::string meshNodeName;
         if (!mesh.Name.empty())
         {
-          this->OutputsDescription += mesh.Name + " ";
+          std::string primitiveName = mesh.Name;
+          if (mesh.Primitives.size() > 1)
+          {
+            primitiveName += "_primitive_" + std::to_string(primitiveId++);
+          }
+          this->OutputsDescription += primitiveName;
+          meshNodeName = vtkDataAssembly::MakeValidNodeName(primitiveName.c_str());
+        }
+        else
+        {
+          meshNodeName = "primitive_" + std::to_string(primitiveId++);
         }
         this->OutputsDescription += "Primitive Geometry:\n";
         this->OutputsDescription +=
@@ -494,6 +530,10 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
         renderer->AddActor(actor);
 
         this->Actors[nodeId].emplace_back(actor);
+        const int actorNode =
+          this->SceneHierarchy->AddNode(meshNodeName.c_str(), /*parent=*/dasmNode);
+        this->SceneHierarchy->SetAttribute(actorNode, "parent_node_name", dasmNodeName.c_str());
+        this->SceneHierarchy->SetAttribute(actorNode, "flat_actor_id", flatActorId++);
 
         this->InvokeEvent(vtkCommand::UpdateDataEvent);
       }
@@ -503,6 +543,7 @@ void vtkGLTFImporter::ImportActors(vtkRenderer* renderer)
     for (int childNodeId : node.Children)
     {
       nodeIdStack.push(childNodeId);
+      dasmParents.push(dasmNode);
     }
   }
 

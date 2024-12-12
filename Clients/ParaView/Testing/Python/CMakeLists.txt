@@ -1,5 +1,5 @@
 # Check that matplotlib is available
-include(FindPythonModules)
+include(ParaViewFindPythonModules)
 find_python_module(matplotlib matplotlib_found)
 
 # Set variables to make the testing functions.
@@ -8,6 +8,8 @@ set(${_vtk_build_test}_TEST_LABELS paraview)
 
 ExternalData_Expand_Arguments(ParaViewData _
   # data files
+  "DATA{${paraview_test_data_directory_input}/Data/BackwardCompatibility/LegacyPathLine.pvsm}"
+  "DATA{${paraview_test_data_directory_input}/Data/BackwardCompatibility/LegacyStreakLine.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/vtk_dark_bkg.png}"
   "DATA{${paraview_test_data_directory_input}/Data/blow.vtk}"
   "DATA{${paraview_test_data_directory_input}/Data/can.ex2}"
@@ -17,11 +19,16 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0000/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062.vtm}"
   "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062/,REGEX:.*}"
+  "DATA{${paraview_test_data_directory_input}/Data/glTF/NestedRings/NestedRings.glb}"
   "DATA{${paraview_test_data_directory_input}/Data/plotly_json_line_chart.json}"
 
 
   # baselines
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewMatplotlibScript.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGContourVoxelsPolyhedron.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTG3DContourPolyhedron.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGContourMonoHT.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestImportGLTFNestedScene.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewNumpyScript.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestCatalystClient.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FontSize.png}"
@@ -73,7 +80,10 @@ paraview_add_test_pvbatch(
 paraview_add_test_python(
   NO_RT
   ColorBy.py
+  ColorBlockBy.py
   GroupDataSets.py
+  LegacyPathLine.py
+  LegacyStreakLine.py
   PartialArrayIndication.py
   ResetSession.py
   SaveTransparentImages.py
@@ -81,11 +91,21 @@ paraview_add_test_python(
   TestColorHistogram.py
   TestGeometryBoundsClobber.py
   TestHoudiniWriter.py
+  TestImportGLTFNestedScene.py
   TestLineChartLabelPrefix.py
   TestPythonViewScript.py
   TestResetCameraToDirection.py
   LoadStateWithTextures.py
+  ExportGLTF.py
 )
+
+if(NOT APPLE)
+  # PvPython test is not added on mac because of
+  # https://gitlab.kitware.com/paraview/paraview/-/issues/20652
+  paraview_add_test_python(
+    NO_RT
+    PvPython.py)
+endif()
 
 paraview_add_test_python(
   NO_DATA NO_VALID NO_OUTPUT NO_RT
@@ -234,3 +254,12 @@ paraview_add_test_python(
 
 set_tests_properties(paraviewPython-TestPV_PLUGIN_PATH
         PROPERTIES ENVIRONMENT "PV_PLUGIN_PATH=${CMAKE_SOURCE_DIR}/Examples/Plugins/PythonAlgorithm/")
+
+#------------------------------------------------------------------------------
+# Add HTG rendering tests
+paraview_add_test_python(
+  NO_DATA NO_RT
+  TestHTGContourVoxelsPolyhedron.py
+  TestHTG3DContourPolyhedron.py
+  TestHTGContourMonoHT.py
+)

@@ -229,6 +229,7 @@ int vtkDecimatePro::RequestData(vtkInformation* vtkNotUsed(request),
     meshPD->DeepCopy(inPD);
     meshPD->CopyAllocate(meshPD, input->GetNumberOfPoints());
 
+    this->Mesh->EditableOn();
     this->Mesh->BuildLinks();
   }
   else
@@ -247,6 +248,7 @@ int vtkDecimatePro::RequestData(vtkInformation* vtkNotUsed(request),
   {
     this->VertexError = vtkDoubleArray::New();
     this->VertexError->Allocate(numPts, static_cast<vtkIdType>(0.25 * numPts));
+    this->VertexError->SetNumberOfValues(numPts);
     for (i = 0; i < numPts; i++)
     {
       this->VertexError->SetValue(i, 0.0);
@@ -550,9 +552,18 @@ int vtkDecimatePro::EvaluateVertex(
   while (this->T->MaxId < numTris && numNei == 1 && nextVertex != startVertex)
   {
     t.id = this->Neighbors->GetId(0);
-    this->T->InsertNextTriangle(t);
 
     this->Mesh->GetCellPoints(t.id, numVerts, verts);
+
+    // Ensure the triangle is valid : every vertex must be different
+    if (verts[0] == verts[1] || verts[1] == verts[2] || verts[0] == verts[2])
+    {
+      vtkWarningMacro(<< "Skipping vertex " << ptId << " (Degenerate triangle at cell " << t.id
+                      << ")");
+      return VTK_DEGENERATE_VERTEX;
+    }
+
+    this->T->InsertNextTriangle(t);
 
     for (j = 0; j < 3; j++)
     {
@@ -627,9 +638,18 @@ int vtkDecimatePro::EvaluateVertex(
     while (this->T->MaxId < numTris && numNei == 1 && nextVertex != startVertex)
     {
       t.id = this->Neighbors->GetId(0);
-      this->T->InsertNextTriangle(t);
 
       this->Mesh->GetCellPoints(t.id, numVerts, verts);
+
+      // Ensure the triangle is valid : every vertex must be different
+      if (verts[0] == verts[1] || verts[1] == verts[2] || verts[0] == verts[2])
+      {
+        vtkWarningMacro(<< "Skipping vertex " << ptId << " (Degenerate triangle at cell " << t.id
+                        << ")");
+        return VTK_DEGENERATE_VERTEX;
+      }
+
+      this->T->InsertNextTriangle(t);
 
       for (j = 0; j < 3; j++)
       {

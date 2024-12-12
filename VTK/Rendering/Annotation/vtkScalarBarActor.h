@@ -47,14 +47,16 @@
 #include "vtkActor2D.h"
 #include "vtkDoubleArray.h"               // for ivars
 #include "vtkRenderingAnnotationModule.h" // For export macro
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkColor3ub;
+class vtkPiecewiseFunction;
 class vtkPolyData;
 class vtkPolyDataMapper2D;
 class vtkProperty2D;
-class vtkScalarsToColors;
 class vtkScalarBarActorInternal;
+class vtkScalarsToColors;
 class vtkTextActor;
 class vtkTextMapper;
 class vtkTextProperty;
@@ -64,7 +66,7 @@ class vtkTexturedActor2D;
 #define VTK_ORIENT_HORIZONTAL 0
 #define VTK_ORIENT_VERTICAL 1
 
-class VTKRENDERINGANNOTATION_EXPORT vtkScalarBarActor : public vtkActor2D
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkScalarBarActor : public vtkActor2D
 {
 public:
   vtkTypeMacro(vtkScalarBarActor, vtkActor2D);
@@ -118,11 +120,28 @@ public:
 
   ///@{
   /**
+   * Set/Get the piecewise function that denotes opacity function to map values through.
+   *
+   * \note Only checked iff UseOpacity is true.
+   *
+   * \sa SetUseOpacity()
+   */
+  virtual void SetOpacityFunction(vtkPiecewiseFunction*);
+  vtkGetObjectMacro(OpacityFunction, vtkPiecewiseFunction);
+  ///@}
+
+  ///@{
+  /**
    * Should be display the opacity as well. This is displayed by changing
    * the opacity of the scalar bar in accordance with the opacity of the
    * given color. For clarity, a texture grid is placed in the background
    * if Opacity is ON. You might also want to play with SetTextureGridWith
    * in that case. [Default: off]
+   *
+   * \note If true, the scalar bar will first check to see if OpacityFunction is set. If not, it
+   * will query the opacity value from the lookup table.
+   *
+   * \sa SetOpacityFunction(), SetLookupTable()
    */
   vtkSetMacro(UseOpacity, vtkTypeBool);
   vtkGetMacro(UseOpacity, vtkTypeBool);
@@ -783,7 +802,8 @@ protected:
 
   vtkScalarBarActorInternal* P; //!< Containers shared with subclasses
 
-  vtkScalarsToColors* LookupTable; //!< The object this actor illustrates
+  vtkScalarsToColors* LookupTable;       //!< The object this actor illustrates
+  vtkPiecewiseFunction* OpacityFunction; //!< The opacity function if UseOpacity is true.
 
   vtkTextProperty* TitleTextProperty;      //!< Font for the legend title.
   vtkTextProperty* LabelTextProperty;      //!< Font for tick labels.

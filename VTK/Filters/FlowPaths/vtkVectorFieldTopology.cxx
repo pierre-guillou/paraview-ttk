@@ -15,8 +15,8 @@
 #include <vtkDataSetTriangleFilter.h>
 #include <vtkDoubleArray.h>
 #include <vtkFeatureEdges.h>
+#include <vtkGenerateIds.h>
 #include <vtkGeometryFilter.h>
-#include <vtkIdFilter.h>
 #include <vtkImageData.h>
 #include <vtkInformation.h>
 #include <vtkInformationVector.h>
@@ -719,11 +719,8 @@ int vtkVectorFieldTopology::ComputeSurface(int numberOfSeparatingSurfaces, bool 
   vtkNew<vtkDoubleArray> integrationTimeArray;
   integrationTimeArray->SetName("IntegrationTime");
   currentCircle->GetPointData()->AddArray(integrationTimeArray);
-  integrationTimeArray->Resize(currentCircle->GetNumberOfPoints());
-  for (int i = 0; i < currentCircle->GetNumberOfPoints(); ++i)
-  {
-    integrationTimeArray->SetTuple1(i, (double)0);
-  }
+  integrationTimeArray->SetNumberOfTuples(currentCircle->GetNumberOfPoints());
+  integrationTimeArray->Fill(0.0);
 
   this->StreamSurface->SetInputData(0, dataset);
   this->StreamSurface->SetInputData(1, currentCircle);
@@ -1655,7 +1652,7 @@ int vtkVectorFieldTopology::ComputeSeparatrices(vtkPolyData* criticalPoints,
 int vtkVectorFieldTopology::RemoveBoundary(vtkSmartPointer<vtkUnstructuredGrid> tridataset)
 {
   // assign id to each point
-  vtkNew<vtkIdFilter> idFilter;
+  vtkNew<vtkGenerateIds> idFilter;
   idFilter->SetInputData(tridataset);
   idFilter->SetPointIdsArrayName("ids");
   idFilter->Update();
@@ -1695,6 +1692,10 @@ int vtkVectorFieldTopology::RemoveBoundary(vtkSmartPointer<vtkUnstructuredGrid> 
   }
   for (int ptId = 0; ptId < boundary->GetNumberOfPoints(); ptId++)
   {
+    // The point data is `double`, but it stores ids and the value of
+    // `isBoundary` is treated as a boolean, so while the types may appear as
+    // if these are swapped, they are not.
+    // NOLINTNEXTLINE(bugprone-swapped-arguments)
     isBoundary->SetTuple1(boundary->GetPointData()->GetArray("ids")->GetTuple1(ptId), 1);
   }
 

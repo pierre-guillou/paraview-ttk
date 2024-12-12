@@ -141,50 +141,50 @@ enum
 int yylex(void);
 
 /* global variables */
-FileInfo* data = NULL;
-int parseDebug;
+static FileInfo* data = NULL;
+static int parseDebug;
 
 /* globals for caching directory listings */
 static StringCache system_strings = { 0, 0, 0, 0 };
 static SystemInfo system_cache = { &system_strings, NULL, NULL };
 
 /* the "preprocessor" */
-PreprocessInfo* preprocessor = NULL;
+static PreprocessInfo* preprocessor = NULL;
 
 /* whether to pre-define platform-specific macros */
-int PredefinePlatformMacros = 1;
+static int PredefinePlatformMacros = 1;
 
 /* include dirs specified on the command line */
-int NumberOfIncludeDirectories = 0;
-const char** IncludeDirectories;
+static int NumberOfIncludeDirectories = 0;
+static const char** IncludeDirectories = NULL;
 
 /* macros specified on the command line */
-int NumberOfDefinitions = 0;
-const char** Definitions;
+static int NumberOfDefinitions = 0;
+static const char** Definitions = NULL;
 
 /* include specified on the command line */
-int NumberOfMacroIncludes = 0;
-const char** MacroIncludes;
+static int NumberOfMacroIncludes = 0;
+static const char** MacroIncludes == NULL;
 
 /* for dumping diagnostics about macros */
-int DumpMacros = 0;
-const char* DumpFileName = NULL;
+static int DumpMacros = 0;
+static const char* DumpFileName = NULL;
 
 /* options that can be set by the programs that use the parser */
-int Recursive = 0;
-const char* CommandName = NULL;
+static int Recursive = 0;
+static const char* CommandName = NULL;
 
 /* various state variables */
-NamespaceInfo* currentNamespace = NULL;
-ClassInfo* currentClass = NULL;
-FunctionInfo* currentFunction = NULL;
-TemplateInfo* currentTemplate = NULL;
-const char* currentEnumName = NULL;
-const char* currentEnumValue = NULL;
-unsigned int currentEnumType = 0;
-const char* deprecationReason = NULL;
-const char* deprecationVersion = NULL;
-parse_access_t access_level = VTK_ACCESS_PUBLIC;
+static NamespaceInfo* currentNamespace = NULL;
+static ClassInfo* currentClass = NULL;
+static FunctionInfo* currentFunction = NULL;
+static TemplateInfo* currentTemplate = NULL;
+static const char* currentEnumName = NULL;
+static const char* currentEnumValue = NULL;
+static unsigned int currentEnumType = 0;
+static const char* deprecationReason = NULL;
+static const char* deprecationVersion = NULL;
+static parse_access_t access_level = VTK_ACCESS_PUBLIC;
 
 /* functions from vtkParse.l */
 void print_parser_error(const char* text, const char* cp, size_t n);
@@ -323,14 +323,14 @@ enum comment_enum
 };
 
 /* "private" variables */
-char* commentText = NULL;
-size_t commentLength = 0;
-size_t commentAllocatedLength = 0;
-int commentState = 0;
-int commentMemberGroup = 0;
-int commentGroupDepth = 0;
-parse_dox_t commentType = DOX_COMMAND_OTHER;
-const char* commentTarget = NULL;
+static char* commentText = NULL;
+static size_t commentLength = 0;
+static size_t commentAllocatedLength = 0;
+static int commentState = 0;
+static int commentMemberGroup = 0;
+static int commentGroupDepth = 0;
+static parse_dox_t commentType = DOX_COMMAND_OTHER;
+static const char* commentTarget = NULL;
 
 /* Struct for recognizing certain doxygen commands */
 struct DoxygenCommandInfo
@@ -342,7 +342,7 @@ struct DoxygenCommandInfo
 
 /* List of doxygen commands (@cond is not handled yet) */
 /* clang-format off */
-struct DoxygenCommandInfo doxygenCommands[] = {
+static struct DoxygenCommandInfo doxygenCommands[] = {
   { "def", 3, DOX_COMMAND_DEF },
   { "category", 8, DOX_COMMAND_CATEGORY },
   { "interface", 9, DOX_COMMAND_INTERFACE },
@@ -847,9 +847,9 @@ void assignComments(ClassInfo* cls)
  */
 
 /* "private" variables */
-const char* macroName = NULL;
-int macroUsed = 0;
-int macroEnded = 0;
+static const char* macroName = NULL;
+static int macroUsed = 0;
+static int macroEnded = 0;
 
 static const char* getMacro(void)
 {
@@ -868,8 +868,8 @@ static const char* getMacro(void)
  */
 
 /* "private" variables */
-NamespaceInfo* namespaceStack[10];
-int namespaceDepth = 0;
+static NamespaceInfo* namespaceStack[10];
+static int namespaceDepth = 0;
 
 /* enter a namespace */
 static void pushNamespace(const char* name)
@@ -911,9 +911,9 @@ static void popNamespace(void)
  */
 
 /* "private" variables */
-ClassInfo* classStack[10];
-parse_access_t classAccessStack[10];
-int classDepth = 0;
+static ClassInfo* classStack[10];
+static parse_access_t classAccessStack[10];
+static int classDepth = 0;
 
 /* start an internal class definition */
 static void pushClass(void)
@@ -936,8 +936,8 @@ static void popClass(void)
  */
 
 /* "private" variables */
-TemplateInfo* templateStack[10];
-int templateDepth = 0;
+static TemplateInfo* templateStack[10];
+static int templateDepth = 0;
 
 /* begin a template */
 static void startTemplate(void)
@@ -976,12 +976,12 @@ static void popTemplate(void)
  */
 
 /* "private" variables */
-int sigClosed = 0;
-size_t sigMark[10];
-size_t sigLength = 0;
-size_t sigAllocatedLength = 0;
-int sigMarkDepth = 0;
-char* signature = NULL;
+static int sigClosed = 0;
+static size_t sigMark[10];
+static size_t sigLength = 0;
+static size_t sigAllocatedLength = 0;
+static int sigMarkDepth = 0;
+static char* signature = NULL;
 
 /* start a new signature */
 static void startSig(void)
@@ -1153,11 +1153,11 @@ static void postSigRightBracket(const char* s)
  */
 
 /* "private" variables */
-unsigned int storedType;
-unsigned int typeStack[10];
-unsigned int declAttributes;
-unsigned int attributeStack[10];
-int typeDepth = 0;
+static unsigned int storedType;
+static unsigned int typeStack[10];
+static unsigned int declAttributes;
+static unsigned int attributeStack[10];
+static int typeDepth = 0;
 
 /* save the type on the stack */
 static void pushType(void)
@@ -1298,8 +1298,8 @@ static int getAttributes(void)
  */
 
 /* "private" variables */
-int numberOfDimensions = 0;
-const char** arrayDimensions = NULL;
+static int numberOfDimensions = 0;
+static const char** arrayDimensions = NULL;
 
 /* clear the array counter */
 static void clearArray(void)
@@ -1350,9 +1350,9 @@ static const char** getArray(void)
  */
 
 /* "private" variables */
-const char* currentVarName = 0;
-const char* currentVarValue = 0;
-const char* currentId = 0;
+static const char* currentVarName = 0;
+static const char* currentVarValue = 0;
+static const char* currentId = 0;
 
 /* clear the var Id */
 static void clearVarName(void)
@@ -1432,8 +1432,8 @@ static const char* getTypeId(void)
  * the function is a method of.
  */
 
-const char* pointerScopeStack[10];
-int pointerScopeDepth = 0;
+static const char* pointerScopeStack[10];
+static int pointerScopeDepth = 0;
 
 /* save the scope for scoped method pointers */
 static void scopeSig(const char* scope)
@@ -1462,10 +1462,10 @@ static const char* getScope(void)
  */
 
 /* "private" variables */
-FunctionInfo* functionStack[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-const char* functionVarNameStack[10];
-const char* functionTypeIdStack[10];
-int functionDepth = 0;
+static FunctionInfo* functionStack[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const char* functionVarNameStack[10];
+static const char* functionTypeIdStack[10];
+static int functionDepth = 0;
 
 static void pushFunction(void)
 {
@@ -1516,8 +1516,8 @@ static FunctionInfo* getFunction(void)
  * Attributes
  */
 
-int attributeRole = 0;
-const char* attributePrefix = NULL;
+static int attributeRole = 0;
+static const char* attributePrefix = NULL;
 
 /* Set kind of attributes to collect in attribute_specifier_seq */
 static void setAttributeRole(int x)
@@ -3554,6 +3554,19 @@ static void start_class(const char* classname, int is_struct_or_union)
     currentClass->DeprecatedVersion = deprecationVersion;
   }
 
+  if (getAttributes() & VTK_PARSE_MARSHALAUTO)
+  {
+    currentClass->MarshalType = VTK_MARSHAL_AUTO_MODE;
+  }
+  else if (getAttributes() & VTK_PARSE_MARSHALMANUAL)
+  {
+    currentClass->MarshalType = VTK_MARSHAL_MANUAL_MODE;
+  }
+  else
+  {
+    currentClass->MarshalType = VTK_MARSHAL_NONE;
+  }
+
   if (classname && classname[0] != '\0')
   {
     /* if name of class being defined contains "::" or "<..>", then skip it */
@@ -4445,6 +4458,40 @@ static void handle_attribute(const char* att, int pack)
         }
       }
     }
+    else if (l == 16 && strncmp(att, "vtk::marshalauto", l) == 0 && !args &&
+      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS))
+    {
+      addAttribute(VTK_PARSE_MARSHALAUTO);
+    }
+    else if (l == 18 && strncmp(att, "vtk::marshalmanual", l) == 0 && !args &&
+      (role == VTK_PARSE_ATTRIB_DECL || role == VTK_PARSE_ATTRIB_CLASS))
+    {
+      addAttribute(VTK_PARSE_MARSHALMANUAL);
+    }
+    else if (l == 19 && strncmp(att, "vtk::marshalexclude", l) == 0 && args &&
+      role == VTK_PARSE_ATTRIB_DECL)
+    {
+      currentFunction->IsMarshalExcluded = 1;
+      currentFunction->MarshalExcludeReason = vtkstrndup(args, la);
+    }
+    else if (l == 18 && (strncmp(att, "vtk::marshalgetter", l) == 0 ||
+      strncmp(att, "vtk::marshalsetter", l) == 0) && args &&
+      role == VTK_PARSE_ATTRIB_DECL)
+    {
+      if (args[0] != '"')
+      {
+        print_parser_error("args were not quoted here! Check macro definition in vtkWrappingHints.h", att, l);
+        exit(1);
+      }
+      /* advance args to next attribute arg */
+      while ((args[0] == '"') || (args[0] == ' '))
+      {
+        args += 1;
+        la -= 1;
+      }
+      size_t n = vtkParse_SkipId(args);
+      currentFunction->MarshalPropertyName = vtkstrndup(args, n);
+    }
     else
     {
       print_parser_error("attribute cannot be used here", att, l);
@@ -5041,6 +5088,18 @@ void vtkParse_FinalCleanup(void)
 {
   vtkParse_FreeFileCache(&system_cache);
   vtkParse_FreeStringCache(&system_strings);
+
+  free(IncludeDirectories);
+  IncludeDirectories = NULL;
+  NumberOfIncludeDirectories = 0;
+
+  free(Definitions);
+  Definitions = NULL;
+  NumberOfDefinitions = 0;
+
+  free(MacroIncludes);
+  MacroIncludes = NULL;
+  NumberOfMacroIncludes = 0;
 }
 
 /* Free the FileInfo struct returned by vtkParse_ParseFile() */
@@ -5069,7 +5128,7 @@ void vtkParse_DefineMacro(const char* name, const char* definition)
   }
 
   l = n + strlen(definition) + 2;
-  cp = (char*)malloc(l + 1);
+  cp = vtkParse_NewString(&system_strings, l);
   cp[0] = 'D';
   strncpy(&cp[1], name, n);
   cp[n + 1] = '\0';
@@ -5089,7 +5148,7 @@ void vtkParse_UndefineMacro(const char* name)
   size_t n = vtkParse_SkipId(name);
   char* cp;
 
-  cp = (char*)malloc(n + 2);
+  cp = vtkParse_NewString(&system_strings, n + 1);
   cp[0] = 'U';
   strncpy(&cp[1], name, n);
   cp[n + 1] = '\0';
@@ -5098,7 +5157,7 @@ void vtkParse_UndefineMacro(const char* name)
 }
 
 /** Do not define any platform-specific macros.  */
-void vtkParse_UndefinePlatformMacros()
+void vtkParse_UndefinePlatformMacros(void)
 {
   PredefinePlatformMacros = 0;
 }
@@ -5106,12 +5165,9 @@ void vtkParse_UndefinePlatformMacros()
 /** Add an include file to read macros from, for use with -imacro. */
 void vtkParse_IncludeMacros(const char* filename)
 {
-  size_t n = strlen(filename);
-  char* cp;
+  const char* cp;
 
-  cp = (char*)malloc(n + 1);
-  strcpy(cp, filename);
-
+  cp = vtkParse_CacheString(&system_strings, filename, strlen(filename));
   vtkParse_AddStringToArray(&MacroIncludes, &NumberOfMacroIncludes, cp);
 }
 
@@ -5126,7 +5182,7 @@ void vtkParse_DumpMacros(const char* filename)
 void vtkParse_IncludeDirectory(const char* dirname)
 {
   size_t n = strlen(dirname);
-  char* cp;
+  const char* cp;
   int i;
 
   for (i = 0; i < NumberOfIncludeDirectories; i++)
@@ -5137,9 +5193,7 @@ void vtkParse_IncludeDirectory(const char* dirname)
     }
   }
 
-  cp = (char*)malloc(n + 1);
-  strcpy(cp, dirname);
-
+  cp = vtkParse_CacheString(&system_strings, dirname, n);
   vtkParse_AddStringToArray(&IncludeDirectories, &NumberOfIncludeDirectories, cp);
 }
 

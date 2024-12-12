@@ -18,6 +18,7 @@
 #include <memory> // For std::unique_ptr
 
 struct ID3D11Device;
+struct ID3D11DeviceContext;
 struct ID3D11Texture2D;
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -27,6 +28,22 @@ public:
   static vtkWin32OpenGLDXRenderWindow* New();
   vtkTypeMacro(vtkWin32OpenGLDXRenderWindow, vtkWin32OpenGLRenderWindow);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  ///@{
+  /**
+   * Use external `D3D11DeviceContext`.
+   * The `D3D11Device` is obtained using `context->GetDevice()`
+   * from parent class `ID3D11DeviceChild`.
+   * Must be set before window initialization.
+   *
+   * The `void*` overload is meant for wrappers
+   * and simply forward the argument to the typed one.
+   *
+   * @param context ID3D11DeviceContext to initialize the window resources with.
+   */
+  void SetD3DDeviceContext(ID3D11DeviceContext* context);
+  void SetD3DDeviceContext(void* context);
+  ///@}
 
   /**
    * Overridden to create the D3D device, context and texture.
@@ -44,12 +61,17 @@ public:
 
   ///@{
   /**
-   * Register/Unregister the OpenGL texture designated by \p textureHandle with
-   * this render window internal D3D shared texture.
+   * Register/Unregister the OpenGL textures designated by \p colorId  and \p depthId with
+   * this render window internal D3D shared textures. depthId is optional
    */
-  void RegisterSharedTexture(unsigned int textureHandle);
+  void RegisterSharedTexture(unsigned int colorId, unsigned int depthId = 0);
   void UnregisterSharedTexture();
   ///@}
+
+  /**
+   * Register the RenderFrameBuffer of this window as a D3D shared texture
+   */
+  void RegisterSharedTexture();
 
   ///@{
   /**
@@ -67,9 +89,13 @@ public:
 
   ///@{
   /**
-   * Blits the internal D3D shared texture into \p texture.
+   * Blits the internal D3D shared texture into \p color and optionally \p depth.
+   *
+   * The `void*` overload is meant for wrappers
+   * and simply forward the arguments to the typed one.
    */
-  void BlitToTexture(ID3D11Texture2D* texture);
+  void BlitToTexture(ID3D11Texture2D* color, ID3D11Texture2D* depth = nullptr);
+  void BlitToTexture(void* color, void* depth = nullptr);
   ///@}
 
   ///@{
@@ -84,6 +110,7 @@ public:
    * Returns the D3D texture shared with this render window
    */
   ID3D11Texture2D* GetD3DSharedTexture();
+  ID3D11Texture2D* GetD3DSharedDepthTexture();
   ///@}
 
   ///@{
@@ -91,8 +118,18 @@ public:
    * Specify the DGXI adapter to be used for initialization.
    * If left unspecified, the first available adapter is used.
    */
-  void SetAdapterId(LUID uid) { this->AdapterId = uid; }
+  void SetAdapterId(LUID uid);
   ///@}
+
+  /**
+   * Specify the DXGI format of the D3D color texture shared with this render window.
+   *
+   * @param format must be a valid DXGI_FORMAT.
+   *
+   * Note: We don't forward declare the DXGI_FORMAT enum as it is ill-formed and would
+   * always trigger a warning (see https://github.com/ocornut/imgui/issues/3706).
+   */
+  void SetColorTextureFormat(UINT format);
 
 protected:
   vtkWin32OpenGLDXRenderWindow();
@@ -107,17 +144,11 @@ private:
   vtkWin32OpenGLDXRenderWindow(const vtkWin32OpenGLDXRenderWindow&) = delete;
   void operator=(const vtkWin32OpenGLDXRenderWindow&) = delete;
 
-  // Hide D3D resources managed by Microsoft::WRL::ComPtr
-  class PIMPL;
-  PIMPL* Private;
+  bool CreateTexture(UINT format, UINT bindFlags, ID3D11Texture2D** output);
+  void UpdateTextures();
 
-  HANDLE DeviceHandle = 0;
-
-  unsigned int TextureId = 0; // OpenGL texture id to be shared with the D3D texture
-
-  HANDLE GLSharedTextureHandle = 0; // OpenGL-D3D shared texture id
-
-  LUID AdapterId = { 0, 0 }; // DGXI adapter id
+  class vtkInternals;
+  std::unique_ptr<vtkInternals> Impl;
 };
 VTK_ABI_NAMESPACE_END
 #endif

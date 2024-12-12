@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "vtkAlgorithm.h"
 #include "vtkAppendPolyData.h"
 #include "vtkCamera.h"
 #include "vtkCellData.h"
@@ -32,6 +33,7 @@
 #include "vtkTestUtilities.h"
 #include "vtkTesting.h"
 #include "vtkTexture.h"
+#include "vtkVersionMacros.h"
 #include "vtksys/FStream.hxx"
 #include "vtksys/SystemTools.hxx"
 
@@ -45,59 +47,6 @@
 #include VTK_NLOHMANN_JSON(json.hpp)
 
 using namespace vtksys;
-
-class vtkDoublePoints : public vtkPoints
-{
-public:
-  // Methods from vtkObject
-  ~vtkDoublePoints() override = default;
-
-  vtkTypeMacro(vtkDoublePoints, vtkPoints);
-  static vtkDoublePoints* New() { VTK_STANDARD_NEW_BODY(vtkDoublePoints); }
-  vtkDoublePoints() { this->SetDataType(VTK_DOUBLE); }
-  void SetDataType(int type) override
-  {
-    if (type != VTK_DOUBLE)
-    {
-      std::cerr << "This is a double points object. We cannot change the type to " << type
-                << std::endl;
-    }
-    else
-    {
-      vtkPoints::SetDataType(VTK_DOUBLE);
-    }
-  }
-
-private:
-  vtkDoublePoints(const vtkDoublePoints&) = delete;
-  vtkDoublePoints& operator=(const vtkDoublePoints&) = delete;
-};
-
-VTK_CREATE_CREATE_FUNCTION(vtkDoublePoints);
-
-class DoublePointsFactory : public vtkObjectFactory
-{
-public:
-  DoublePointsFactory();
-  static DoublePointsFactory* New()
-  {
-    DoublePointsFactory* f = new DoublePointsFactory;
-    f->InitializeObjectBase();
-    return f;
-  }
-  const char* GetVTKSourceVersion() override { return VTK_SOURCE_VERSION; }
-  const char* GetDescription() override { return "A fine Test Factory"; }
-
-protected:
-  DoublePointsFactory(const DoublePointsFactory&) = delete;
-  DoublePointsFactory& operator=(const DoublePointsFactory&) = delete;
-};
-
-DoublePointsFactory::DoublePointsFactory()
-{
-  this->RegisterOverride("vtkPoints", "vtkDoublePoints", "double vertex factory override", 1,
-    vtkObjectFactoryCreatevtkDoublePoints);
-}
 
 //------------------------------------------------------------------------------
 void SetField(vtkDataObject* obj, const char* name, const char* value)
@@ -225,7 +174,7 @@ vtkSmartPointer<vtkMultiBlockDataSet> ReadCityGMLBuildings(int numberOfBuildings
 //------------------------------------------------------------------------------
 using ReaderType = vtkSmartPointer<vtkMultiBlockDataSet> (*)(int numberOfBuildings, int lod,
   const std::vector<std::string>& files, std::array<double, 3>& fileOffset);
-std::map<std::string, ReaderType> READER = { { ".obj", ReadOBJBuildings },
+static std::map<std::string, ReaderType> READER = { { ".obj", ReadOBJBuildings },
   { ".gml", ReadCityGMLBuildings } };
 
 //------------------------------------------------------------------------------
@@ -350,6 +299,7 @@ vtkSmartPointer<vtkMultiBlockDataSet> tiler(const std::vector<std::string>& inpu
 bool TrianglesDiffer(std::array<std::array<double, 3>, 3>& in, std::string gltfFileName)
 {
   vtkNew<vtkGLTFReader> reader;
+  reader->SetOutputPointsPrecision(vtkAlgorithm::DOUBLE_PRECISION);
   reader->SetFileName(gltfFileName.c_str());
   reader->Update();
   vtkMultiBlockDataSet* mbOutput = reader->GetOutput();
@@ -457,7 +407,7 @@ bool JsonEqual(nlohmann::json& l, nlohmann::json& r) noexcept
   return false;
 }
 
-std::array<std::array<double, 3>, 3> triangleJacksonville = {
+static std::array<std::array<double, 3>, 3> triangleJacksonville = {
   { { { 799099.7216079829959199, -5452032.6613515587523580, 3201501.3033391013741493 } },
     { { 797899.9930383440805599, -5452124.7368548354133964, 3201444.7161126118153334 } },
     { { 797971.0970941731939092, -5452573.6701772613450885, 3200667.5626786206848919 } } }
@@ -621,9 +571,6 @@ int TestCesium3DTilesWriter(int argc, char* argv[])
     TestJacksonvilleColorPoints(dataRoot, tempDirectory, true /*contentGLTF*/);
     TestJacksonvilleMesh(dataRoot, tempDirectory);
 
-    // we need to use double points for the GLTF reader.
-    vtkNew<DoublePointsFactory> factory;
-    vtkObjectFactory::RegisterFactory(factory);
     vtkNew<vtkRenderer> renderer;
     renderer->SetBackground(0.5, 0.7, 0.7);
     vtkNew<vtkRenderWindow> renWin;

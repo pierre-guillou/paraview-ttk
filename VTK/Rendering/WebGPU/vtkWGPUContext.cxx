@@ -7,6 +7,10 @@
 #include VTK_FMT(fmt/core.h)
 // clang-format on
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#endif
+
 #include <memory>
 #include <string>
 #include <vector>
@@ -205,6 +209,7 @@ static void LogAvailableAdapters()
   {
     wgpu::AdapterProperties p;
     a.GetProperties(&p);
+
     msg << vtkfmt::format("  {0}({1})\n"
                           "    deviceID={2}, vendorID={3:#x}, BackendType::{4}, AdapterType::{5}\n",
       p.name, p.driverDescription, p.deviceID, p.vendorID, BackendTypeName(p.backendType),

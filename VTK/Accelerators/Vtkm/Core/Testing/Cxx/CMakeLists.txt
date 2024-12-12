@@ -3,10 +3,10 @@
 # in cuda. We have not identified the root cause of the problem yet.
 vtk_add_test_cxx(vtkAcceleratorsVTKmCoreCxxTests tests
   TestVTKMDataArray.cxx,NO_VALID
-  TestVTKMImplicitDataArray.cxx,VALID
+  TestVTKMImplicitDataArray.cxx,NO_VALID
   )
 
-if (TARGET vtkm::cuda)
+if (TARGET vtkm::cuda OR TARGET vtkm::kokkos_cuda)
   foreach(src IN LISTS tests)
     string(REPLACE "," ";" src ${src})
     list(GET src 0 src)
@@ -25,9 +25,7 @@ if (TARGET vtkm::cuda)
   string(APPEND CMAKE_CUDA_FLAGS " -Xnvlink -w")
 endif()
 
-vtk_test_cxx_executable(vtkAcceleratorsVTKmCoreCxxTests tests
-  RENDERING_FACTORY
-  )
+vtk_test_cxx_executable(vtkAcceleratorsVTKmCoreCxxTests tests)
 
 if (TARGET vtkm::cuda)
   # When cuda is enabled VTK::AcceleratorsVTKmCore is built statically but with fpic

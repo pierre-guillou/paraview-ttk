@@ -52,7 +52,6 @@ ContourControlPnt::~ContourControlPnt()
 
 /** Constructor */
 MetaContour::MetaContour()
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaContour()" );
   MetaContour::Clear();
@@ -60,7 +59,6 @@ MetaContour::MetaContour()
 
 /** Constructor */
 MetaContour::MetaContour(const char * _headerName)
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaContour()" );
   MetaContour::Clear();
@@ -69,7 +67,6 @@ MetaContour::MetaContour(const char * _headerName)
 
 //
 MetaContour::MetaContour(const MetaContour * _contour)
-  : MetaObject()
 {
   META_DEBUG_PRINT( "MetaContour()" );
   MetaContour::Clear();
@@ -721,41 +718,42 @@ MetaContour::M_Write()
     ControlPointListType::const_iterator it = m_ControlPointsList.begin();
     ControlPointListType::const_iterator itEnd = m_ControlPointsList.end();
 
-    char * data = new char[(m_NDims * 3 + 5) * m_NControlPoints * 4];
+    const size_t dataSize = (m_NDims * 3 + 5) * m_NControlPoints * 4;
+    char * data = new char[dataSize];
     int    i = 0;
     int    d;
     while (it != itEnd)
     {
       unsigned int id = (*it)->m_Id;
       MET_SwapByteIfSystemMSB(&id, MET_UINT);
-      MET_DoubleToValue(static_cast<double>(id), MET_UINT, data, i++);
+      MET_DoubleToValueN(static_cast<double>(id), MET_UINT, data, dataSize, i++);
 
       for (d = 0; d < m_NDims; d++)
       {
         float pntX = (*it)->m_X[d];
         MET_SwapByteIfSystemMSB(&pntX, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(pntX), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(pntX), MET_FLOAT, data, dataSize, i++);
       }
 
       for (d = 0; d < m_NDims; d++)
       {
         float pntX = (*it)->m_XPicked[d];
         MET_SwapByteIfSystemMSB(&pntX, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(pntX), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(pntX), MET_FLOAT, data, dataSize, i++);
       }
 
       for (d = 0; d < m_NDims; d++)
       {
         float pntX = (*it)->m_V[d];
         MET_SwapByteIfSystemMSB(&pntX, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(pntX), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(pntX), MET_FLOAT, data, dataSize, i++);
       }
 
       for (d = 0; d < 4; d++)
       {
         float pntX = (*it)->m_Color[d];
         MET_SwapByteIfSystemMSB(&pntX, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(pntX), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(pntX), MET_FLOAT, data, dataSize, i++);
       }
       ++it;
     }
@@ -834,26 +832,27 @@ MetaContour::M_Write()
     InterpolatedPointListType::const_iterator it = m_InterpolatedPointsList.begin();
     InterpolatedPointListType::const_iterator itEnd = m_InterpolatedPointsList.end();
 
-    char * data = new char[(m_NDims + 5) * m_NInterpolatedPoints * 4];
+    const size_t dataSize = (m_NDims + 5) * m_NInterpolatedPoints * 4;
+    char * data = new char[dataSize];
     int    i = 0;
     int    d;
     while (it != itEnd)
     {
       unsigned int id = (*it)->m_Id;
       MET_SwapByteIfSystemMSB(&id, MET_UINT);
-      MET_DoubleToValue(static_cast<double>(id), MET_UINT, data, i++);
+      MET_DoubleToValueN(static_cast<double>(id), MET_UINT, data, dataSize, i++);
 
       for (d = 0; d < m_NDims; d++)
       {
         float x = (*it)->m_X[d];
         MET_SwapByteIfSystemMSB(&x, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(x), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(x), MET_FLOAT, data, dataSize, i++);
       }
       for (d = 0; d < 4; d++)
       {
         float x = (*it)->m_Color[d];
         MET_SwapByteIfSystemMSB(&x, MET_FLOAT);
-        MET_DoubleToValue(static_cast<double>(x), MET_FLOAT, data, i++);
+        MET_DoubleToValueN(static_cast<double>(x), MET_FLOAT, data, dataSize, i++);
       }
       ++it;
     }

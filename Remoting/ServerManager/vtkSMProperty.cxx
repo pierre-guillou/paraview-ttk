@@ -308,14 +308,6 @@ vtkSMProperty* vtkSMProperty::NewProperty(const char* name)
 }
 
 //---------------------------------------------------------------------------
-const char* vtkSMProperty::CreateNewPrettyLabel(const char* xmlname)
-{
-  std::string label = vtkSMObject::CreatePrettyLabel(std::string(xmlname));
-  char* clabel = strcpy(new char[label.length() + 1], label.c_str());
-  return clabel;
-}
-
-//---------------------------------------------------------------------------
 int vtkSMProperty::ReadXMLAttributes(vtkSMProxy* proxy, vtkPVXMLElement* element)
 {
   // TODO: some of the attributes are no longer necessary on the proxy-side,
@@ -512,7 +504,7 @@ int vtkSMProperty::ReadXMLAttributes(vtkSMProxy* proxy, vtkPVXMLElement* element
     {
       vtkWarningMacro("Could not create object of type: "
         << name.str().c_str()
-        << ". Make sure that this xml domain is correct.\nIf this error occurred when loading a "
+        << ". Make sure that this xml domain is correct.\nIf this occurred when loading a "
            "plugin in client/server mode, first load the client plugin.");
     }
   }

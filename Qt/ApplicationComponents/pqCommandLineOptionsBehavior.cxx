@@ -171,7 +171,7 @@ void pqCommandLineOptionsBehavior::processData()
     // makes it possible to select a file group.
     // This also resolve relative path into a canonical one.
     pqFileDialog dialog(pqActiveObjects::instance().activeServer(), pqCoreUtilities::mainWidget(),
-      tr("Internal Open File"), QString(), QString(), false);
+      tr("Internal Open File"), QString(), QString(), true);
     dialog.setFileMode(pqFileDialog::ExistingFiles);
 
     if (!dialog.selectFile(path))
@@ -209,7 +209,7 @@ void pqCommandLineOptionsBehavior::processState()
     }
     else
     {
-      qCritical() << "Specified state file does not exists: '" << fullPath.c_str() << "'";
+      qCritical() << "Specified state file does not exist: '" << fullPath.c_str() << "'";
     }
   }
 }

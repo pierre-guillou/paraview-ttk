@@ -13,9 +13,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkStringToken.h"
 
-#include <vtk_nlohmannjson.h>
-#include VTK_NLOHMANN_JSON(json.hpp)
-
 #include <array>
 #include <sstream>
 
@@ -28,6 +25,34 @@ int ArrayTypeToEnum(const std::string& arrayType)
   if (arrayType == "int")
   {
     result = VTK_INT;
+  }
+  else if (arrayType == "vtktypeuint8")
+  {
+    result = VTK_TYPE_UINT8;
+  }
+  else if (arrayType == "vtktypeint8")
+  {
+    result = VTK_TYPE_INT8;
+  }
+  else if (arrayType == "vtktypeuint16")
+  {
+    result = VTK_TYPE_UINT16;
+  }
+  else if (arrayType == "vtktypeint16")
+  {
+    result = VTK_TYPE_INT16;
+  }
+  else if (arrayType == "vtktypeuint32")
+  {
+    result = VTK_TYPE_UINT32;
+  }
+  else if (arrayType == "vtktypeint32")
+  {
+    result = VTK_TYPE_INT32;
+  }
+  else if (arrayType == "vtktypeuint64")
+  {
+    result = VTK_TYPE_UINT64;
   }
   else if (arrayType == "vtktypeint64")
   {
@@ -45,7 +70,7 @@ int ArrayTypeToEnum(const std::string& arrayType)
 }
 
 template <typename T>
-void AppendArrayData(T* data, nlohmann::json& values)
+void AppendArrayData(T* data, const nlohmann::json& values)
 {
   auto valueVector = values.get<std::vector<T>>();
   vtkIdType ii = 0;
@@ -120,65 +145,34 @@ int vtkCellGridReader::RequestInformation(
   return 1;
 }
 
-int vtkCellGridReader::RequestData(
-  vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
+bool vtkCellGridReader::FromJSON(const nlohmann::json& jj, vtkCellGrid* output)
 {
-  // Get the output
-  vtkCellGrid* output = vtkCellGrid::GetData(outputVector);
-
-  // Make sure we have a file to read.
-  if (!this->FileName)
-  {
-    vtkErrorMacro("A FileName must be specified.");
-    return 0;
-  }
-
-  // Check the file's validity.
-  std::ifstream file(this->FileName);
-  if (!file.good())
-  {
-    vtkErrorMacro("Cannot read file \"" << this->FileName << "\".");
-    return 0;
-  }
-
-  // Read the file into nlohmann json.
-  nlohmann::json jj;
-  try
-  {
-    jj = nlohmann::json::parse(file);
-  }
-  catch (...)
-  {
-    vtkErrorMacro("Cannot parse file \"" << this->FileName << "\".");
-    return 0;
-  }
-
   auto jtype = jj.find("data-type");
   if (jtype == jj.end() || jtype->get<std::string>() != "cell-grid")
   {
     vtkErrorMacro("Data type is missing or incorrect.");
-    return 0;
+    return false;
   }
 
   auto jArrayGroup = jj.find("arrays");
   if (jArrayGroup == jj.end() || !jArrayGroup->is_object())
   {
     vtkErrorMacro("Missing arrays section.");
-    return 0;
+    return false;
   }
 
   auto jAttributes = jj.find("attributes");
   if (jAttributes == jj.end() || !jAttributes->is_array())
   {
     vtkErrorMacro("Missing attributes section.");
-    return 0;
+    return false;
   }
 
   auto jCellTypes = jj.find("cell-types");
   if (jCellTypes == jj.end() || !jCellTypes->is_array())
   {
     vtkErrorMacro("Missing cell-types section.");
-    return 0;
+    return false;
   }
 
   bool skipVersionChecks = false;
@@ -195,17 +189,17 @@ int vtkCellGridReader::RequestData(
     if (jFormatVersion == jj.end() || jFormatVersion->get<std::uint32_t>() > 1)
     {
       vtkErrorMacro("File format version missing or newer than reader code.");
-      return 0;
+      return false;
     }
     if (jSchemaName->get<std::string>() != "dg leaf")
     {
       vtkErrorMacro("Expecting a schema name of 'dg leaf'.");
-      return 0;
+      return false;
     }
     if (jSchemaVersion->get<std::uint32_t>() > 1)
     {
       vtkErrorMacro("Cannot read a schema newer than v1.");
-      return 0;
+      return false;
     }
     output->SetSchema(jSchemaName->get<std::string>(), jSchemaVersion->get<std::uint32_t>());
   }
@@ -270,49 +264,25 @@ int vtkCellGridReader::RequestData(
     (void)cell;
   }
 
+  std::vector<vtkCellAttribute*> attributeList;
   for (const auto& jAttribute : *jAttributes)
   {
     if (!jAttribute.is_object() || jAttribute.find("name") == jAttribute.end() ||
-      jAttribute.find("type") == jAttribute.end() || jAttribute.find("space") == jAttribute.end() ||
+      jAttribute.find("space") == jAttribute.end() ||
       jAttribute.find("components") == jAttribute.end() ||
-      jAttribute.find("arrays") == jAttribute.end())
+      jAttribute.find("cell-info") == jAttribute.end())
     {
       vtkWarningMacro("Skipping malformed cell-attribute entry. " << jAttribute.dump(2));
       continue;
     }
     auto attributeName = vtkStringToken(jAttribute["name"].get<std::string>());
-    auto attributeType = vtkStringToken(jAttribute["type"].get<std::string>());
     auto attributeSpace = vtkStringToken(jAttribute["space"].get<std::string>());
     auto shapeIt = jAttribute.find("shape");
     bool attributeIsShape = !(shapeIt == jAttribute.end() || !shapeIt->get<bool>());
     auto attributeComps = jAttribute["components"].get<int>();
     vtkNew<vtkCellAttribute> attribute;
-    attribute->Initialize(attributeName, attributeType, attributeSpace, attributeComps);
-    for (const auto& arraySpecs : jAttribute["arrays"].items())
-    {
-      vtkStringToken cellTypeName(arraySpecs.key());
-      vtkCellAttribute::ArraysForCellType arrays;
-      for (const auto& arraySpec : arraySpecs.value().items())
-      {
-        vtkStringToken group(arraySpec.value()[0].get<std::string>());
-        vtkStringToken arrayName(arraySpec.value()[1].get<std::string>());
-        // std::cout << cellTypeName.Data() << " " << arraySpec.key() << " has " << group.Data() <<
-        // ", " << arrayName.Data() << "\n";
-        auto* arrayGroup = output->GetAttributes(group.GetId());
-        if (arrayGroup)
-        {
-          auto* array = arrayGroup->GetArray(arrayName.Data().c_str());
-          if (array)
-          {
-            arrays[arraySpec.key()] = array;
-          }
-        }
-      }
-      if (!arrays.empty())
-      {
-        attribute->SetArraysForCellType(cellTypeName, arrays);
-      }
-    }
+    attribute->Initialize(attributeName, attributeSpace, attributeComps);
+    attributeList.push_back(attribute);
     output->AddCellAttribute(attribute);
     if (attributeIsShape)
     {
@@ -323,13 +293,49 @@ int vtkCellGridReader::RequestData(
   // Finally, although we have created vtkCellMetadata objects per the JSON,
   // we have not configured them. Now that the arrays and attributes are
   // present, use a query/responder to do so.
-  vtkNew<vtkCellGridIOQuery> query;
-  query->PrepareToDeserialize(*jCellTypes);
-  if (!output->Query(query))
+  this->Query->PrepareToDeserialize(*jCellTypes, *jAttributes, attributeList);
+  if (!output->Query(this->Query))
   {
+    return false;
+  }
+
+  return true;
+}
+
+int vtkCellGridReader::RequestData(
+  vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
+{
+  // Get the output
+  vtkCellGrid* output = vtkCellGrid::GetData(outputVector);
+
+  // Make sure we have a file to read.
+  if (!this->FileName)
+  {
+    vtkErrorMacro("A FileName must be specified.");
     return 0;
   }
 
-  return 1;
+  // Check the file's validity.
+  std::ifstream file(this->FileName);
+  if (!file.good())
+  {
+    vtkErrorMacro("Cannot read file \"" << this->FileName << "\".");
+    return 0;
+  }
+
+  // Read the file into nlohmann json.
+  nlohmann::json jj;
+  try
+  {
+    jj = nlohmann::json::parse(file);
+  }
+  catch (...)
+  {
+    vtkErrorMacro("Cannot parse file \"" << this->FileName << "\".");
+    return 0;
+  }
+
+  bool status = this->FromJSON(jj, output);
+  return status ? 1 : 0;
 }
 VTK_ABI_NAMESPACE_END

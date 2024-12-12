@@ -414,6 +414,7 @@ Less common, but potentially useful variables are:
     `PARAVIEW_USE_CUDA`): Enable HIP support in ParaView.
   * `PARAVIEW_LOGGING_TIME_PRECISION` (default `3`): Change the precision of
     times output. Possible values are 3 for ms, 6 for us, 9 for ns.
+  * `PARAVIEW_USE_SERIALIZATION` (default `OFF`): Whether VTK serialization is enabled.
 
 #### Feature settings
 
@@ -441,8 +442,6 @@ More advanced / less common options include:
     files.
   * `PARAVIEW_ENABLE_LAS` (default `OFF`): Enable support for reading LAS
     files.
-  * `PARAVIEW_ENABLE_GEOVIS` (default `OFF`): Enable support for geographic
-    projections and transformations.
   * `PARAVIEW_ENABLE_OPENTURNS` (default `OFF`): Enable support for reading
     OpenTURNS files.
   * `PARAVIEW_ENABLE_PDAL` (default `OFF`): Enable support for reading PDAL
@@ -544,6 +543,10 @@ More advanced options:
   * `PARAVIEW_TEST_DIR`: Used on HPC to set the test directory (default is
     "${CMAKE_BINARY_DIR}/Testing/Temporary") to a location that is writable from
     the compute nodes. Typically the user home directory is not.
+  * `PARAVIEW_LINKER_FATAL_WARNINGS`: Specify if linker warnings must
+    be considered as errors
+  * `PARAVIEW_EXTRA_COMPILER_WARNINGS`: Add compiler flags to do
+    stricter checking when building debug
 
 <!--
 These variables should be documented once they're effective again. Note that

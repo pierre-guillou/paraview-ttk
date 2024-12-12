@@ -660,8 +660,11 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderEdges(
       "float emix = clamp(0.5 + 0.5*lineWidth - min( min( edist[0], edist[1]), edist[2]), 0.0, "
       "1.0);\n";
 
-    bool canRenderLinesAsTube =
-      actor->GetProperty()->GetRenderLinesAsTubes() && ren->GetLights()->GetNumberOfItems() > 0;
+    // Since "tubes" are faked using normals and lights, consider them disabled if we have no light
+    // in the scene.
+    bool canRenderLinesAsTube = actor->GetProperty()->GetRenderLinesAsTubes() &&
+      this->PrimitiveInfo[this->LastBoundBO].LastLightComplexity > 0;
+
     if (canRenderLinesAsTube)
     {
       fsimpl +=
@@ -2272,9 +2275,12 @@ void vtkOpenGLPolyDataMapper::ReplaceShaderNormal(
     // We have no point or cell normals, so compute something.
     // Caveat: this assumes that neighboring fragments are present,
     // result is undefined (maybe NaN?) if neighbors are missing.
+    // The partial derivatives are scaled by the inverse of fwidth
+    // to avoid overflow or underflow in the following computations.
     vtkShaderProgram::Substitute(FSSource, "//VTK::UniformFlow::Impl",
-      "vec3 fdx = dFdx(vertexVC.xyz);\n"
-      "  vec3 fdy = dFdy(vertexVC.xyz);\n"
+      "float scale = 1.0/length(fwidth(vertexVC.xyz));\n"
+      "  vec3 fdx = dFdx(vertexVC.xyz)*scale;\n"
+      "  vec3 fdy = dFdy(vertexVC.xyz)*scale;\n"
       "  //VTK::UniformFlow::Impl\n" // For further replacements
     );
 

@@ -6,11 +6,23 @@ if (POLICY CMP0127)
   cmake_policy(SET CMP0127 NEW) # cmake_dependent_option changes
 endif ()
 
+if (POLICY CMP0154)
+  cmake_policy(SET CMP0154 NEW) # optimize custom commands in PRIVATE filesets
+endif ()
+
 set(vtk_cmake_dir "${VTK_SOURCE_DIR}/CMake")
 list(INSERT CMAKE_MODULE_PATH 0 "${vtk_cmake_dir}")
 
 if (APPLE)
   include(vtkApple)
+endif ()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  include(vtkEmscripten)
+  if (CMAKE_GENERATOR STREQUAL "Ninja" AND CMAKE_HOST_WIN32)
+    # emcc.bat receives too many characters, so use response files instead.
+    set(CMAKE_NINJA_FORCE_RESPONSE_FILE 1 CACHE INTERNAL "")
+  endif ()
 endif ()
 
 # must be before the following iOS / Android
@@ -44,9 +56,8 @@ if (VTK_WHEEL_BUILD)
 endif ()
 
 include(CMakeDependentOption)
-cmake_dependent_option(VTK_ENABLE_WEBGPU "Enable the WebGPU experimental rendering backend." OFF
-  "NOT CMAKE_SYSTEM_NAME STREQUAL \"Emscripten\"" ON)
-mark_as_advanced(VTK_ENABLE_WEBGPU)
+# (vtk/vtk#19315) Enable by default after WebGPU support is completed.
+option(VTK_ENABLE_WEBGPU "Enable the WebGPU experimental rendering backend." OFF)
 
 include(GNUInstallDirs)
 
@@ -87,6 +98,7 @@ include(vtkMobileDevices)
 include(vtkWrapSettings)
 include(vtkCrossCompiling)
 include(vtkObjectFactory)
+include(vtkOpenGLOptions)
 
 option(VTK_RELOCATABLE_INSTALL "Do not embed hard-coded paths into the install" ON)
 mark_as_advanced(VTK_RELOCATABLE_INSTALL)
@@ -159,19 +171,40 @@ if(VTK_USE_CUDA)
 endif()
 
 #-----------------------------------------------------------------------------
-# Add an option to enable/disable HIP support.
-cmake_dependent_option(VTK_USE_HIP "Support HIP backend accelerator" OFF
+# Add an option to enable/disable KOKKOS support.
+cmake_dependent_option(VTK_USE_KOKKOS "Support KOKKOS backend accelerator" OFF
   "CMAKE_VERSION VERSION_GREATER_EQUAL 3.21;NOT VTK_USE_CUDA" OFF)
-mark_as_advanced(VTK_USE_HIP)
+mark_as_advanced(VTK_USE_KOKKOS)
+if(VTK_USE_KOKKOS)
+  set(VTK_KOKKOS_BACKEND:STRING "SERIAL" CACHE STRING "'HIP', 'SYCL', or 'CUDA'")
+endif()
+# If the Kokkos backend is set, it should imply that Kokkos is to used
+if(VTK_KOKKOS_BACKEND)
+  set(VTK_USE_KOKKOS ON)
+endif()
 
 if(VTK_USE_HIP)
+  message(WARNING "VTK_USE_HIP will be removed in future releases, please use VTK_USE_KOKKOS and VTK_KOKKOS_BACKEND")
+  set(VTK_USE_KOKKOS ON)
+  set(VTK_KOKKOS_BACKEND "HIP")
+endif()
+
+if(VTK_USE_KOKKOS)
   if(VTK_USE_CUDA)
-    message(FATAL_ERROR "VTK_USE_HIP and VTK_USE_CUDA are mutually exclusive, enable only one.")
+    message(FATAL_ERROR "VTK_USE_KOKKOS and VTK_USE_CUDA are mutually exclusive, enable only one.")
   endif()
   # This needs to be a top level flag as enable_language needs
   # to be called from CMake entry point for variables to have
   # the correct scope.
-  enable_language(HIP)
+  if (VTK_KOKKOS_BACKEND STREQUAL "HIP")
+    enable_language(HIP)
+  elseif (VTK_KOKKOS_BACKEND STREQUAL "CUDA")
+    enable_language(CUDA)
+  elseif (VTK_KOKKOS_BACKEND STREQUAL "SYCL")
+  elseif (VTK_KOKKOS_BACKEND STREQUAL "SERIAL")
+  else ()
+    message(FATAL_ERROR "VTK_KOKKOS_BACKEND not recognized")
+  endif()
 endif()
 
 #-----------------------------------------------------------------------------
@@ -203,7 +236,7 @@ endif ()
 
 #-----------------------------------------------------------------------------
 # Add an option to enable/disable catalyst2 support.
-option(VTK_ENABLE_CATALYST "Build IOCatalystConduit module and VTK catalyst implementation." OFF)
+option(VTK_ENABLE_CATALYST "Build catalyst-dependent modules, including the VTK catalyst implementation." OFF)
 mark_as_advanced(VTK_ENABLE_CATALYST)
 
 #-----------------------------------------------------------------------------
@@ -247,6 +280,24 @@ else ()
 endif ()
 set("_vtk_module_reason_VTK::Java"
   "via `VTK_WRAP_JAVA`")
+if (VTK_WRAP_SERIALIZATION)
+  list(APPEND vtk_requested_modules
+    VTK::SerializationManager)
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    list(APPEND vtk_requested_modules
+      VTK::WebAssembly)
+  else ()
+    list(APPEND vtk_rejected_modules
+      VTK::WebAssembly)
+  endif ()
+  set("_vtk_module_reason_VTK::WebAssembly"
+  "via `VTK_WRAP_SERIALIZATION` AND `CMAKE_SYSTEM_NAME` STREQUAL Emscripten")
+else ()
+  list(APPEND vtk_rejected_modules
+    VTK::SerializationManager)
+endif ()
+set("_vtk_module_reason_VTK::SerializationManager"
+  "via `VTK_WRAP_SERIALIZATION`")
 # For vtkTkRenderWidget (only useful with Python, since WRAP_TCL is gone)
 if (VTK_USE_TK)
   if (VTK_GROUP_ENABLE_Tk STREQUAL "DEFAULT")
@@ -277,17 +328,23 @@ endif ()
 if (VTK_ENABLE_LOGGING)
   list(APPEND vtk_requested_modules
     VTK::loguru)
-  set("_vtk_module_reason_VTK::loguru"
-    "via `VTK_ENABLE_LOGGING`")
+else ()
+  list(APPEND vtk_rejected_modules
+    VTK::loguru)
 endif ()
+set("_vtk_module_reason_VTK::loguru"
+  "via `VTK_ENABLE_LOGGING`")
 if (VTK_ENABLE_CATALYST)
   list(APPEND vtk_requested_modules
+    VTK::catalyst)
+  # This is kept because it may be how users are enabling the module today.
+  list(APPEND vtk_requested_modules
     VTK::IOCatalystConduit)
-else()
+else ()
   list(APPEND vtk_rejected_modules
-    VTK::IOCatalystConduit)
-endif()
-set("_vtk_module_reason_VTK::IOCatalystConduit"
+    VTK::catalyst)
+endif ()
+set("_vtk_module_reason_VTK::catalyst"
   "via `VTK_ENABLE_CATALYST`")
 if (VTK_ENABLE_WEBGPU)
   list(APPEND vtk_requested_modules
@@ -370,6 +427,7 @@ set(vtk_source_directories
   "${CMAKE_CURRENT_SOURCE_DIR}/IO"
   "${CMAKE_CURRENT_SOURCE_DIR}/Parallel"
   "${CMAKE_CURRENT_SOURCE_DIR}/Rendering"
+  "${CMAKE_CURRENT_SOURCE_DIR}/Serialization"
   "${CMAKE_CURRENT_SOURCE_DIR}/Testing"
   "${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty"
   "${CMAKE_CURRENT_SOURCE_DIR}/Utilities"
@@ -505,6 +563,7 @@ vtk_module_build(
   ${vtk_library_version_info}
   TEST_DATA_TARGET    VTKData
   INSTALL_HEADERS     "${VTK_INSTALL_SDK}"
+  USE_FILE_SETS       ON
   BUILD_WITH_KITS     "${VTK_ENABLE_KITS}"
   USE_EXTERNAL        "${VTK_USE_EXTERNAL}"
   ENABLE_WRAPPING     "${VTK_ENABLE_WRAPPING}"
@@ -514,7 +573,8 @@ vtk_module_build(
   TEST_OUTPUT_DATA_DIRECTORY  "${CMAKE_CURRENT_BINARY_DIR}/ExternalData/Testing"
   GENERATE_SPDX           ${VTK_GENERATE_SPDX}
   SPDX_DOCUMENT_NAMESPACE "https://vtk.org/spdx"
-  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/vtk/vtk/-/tree/master")
+  SPDX_DOWNLOAD_LOCATION  "https://gitlab.kitware.com/vtk/vtk/-/tree/master"
+  ENABLE_SERIALIZATION    "${VTK_WRAP_SERIALIZATION}")
 
 include(vtkModuleJson)
 vtk_module_json(
@@ -641,6 +701,11 @@ if (VTK_BUILD_TESTING)
         "building the 'VTKData' target.")
     endif ()
   endif ()
+
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    # EMSDK makes python available after the environment is initialized with emsdk_env.{sh, csh, bat, ps1}
+    find_package(Python3 COMPONENTS Interpreter)
+  endif ()
 endif ()
 
 if (VTK_INSTALL_SDK)
@@ -681,6 +746,12 @@ endif ()
 option(VTK_BUILD_SPHINX_DOCUMENTATION "Build the Sphinx documentation for VTK" OFF)
 if (VTK_BUILD_SPHINX_DOCUMENTATION)
   add_subdirectory(Utilities/Sphinx)
+endif ()
+
+# Adds a test to verify consistent use of VTK_MARSHAL(AUTO|MANUAL) macros.
+# This is a pure python test, it doesn't need any compiled VTK modules.
+if (VTK_BUILD_TESTING)
+  add_subdirectory(Utilities/Marshalling)
 endif ()
 
 if (NOT TARGET uninstall)

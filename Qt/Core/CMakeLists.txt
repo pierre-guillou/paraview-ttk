@@ -35,9 +35,12 @@ set(classes
   pqFlatTreeViewEventPlayer
   pqFlatTreeViewEventTranslator
   pqGraphLayoutStrategyInterface
+  pqIconListModel
+  pqIconSettings
   pqImageUtil
   pqInteractiveViewLink
   pqInterfaceTracker
+  pqKeyEventFilter
   pqKeySequences
   pqLinkedObjectInterface
   pqLinkedObjectQTextEdit
@@ -45,6 +48,7 @@ set(classes
   pqLinksModel
   pqLogViewerWidget
   pqMainWindowEventManager
+  pqMenuReactionUtils
   pqModalShortcut
   pqMultiSliceAxisWidget
   pqMultiSliceView

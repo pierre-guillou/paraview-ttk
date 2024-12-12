@@ -670,17 +670,23 @@ void vtkCellArray::SetCells(vtkIdType ncells, vtkIdTypeArray* cells)
 //=================== End Legacy Methods =====================================
 
 //------------------------------------------------------------------------------
-void vtkCellArray::DeepCopy(vtkCellArray* ca)
+void vtkCellArray::DeepCopy(vtkAbstractCellArray* ca)
 {
-  if (ca == this)
+  auto other = vtkCellArray::SafeDownCast(ca);
+  if (!other)
+  {
+    vtkErrorMacro("Cannot copy from non-vtkCellArray.");
+    return;
+  }
+  if (other == this)
   {
     return;
   }
 
-  if (ca->Storage.Is64Bit())
+  if (other->Storage.Is64Bit())
   {
     this->Storage.Use64BitStorage();
-    auto& srcStorage = ca->Storage.GetArrays64();
+    auto& srcStorage = other->Storage.GetArrays64();
     auto& dstStorage = this->Storage.GetArrays64();
     dstStorage.Offsets->DeepCopy(srcStorage.Offsets);
     dstStorage.Connectivity->DeepCopy(srcStorage.Connectivity);
@@ -689,7 +695,7 @@ void vtkCellArray::DeepCopy(vtkCellArray* ca)
   else
   {
     this->Storage.Use32BitStorage();
-    auto& srcStorage = ca->Storage.GetArrays32();
+    auto& srcStorage = other->Storage.GetArrays32();
     auto& dstStorage = this->Storage.GetArrays32();
     dstStorage.Offsets->DeepCopy(srcStorage.Offsets);
     dstStorage.Connectivity->DeepCopy(srcStorage.Connectivity);
@@ -698,21 +704,26 @@ void vtkCellArray::DeepCopy(vtkCellArray* ca)
 }
 
 //------------------------------------------------------------------------------
-void vtkCellArray::ShallowCopy(vtkCellArray* ca)
+void vtkCellArray::ShallowCopy(vtkAbstractCellArray* ca)
 {
-  if (ca == this)
+  auto other = vtkCellArray::SafeDownCast(ca);
+  if (!other)
+  {
+    vtkErrorMacro("Cannot shallow copy from a non-vtkCellArray.");
+  }
+  if (other == this)
   {
     return;
   }
 
-  if (ca->Storage.Is64Bit())
+  if (other->Storage.Is64Bit())
   {
-    auto& srcStorage = ca->Storage.GetArrays64();
+    auto& srcStorage = other->Storage.GetArrays64();
     this->SetData(srcStorage.GetOffsets(), srcStorage.GetConnectivity());
   }
   else
   {
-    auto& srcStorage = ca->Storage.GetArrays32();
+    auto& srcStorage = other->Storage.GetArrays32();
     this->SetData(srcStorage.GetOffsets(), srcStorage.GetConnectivity());
   }
 }
@@ -1094,10 +1105,12 @@ bool vtkCellArray::ResizeExact(vtkIdType numCells, vtkIdType connectivitySize)
 // defining the cell.
 int vtkCellArray::GetMaxCellSize()
 {
+  const vtkIdType numCells = this->GetNumberOfCells();
+  // We use THRESHOLD to test if the data size is small enough
+  // to execute the functor serially. This is faster.
+  // and also potentially avoids nested multithreading which creates race conditions.
   FindMaxCell finder{ this };
-
-  // Grain size puts an even number of pages into each instance.
-  vtkSMPTools::For(0, this->GetNumberOfCells(), finder);
+  vtkSMPTools::For(0, numCells, vtkSMPTools::THRESHOLD, finder);
 
   return static_cast<int>(finder.Result);
 }

@@ -9,10 +9,10 @@
  * render window indicate (in a variety of ways) the scale of what the camera
  * is viewing. An option also exists for displaying a scale legend.
  *
- * The axes can be programmed either to display distance scales or x-y
+ * The axes can be programmed either to display distance scales or
  * coordinate values. By default, the scales display a distance. However,
- * if you know that the view is down the z-axis, the scales can be programmed
- * to display x-y coordinate values.
+ * if you know that the view is down a scene axis, the scales can be programmed
+ * to display coordinate values.
  *
  * @warning
  * Please be aware that the axes and scale values are subject to perspective
@@ -25,14 +25,16 @@
 #ifndef vtkLegendScaleActor_h
 #define vtkLegendScaleActor_h
 
-#include "vtkCoordinate.h" // For vtkViewportCoordinateMacro
+#include "vtkDeprecation.h" // for deprecation
 #include "vtkProp.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 #include "vtkNew.h" // for vtkNew
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkAxisActor2D;
+class vtkProperty2D;
 class vtkTextProperty;
 class vtkPolyData;
 class vtkPolyDataMapper2D;
@@ -40,8 +42,9 @@ class vtkActor2D;
 class vtkTextMapper;
 class vtkPoints;
 class vtkCoordinate;
+class vtkAxisGridActorPrivate;
 
-class VTKRENDERINGANNOTATION_EXPORT vtkLegendScaleActor : public vtkProp
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkLegendScaleActor : public vtkProp
 {
 public:
   /**
@@ -60,20 +63,24 @@ public:
   enum AttributeLocation
   {
     DISTANCE = 0,
-    XY_COORDINATES = 1
+    COORDINATES = 1,
+    XY_COORDINATES = COORDINATES
   };
 
   ///@{
   /**
    * Specify the mode for labeling the scale axes. By default, the axes are
    * labeled with the distance between points (centered at a distance of
-   * 0.0). Alternatively if you know that the view is down the z-axis; the
-   * axes can be labeled with x-y coordinate values.
+   * 0.0). Alternatively if you know that the view is align with the scene axes,
+   * axes can be labeled with coordinates values.
    */
-  vtkSetClampMacro(LabelMode, int, DISTANCE, XY_COORDINATES);
+  vtkSetClampMacro(LabelMode, int, DISTANCE, COORDINATES);
   vtkGetMacro(LabelMode, int);
   void SetLabelModeToDistance() { this->SetLabelMode(DISTANCE); }
+  VTK_DEPRECATED_IN_9_4_0("This class can now determine current plane. Please use the generic "
+                          "SetLabelModeToCoordinates instead.")
   void SetLabelModeToXYCoordinates() { this->SetLabelMode(XY_COORDINATES); }
+  void SetLabelModeToCoordinates() { this->SetLabelMode(COORDINATES); }
   ///@}
 
   ///@{
@@ -119,6 +126,15 @@ public:
    */
   void AllAnnotationsOn();
   void AllAnnotationsOff();
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get visibility of the grid.
+   */
+  vtkSetMacro(GridVisibility, bool);
+  vtkGetMacro(GridVisibility, bool);
+  vtkBooleanMacro(GridVisibility, bool);
   ///@}
 
   ///@{
@@ -172,6 +188,48 @@ public:
 
   ///@{
   /**
+   * Get/set the numerical notation for axes labels: standard, scientific or mixed (0, 1, 2).
+   * Default is 0.
+   */
+  void SetNotation(int notation);
+  int GetNotation();
+  ///@}
+
+  ///@{
+  /**
+   * Get/set the numerical precision to use for axis labels, default is 2.
+   */
+  void SetPrecision(int val);
+  int GetPrecision();
+  ///@}
+
+  ///@{
+  /**
+   * Get/set the number of ticks (and labels) for the horizontal axis, default is 5.
+   */
+  void SetNumberOfHorizontalLabels(int val);
+  int GetNumberOfHorizontalLabels();
+  ///@}
+
+  ///@{
+  /**
+   * Get/set the number of ticks (and labels) for the vertical axis, default is 5.
+   */
+  void SetNumberOfVerticalLabels(int val);
+  int GetNumberOfVerticalLabels();
+  ///@}
+
+  ///@{
+  /**
+   * Get/Set the origin of the data.
+   * Used only in Coordinates mode.
+   */
+  vtkSetVector3Macro(Origin, double);
+  vtkGetVector3Macro(Origin, double);
+  ///@}
+
+  ///@{
+  /**
    * Set/Get the labels text properties for the legend title and labels.
    */
   vtkGetObjectMacro(LegendTitleProperty, vtkTextProperty);
@@ -185,11 +243,36 @@ public:
   /// Set the axes text properties.
   void SetAxesTextProperty(vtkTextProperty* property);
 
+  /**
+   *  Set the 2D property for both axis and grid
+   */
+  void SetAxesProperty(vtkProperty2D* property);
+
+  /**
+   * Return the property used for the right axis
+   * which should be the same as the other ones if set using `SetAxesProperty`
+   */
+  vtkProperty2D* GetAxesProperty();
+
   /// Set the axes to get font size from text property.
   void SetUseFontSizeFromProperty(bool sizeFromProp);
 
-  /// Set the axes to adjust labels position to a "nice" one.
+  /**
+   * Set the axes to adjust labels to a "nice" one.
+   * As this does not respect the number of labels, prefer SnapToGrid.
+   * It is ignored if SnapToGrid is true.
+   * Default is false.
+   */
+  VTK_DEPRECATED_IN_9_4_0(
+    "This does not respect the number of labels. Please use SetSnapToGrid instead.")
   void SetAdjustLabels(bool adjust);
+
+  /**
+   * If on, labels are positioned on rounded values.
+   * When on it ignores `AdjustLabels`.
+   * Default is false.
+   */
+  void SetSnapToGrid(bool snap);
   ///@}
 
   ///@{
@@ -232,6 +315,11 @@ protected:
   vtkNew<vtkAxisActor2D> LeftAxis;
   vtkNew<vtkAxisActor2D> BottomAxis;
 
+  // Support for grid
+  vtkNew<vtkAxisGridActorPrivate> GridActor;
+  vtkNew<vtkPolyDataMapper2D> GridMapper;
+  bool GridVisibility = false;
+
   // Control the display of the axes
   vtkTypeBool RightAxisVisibility = 1;
   vtkTypeBool TopAxisVisibility = 1;
@@ -244,8 +332,8 @@ protected:
   vtkNew<vtkPoints> LegendPoints;
   vtkNew<vtkPolyDataMapper2D> LegendMapper;
   vtkNew<vtkActor2D> LegendActor;
-  vtkTextMapper* LabelMappers[6];
-  vtkActor2D* LabelActors[6];
+  vtkNew<vtkTextMapper> LabelMappers[6];
+  vtkNew<vtkActor2D> LabelActors[6];
   vtkNew<vtkTextProperty> LegendTitleProperty;
   vtkNew<vtkTextProperty> LegendLabelProperty;
   vtkNew<vtkCoordinate> Coordinate;
@@ -255,6 +343,15 @@ protected:
 private:
   vtkLegendScaleActor(const vtkLegendScaleActor&) = delete;
   void operator=(const vtkLegendScaleActor&) = delete;
+
+  /**
+   * Compute and set range for axis.
+   * In coordinate mode, the viewport is expected to be aligned with the scene axes.
+   * In distance mode, the sign can be inverted.
+   */
+  void UpdateAxisRange(vtkAxisActor2D* axis, vtkViewport* viewport, bool invert = false);
+
+  double Origin[3] = { 0, 0, 0 };
 };
 
 VTK_ABI_NAMESPACE_END

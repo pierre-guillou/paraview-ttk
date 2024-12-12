@@ -167,34 +167,46 @@
 }
 
 //----------------------------------------------------------------------------
-// For generating keysyms that are compatible with other VTK interactors
-static const char* vtkMacCharCodeToKeySymTable[128] = { nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, "space", "exclam", "quotedbl", "numbersign",
-  "dollar", "percent", "ampersand", "quoteright", "parenleft", "parenright", "asterisk", "plus",
-  "comma", "minus", "period", "slash", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "colon",
-  "semicolon", "less", "equal", "greater", "question", "at", "A", "B", "C", "D", "E", "F", "G", "H",
-  "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
-  "bracketleft", "backslash", "bracketright", "asciicircum", "underscore", "quoteleft", "a", "b",
-  "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u",
-  "v", "w", "x", "y", "z", "braceleft", "bar", "braceright", "asciitilde", "Delete" };
+// clang-format off
+// this unicode code to keysym table is meant to provide keysym similar to XLookupString,
+// for Basic Latin and Latin1 unicode blocks.
+// Generated from xlib/X11/keysymdef.h
+// Duplicated in Rendering/UI/vtkWin32RenderWindowInteractor.cxx
+static const char* UnicodeToKeySymTable[256] = {
+  // Basic Latin
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  "space", "exclam", "quotedbl", "numbersign", "dollar", "percent", "ampersand", "apostrophe", "parenleft", "parenright", "asterisk", "plus", "comma", "minus", "period", "slash",
+  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "colon", "semicolon", "less", "equal", "greater", "question", "at",
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P",
+  "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "bracketleft", "backslash", "bracketright", "asciicircum", "underscore", "grave",
+  "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p",
+  "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "braceleft", "bar", "braceright", "asciitilde", nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+
+  // Latin1
+  "nobreakspace", "exclamdown", "cent", "sterling", "currency", "yen", "brokenbar", "section", "diaeresis", "copyright", "ordfeminine", "guillemotleft", "notsign", "hyphen", "registered", "macron",
+  "degree", "plusminus", "twosuperior", "threesuperior", "acute", "mu", "paragraph", "periodcentered", "cedilla", "onesuperior", "masculine", "guillemotright", "onequarter", "onehalf", "threequarters", "questiondown",
+  "Agrave", "Aacute", "Acircumflex", "Atilde", "Adiaeresis", "Aring", "AE", "Ccedilla", "Egrave", "Eacute", "Ecircumflex", "Ediaeresis", "Igrave", "Iacute", "Icircumflex", "Idiaeresis",
+  "ETH", "Ntilde", "Ograve", "Oacute", "Ocircumflex", "Otilde", "Odiaeresis", "multiply", "Ooblique", "Ugrave", "Uacute", "Ucircumflex", "Udiaeresis", "Yacute", "THORN", "ssharp",
+  "agrave", "aacute", "acircumflex", "atilde", "adiaeresis", "aring", "ae", "ccedilla", "egrave", "eacute", "ecircumflex", "ediaeresis", "igrave", "iacute", "icircumflex", "idiaeresis",
+  "eth", "ntilde", "ograve", "oacute", "ocircumflex", "otilde", "odiaeresis", "division", "oslash", "ugrave", "uacute", "ucircumflex", "udiaeresis", "yacute", "thorn", "ydiaeresis"
+};
 
 //----------------------------------------------------------------------------
-// For generating keysyms that are compatible with other VTK interactors
-static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, "Return",
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  "Tab", nullptr, nullptr, "Backspace", nullptr, "Escape", nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, "period", nullptr, "asterisk",
-  nullptr, "plus", nullptr, "Clear", nullptr, nullptr, nullptr, "slash", "KP_Enter", nullptr,
-  "minus", nullptr, nullptr, nullptr, "KP_0", "KP_1", "KP_2", "KP_3", "KP_4", "KP_5", "KP_6",
-  "KP_7", nullptr, "KP_8", "KP_9", nullptr, nullptr, nullptr, "F5", "F6", "F7", "F3", "F8", nullptr,
-  nullptr, nullptr, nullptr, "Snapshot", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, "Help", "Home", "Prior", "Delete", "F4", "End", "F2", "Next", "F1", "Left",
-  "Right", "Down", "Up", nullptr };
+// This table is meant to provide keysym similar to XLookupString from macOS VKeys (Events.h)
+// that are not mapped in the unicode table above.
+static const char* MacKeyCodeToKeySymTable[128] = { 
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, nullptr, nullptr, nullptr, "Return",nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  "Tab", nullptr, nullptr, "Backspace", nullptr, "Escape", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, "period", nullptr, "asterisk", nullptr, "plus", nullptr, "Clear", nullptr, nullptr, nullptr, "slash", "KP_Enter", nullptr, "minus", nullptr, 
+  nullptr, nullptr, "KP_0", "KP_1", "KP_2", "KP_3", "KP_4", "KP_5", "KP_6", "KP_7", nullptr, "KP_8", "KP_9", nullptr, nullptr, nullptr, 
+  "F5", "F6", "F7", "F3", "F8", nullptr, nullptr, nullptr, nullptr, "Snapshot", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, nullptr, "Help", "Home", "Prior", "Delete", "F4", "End", "F2", "Next", "F1", "Left", "Right", "Down", "Up", nullptr };
+// clang-format on
 
 //----------------------------------------------------------------------------
 // Convert a Cocoa key event into a VTK key event
@@ -227,7 +239,9 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
   int controlDown = ((flags & (NSEventModifierFlagControl | NSEventModifierFlagCommand)) != 0);
   int altDown = ((flags & NSEventModifierFlagOption) != 0);
 
+  unsigned char keyCode = '\0';
   unsigned char charCode = '\0';
+  unsigned char charCodeWithoutMod = '\0';
   const char* keySym = nullptr;
 
   NSEventType type = [theEvent type];
@@ -235,21 +249,44 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
 
   if (type == NSEventTypeKeyUp || type == NSEventTypeKeyDown)
   {
-    // Try to get the characters associated with the key event as an ASCII string.
-    const char* keyedChars = [[theEvent characters] cStringUsingEncoding:NSASCIIStringEncoding];
+    // Try to get the characters associated with the key event as a BasicLatin or Latin1 string.
+    const char* keyedChars = [[theEvent characters] cStringUsingEncoding:NSISOLatin1StringEncoding];
     if (keyedChars)
     {
       charCode = static_cast<unsigned char>(keyedChars[0]);
     }
+    keyedChars =
+      [[theEvent charactersIgnoringModifiers] cStringUsingEncoding:NSISOLatin1StringEncoding];
+    if (keyedChars)
+    {
+      charCodeWithoutMod = static_cast<unsigned char>(keyedChars[0]);
+    }
+
+    // Recover keyCode, fallback on code without mod
+    // if keyCode is invalid.
+    keyCode = charCode;
+    if (charCode == 0)
+    {
+      keyCode = charCodeWithoutMod;
+    }
+
     // Get the virtual key code and convert it to a keysym as best we can.
     unsigned short macKeyCode = [theEvent keyCode];
     if (macKeyCode < 128)
     {
-      keySym = vtkMacKeyCodeToKeySymTable[macKeyCode];
+      keySym = MacKeyCodeToKeySymTable[macKeyCode];
     }
-    if (keySym == nullptr && charCode < 128)
+    if (keySym == nullptr)
     {
-      keySym = vtkMacCharCodeToKeySymTable[charCode];
+      keySym = UnicodeToKeySymTable[charCode];
+    }
+    if (keySym == nullptr)
+    {
+      keySym = UnicodeToKeySymTable[charCodeWithoutMod];
+    }
+    if (keySym == nullptr)
+    {
+      keySym = "None";
     }
   }
   else if (type == NSEventTypeFlagsChanged)
@@ -288,11 +325,11 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
   }
 
   interactor->SetEventInformation(static_cast<int>(backingLoc.x), static_cast<int>(backingLoc.y),
-    controlDown, shiftDown, charCode, 1, keySym);
+    controlDown, shiftDown, static_cast<char>(keyCode), 1, keySym);
   interactor->SetAltKey(altDown);
 
   interactor->InvokeEvent(theEventId, nullptr);
-  if (isPress && charCode != '\0')
+  if (isPress && keyCode != '\0')
   {
     interactor->InvokeEvent(vtkCommand::CharEvent, nullptr);
   }
@@ -548,6 +585,23 @@ static const char* vtkMacKeyCodeToKeySymTable[128] = { nullptr, nullptr, nullptr
 
   if (filePaths->GetNumberOfTuples() > 0)
   {
+    int shiftDown = 0;
+    int controlDown = 0;
+    int altDown = 0;
+    NSWindow* draggingDestinationWindow = [sender draggingDestinationWindow];
+    NSEvent* currentEvent = [draggingDestinationWindow currentEvent];
+    if (currentEvent)
+    {
+      NSUInteger flags = [currentEvent modifierFlags];
+      shiftDown = ((flags & NSEventModifierFlagShift) != 0);
+      controlDown = ((flags & (NSEventModifierFlagControl | NSEventModifierFlagCommand)) != 0);
+      altDown = ((flags & NSEventModifierFlagOption) != 0);
+    }
+
+    interactor->SetEventInformation(
+      static_cast<int>(backingLoc.x), static_cast<int>(backingLoc.y), controlDown, shiftDown);
+    interactor->SetAltKey(altDown);
+
     interactor->InvokeEvent(vtkCommand::DropFilesEvent, filePaths);
     return YES;
   }

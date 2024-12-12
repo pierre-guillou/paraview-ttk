@@ -185,7 +185,7 @@ bool vtkTextureObject::IsSupported(vtkOpenGLRenderWindow* vtkNotUsed(win), bool 
   (void)requireDepthFloat;
   (void)requireTexInt;
   return true;
-#elif __APPLE__
+#elif defined(__APPLE__)
   // Cannot trust glew on apple systems
   (void)requireTexFloat;
   (void)requireDepthFloat;
@@ -222,7 +222,7 @@ bool vtkTextureObject::LoadRequiredExtensions(vtkOpenGLRenderWindow* renWin)
   this->SupportsTextureInteger = true;
   this->SupportsTextureFloat = true;
   this->SupportsDepthBufferFloat = true;
-#elif __APPLE__
+#elif defined(__APPLE__)
   // Cannot trust glew on apple systems. OpenGL 3.2 on apple supports these features.
   this->SupportsTextureInteger = true;
   this->SupportsTextureFloat = true;
@@ -530,12 +530,53 @@ void vtkTextureObject::SendParameters()
   glTexParameteri(this->Target, GL_TEXTURE_WRAP_R, OpenGLWrap[this->WrapR]);
 #endif
 
+#ifdef __EMSCRIPTEN__
+  // Web browsers are over-eager in validating texture completeness.
+  // Even though spec says that depth textures can be filterable by treating
+  // them as red textures, browsers do not seem to implement it.
+  // This section of code ignores requests to enable linear filtering for depth textures. Otherwise,
+  // 1. In firefox, sampling this texture in a shader will return 0 and console throws a warning
+  // saying that texture is incomplete.
+  // 2. In chromium, this texture cannot be sampled.
+  // See https://groups.google.com/g/webgl-dev-list/c/T4_bKNzEhqk
+  if (this->Format == GL_DEPTH_COMPONENT)
+  {
+    if (this->MinificationFilter != Nearest && this->MinificationFilter != NearestMipmapNearest)
+    {
+      vtkDebugMacro(<< "Ignoring request to enable linear minification filtering for texture with "
+                       "format=GL_DEPTH_COMPONENT");
+    }
+    else
+    {
+      glTexParameteri(
+        this->Target, GL_TEXTURE_MIN_FILTER, OpenGLMinFilter[this->MinificationFilter]);
+    }
+    if (this->MagnificationFilter != Nearest && this->MagnificationFilter != NearestMipmapNearest)
+    {
+      vtkDebugMacro(<< "Ignoring request to enable linear magnification filtering for texture with "
+                       "format=GL_DEPTH_COMPONENT");
+    }
+    else
+    {
+      glTexParameteri(
+        this->Target, GL_TEXTURE_MAG_FILTER, OpenGLMagFilter[this->MagnificationFilter]);
+    }
+  }
+  else
+  {
+    glTexParameteri(this->Target, GL_TEXTURE_MIN_FILTER, OpenGLMinFilter[this->MinificationFilter]);
+    glTexParameteri(
+      this->Target, GL_TEXTURE_MAG_FILTER, OpenGLMagFilter[this->MagnificationFilter]);
+  }
+#else
   glTexParameteri(this->Target, GL_TEXTURE_MIN_FILTER, OpenGLMinFilter[this->MinificationFilter]);
 
   glTexParameteri(this->Target, GL_TEXTURE_MAG_FILTER, OpenGLMagFilter[this->MagnificationFilter]);
+#endif
 
 #ifndef GL_ES_VERSION_3_0
   glTexParameterfv(this->Target, GL_TEXTURE_BORDER_COLOR, this->BorderColor);
+#endif
 
   if (this->DepthTextureCompare)
   {
@@ -545,7 +586,6 @@ void vtkTextureObject::SendParameters()
   {
     glTexParameteri(this->Target, GL_TEXTURE_COMPARE_MODE, GL_NONE);
   }
-#endif
 
   // if mipmaps are requested also turn on anisotropic if available
 #ifdef GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT
@@ -1179,6 +1219,7 @@ bool vtkTextureObject::Create1DFromRaw(unsigned int width, int numComps, int dat
 // Description:
 // Create a texture buffer basically a 1D texture that can be
 // very large for passing data into the fragment shader
+//------------------------------------------------------------------------------
 bool vtkTextureObject::CreateTextureBuffer(
   unsigned int numValues, int numComps, int dataType, vtkOpenGLBufferObject* bo)
 {
@@ -1215,11 +1256,7 @@ bool vtkTextureObject::EmulateTextureBufferWith2DTextures(
     {
       srcTarget = GL_ELEMENT_ARRAY_BUFFER;
     }
-    GLint64 srcNumBytes = 0;
     bo->Bind();
-    glGetBufferParameteri64v(srcTarget, GL_BUFFER_SIZE, &srcNumBytes);
-    vtkOpenGLCheckErrors("glGetBufferParameteri64v ");
-
     // issue 3 (https://registry.khronos.org/OpenGL/extensions/ARB/ARB_pixel_buffer_object.txt)
     // says it's alright to bind any b.o (GL_ARRAY_BUFFER, etc) to unpacked buffer
     // and go ahead with glTexImage,
@@ -1230,11 +1267,12 @@ bool vtkTextureObject::EmulateTextureBufferWith2DTextures(
     pbo->Allocate(dataType, width * height, numComps, vtkPixelBufferObject::UNPACKED_BUFFER);
     pbo->BindToUnPackedBuffer();
     // transfers within gpu memory space on most GL driver implementations.
-    glCopyBufferSubData(srcTarget, dstTarget, 0, 0, srcNumBytes);
+    glCopyBufferSubData(srcTarget, dstTarget, 0, 0, bo->GetSize());
     vtkOpenGLCheckErrors("glCopyBufferSubData ");
 
+    // Get rid of the original buffer data
+    bo->ReleaseGraphicsResources();
     // unbind
-    bo->Release();
     pbo->UnBind();
 
     // source a 2D texture with the pbo.

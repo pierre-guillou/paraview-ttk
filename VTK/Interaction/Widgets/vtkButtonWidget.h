@@ -44,14 +44,14 @@
 #define vtkButtonWidget_h
 
 #include "vtkAbstractWidget.h"
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
+#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_4_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
+#include "vtkWrappingHints.h"            // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkButtonRepresentation;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkButtonWidget : public vtkAbstractWidget
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkButtonWidget : public vtkAbstractWidget
 {
 public:
   /**
@@ -80,10 +80,16 @@ public:
   /**
    * Return the representation as a vtkButtonRepresentation.
    */
-  vtkButtonRepresentation* GetSliderRepresentation()
+  vtkButtonRepresentation* GetButtonRepresentation()
   {
     return reinterpret_cast<vtkButtonRepresentation*>(this->WidgetRep);
   }
+
+  /**
+   * Incorrect name for GetButtonRepresentation(), for backwards compatibility.
+   */
+  VTK_DEPRECATED_IN_9_4_0("Please use GetButtonRepresentation() instead.")
+  vtkButtonRepresentation* GetSliderRepresentation() { return this->GetButtonRepresentation(); }
 
   /**
    * Create the default widget representation if one is not set.
@@ -116,10 +122,6 @@ protected:
     Hovering,
     Selecting
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef WidgetStateType _WidgetState;
-#endif
 
 private:
   vtkButtonWidget(const vtkButtonWidget&) = delete;

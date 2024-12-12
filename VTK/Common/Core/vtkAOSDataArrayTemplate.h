@@ -23,7 +23,22 @@
 #include "vtkBuild.h"            // For VTK_BUILD_SHARED_LIBS
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkCompiler.h"         // for VTK_USE_EXTERN_TEMPLATE
+#include "vtkDataArrayMeta.h"    // For vtkDataArrayMeta::ComponentType
 #include "vtkGenericDataArray.h"
+
+namespace vtk
+{
+namespace detail
+{
+VTK_ABI_NAMESPACE_BEGIN
+template <typename ArrayType, ComponentIdType TupleSize>
+struct TupleRange;
+template <typename ArrayType, ComponentIdType TupleSize,
+  typename ForceValueTypeForVtkDataArray = double>
+struct ValueRange;
+VTK_ABI_NAMESPACE_END
+} // namespace detail
+} // namespace vtk
 
 // The export macro below makes no sense, but is necessary for older compilers
 // when we export instantiations of this class from vtkCommonCore.
@@ -33,6 +48,14 @@ class VTKCOMMONCORE_EXPORT vtkAOSDataArrayTemplate
   : public vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT>
 {
   typedef vtkGenericDataArray<vtkAOSDataArrayTemplate<ValueTypeT>, ValueTypeT> GenericDataArrayType;
+
+  // Friendship required by vtkDataArray(Value/Tuple)Range so that it can access the memory buffer
+  // which is required to avoid accessing raw pointers that might no longer be valid.
+  template <typename ArrayType, vtk::ComponentIdType TupleSize>
+  friend struct vtk::detail::TupleRange;
+  template <typename ArrayType, vtk::ComponentIdType TupleSize,
+    typename ForceValueTypeForVtkDataArray>
+  friend struct vtk::detail::ValueRange;
 
 public:
   typedef vtkAOSDataArrayTemplate<ValueTypeT> SelfType;
@@ -91,6 +114,46 @@ public:
     std::copy(tuple, tuple + this->NumberOfComponents, this->Buffer->GetBuffer() + valueIdx);
   }
   ///@}
+
+  void GetIntegerTuple(vtkIdType tupleIdx, vtkTypeInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples()) override
+  {
+    const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+    for (vtkIdType ii = 0; ii < this->NumberOfComponents; ++ii)
+    {
+      tuple[ii] = static_cast<vtkTypeInt64>((this->Buffer->GetBuffer())[valueIdx + ii]);
+    }
+  }
+
+  void SetIntegerTuple(vtkIdType tupleIdx, vtkTypeInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples()) override
+  {
+    const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+    for (vtkIdType ii = 0; ii < this->NumberOfComponents; ++ii)
+    {
+      this->Buffer->GetBuffer()[valueIdx + ii] = static_cast<ValueType>(tuple[ii]);
+    }
+  }
+
+  void GetUnsignedTuple(vtkIdType tupleIdx, vtkTypeUInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples()) override
+  {
+    const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+    for (vtkIdType ii = 0; ii < this->NumberOfComponents; ++ii)
+    {
+      tuple[ii] = static_cast<vtkTypeUInt64>((this->Buffer->GetBuffer())[valueIdx + ii]);
+    }
+  }
+
+  void SetUnsignedTuple(vtkIdType tupleIdx, vtkTypeUInt64* tuple)
+    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples()) override
+  {
+    const vtkIdType valueIdx = tupleIdx * this->NumberOfComponents;
+    for (vtkIdType ii = 0; ii < this->NumberOfComponents; ++ii)
+    {
+      this->Buffer->GetBuffer()[valueIdx + ii] = static_cast<ValueType>(tuple[ii]);
+    }
+  }
 
   /**
    * Get component @a comp of the tuple at @a tupleIdx.
@@ -293,22 +356,25 @@ VTK_ABI_NAMESPACE_END
 // declarations for these functions such that the wrapper
 // can see them. The wrappers ignore vtkAOSDataArrayTemplate.
 #define vtkCreateWrappedArrayInterface(T)                                                          \
-  int GetDataType() const override;                                                                \
-  void GetTypedTuple(vtkIdType i, T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());        \
-  void SetTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());  \
+  vtkCreateReadOnlyWrappedArrayInterface(T) void SetTypedTuple(vtkIdType i, const T* tuple)        \
+    VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());                                                \
   void InsertTypedTuple(vtkIdType i, const T* tuple) VTK_EXPECTS(0 <= i);                          \
   vtkIdType InsertNextTypedTuple(const T* tuple);                                                  \
-  T GetValue(vtkIdType id) const VTK_EXPECTS(0 <= id && id < GetNumberOfValues());                 \
   void SetValue(vtkIdType id, T value) VTK_EXPECTS(0 <= id && id < GetNumberOfValues());           \
   bool SetNumberOfValues(vtkIdType number) override;                                               \
   void InsertValue(vtkIdType id, T f) VTK_EXPECTS(0 <= id);                                        \
   vtkIdType InsertNextValue(T f);                                                                  \
-  T* GetValueRange(int comp) VTK_SIZEHINT(2);                                                      \
-  T* GetValueRange() VTK_SIZEHINT(2);                                                              \
   T* WritePointer(vtkIdType id, vtkIdType number);                                                 \
   T* GetPointer(vtkIdType id);                                                                     \
   void SetArray(VTK_ZEROCOPY T* array, vtkIdType size, int save);                                  \
   void SetArray(VTK_ZEROCOPY T* array, vtkIdType size, int save, int deleteMethod)
+
+#define vtkCreateReadOnlyWrappedArrayInterface(T)                                                  \
+  int GetDataType() const override;                                                                \
+  void GetTypedTuple(vtkIdType i, T* tuple) VTK_EXPECTS(0 <= i && i < GetNumberOfTuples());        \
+  T GetValue(vtkIdType id) const VTK_EXPECTS(0 <= id && id < GetNumberOfValues());                 \
+  T* GetValueRange(int comp) VTK_SIZEHINT(2);                                                      \
+  T* GetValueRange() VTK_SIZEHINT(2);
 
 #endif // header guard
 

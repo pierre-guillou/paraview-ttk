@@ -28,13 +28,14 @@
 
 #include "vtkImageProcessingPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLQuadHelper;
 class vtkTextureObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkToneMappingPass : public vtkImageProcessingPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkToneMappingPass : public vtkImageProcessingPass
 {
 public:
   static vtkToneMappingPass* New();
@@ -67,7 +68,8 @@ public:
     Clamp = 0,
     Reinhard = 1,
     Exponential = 2,
-    GenericFilmic = 3
+    GenericFilmic = 3,
+    NeutralPBR = 4
   };
 
   ///@{
@@ -75,7 +77,7 @@ public:
    * Get/Set the tone mapping type.
    * Default is GenericFilmic
    */
-  vtkSetClampMacro(ToneMappingType, int, 0, 3);
+  vtkSetClampMacro(ToneMappingType, int, 0, 4);
   vtkGetMacro(ToneMappingType, int);
   ///@}
 

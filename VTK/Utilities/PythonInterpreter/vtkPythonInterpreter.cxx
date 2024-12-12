@@ -24,6 +24,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -168,6 +169,8 @@ bool vtkPythonInterpreter::ConsoleBuffering = false;
 std::string vtkPythonInterpreter::StdErrBuffer;
 std::string vtkPythonInterpreter::StdOutBuffer;
 int vtkPythonInterpreter::LogVerbosity = vtkLogger::VERBOSITY_TRACE;
+std::vector<std::pair<std::string, std::string>> vtkPythonInterpreter::UserPythonPaths;
+std::vector<void (*)()> vtkPythonInterpreter::AtExitCallbacks;
 
 #if PY_VERSION_HEX >= 0x03000000
 struct CharDeleter
@@ -180,7 +183,7 @@ vtkStandardNewMacro(vtkPythonInterpreter);
 //------------------------------------------------------------------------------
 vtkPythonInterpreter::vtkPythonInterpreter()
 {
-  GlobalInterpreters->push_back(this);
+  GlobalInterpreters->emplace_back(this);
 }
 
 //------------------------------------------------------------------------------
@@ -319,7 +322,7 @@ void CloseDLLDirectoryCookie()
 /**
  * Add paths to VTK's Python modules.
  */
-void SetupVTKPythonPaths(bool isolated)
+void SetupPythonPaths(bool isolated, std::string vtklib, const char* landmark)
 {
   // Check if we're using an isolated Python.
   if (isolated)
@@ -329,7 +332,6 @@ void SetupVTKPythonPaths(bool isolated)
   }
 
   using systools = vtksys::SystemTools;
-  std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
   if (vtklib.empty())
   {
     VTKPY_DEBUG_MESSAGE(
@@ -351,7 +353,7 @@ void SetupVTKPythonPaths(bool isolated)
   if (!vtkdir.empty())
   {
 #if PY_VERSION_HEX >= 0x03080000
-    vtkPythonScopeGilEnsurer gilEnsurer(false, true);
+    vtkPythonScopeGilEnsurer gilEnsurer;
     CloseDLLDirectoryCookie();
     PyObject* os = PyImport_ImportModule("os");
     if (os)
@@ -384,7 +386,7 @@ void SetupVTKPythonPaths(bool isolated)
 #endif
 
 #if defined(VTK_BUILD_SHARED_LIBS)
-  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), "vtkmodules/__init__.py");
+  vtkPythonInterpreter::PrependPythonPath(vtkdir.c_str(), landmark);
 #else
   // since there may be other packages not zipped (e.g. mpi4py), we added path to _vtk.zip
   // to the search path as well.
@@ -395,14 +397,40 @@ void SetupVTKPythonPaths(bool isolated)
 }
 
 //------------------------------------------------------------------------------
-bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv[])
+void vtkPythonInterpreter::AddUserPythonPath(const char* libraryPath, const char* landmark)
+{
+  vtkPythonInterpreter::UserPythonPaths.emplace_back(libraryPath, landmark);
+}
+
+int vtkPythonInterpreter::AddAtExitCallback(void (*func)())
+{
+  if (Py_IsInitialized() == 0)
+  {
+    vtkPythonInterpreter::AtExitCallbacks.emplace_back(func);
+    return 1;
+  }
+
+  return Py_AtExit(func);
+}
+
+//------------------------------------------------------------------------------
+bool vtkPythonInterpreter::InitializeWithArgs(
+  int initsigs, int argc, char* argv[], const char* programName)
 {
   bool isolated = vtkPythonPreConfig();
 
   if (Py_IsInitialized() == 0)
   {
-    // guide the mechanism to locate Python standard library, if possible.
-    SetupPythonPrefix(isolated);
+    if (programName)
+    {
+      vtkPythonInterpreter::SetProgramName(programName);
+    }
+    else
+    {
+      // If no program name is specified,
+      // guide the mechanism to locate Python standard library, if possible.
+      SetupPythonPrefix(isolated);
+    }
     bool signals_installed = initsigs != 0;
 
     // Need two copies of args, because programs might modify the first
@@ -508,12 +536,31 @@ bool vtkPythonInterpreter::InitializeWithArgs(int initsigs, int argc, char* argv
     // We call this before processing any of Python paths added by the
     // application using `PrependPythonPath`. This ensures that application
     // specified paths are preferred to the ones `vtkPythonInterpreter` adds.
-    SetupVTKPythonPaths(isolated);
+    std::string vtklib = vtkGetLibraryPathForSymbol(GetVTKVersion);
+    SetupPythonPaths(isolated, vtklib, "vtkmodules/__init__.py");
+
+    // Used to setup additional user python paths added by `AddUserPythonPath` method.
+    for (const auto& pair : vtkPythonInterpreter::UserPythonPaths)
+    {
+      if (!pair.first.empty())
+      {
+        SetupPythonPaths(isolated, pair.first, pair.second.c_str());
+      }
+    }
 
     for (size_t cc = 0; cc < PythonPaths.size(); cc++)
     {
       vtkPrependPythonPath(PythonPaths[cc].c_str());
     }
+
+    for (auto* func : vtkPythonInterpreter::AtExitCallbacks)
+    {
+      if (Py_AtExit(func))
+      {
+        return false;
+      }
+    }
+    vtkPythonInterpreter::AtExitCallbacks.clear();
 
     NotifyInterpreters(vtkCommand::EnterEvent);
     return true;

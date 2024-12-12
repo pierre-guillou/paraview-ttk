@@ -36,10 +36,14 @@
 #include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 
+#include "vtksys/SystemTools.hxx"
+
 #include "BlueNoiseTexture64x64.h"
 #include "vtkTextureObjectVS.h" // a pass through shader
 
+#include <cstdlib>
 #include <sstream>
+#include <string>
 #include <type_traits>
 using std::ostringstream;
 
@@ -77,11 +81,10 @@ static const vtkOpenGLRenderWindowDriverInfo vtkOpenGLRenderWindowMSAATextureBug
   { "X.Org", "", "AMD" },
 };
 
-const char* defaultWindowName = "Visualization Toolkit - OpenGL";
+static const char* defaultWindowName = "Visualization Toolkit - OpenGL";
 
-const char* ResolveShader =
-  R"***(
-  //VTK::System::Dec
+static const char* ResolveShader =
+  R"***(//VTK::System::Dec
   in vec2 texCoord;
   uniform sampler2DMS tex;
   uniform int samplecount;
@@ -98,10 +101,10 @@ const char* ResolveShader =
 
     for (int i = 0; i < samplecount; i++)
     {
-      vec4 sample = texelFetch(tex, itexcoords, i);
+      vec4 sampleValue = texelFetch(tex, itexcoords, i);
       // apply gamma correction and sum
-      accumulate += pow(sample.rgb, vec3(gamma));
-      alpha += sample.a;
+      accumulate += pow(sampleValue.rgb, vec3(gamma));
+      alpha += sampleValue.a;
     }
 
     // divide and reverse gamma correction
@@ -110,9 +113,8 @@ const char* ResolveShader =
   }
   )***";
 
-const char* DepthBlitShader =
-  R"***(
-  //VTK::System::Dec
+static const char* DepthBlitShader =
+  R"***(//VTK::System::Dec
   in vec2 texCoord;
   uniform sampler2D tex;
   uniform vec2 texLL;
@@ -125,7 +127,7 @@ const char* DepthBlitShader =
   }
   )***";
 
-const char* DepthReadShader =
+static const char* DepthReadShader =
   R"***(//VTK::System::Dec
   in vec2 texCoord;
   uniform sampler2D tex;
@@ -156,9 +158,8 @@ const char* DepthReadShader =
   }
   )***";
 
-const char* FlipShader =
-  R"***(
-  //VTK::System::Dec
+static const char* FlipShader =
+  R"***(//VTK::System::Dec
   in vec2 texCoord;
   uniform sampler2D tex;
   //VTK::Output::Dec
@@ -397,7 +398,10 @@ vtkOpenGLRenderWindow::vtkOpenGLRenderWindow()
   this->Initialized = false;
   this->GlewInitValid = false;
 
-  this->MultiSamples = vtkOpenGLRenderWindowGlobalMaximumNumberOfMultiSamples;
+  this->MultiSamples = vtksys::SystemTools::HasEnv("VTK_TESTING")
+    ? 0
+    : vtkOpenGLRenderWindowGlobalMaximumNumberOfMultiSamples;
+
   delete[] this->WindowName;
   this->WindowName = new char[strlen(defaultWindowName) + 1];
   strcpy(this->WindowName, defaultWindowName);
@@ -424,6 +428,7 @@ vtkOpenGLRenderWindow::vtkOpenGLRenderWindow()
   // this->DepthRenderBufferObject = 0;
   this->AlphaBitPlanes = 8;
   this->Capabilities = nullptr;
+  this->RenderBufferTargetDepthSize = 32;
 
   this->TQuad2DVBO = nullptr;
   this->NoiseTextureObject = nullptr;
@@ -1068,9 +1073,11 @@ int vtkOpenGLRenderWindow::ReadPixels(
   }
 
   // Must clear previous errors first.
+#ifdef VTK_REPORT_OPENGL_ERRORS
   while (glGetError() != GL_NO_ERROR)
   {
   }
+#endif
 
   this->GetState()->vtkglDisable(GL_SCISSOR_TEST);
 
@@ -1348,8 +1355,15 @@ void vtkOpenGLRenderWindow::Frame()
     this->RenderFramebuffer->Bind(GL_READ_FRAMEBUFFER);
     this->RenderFramebuffer->ActivateReadBuffer(0);
 
-    this->GetState()->vtkglBlitFramebuffer(0, 0, fbsize[0], fbsize[1], 0, 0, fbsize[0], fbsize[1],
-      (copiedColor ? 0 : GL_COLOR_BUFFER_BIT) | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    if (this->FramebufferFlipY)
+    {
+      this->TextureDepthBlit(this->RenderFramebuffer->GetDepthAttachmentAsTextureObject());
+    }
+    else
+    {
+      this->GetState()->vtkglBlitFramebuffer(0, 0, fbsize[0], fbsize[1], 0, 0, fbsize[0], fbsize[1],
+        (copiedColor ? 0 : GL_COLOR_BUFFER_BIT) | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+    }
 
     this->GetState()->vtkglViewport(0, 0, this->Size[0], this->Size[1]);
     this->GetState()->vtkglScissor(0, 0, this->Size[0], this->Size[1]);
@@ -1364,6 +1378,10 @@ void vtkOpenGLRenderWindow::Frame()
       if (this->FrameBlitMode == BlitToCurrent)
       {
         this->BlitDisplayFramebuffer();
+      }
+      if (this->FrameBlitMode == BlitToCurrentWithDepth)
+      {
+        this->BlitDisplayFramebufferColorAndDepth();
       }
     }
   }
@@ -1548,6 +1566,12 @@ void vtkOpenGLRenderWindow::BlitDisplayFramebuffer()
 {
   this->BlitDisplayFramebuffer(0, 0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0],
     this->Size[1], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+}
+
+void vtkOpenGLRenderWindow::BlitDisplayFramebufferColorAndDepth()
+{
+  this->BlitDisplayFramebuffer(0, 0, 0, this->Size[0], this->Size[1], 0, 0, this->Size[0],
+    this->Size[1], GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 }
 
 void vtkOpenGLRenderWindow::BlitDisplayFramebuffer(int right, int srcX, int srcY, int srcWidth,
@@ -2285,6 +2309,7 @@ int vtkOpenGLRenderWindow::GetZbufferData(int x1, int y1, int x2, int y2, float*
     }
     else
     {
+      const auto maxDepthValueAsInteger = float(1 << depthSize) - 1.0f;
       this->GetState()->PushReadFramebufferBinding();
       this->DepthFramebuffer->Bind(GL_READ_FRAMEBUFFER);
       this->DepthFramebuffer->ActivateReadBuffer(0);
@@ -2298,11 +2323,15 @@ int vtkOpenGLRenderWindow::GetZbufferData(int x1, int y1, int x2, int y2, float*
         z_int += (z_data_quarters[j++] << 8);
 #if defined(GL_DEPTH_COMPONENT24) || defined(GL_DEPTH_COMPONENT32)
         z_int += (z_data_quarters[j++] << 16);
+#else
+        ++j;
 #endif
 #ifdef GL_DEPTH_COMPONENT32
         z_int += (z_data_quarters[j++] << 24);
+#else
+        ++j;
 #endif
-        z_data[i] = z_int / float(0xffffff);
+        z_data[i] = z_int / maxDepthValueAsInteger;
       }
     }
   }
@@ -2500,8 +2529,8 @@ int vtkOpenGLRenderWindow::CreateFramebuffers(int width, int height)
 #else
       this->MultiSamples ? false : true, // textures
 #endif
-      1, VTK_UNSIGNED_CHAR, // 1 color buffer uchar
-      true, 32,             // depth buffer
+      1, VTK_UNSIGNED_CHAR,                    // 1 color buffer uchar
+      true, this->RenderBufferTargetDepthSize, // depth buffer
       this->MultiSamples, this->StencilCapable != 0);
     this->LastMultiSamples = this->MultiSamples;
     this->GetState()->PopFramebufferBindings();
@@ -2515,9 +2544,9 @@ int vtkOpenGLRenderWindow::CreateFramebuffers(int width, int height)
   {
     this->GetState()->PushFramebufferBindings();
     this->DisplayFramebuffer->PopulateFramebuffer(width, height,
-      true,                 // textures
-      2, VTK_UNSIGNED_CHAR, // 1 color buffer uchar
-      true, 32,             // depth buffer
+      true,                                    // textures
+      2, VTK_UNSIGNED_CHAR,                    // 1 color buffer uchar
+      true, this->RenderBufferTargetDepthSize, // depth buffer
       0, this->StencilCapable != 0);
     this->GetState()->PopFramebufferBindings();
   }
@@ -2530,9 +2559,9 @@ int vtkOpenGLRenderWindow::CreateFramebuffers(int width, int height)
   {
     this->GetState()->PushFramebufferBindings();
     this->ResolveFramebuffer->PopulateFramebuffer(width, height,
-      true,                 // textures
-      1, VTK_UNSIGNED_CHAR, // 1 color buffer uchar
-      true, 32,             // depth buffer
+      true,                                    // textures
+      1, VTK_UNSIGNED_CHAR,                    // 1 color buffer uchar
+      true, this->RenderBufferTargetDepthSize, // depth buffer
       0, this->StencilCapable != 0);
     this->GetState()->PopFramebufferBindings();
   }

@@ -13,8 +13,7 @@
 #define vtkPVPluginsInformation_h
 
 #include "vtkPVInformation.h"
-#include "vtkParaViewDeprecation.h" // needed for deprecation
-#include "vtkRemotingCoreModule.h"  // needed for exports
+#include "vtkRemotingCoreModule.h" // needed for exports
 
 class VTKREMOTINGCORE_EXPORT vtkPVPluginsInformation : public vtkPVInformation
 {
@@ -37,6 +36,8 @@ public:
   bool GetRequiredOnClient(unsigned int);
   const char* GetDescription(unsigned int);
   bool GetAutoLoad(unsigned int);
+  bool GetDelayedLoad(unsigned int);
+  std::vector<std::string> GetXMLs(unsigned int);
   ///@}
 
   ///@{
@@ -51,6 +52,11 @@ public:
    * API to change auto-load status.
    */
   void SetAutoLoad(unsigned int cc, bool);
+
+  /**
+   * API to change DelayedLoad status.
+   */
+  void SetDelayedLoad(unsigned int cc, bool);
 
   /**
    * This is a hack. When the user sets an auto-load option from  the GUI to
@@ -92,16 +98,6 @@ public:
    */
   vtkGetStringMacro(SearchPaths);
   ///@}
-
-  /**
-   * Method to validate if the plugin requirements are met across processes.
-   * This also updated the "StatusMessage" for all the plugins. If StatusMessage
-   * is empty for a loaded plugin, it implies that everything is fine. If some
-   * requirement is not met, the StatusMessage includes the error message.
-   */
-  PARAVIEW_DEPRECATED_IN_5_11_0("Use `vtkSMProxyManager::SatisfyPluginRequirements()` instead")
-  static bool PluginRequirementsSatisfied(
-    vtkPVPluginsInformation* client_plugins, vtkPVPluginsInformation* server_plugins);
 
 protected:
   vtkPVPluginsInformation();

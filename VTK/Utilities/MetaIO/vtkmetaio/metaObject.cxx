@@ -1487,7 +1487,7 @@ MetaObject::M_Read()
   mF = MET_GetFieldRecord("CompressedDataSize", &m_Fields);
   if (mF && mF->defined)
   {
-    m_CompressedDataSize = static_cast<long>(mF->value[0]);
+    m_CompressedDataSize = static_cast<std::streamoff>(mF->value[0]);
   }
 
   mF = MET_GetFieldRecord("BinaryData", &m_Fields);
@@ -1773,18 +1773,20 @@ MetaObject ::GetUserField(const char * _name)
       else if ((*it)->type == MET_FLOAT_MATRIX)
       {
         const unsigned int numMatrixElements = itLength * itLength;
-        out = new char[numMatrixElements * eSize];
+        const size_t outSize = numMatrixElements * eSize;
+        out = new char[outSize];
         for (unsigned int i = 0; i < numMatrixElements; i++)
         {
-          MET_DoubleToValue((*it)->value[i], (*it)->type, out, i);
+          MET_DoubleToValueN((*it)->value[i], (*it)->type, out, outSize, i);
         }
       }
       else
       {
-        out = new char[itLength * eSize];
+        const size_t outSize = itLength * eSize;
+        out = new char[outSize];
         for (unsigned int i = 0; i < itLength; i++)
         {
-          MET_DoubleToValue((*it)->value[i], (*it)->type, out, i);
+          MET_DoubleToValueN((*it)->value[i], (*it)->type, out, outSize, i);
         }
       }
       return out;

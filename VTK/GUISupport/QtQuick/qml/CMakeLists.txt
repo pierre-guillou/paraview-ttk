@@ -106,10 +106,15 @@ if (NOT copy_qmlplugintypes)
     endif ()
     set(copy_qmlplugintypes TRUE)
   else ()
+    # Must be `POST_BUILD` so that it is always up-to-date when building the
+    # QML plugin instead of also needing to run a separate custom target as
+    # well.
     add_custom_command(
       TARGET qmlvtkplugin
       POST_BUILD
       COMMAND
+        ${CMAKE_COMMAND} -E env
+        "LD_LIBRARY_PATH=${CMAKE_BINARY_DIR}/lib"
         "${QMLPLUGINDUMP_EXECUTABLE}"
         -output "${qmltypes_file_output}"
         "${_vtk_build_PACKAGE}"
@@ -123,6 +128,9 @@ if (NOT copy_qmlplugintypes)
   endif ()
 endif()
 if (copy_qmlplugintypes)
+  # Must be `POST_BUILD` so that it is always up-to-date when building the
+  # QML plugin instead of also needing to run a separate custom target as
+  # well.
   add_custom_command(
     TARGET qmlvtkplugin
     POST_BUILD

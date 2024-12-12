@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkCellTreeLocator.h"
 
@@ -504,8 +502,6 @@ private:
           }
         }
 
-        // JB : added if (...) to stop floating point error if rmin is unset
-        // this happens when some buckets are empty (bad volume calc)
         if (lMaxValue != -VTK_DOUBLE_MAX && rMinValue != VTK_DOUBLE_MAX)
         {
           sum += buckets[d][n].Cnt;
@@ -1427,7 +1423,6 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkCellTreeLocator
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
 
   // vtkAbstractCellLocator parameters
@@ -1444,7 +1439,7 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
     auto cellLocatorTree = static_cast<CellTree<vtkIdType>*>(cellLocator->Tree);
     auto tree = new CellTree<vtkIdType>(this);
     tree->Locator = this;
-    tree->DataSet = cellLocatorTree->DataSet;
+    tree->DataSet = this->DataSet;
     tree->Leaves = cellLocatorTree->Leaves;
     tree->Nodes = cellLocatorTree->Nodes;
     std::copy_n(cellLocatorTree->DataBBox, 6, tree->DataBBox);
@@ -1455,12 +1450,13 @@ void vtkCellTreeLocator::ShallowCopy(vtkAbstractCellLocator* locator)
     auto cellLocatorTree = static_cast<CellTree<int>*>(cellLocator->Tree);
     auto tree = new CellTree<int>(this);
     tree->Locator = this;
-    tree->DataSet = cellLocatorTree->DataSet;
+    tree->DataSet = this->DataSet;
     tree->Leaves = cellLocatorTree->Leaves;
     tree->Nodes = cellLocatorTree->Nodes;
     std::copy_n(cellLocatorTree->DataBBox, 6, tree->DataBBox);
     this->Tree = tree;
   }
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

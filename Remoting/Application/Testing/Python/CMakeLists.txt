@@ -28,7 +28,6 @@ set(PY_TESTS
   GenerateIdScalarsBackwardsCompatibility.py,NO_VALID
   GetActiveCamera.py,NO_VALID
   GhostCellsInMergeBlocks.py
-  GradientBackwardsCompatibilityTest.py,NO_VALID
   IntegrateAttributes.py,NO_VALID
   LocatorNonMergingBackwardsCompatibilityTest.py,NO_VALID
   LookupTable.py,NO_VALID
@@ -36,7 +35,6 @@ set(PY_TESTS
   PointGaussianProperties.py
   ProgrammableFilterProperties.py,NO_VALID
   ProgrammableFilter.py,NO_VALID
-  ProxyBackwardsCompatibilityTest.py,NO_VALID
   ProxyManager.py,NO_VALID
   ProxyPropertyLinks.py
   PythonVersion.py,NO_VALID
@@ -64,7 +62,7 @@ set(PY_TESTS
   VRMLSource.py,NO_VALID
   )
 
-include(FindPythonModules)
+include(ParaViewFindPythonModules)
 find_python_module(numpy numpy_found)
 if (numpy_found)
   list(APPEND PY_TESTS PythonSelection.py PythonSMTraceTest3.py)
@@ -303,6 +301,15 @@ if (NOT PARAVIEW_SERIAL_TESTS_USE_MPIEXEC)
            -o "${CMAKE_BINARY_DIR}/Testing/Temporary/BasicRendering.png"
            -v DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/Baseline/BasicRendering.png}
     TEST_NAME "basic_rendering")
+
+  paraview_add_test(
+    PREFIX "ParaView::RemotingApplicationPython::Module::pvpython::paraview.tests"
+    ARGS   "$<TARGET_FILE:ParaView::pvpython>"
+           --dr
+           --
+           -m paraview.tests.proxy_deprecation
+    TEST_NAME "proxy_deprecation")
+
 endif()
 
 #----------------------------------------------------------------------
@@ -336,6 +343,14 @@ paraview_add_test_mpi_optional(
          -o "${CMAKE_BINARY_DIR}/Testing/Temporary/BasicRendering.png"
          -v DATA{${_vtk_build_TEST_INPUT_DATA_DIRECTORY}/Data/Baseline/BasicRendering.png}
   TEST_NAME "basic_rendering")
+
+paraview_add_test_mpi_optional(
+  PREFIX "ParaView::RemotingApplicationPython::Module::pvbatch::paraview.tests"
+  ARGS   "$<TARGET_FILE:ParaView::pvbatch>"
+         --dr
+         --
+         -m paraview.tests.proxy_deprecation
+  TEST_NAME "proxy_deprecation")
 
 #----------------------------------------------------------------------
 # Module tests using pvbatch with MPI and in symmetric mode.

@@ -12,7 +12,14 @@ function (paraview_add_executable name)
       "${_paraview_client_origin_rpath}")
   endif()
 
-  add_executable("${name}" ${ARGN})
+  add_executable("${name}")
+  target_sources("${name}"
+    PRIVATE
+      ${ARGN})
+  # Add a dummy file set to optimize dependencies. See CMP0154.
+  _vtk_module_add_file_set("${name}"
+    BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}"
+    NAME      dummy)
   add_executable("ParaView::${name}" ALIAS "${name}")
 
   target_link_libraries("${name}"
@@ -22,15 +29,16 @@ function (paraview_add_executable name)
   target_link_libraries("${name}"
     PRIVATE
       ParaView::paraview_plugins)
-
-  if (PARAVIEW_USE_PYTHON)
     target_compile_definitions("${name}"
       PRIVATE
-        PARAVIEW_USE_PYTHON)
+      "PARAVIEW_USE_EXTERNAL_VTK=$<BOOL:${PARAVIEW_USE_EXTERNAL_VTK}>"
+      "PARAVIEW_USE_PYTHON=$<BOOL:${PARAVIEW_USE_PYTHON}>")
+  if (PARAVIEW_USE_PYTHON)
     target_link_libraries("${name}"
       PRIVATE
         VTK::PythonInterpreter
-        ParaView::PythonInitializer)
+        ParaView::PythonInitializer
+        ParaView::PythonInterpreterPath)
   endif ()
 
   if (paraview_exe_job_link_pool)

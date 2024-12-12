@@ -15,6 +15,22 @@ VTK_ABI_NAMESPACE_BEGIN
 
 vtkStandardNewMacro(vtkZSpaceCoreCompatibilitySDKManager);
 
+// Macros used to check if initialisation has been done before
+// using function entry points.
+#define ZSPACE_RETURN_IF_NOT_INIT()                                                                \
+  if (!this->Initialized)                                                                          \
+  {                                                                                                \
+    vtkErrorMacro("zSpace manager not initialized.");                                              \
+    return;                                                                                        \
+  }
+
+#define ZSPACE_RETURN_VAL_IF_NOT_INIT(value)                                                       \
+  if (!this->Initialized)                                                                          \
+  {                                                                                                \
+    vtkErrorMacro("zSpace manager not initialized.");                                              \
+    return value;                                                                                  \
+  }
+
 #define ZSPACE_CHECK_ERROR(fn, error)                                                              \
   if (error != ZC_COMPAT_ERROR_OK)                                                                 \
   {                                                                                                \
@@ -43,14 +59,25 @@ vtkZSpaceCoreCompatibilitySDKManager::vtkZSpaceCoreCompatibilitySDKManager()
 //------------------------------------------------------------------------------
 vtkZSpaceCoreCompatibilitySDKManager::~vtkZSpaceCoreCompatibilitySDKManager()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
+
   ZCCompatError error;
 
   error = this->EntryPts.zccompatShutDown(this->ZSpaceContext);
   ZSPACE_CHECK_ERROR(zccompatShutDown, error);
+}
+
+//------------------------------------------------------------------------------
+void vtkZSpaceCoreCompatibilitySDKManager::ShutDown()
+{
+  ZSPACE_RETURN_IF_NOT_INIT();
+
+  ZCCompatError error;
+
+  error = this->EntryPts.zccompatShutDown(this->ZSpaceContext);
+  ZSPACE_CHECK_ERROR(zccompatShutDown, error);
+
+  this->Initialized = false;
 }
 
 //------------------------------------------------------------------------------
@@ -108,6 +135,11 @@ bool vtkZSpaceCoreCompatibilitySDKManager::loadZspaceCoreCompatibilityEntryPoint
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::InitializeZSpace()
 {
+  if (this->Initialized)
+  {
+    return;
+  }
+
   const bool didSucceed = loadZspaceCoreCompatibilityEntryPoints(
     ZSPACE_CORE_COMPATIBILITY_DLL_FILE_PATH, this->zSpaceCoreCompatDllModuleHandle, this->EntryPts);
 
@@ -224,10 +256,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::InitializeZSpace()
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::UpdateViewport()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   if (!this->RenderWindow)
   {
@@ -263,10 +292,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::UpdateViewport()
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::UpdateTrackers()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZCCompatError error;
 
@@ -306,10 +332,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::UpdateTrackers()
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::UpdateViewAndProjectionMatrix()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZCCompatError error;
 
@@ -354,10 +377,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::UpdateViewAndProjectionMatrix()
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::UpdateButtonState()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZSBool isButtonPressed;
 
@@ -379,10 +399,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::UpdateButtonState()
 void vtkZSpaceCoreCompatibilitySDKManager::CalculateFrustumFit(
   const double bounds[6], double position[3], double viewUp[3])
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZCCompatError error;
 
@@ -471,10 +488,7 @@ void vtkZSpaceCoreCompatibilitySDKManager::CalculateFrustumFit(
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::BeginFrame()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZCCompatError error = this->EntryPts.zccompatBeginFrame(this->ZSpaceContext);
   ZSPACE_CHECK_ERROR(zccompatBeginFrame, error);
@@ -483,22 +497,83 @@ void vtkZSpaceCoreCompatibilitySDKManager::BeginFrame()
 //------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::EndFrame()
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
 
   ZCCompatError error = this->EntryPts.zccompatEndFrame(this->ZSpaceContext);
   ZSPACE_CHECK_ERROR(zccompatEndFrame, error);
 }
 
 //------------------------------------------------------------------------------
+void vtkZSpaceCoreCompatibilitySDKManager::EnableGraphicsBinding()
+{
+  ZSPACE_RETURN_IF_NOT_INIT();
+
+  ZCCompatError error = this->EntryPts.zccompatEnableGraphicsBindingOpenGL(this->ZSpaceContext);
+  ZSPACE_CHECK_ERROR(zccompatEnableGraphicsBindingOpenGL, error);
+}
+
+//------------------------------------------------------------------------------
+void vtkZSpaceCoreCompatibilitySDKManager::SubmitFrame(
+  unsigned int leftText, unsigned int rightText)
+{
+  ZSPACE_RETURN_IF_NOT_INIT();
+
+  ZCCompatError error =
+    this->EntryPts.zccompatSubmitFrameOpenGL(this->ZSpaceContext, leftText, rightText, false);
+  ZSPACE_CHECK_ERROR(zccompatSubmitFrameOpenGL, error);
+}
+
+//------------------------------------------------------------------------------
+void vtkZSpaceCoreCompatibilitySDKManager::GetPerEyeImageResolution(
+  signed int* width, signed int* height)
+{
+  ZSPACE_RETURN_IF_NOT_INIT();
+
+  ZCCompatError error =
+    this->EntryPts.zccompatGetPerEyeImageResolution(this->ZSpaceContext, width, height);
+  ZSPACE_CHECK_ERROR(zccompatGetPerEyeImageResolution, error);
+}
+
+//------------------------------------------------------------------------------
+vtkZSpaceSDKManager::StereoDisplayMode vtkZSpaceCoreCompatibilitySDKManager::GetStereoDisplayMode()
+{
+  ZSPACE_RETURN_VAL_IF_NOT_INIT(QUAD_BUFFER_STEREO);
+
+  ZCCompatStereoDisplayMode mode = ZC_COMPAT_STEREO_DISPLAY_MODE_QUAD_BUFFER_STEREO;
+  ZCCompatError error = this->EntryPts.zccompatGetStereoDisplayMode(this->ZSpaceContext, &mode);
+  ZSPACE_CHECK_ERROR(zccompatGetStereoDisplayMode, error);
+
+  return static_cast<vtkZSpaceSDKManager::StereoDisplayMode>(mode);
+}
+
+//------------------------------------------------------------------------------
+void vtkZSpaceCoreCompatibilitySDKManager::SetStereoDisplayEnabled(bool enabled)
+{
+  ZSPACE_RETURN_IF_NOT_INIT();
+
+  ZCCompatError error =
+    this->EntryPts.zccompatSetStereoDisplayEnabled(this->ZSpaceContext, enabled);
+  ZSPACE_CHECK_ERROR(zccompatSetStereoDisplayEnabled, error);
+}
+
+//------------------------------------------------------------------------------
+bool vtkZSpaceCoreCompatibilitySDKManager::GetStereoDisplayEnabled()
+{
+  ZSPACE_RETURN_VAL_IF_NOT_INIT(false);
+
+  ZSBool stereoDisplayEnabled = false;
+  ZCCompatError error =
+    this->EntryPts.zccompatIsStereoDisplayEnabled(this->ZSpaceContext, &stereoDisplayEnabled);
+  ZSPACE_CHECK_ERROR(zccompatSetStereoDisplayEnabled, error);
+
+  return stereoDisplayEnabled;
+}
+
+//------------------------------------------------------------------------------
 void vtkZSpaceCoreCompatibilitySDKManager::SetRenderWindow(vtkRenderWindow* renderWindow)
 {
-  if (!this->Initialized)
-  {
-    return;
-  }
+  ZSPACE_RETURN_IF_NOT_INIT();
+
   // Give the application window handle to the zSpace Core Compatibility API.
   HWND hWnd = static_cast<HWND>(renderWindow->GetGenericWindowId());
   ZCCompatError error =

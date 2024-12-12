@@ -58,6 +58,7 @@ public:
   VTKM_ARRAY_HANDLE_SUBCLASS_NT(ArrayHandleIndex,
                                 (vtkm::cont::ArrayHandle<vtkm::Id, StorageTagIndex>));
 
+  /// Construct an index array containing values from 0 to `length` - 1.
   VTKM_CONT
   ArrayHandleIndex(vtkm::Id length)
     : Superclass(
@@ -124,7 +125,7 @@ namespace cont
 template <>
 struct SerializableTypeString<vtkm::cont::ArrayHandleIndex>
 {
-  static VTKM_CONT const std::string Get() { return "AH_Index"; }
+  static VTKM_CONT std::string Get() { return "AH_Index"; }
 };
 
 template <>

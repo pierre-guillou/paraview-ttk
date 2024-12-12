@@ -29,7 +29,7 @@ int TestGenerateProcessIds(int argc, char* argv[])
   pidGenerator->GenerateCellDataOn();
   pidGenerator->Update();
 
-  vtkDataSet* pidOutput = pidGenerator->GetOutput();
+  vtkDataSet* pidOutput = vtkDataSet::SafeDownCast(pidGenerator->GetOutput());
   int myRank = controller->GetLocalProcessId();
 
   int retVal = TestGenerator(pidOutput->GetPointData(), myRank);
@@ -51,34 +51,23 @@ int TestGenerator(vtkDataSetAttributes* dataSetAttributes, int rank)
                                                         << " should not be nullptr");
     return EXIT_FAILURE;
   }
-  vtkIdTypeArray* pidArray = vtkIdTypeArray::SafeDownCast(pidDataArray);
-  if (pidArray)
+  vtkIdType pidArraySize = pidDataArray->GetDataSize();
+  if (pidArraySize != nbTuples)
   {
-    vtkIdType pidArraySize = pidArray->GetDataSize();
-    if (pidArraySize != nbTuples)
+    vtkGenericWarningMacro(<< "Wrong size for ProcessIds attribute from "
+                           << dataSetAttributes->GetClassName() << ". Should be: " << nbTuples
+                           << " but is: " << pidArraySize);
+    return EXIT_FAILURE;
+  }
+  for (vtkIdType i = 0; i < nbTuples; ++i)
+  {
+    if (pidDataArray->GetTuple1(i) != rank)
     {
-      vtkGenericWarningMacro(<< "Wrong size for ProcessIds attribute from "
-                             << dataSetAttributes->GetClassName() << ". Should be: " << nbTuples
-                             << " but is: " << pidArraySize);
+      vtkGenericWarningMacro(<< "Wrong id in ProcessIds attribute from "
+                             << dataSetAttributes->GetClassName() << ". Should be: " << rank
+                             << " but is: " << pidDataArray->GetTuple1(i));
       return EXIT_FAILURE;
     }
-    for (vtkIdType i = 0; i < nbTuples; ++i)
-    {
-      if (pidArray->GetValue(i) != rank)
-      {
-        vtkGenericWarningMacro(<< "Wrong id in ProcessIds attribute from "
-                               << dataSetAttributes->GetClassName() << ". Should be: " << rank
-                               << " but is: " << pidArray->GetValue(i));
-        return EXIT_FAILURE;
-      }
-    }
-  }
-  else
-  {
-    vtkGenericWarningMacro(<< "ProcessIds attribute from " << dataSetAttributes->GetClassName()
-                           << " should be of type: vtkIdTypeArray, "
-                           << "but is of type: " << pidDataArray->GetClassName());
-    return EXIT_FAILURE;
   }
 
   return EXIT_SUCCESS;

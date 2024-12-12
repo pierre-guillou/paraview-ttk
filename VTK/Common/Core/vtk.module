@@ -23,8 +23,10 @@ DEPENDS
   VTK::kwiml
   VTK::vtksys
   VTK::token
+  VTK::nlohmannjson
 PRIVATE_DEPENDS
   VTK::fast_float
+  VTK::doubleconversion
 OPTIONAL_DEPENDS
   VTK::loguru
 TEST_DEPENDS
@@ -35,3 +37,4 @@ TEST_DEPENDS
   VTK::TestingCore
   VTK::vtksys
   VTK::fmt
+INCLUDE_MARSHAL

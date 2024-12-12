@@ -45,12 +45,16 @@ set(test_sources
   TestHyperTreeGridBinary2DVectorAxisReflectionYCenter.cxx
   TestHyperTreeGridBinary3DContour.cxx
   TestHyperTreeGridBinary3DContourDecomposePolyhedra.cxx
-  TestHyperTreeGridBinary3DFeatureEdges.cxx
+  TestHyperTreeGridBinary3DContourImplicit.cxx
+  TestHyperTreeGridBinary3DContourImplicitInteger.cxx,NO_VALID,NO_OUTPUT
+  TestHyperTreeGridBinary3DFeatureEdges.cxx, LOOSE_VALID
   TestHyperTreeGridBinary3DGeometry.cxx
   TestHyperTreeGridBinaryClipPlanes.cxx
   TestHyperTreeGridBinaryEllipseMaterial.cxx
   TestHyperTreeGridBinaryHyperbolicParaboloidMaterial.cxx
+  TestHyperTreeGridExtractGhostCells.cxx,NO_VALID,NO_OUTPUT
   TestHyperTreeGridGeometryPassCellIds.cxx
+  TestHyperTreeGridRemoveGhostCells.cxx,NO_VALID,NO_OUTPUT
   TestHyperTreeGridTernary2D.cxx
   TestHyperTreeGridTernary2DBiMaterial.cxx
   TestHyperTreeGridTernary2DFullMaterialBits.cxx
@@ -73,7 +77,7 @@ set(test_sources
   TestHyperTreeGridTernary3DDualContour.cxx
   TestHyperTreeGridTernary3DDualContourMaterial.cxx
   TestHyperTreeGridTernary3DGeometry.cxx
-  TestHyperTreeGridTernary3DGeometryLargeMaterialBits.cxx
+# TestHyperTreeGridTernary3DGeometryLargeMaterialBits.cxx #19221
   TestHyperTreeGridTernary3DGeometryMaterial.cxx
   TestHyperTreeGridTernary3DGeometryMaterialBits.cxx
   TestHyperTreeGridTernary3DGradient.cxx
@@ -93,6 +97,7 @@ set(test_sources
   TestHyperTreeGridTernarySphereMaterial.cxx
   TestHyperTreeGridTernarySphereMaterialReflections.cxx
   TestHyperTreeGridToDualGrid.cxx
+  TestHyperTreeGridVisibleLeavesSize.cxx,NO_VALID,NO_OUPUT
   )
 
 vtk_add_test_cxx(vtkFiltersHyperTreeCxxTests tests ${test_sources})

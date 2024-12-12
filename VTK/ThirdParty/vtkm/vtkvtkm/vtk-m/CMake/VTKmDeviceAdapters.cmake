@@ -58,21 +58,13 @@ if(VTKm_ENABLE_OPENMP AND NOT (TARGET vtkm_openmp OR TARGET vtkm::openmp))
   find_package(OpenMP 4.0 REQUIRED COMPONENTS CXX QUIET)
 
   add_library(vtkm_openmp INTERFACE)
+  target_link_libraries(vtkm_openmp INTERFACE OpenMP::OpenMP_CXX)
+  target_compile_options(vtkm_openmp INTERFACE $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
+  if(VTKm_ENABLE_CUDA)
+    string(REPLACE ";" "," openmp_cuda_flags "-Xcompiler=${OpenMP_CXX_FLAGS}")
+    target_compile_options(vtkm_openmp INTERFACE $<$<COMPILE_LANGUAGE:CUDA>:${openmp_cuda_flags}>)
+  endif()
   set_target_properties(vtkm_openmp PROPERTIES EXPORT_NAME openmp)
-  if(OpenMP_CXX_FLAGS)
-    set_property(TARGET vtkm_openmp
-      APPEND PROPERTY INTERFACE_COMPILE_OPTIONS $<$<COMPILE_LANGUAGE:CXX>:${OpenMP_CXX_FLAGS}>)
-
-    if(VTKm_ENABLE_CUDA)
-      string(REPLACE ";" "," openmp_cuda_flags "-Xcompiler=${OpenMP_CXX_FLAGS}")
-      set_property(TARGET vtkm_openmp
-        APPEND PROPERTY INTERFACE_COMPILE_OPTIONS $<$<COMPILE_LANGUAGE:CUDA>:${openmp_cuda_flags}>)
-    endif()
-  endif()
-  if(OpenMP_CXX_LIBRARIES)
-    set_target_properties(vtkm_openmp PROPERTIES
-      INTERFACE_LINK_LIBRARIES "${OpenMP_CXX_LIBRARIES}")
-  endif()
   install(TARGETS vtkm_openmp EXPORT ${VTKm_EXPORT_NAME})
 endif()
 
@@ -350,6 +342,7 @@ if(VTKm_ENABLE_KOKKOS AND NOT TARGET vtkm_kokkos)
   elseif(HIP IN_LIST Kokkos_DEVICES)
     cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
     enable_language(HIP)
+
     set_target_properties(Kokkos::kokkoscore PROPERTIES
       INTERFACE_COMPILE_OPTIONS ""
       INTERFACE_LINK_OPTIONS ""
@@ -357,14 +350,6 @@ if(VTKm_ENABLE_KOKKOS AND NOT TARGET vtkm_kokkos)
     add_library(vtkm_kokkos_hip INTERFACE)
     set_property(TARGET vtkm_kokkos_hip PROPERTY EXPORT_NAME kokkos_hip)
     install(TARGETS vtkm_kokkos_hip EXPORT ${VTKm_EXPORT_NAME})
-
-    # Make sure rocthrust is available if requested
-    if(VTKm_ENABLE_KOKKOS_THRUST)
-      find_package(rocthrust)
-      if(NOT rocthrust_FOUND)
-        message(FATAL_ERROR "rocthrust not found. Please set VTKm_ENABLE_KOKKOS_THRUST to OFF.")
-      endif()
-    endif()
   endif()
 
   add_library(vtkm_kokkos INTERFACE IMPORTED GLOBAL)

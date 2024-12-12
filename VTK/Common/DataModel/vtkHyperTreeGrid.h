@@ -12,7 +12,6 @@
  * uniform geometry.
  * Some filters can be applied on this dataset: contour, outline, geometry.
  *
- * JB A valider la suite
  * The order and number of points must match that specified by the dimensions
  * of the grid. The point order increases in i fastest (from 0<=i<dims[0]),
  * then j (0<=j<dims[1]), then k (0<=k<dims[2]) where dims[] are the
@@ -22,7 +21,7 @@
  * dimensions of the grid. The cell order increases in i fastest (from
  * 0<=i<(dims[0]-1)), then j (0<=j<(dims[1]-1)), then k (0<=k<(dims[2]-1))
  * The number of cells is (dims[0]-1)*(dims[1]-1)*(dims[2]-1).
- * JB
+ *
  * Dimensions : number of points by direction of rectilinear grid
  * CellDims : number of cells by directions of rectilinear grid
  * (1 for each dimensions 1)
@@ -50,7 +49,6 @@
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
 
-#include "vtkDeprecation.h"  // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkNew.h"          // vtkSmartPointer
 #include "vtkSmartPointer.h" // vtkSmartPointer
 
@@ -149,7 +147,6 @@ public:
    * The dimensions correspond to the number of points
    */
   const unsigned int* GetDimensions() const VTK_SIZEHINT(3);
-  // JB Dommage, car vtkGetVectorMacro(Dimensions,int,3); not const function
   void GetDimensions(int dim[3]) const;
   void GetDimensions(unsigned int dim[3]) const;
   ///@}
@@ -168,7 +165,7 @@ public:
 
   ///@{
   /**
-   * JB Get grid sizes of this structured cells dataset.
+   * Get grid sizes of this structured cells dataset.
    * Valeurs deduites a partir de Dimensions/Extent
    * Les dimensions non exprimees auront pour valeur 1.
    */
@@ -181,7 +178,7 @@ public:
 
   ///@{
   /**
-   * JB Get the dimensionality of the grid deduite a partir
+   * Get the dimensionality of the grid deduite a partir
    * de Dimensions/Extent.
    */
   unsigned int GetDimension() const { return this->Dimension; }
@@ -189,7 +186,7 @@ public:
 
   ///@{
   /**
-   * JB retourne l'indice de la dimension valide.
+   * Retourne l'indice de la dimension valide.
    */
   void Get1DAxis(unsigned int& axis) const
   {
@@ -200,7 +197,7 @@ public:
 
   ///@{
   /**
-   * JB Retourne l'indice des deux dimensions valides.
+   * Retourne l'indice des deux dimensions valides.
    */
   void Get2DAxes(unsigned int& axis1, unsigned int& axis2) const
   {
@@ -212,7 +209,7 @@ public:
 
   ///@{
   /**
-   * JB Get the axis information (used for CopyStructure)
+   * Get the axis information (used for CopyStructure)
    */
   const unsigned int* GetAxes() const { return this->Axis; }
   ///@}
@@ -224,17 +221,6 @@ public:
   // vtkGetMacro(NumberOfChildren, unsigned int); not const
   unsigned int GetNumberOfChildren() const { return this->NumberOfChildren; }
   ///@}
-
-  /**
-   * Get the number or trees available along the 3 axis.
-   * For 2D or 1D the empty dimension will be equal to 1.
-   * The empty dimension being any axis that contain a
-   * single value for their point coordinate.
-   *
-   * SetDimensions() must be called in order to have a valid
-   * NumberOfTreesPerDimension[3].
-   */
-  // JB ?? virtual void GetNumberOfTreesPerDimension(unsigned int dimsOut[3]);
 
   ///@{
   /**
@@ -275,13 +261,7 @@ public:
   /**
    * Return the maximum number of trees in the level 0 grid.
    */
-  vtkIdType GetMaxNumberOfTrees();
-
-  /**
-   * Get the number of vertices in the primal tree grid.
-   */
-  VTK_DEPRECATED_IN_9_2_0("Please use the renamed version, GetNumberOfCells().")
-  vtkIdType GetNumberOfVertices();
+  vtkIdType GetMaxNumberOfTrees() const;
 
   /**
    * Get the number of non empty trees in this grid.
@@ -329,7 +309,7 @@ public:
 
   ///@{
   /**
-   * JB Augented services on Coordinates.
+   * Augented services on Coordinates.
    */
   virtual void CopyCoordinates(const vtkHyperTreeGrid* output);
   virtual void SetFixedCoordinates(unsigned int axis, double value);
@@ -422,7 +402,7 @@ public:
   ///@}
 
   /**
-   * JB Retourne un curseur geometrique pointant une des mailles comportant la position spatiale x
+   * Return a geometric cursor pointing to one of the nodes at position `x`
    */
   vtkHyperTreeGridNonOrientedGeometryCursor* FindNonOrientedGeometryCursor(double x[3]);
 
@@ -634,10 +614,15 @@ public:
 
   /**
    * Return the root index of a root cell with given index displaced.
-   * by a Cartesian vector in the grid.
+   * by a cartesian vector in the grid (di,dj,dk).
+   *
+   * However, in HTG 2D, this method used Orientation information.
+   * According to the orientation values (0/1/2), the association of
+   * the topological axes changes with the real axes (YZ/XZ/XY).
+   *
    * NB: No boundary checks are performed.
    */
-  vtkIdType GetShiftedLevelZeroIndex(vtkIdType, unsigned int, unsigned int, unsigned int) const;
+  vtkIdType GetShiftedLevelZeroIndex(vtkIdType, int, int, int) const;
 
   /**
    * Convert the global index of a root to its Cartesian coordinates in the grid.
@@ -651,24 +636,18 @@ public:
   virtual void GetLevelZeroOriginAndSizeFromIndex(vtkIdType, double*, double*);
 
   /**
-   * JB Convert the global index of a root to its Spatial coordinates origin and size.
+   * Convert the global index of a root to its Spatial coordinates origin and size.
    */
   virtual void GetLevelZeroOriginFromIndex(vtkIdType, double*);
 
   /**
-   * JB Retourne la valeur maximale du global index.
-   * Cette information est indispensable pour construire une nouvelle
-   * grandeur puisqu'elle devra au moins etre de cette taille.
-   * Pour les memes raisons, dans le cas de la construction du maillage dual,
-   * afin de reutiliser les grandeurs de l'HTG, le nombre de sommets
-   * sera dimensionne a cette valeur.
+   * Return the maximum global index value.
+   * Can be useful to allocate new cell arrays.
    */
   vtkIdType GetGlobalNodeIndexMax();
 
   /**
-   * JB Permet d'initialiser les index locaux de chacun des HT de cet HTG
-   * une fois que TOUS les HTs aient ete COMPLETEMENT construits/raffines !
-   * A l'utilisateur ensuite de fournir les grandeurs suivant cet ordre.
+   * Initialize local indexes for every individual Hyper Tree after they have been refined.
    */
   void InitializeLocalIndexNode();
 
@@ -740,18 +719,30 @@ public:
   ///@}
 
   /**
-   * Return a pointer to the geometry bounding box in the form
-   * (xmin,xmax, ymin,ymax, zmin,zmax).
+   * Compute the hyper tree grid bounding box ignoring masked cells.
    * THIS METHOD IS NOT THREAD SAFE.
    */
-  virtual double* GetBounds() VTK_SIZEHINT(6);
+  virtual void ComputeBounds();
 
+  ///@{
   /**
    * Return a pointer to the geometry bounding box in the form
    * (xmin,xmax, ymin,ymax, zmin,zmax).
+   *
+   * This method was incorrectly providing grid bounds before vtk 9.4,
+   * grid bounds are available in GetGridBounds() if needed.
    * THIS METHOD IS NOT THREAD SAFE.
    */
+  virtual double* GetBounds() VTK_SIZEHINT(6);
   void GetBounds(double bounds[6]);
+  ///@}
+
+  /**
+   * Return a pointer to the grid bounding box in the form
+   * (xmin,xmax, ymin,ymax, zmin,zmax).
+   * THIS METHOD IS NOT THREAD SAFE.
+   */
+  virtual void GetGridBounds(double bounds[6]);
 
   /**
    * Get the center of the bounding box.
@@ -803,7 +794,7 @@ protected:
   ~vtkHyperTreeGrid() override;
 
   /**
-   * JB ModeSqueeze
+   * ModeSqueeze
    */
   char* ModeSqueeze;
 
@@ -825,6 +816,8 @@ protected:
 private:
   unsigned int Orientation; // 0, 1, or 2
   unsigned int Axis[2];
+
+  vtkTimeStamp ComputeTime;
 
 protected:
   unsigned int NumberOfChildren;

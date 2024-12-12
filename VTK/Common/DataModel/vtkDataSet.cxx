@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
+// VTK_DEPRECATED_IN_9_3_0() warnings for this class.
 #define VTK_DEPRECATION_LEVEL 0
 #include "vtkDataSet.h"
 
@@ -20,10 +20,9 @@
 #include "vtkIdList.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkLagrangeQuadrilateral.h"
-#include "vtkLagrangeWedge.h"
 #include "vtkMath.h"
 #include "vtkPointData.h"
+#include "vtkPoints.h"
 #include "vtkSMPTools.h"
 #include "vtkSmartPointer.h"
 #include "vtkStructuredData.h"
@@ -73,6 +72,10 @@ void vtkDataSet::Initialize()
   // no modification when initialized.
   vtkDataObject::Initialize();
 
+  if (this->TempPoints)
+  {
+    this->TempPoints->Initialize();
+  }
   this->CellData->Initialize();
   this->PointData->Initialize();
 }
@@ -154,6 +157,27 @@ struct ComputeBoundsFunctor
     }
   }
 };
+
+//------------------------------------------------------------------------------
+vtkPoints* vtkDataSet::GetPoints()
+{
+  vtkWarningMacro("GetPoints() called on a dataset that does not define GetPoints."
+                  "Don't modify this object.");
+  this->TempPoints = vtkSmartPointer<vtkPoints>::New();
+  vtkNew<vtkDoubleArray> array;
+  array->SetNumberOfComponents(3);
+  array->SetNumberOfTuples(this->GetNumberOfPoints());
+  vtkSMPTools::For(0, this->GetNumberOfPoints(), [&](vtkIdType begin, vtkIdType end) {
+    double x[3];
+    for (vtkIdType pointId = begin; pointId < end; ++pointId)
+    {
+      this->GetPoint(pointId, x);
+      array->SetTypedTuple(pointId, x);
+    }
+  });
+  this->TempPoints->SetData(array);
+  return this->TempPoints;
+}
 
 //------------------------------------------------------------------------------
 // Compute the data bounding box from data points.
@@ -380,7 +404,6 @@ int vtkDataSet::GetCellNumberOfFaces(
     case VTK_QUADRATIC_LINEAR_QUAD:
     case VTK_BIQUADRATIC_TRIANGLE:
     case VTK_CUBIC_LINE:
-    case VTK_CONVEX_POINT_SET:
     case VTK_PARAMETRIC_CURVE:
     case VTK_PARAMETRIC_SURFACE:
     case VTK_PARAMETRIC_TRI_SURFACE:
@@ -435,6 +458,7 @@ int vtkDataSet::GetCellNumberOfFaces(
     case VTK_HEXAGONAL_PRISM:
       return 8;
 
+    case VTK_CONVEX_POINT_SET:
     case VTK_POLYHEDRON:
     default:
       this->GetCell(cellId, cell);
@@ -472,11 +496,12 @@ public:
     {
       return;
     }
+    auto& localDistinctCellTypes = this->LocalDistinctCellTypes.Local();
 
     for (vtkIdType idx = begin; idx < end; ++idx)
     {
       unsigned char cellType = static_cast<unsigned char>(this->DS->GetCellType(idx));
-      this->LocalDistinctCellTypes.Local().insert(cellType);
+      localDistinctCellTypes.insert(cellType);
     }
   }
 
@@ -647,6 +672,10 @@ unsigned long vtkDataSet::GetActualMemorySize()
   unsigned long size = this->vtkDataObject::GetActualMemorySize();
   size += this->PointData->GetActualMemorySize();
   size += this->CellData->GetActualMemorySize();
+  if (this->TempPoints)
+  {
+    size += this->TempPoints->GetActualMemorySize();
+  }
   return size;
 }
 
@@ -1126,4 +1155,17 @@ void vtkDataSet::OnDataModified(vtkObject* source, unsigned long, void* clientda
     This->UpdateCellGhostArrayCache();
   }
 }
+
+//------------------------------------------------------------------------------
+vtkMTimeType vtkDataSet::GetGhostCellsTime()
+{
+  vtkMTimeType time = 0;
+  if (auto ghostcells = this->GetCellGhostArray())
+  {
+    time = ghostcells->GetMTime();
+  }
+
+  return time;
+}
+
 VTK_ABI_NAMESPACE_END

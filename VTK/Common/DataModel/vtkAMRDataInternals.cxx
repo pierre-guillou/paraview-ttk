@@ -4,7 +4,9 @@
 #include "vtkObjectFactory.h"
 #include "vtkUniformGrid.h"
 
+#include <algorithm>
 #include <cassert>
+
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkAMRDataInternals);
 
@@ -41,13 +43,9 @@ void vtkAMRDataInternals::PrintSelf(ostream& os, vtkIndent indent)
 
 void vtkAMRDataInternals::Insert(unsigned int index, vtkUniformGrid* grid)
 {
-  this->Blocks.emplace_back(index, grid);
-  int i = static_cast<int>(this->Blocks.size()) - 2;
-  while (i >= 0 && this->Blocks[i].Index > this->Blocks[i + 1].Index)
-  {
-    std::swap(this->Blocks[i], this->Blocks[i + 1]);
-    i--;
-  }
+  const auto it = std::lower_bound(this->Blocks.begin(), this->Blocks.end(), index,
+    [](const Block& block, unsigned int idx) { return block.Index < idx; });
+  this->Blocks.insert(it, Block(index, grid));
 }
 
 vtkUniformGrid* vtkAMRDataInternals::GetDataSet(unsigned int compositeIndex)

@@ -3,6 +3,8 @@ vtk_add_test_cxx(vtkIOGeometryCxxTests tests
   UnstructuredGridCellGradients.cxx
   UnstructuredGridFastGradients.cxx
   UnstructuredGridGradients.cxx
+  TestFLUENTReader.cxx
+  TestGLTFReaderMalformed.cxx,NO_VALID
   TestOBJReaderDouble.cxx
   TestOBJPolyDataWriter.cxx
   TestOBJReaderComments.cxx,NO_VALID
@@ -15,6 +17,7 @@ vtk_add_test_cxx(vtkIOGeometryCxxTests tests
   TestOBJReaderRelative.cxx,NO_VALID
   TestOBJReaderSingleTexture.cxx,NO_VALID
   TestOBJReaderMalformed.cxx,NO_VALID
+  TestOFFReader.cxx,NO_VALID
   TestOpenFOAMReader.cxx
   TestOpenFOAMReaderDimensionedFields.cxx,NO_VALID
   TestOpenFOAMReaderFaceZone.cxx
@@ -35,6 +38,8 @@ vtk_add_test_cxx(vtkIOGeometryCxxTests tests
 # Certain test are expected failure with specific outputs
 set_tests_properties(VTK::IOGeometryCxx-TestOBJReaderMalformed PROPERTIES PASS_REGULAR_EXPRESSION "Unexpected point index value")
 set_tests_properties(VTK::IOGeometryCxx-TestOBJReaderMalformed PROPERTIES FAIL_REGULAR_EXPRESSION "")
+set_tests_properties(VTK::IOGeometryCxx-TestGLTFReaderMalformed PROPERTIES PASS_REGULAR_EXPRESSION "Failed to read an image")
+set_tests_properties(VTK::IOGeometryCxx-TestGLTFReaderMalformed PROPERTIES FAIL_REGULAR_EXPRESSION "")
 
 LIST(APPEND tecplotFiles
     3dgeom.dat
@@ -180,6 +185,10 @@ vtk_add_test_cxx(vtkIOGeometryCxxTests tests
 
 vtk_add_test_cxx(vtkIOGeometryCxxTests tests
   TestGLTFReaderReadTriangleStripIndices,TestGLTFReaderGeometry.cxx DATA{../Data/glTF/PrimitiveModes/Mesh_PrimitiveMode_TRIANGLE_STRIP_2.gltf,Mesh_PrimitiveMode_11.bin}
+)
+
+vtk_add_test_cxx(vtkIOGeometryCxxTests tests
+  TestGLTFReaderMissingProperty,TestGLTFReaderGeometry.cxx DATA{../Data/glTF/Triangle/material-no-pbrMetallicRoughness.gltf}
 )
 
 vtk_add_test_cxx(vtkIOGeometryCxxTests tests

@@ -47,13 +47,12 @@ void colorEvaluateAt(
     vec3 dxdt;
     mat3 jac;
     shapeGradientAt(rr, shapeData, dxdr, dxds, dxdt);
-    jac = mat3(dxdr, dxds, dxdt);
-    float jdet = determinant(jac);
+    jac = transpose(mat3(dxdr, dxds, dxdt));
     mat3 ijac = inverse(jac);
     for (int cc = 0; cc < {ColorNumValPP} / 3; ++cc)
     {{
       vec3 unscaled = vec3(value[cc * 3], value[cc * 3 + 1], value[cc * 3 + 2]);
-      vec3 scaled = ijac * unscaled / jdet;
+      vec3 scaled = ijac * unscaled;
       value[cc * 3    ] = scaled.x;
       value[cc * 3 + 1] = scaled.y;
       value[cc * 3 + 2] = scaled.z;
@@ -75,6 +74,26 @@ void shapeEvaluateAt(in vec3 rr, in float shapeVals[{ShapeCoeffPerCell}], out fl
     for (int cc = 0; cc < {ShapeNumValPP}; ++cc)
     {{
       value[cc] += shapeVals[pp * {ShapeNumValPP} + cc] * basis[pp];
+    }}
+  }}
+}}
+
+// Fetch point coordinates and per-integration-point field values for
+// the entire cell.
+//
+// NB: Currently, a cell-grid's shape attribute *must* be continuous
+// (i.e., share degrees of freedom at cell boundaries). This makes
+// fetching shapeValues much simpler than fetching colorValues.
+// 
+// NB: This method expects `shape_conn` and `shape_vals` declared as samplerBuffer uniforms.
+void shapeValuesForCell(in int cellId, out float shapeValues[{ShapeCoeffPerCell}])
+{{
+  for (int ii = 0; ii < {ShapeNumBasisFun}; ++ii)
+  {{
+    int vertexId = texelFetchBuffer(shape_conn, cellId * {ShapeNumBasisFun} + ii).s;
+    for (int jj = 0; jj < {ShapeMultiplicity}; ++jj)
+    {{
+      shapeValues[ii * {ShapeMultiplicity} + jj] = texelFetchBuffer(shape_vals, vertexId * {ShapeMultiplicity} + jj).x;
     }}
   }}
 }}

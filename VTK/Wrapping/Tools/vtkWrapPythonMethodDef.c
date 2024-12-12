@@ -425,6 +425,59 @@ static void vtkWrapPython_ClassMethodDef(FILE* fp, const char* classname, const 
       classname, classname);
   }
 
+  /* Adds a new 'execute' method on vtkAlgorithm */
+  else if (strcmp("vtkAlgorithm", data->Name) == 0)
+  {
+    fprintf(fp,
+      "  {\n"
+      "  \"update\",(PyCFunction)static_cast<PyCFunctionWithKeywords>(\n"
+      "  [](PyObject* self, PyObject* args, PyObject* kwargs) -> PyObject*\n"
+      "  {\n"
+      "    vtkPythonArgs ap(self, args, \"update\");\n"
+      "    PyObject *output = nullptr;\n"
+      "    if (ap.CheckArgCount(0))\n"
+      "    {\n"
+      "      PyObject *moduleName = "
+      "PyUnicode_DecodeFSDefault(\"vtkmodules.util.execution_model\");\n"
+      "      PyObject *internalModule = PyImport_Import(moduleName);\n"
+      "      Py_DECREF(moduleName);\n"
+      "      if (internalModule != nullptr)\n"
+      "      {\n"
+      "        // Get the class from the module\n"
+      "        PyObject *outputClass = PyObject_GetAttrString(internalModule, \"Output\");\n"
+      "        if (outputClass != nullptr)\n"
+      "        {\n"
+      "          // Create an instance of the class\n"
+      "          auto* self_arg = PyTuple_Pack(1, self);\n"
+      "          output = PyObject_Call(outputClass, self_arg, kwargs);\n"
+      "          Py_XDECREF(self_arg);\n"
+      "          if (output == nullptr)\n"
+      "          {\n"
+      "            return nullptr;\n"
+      "          }\n"
+      "          Py_DECREF(outputClass);\n"
+      "        }\n"
+      "        else\n"
+      "        {\n"
+      "           return nullptr;\n"
+      "        }\n"
+      "        Py_DECREF(internalModule);\n"
+      "      }\n"
+      "      else\n"
+      "      {\n"
+      "        return nullptr;\n"
+      "      }\n"
+      "    }\n"
+      "    return output;\n"
+      "  }),\n"
+      "  METH_VARARGS|METH_KEYWORDS,\n"
+      "  \"This method updates the pipeline connected to this algorithm\\n\"\n"
+      "  \"and returns an Output object with an output property. This property\\n\"\n"
+      "  \"provides either a single data object (for algorithms with single output\\n\"\n"
+      "  \"or a tuple (for algorithms with multiple outputs).\\n\"\n"
+      "  },\n");
+  }
+
   /* python expects the method table to end with a "nullptr" entry */
   fprintf(fp,
     "  {nullptr, nullptr, 0, nullptr}\n"
@@ -652,7 +705,7 @@ static void vtkWrapPython_CustomMethods(
 static void vtkWrapPython_ReplaceAddObserver(FILE* fp, const char* classname, ClassInfo* data)
 {
   int i;
-  FunctionInfo* theFunc;
+  const FunctionInfo* theFunc;
 
   /* the python vtkObject needs special hooks for observers */
   if (strcmp("vtkObject", classname) == 0)
@@ -767,7 +820,7 @@ static void vtkWrapPython_ReplaceAddObserver(FILE* fp, const char* classname, Cl
 static void vtkWrapPython_ReplaceInvokeEvent(FILE* fp, const char* classname, ClassInfo* data)
 {
   int i;
-  FunctionInfo* theFunc;
+  const FunctionInfo* theFunc;
 
   /* the python vtkObject needs a special InvokeEvent to turn any
      calldata into an appropriately unwrapped void pointer */
@@ -916,8 +969,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "Py%s_GetAddressAsString(PyObject *self, PyObject *args)\n"
       "{\n"
       "  vtkPythonArgs ap(self, args, \"GetAddressAsString\");\n"
-      "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
-      "  %s *op = static_cast<%s *>(vp);\n"
+      "  vtkObjectBase *op = ap.GetSelfPointer(self, args);\n"
       "\n"
       "  const char *temp0;\n"
       "  char tempr[256];\n"
@@ -934,7 +986,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "  return result;\n"
       "}\n"
       "\n",
-      classname, data->Name, data->Name);
+      classname);
 
     /* Override the Register method to check whether to ignore Register */
     fprintf(fp,
@@ -942,8 +994,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "Py%s_Register(PyObject *self, PyObject *args)\n"
       "{\n"
       "  vtkPythonArgs ap(self, args, \"Register\");\n"
-      "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
-      "  %s *op = static_cast<%s *>(vp);\n"
+      "  vtkObjectBase *op = ap.GetSelfPointer(self, args);\n"
       "\n"
       "  vtkObjectBase *temp0 = nullptr;\n"
       "  PyObject *result = nullptr;\n"
@@ -960,7 +1011,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "      }\n"
       "      else\n"
       "      {\n"
-      "        op->%s::Register(temp0);\n"
+      "        op->vtkObjectBase::Register(temp0);\n"
       "      }\n"
       "    }\n"
       "\n"
@@ -973,7 +1024,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "  return result;\n"
       "}\n"
       "\n",
-      classname, data->Name, data->Name, data->Name);
+      classname);
 
     /* Override the UnRegister method to check whether to ignore UnRegister */
     fprintf(fp,
@@ -981,8 +1032,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "Py%s_UnRegister(PyObject *self, PyObject *args)\n"
       "{\n"
       "  vtkPythonArgs ap(self, args, \"UnRegister\");\n"
-      "  vtkObjectBase *vp = ap.GetSelfPointer(self, args);\n"
-      "  %s *op = static_cast<%s *>(vp);\n"
+      "  vtkObjectBase *op = ap.GetSelfPointer(self, args);\n"
       "\n"
       "  vtkObjectBase *temp0 = nullptr;\n"
       "  PyObject *result = nullptr;\n"
@@ -999,7 +1049,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "      }\n"
       "      else\n"
       "      {\n"
-      "        op->%s::UnRegister(temp0);\n"
+      "        op->vtkObjectBase::UnRegister(temp0);\n"
       "      }\n"
       "    }\n"
       "\n"
@@ -1012,7 +1062,7 @@ static void vtkWrapPython_ObjectBaseMethods(FILE* fp, const char* classname, Cla
       "  return result;\n"
       "}\n"
       "\n",
-      classname, data->Name, data->Name, data->Name);
+      classname);
   }
 }
 

@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkModifiedBSPTree.h"
 
@@ -1034,7 +1032,6 @@ void vtkModifiedBSPTree::ShallowCopy(vtkAbstractCellLocator* locator)
   // we only copy what's actually used by vtkModifiedBSPTree
 
   // vtkLocator parameters
-  this->SetDataSet(cellLocator->GetDataSet());
   this->SetUseExistingSearchStructure(cellLocator->GetUseExistingSearchStructure());
   this->SetMaxLevel(cellLocator->GetMaxLevel());
   this->Level = cellLocator->Level;
@@ -1050,6 +1047,7 @@ void vtkModifiedBSPTree::ShallowCopy(vtkAbstractCellLocator* locator)
   this->npn = cellLocator->npn;
   this->nln = cellLocator->nln;
   this->tot_depth = cellLocator->tot_depth;
+  this->BuildTime.Modified();
 }
 
 //------------------------------------------------------------------------------

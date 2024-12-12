@@ -144,6 +144,10 @@ pqIntVectorPropertyWidget::pqIntVectorPropertyWidget(
       vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use a combo-box for a enumerated list.");
       QComboBox* comboBox = new QComboBox(this);
       comboBox->setObjectName("ComboBox");
+      comboBox->setStyleSheet("combobox-popup: 0;");
+      comboBox->setMaxVisibleItems(
+        pqPropertyWidget::hintsWidgetHeightNumberOfRows(smproperty->GetHints()));
+
       new pqComboBoxDomain(comboBox, smproperty, domain);
       pqSignalAdaptorComboBox* adaptor = new pqSignalAdaptorComboBox(comboBox);
       this->addPropertyLink(

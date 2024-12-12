@@ -3,6 +3,7 @@
 
 #include "vtkPolyhedron.h"
 #include "vtkCellArray.h"
+#include "vtkCellArrayIterator.h"
 #include "vtkCellData.h"
 #include "vtkCellLocator.h"
 #include "vtkEdgeTable.h"
@@ -11,6 +12,7 @@
 #include "vtkLine.h"
 #include "vtkMath.h"
 #include "vtkMeanValueCoordinatesInterpolator.h"
+#include "vtkMinimalStandardRandomSequence.h"
 #include "vtkOrderedTriangulator.h"
 #include "vtkPointData.h"
 #include "vtkPointLocator.h"
@@ -130,42 +132,6 @@ typedef std::unordered_set<Edge, hash_fn, equal_fn> EdgeSet;
 typedef vtkIdVectorType Face;
 typedef std::vector<Face> FaceVector;
 
-//// Special class for iterating through polyhedron faces
-////----------------------------------------------------------------------------
-class vtkPolyhedronFaceIterator
-{
-public:
-  vtkIdType CurrentPolygonSize;
-  vtkIdType* Polygon;
-  vtkIdType* Current;
-  vtkIdType NumberOfPolygons;
-  vtkIdType Id;
-
-  vtkPolyhedronFaceIterator(vtkIdType numFaces, vtkIdType* t)
-  {
-    this->CurrentPolygonSize = t[0];
-    this->Polygon = t;
-    this->Current = t + 1;
-    this->NumberOfPolygons = numFaces;
-    this->Id = 0;
-  }
-  vtkIdType* operator++()
-  {
-    this->Current += this->CurrentPolygonSize + 1;
-    this->Polygon = this->Current - 1;
-    this->Id++;
-    if (this->Id < this->NumberOfPolygons)
-    {
-      this->CurrentPolygonSize = this->Polygon[0];
-    }
-    else
-    {
-      this->CurrentPolygonSize = VTK_ID_MAX;
-    }
-    return this->Current;
-  }
-};
-
 //------------------------------------------------------------------------------
 // Construct the hexahedron with eight points.
 vtkPolyhedron::vtkPolyhedron()
@@ -175,9 +141,8 @@ vtkPolyhedron::vtkPolyhedron()
   this->Quad = vtkQuad::New();
   this->Polygon = vtkPolygon::New();
   this->Tetra = vtkTetra::New();
-  this->GlobalFaces = vtkIdTypeArray::New();
-  this->FaceLocations = vtkIdTypeArray::New();
-  this->PointIdMap = new vtkPointIdMap;
+  this->GlobalFaces = vtkCellArray::New();
+  this->LegacyGlobalFaces = vtkIdTypeArray::New();
 
   this->EdgesGenerated = 0;
   this->EdgeTable = vtkEdgeTable::New();
@@ -187,47 +152,34 @@ vtkPolyhedron::vtkPolyhedron()
   this->EdgeFaces->SetNumberOfComponents(2);
 
   this->FacesGenerated = 0;
-  this->Faces = vtkIdTypeArray::New();
+  this->Faces = vtkCellArray::New();
 
   this->BoundsComputed = 0;
 
   this->PolyDataConstructed = 0;
   this->PolyData = vtkPolyData::New();
-  this->Polys = vtkCellArray::New();
   this->LocatorConstructed = 0;
   this->CellLocator = vtkCellLocator::New();
   this->CellIds = vtkIdList::New();
   this->Cell = vtkGenericCell::New();
-
-  this->ValenceAtPoint = nullptr;
+  this->IsRandomSequenceSeedInitialized = false;
 }
 
 //------------------------------------------------------------------------------
 vtkPolyhedron::~vtkPolyhedron()
 {
-  if (this->ValenceAtPoint != nullptr)
-  {
-    delete this->ValenceAtPoint;
-    for (int i = 0; i < this->GetNumberOfPoints(); i++)
-    {
-      delete this->PointToIncidentFaces[i];
-    }
-    delete this->PointToIncidentFaces;
-  }
   this->Line->Delete();
   this->Triangle->Delete();
   this->Quad->Delete();
   this->Polygon->Delete();
   this->Tetra->Delete();
   this->GlobalFaces->Delete();
-  this->FaceLocations->Delete();
-  delete this->PointIdMap;
+  this->LegacyGlobalFaces->Delete();
   this->EdgeTable->Delete();
   this->Edges->Delete();
   this->EdgeFaces->Delete();
   this->Faces->Delete();
   this->PolyData->Delete();
-  this->Polys->Delete();
   this->CellLocator->Delete();
   this->CellIds->Delete();
   this->Cell->Delete();
@@ -259,20 +211,15 @@ void vtkPolyhedron::ConstructPolyData()
   // with the pointers.
   this->GenerateFaces();
 
-  if (this->Faces->GetNumberOfTuples() == 0)
+  if (this->Faces->GetNumberOfCells() == 0)
   {
     return;
   }
 
-  const vtkIdType numCells = *this->Faces->GetPointer(0);
-  const vtkIdType connSize = this->Faces->GetNumberOfValues() - numCells - 1;
-  this->Polys->AllocateExact(numCells, connSize);
-  this->Polys->ImportLegacyFormat(this->Faces->GetPointer(1), this->Faces->GetNumberOfValues() - 1);
-
   // Standard setup
   this->PolyData->Initialize();
   this->PolyData->SetPoints(this->Points);
-  this->PolyData->SetPolys(this->Polys);
+  this->PolyData->SetPolys(this->Faces);
 
   this->PolyDataConstructed = 1;
 }
@@ -331,7 +278,10 @@ void vtkPolyhedron::ComputePositionFromParametricCoordinate(const double pc[3], 
 void vtkPolyhedron::Initialize()
 {
   // Clear out any remaining memory.
-  this->PointIdMap->clear();
+  this->PointIdMap.clear();
+
+  // Clear out any remaining memory.
+  this->PointToIncidentFaces.clear();
 
   // We need to create a reverse map from the point ids to their canonical cell
   // ids. This is a fancy way of saying that we have to be able to rapidly go
@@ -340,7 +290,7 @@ void vtkPolyhedron::Initialize()
   for (i = 0; i < numPointIds; ++i)
   {
     id = this->PointIds->GetId(i);
-    (*this->PointIdMap)[id] = i;
+    this->PointIdMap[id] = i;
   }
 
   // Edges have to be reset
@@ -348,10 +298,9 @@ void vtkPolyhedron::Initialize()
   this->EdgeTable->Reset();
   this->Edges->Reset();
   this->EdgeFaces->Reset();
-  this->Faces->Reset();
 
   // Polys have to be reset
-  this->Polys->Reset();
+  this->Faces->Reset();
 
   // Faces may need renumbering later. This means converting the face ids from
   // global ids to local, canonical ids.
@@ -418,26 +367,27 @@ int vtkPolyhedron::GenerateEdges()
   }
 
   // check the number of faces and return if there aren't any
-  if (this->GlobalFaces->GetNumberOfTuples() == 0 || this->GlobalFaces->GetValue(0) <= 0)
+  if (this->GlobalFaces->GetNumberOfCells() <= 0)
   {
     return 0;
   }
 
-  // Loop over all faces, inserting edges into the table
-  vtkIdType* faces = this->GlobalFaces->GetPointer(0);
-  vtkIdType nfaces = faces[0];
-  vtkIdType* face = faces + 1;
+  vtkNew<vtkIdList> tmpface;
+  vtkIdType nfaces = 0;
+  const vtkIdType* face;
   vtkIdType fid, i, edge[2], npts, edgeFaces[2], edgeId;
   edgeFaces[1] = -1;
 
+  // Loop over all faces, inserting edges into the table
   this->EdgeTable->InitEdgeInsertion(this->Points->GetNumberOfPoints(), 1);
+  nfaces = this->GlobalFaces->GetNumberOfCells();
   for (fid = 0; fid < nfaces; ++fid)
   {
-    npts = face[0];
-    for (i = 1; i <= npts; ++i)
+    this->GlobalFaces->GetCellAtId(fid, npts, face, tmpface);
+    for (i = 0; i < npts; ++i)
     {
-      edge[0] = (*this->PointIdMap)[face[i]];
-      edge[1] = (*this->PointIdMap)[(i != npts ? face[i + 1] : face[1])];
+      edge[0] = this->PointIdMap[face[i]];
+      edge[1] = this->PointIdMap[((i + 1) != npts ? face[i + 1] : face[0])];
       edgeFaces[0] = fid;
       if ((edgeId = this->EdgeTable->IsEdge(edge[0], edge[1])) == (-1))
       {
@@ -450,7 +400,6 @@ int vtkPolyhedron::GenerateEdges()
         this->EdgeFaces->SetComponent(edgeId, 1, fid);
       }
     }
-    face += face[0] + 1;
   } // for all faces
 
   // Okay all done
@@ -467,12 +416,12 @@ int vtkPolyhedron::GetNumberOfFaces()
     this->GenerateFaces();
   }
 
-  if (this->GlobalFaces->GetNumberOfTuples() == 0)
+  if (this->GlobalFaces->GetNumberOfCells() == 0)
   {
     return 0;
   }
 
-  return static_cast<int>(this->GlobalFaces->GetValue(0));
+  return static_cast<int>(this->GlobalFaces->GetNumberOfCells());
 }
 
 //------------------------------------------------------------------------------
@@ -483,35 +432,32 @@ void vtkPolyhedron::GenerateFaces()
     return;
   }
 
-  if (this->GlobalFaces->GetNumberOfTuples() == 0)
+  if (this->GlobalFaces->GetNumberOfCells() == 0)
   {
     return;
   }
 
   // Basically we just run through the faces and change the global ids to the
   // canonical ids using the PointIdMap.
-  this->Faces->SetNumberOfTuples(this->GlobalFaces->GetNumberOfTuples());
-  vtkIdType* gFaces = this->GlobalFaces->GetPointer(0);
-  vtkIdType* faces = this->Faces->GetPointer(0);
-  vtkIdType nfaces = gFaces[0];
-  faces[0] = nfaces;
-  vtkIdType* gFace = gFaces + 1;
-  vtkIdType* face = faces + 1;
-  vtkIdType fid, i, id, npts;
+  this->Faces->DeepCopy(this->GlobalFaces);
+  vtkIdType numConn = this->Faces->GetNumberOfConnectivityIds();
 
-  for (fid = 0; fid < nfaces; ++fid)
+  if (this->Faces->IsStorage64Bit())
   {
-    npts = gFace[0];
-    face[0] = npts;
-    for (i = 1; i <= npts; ++i)
+    vtkTypeInt64* c = this->Faces->GetConnectivityArray64()->GetPointer(0);
+    for (vtkIdType id = 0; id < numConn; ++id)
     {
-      id = (*this->PointIdMap)[gFace[i]];
-      face[i] = id;
+      c[id] = this->PointIdMap[c[id]];
     }
-    gFace += gFace[0] + 1;
-    face += face[0] + 1;
-  } // for all faces
-
+  }
+  else
+  {
+    vtkTypeInt32* c = this->Faces->GetConnectivityArray32()->GetPointer(0);
+    for (vtkIdType id = 0; id < numConn; ++id)
+    {
+      c[id] = this->PointIdMap[c[id]];
+    }
+  }
   // Okay we've done the deed
   this->FacesGenerated = 1;
 }
@@ -519,7 +465,7 @@ void vtkPolyhedron::GenerateFaces()
 //------------------------------------------------------------------------------
 vtkCell* vtkPolyhedron::GetFace(int faceId)
 {
-  if (faceId < 0 || faceId >= this->GlobalFaces->GetValue(0))
+  if (faceId < 0 || faceId >= this->GlobalFaces->GetNumberOfCells())
   {
     return nullptr;
   }
@@ -527,17 +473,17 @@ vtkCell* vtkPolyhedron::GetFace(int faceId)
   this->GenerateFaces();
 
   // Okay load up the polygon
-  vtkIdType i, p, loc = this->FaceLocations->GetValue(faceId);
-  vtkIdType* face = this->GlobalFaces->GetPointer(loc);
+  vtkIdType i, p, numPts = 0;
 
-  this->Polygon->PointIds->SetNumberOfIds(face[0]);
-  this->Polygon->Points->SetNumberOfPoints(face[0]);
+  numPts = this->GlobalFaces->GetCellSize(faceId);
+  this->GlobalFaces->GetCellAtId(faceId, this->Polygon->PointIds);
+  this->Polygon->Points->SetNumberOfPoints(numPts);
 
   // grab faces in global id space
-  for (i = 0; i < face[0]; ++i)
+  for (i = 0; i < numPts; ++i)
   {
-    this->Polygon->PointIds->SetId(i, face[i + 1]);
-    p = (*this->PointIdMap)[face[i + 1]];
+    vtkIdType pid = this->Polygon->PointIds->GetId(i);
+    p = this->PointIdMap[pid];
     this->Polygon->Points->SetPoint(i, this->Points->GetPoint(p));
   }
 
@@ -550,7 +496,6 @@ void vtkPolyhedron::SetFaces(vtkIdType* faces)
 {
   // Set up face structure
   this->GlobalFaces->Reset();
-  this->FaceLocations->Reset();
 
   if (!faces)
   {
@@ -558,38 +503,77 @@ void vtkPolyhedron::SetFaces(vtkIdType* faces)
   }
 
   vtkIdType nfaces = faces[0];
-  this->FaceLocations->SetNumberOfValues(nfaces);
-
-  this->GlobalFaces->InsertNextValue(nfaces);
+  this->GlobalFaces->Allocate(nfaces);
   vtkIdType* face = faces + 1;
   vtkIdType faceLoc = 1;
-  vtkIdType i, fid, npts;
+  vtkIdType fid;
 
   for (fid = 0; fid < nfaces; ++fid)
   {
-    npts = face[0];
-    this->GlobalFaces->InsertNextValue(npts);
-    for (i = 1; i <= npts; ++i)
-    {
-      this->GlobalFaces->InsertNextValue(face[i]);
-    }
-    this->FaceLocations->SetValue(fid, faceLoc);
-
+    this->GlobalFaces->InsertNextCell(face[0], &face[1]);
     faceLoc += face[0] + 1;
     face = faces + faceLoc;
   } // for all faces
 }
 
 //------------------------------------------------------------------------------
+// Specify the faces for this cell from a vtkCellArray definition.
+int vtkPolyhedron::SetCellFaces(vtkCellArray* faces)
+{
+  // Set up face structure
+  this->GlobalFaces->Reset();
+
+  if (!faces)
+  {
+    return 0;
+  }
+  if (faces->GetNumberOfCells() < 1)
+  {
+    return 0;
+  }
+  this->GlobalFaces->DeepCopy(faces);
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
 // Return the list of faces for this cell.
 vtkIdType* vtkPolyhedron::GetFaces()
 {
-  if (!this->GlobalFaces->GetNumberOfTuples())
+  if (!this->GlobalFaces->GetNumberOfCells())
   {
     return nullptr;
   }
 
-  return this->GlobalFaces->GetPointer(0);
+  vtkNew<vtkIdTypeArray> tmpFaces;
+  this->GlobalFaces->ExportLegacyFormat(tmpFaces);
+
+  this->LegacyGlobalFaces->Reset();
+  this->LegacyGlobalFaces->InsertNextValue(this->GlobalFaces->GetNumberOfCells());
+  this->LegacyGlobalFaces->InsertTuples(1, tmpFaces->GetNumberOfValues(), 0, tmpFaces);
+
+  return this->LegacyGlobalFaces->GetPointer(0);
+}
+
+vtkCellArray* vtkPolyhedron::GetCellFaces()
+{
+  return this->GlobalFaces;
+}
+
+void vtkPolyhedron::GetCellFaces(vtkCellArray* faces)
+{
+  if (!faces)
+  {
+    vtkGenericWarningMacro(<< "Unexpected nullptr provided to GetCellFaces.");
+    return;
+  }
+  if (!this->GlobalFaces->GetNumberOfCells())
+  {
+    faces->Reset();
+    return;
+  }
+
+  faces->DeepCopy(this->GlobalFaces);
 }
 
 //------------------------------------------------------------------------------
@@ -600,8 +584,7 @@ int vtkPolyhedron::IntersectWithLine(const double p1[3], const double p2[3], dou
   this->GenerateFaces();
 
   // Loop over all the faces, intersecting them in turn.
-  vtkIdType* face = this->Faces->GetPointer(0);
-  vtkIdType nfaces = *face++;
+  vtkIdType nfaces = this->Faces->GetNumberOfCells();
   vtkIdType npts, i, fid, numHits = 0;
   double t = VTK_FLOAT_MAX;
   double x[3];
@@ -609,33 +592,34 @@ int vtkPolyhedron::IntersectWithLine(const double p1[3], const double p2[3], dou
   tMin = VTK_FLOAT_MAX;
   for (fid = 0; fid < nfaces; ++fid)
   {
-    npts = face[0];
+    npts = this->Faces->GetCellSize(fid);
     vtkIdType hit = 0;
     switch (npts)
     {
       case 3: // triangle
+        this->Faces->GetCellAtId(fid, this->Triangle->PointIds);
         for (i = 0; i < 3; i++)
         {
-          this->Triangle->Points->SetPoint(i, this->Points->GetPoint(face[i + 1]));
-          this->Triangle->PointIds->SetId(i, face[i + 1]);
+          this->Triangle->Points->SetPoint(
+            i, this->Points->GetPoint(this->Triangle->PointIds->GetId(i)));
         }
         hit = this->Triangle->IntersectWithLine(p1, p2, tol, t, x, pc, subId);
         break;
       case 4: // quad
+        this->Faces->GetCellAtId(fid, this->Quad->PointIds);
         for (i = 0; i < 4; i++)
         {
-          this->Quad->Points->SetPoint(i, this->Points->GetPoint(face[i + 1]));
-          this->Quad->PointIds->SetId(i, face[i + 1]);
+          this->Quad->Points->SetPoint(i, this->Points->GetPoint(this->Quad->PointIds->GetId(i)));
         }
         hit = this->Quad->IntersectWithLine(p1, p2, tol, t, x, pc, subId);
         break;
       default: // general polygon
+        this->Faces->GetCellAtId(fid, this->Polygon->PointIds);
         this->Polygon->GetPoints()->SetNumberOfPoints(npts);
-        this->Polygon->GetPointIds()->SetNumberOfIds(npts);
         for (i = 0; i < npts; i++)
         {
-          this->Polygon->Points->SetPoint(i, this->Points->GetPoint(face[i + 1]));
-          this->Polygon->PointIds->SetId(i, face[i + 1]);
+          this->Polygon->Points->SetPoint(
+            i, this->Points->GetPoint(this->Polygon->PointIds->GetId(i)));
         }
         hit = this->Polygon->IntersectWithLine(p1, p2, tol, t, x, pc, subId);
         break;
@@ -653,8 +637,6 @@ int vtkPolyhedron::IntersectWithLine(const double p1[3], const double p2[3], dou
         xMin[2] = x[2];
       }
     }
-
-    face += face[0] + 1;
   } // for all faces
 
   // Compute parametric coordinates
@@ -670,6 +652,12 @@ static const int VTK_VOTE_THRESHOLD = 3;
 // Shoot random rays and count the number of intersections
 int vtkPolyhedron::IsInside(const double x[3], double tolerance)
 {
+  if (!this->IsRandomSequenceSeedInitialized)
+  {
+    this->RandomSequence->SetSeed(std::time(nullptr));
+    this->IsRandomSequenceSeedInitialized = true;
+  }
+
   // do a quick bounds check
   this->ComputeBounds();
   double* bounds = this->Bounds;
@@ -685,8 +673,7 @@ int vtkPolyhedron::IsInside(const double x[3], double tolerance)
   // This algorithm is adaptive; if there are enough faces in this
   // polyhedron, a cell locator is built to accelerate intersections.
   // Otherwise brute force looping over cells is used.
-  vtkIdType* faceArray = this->Faces->GetPointer(0);
-  vtkIdType nfaces = *faceArray++;
+  vtkIdType nfaces = this->Faces->GetNumberOfCells();
   if (nfaces > 25)
   {
     this->ConstructLocator();
@@ -721,7 +708,7 @@ int vtkPolyhedron::IsInside(const double x[3], double tolerance)
     {
       for (i = 0; i < 3; i++)
       {
-        ray[i] = vtkMath::Random(-1.0, 1.0);
+        ray[i] = this->RandomSequence->GetNextRangeValue(-1.0, 1.0);
       }
       rayMag = vtkMath::Norm(ray);
     } while (rayMag == 0.0);
@@ -823,7 +810,10 @@ bool vtkPolyhedron::IsConvex()
 {
   double x[2][3], n[3], c[3], c0[3], c1[3], c0p[3], c1p[3], n0[3], n1[3];
   double np[3], tmp0, tmp1;
-  vtkIdType i, w[2], edgeId, edgeFaces[2], loc, v, *face, r = 0;
+  vtkIdType i, w[2], edgeId, edgeFaces[2], v, r = 0;
+  vtkIdType numPts;
+  vtkNew<vtkIdList> face_tmp;
+  const vtkIdType* face;
   const double eps = FLT_EPSILON;
 
   std::vector<double> p(this->PointIds->GetNumberOfIds());
@@ -847,20 +837,18 @@ bool vtkPolyhedron::IsConvex()
     this->EdgeFaces->GetTypedTuple(edgeId, edgeFaces);
 
     // get the face vertex ids for the first face
-    loc = this->FaceLocations->GetValue(edgeFaces[0]);
-    face = this->Faces->GetPointer(loc);
+    this->Faces->GetCellAtId(edgeFaces[0], numPts, face, face_tmp);
 
     // compute the centroid and normal for the first face
-    vtkPolygon::ComputeCentroid(this->Points, face[0], face + 1, c0);
-    vtkPolygon::ComputeNormal(this->Points, face[0], face + 1, n0);
+    vtkPolygon::ComputeCentroid(this->Points, numPts, face, c0);
+    vtkPolygon::ComputeNormal(this->Points, numPts, face, n0);
 
     // get the face vertex ids for the second face
-    loc = this->FaceLocations->GetValue(edgeFaces[1]);
-    face = this->Faces->GetPointer(loc);
+    this->Faces->GetCellAtId(edgeFaces[1], numPts, face, face_tmp);
 
     // compute the centroid and normal for the second face
-    vtkPolygon::ComputeCentroid(this->Points, face[0], face + 1, c1);
-    vtkPolygon::ComputeNormal(this->Points, face[0], face + 1, n1);
+    vtkPolygon::ComputeCentroid(this->Points, numPts, face, c1);
+    vtkPolygon::ComputeNormal(this->Points, numPts, face, n1);
 
     // check for local convexity (the average of the two centroids must be
     // "below" both faces, as defined by their outward normals).
@@ -920,7 +908,9 @@ bool vtkPolyhedron::IsConvex()
 
     // 3. We get the z component of the normal of the highest face
     //    If this is null, the face is in the vertical plane
-    tmp0 = c0[2] > c1[2] ? n0[2] : n1[2];
+    tmp0 =
+      ((c0p[2] - vtkMath::Dot(c0p, n) * n[2]) > (c1p[2] - vtkMath::Dot(c1p, n) * n[2]) ? n0[2]
+                                                                                       : n1[2]);
     if (std::abs(tmp0) < eps)
     {
       continue;
@@ -979,25 +969,30 @@ int vtkPolyhedron::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], 
   double x[3], n[3], o[3], v[3];
   double dist, minDist = VTK_DOUBLE_MAX;
   vtkIdType numFacePts = -1;
-  vtkIdType* facePts = nullptr;
+  vtkIdType nfaces, minFaceId = 0;
+  const vtkIdType* facePts = nullptr;
+  vtkNew<vtkIdList> pts_tmp;
 
   // compute coordinates
   this->ComputePositionFromParametricCoordinate(pcoords, x);
 
-  vtkPolyhedronFaceIterator faceIter(this->GetNumberOfFaces(), this->Faces->GetPointer(1));
-  while (faceIter.Id < faceIter.NumberOfPolygons)
+  nfaces = this->Faces->GetNumberOfCells();
+  for (vtkIdType fid = 0; fid < nfaces; ++fid)
   {
-    if (faceIter.CurrentPolygonSize < 3)
+    vtkIdType npts;
+    const vtkIdType* ptsIds;
+    this->Faces->GetCellAtId(fid, npts, ptsIds, pts_tmp);
+
+    if (npts < 3)
     {
       vtkErrorMacro("Find a face with "
-        << faceIter.CurrentPolygonSize
-        << " vertices. Cannot return CellBoundary due to this degenerate case.");
+        << npts << " vertices. Cannot return CellBoundary due to this degenerate case.");
       break;
     }
 
-    vtkPolygon::ComputeNormal(this->Points, faceIter.CurrentPolygonSize, faceIter.Current, n);
+    vtkPolygon::ComputeNormal(this->Points, npts, ptsIds, n);
     vtkMath::Normalize(n);
-    this->Points->GetPoint(faceIter.Current[0], o);
+    this->Points->GetPoint(ptsIds[0], o);
     v[0] = x[0] - o[0];
     v[1] = x[1] - o[1];
     v[2] = x[2] - o[2];
@@ -1005,16 +1000,15 @@ int vtkPolyhedron::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], 
     if (dist < minDist)
     {
       minDist = dist;
-      numFacePts = faceIter.CurrentPolygonSize;
-      facePts = faceIter.Current;
+      numFacePts = npts;
+      minFaceId = fid;
     }
-
-    ++faceIter;
   }
 
   pts->Reset();
   if (numFacePts > 0)
   {
+    this->Faces->GetCellAtId(minFaceId, numFacePts, facePts, pts_tmp);
     for (vtkIdType i = 0; i < numFacePts; i++)
     {
       pts->InsertNextId(this->PointIds->GetId(facePts[i]));
@@ -1042,7 +1036,7 @@ int vtkPolyhedron::EvaluatePosition(const double x[3], double closestPoint[3],
   this->ComputeParametricCoordinate(x, pcoords);
 
   // construct polydata, the result is stored in this->PolyData,
-  // the cell array is stored in this->Polys
+  // the cell array is stored in this->Faces
   this->ConstructPolyData();
 
   // Construct cell locator
@@ -1180,7 +1174,7 @@ double* vtkPolyhedron::GetParametricCoords()
 void vtkPolyhedron::InterpolateFunctions(const double x[3], double* sf)
 {
   // construct polydata, the result is stored in this->PolyData,
-  // the cell array is stored in this->Polys
+  // the cell array is stored in this>Faces
   this->ConstructPolyData();
 
   // compute the weights
@@ -1189,7 +1183,7 @@ void vtkPolyhedron::InterpolateFunctions(const double x[3], double* sf)
     return;
   }
   vtkMeanValueCoordinatesInterpolator::ComputeInterpolationWeights(
-    x, this->PolyData->GetPoints(), this->Polys, sf);
+    x, this->PolyData->GetPoints(), this->Faces, sf);
 }
 
 //------------------------------------------------------------------------------
@@ -1277,11 +1271,52 @@ int vtkPolyhedron::TriangulateFaces(vtkIdList* newFaces)
 }
 
 //------------------------------------------------------------------------------
-void vtkPolyhedron::GeneratePointToIncidentFacesAndValenceAtPoint()
+int vtkPolyhedron::TriangulateFaces(vtkCellArray* newFaces)
+{
+  newFaces->Initialize();
+
+  for (vtkIdType faceId = 0; faceId < this->GetNumberOfFaces(); ++faceId)
+  {
+    vtkCell* face = this->GetFace(faceId);
+    if (!face)
+    {
+      vtkErrorMacro("Unable to retrieve the face !");
+      return 0;
+    }
+
+    vtkNew<vtkIdList> ptIds;
+
+    // Triangulate the face
+    // - Triangle : returns the triangle
+    // - Quad : adds the "shortest" diagonal
+    // - Polygon : uses "EarCut" triangulation
+    face->TriangulateIds(0, ptIds);
+
+    // Allocate space for the new triangles
+    newFaces->GetConnectivityArray()->Resize(
+      newFaces->GetNumberOfConnectivityIds() + ptIds->GetNumberOfIds());
+
+    // Insert triangles from triangulation
+    const auto nbOfTriangles = ptIds->GetNumberOfIds() / 3;
+    for (vtkIdType i = 0; i < nbOfTriangles; i++)
+    {
+      newFaces->InsertNextCell(3); // Number of points
+      for (vtkIdType j = 0; j < 3; j++)
+      {
+        newFaces->InsertCellPoint(ptIds->GetId(3 * i + j));
+      }
+    }
+  }
+
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+void vtkPolyhedron::GeneratePointToIncidentFaces()
 {
   // Allocate memory
-  this->PointToIncidentFaces = new vtkIdType*[this->GetNumberOfPoints()];
-  this->ValenceAtPoint = new vtkIdType[this->GetNumberOfPoints()];
+  this->PointToIncidentFaces.clear();
+  this->PointToIncidentFaces.resize(this->GetNumberOfPoints());
   // Add the faces that hold each cell local point id
   std::vector<std::set<vtkIdType>> setFacesOfPoint(this->GetNumberOfPoints());
   for (int faceIndex = 0; faceIndex < this->GetNumberOfFaces(); faceIndex++)
@@ -1293,16 +1328,15 @@ void vtkPolyhedron::GeneratePointToIncidentFacesAndValenceAtPoint()
       // Get the global id of the point of the face
       auto pointId = face->GetPointId(pointIndexFace);
       // Transform the global id of the point of the face to the local id of the point in the cell
-      auto pointCellLocalId = (*this->PointIdMap)[pointId];
+      auto pointCellLocalId = this->PointIdMap[pointId];
       // Insert this face in the set
       setFacesOfPoint[pointCellLocalId].insert(faceIndex);
     }
   }
-  // Fill in ValenceAtPoint and PointToIncidentFaces using the set data
+  // Fill in PointToIncidentFaces using the set data
   for (int pointIndex = 0; pointIndex < this->GetNumberOfPoints(); pointIndex++)
   {
-    this->ValenceAtPoint[pointIndex] = static_cast<vtkIdType>(setFacesOfPoint[pointIndex].size());
-    this->PointToIncidentFaces[pointIndex] = new vtkIdType[ValenceAtPoint[pointIndex]];
+    this->PointToIncidentFaces[pointIndex].resize(setFacesOfPoint[pointIndex].size());
     int indexInsert = 0;
     for (auto faceId : setFacesOfPoint[pointIndex])
     {
@@ -1315,16 +1349,17 @@ void vtkPolyhedron::GeneratePointToIncidentFacesAndValenceAtPoint()
 vtkIdType vtkPolyhedron::GetPointToIncidentFaces(vtkIdType pointId, const vtkIdType*& faceIds)
 {
   assert(pointId < this->GetNumberOfPoints() && "pointId too large");
-  if (this->ValenceAtPoint == nullptr)
+  if (this->PointToIncidentFaces.empty())
   {
-    this->GeneratePointToIncidentFacesAndValenceAtPoint();
+    this->GeneratePointToIncidentFaces();
   }
-  faceIds = this->PointToIncidentFaces[pointId];
-  return this->ValenceAtPoint[pointId];
+  const auto& pointFaces = this->PointToIncidentFaces[pointId];
+  faceIds = pointFaces.data();
+  return static_cast<vtkIdType>(pointFaces.size());
 }
 
 bool IntersectWithContour(vtkCell* cell, vtkDataArray* pointScalars,
-  vtkPolyhedron::vtkPointIdMap* pointIdMap, double value,
+  vtkPolyhedron::vtkPointIdMap& pointIdMap, double value,
   std::function<bool(double, double)>& compare, bool& allTrue)
 {
   allTrue = true;
@@ -1334,7 +1369,7 @@ bool IntersectWithContour(vtkCell* cell, vtkDataArray* pointScalars,
   for (int i = 0; i < nPoints; ++i)
   {
     vtkIdType globalPid = cell->GetPointId(i);
-    vtkIdType localPid = pointIdMap->find(globalPid)->second;
+    vtkIdType localPid = pointIdMap.find(globalPid)->second;
 
     double pointValue = pointScalars->GetTuple1(localPid);
 
@@ -1547,15 +1582,15 @@ int TriangulatePolygonAt(vtkCell* polygon, int offset, vtkIdList* triIds)
 }
 
 void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints,
-  const vtkPolyhedron::vtkPointIdMap* pointIdMap, double& minAngle, double& maxAngle)
+  const vtkPolyhedron::vtkPointIdMap& pointIdMap, double& minAngle, double& maxAngle)
 {
   vtkIdType idx0 = tri[0];
   vtkIdType idx1 = tri[1];
   vtkIdType idx2 = tri[2];
 
-  idx0 = pointIdMap->find(idx0)->second;
-  idx1 = pointIdMap->find(idx1)->second;
-  idx2 = pointIdMap->find(idx2)->second;
+  idx0 = pointIdMap.find(idx0)->second;
+  idx1 = pointIdMap.find(idx1)->second;
+  idx2 = pointIdMap.find(idx2)->second;
 
   double p[9];
   phPoints->GetPoint(idx0, p + 0);
@@ -1595,7 +1630,7 @@ void CalculateAngles(const vtkIdType* tri, vtkPoints* phPoints,
 }
 
 void TriangulatePolygon(vtkCell* polygon, FaceVector& faces, vtkIdList* triIds, vtkPoints* phPoints,
-  vtkPolyhedron::vtkPointIdMap* pointIdMap)
+  const vtkPolyhedron::vtkPointIdMap& pointIdMap)
 {
   // attempt a fan triangulation for each point on the polygon and choose the
   // fan triangulation with the lowest range in internal angles differing from 60 degrees
@@ -1641,7 +1676,7 @@ void TriangulatePolygon(vtkCell* polygon, FaceVector& faces, vtkIdList* triIds, 
 }
 
 void TriangulateFace(vtkCell* face, FaceVector& faces, vtkIdList* triIds, vtkPoints* phPoints,
-  vtkPolyhedron::vtkPointIdMap* pointIdMap)
+  const vtkPolyhedron::vtkPointIdMap& pointIdMap)
 {
   switch (face->GetCellType())
   {
@@ -1685,7 +1720,7 @@ bool CheckNonManifoldTriangulation(EdgeFaceSetMap& edgeFaceMap)
 }
 
 bool GetContourPoints(double value, vtkPolyhedron* cell,
-  vtkPolyhedron::vtkPointIdMap* pointIdMap, // from global id to local cell id
+  const vtkPolyhedron::vtkPointIdMap& pointIdMap, // from global id to local cell id
   FaceEdgesVector& faceEdgesVector, EdgeFaceSetMap& edgeFaceMap, EdgeSet& originalEdges,
   std::vector<std::vector<vtkIdType>>& oririginalFaceTriFaceMap,
   PointIndexEdgeMultiMap& contourPointEdgeMultiMap, EdgePointIndexMap& edgeContourPointMap,
@@ -1779,9 +1814,9 @@ bool GetContourPoints(double value, vtkPolyhedron* cell,
 
     // here we need to convert the global ids of the edge to
     // local ids to find the points and the point scalars.
-    auto at0 = pointIdMap->find(edge.first);
-    auto at1 = pointIdMap->find(edge.second);
-    if (at0 == pointIdMap->end() || at1 == pointIdMap->end())
+    auto at0 = pointIdMap.find(edge.first);
+    auto at1 = pointIdMap.find(edge.second);
+    if (at0 == pointIdMap.end() || at1 == pointIdMap.end())
     {
       vtkGenericWarningMacro(<< "Could not find global id " << edge.first << " or " << edge.second);
       continue;
@@ -2352,8 +2387,8 @@ void vtkPolyhedron::Clip(double value, vtkDataArray* pointScalars,
     {
       const Edge& edge = *edgeIt;
       vtkIdType v0 = edge.first;
-      auto localIdIt = this->PointIdMap->find(v0);
-      if (localIdIt == this->PointIdMap->end())
+      auto localIdIt = this->PointIdMap.find(v0);
+      if (localIdIt == this->PointIdMap.end())
       {
         vtkGenericWarningMacro(<< "Could not find global id " << v0);
         continue;
@@ -2503,6 +2538,32 @@ void vtkPolyhedron::Clip(double value, vtkDataArray* pointScalars,
       // we've added a cell, so add cell data too
       outCd->CopyData(inCd, cellId, newCellId);
     }
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkPolyhedron::ShallowCopy(vtkCell* c)
+{
+  this->Superclass::ShallowCopy(c);
+
+  vtkPolyhedron* cell = vtkPolyhedron::SafeDownCast(c);
+  if (cell)
+  {
+    this->GlobalFaces->ShallowCopy(cell->GlobalFaces);
+    this->Initialize();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkPolyhedron::DeepCopy(vtkCell* c)
+{
+  this->Superclass::DeepCopy(c);
+
+  vtkPolyhedron* cell = vtkPolyhedron::SafeDownCast(c);
+  if (cell)
+  {
+    this->GlobalFaces->DeepCopy(cell->GlobalFaces);
+    this->Initialize();
   }
 }
 

@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_2_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkGeometryFilter.h"
 
@@ -45,7 +43,6 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkGeometryFilter);
-vtkCxxSetObjectMacro(vtkGeometryFilter, Locator, vtkIncrementalPointLocator);
 
 static constexpr unsigned char MASKED_CELL_VALUE = vtkDataSetAttributes::HIDDENCELL |
   vtkDataSetAttributes::DUPLICATECELL | vtkDataSetAttributes::REFINEDCELL;
@@ -104,7 +101,6 @@ vtkGeometryFilter::vtkGeometryFilter()
 //------------------------------------------------------------------------------
 vtkGeometryFilter::~vtkGeometryFilter()
 {
-  this->SetLocator(nullptr);
   this->SetOriginalCellIdsName(nullptr);
   this->SetOriginalPointIdsName(nullptr);
 }
@@ -238,10 +234,6 @@ int vtkGeometryFilter::RequestData(vtkInformation* vtkNotUsed(request),
 }
 
 //------------------------------------------------------------------------------
-// Specify a spatial locator for merging points. This method is now deprecated.
-void vtkGeometryFilter::CreateDefaultLocator() {}
-
-//------------------------------------------------------------------------------
 void vtkGeometryFilter::SetExcludedFacesData(vtkPolyData* input)
 {
   this->Superclass::SetInputData(1, input);
@@ -370,7 +362,7 @@ public:
         // checking all points
         if (this->NumberOfPoints > 1 && this->PointIds[1] == other.PointIds[1])
         {
-          for (auto i = 2; i < this->NumberOfPoints; ++i)
+          for (int i = 2; i < this->NumberOfPoints; ++i)
           {
             if (this->PointIds[i] != other.PointIds[i])
             {
@@ -381,7 +373,7 @@ public:
         else
         {
           // check if the points go in the opposite direction
-          for (auto i = 1; i < this->NumberOfPoints; ++i)
+          for (int i = 1; i < this->NumberOfPoints; ++i)
           {
             if (this->PointIds[this->NumberOfPoints - i] != other.PointIds[i])
             {
@@ -683,7 +675,7 @@ public:
     }
     else if (this->PointGhost)
     {
-      for (auto i = 0; i < npts; ++i)
+      for (TGivenIds i = 0; i < npts; ++i)
       {
         if (this->PointGhost[pts[i]] & MASKED_POINT_VALUE)
         {
@@ -696,14 +688,14 @@ public:
     this->Cells.emplace_back(npts);
     if (!this->PointMap)
     {
-      for (auto i = 0; i < npts; ++i)
+      for (TGivenIds i = 0; i < npts; ++i)
       {
         this->Cells.emplace_back(static_cast<TInputIdType>(pts[i]));
       }
     }
     else
     {
-      for (auto i = 0; i < npts; ++i)
+      for (TGivenIds i = 0; i < npts; ++i)
       {
         this->Cells.emplace_back(static_cast<TInputIdType>(pts[i]));
         this->PointMap[pts[i]] = 1;
@@ -988,7 +980,7 @@ void ExtractDSCellGeometry(
 
       case 3:
         int numFaces = cell->GetNumberOfFaces();
-        for (auto j = 0; j < numFaces; j++)
+        for (int j = 0; j < numFaces; j++)
         {
           vtkCell* face = cell->GetFace(j);
           input->GetCellNeighbors(cellId, face->PointIds, cellIds);
@@ -2089,7 +2081,7 @@ struct GeneratePtsWorker
     // The PointMap has been marked as to which points are being used.
     // This needs to be updated to indicate the output point ids.
     TInputIdType* ptMap = extract->PointMap;
-    for (auto ptId = 0; ptId < numInputPts; ++ptId)
+    for (vtkIdType ptId = 0; ptId < numInputPts; ++ptId)
     {
       if (ptMap[ptId] == 1)
       {
@@ -2258,11 +2250,11 @@ struct CompositeCells
     // produce new points nor point data.
     if (!this->PointMap)
     {
-      for (auto cellId = 0; cellId < numCells; ++cellId)
+      for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
       {
         *offsetPtr++ = static_cast<TOutputIdType>(offsetVal);
         TInputIdType npts = *cells++;
-        for (auto i = 0; i < npts; ++i)
+        for (TInputIdType i = 0; i < npts; ++i)
         {
           *connPtr++ = static_cast<TOutputIdType>(*cells++);
         }
@@ -2272,11 +2264,11 @@ struct CompositeCells
     }
     else // Merging - i.e., using a point map
     {
-      for (auto cellId = 0; cellId < numCells; ++cellId)
+      for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
       {
         *offsetPtr++ = static_cast<TOutputIdType>(offsetVal);
         TInputIdType npts = *cells++;
-        for (auto i = 0; i < npts; ++i)
+        for (TInputIdType i = 0; i < npts; ++i)
         {
           *connPtr++ = static_cast<TOutputIdType>(this->PointMap[*cells++]);
         }
@@ -2357,7 +2349,7 @@ struct CompositeCellIds
     vtkIdType numCells = cat->GetNumberOfCells();
     vtkIdType globalCellId = cellIdOffset + offset;
 
-    for (auto cellId = 0; cellId < numCells; ++cellId)
+    for (vtkIdType cellId = 0; cellId < numCells; ++cellId)
     {
       this->OrigIds[globalCellId++] = cat->OrigCellIds[cellId];
     }
@@ -2732,7 +2724,7 @@ struct CharacterizeGrid
     std::fill(this->CellTypesInfo.begin(), this->CellTypesInfo.end(), false);
     for (const auto& cellTypesInfo : this->TLCellTypesInfo)
     {
-      for (auto i = 0; i < CellType::NUM_CELL_TYPES; ++i)
+      for (int i = 0; i < CellType::NUM_CELL_TYPES; ++i)
       {
         if (cellTypesInfo[i] && !this->CellTypesInfo[i])
         {

@@ -34,6 +34,9 @@ vtk_add_flag(-wd4251 CXX)
 vtk_add_flag(-EHsc CXX)
 
 if (VTK_ENABLE_EXTRA_BUILD_WARNINGS_EVERYTHING)
+  set(langs C)
+  vtk_add_flag(-Wno-pre-c11-compat ${langs})
+
   set(langs C CXX)
   vtk_add_flag(-Weverything ${langs})
 
@@ -67,11 +70,23 @@ if (VTK_ENABLE_EXTRA_BUILD_WARNINGS_EVERYTHING)
   vtk_add_flag(-Wno-sign-conversion ${langs})
   vtk_add_flag(-Wno-strict-prototypes ${langs})
   vtk_add_flag(-Wno-switch-enum ${langs})
+  vtk_add_flag(-Wno-switch-default ${langs})
   vtk_add_flag(-Wno-undef ${langs})
   vtk_add_flag(-Wno-unused-macros ${langs})
   vtk_add_flag(-Wno-vla ${langs})
   vtk_add_flag(-Wno-vla-extension ${langs})
   vtk_add_flag(-Wno-unsafe-buffer-usage ${langs})
+
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    if (VTK_WEBASSEMBLY_THREADS)
+      # Remove after https://github.com/WebAssembly/design/issues/1271 is closed
+      vtk_add_flag(-Wno-pthreads-mem-growth ${langs})
+    endif ()
+    if (VTK_WEBASSEMBLY_64_BIT)
+      # Remove after wasm64 is no longer experimental in clang.
+      vtk_add_flag(-Wno-experimental ${langs})
+    endif ()
+  endif ()
 
   set(langs CXX)
   vtk_add_flag(-Wno-c++98-compat-pedantic ${langs})
@@ -79,6 +94,7 @@ if (VTK_ENABLE_EXTRA_BUILD_WARNINGS_EVERYTHING)
   vtk_add_flag(-Wno-old-style-cast ${langs})
   vtk_add_flag(-Wno-return-std-move-in-c++11 ${langs})
   vtk_add_flag(-Wno-signed-enum-bitfield ${langs})
+  vtk_add_flag(-Wno-switch-default ${langs})
   vtk_add_flag(-Wno-undefined-func-template ${langs})
   vtk_add_flag(-Wno-unused-member-function ${langs})
   vtk_add_flag(-Wno-weak-template-vtables ${langs})
@@ -106,6 +122,7 @@ elseif (VTK_ENABLE_EXTRA_BUILD_WARNINGS)
   # C and C++ flags.
   set(langs C CXX)
   vtk_add_flag(-Wabsolute-value ${langs})
+  vtk_add_flag(-Wlogical-op ${langs})
   vtk_add_flag(-Wsign-compare ${langs})
   vtk_add_flag(-Wunreachable-code ${langs})
   vtk_add_flag(-Wunused-but-set-variable ${langs})
@@ -113,6 +130,14 @@ elseif (VTK_ENABLE_EXTRA_BUILD_WARNINGS)
   vtk_add_flag(-Wunused-local-typedef ${langs})
   vtk_add_flag(-Wunused-parameter ${langs})
   vtk_add_flag(-Wunused-variable ${langs})
+
+  # Ignored warnings. Should be investigated and false positives reported to
+  # GCC and actual bugs fixed.
+  vtk_add_flag(-Wno-stringop-overflow ${langs}) # issue 19306
+  vtk_add_flag(-Wno-stringop-overread ${langs}) # issue 19307
+  # Need overflow checks in various places.
+  vtk_add_flag(-Wno-alloc-size-larger-than ${langs}) # issue 19308
+  vtk_add_flag(-Wno-free-nonheap-object ${langs}) # issue 19309
 
   # Fortran flags.
 endif ()

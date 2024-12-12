@@ -5,19 +5,16 @@
 // Don't include vtkAxis. Cannot add dependency on vtkChartsCore in
 // vtkPVServerManagerCore.
 // #include "vtkAxis.h"
-#include "vtkLogger.h"
 #include "vtkMath.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
-#include "vtkSMPropertyHelper.h"
 #include "vtkSMSession.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSelectionNode.h"
 #include "vtkWeakPointer.h"
 
-#include <algorithm>
 #include <set>
 #include <sstream>
 #include <string>
@@ -1411,6 +1408,7 @@ struct Process_5_9_to_5_10
   }
 };
 
+//===========================================================================
 struct Process_5_10_to_5_11
 {
   bool operator()(xml_document& document) { return HandleDataSetSurfaceFilter(document); }
@@ -1437,6 +1435,7 @@ struct Process_5_10_to_5_11
   }
 };
 
+//===========================================================================
 struct Process_5_11_to_5_12
 {
   bool operator()(xml_document& document)
@@ -1684,6 +1683,388 @@ struct Process_5_11_to_5_12
   }
 };
 
+//===========================================================================
+struct Process_5_12_to_5_13
+{
+  bool operator()(xml_document& document)
+  {
+    return HandleSetDecomposePolyhedra(document) && HandleRepresentationFlipTextures(document) &&
+      HandleRenamedProxies(document) && HandleAxisAlignedPlaneCut(document) &&
+      HandleStreakLine(document) && HandlePathLine(document);
+  }
+
+  static bool HandleSetDecomposePolyhedra(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='filters' and @type='OpenFOAMReader']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+      for (auto child : node.children())
+      {
+        if (std::string(child.attribute("name").as_string()) == "DecomposePolyhedra")
+        {
+          vtkGenericWarningMacro(
+            "The state file uses the OpenFOAMReader DecomposePolyhedra property, which has been "
+            "removed in ParaView version 5.13. This property will be ignored.");
+          node.remove_child(child);
+        }
+      }
+    }
+
+    return true;
+  }
+
+  static bool HandleStreakLine(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set =
+      document.select_nodes("//ServerManagerState/Proxy[@group='filters' and @type='StreakLine']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      xpath_node.node().attribute("type").set_value("LegacyStreakLine");
+    }
+
+    return true;
+  }
+
+  static bool HandlePathLine(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='filters' and @type='ParticlePath']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      xpath_node.node().attribute("type").set_value("LegacyParticlePath");
+    }
+
+    return true;
+  }
+
+  static bool HandleRepresentationFlipTextures(xml_document& document)
+  {
+    UniqueIdGenerator generator(document);
+    auto xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='representations']/"
+                                           "Property[@name='FlipTextures']");
+    const std::string propertyName = "TextureTransform";
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+      // query information about FlipTextures value
+      const std::string propertyIdAttr = std::string(node.attribute("id").as_string());
+      const std::string propertyId = propertyIdAttr.substr(0, propertyIdAttr.find('.'));
+      const bool flipTextureValue = node.children("Element").begin()->attribute("value").as_bool();
+
+      // edit the property to match the new property
+      node.attribute("name").set_value(propertyName.c_str());
+      node.attribute("id").set_value((propertyId + ".TextureTransform").c_str());
+
+      // add the new child values
+      node.remove_children();
+      const std::string proxyId = std::to_string(generator.GetNextUniqueId());
+
+      auto proxyNode = node.append_child("Proxy");
+      proxyNode.append_attribute("value").set_value(proxyId.c_str());
+
+      auto domainGroupsNode = node.append_child("Domain");
+      domainGroupsNode.append_attribute("name").set_value("groups");
+      domainGroupsNode.append_attribute("id").set_value(
+        (propertyId + ".TextureTransform.groups").c_str());
+
+      auto domainListNode = node.append_child("Domain");
+      domainListNode.append_attribute("name").set_value("proxy_list");
+      domainListNode.append_attribute("id").set_value(
+        (propertyId + ".TextureTransform.proxy_list").c_str());
+      domainListNode.append_child("Proxy").append_attribute("value").set_value(proxyId.c_str());
+
+      // get the representation node information
+      const auto representationNode = node.parent();
+      const std::string reprId = representationNode.attribute("id").as_string();
+
+      // find the logname of the representation
+      const auto proxyCollectionReprResultSet =
+        document.select_nodes("//ServerManagerState/ProxyCollection[@name='representations']");
+      const auto itemChildren = proxyCollectionReprResultSet.begin()->node().children("Item");
+      const std::string reprLogName = std::find_if(itemChildren.begin(), itemChildren.end(),
+        [&](const xml_node& child) { return reprId == child.attribute("id").as_string(); })
+                                        ->attribute("logname")
+                                        .as_string();
+
+      // add the new proxy to the helper proxies
+      const std::string helperProxiesPath =
+        std::string("//ServerManagerState/ProxyCollection[@name='pq_helper_proxies.") + reprId +
+        "']";
+      auto helperProxiesNode = document.select_nodes(helperProxiesPath.c_str()).begin()->node();
+      auto itemNode = helperProxiesNode.append_child("Item");
+      itemNode.append_attribute("id").set_value(proxyId.c_str());
+      itemNode.append_attribute("name").set_value(propertyName.c_str());
+      itemNode.append_attribute("logname").set_value(
+        (reprLogName + "/SurfaceRepresentation/TextureTransform/Trasform2").c_str());
+
+      // now we need to actually add the transform proxy
+      auto serverManagerNode = representationNode.parent();
+      auto extendedSourcesNode = serverManagerNode.append_child("Proxy");
+      extendedSourcesNode.append_attribute("group").set_value("extended_sources");
+      extendedSourcesNode.append_attribute("type").set_value("Transform2");
+      extendedSourcesNode.append_attribute("id").set_value(proxyId.c_str());
+      extendedSourcesNode.append_attribute("servers").set_value("21");
+
+      auto positionNode = extendedSourcesNode.append_child("Property");
+      positionNode.append_attribute("name").set_value("Position");
+      positionNode.append_attribute("id").set_value((proxyId + ".Position").c_str());
+      positionNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = positionNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value("0");
+      }
+      auto positionDomainNode = positionNode.append_child("Domain");
+      positionDomainNode.append_attribute("name").set_value("range");
+      positionDomainNode.append_attribute("id").set_value((proxyId + ".Position.range").c_str());
+
+      auto positionInfoNode = extendedSourcesNode.append_child("Property");
+      positionInfoNode.append_attribute("name").set_value("PositionInfo");
+      positionInfoNode.append_attribute("id").set_value((proxyId + ".PositionInfo").c_str());
+      positionInfoNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = positionInfoNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value("0");
+      }
+
+      auto rotationNode = extendedSourcesNode.append_child("Property");
+      rotationNode.append_attribute("name").set_value("Rotation");
+      rotationNode.append_attribute("id").set_value((proxyId + ".Rotation").c_str());
+      rotationNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = rotationNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value("0");
+      }
+      auto rotationDomainNode = rotationNode.append_child("Domain");
+      rotationDomainNode.append_attribute("name").set_value("range");
+      rotationDomainNode.append_attribute("id").set_value((proxyId + ".Rotation.range").c_str());
+
+      auto rotationInfoNode = extendedSourcesNode.append_child("Property");
+      rotationInfoNode.append_attribute("name").set_value("RotationInfo");
+      rotationInfoNode.append_attribute("id").set_value((proxyId + ".RotationInfo").c_str());
+      rotationInfoNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = rotationInfoNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value("0");
+      }
+
+      auto scaleNode = extendedSourcesNode.append_child("Property");
+      scaleNode.append_attribute("name").set_value("Scale");
+      scaleNode.append_attribute("id").set_value((proxyId + ".Scale").c_str());
+      scaleNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = scaleNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value(
+          i == 1 ? (flipTextureValue ? "-1" : "1") : "1");
+      }
+      auto scaleDomainNode = scaleNode.append_child("Domain");
+      scaleDomainNode.append_attribute("name").set_value("range");
+      scaleDomainNode.append_attribute("id").set_value((proxyId + ".Scale.range").c_str());
+
+      auto scaleInfoNode = extendedSourcesNode.append_child("Property");
+      scaleInfoNode.append_attribute("name").set_value("ScaleInfo");
+      scaleInfoNode.append_attribute("id").set_value((proxyId + ".ScaleInfo").c_str());
+      scaleInfoNode.append_attribute("number_of_elements").set_value(3);
+      for (int i = 0; i < 3; ++i)
+      {
+        auto elementNode = scaleInfoNode.append_child("Element");
+        elementNode.append_attribute("index").set_value(i);
+        elementNode.append_attribute("value").set_value("1");
+      }
+    }
+    return true;
+  }
+
+  bool HandleRenamedProxies(xml_document& document)
+  {
+    std::map<std::string, std::string> renamedProxies = { { "GhostCellsGenerator", "GhostCells" },
+      { "AddFieldArrays", "FieldArraysFromFile" }, { "AppendArcLength", "PolylineLength" },
+      { "AppendLocationAttributes", "Coordinates" }, { "BlockIdScalars", "BlockIds" },
+      { "ComputeConnectedSurfaceProperties", "ConnectedSurfaceProperties" },
+      { "GenerateGlobalIds", "GlobalPointAndCellIds" }, { "GenerateIdScalars", "PointAndCellIds" },
+      { "GenerateProcessIds", "ProcessIds" },
+      { "GenerateSpatioTemporalHarmonics", "SpatioTemporalHarmonics" },
+      { "PolyDataNormals", "SurfaceNormals" }, { "PolyDataTangents", "SurfaceTangents" },
+      { "OverlappingLevelIdScalars", "OverlappingAMRLevelIds" } };
+
+    for (const auto& proxy : renamedProxies)
+    {
+      std::string request =
+        "//ServerManagerState/Proxy[@group='filters' and @type='" + proxy.first + "']";
+      pugi::xpath_node_set xpath_set = document.select_nodes(request.c_str());
+
+      for (auto xpath_node : xpath_set)
+      {
+        auto node = xpath_node.node();
+        // Change filter type
+        node.attribute("type").set_value(proxy.second.c_str());
+      }
+    }
+
+    return true;
+  }
+
+  static bool HandleAxisAlignedPlaneCut(xml_document& document)
+  {
+    // Gather all "Axis Aligned Plane" proxy instances
+    std::set<std::string> cutFuncIds;
+    auto xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='implicit_functions'"
+                                           "and @type='Axis Aligned Plane']");
+    for (auto xpath_node : xpath_set)
+    {
+      auto aaPlaneProxy = xpath_node.node();
+      const auto aaPlaneId = std::string(aaPlaneProxy.attribute("id").as_string());
+      cutFuncIds.insert(aaPlaneId);
+    }
+
+    // Replace "SliceWithPlane" instances with "AxisAlignedSlice" if it uses an
+    // Axis-Aligned plane as cut function.
+    xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='filters'"
+                                      "and @type='SliceWithPlane']");
+    for (auto xpath_node : xpath_set)
+    {
+      // Check if the filter uses Axis-Aligned plane as cut function. If yes, retrieve the cut
+      // function proxy ID.
+      auto sliceWithPlaneProxy = xpath_node.node();
+      auto cutFuncProp = sliceWithPlaneProxy.select_node("./Property[@name='Plane']").node();
+      auto cutFuncProxy = cutFuncProp.select_node("./Proxy").node();
+      const auto cutFuncId = std::string(cutFuncProxy.attribute("value").as_string());
+      if (cutFuncIds.find(cutFuncId) == cutFuncIds.end())
+      {
+        // Not an Axis-Aligned plane
+        continue;
+      }
+
+      // Retrieve attribute and values we want to transfer to the new proxy
+      auto proxyId = sliceWithPlaneProxy.attribute("id").as_string();
+      auto server = sliceWithPlaneProxy.attribute("servers").as_string();
+
+      auto inputProperty = sliceWithPlaneProxy.select_node("./Property[@name='Input']").node();
+      auto inputProxy = inputProperty.select_node("./Proxy").node();
+      auto inputId = inputProxy.attribute("value").as_string();
+
+      auto levelProperty = sliceWithPlaneProxy.select_node("./Property[@name='Level']").node();
+      auto levelElem = levelProperty.select_node("./Element").node();
+      auto level = levelElem.attribute("value").as_string(); // Only for AMR inputs
+
+      // Remove the "SliceWithPlane" proxy
+      auto parent = sliceWithPlaneProxy.parent();
+      parent.remove_child(sliceWithPlaneProxy);
+
+      // Create new "AxisAlignedSlice" proxy with same input, cut function and level
+      // value
+      std::ostringstream stream;
+      stream << "<Proxy group=\"filters\" type=\"AxisAlignedSlice\" id=\"" << proxyId
+             << "\" servers=\"" << server << "\">\n";
+      stream << "  <Property name=\"CutFunction\" id=\"" << proxyId
+             << ".CutFunction\" number_of_elements=\"1\">\n";
+      stream << "    <Proxy value=\"" << cutFuncId << "\"/>\n";
+      stream << "    <Domain name=\"proxy_list\" id=\"" << proxyId
+             << ".CutFunction.proxy_list\">\n";
+      stream << "      <Proxy value=\"" << cutFuncId << "\"/>\n";
+      stream << "    </Domain>\n";
+      stream << "  </Property>\n";
+      stream << "  <Property name=\"Input\" id=\"" << proxyId
+             << ".Input\" number_of_elements=\"1\">\n";
+      stream << "    <Proxy value=\"" << inputId << "\" output_port=\"0\"/>\n";
+      stream << "    <Domain name=\"groups\" id=\"" << proxyId << ".Input.groups\"/>\n";
+      stream << "    <Domain name=\"input_type\" id=\"" << proxyId << ".Input.input_type\"/>\n";
+      stream << "  </Property>\n";
+      stream << "  <Property name=\"Level\" id=\"" << proxyId
+             << ".Level\" number_of_elements=\"1\">\n";
+      stream << "    <Element index=\"0\" value=\"" << level << "\"/>\n";
+      stream << "    <Domain name=\"range\" id=\"" << proxyId << ".Level.range\"/>\n";
+      stream << "  </Property>\n";
+      stream << "</Proxy>\n";
+
+      pugi::xml_node smstate = document.root().child("ServerManagerState");
+      std::string buffer = stream.str();
+      if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
+      {
+        vtkGenericWarningMacro("Unable to add AxisAlignedSlice proxy.");
+      }
+    }
+
+    // Replace "Cut" instances with "AxisAlignedSlice" if it uses an Axis-Aligned plane
+    // as cut function.
+    xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='filters'"
+                                      "and @type='Cut']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      // Check if the filter uses Axis-Aligned plane as cut function. If yes, retrieve the cut
+      // function proxy ID. In the case of the "Cut" filter, we have a dedicated cut function
+      // property for HTGs. This check actually works because Axis-Aligned plane is not the default
+      // value.
+      auto cutProxy = xpath_node.node();
+      auto cutFuncProp =
+        cutProxy.select_node("./Property[@name='HyperTreeGridImplicitFunction']").node();
+      auto cutFuncProxy = cutFuncProp.select_node("./Proxy").node();
+      const auto cutFuncId = std::string(cutFuncProxy.attribute("value").as_string());
+      if (cutFuncIds.find(cutFuncId) == cutFuncIds.end())
+      {
+        // Not an Axis-Aligned plane
+        continue;
+      }
+
+      // Retrieve attribute and values we want to transfer to the new proxy
+      auto proxyId = cutProxy.attribute("id").as_string();
+      auto server = cutProxy.attribute("servers").as_string();
+
+      auto inputProperty = cutProxy.select_node("./Property[@name='Input']").node();
+      auto inputProxy = inputProperty.select_node("./Proxy").node();
+      auto inputId = inputProxy.attribute("value").as_string();
+
+      // Remove the "Cut" proxy
+      auto parent = cutProxy.parent();
+      parent.remove_child(cutProxy);
+
+      // Create new "AxisAlignedSlice" proxy with same input and cut function value
+      std::ostringstream stream;
+      stream << "<Proxy group=\"filters\" type=\"AxisAlignedSlice\" id=\"" << proxyId
+             << "\" servers=\"" << server << "\">\n";
+      stream << "  <Property name=\"CutFunction\" id=\"" << proxyId
+             << ".CutFunction\" number_of_elements=\"1\">\n";
+      stream << "    <Proxy value=\"" << cutFuncId << "\"/>\n";
+      stream << "    <Domain name=\"proxy_list\" id=\"" << proxyId
+             << ".CutFunction.proxy_list\">\n";
+      stream << "      <Proxy value=\"" << cutFuncId << "\"/>\n";
+      stream << "    </Domain>\n";
+      stream << "  </Property>\n";
+      stream << "  <Property name=\"Input\" id=\"" << proxyId
+             << ".Input\" number_of_elements=\"1\">\n";
+      stream << "    <Proxy value=\"" << inputId << "\" output_port=\"0\"/>\n";
+      stream << "    <Domain name=\"groups\" id=\"" << proxyId << ".Input.groups\"/>\n";
+      stream << "    <Domain name=\"input_type\" id=\"" << proxyId << ".Input.input_type\"/>\n";
+      stream << "  </Property>\n";
+      stream << "</Proxy>\n";
+
+      pugi::xml_node smstate = document.root().child("ServerManagerState");
+      std::string buffer = stream.str();
+      if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
+      {
+        vtkGenericWarningMacro("Unable to add AxisAlignedSlice proxy.");
+      }
+    }
+
+    return true;
+  }
+};
+
 } // end of namespace
 
 vtkStandardNewMacro(vtkSMStateVersionController);
@@ -1803,6 +2184,13 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
     Process_5_11_to_5_12 converter;
     status = converter(document);
     version = vtkSMVersion(5, 12, 0);
+  }
+
+  if (status && (version < vtkSMVersion(5, 13, 0)))
+  {
+    Process_5_12_to_5_13 converter;
+    status = converter(document);
+    version = vtkSMVersion(5, 13, 0);
   }
 
   if (status)

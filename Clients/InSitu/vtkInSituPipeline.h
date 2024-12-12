@@ -48,17 +48,21 @@ public:
    */
   virtual bool Execute(int timestep, double time) = 0;
 
+  /*
+   * Called optionally after Execute.
+   */
+  virtual bool Results() { return true; }
+
   /**
    * Called once before the in situ analysis is finalized.
    */
   virtual bool Finalize() { return true; }
 
   /**
-   * Set/Get the name of the pipeline to be executed.
-   * Each pipeline has to have a name to be valid.
+   * Name is used to identify individual pipelines.
    */
-  vtkSetStringMacro(Name);
   vtkGetStringMacro(Name);
+  vtkSetStringMacro(Name);
 
 protected:
   vtkInSituPipeline();

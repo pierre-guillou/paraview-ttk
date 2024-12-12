@@ -16,6 +16,7 @@
 #include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
 #include <X11/Xlib.h>                  // Needed for X types used in the public interface
 #include <stack>                       // for ivar
 
@@ -24,7 +25,8 @@ class vtkIdList;
 class vtkXOpenGLRenderWindowInternal;
 struct vtkXVisualInfo;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkXOpenGLRenderWindow : public vtkOpenGLRenderWindow
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkXOpenGLRenderWindow
+  : public vtkOpenGLRenderWindow
 {
 public:
   static vtkXOpenGLRenderWindow* New();
@@ -179,6 +181,7 @@ public:
   /**
    * Get this RenderWindow's X display id.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   Display* GetDisplayId();
 
   ///@{
@@ -186,33 +189,41 @@ public:
    * Set the X display id for this RenderWindow to use to a pre-existing
    * X display id.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetDisplayId(Display*);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetDisplayId(void*) override;
   ///@}
 
   /**
    * Get this RenderWindow's parent X window id.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   Window GetParentId();
 
   ///@{
   /**
    * Sets the parent of the window that WILL BE created.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetParentId(Window);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetParentId(void*) override;
   ///@}
 
   /**
    * Get this RenderWindow's X window id.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   Window GetWindowId();
 
   ///@{
   /**
    * Set this RenderWindow's X window id to a pre-existing window.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetWindowId(Window);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   void SetWindowId(void*) override;
   ///@}
 

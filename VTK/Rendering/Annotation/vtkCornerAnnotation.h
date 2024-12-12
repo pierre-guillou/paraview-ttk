@@ -26,6 +26,7 @@
 
 #include "vtkActor2D.h"
 #include "vtkRenderingAnnotationModule.h" // For export macro
+#include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkTextMapper;
@@ -33,7 +34,7 @@ class vtkImageMapToWindowLevelColors;
 class vtkImageActor;
 class vtkTextProperty;
 
-class VTKRENDERINGANNOTATION_EXPORT vtkCornerAnnotation : public vtkActor2D
+class VTKRENDERINGANNOTATION_EXPORT VTK_MARSHALAUTO vtkCornerAnnotation : public vtkActor2D
 {
 public:
   vtkTypeMacro(vtkCornerAnnotation, vtkActor2D);
@@ -131,6 +132,8 @@ public:
   const char* GetText(int i);
   void ClearAllTexts();
   void CopyAllTextsFrom(vtkCornerAnnotation* ca);
+  std::vector<std::string> GetAllTexts() const;
+  void SetAllTexts(const std::vector<std::string>& values);
   ///@}
 
   ///@{

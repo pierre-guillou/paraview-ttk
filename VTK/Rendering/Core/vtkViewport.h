@@ -22,6 +22,7 @@
 
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 #include "vtkSelection.h"    // Needed for selection
 #include "vtkSmartPointer.h" // Needed for assigning default nullptr value
@@ -35,7 +36,7 @@ class vtkProp;
 class vtkPropCollection;
 class vtkWindow;
 
-class VTKRENDERINGCORE_EXPORT vtkViewport : public vtkObject
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkViewport : public vtkObject
 {
 public:
   vtkTypeMacro(vtkViewport, vtkObject);
@@ -46,6 +47,7 @@ public:
    * already present. Prop is the superclass of all actors, volumes,
    * 2D actors, composite props etc.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddViewProp(vtkProp*);
 
   /**
@@ -62,11 +64,13 @@ public:
    * Remove a prop from the list of props. Does nothing if the prop
    * is not already present or if the parameter is NULL.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveViewProp(vtkProp*);
 
   /**
    * Remove all props from the list of props.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveAllViewProps();
 
   ///@{
@@ -75,8 +79,11 @@ public:
    * These methods are all synonyms to AddViewProp and RemoveViewProp.
    * They are here for convenience and backwards compatibility.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddActor2D(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveActor2D(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkActor2DCollection* GetActors2D();
   ///@}
 
@@ -409,6 +416,7 @@ public:
   double GetPickY1() const { return this->PickY1; }
   double GetPickX2() const { return this->PickX2; }
   double GetPickY2() const { return this->PickY2; }
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkGetObjectMacro(PickResultProps, vtkPropCollection);
   ///@}
 

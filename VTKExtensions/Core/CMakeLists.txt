@@ -3,10 +3,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 set(classes
   vtkCLIOptions
-  vtkCommandOptions
-  vtkCommandOptionsXMLParser
   vtkCommunicationErrorCatcher
   vtkDistributedTrivialProducer
+  vtkEmulatedTimeAlgorithm
   vtkFileSequenceParser
   vtkLogRecorder
   vtkMultiProcessControllerHelper

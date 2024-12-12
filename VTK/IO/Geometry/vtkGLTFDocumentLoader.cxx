@@ -7,6 +7,7 @@
 #include "vtkAssume.h"
 #include "vtkBase64Utilities.h"
 #include "vtkCommand.h"
+#include "vtkExecutive.h"
 #include "vtkFileResourceStream.h"
 #include "vtkFloatArray.h"
 #include "vtkGLTFDocumentLoaderInternals.h"
@@ -801,9 +802,11 @@ bool vtkGLTFDocumentLoader::LoadAnimationData()
 bool vtkGLTFDocumentLoader::LoadImageData()
 {
   vtkNew<vtkImageReader2Factory> factory;
-
-  for (Image& image : this->InternalModel->Images)
+  size_t numberOfMeshes = this->InternalModel->Meshes.size();
+  size_t numberOfImages = this->InternalModel->Images.size();
+  for (size_t i = 0; i < numberOfImages; i++)
   {
+    auto& image = this->InternalModel->Images[i];
     vtkSmartPointer<vtkImageReader2> reader = nullptr;
     image.ImageData = vtkSmartPointer<vtkImageData>::New();
     std::vector<std::uint8_t> buffer;
@@ -837,6 +840,11 @@ bool vtkGLTFDocumentLoader::LoadImageData()
     else // If image is defined via uri
     {
       auto stream = this->InternalModel->URILoader->Load(image.Uri);
+      if (!stream)
+      {
+        vtkErrorMacro("Invalid Uri:" << image.Uri);
+        return false;
+      }
 
       // Magic numbers used to detect image format
       static constexpr std::array<std::uint8_t, 4> jpegMagic = { 0xFF, 0xD8, 0xFF, 0xE0 };
@@ -864,20 +872,31 @@ bool vtkGLTFDocumentLoader::LoadImageData()
       }
 
       stream->Seek(0, vtkResourceStream::SeekDirection::End);
-      const auto size = stream->Tell();
-      stream->Seek(0, vtkResourceStream::SeekDirection::Begin);
+      const auto size = stream->Tell() - this->GLBStart;
+      stream->Seek(this->GLBStart, vtkResourceStream::SeekDirection::Begin);
       buffer.resize(size);
       if (stream->Read(buffer.data(), buffer.size()) != buffer.size())
       {
         vtkErrorMacro("Failed to read image file data");
+        return false;
       }
 
       reader->SetMemoryBufferLength(buffer.size());
       reader->SetMemoryBuffer(buffer.data());
     }
 
-    reader->Update();
+    bool status = reader->GetExecutive()->Update();
     image.ImageData = reader->GetOutput();
+
+    if (!status || !image.ImageData)
+    {
+      vtkErrorMacro("Failed to read an image");
+      return false;
+    }
+
+    double progress =
+      (i + numberOfMeshes + 1) / static_cast<double>(numberOfMeshes + numberOfImages);
+    this->InvokeEvent(vtkCommand::ProgressEvent, &progress);
   }
   return true;
 }
@@ -949,15 +968,18 @@ bool vtkGLTFDocumentLoader::LoadModelData(const std::vector<char>& glbBuffer)
     return false;
   }
 
+  this->PrepareData();
+
   // Read primitive attributes from buffers
   size_t numberOfMeshes = this->InternalModel->Meshes.size();
+  size_t numberOfImages = this->InternalModel->Images.size();
   for (size_t i = 0; i < numberOfMeshes; i++)
   {
     for (Primitive& primitive : this->InternalModel->Meshes[i].Primitives)
     {
       this->ExtractPrimitiveAccessorData(primitive);
     }
-    double progress = (i + 1) / static_cast<double>(numberOfMeshes);
+    double progress = (i + 1) / static_cast<double>(numberOfMeshes + numberOfImages);
     this->InvokeEvent(vtkCommand::ProgressEvent, static_cast<void*>(&progress));
   }
   // Read additional buffer data
@@ -1392,7 +1414,7 @@ bool vtkGLTFDocumentLoader::LoadFileBuffer(
 bool vtkGLTFDocumentLoader::LoadStreamBuffer(
   vtkResourceStream* stream, std::vector<char>& glbBuffer)
 {
-  stream->Seek(0, vtkResourceStream::SeekDirection::Begin);
+  stream->Seek(this->GLBStart, vtkResourceStream::SeekDirection::Begin);
 
   // Get base information
   std::array<char, 4> magic;
@@ -1409,14 +1431,15 @@ bool vtkGLTFDocumentLoader::LoadStreamBuffer(
   std::uint32_t version;
   std::uint32_t fileLength;
   std::vector<vtkGLTFUtils::ChunkInfoType> chunkInfo;
-  if (!vtkGLTFUtils::ExtractGLBFileInformation(stream, version, fileLength, chunkInfo))
+  if (!vtkGLTFUtils::ExtractGLBFileInformation(
+        stream, version, fileLength, this->GLBStart, chunkInfo))
   {
     vtkErrorMacro("Invalid .glb file");
     return false;
   }
 
   // Look for BIN chunk while updating fstream position
-  stream->Seek(vtkGLTFUtils::GLBHeaderSize + vtkGLTFUtils::GLBChunkHeaderSize,
+  stream->Seek(this->GLBStart + vtkGLTFUtils::GLBHeaderSize + vtkGLTFUtils::GLBChunkHeaderSize,
     vtkResourceStream::SeekDirection::Begin);
   for (auto& chunk : chunkInfo)
   {
@@ -1521,7 +1544,7 @@ std::shared_ptr<vtkGLTFDocumentLoader::Model> vtkGLTFDocumentLoader::GetInternal
 }
 
 //------------------------------------------------------------------------------
-const std::vector<std::string>& vtkGLTFDocumentLoader::GetSupportedExtensions()
+std::vector<std::string> vtkGLTFDocumentLoader::GetSupportedExtensions()
 {
   return vtkGLTFDocumentLoader::SupportedExtensions;
 }

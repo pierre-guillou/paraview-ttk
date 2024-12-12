@@ -83,15 +83,28 @@ inline int Run(int processType, int argc, char* argv[])
   // empty when BUILD_SHARED_LIBS is ON.
   vtkPVInitializePythonModules();
 
+  vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
+
   // Setup python options
   std::vector<char*> pythonArgs;
   ProcessArgsForPython(pythonArgs, options->GetExtraArguments(), argc, argv);
   pythonArgs.push_back(nullptr);
+
+  const char* programName = nullptr;
+
+  // Apple has a specific folder hierarchy that prevent to
+  // set the correct programName to pvpython
+  // https://gitlab.kitware.com/paraview/paraview/-/issues/20652
+#if !defined(__APPLE__)
+  programName = pm->GetProgramPath().c_str();
+#endif
+
   vtkPythonInterpreter::InitializeWithArgs(
-    1, static_cast<int>(pythonArgs.size()) - 1, &pythonArgs.front());
+    1, static_cast<int>(pythonArgs.size()) - 1, &pythonArgs.front(), programName);
 
   // Do the rest of the initialization
-  status = vtkInitializationHelper::InitializeMiscellaneous(processType);
+  status = vtkInitializationHelper::InitializeSettings(processType, /*defaultCoreConfig*/ true);
+  status &= vtkInitializationHelper::InitializeOthers();
   if (!status)
   {
     return vtkInitializationHelper::GetExitCode();
@@ -102,8 +115,6 @@ inline int Run(int processType, int argc, char* argv[])
     vtkLogF(ERROR, "No script specified. Please specify a batch script or use 'pvpython'.");
     return EXIT_FAILURE;
   }
-
-  vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
 
   // register static plugins
   ParaView_paraview_plugins_initialize();

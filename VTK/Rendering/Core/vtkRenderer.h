@@ -22,6 +22,7 @@
 
 #include "vtkRenderingCoreModule.h" // For export macro
 #include "vtkViewport.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkActorCollection.h"  // Needed for access in inline members
 #include "vtkVolumeCollection.h" // Needed for access in inline members
@@ -49,7 +50,7 @@ class vtkTexture;
 class vtkRecti;
 class vtkVector3d;
 
-class VTKRENDERINGCORE_EXPORT vtkRenderer : public vtkViewport
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkRenderer : public vtkViewport
 {
 public:
   vtkTypeMacro(vtkRenderer, vtkViewport);
@@ -68,25 +69,32 @@ public:
    * These methods are all synonyms to AddViewProp and RemoveViewProp.
    * They are here for convenience and backwards compatibility.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddActor(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddVolume(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveActor(vtkProp* p);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveVolume(vtkProp* p);
   ///@}
 
   /**
    * Add a light to the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddLight(vtkLight*);
 
   /**
    * Remove a light from the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveLight(vtkLight*);
 
   /**
    * Remove all lights from the list of lights.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveAllLights();
 
   /**
@@ -169,11 +177,13 @@ public:
   /**
    * Return the collection of volumes.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkVolumeCollection* GetVolumes();
 
   /**
    * Return any actors in this renderer.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   vtkActorCollection* GetActors();
 
   /**
@@ -234,11 +244,13 @@ public:
   /**
    * Add an culler to the list of cullers.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void AddCuller(vtkCuller*);
 
   /**
    * Remove an actor from the list of cullers.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void RemoveCuller(vtkCuller*);
 
   /**
@@ -599,7 +611,8 @@ public:
    * If nothing was picked then NULL is returned.  This method selects from
    * the renderer's Prop list. Additionally, you can set the field
    * association of the hardware selector used internally, and get its selection
-   * result by passing a non-null vtkSmartPointer<vtkSelection>.
+   * result by passing a non-null vtkSmartPointer<vtkSelection>. The picked prop
+   * is guaranteed to be the first node in the selection result.
    */
   vtkAssemblyPath* PickProp(double selectionX, double selectionY, int fieldAssociation,
     vtkSmartPointer<vtkSelection> selection) override
@@ -839,7 +852,9 @@ public:
   /**
    * Set/Get the information object associated with this algorithm.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   vtkGetObjectMacro(Information, vtkInformation);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   virtual void SetInformation(vtkInformation*);
   ///@}
 
@@ -861,7 +876,10 @@ public:
    * This texture is supposed to represent the scene background.
    * @sa vtkTexture::UseSRGBColorSpaceOn
    */
+  VTK_MARSHALGETTER(EnvironmentTextureProperty)
   vtkGetObjectMacro(EnvironmentTexture, vtkTexture);
+  VTK_MARSHALSETTER(EnvironmentTextureProperty)
+  void SetEnvironmentTextureProperty(vtkTexture* texture) { this->SetEnvironmentTexture(texture); }
   virtual void SetEnvironmentTexture(vtkTexture* texture, bool isSRGB = false);
   ///@}
 

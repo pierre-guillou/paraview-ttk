@@ -18,9 +18,12 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkPointSet.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKCOMMONDATAMODEL_EXPORT vtkUnstructuredGridBase : public vtkPointSet
+class vtkCellArray;
+
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkUnstructuredGridBase : public vtkPointSet
 {
 public:
   vtkAbstractTypeMacro(vtkUnstructuredGridBase, vtkPointSet);
@@ -75,6 +78,15 @@ public:
   vtkIdType InsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[], vtkIdType nfaces,
     const vtkIdType faces[]) VTK_SIZEHINT(ptIds, npts) VTK_SIZEHINT(faces, nfaces);
 
+  // Description:
+  // Insert/create a polyhedron cell. npts is the number of unique points in
+  // the cell. pts is the list of the unique cell point Ids.
+  // faces is the face-stream stored in vtkCellArray format
+  // All point Ids are global.
+  // Make sure you have called Allocate() before calling this method
+  vtkIdType InsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[], vtkCellArray* faces)
+    VTK_SIZEHINT(ptIds, npts);
+
   /**
    * Replace the points defining cell "cellId" with a new set of points. This
    * operator is (typically) used when links from points to cells have not been
@@ -109,8 +121,8 @@ protected:
 
   virtual vtkIdType InternalInsertNextCell(int type, vtkIdList* ptIds) = 0;
   virtual vtkIdType InternalInsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[]) = 0;
-  virtual vtkIdType InternalInsertNextCell(int type, vtkIdType npts, const vtkIdType ptIds[],
-    vtkIdType nfaces, const vtkIdType faces[]) = 0;
+  virtual vtkIdType InternalInsertNextCell(
+    int type, vtkIdType npts, const vtkIdType ptIds[], vtkCellArray* faces) = 0;
   virtual void InternalReplaceCell(vtkIdType cellId, int npts, const vtkIdType pts[]) = 0;
 
 private:

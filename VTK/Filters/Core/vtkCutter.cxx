@@ -7,8 +7,8 @@
 #include "vtkCellArray.h"
 #include "vtkCellData.h"
 #include "vtkCellIterator.h"
+#include "vtkCellTypes.h"
 #include "vtkContourHelper.h"
-#include "vtkContourValues.h"
 #include "vtkDataSet.h"
 #include "vtkDoubleArray.h"
 #include "vtkEventForwarderCommand.h"
@@ -317,11 +317,15 @@ int vtkCutter::RequestData(
       this->CreateDefaultLocator();
     }
 
-    vtkNew<vtkAppendDataSets> append;
-    append->SetContainerAlgorithm(this);
-    append->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
-    append->MergePointsOff();
-    append->SetOutputDataSetType(VTK_POLY_DATA);
+    vtkSmartPointer<vtkAppendDataSets> append;
+    if (this->GetNumberOfContours() > 1)
+    {
+      append = vtkSmartPointer<vtkAppendDataSets>::New();
+      append->SetContainerAlgorithm(this);
+      append->SetOutputPointsPrecision(this->GetOutputPointsPrecision());
+      append->MergePointsOff();
+      append->SetOutputDataSetType(VTK_POLY_DATA);
+    }
     for (vtkIdType i = 0; i < this->GetNumberOfContours(); ++i)
     {
       // Create a copy of vtkPlane and nudge it by the single contour
@@ -347,12 +351,22 @@ int vtkCutter::RequestData(
       this->PlaneCutter->BuildTreeOff();
       this->PlaneCutter->ComputeNormalsOff();
       this->PlaneCutter->Update();
-      vtkNew<vtkPolyData> pd;
-      pd->ShallowCopy(this->PlaneCutter->GetOutput());
-      append->AddInputData(pd);
+      if (this->GetNumberOfContours() > 1)
+      {
+        vtkNew<vtkPolyData> pd;
+        pd->ShallowCopy(this->PlaneCutter->GetOutput());
+        append->AddInputData(pd);
+      }
     }
-    append->Update();
-    output->ShallowCopy(append->GetOutput());
+    if (this->GetNumberOfContours() > 1)
+    {
+      append->Update();
+      output->ShallowCopy(append->GetOutput());
+    }
+    else
+    {
+      output->ShallowCopy(this->PlaneCutter->GetOutput());
+    }
   };
   if (vtkImageData::SafeDownCast(input) &&
     static_cast<vtkImageData*>(input)->GetDataDimension() == 3)
@@ -625,9 +639,7 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
     // will change to vtkUnstructuredGrid.  This temporary solution
     // is acceptable.
     //
-    int cellType;
-    unsigned char cellTypeDimensions[VTK_NUMBER_OF_CELL_TYPES];
-    vtkCutter::GetCellTypeDimensions(cellTypeDimensions);
+    unsigned char cellType;
     int dimensionality;
 
     vtkIdType progressInterval = numCells / 20 + 1;
@@ -648,13 +660,8 @@ void vtkCutter::DataSetCutter(vtkDataSet* input, vtkPolyData* output)
         }
 
         // I assume that "GetCellType" is fast.
-        cellType = input->GetCellType(cellId);
-        if (cellType >= VTK_NUMBER_OF_CELL_TYPES)
-        { // Protect against new cell types added.
-          vtkErrorMacro("Unknown cell type " << cellType);
-          continue;
-        }
-        if (cellTypeDimensions[cellType] != dimensionality)
+        cellType = static_cast<unsigned char>(input->GetCellType(cellId));
+        if (vtkCellTypes::GetDimension(cellType) != dimensionality)
         {
           continue;
         }
@@ -879,6 +886,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
           vtkIdType cellId = cellIter->GetCellId();
           input->SetCellOrderAndRationalWeights(cellId, cell);
           cellIds = cell->GetPointIds();
+          cellScalars->SetNumberOfTuples(numCellPts);
           cutScalars->GetTuples(cellIds, cellScalars);
           // Loop over all contour values.
           for (iter = 0; iter < numContours && !abortExecute; iter++)
@@ -907,9 +915,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
     // will change to vtkUnstructuredGrid.  This temporary solution
     // is acceptable.
     //
-    int cellType;
-    unsigned char cellTypeDimensions[VTK_NUMBER_OF_CELL_TYPES];
-    vtkCutter::GetCellTypeDimensions(cellTypeDimensions);
+    unsigned char cellType;
     int dimensionality;
 
     // Compute some information for progress methods
@@ -934,17 +940,9 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
         }
 
         // Just fetch the cell type -- least expensive.
-        cellType = cellIter->GetCellType();
-
-        // Protect against new cell types added.
-        if (cellType >= VTK_NUMBER_OF_CELL_TYPES)
-        {
-          vtkErrorMacro("Unknown cell type " << cellType);
-          continue;
-        }
-
+        cellType = static_cast<unsigned char>(cellIter->GetCellType());
         // Check if the type is valid for this pass
-        if (cellTypeDimensions[cellType] != dimensionality)
+        if (vtkCellTypes::GetDimension(cellType) != dimensionality)
         {
           continue;
         }
@@ -980,6 +978,7 @@ void vtkCutter::UnstructuredGridCutter(vtkDataSet* input, vtkPolyData* output)
           // Fetch the full cell -- most expensive.
           cellIter->GetCell(cell);
           input->SetCellOrderAndRationalWeights(cellId, cell);
+          cellScalars->SetNumberOfTuples(numCellPts);
           cutScalars->GetTuples(pointIdList, cellScalars);
           // Loop over all contour values.
           for (contourIter = contourValues; contourIter != contourValuesEnd; ++contourIter)

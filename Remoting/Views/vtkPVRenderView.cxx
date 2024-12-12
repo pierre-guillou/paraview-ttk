@@ -66,6 +66,7 @@
 #include "vtkPVTrackballZoomToMouse.h"
 #include "vtkPVView.h"
 #include "vtkPointData.h"
+#include "vtkPolarAxesActor2D.h"
 #include "vtkProcessModule.h"
 #include "vtkRenderViewBase.h"
 #include "vtkRenderWindow.h"
@@ -755,13 +756,33 @@ void vtkPVRenderView::SetLegendGridActor(vtkLegendScaleActor* gridActor)
     if (this->LegendGridActor)
     {
       this->LegendGridActor->SetUseFontSizeFromProperty(true);
-      this->LegendGridActor->SetAdjustLabels(true);
-      this->LegendGridActor->SetLabelModeToXYCoordinates();
+      this->LegendGridActor->SetSnapToGrid(true);
+      this->LegendGridActor->SetLabelModeToCoordinates();
       this->LegendGridActor->LegendVisibilityOff();
       this->LegendGridActor->SetCornerOffsetFactor(1);
 
       this->GetRenderer()->AddViewProp(this->LegendGridActor);
       culler->DoNotCullList.insert(this->LegendGridActor);
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetPolarGridActor(vtkPolarAxesActor2D* polarActor)
+{
+  if (this->PolarAxesActor != polarActor)
+  {
+    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler);
+    if (this->PolarAxesActor)
+    {
+      this->GetRenderer()->RemoveViewProp(this->PolarAxesActor);
+      culler->DoNotCullList.erase(this->PolarAxesActor);
+    }
+    this->PolarAxesActor = polarActor;
+    if (this->PolarAxesActor)
+    {
+      this->GetRenderer()->AddViewProp(this->PolarAxesActor);
+      culler->DoNotCullList.insert(this->PolarAxesActor);
     }
   }
 }
@@ -2942,6 +2963,7 @@ inline int vtkGetNumberOfRendersPerFrame(int stereoMode)
     case VTK_STEREO_SPLITVIEWPORT_HORIZONTAL:
     case VTK_STEREO_FAKE:
     case VTK_STEREO_EMULATE:
+    case VTK_STEREO_ZSPACE_INSPIRE:
       return 2;
 
     case VTK_STEREO_LEFT:
@@ -3432,7 +3454,7 @@ void vtkPVRenderView::SetEnableOSPRay(bool v)
   {
     this->Internals->OSPRayPass = vtkSmartPointer<vtkOSPRayPass>::New();
   }
-  if (!vtkOSPRayPass::IsSupported())
+  if (v && !vtkOSPRayPass::IsSupported())
   {
     vtkWarningMacro(
       "Refusing to enable OSPRay because it is not supported running in this configuration.");
@@ -3591,28 +3613,6 @@ int vtkPVRenderView::GetSamplesPerPixel()
   return vtkOSPRayRendererNode::GetSamplesPerPixel(ren);
 #else
   return 1;
-#endif
-}
-
-//----------------------------------------------------------------------------
-void vtkPVRenderView::SetVolumeAnisotropy(double v)
-{
-#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
-  vtkRenderer* ren = this->GetRenderer();
-  vtkOSPRayRendererNode::SetVolumeAnisotropy(v, ren);
-#else
-  (void)v;
-#endif
-}
-
-//----------------------------------------------------------------------------
-double vtkPVRenderView::GetVolumeAnisotropy()
-{
-#if VTK_MODULE_ENABLE_VTK_RenderingRayTracing
-  vtkRenderer* ren = this->GetRenderer();
-  return vtkOSPRayRendererNode::GetVolumeAnisotropy(ren);
-#else
-  return 0.0f;
 #endif
 }
 

@@ -36,6 +36,7 @@ vtk_add_test_python(
   TestFlyingEdges3DWithInterpolation.py
   TestFlyingEdgesExtents.py
   TestFlyingEdgesPlaneCutter.py
+  TestFlyingEdgesPlaneCutterBoundary.py,NO_VALID
   TestFlyingEdgesPlaneCutterCellData.py
   TestFlyingEdgesPlaneCutterInterpolation.py
   TestFlyingEdgesPlaneCutterThinSlice.py
@@ -66,7 +67,6 @@ vtk_add_test_python(
   TestSurfaceNets3D.py
   TestSurfaceNets3D2.py
   TestSurfaceNets3D3.py
-  TestSynchronizedTemplates2D.py
   TestSynchronizedTemplates3D.py
   TestWindowedSincPolyDataFilter.py
   TestWindowedSincPolyDataFilter2.py
@@ -103,7 +103,7 @@ vtk_add_test_python(
   financialField.py
   financialField2.py
   financialField3.py
-  glyphComb.py
+# glyphComb.py #19221
   hull.py
   mergeFilter.py
   multipleComponentContour.py

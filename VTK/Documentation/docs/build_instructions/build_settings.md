@@ -31,12 +31,23 @@ Less common, but variables which may be of interest to some:
     available or not.
   * `VTK_WRAP_JAVA` (default `OFF`; requires `VTK_ENABLE_WRAPPING`):
     Whether Java support will be available or not.
+  * `VTK_WRAP_SERIALIZATION` (default `OFF`; requires `VTK_ENABLE_WRAPPING`):
+    Whether serialization code will be auto generated or not.
   * `VTK_SMP_IMPLEMENTATION_TYPE` (default `Sequential`): Set which SMPTools
     will be implemented by default. Must be either `Sequential`, `STDThread`,
     `OpenMP` or `TBB`. The backend can be changed at runtime if the desired
     backend has his option `VTK_SMP_ENABLE_<backend_name>` set to `ON`.
-  * `VTK_ENABLE_CATALYST` (default `OFF`): Enable the CatlystConduit module
-  and build the VTK Catalyst implementation. Depends on an external Catalyst.
+  * `VTK_ENABLE_CATALYST` (default `OFF`): Enable catalyst-dependent modules
+    including the VTK catalyst implementation. Depends on an external Catalyst.
+  * `VTK_WEBASSEMBLY_64_BIT` (default `OFF`):
+    This option is applicable only when building with Emscripten toolchain.
+    Adds -sMEMORY64 compiler and linker flags.
+  * `VTK_WEBASSEMBLY_THREADS` (default `OFF`):
+    This option is applicable only when building with Emscripten toolchain.
+    Adds -pthread compiler and linker flags. When `VTK_BUILD_TESTING` is `ON`,
+    this also runs unit tests in web workers, which is the only way for the tests
+    to reliably load data files without having to embed entire datasets inside
+    the test binaries.
 
 OpenGL-related options:
 
@@ -53,8 +64,7 @@ exist to make sure a broken build is not being made. Essentially:
     render windows.
   * `VTK_USE_X` (default `ON` for Unix-like platforms except macOS,
     iOS, and Emscripten, `OFF` otherwise): Use X for render windows.
-  * `VTK_USE_SDL2` (default `ON` for Emscripten, `OFF` otherwise): Use
-    SDL2 for render windows.
+  * `VTK_USE_SDL2` (default `OFF`): Use SDL2 for render windows.
   * `VTK_OPENGL_HAS_OSMESA` (default `OFF`): Use to indicate that the
     OpenGL library being used supports offscreen Mesa rendering
     (OSMesa).
@@ -84,6 +94,13 @@ More advanced options:
      wrap all VTK public symbols in an
      `inline namespace <VTK_ABI_NAMESPACE_NAME>` to allow runtime co-habitation
      with different VTK versions.
+     Some C ABIs are also wrapped in this namespace using macro expansion
+     `#define c_abi VTK_ABI_NAMESPACE_MANGLE(c_abi)`
+  * `VTK_ABI_NAMESPACE_ATTRIBUTES` (default `<DEFAULT>` aka `""`): If set, VTK will
+     inject these attributes into the `inline namespace`. i.e.
+     `inline namespace <VTK_ABI_NAMESPACE_ATTRIBUTES> <VTK_ABI_NAMESPACE_NAME>`
+     The `VTK_ABI_NAMESPACE_ATTRIBUTES` is only applied the the APIs inside of the
+     namespace, not to C APIs.
   * `VTK_BUILD_DOCUMENTATION` (default `OFF`): If set, VTK will build its API
     documentation using Doxygen.
   * `VTK_BUILD_SPHINX_DOCUMENTATION` (default `OFF`): If set, VTK will build its sphinx
@@ -209,6 +226,9 @@ More advanced options:
      and installed for each module and third party, in order to be able to create a SBOM.
      See [](/api/cmake/ModuleSystem.md#spdx-files-generation) and
      [](/advanced/spdx_and_sbom.md) for more info.
+  * `VTK_ANARI_ENABLE_NVTX` (default `OFF`; requires CUDA Toolkit): If `ON`, enables the NVIDIA
+     Tools Extension Library (NVTX) for profiling the ANARI rendering code and visualizing
+     these events in tools like [NSight Systems][nsight].
 
 `vtkArrayDispatch` related options:
 
@@ -284,3 +304,4 @@ If any `YES` module requires a `NO` module, an error is raised.
 [cuda]: https://developer.nvidia.com/cuda-zone
 [hip]: https://en.wikipedia.org/wiki/ROCm
 [mpi]: https://www.mcs.anl.gov/research/projects/mpi
+[nsight]: https://developer.nvidia.com/nsight-systems

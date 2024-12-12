@@ -1,2 +1,4 @@
+import sys
 def catalyst_execute(info):
-    assert False, "This should not be called"
+    print("Error: This should not be called")
+    sys.exit(1)

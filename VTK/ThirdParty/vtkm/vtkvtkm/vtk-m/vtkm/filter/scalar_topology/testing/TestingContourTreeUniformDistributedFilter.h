@@ -63,6 +63,7 @@
 #include <vtkm/filter/MapFieldPermutation.h>
 #include <vtkm/filter/scalar_topology/ContourTreeUniformDistributed.h>
 #include <vtkm/filter/scalar_topology/DistributedBranchDecompositionFilter.h>
+#include <vtkm/filter/scalar_topology/SelectTopVolumeContoursFilter.h>
 #include <vtkm/filter/scalar_topology/testing/SuperArcHelper.h>
 #include <vtkm/filter/scalar_topology/testing/VolumeHelper.h>
 #include <vtkm/filter/scalar_topology/worklet/branch_decomposition/HierarchicalVolumetricBranchDecomposer.h>
@@ -289,9 +290,7 @@ inline vtkm::cont::PartitionedDataSet RunContourTreeDUniformDistributed(
   }
 
   filter.SetUseMarchingCubes(useMarchingCubes);
-  // Freudenthal: Only use boundary extrema; MC: use all points on boundary
-  // TODO/FIXME: Figure out why MC does not work when only using boundary extrema
-  filter.SetUseBoundaryExtremaOnly(!useMarchingCubes);
+  filter.SetUseBoundaryExtremaOnly(true);
   filter.SetAugmentHierarchicalTree(augmentHierarchicalTree);
   filter.SetActiveField(fieldName);
   auto result = filter.Execute(pds);
@@ -443,6 +442,169 @@ inline void TestContourTreeUniformDistributed8x9(int nBlocks, int rank = 0, int 
                      "Wrong result for ContourTreeUniformDistributed filter");
     VTKM_TEST_ASSERT(treeCompiler.superarcs[7] == Edge{ 61, 71 },
                      "Wrong result for ContourTreeUniformDistributed filter");
+  }
+}
+
+inline void TestContourTreeUniformDistributedBranchDecomposition8x9(int nBlocks,
+                                                                    int rank = 0,
+                                                                    int size = 1)
+{
+  if (rank == 0)
+  {
+    std::cout << "Testing Distributed Branch Decomposition on 2D 8x9 data set " << nBlocks
+              << " blocks." << std::endl;
+  }
+  vtkm::cont::DataSet in_ds = vtkm::cont::testing::MakeTestDataSet().Make2DUniformDataSet3();
+  bool augmentHierarchicalTree = true;
+  bool computeHierarchicalVolumetricBranchDecomposition = true;
+  vtkm::cont::PartitionedDataSet result =
+    RunContourTreeDUniformDistributed(in_ds,
+                                      "pointvar",
+                                      false,
+                                      nBlocks,
+                                      rank,
+                                      size,
+                                      augmentHierarchicalTree,
+                                      computeHierarchicalVolumetricBranchDecomposition);
+
+  using vtkm::filter::scalar_topology::SelectTopVolumeContoursFilter;
+
+  vtkm::Id numBranches = 2;
+  SelectTopVolumeContoursFilter tp_filter;
+
+  tp_filter.SetSavedBranches(numBranches);
+
+  auto tp_result = tp_filter.Execute(result);
+
+  if (vtkm::cont::EnvironmentTracker::GetCommunicator().rank() == 0)
+  {
+    using Edge = vtkm::worklet::contourtree_distributed::Edge;
+    std::vector<Edge> computed;
+
+    for (vtkm::Id ds_no = 0; ds_no < result.GetNumberOfPartitions(); ++ds_no)
+    {
+      auto ds = result.GetPartition(ds_no);
+      auto upperEndGRId = ds.GetField("UpperEndGlobalRegularIds")
+                            .GetData()
+                            .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>()
+                            .ReadPortal();
+      auto lowerEndGRId = ds.GetField("LowerEndGlobalRegularIds")
+                            .GetData()
+                            .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>()
+                            .ReadPortal();
+      vtkm::Id nBranches = upperEndGRId.GetNumberOfValues();
+
+      for (vtkm::Id branch = 0; branch < nBranches; ++branch)
+      {
+        Edge edge(upperEndGRId.Get(branch), lowerEndGRId.Get(branch));
+
+        if (std::find(computed.begin(), computed.end(), edge) == computed.end())
+        {
+          computed.push_back(edge);
+        }
+      }
+    }
+
+    std::vector<Edge> expected{
+      Edge(10, 20), Edge(23, 71), Edge(34, 24), Edge(38, 20), Edge(61, 50)
+    };
+
+    std::sort(computed.begin(), computed.end());
+    std::sort(expected.begin(), expected.end());
+
+    if (computed != expected)
+    {
+      std::cout << "Branch Decomposition Results:" << std::endl;
+      std::cout << "Computed Contour Tree" << std::endl;
+      for (std::size_t i = 0; i < computed.size(); i++)
+      {
+        std::cout << std::setw(12) << computed[i].low << std::setw(14) << computed[i].high
+                  << std::endl;
+      }
+
+      std::cout << "Expected Contour Tree" << std::endl;
+      for (std::size_t i = 0; i < expected.size(); i++)
+      {
+        std::cout << std::setw(12) << expected[i].low << std::setw(14) << expected[i].high
+                  << std::endl;
+      }
+      VTKM_TEST_FAIL("Branch Decomposition Failed!");
+    }
+
+    std::cout << "Branch Decomposition: Results Match!" << std::endl;
+
+    for (vtkm::Id ds_no = 0; ds_no < result.GetNumberOfPartitions(); ++ds_no)
+    {
+      auto ds = tp_result.GetPartition(ds_no);
+      auto topVolBranchGRId = ds.GetField("TopVolumeBranchGlobalRegularIds")
+                                .GetData()
+                                .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>()
+                                .ReadPortal();
+      auto topVolBranchVolume = ds.GetField("TopVolumeBranchVolume")
+                                  .GetData()
+                                  .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>()
+                                  .ReadPortal();
+      auto topVolBranchSaddleEpsilon = ds.GetField("TopVolumeBranchSaddleEpsilon")
+                                         .GetData()
+                                         .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Id>>()
+                                         .ReadPortal();
+      auto topVolBranchSaddleIsoValue = ds.GetField("TopVolumeBranchSaddleIsoValue")
+                                          .GetData()
+                                          .AsArrayHandle<vtkm::cont::ArrayHandle<vtkm::Float32>>()
+                                          .ReadPortal();
+
+      vtkm::Id nSelectedBranches = topVolBranchGRId.GetNumberOfValues();
+      Edge expectedGRIdVolumeAtBranch0(38, 6);
+      Edge expectedEpsilonIsoAtBranch0(1, 50);
+      Edge expectedGRIdVolumeAtBranch1(50, 2);
+      Edge expectedEpsilonIsoAtBranch1(-1, 30);
+
+      for (vtkm::Id branch = 0; branch < nSelectedBranches; ++branch)
+      {
+        bool failed = false;
+        Edge computedGRIdVolume(topVolBranchGRId.Get(branch), topVolBranchVolume.Get(branch));
+        Edge computedEpsilonIso(topVolBranchSaddleEpsilon.Get(branch),
+                                (vtkm::Id)topVolBranchSaddleIsoValue.Get(branch));
+
+        switch (branch)
+        {
+          case 0:
+            failed = !(computedGRIdVolume == expectedGRIdVolumeAtBranch0);
+            failed = (failed || !(computedEpsilonIso == expectedEpsilonIsoAtBranch0));
+            break;
+          case 1:
+            failed = !(computedGRIdVolume == expectedGRIdVolumeAtBranch1);
+            failed = (failed || !(computedEpsilonIso == expectedEpsilonIsoAtBranch1));
+            break;
+          default:
+            VTKM_TEST_ASSERT(false);
+        }
+
+        if (failed)
+        {
+          std::vector<Edge> expectedGRIdVolume{ expectedGRIdVolumeAtBranch0,
+                                                expectedGRIdVolumeAtBranch1 };
+
+          std::vector<Edge> expectedEpsilonIso{ expectedEpsilonIsoAtBranch0,
+                                                expectedEpsilonIsoAtBranch1 };
+
+          std::cout << "Top Branch Volume Results:" << std::endl;
+          std::cout << "Computed Top Branch Volume:branch=" << branch << std::endl;
+          std::cout << computedGRIdVolume.low << std::setw(14) << computedGRIdVolume.high
+                    << std::setw(5) << computedEpsilonIso.low << std::setw(14)
+                    << computedEpsilonIso.high << std::endl;
+
+          std::cout << "Expected Top Branch Volume:branch=" << branch << std::endl;
+          std::cout << expectedGRIdVolume[branch].low << std::setw(14)
+                    << expectedGRIdVolume[branch].high << std::setw(5)
+                    << expectedEpsilonIso[branch].low << std::setw(14)
+                    << expectedEpsilonIso[branch].high << std::endl;
+          VTKM_TEST_FAIL("Top Branch Volume Computation Failed!");
+        }
+      }
+    }
+
+    std::cout << "Top Branch Volume: Results Match!" << std::endl;
   }
 }
 

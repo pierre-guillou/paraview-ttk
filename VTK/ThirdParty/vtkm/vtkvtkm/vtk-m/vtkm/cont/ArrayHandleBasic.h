@@ -18,6 +18,8 @@
 
 #include <vtkm/internal/ArrayPortalBasic.h>
 
+#include <vtkm/VecFlat.h>
+
 #include <limits>
 
 namespace vtkm
@@ -47,6 +49,12 @@ public:
   {
     buffers[0].SetNumberOfBytes(
       vtkm::internal::NumberOfValuesToNumberOfBytes<T>(numValues), preserve, token);
+  }
+
+  VTKM_CONT static vtkm::IdComponent GetNumberOfComponentsFlat(
+    const std::vector<vtkm::cont::internal::Buffer>&)
+  {
+    return vtkm::VecFlat<T>::NUM_COMPONENTS;
   }
 
   VTKM_CONT static vtkm::Id GetNumberOfValues(
@@ -93,6 +101,12 @@ public:
 
 } // namespace internal
 
+/// @brief Basic array storage for an array handle.
+///
+/// This array handle references a standard C array. It provides a level
+/// of safety and management across devices.
+/// This is the default used when no storage is specified. Using this subclass
+/// allows access to the underlying raw array.
 template <typename T>
 class VTKM_ALWAYS_EXPORT ArrayHandleBasic : public ArrayHandle<T, vtkm::cont::StorageTagBasic>
 {
@@ -165,50 +179,89 @@ public:
   {
   }
 
-  /// @{
-  /// \brief Gets raw access to the `ArrayHandle`'s data.
+  /// @brief Gets raw access to the `ArrayHandle`'s data.
   ///
-  /// Note that the returned array may become invalidated by other operations on the ArryHandle
-  /// unless you provide a token.
+  /// Note that the returned array may become invalidated by other operations on the ArryHandle.
   ///
-  const T* GetReadPointer(vtkm::cont::Token& token) const
-  {
-    return reinterpret_cast<const T*>(this->GetBuffers()[0].ReadPointerHost(token));
-  }
   const T* GetReadPointer() const
   {
     vtkm::cont::Token token;
     return this->GetReadPointer(token);
   }
-  T* GetWritePointer(vtkm::cont::Token& token) const
+  /// @brief Gets raw access to the `ArrayHandle`'s data.
+  ///
+  /// @param token When a `vtkm::cont::Token` is provided, the array is locked
+  /// from being used by any write operations until the token goes out of scope.
+  ///
+  const T* GetReadPointer(vtkm::cont::Token& token) const
   {
-    return reinterpret_cast<T*>(this->GetBuffers()[0].WritePointerHost(token));
+    return reinterpret_cast<const T*>(this->GetBuffers()[0].ReadPointerHost(token));
   }
+  /// @brief Gets raw write access to the `ArrayHandle`'s data.
+  ///
+  /// Note that the returned array may become invalidated by other operations on the ArryHandle.
+  ///
   T* GetWritePointer() const
   {
     vtkm::cont::Token token;
     return this->GetWritePointer(token);
   }
-
-  const T* GetReadPointer(vtkm::cont::DeviceAdapterId device, vtkm::cont::Token& token) const
+  /// @brief Gets raw write access to the `ArrayHandle`'s data.
+  ///
+  /// @param token When a `vtkm::cont::Token` is provided, the array is locked
+  /// from being used by any read or write operations until the token goes out of scope.
+  ///
+  T* GetWritePointer(vtkm::cont::Token& token) const
   {
-    return reinterpret_cast<const T*>(this->GetBuffers()[0].ReadPointerDevice(device, token));
+    return reinterpret_cast<T*>(this->GetBuffers()[0].WritePointerHost(token));
   }
+
+  /// @brief Gets raw access to the `ArrayHandle`'s data on a particular device.
+  ///
+  /// Note that the returned array may become invalidated by other operations on the ArryHandle.
+  ///
+  /// @param device The device ID or device tag specifying on which device the array will
+  /// be valid on.
+  ///
   const T* GetReadPointer(vtkm::cont::DeviceAdapterId device) const
   {
     vtkm::cont::Token token;
     return this->GetReadPointer(device, token);
   }
-  T* GetWritePointer(vtkm::cont::DeviceAdapterId device, vtkm::cont::Token& token) const
+  /// @brief Gets raw access to the `ArrayHandle`'s data.
+  ///
+  /// @param device The device ID or device tag specifying on which device the array will
+  /// be valid on.
+  /// @param token When a `vtkm::cont::Token` is provided, the array is locked
+  /// from being used by any write operations until the token goes out of scope.
+  ///
+  const T* GetReadPointer(vtkm::cont::DeviceAdapterId device, vtkm::cont::Token& token) const
   {
-    return reinterpret_cast<T*>(this->GetBuffers()[0].WritePointerDevice(device, token));
+    return reinterpret_cast<const T*>(this->GetBuffers()[0].ReadPointerDevice(device, token));
   }
+  /// @brief Gets raw write access to the `ArrayHandle`'s data.
+  ///
+  /// Note that the returned array may become invalidated by other operations on the ArryHandle.
+  ///
+  /// @param device The device ID or device tag specifying on which device the array will
+  /// be valid on.
+  ///
   T* GetWritePointer(vtkm::cont::DeviceAdapterId device) const
   {
     vtkm::cont::Token token;
     return this->GetWritePointer(device, token);
   }
-  /// @}
+  /// @brief Gets raw write access to the `ArrayHandle`'s data.
+  ///
+  /// @param device The device ID or device tag specifying on which device the array will
+  /// be valid on.
+  /// @param token When a `vtkm::cont::Token` is provided, the array is locked
+  /// from being used by any read or write operations until the token goes out of scope.
+  ///
+  T* GetWritePointer(vtkm::cont::DeviceAdapterId device, vtkm::cont::Token& token) const
+  {
+    return reinterpret_cast<T*>(this->GetBuffers()[0].WritePointerDevice(device, token));
+  }
 };
 
 /// A convenience function for creating an ArrayHandle from a standard C array.
@@ -280,6 +333,8 @@ VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandleMove(std::vector<T, Al
                                          internal::StdVectorReallocater<T, Allocator>);
 }
 
+/// Move an std::vector into an ArrayHandle.
+///
 template <typename T, typename Allocator>
 VTKM_CONT vtkm::cont::ArrayHandleBasic<T> make_ArrayHandle(std::vector<T, Allocator>&& array,
                                                            vtkm::CopyFlag vtkmNotUsed(copy))
@@ -357,6 +412,9 @@ struct Serialization<vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagBasic>>
 
 #ifndef vtk_m_cont_ArrayHandleBasic_cxx
 
+/// @cond
+/// Make doxygen ignore this section
+
 namespace vtkm
 {
 namespace cont
@@ -365,8 +423,6 @@ namespace cont
 namespace internal
 {
 
-/// \cond
-/// Make doxygen ignore this section
 #define VTKM_STORAGE_EXPORT(Type)                                                               \
   extern template class VTKM_CONT_TEMPLATE_EXPORT Storage<Type, StorageTagBasic>;               \
   extern template class VTKM_CONT_TEMPLATE_EXPORT Storage<vtkm::Vec<Type, 2>, StorageTagBasic>; \
@@ -386,7 +442,6 @@ VTKM_STORAGE_EXPORT(vtkm::Float32)
 VTKM_STORAGE_EXPORT(vtkm::Float64)
 
 #undef VTKM_STORAGE_EXPORT
-/// \endcond
 
 } // namespace internal
 
@@ -413,6 +468,8 @@ VTKM_ARRAYHANDLE_EXPORT(vtkm::Float64)
 #undef VTKM_ARRAYHANDLE_EXPORT
 }
 } // end vtkm::cont
+
+/// @endcond
 
 #endif // !vtk_m_cont_ArrayHandleBasic_cxx
 

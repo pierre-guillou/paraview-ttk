@@ -115,13 +115,17 @@ if (TARGET vtkm::cuda)
 
   list(TRANSFORM classes APPEND ".cxx" OUTPUT_VARIABLE cuda_impl)
   set_source_files_properties(${cuda_impl} PROPERTIES LANGUAGE CUDA)
-
-  vtk_module_set_properties(VTK::AcceleratorsVTKmFilters
-    CUDA_SEPARABLE_COMPILATION ON)
+  vtk_module_set_properties(VTK::AcceleratorsVTKmFilters CUDA_SEPARABLE_COMPILATION ON)
 
   vtk_module_compile_options(VTK::AcceleratorsVTKmFilters
     PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:-Xcudafe --diag_suppress=extra_semicolon>)
-endif ()
+elseif (TARGET vtkm::kokkos_cuda)
+
+  list(TRANSFORM classes APPEND ".cxx" OUTPUT_VARIABLE cuda_impl)
+  set_source_files_properties(${cuda_impl} PROPERTIES LANGUAGE CUDA)
+  kokkos_compilation(SOURCE ${cuda_impl})
+
+endif()
 
 if (MSVC)
   set(msvc_warning_flags
@@ -141,7 +145,7 @@ if (MSVC)
     )
   set(vtkm_msvc_flags)
   foreach (msvc_warning_flag IN LISTS msvc_warning_flags)
-    if (TARGET vtkm::cuda)
+    if (TARGET vtkm::cuda OR TARGET vtkm::kokkos_cuda)
       list(APPEND vtkm_msvc_flags
         $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=${msvc_warning_flag},${msvc_warning_flag}>)
     else ()

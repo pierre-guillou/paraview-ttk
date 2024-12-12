@@ -1,6 +1,172 @@
 <ServerManagerConfiguration>
   <ProxyGroup name="filters">
     <!-- ==================================================================== -->
+    <SourceProxy class="vtkStreaklineFilter"
+                 name="LegacyStreakLine">
+      <Documentation long_help="Trace Streak lines through time in a vector field."
+                     short_help="Trace Streak lines through time in a vector field.">
+        The Particle Trace filter generates pathlines in a vector
+        field from a collection of seed points. The vector field
+        used is selected from the Vectors menu, so the input data
+        set is required to have point-centered vectors. The Seed
+        portion of the interface allows you to select whether the
+        seed points for this integration lie in a point cloud or
+        along a line. Depending on which is selected, the
+        appropriate 3D widget (point or line widget) is displayed
+        along with traditional user interface controls for
+        positioning the point cloud or line within the data set.
+        Instructions for using the 3D widgets and the
+        corresponding manual controls can be found in section 7.4.
+        This filter operates on any type of data set, provided it
+        has point-centered vectors. The output is polygonal data
+        containing polylines. This filter is available on the
+        Toolbar.
+      </Documentation>
+      <InputProperty clean_command="RemoveAllInputs"
+                     command="AddInputConnection"
+                     multiple_input="1"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain composite_data_supported="1"
+                        name="input_type">
+          <DataType value="vtkDataObject"/>
+        </DataTypeDomain>
+        <InputArrayDomain attribute_type="point"
+                          name="input_array"
+                          number_of_components="3"/>
+        <Documentation>
+          Specify which is the Input of the StreamTracer filter.
+        </Documentation>
+      </InputProperty>
+      <IntVectorProperty command="SetStaticSeeds"
+                         default_values="0"
+                         name="StaticSeeds"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          If the input seeds are not changing, then this can be set to 1 to avoid having to do a repeated grid search
+          that would return the exact same result.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetMeshOverTime"
+                         default_values="0"
+                         name="MeshOverTime"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry text="Different" value="0"/>
+          <Entry text="Static" value="1"/>
+          <Entry text="Linear Transformation" value="2"/>
+          <Entry text="Same Topology" value="3"/>
+        </EnumerationDomain>
+        <Documentation>
+          The input mesh can either be 1) different over time, or 2) static over time,
+          or 3) a linear transformation of the first time step over time, or 4) have the same topology over time.
+          If a value other than Different are used, then performance can be improved significantly because certain
+          data structures, such as locators or cell links are not rebuilt for each timestep.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetInterpolatorType"
+                         default_values="1"
+                         name="InterpolatorType"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <EnumerationDomain name="enum">
+          <Entry text="Interpolator with Point Locator"
+                 value="0"/>
+          <Entry text="Interpolator with Cell Locator"
+                 value="1"/>
+        </EnumerationDomain>
+        <Documentation>
+          This property determines which interpolator to use for evaluating the velocity vector field. The first is
+          faster though the second is more robust in locating cells during streamline integration.
+        </Documentation>
+      </IntVectorProperty>
+      <InputProperty clean_command="RemoveAllSources"
+                     command="AddSourceConnection"
+                     label="Seed Source"
+                     multiple_input="1"
+                     name="Source">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+        </DataTypeDomain>
+        <Documentation>
+          Specify the seed dataset. Typically, from where the vector field integration should begin. Usually a
+          point/radius or a line with a given resolution.
+        </Documentation>
+      </InputProperty>
+      <DoubleVectorProperty command="SetTerminationTime"
+                            default_values="3.0"
+                            name="TerminationTime"
+                            number_of_elements="1"
+                            panel_visibility="never">
+        <DoubleRangeDomain name="range"/>
+        <Documentation>
+          Setting TerminationTime to a positive value will cause particles to terminate when the time is reached.
+          The units of time should be consistent with the primary time variable.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty information_only="1"
+                            name="TimestepValues">
+        <TimeStepsInformationHelper/>
+      </DoubleVectorProperty>
+      <IntVectorProperty command="SetForceReinjectionEveryNSteps"
+                         default_values="1"
+                         name="ForceReinjectionEveryNSteps"
+                         number_of_elements="1">
+        <IntRangeDomain name="range"/>
+        <Documentation>
+          When animating particles, it is nice to inject new ones every Nth step to produce a continuous flow.
+          Setting ForceReinjectionEveryNSteps to a non zero value will cause the particle source to reinject particles
+          every Nth step even if it is otherwise unchanged. Note that if the particle source is also animated, this flag
+          will be redundant as the particles will be reinjected whenever the source changes anyway.
+        </Documentation>
+      </IntVectorProperty>
+      <StringVectorProperty animateable="0"
+                            command="SetInputArrayToProcess"
+                            element_types="0 0 0 0 2"
+                            name="SelectInputVectors"
+                            number_of_elements="5"
+                            panel_visibility="default">
+        <ArrayListDomain attribute_type="Vectors"
+                         name="array_list">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Documentation>
+          Specify which vector array should be used for the integration through that filter.
+        </Documentation>
+      </StringVectorProperty>
+      <IntVectorProperty command="SetComputeVorticity"
+                         default_values="1"
+                         name="ComputeVorticity"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Compute vorticity and angular rotation of particles as they progress
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetDisableResetCache"
+                         default_values="0"
+                         name="DisableResetCache"
+                         number_of_elements="1"
+                         panel_visibility="never">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Prevents cache from getting reset so that new computation always start from previous results.
+        </Documentation>
+      </IntVectorProperty>
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
     <SourceProxy class="vtkCleanUnstructuredGrid"
                  label="Clean to Grid"
                  name="CleanUnstructuredGrid">
@@ -896,6 +1062,26 @@ points in the input. Defaults to ***Single***.
           but can take significantly more time to complete.
         </Documentation>
       </IntVectorProperty>
+      <IntVectorProperty command="SetUseImplicitArraysHTG"
+                         name="UseImplicitArraysHTG"
+                         label="Reduce Output Memory Usage"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="advanced">
+        <BooleanDomain name="bool"/>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility" />
+        </Hints>
+        <Documentation>
+          If checked, the filter will optimize the space allocated to store the contour values.
+          This option can lower the memory consumption, especially if the output contour
+          contains a lot of points and is generated with few contour values, at the cost of some
+          extra computation. Note that this option will do nothing if there are more than 256
+          contour values.
+        </Documentation>
+      </IntVectorProperty>
       <DoubleVectorProperty animateable="1"
                             command="SetValue"
                             label="Isosurfaces"
@@ -957,6 +1143,7 @@ points in the input. Defaults to ***Single***.
 
       <PropertyGroup label="Hyper Tree Grid Contour">
         <Property name="HTGStrategy3D" />
+        <Property name="UseImplicitArraysHTG" />
       </PropertyGroup>
       <PropertyGroup label="Isosurfaces">
         <Property name="ContourValues" />
@@ -1029,6 +1216,38 @@ points in the input. Defaults to ***Single***.
         </Documentation>
       </StringVectorProperty>
       <!-- End ExtractComponent -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkPVExtractGhostCells"
+                 name="ExtractGhostCells"
+                 label="Extract Ghost Cells">
+      <Documentation short_help="Extract ghost cells so they can be visualized.">
+        This filter extracts the ghost cells from the input and displays them so
+        one can inspect them visually.
+      </Documentation>
+
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+          <DataType value="vtkCompositeDataSet"/>
+          <DataType value="vtkHyperTreeGrid"/>
+        </DataTypeDomain>
+      </InputProperty>
+      <StringVectorProperty name="ArrayName"
+                            command="SetOutputGhostArrayName"
+                            number_of_elements="1"
+                            default_values="GhostType">
+        <Documentation>
+          Name of the ghost cell array in the output.
+          It must be different to `vtkGhostType` in order for the cells to be displayed.
+        </Documentation>
+      </StringVectorProperty>
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -1850,7 +2069,7 @@ Every Nth Point.
                          default_values="0"
                          name="ExtensiveComputation"
                          number_of_elements="1"
-                         panel_visibility="advanced">
+                         panel_visibility="default">
         <BooleanDomain name="bool" />
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
@@ -2682,10 +2901,11 @@ Every Nth Point.
         <Hints>
           <PropertyWidgetDecorator type="CompositeDecorator">
             <Expression type="and">
-              <PropertyWidgetDecorator type="InputDataTypeDecorator"
-                                       name="vtkHyperTreeGrid"
+              <PropertyWidgetDecorator type="GenericDecorator"
                                        mode="visibility"
-                                       exclude="1" />
+                                       property="HyperTreeGridImplicitFunction"
+                                       value="Axis Aligned Plane"
+                                       inverse="1" />
               <PropertyWidgetDecorator type="ShowWidgetDecorator">
                 <Property name="PreserveInputCells" function="boolean_invert" />
               </PropertyWidgetDecorator>
@@ -3216,6 +3436,115 @@ Every Nth Point.
         </Documentation>
       </IntVectorProperty>
       <!-- End SliceWithPlane -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAxisAlignedCutter"
+                 name="AxisAlignedSlice"
+                 label="Axis-Aligned Slice">
+      <Documentation long_help="Slice input data with an Axis-Aligned cut function, preserving the input type."
+                     short_help="Slice input data with an Axis-Aligned cut function.">
+        This filter produces axis-aligned slices of the input HyperTree Grids and Overlapping AMRs.
+        The output data type is the same as the input, effectively reducing the dimensionality of the input by one.
+        In the case of HyperTree Grids, multiple slices can be produced at once. All output slices are stored in a
+        Partitioned Dataset Collection of HyperTree Grids.
+      </Documentation>
+
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkHyperTreeGrid"/>
+          <DataType value="vtkOverlappingAMR"/>
+        </DataTypeDomain>
+        <Documentation>
+          This property specifies the input of the slice filter.
+        </Documentation>
+      </InputProperty>
+
+      <ProxyProperty command="SetCutFunction"
+                     name="CutFunction">
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="implicit_functions"
+                 name="Axis Aligned Plane"/>
+        </ProxyListDomain>
+        <Documentation>
+          This property sets the parameters of the cut function.
+        </Documentation>
+      </ProxyProperty>
+
+      <DoubleVectorProperty information_only="1"
+                            name="InputBounds">
+        <BoundsDomain name="bounds">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </BoundsDomain>
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetLevelOfResolution"
+                         default_values="0"
+                         name="Level"
+                         number_of_elements="1">
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   mode="visibility"
+                                   name="vtkOverlappingAMR"/>
+        </Hints>
+        <AMRLevelsDomain default_mode="max"
+                         name="range">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input"/>
+          </RequiredProperties>
+        </AMRLevelsDomain>
+        <Documentation>
+          Set maximum slice resolution.
+        </Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty animateable="1"
+                            command="SetOffsetValue"
+                            name="OffsetValues"
+                            number_of_elements_per_command="1"
+                            repeat_command="1"
+                            set_number_command="SetNumberOfOffsetValues"
+                            use_index="1"
+                            panel_visibility="advanced">
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   mode="visibility"
+                                   name="vtkOverlappingAMR"
+                                   exclude="1"/>
+        </Hints>
+        <BoundsDomain mode="magnitude"
+                      name="bounds">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </BoundsDomain>
+        <Documentation>
+          The values in this property specify a list of current slice
+          offset values. This can be used to create multiple slices with
+          different centers. Each entry represents a new slice with its center
+          shifted by the offset value. The 'Values Range' information is the
+          range based on the global bounding box, not necessarily on the current
+          slice geometry configuration. **These offset values are added
+          to the global offset value set through the "Offset" property.**
+        </Documentation>
+      </DoubleVectorProperty>
+      <PropertyGroup label="Multiple Slices">
+        <Property name="OffsetValues"/>
+      </PropertyGroup>
+      <PropertyGroup label="Overlapping AMR parameters">
+        <Property name="Level"/>
+      </PropertyGroup>
+      <!-- End SliceWithAxisAlignedPlane -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -4392,8 +4721,8 @@ Every Nth Point.
 
     <!-- ==================================================================== -->
    <SourceProxy class="vtkMultiObjectMassProperties"
-                label="Compute Connected Surface Properties"
-                name="ComputeConnectedSurfaceProperties">
+                label="Connected Surface Properties"
+                name="ConnectedSurfaceProperties">
      <Documentation
              long_help="Compute volume, area, and centroid of multiple connected polygonal
              objects in a single polygonal input"
@@ -4448,6 +4777,14 @@ Every Nth Point.
          This property indicates the name of the array with the object IDs. The default name is "ObjectIds".
        </Documentation>
      </StringVectorProperty>
+   </SourceProxy>
+   <SourceProxy class="vtkMultiObjectMassProperties"
+                base_proxyname="ConnectedSurfaceProperties"
+                base_proxygroup="filters"
+                name="ComputeConnectedSurfaceProperties">
+      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+        This has been renamed into 'ConnectedSurfaceProperties'. Please consider using that instead.
+      </Deprecated>
      <!-- End ComputeConnectedSurfaceProperties -->
    </SourceProxy>
 
@@ -4561,5 +4898,6 @@ Every Nth Point.
 
     </SourceProxy>
     <!-- End vtkEqualizerFilter -->
+
   </ProxyGroup>
 </ServerManagerConfiguration>

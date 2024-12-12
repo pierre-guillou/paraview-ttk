@@ -21,6 +21,10 @@ _vtk_module_wrap_client_server_sources(<module> <sources> <classes>)
 cmake_policy(PUSH)
 cmake_policy(SET CMP0053 NEW)
 
+if (POLICY CMP0116)
+  cmake_policy(SET CMP0116 NEW)
+endif()
+
 function (_vtk_module_wrap_client_server_sources module sources classes)
   _vtk_module_get_module_property("${module}"
     PROPERTY  "exclude_wrap"
@@ -54,6 +58,15 @@ function (_vtk_module_wrap_client_server_sources module sources classes)
       "$<TARGET_PROPERTY:${_vtk_client_server_target_name},COMPILE_DEFINITIONS>")
     set(_vtk_client_server_genex_include_directories
       "$<TARGET_PROPERTY:${_vtk_client_server_target_name},INCLUDE_DIRECTORIES>")
+    set(_vtk_client_server_genex_interface_compile_definitions
+      "$<TARGET_PROPERTY:${_vtk_client_server_target_name},INTERFACE_COMPILE_DEFINITIONS>")
+    set(_vtk_client_server_genex_interface_include_directories
+      "$<TARGET_PROPERTY:${_vtk_client_server_target_name},INTERFACE_INCLUDE_DIRECTORIES>")
+    set(_vtk_client_server_genex_compile_definitions_all
+      "$<IF:$<BOOL:${_vtk_client_server_genex_compile_definitions}>,${_vtk_client_server_genex_compile_definitions},${_vtk_client_server_genex_interface_compile_definitions}>")
+    set(_vtk_client_server_genex_include_directories_all
+      "$<IF:$<BOOL:${_vtk_client_server_genex_include_directories}>,${_vtk_client_server_genex_include_directories},${_vtk_client_server_genex_interface_include_directories}>")
+
   else ()
     if (NOT DEFINED ENV{CI})
       message(AUTHOR_WARNING
@@ -65,8 +78,8 @@ function (_vtk_module_wrap_client_server_sources module sources classes)
   endif ()
   file(GENERATE
     OUTPUT  "${_vtk_client_server_args_file}"
-    CONTENT "$<$<BOOL:${_vtk_client_server_genex_compile_definitions}>:\n-D\'$<JOIN:${_vtk_client_server_genex_compile_definitions},\'\n-D\'>\'>\n
-$<$<BOOL:${_vtk_client_server_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_client_server_genex_include_directories},\'\n-I\'>\'>\n")
+    CONTENT "$<$<BOOL:${_vtk_client_server_genex_compile_definitions_all}>:\n-D\'$<JOIN:${_vtk_client_server_genex_compile_definitions_all},\'\n-D\'>\'>\n
+$<$<BOOL:${_vtk_client_server_genex_include_directories_all}>:\n-I\'$<JOIN:${_vtk_client_server_genex_include_directories_all},\'\n-I\'>\'>\n")
 
   _vtk_module_get_module_property("${module}"
     PROPERTY  "hierarchy"
@@ -104,19 +117,33 @@ $<$<BOOL:${_vtk_client_server_genex_include_directories}>:\n-I\'$<JOIN:${_vtk_cl
 
     set(_vtk_client_server_source_output
       "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_library_name}CS/${_vtk_client_server_basename}ClientServer.cxx")
+    set(_vtk_client_server_depfile_genex
+      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_library_name}CS/${_vtk_client_server_basename}ClientServer.cxx.$<CONFIG>.d")
+    set(_vtk_client_server_depfile_nogenex
+      "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${_vtk_client_server_library_name}CS/${_vtk_client_server_basename}ClientServer.cxx.d")
     list(APPEND _vtk_client_server_sources
       "${_vtk_client_server_source_output}")
+
+    _vtk_module_depfile_args(
+      MULTI_CONFIG_NEEDS_GENEX
+      TOOL_ARGS _vtk_client_server_depfile_flags
+      CUSTOM_COMMAND_ARGS _vtk_client_server_depfile_args
+      SOURCE "${_vtk_client_server_header}"
+      DEPFILE_PATH "${_vtk_client_server_depfile_genex}"
+      DEPFILE_NO_GENEX_PATH "${_vtk_client_server_depfile_nogenex}"
+      TOOL_FLAGS "-MF")
 
     add_custom_command(
       OUTPUT  "${_vtk_client_server_source_output}"
       COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
               "$<TARGET_FILE:ParaView::WrapClientServer>"
+              ${_vtk_client_server_depfile_flags}
               "@${_vtk_client_server_args_file}"
               -o "${_vtk_client_server_source_output}"
               "${_vtk_client_server_header}"
+              ${_vtk_client_server_warning_args}
               --types "${_vtk_client_server_hierarchy_file}"
-      IMPLICIT_DEPENDS
-              CXX "${_vtk_client_server_header}"
+      ${_vtk_client_server_depfile_args}
       COMMENT "Generating client_server wrapper sources for ${_vtk_client_server_basename}"
       DEPENDS
         "$<TARGET_FILE:ParaView::WrapClientServer>"
@@ -207,9 +234,15 @@ ${_vtk_client_server_calls}}\n")
     PROPERTY
       GENERATED 1)
 
-  add_library("${name}" STATIC
-    ${_vtk_client_server_library_sources}
-    "${_vtk_client_server_init_file}")
+  add_library("${name}" STATIC)
+  target_sources("${name}"
+    PRIVATE
+      ${_vtk_client_server_library_sources}
+      "${_vtk_client_server_init_file}")
+  # Add a dummy file set to optimize dependencies. See CMP0154.
+  _vtk_module_add_file_set("${name}"
+    BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}"
+    NAME      dummy)
   if (BUILD_SHARED_LIBS)
     set_property(TARGET "${name}"
       PROPERTY
@@ -255,7 +288,10 @@ vtk_module_wrap_client_server(
   [DESTINATION <destination>]
 
   [INSTALL_EXPORT <export>]
-  [COMPONENT <component>])
+  [COMPONENT <component>]
+
+  [WARNINGS <warning>...]
+)
 ```
 
   * `MODULES`: (Required) The list of modules to wrap.
@@ -274,12 +310,13 @@ vtk_module_wrap_client_server(
     libraries and generated interface target to the provided export set.
   * `COMPONENT`: (Defaults to `development`) All install rules created by this
     function will use this installation component.
+  * ``WARNINGS``: Warnings to enable. Supported warnings: ``empty``.
 #]==]
 function (vtk_module_wrap_client_server)
   cmake_parse_arguments(_vtk_client_server
     ""
     "DESTINATION;INSTALL_EXPORT;TARGET;COMPONENT;FUNCTION_NAME;WRAPPED_MODULES"
-    "MODULES"
+    "MODULES;WARNINGS"
     ${ARGN})
 
   if (_vtk_client_server_UNPARSED_ARGUMENTS)
@@ -298,6 +335,18 @@ function (vtk_module_wrap_client_server)
     message(FATAL_ERROR
       "The `TARGET` argument is required.")
   endif ()
+
+  set(_vtk_client_server_known_warnings
+    empty)
+  set(_vtk_client_server_warning_args)
+  foreach (_vtk_client_server_warning IN LISTS _vtk_client_server_WARNINGS)
+    if (NOT _vtk_client_server_warning IN_LIST _vtk_client_server_known_warnings)
+      message(FATAL_ERROR
+        "Unrecognized warning: ${_vtk_client_server_warning}")
+    endif ()
+    list(APPEND _vtk_client_server_warning_args
+      "-W${_vtk_client_server_warning}")
+  endforeach ()
 
   if (NOT DEFINED _vtk_client_server_DESTINATION)
     set(_vtk_client_server_DESTINATION "${CMAKE_INSTALL_LIBDIR}")

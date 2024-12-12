@@ -44,6 +44,7 @@
 
 #include "vtkCommonCoreModule.h" // For export macro
 #include "vtkScalarsToColors.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkUnsignedCharArray.h" // Needed for inline method
 
@@ -54,7 +55,7 @@
 #define VTK_SCALE_LOG10 1
 
 VTK_ABI_NAMESPACE_BEGIN
-class VTKCOMMONCORE_EXPORT vtkLookupTable : public vtkScalarsToColors
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkLookupTable : public vtkScalarsToColors
 {
 public:
   ///@{
@@ -286,7 +287,9 @@ public:
   /**
    * Specify the number of values (i.e., colors) in the lookup table.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void SetNumberOfTableValues(vtkIdType number);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   vtkIdType GetNumberOfTableValues() { return this->NumberOfColors; }
   ///@}
 

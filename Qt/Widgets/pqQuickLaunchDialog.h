@@ -6,6 +6,8 @@
 
 #include "pqWidgetsModule.h"
 
+#include "vtkParaViewDeprecation.h" // for PARAVIEW_DEPRECATED_IN_5_13_0
+
 #include <QAction>
 #include <QDialog>
 
@@ -13,7 +15,9 @@
  * A borderless pop-up dialog used to show actions that the user can launch.
  * Provides search and quick apply capabilities.
  */
-class PQWIDGETS_EXPORT pqQuickLaunchDialog : public QDialog
+class PARAVIEW_DEPRECATED_IN_5_13_0(
+  "Please use pqQuickLaunchDialogExtended instead") PQWIDGETS_EXPORT pqQuickLaunchDialog
+  : public QDialog
 {
   Q_OBJECT
   typedef QDialog Superclass;

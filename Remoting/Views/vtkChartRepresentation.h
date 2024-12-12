@@ -17,14 +17,16 @@
 #define vtkChartRepresentation_h
 
 #include "vtkPVDataRepresentation.h"
-#include "vtkSmartPointer.h" // needed for vtkSmartPointer
-#include "vtkWeakPointer.h"  // needed for vtkWeakPointer
+#include "vtkParaViewDeprecation.h" // for deprecation
+#include "vtkSmartPointer.h"        // needed for vtkSmartPointer
+#include "vtkWeakPointer.h"         // needed for vtkWeakPointer
 
 #include <map> // needed for map
 #include <set> //needed for ivars
 
 class vtkChartSelectionRepresentation;
 class vtkAbstractChartExporter;
+class vtkCSVExporter;
 class vtkMultiBlockDataSet;
 class vtkPVContextView;
 class vtkSelectionDeliveryFilter;
@@ -135,13 +137,14 @@ public:
    */
   virtual bool MapSelectionToView(vtkSelection* sel);
 
+  ///@{
   /**
    * Called by vtkPVContextView::Export() to export the representation's data to
    * a CSV file. Return false on failure which will call the exporting process
    * to abort and raise an error. Default implementation simply returns false.
    */
   virtual bool Export(vtkAbstractChartExporter* vtkNotUsed(exporter)) { return false; }
-
+  ///@}
 protected:
   vtkChartRepresentation();
   ~vtkChartRepresentation() override;

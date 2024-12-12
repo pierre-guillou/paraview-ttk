@@ -602,6 +602,50 @@ void vtkSIProxyDefinitionManager::AttachShowInMenuHintsToProxyFromProxyGroups(vt
 }
 
 //---------------------------------------------------------------------------
+void vtkSIProxyDefinitionManager::AttachEnsurePluginLoadedToProxies(
+  vtkPVXMLElement* root, const std::string& ensurePluginLoaded)
+{
+  if (!root || ensurePluginLoaded.empty())
+  {
+    vtkWarningMacro("Calling AttachEnsurePluginLoadedToProxies with incorrect arguments");
+    return;
+  }
+
+  if (!strcmp(root->GetName(), "ProxyGroup"))
+  {
+    int size = root->GetNumberOfNestedElements();
+    for (int cc = 0; cc < size; ++cc)
+    {
+      vtkPVXMLElement* proxy = root->GetNestedElement(cc);
+      vtkPVXMLElement* ensure = proxy->FindNestedElementByName("EnsurePluginLoaded");
+      if (ensure == nullptr)
+      {
+        vtkNew<vtkPVXMLElement> localEnsure;
+        localEnsure->SetName("EnsurePluginLoaded");
+        localEnsure->SetAttribute("name", ensurePluginLoaded.c_str());
+        proxy->AddNestedElement(localEnsure.GetPointer());
+      }
+      else
+      {
+        vtkWarningMacro(<< "Not attaching EnsureProxy: " << ensurePluginLoaded
+                        << " because an EnxureProxy tag is already present");
+      }
+    }
+  }
+  else
+  {
+    vtkNew<vtkCollection> collection;
+    root->FindNestedElementByName("ProxyGroup", collection.GetPointer());
+    int size = collection->GetNumberOfItems();
+    for (int cc = 0; cc < size; ++cc)
+    {
+      vtkPVXMLElement* group = vtkPVXMLElement::SafeDownCast(collection->GetItemAsObject(cc));
+      this->AttachEnsurePluginLoadedToProxies(group, ensurePluginLoaded);
+    }
+  }
+}
+
+//---------------------------------------------------------------------------
 void vtkSIProxyDefinitionManager::AddCustomProxyDefinition(
   const char* groupName, const char* proxyName, const char* xmlcontents)
 {
@@ -751,25 +795,26 @@ void vtkSIProxyDefinitionManager::SaveCustomProxyDefinitions(vtkPVXMLElement* ro
 //---------------------------------------------------------------------------
 bool vtkSIProxyDefinitionManager::LoadConfigurationXMLFromString(const char* xmlContent)
 {
-  return this->LoadConfigurationXMLFromString(xmlContent, false);
+  return this->LoadConfigurationXMLFromString(xmlContent, false, true);
 }
 //---------------------------------------------------------------------------
 bool vtkSIProxyDefinitionManager::LoadConfigurationXMLFromString(
-  const char* xmlContent, bool attachHints)
+  const char* xmlContent, bool attachHints, bool invoke, const std::string& ensurePluginLoaded)
 {
   vtkNew<vtkPVXMLParser> parser;
   return (parser->Parse(xmlContent) != 0) &&
-    this->LoadConfigurationXML(parser->GetRootElement(), attachHints);
+    this->LoadConfigurationXML(parser->GetRootElement(), attachHints, invoke, ensurePluginLoaded);
 }
 
 //---------------------------------------------------------------------------
 bool vtkSIProxyDefinitionManager::LoadConfigurationXML(vtkPVXMLElement* root)
 {
-  return this->LoadConfigurationXML(root, false);
+  return this->LoadConfigurationXML(root, false, true);
 }
 
 //---------------------------------------------------------------------------
-bool vtkSIProxyDefinitionManager::LoadConfigurationXML(vtkPVXMLElement* root, bool attachHints)
+bool vtkSIProxyDefinitionManager::LoadConfigurationXML(
+  vtkPVXMLElement* root, bool attachHints, bool invoke, const std::string& ensurePluginLoaded)
 {
   if (!root)
   {
@@ -787,6 +832,12 @@ bool vtkSIProxyDefinitionManager::LoadConfigurationXML(vtkPVXMLElement* root, bo
   if (attachHints)
   {
     this->AttachShowInMenuHintsToProxyFromProxyGroups(root);
+  }
+
+  // Attach ensurePluginLoaded if any
+  if (!ensurePluginLoaded.empty())
+  {
+    this->AttachEnsurePluginLoadedToProxies(root, ensurePluginLoaded);
   }
 
   // Loop over the top-level elements.
@@ -807,7 +858,11 @@ bool vtkSIProxyDefinitionManager::LoadConfigurationXML(vtkPVXMLElement* root, bo
       }
     }
   }
-  this->InvokeEvent(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated);
+
+  if (invoke)
+  {
+    this->InvokeEvent(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated);
+  }
   return true;
 }
 
@@ -998,7 +1053,6 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
         vtkPVXMLElement* overridingProxyDef = subProxySrc[name].GetPointer();
         subProxyDefToRemove->GetParent()->ReplaceNestedElement(
           subProxyDefToRemove, overridingProxyDef);
-        overridingProxyDef->GetParent()->RemoveNestedElement(overridingProxyDef);
       }
     }
     // Move to next
@@ -1029,7 +1083,6 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
         vtkPVXMLElement* subPropDefToRemove = propertiesToFill[name].GetPointer();
         vtkPVXMLElement* overridingProp = propertiesSrc[name].GetPointer();
         subPropDefToRemove->GetParent()->ReplaceNestedElement(subPropDefToRemove, overridingProp);
-        overridingProp->GetParent()->RemoveNestedElement(overridingProp);
       }
     }
     // Move to next
@@ -1049,9 +1102,19 @@ void vtkSIProxyDefinitionManager::MergeProxyDefinition(
   for (cc = 0; cc < numChildren; cc++)
   {
     vtkPVXMLElement* child = element->GetNestedElement(cc);
-    vtkNew<vtkPVXMLElement> newElement;
-    child->CopyTo(newElement.GetPointer());
-    elementToFill->AddNestedElement(newElement.GetPointer());
+    bool addProperty = true;
+    if (child->GetAttribute("override"))
+    {
+      // Only include properties with an override attribute if they are
+      // absent from the element to fill.
+      addProperty = !elementToFill->FindNestedElementByName(child->GetName());
+    }
+    if (addProperty)
+    {
+      vtkNew<vtkPVXMLElement> newElement;
+      child->CopyTo(newElement.GetPointer());
+      elementToFill->AddNestedElement(newElement.GetPointer());
+    }
   }
 }
 
@@ -1175,6 +1238,15 @@ void vtkSIProxyDefinitionManager::OnPluginLoaded(vtkObject*, unsigned long, void
 //---------------------------------------------------------------------------
 void vtkSIProxyDefinitionManager::HandlePlugin(vtkPVPlugin* plugin)
 {
+  if (!plugin)
+  {
+    return;
+  }
+
+  // if GetPluginName() == vtkPVInitializerPlugin, it implies that it's
+  // the ParaView core and should not be treated exactly like a plugin.
+  bool core = strcmp(plugin->GetPluginName(), "vtkPVInitializerPlugin") == 0;
+
   vtkPVServerManagerPluginInterface* smplugin =
     dynamic_cast<vtkPVServerManagerPluginInterface*>(plugin);
   if (smplugin)
@@ -1189,18 +1261,18 @@ void vtkSIProxyDefinitionManager::HandlePlugin(vtkPVPlugin* plugin)
       this->Internals->ReplaceOverrideInParent = false;
       for (size_t cc = 0; cc < xmls.size(); cc++)
       {
-        this->LoadConfigurationXMLFromString(xmls[cc].c_str(),
-          // if GetPluginName() == vtkPVInitializerPlugin, it implies that it's
-          // the ParaView core and should not be treated as plugin.
-          strcmp(plugin->GetPluginName(), "vtkPVInitializerPlugin") != 0);
+        this->LoadConfigurationXMLFromString(xmls[cc].c_str(), !core, false,
+          smplugin->GetEnsurePluginLoaded() ? plugin->GetPluginName() : "");
       }
 
       // Make sure we invalidate any cached flatten version of our proxy definition
       this->InternalsFlatten->Clear();
       this->Internals->ReplaceOverrideInParent = tmpReplaceOverrideInParent;
+      this->InvokeEvent(vtkSIProxyDefinitionManager::ProxyDefinitionsUpdated);
     }
   }
 }
+
 //---------------------------------------------------------------------------
 bool vtkSIProxyDefinitionManager::HasDefinition(const char* groupName, const char* proxyName)
 {

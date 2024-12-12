@@ -15,7 +15,6 @@
 #define vtkPVGeneralSettings_h
 
 #include "vtkObject.h"
-#include "vtkParaViewDeprecation.h"    // for PARAVIEW_DEPRECATED_IN_5_12_0
 #include "vtkRemotingSettingsModule.h" //needed for exports
 #include "vtkSmartPointer.h"           // needed for vtkSmartPointer.
 
@@ -300,16 +299,6 @@ public:
 
   ///@{
   /**
-   * This method has no effect and should not be used.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0("SetConsoleFontSize has no effect, do not use it.")
-  void SetConsoleFontSize(int vtkNotUsed(val)){};
-  PARAVIEW_DEPRECATED_IN_5_12_0("GetConsoleFontSize has no effect, do not use it.")
-  int GetConsoleFontSize() { return 0; };
-  ///@}
-
-  ///@{
-  /**
    *  Automatically color by **vtkBlockColors** if array is present on `Apply`.
    */
   vtkSetMacro(ColorByBlockColorsOnApply, bool);
@@ -349,6 +338,14 @@ public:
    */
   static int GetNumberOfCallbackThreads();
   static void SetNumberOfCallbackThreads(int);
+  ///@}
+
+  ///@{
+  /**
+   * Sets the number of threads that are used by `vtkSMPTools`.
+   */
+  static int GetNumberOfSMPThreads();
+  static void SetNumberOfSMPThreads(int);
   ///@}
 
 protected:

@@ -5,6 +5,7 @@
 // This work was supported by Commissariat a l'Energie Atomique (CEA/DIF)
 
 #include "vtkArrowSource.h"
+#include "vtkBitArray.h"
 #include "vtkCamera.h"
 #include "vtkCellData.h"
 #include "vtkDoubleArray.h"
@@ -36,6 +37,8 @@ int TestHyperTreeGridTernary3DGradient(int argc, char* argv[])
   htGrid->SetFileName(fileName.c_str());
   htGrid->Update();
   vtkHyperTreeGrid* ht = vtkHyperTreeGrid::SafeDownCast(htGrid->GetOutputDataObject(0));
+  vtkNew<vtkBitArray> emptyMask;
+  ht->SetMask(emptyMask);
 
   // Add vector attributes
   vtkDataArray* depth = ht->GetCellData()->GetArray("Depth");
@@ -119,7 +122,7 @@ int TestHyperTreeGridTernary3DGradient(int argc, char* argv[])
   // Render and test
   renWin->Render();
 
-  int retVal = vtkRegressionTestImageThreshold(renWin, 60);
+  int retVal = vtkRegressionTestImageThreshold(renWin, 0.05);
   if (retVal == vtkRegressionTester::DO_INTERACTOR)
   {
     iren->Start();

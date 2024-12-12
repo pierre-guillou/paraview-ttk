@@ -30,12 +30,20 @@ public:
   static void processFileChooserHints(vtkPVXMLElement* hints, bool& directoryMode, bool& anyFile,
     QString& filter, bool& browseLocalFileSystem);
 
-private:
+private Q_SLOTS:
+  /**
+   * Show a warning box on property change if specified by an hint.
+   */
+  void showWarningOnChange();
+
+private: // NOLINT(readability-redundant-access-specifiers)
   Q_DISABLE_COPY(pqStringVectorPropertyWidget);
 
   bool widgetHintHasAttributeEqualTo(const std::string& attribute, const std::string& value);
 
   vtkPVXMLElement* WidgetHint = nullptr;
+  vtkPVXMLElement* WarnOnChangeHint = nullptr;
+  bool WarningTriggered = false;
 };
 
 #endif // pqStringVectorPropertyWidget_h

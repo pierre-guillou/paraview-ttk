@@ -37,10 +37,12 @@
 #define VTK_HAS_INITIALIZE_OBJECT_BASE
 
 #include "vtkCommonCoreModule.h" // For export macro
-#include "vtkFeatures.h"         // for VTK_USE_MEMKIND
+#include "vtkDeprecation.h"
+#include "vtkFeatures.h" // for VTK_USE_MEMKIND
 #include "vtkIndent.h"
 #include "vtkSystemIncludes.h"
 #include "vtkType.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include <atomic> // For std::atomic
 #include <string>
@@ -56,7 +58,7 @@ typedef void* (*vtkMallocingFunction)(size_t);
 typedef void* (*vtkReallocingFunction)(void*, size_t);
 typedef void (*vtkFreeingFunction)(void*);
 
-class VTKCOMMONCORE_EXPORT vtkObjectBase
+class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkObjectBase
 {
   /**
    * Return the class name as a string. This method is overridden
@@ -75,6 +77,7 @@ public:
   /**
    * Return the class name as a string.
    */
+  VTK_MARSHALGETTER(ClassName)
   const char* GetClassName() const;
 
   /**
@@ -185,8 +188,7 @@ public:
   /**
    * Increase the reference count (mark as used by another object).
    */
-  // XXX(virtual): VTK_DEPRECATED_IN_9_2_0("Override `UsesGarbageCollector()` instead")
-  virtual void Register(vtkObjectBase* o);
+  void Register(vtkObjectBase* o);
 
   /**
    * Decrease the reference count (release by another object). This
@@ -213,11 +215,13 @@ public:
   /**
    * Return the current reference count of this object.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   int GetReferenceCount() { return this->ReferenceCount; }
 
   /**
    * Sets the reference count. (This is very dangerous, use with care.)
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void SetReferenceCount(int);
 
   /**

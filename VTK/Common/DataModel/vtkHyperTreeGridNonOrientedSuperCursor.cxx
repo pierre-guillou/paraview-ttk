@@ -190,6 +190,16 @@ double* vtkHyperTreeGridNonOrientedSuperCursor::GetOrigin()
 }
 
 //------------------------------------------------------------------------------
+double* vtkHyperTreeGridNonOrientedSuperCursor::GetOrigin(unsigned int icursor)
+{
+  if (icursor == this->IndiceCentralCursor)
+  {
+    return this->CentralCursor->GetOrigin();
+  }
+  return this->Entries[this->GetIndiceEntry(icursor)].GetOrigin();
+}
+
+//------------------------------------------------------------------------------
 double* vtkHyperTreeGridNonOrientedSuperCursor::GetSize()
 {
   return this->CentralCursor->GetSize();
@@ -365,17 +375,15 @@ void vtkHyperTreeGridNonOrientedSuperCursor::ToChild(unsigned char ichild)
         vtkHyperTreeGridGeometryLevelEntry& current = this->Entries[reference];
         current.Initialize(this->CentralCursor->GetTree(), this->CentralCursor->GetLevel(),
           this->CentralCursor->GetVertexId(), this->CentralCursor->GetOrigin());
-        //
-        // JB1901 ne pas descendre si masque
-        if (!this->IsMasked()) // JB1901 new code
-        {                      // JB1901 new code
-          //
+
+        if (!this->IsMasked())
+        {
+
           if (current.GetTree() && !current.IsLeaf(this->Grid))
           {
             // Move to child
             current.ToChild(this->Grid, cTab[i]);
           }
-          //
         }
       }
       else
@@ -497,14 +505,9 @@ vtkHyperTreeGridNonOrientedSuperCursor::GetNonOrientedGeometryCursor(unsigned in
 {
   if (icursor == this->IndiceCentralCursor)
   {
-    return this->CentralCursor; // JB deja du bon type
+    return this->CentralCursor;
   }
   assert(false);
-  // JB ou faire le boulot pour le construire
-  // JB On ne peut pas construire ce cursor car this->Level n'est pas forcement 0
-  // JB oeut etre le fournir telle quelle ? Tant que l'on ne remonte pas au dessus du niveau
-  // d'origine de creation du cursor ? ou alors creer le cursor avec son heritage.. cout plus eleve
-  // ?!?
   return this->Entries[this->GetIndiceEntry(icursor)].GetHyperTreeGridNonOrientedGeometryCursor(
     this->Grid);
 }

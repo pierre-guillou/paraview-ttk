@@ -29,7 +29,6 @@
 #ifndef vtkSMParaViewPipelineController_h
 #define vtkSMParaViewPipelineController_h
 
-#include "vtkParaViewDeprecation.h"
 #include "vtkSMObject.h"
 
 #include <string> // for std::string
@@ -224,6 +223,8 @@ public:
    * needed python tracing.
    */
   virtual bool RegisterTextureProxy(vtkSMProxy* proxy, const char* filename);
+  virtual bool RegisterTextureProxy(
+    vtkSMProxy* proxy, const char* trivialProducerKeyName, const char* proxyname);
 
   //---------------------------------------------------------------------------
   // *******  Methods for Extractors  *********
@@ -362,13 +363,6 @@ protected:
    * registration tasks, if any. This is called in `RegisterProxy`.
    */
   void ProcessInitializationHelperRegistration(vtkSMProxy*);
-
-  /**
-   * An entry point to load a catalog of OSPRay rendering materials.
-   */
-  PARAVIEW_DEPRECATED_IN_5_12_0(
-    "Material setup is now handled by the RenderView proxy on raytracing back-end update")
-  virtual void DoMaterialSetup(vtkSMProxy* proxy);
 
 private:
   vtkSMParaViewPipelineController(const vtkSMParaViewPipelineController&) = delete;

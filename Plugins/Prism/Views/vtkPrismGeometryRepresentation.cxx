@@ -5,6 +5,7 @@
 #include "vtkAlgorithmOutput.h"
 #include "vtkBox.h"
 #include "vtkCompositeDataSet.h"
+#include "vtkDataObjectTypes.h"
 #include "vtkDataSet.h"
 #include "vtkExtractGeometry.h"
 #include "vtkFieldData.h"
@@ -12,7 +13,6 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
-#include "vtkMultiBlockDataSet.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVDataRepresentationPipeline.h"
 #include "vtkPVTrivialProducer.h"
@@ -204,18 +204,15 @@ int vtkPrismGeometryRepresentation::RequestData(
     if (inputVector[0]->GetNumberOfInformationObjects() == 1)
     {
       vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
-      if (inInfo->Has(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()))
+      vtkAlgorithmOutput* internalOutputPort = this->GetInternalOutputPort();
+      auto prod = vtkPVTrivialProducer::SafeDownCast(internalOutputPort->GetProducer());
+      if (inInfo->Has(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()) && prod)
       {
-        vtkAlgorithmOutput* aout = this->GetInternalOutputPort();
-        vtkPVTrivialProducer* prod = vtkPVTrivialProducer::SafeDownCast(aout->GetProducer());
-        if (prod)
-        {
-          prod->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
-        }
+        prod->SetWholeExtent(inInfo->Get(vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()));
       }
       if (this->IsSimulationData)
       {
-        this->SimulationPointCloudFilter->SetInputConnection(this->GetInternalOutputPort());
+        this->SimulationPointCloudFilter->SetInputConnection(internalOutputPort);
         this->SimulationToPrismFilter->SetInputConnection(
           this->SimulationPointCloudFilter->GetOutputPort());
         this->GeometryFilter->SetInputConnection(this->SimulationToPrismFilter->GetOutputPort());
@@ -237,8 +234,10 @@ int vtkPrismGeometryRepresentation::RequestData(
     }
     else
     {
-      vtkNew<vtkMultiBlockDataSet> placeholder;
-      this->GeometryConverter->SetInputDataObject(0, placeholder);
+      auto placeHolder =
+        vtk::TakeSmartPointer(vtkDataObjectTypes::NewDataObject(this->PlaceHolderDataType));
+      placeHolder->Initialize();
+      this->GeometryConverter->SetInputDataObject(0, placeHolder);
     }
 
     // essential to re-execute geometry filter consistently on all ranks since it

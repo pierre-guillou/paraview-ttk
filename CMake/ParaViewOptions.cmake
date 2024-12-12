@@ -98,14 +98,6 @@ endif()
 # These should begin with `PARAVIEW_USE_`.
 #========================================================================
 
-# XXX(VTK): External VTK is not yet actually supported.
-if (FALSE)
-option(PARAVIEW_USE_EXTERNAL_VTK "Use an external VTK." OFF)
-mark_as_advanced(PARAVIEW_USE_EXTERNAL_VTK)
-else ()
-set(PARAVIEW_USE_EXTERNAL_VTK OFF)
-endif ()
-
 option(PARAVIEW_USE_MPI "Enable MPI support for parallel computing" OFF)
 option(PARAVIEW_SERIAL_TESTS_USE_MPIEXEC
   "Used on HPC to run serial tests on compute nodes" OFF)
@@ -138,6 +130,8 @@ endif()
 
 vtk_deprecated_setting(python_default PARAVIEW_USE_PYTHON PARAVIEW_ENABLE_PYTHON OFF)
 option(PARAVIEW_USE_PYTHON "Enable/Disable Python scripting support" "${python_default}")
+
+option(PARAVIEW_USE_SERIALIZATION "Enable/Disable Serialization support" OFF)
 
 # Currently, we're making `PARAVIEW_USE_QT` available only when doing CANONICAL
 # builds with RENDERING. This is technically not necessary so we can support that
@@ -182,7 +176,7 @@ option(PARAVIEW_ENABLE_RAYTRACING "Build ParaView with OSPray and/or OptiX ray-t
 
 set(paraview_web_default ON)
 if (PARAVIEW_USE_PYTHON AND WIN32)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/VTK/CMake/FindPythonModules.cmake")
+  include(ParaViewFindPythonModules)
   find_python_module(win32api have_pywin32)
   set(paraview_web_default "${have_pywin32}")
 endif ()
@@ -201,8 +195,6 @@ option(PARAVIEW_ENABLE_ALEMBIC "Enable Alembic support." OFF)
 option(PARAVIEW_ENABLE_GDAL "Enable GDAL support." OFF)
 
 option(PARAVIEW_ENABLE_LAS "Enable LAS support." OFF)
-
-option(PARAVIEW_ENABLE_GEOVIS "Enable GeoVis support." OFF)
 
 option(PARAVIEW_ENABLE_OPENTURNS "Enable OpenTURNS support." OFF)
 
@@ -382,6 +374,7 @@ paraview_require_module(
   CONDITION PARAVIEW_USE_PYTHON
   MODULES   VTK::Python
             VTK::PythonInterpreter
+            ParaView::PythonInterpreterPath
   EXCLUSIVE)
 
 paraview_require_module(
@@ -421,11 +414,6 @@ paraview_require_module(
 paraview_require_module(
   CONDITION PARAVIEW_ENABLE_LAS
   MODULES   VTK::IOLAS
-  EXCLUSIVE)
-
-paraview_require_module(
-  CONDITION PARAVIEW_ENABLE_GEOVIS
-  MODULES   VTK::GeovisCore
   EXCLUSIVE)
 
 paraview_require_module(
@@ -516,6 +504,11 @@ paraview_require_module(
   EXCLUSIVE)
 
 paraview_require_module(
+  CONDITION PARAVIEW_USE_SERIALIZATION
+  MODULES   VTK::SerializationManager
+  EXCLUSIVE)
+
+paraview_require_module(
   CONDITION PARAVIEW_ENABLE_OCCT
   MODULES   VTK::IOOCCT
   EXCLUSIVE)
@@ -525,6 +518,7 @@ paraview_require_module(
   MODULES ParaView::VTKExtensionsFiltersGeneral
           VTK::DomainsChemistry
           VTK::FiltersAMR
+          VTK::FiltersCellGrid
           VTK::FiltersCore
           VTK::FiltersExtraction
           VTK::FiltersFlowPaths
@@ -534,12 +528,12 @@ paraview_require_module(
           VTK::FiltersHybrid
           VTK::FiltersHyperTree
           VTK::FiltersModeling
-          VTK::FiltersOpenTURNS
           VTK::FiltersParallel
           VTK::FiltersParallelDIY2
           VTK::FiltersParallelVerdict
           VTK::FiltersSources
           VTK::FiltersStatistics
+          VTK::FiltersTemporal
           VTK::FiltersTensor
           VTK::FiltersTexture
           VTK::FiltersVerdict
@@ -563,8 +557,10 @@ paraview_require_module(
 paraview_require_module(
   CONDITION PARAVIEW_BUILD_CANONICAL AND PARAVIEW_ENABLE_NONESSENTIAL
   MODULES   VTK::IOAMR
+            VTK::IOCellGrid
             VTK::IOCityGML
             VTK::IOCONVERGECFD
+            VTK::IOERF
             VTK::IOFDS
             VTK::IOIOSS
             VTK::IOH5part
@@ -585,7 +581,9 @@ paraview_require_module(
 paraview_require_module(
   CONDITION PARAVIEW_ENABLE_RENDERING AND PARAVIEW_BUILD_CANONICAL
   MODULES   VTK::FiltersTexture
-            VTK::RenderingFreeType)
+            VTK::RenderingCellGrid
+            VTK::RenderingFreeType
+)
 
 paraview_require_module(
   CONDITION PARAVIEW_USE_MPI AND PARAVIEW_USE_PYTHON

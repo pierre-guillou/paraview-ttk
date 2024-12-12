@@ -23,6 +23,7 @@
 
 #include <vtkm/Deprecated.h>
 #include <vtkm/TypeList.h>
+#include <vtkm/VecTraits.h>
 
 #include <memory>
 #include <typeindex>
@@ -65,6 +66,14 @@ vtkm::Id UnknownAHNumberOfValues(void* mem)
   return arrayHandle->GetNumberOfValues();
 }
 
+template <typename T, typename S>
+vtkm::IdComponent UnknownAHNumberOfComponentsFlat(void* mem)
+{
+  using AH = vtkm::cont::ArrayHandle<T, S>;
+  AH* arrayHandle = reinterpret_cast<AH*>(mem);
+  return arrayHandle->GetNumberOfComponentsFlat();
+}
+
 // Uses SFINAE to use Storage<>::GetNumberOfComponents if it exists, or the VecTraits otherwise
 template <typename T, typename S>
 inline auto UnknownAHNumberOfComponentsImpl(void* mem)
@@ -76,75 +85,25 @@ inline auto UnknownAHNumberOfComponentsImpl(void* mem)
   return vtkm::cont::internal::Storage<T, S>::GetNumberOfComponents(arrayHandle->GetBuffers());
 }
 
-// Uses SFINAE to use the number of compnents in VecTraits.
-// Note that this will conflict with the above overloaded function if the storage has a
-// GetNumberOfComponents method and VecTraits has a static size. However, I cannot think
-// of a use case for the storage to report the number of components for a static data type.
-// If that happens, this implementation will need to be modified.
+// Uses static vec size.
 template <typename T, typename S>
-inline auto UnknownAHNumberOfComponentsImpl(void*) -> decltype(vtkm::VecTraits<T>::NUM_COMPONENTS)
+inline vtkm::IdComponent UnknownAHNumberOfComponentsImpl(void*, vtkm::VecTraitsTagSizeStatic)
 {
-  static constexpr vtkm::IdComponent numComponents = vtkm::VecTraits<T>::NUM_COMPONENTS;
-  return numComponents;
+  return vtkm::VecTraits<T>::NUM_COMPONENTS;
 }
 
-// Fallback for when there is no way to determine the number of components. (This could be
-// because each value could have a different number of components.
+// The size of the vecs are not defined at compile time. Assume that the components are not
+// nested and use the flat components query.
 template <typename T, typename S>
-inline vtkm::IdComponent UnknownAHNumberOfComponentsImpl(...)
+inline vtkm::IdComponent UnknownAHNumberOfComponentsImpl(void* mem, vtkm::VecTraitsTagSizeVariable)
 {
-  return 0;
+  return UnknownAHNumberOfComponentsFlat<T, S>(mem);
 }
 
 template <typename T, typename S>
 vtkm::IdComponent UnknownAHNumberOfComponents(void* mem)
 {
-  return UnknownAHNumberOfComponentsImpl<T, S>(mem);
-}
-
-// Uses SFINAE to use Storage<>::GetNumberOfComponents if it exists, or the VecTraits otherwise
-template <typename T, typename S>
-inline auto UnknownAHNumberOfComponentsFlatImpl(void* mem)
-  -> decltype(vtkm::cont::internal::Storage<T, S>::GetNumberOfComponents(
-    std::vector<vtkm::cont::internal::Buffer>()))
-{
-  using AH = vtkm::cont::ArrayHandle<T, S>;
-  AH* arrayHandle = reinterpret_cast<AH*>(mem);
-  // Making an assumption here that `T` is a `Vec`-like object that `GetNumberOfComponents`
-  // will report on how many each has. Further assuming that the components of `T` are
-  // static. If a future `ArrayHandle` type violates this, this code will have to become
-  // more complex.
-  return (vtkm::cont::internal::Storage<T, S>::GetNumberOfComponents(arrayHandle->GetBuffers()) *
-          vtkm::VecFlat<typename vtkm::VecTraits<T>::ComponentType>::NUM_COMPONENTS);
-}
-
-// Uses SFINAE to use the number of compnents in VecTraits.
-// Note that this will conflict with the above overloaded function if the storage has a
-// GetNumberOfComponents method and VecTraits has a static size. However, I cannot think
-// of a use case for the storage to report the number of components for a static data type.
-// If that happens, this implementation will need to be modified.
-template <typename T, typename S>
-inline auto UnknownAHNumberOfComponentsFlatImpl(void*)
-  -> decltype(vtkm::VecTraits<T>::NUM_COMPONENTS)
-{
-  //  static constexpr vtkm::IdComponent numComponents = vtkm::VecFlat<T>::NUM_COMPONENTS;
-  //  return numComponents;
-  return vtkm::VecFlat<T>::NUM_COMPONENTS;
-}
-
-// Fallback for when there is no way to determine the number of components. (This could be
-// because each value could have a different number of components or just that VecTraits
-// are not defined.) Since it cannot be flattened, just return the same as num components.
-template <typename T, typename S>
-inline vtkm::IdComponent UnknownAHNumberOfComponentsFlatImpl(...)
-{
-  return UnknownAHNumberOfComponentsImpl<T, S>(static_cast<void*>(nullptr));
-}
-
-template <typename T, typename S>
-vtkm::IdComponent UnknownAHNumberOfComponentsFlat(void* mem)
-{
-  return UnknownAHNumberOfComponentsFlatImpl<T, S>(mem);
+  return UnknownAHNumberOfComponentsImpl<T, S>(mem, typename vtkm::VecTraits<T>::IsSizeStatic{});
 }
 
 template <typename T, typename S>
@@ -272,7 +231,7 @@ struct VTKM_CONT_EXPORT UnknownAHContainer
   using NewInstanceType = void*();
   NewInstanceType* NewInstance;
 
-  using NewInstanceBasicType = std::shared_ptr<UnknownAHContainer>();
+  using NewInstanceBasicType = std::shared_ptr<UnknownAHContainer>(void*);
   NewInstanceBasicType* NewInstanceBasic;
   NewInstanceBasicType* NewInstanceFloatBasic;
 
@@ -348,39 +307,56 @@ private:
   explicit UnknownAHContainer(const vtkm::cont::ArrayHandle<T, S>& array);
 };
 
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic(vtkm::VecTraitsTagSizeStatic)
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic(void*, vtkm::VecTraitsTagSizeStatic)
 {
   return UnknownAHContainer::Make(vtkm::cont::ArrayHandleBasic<T>{});
 }
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic(vtkm::VecTraitsTagSizeVariable)
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic(void* mem,
+                                                              vtkm::VecTraitsTagSizeVariable)
 {
-  throw vtkm::cont::ErrorBadType("Cannot create a basic array container from with ValueType of " +
-                                 vtkm::cont::TypeToString<T>());
+  vtkm::IdComponent numComponents = UnknownAHNumberOfComponentsFlat<T, S>(mem);
+  if (numComponents < 1)
+  {
+    // Array can have an inconsistent number of components. Cannot be represented by basic array.
+    throw vtkm::cont::ErrorBadType("Cannot create a basic array from array with ValueType of " +
+                                   vtkm::cont::TypeToString<T>());
+  }
+  using ComponentType = typename vtkm::VecTraits<T>::BaseComponentType;
+  return UnknownAHContainer::Make(vtkm::cont::ArrayHandleRuntimeVec<ComponentType>(numComponents));
 }
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic()
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceBasic(void* mem)
 {
-  return UnknownAHNewInstanceBasic<T>(typename vtkm::VecTraits<T>::IsSizeStatic{});
+  return UnknownAHNewInstanceBasic<T, S>(mem, typename vtkm::VecTraits<T>::IsSizeStatic{});
 }
 
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic(vtkm::VecTraitsTagSizeStatic)
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic(void*,
+                                                                   vtkm::VecTraitsTagSizeStatic)
 {
   using FloatT = typename vtkm::VecTraits<T>::template ReplaceBaseComponentType<vtkm::FloatDefault>;
   return UnknownAHContainer::Make(vtkm::cont::ArrayHandleBasic<FloatT>{});
 }
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic(vtkm::VecTraitsTagSizeVariable)
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic(void* mem,
+                                                                   vtkm::VecTraitsTagSizeVariable)
 {
-  throw vtkm::cont::ErrorBadType("Cannot create a basic array container from with ValueType of " +
-                                 vtkm::cont::TypeToString<T>());
+  vtkm::IdComponent numComponents = UnknownAHNumberOfComponentsFlat<T, S>(mem);
+  if (numComponents < 1)
+  {
+    // Array can have an inconsistent number of components. Cannot be represented by basic array.
+    throw vtkm::cont::ErrorBadType("Cannot create a basic array from array with ValueType of " +
+                                   vtkm::cont::TypeToString<T>());
+  }
+  return UnknownAHContainer::Make(
+    vtkm::cont::ArrayHandleRuntimeVec<vtkm::FloatDefault>(numComponents));
 }
-template <typename T>
-std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic()
+template <typename T, typename S>
+std::shared_ptr<UnknownAHContainer> UnknownAHNewInstanceFloatBasic(void* mem)
 {
-  return UnknownAHNewInstanceFloatBasic<T>(typename vtkm::VecTraits<T>::IsSizeStatic{});
+  return UnknownAHNewInstanceFloatBasic<T, S>(mem, typename vtkm::VecTraits<T>::IsSizeStatic{});
 }
 
 template <typename T, typename S>
@@ -393,8 +369,8 @@ inline UnknownAHContainer::UnknownAHContainer(const vtkm::cont::ArrayHandle<T, S
   , DeleteFunction(detail::UnknownAHDelete<T, S>)
   , Buffers(detail::UnknownAHBuffers<T, S>)
   , NewInstance(detail::UnknownAHNewInstance<T, S>)
-  , NewInstanceBasic(detail::UnknownAHNewInstanceBasic<T>)
-  , NewInstanceFloatBasic(detail::UnknownAHNewInstanceFloatBasic<T>)
+  , NewInstanceBasic(detail::UnknownAHNewInstanceBasic<T, S>)
+  , NewInstanceFloatBasic(detail::UnknownAHNewInstanceFloatBasic<T, S>)
   , NumberOfValues(detail::UnknownAHNumberOfValues<T, S>)
   , NumberOfComponents(detail::UnknownAHNumberOfComponents<T, S>)
   , NumberOfComponentsFlat(detail::UnknownAHNumberOfComponentsFlat<T, S>)
@@ -421,7 +397,7 @@ inline std::shared_ptr<UnknownAHContainer> MakeUnknownAHContainerFunctor::operat
 template <typename ValueTypeList, typename StorageTypeList>
 class UncertainArrayHandle;
 
-/// \brief An ArrayHandle of an unknown value type and storage.
+/// @brief An ArrayHandle of an unknown value type and storage.
 ///
 /// `UnknownArrayHandle` holds an `ArrayHandle` object using runtime polymorphism
 /// to manage different value and storage types rather than compile-time templates.
@@ -432,14 +408,14 @@ class UncertainArrayHandle;
 /// types.
 ///
 /// To interface between the runtime polymorphism and the templated algorithms
-/// in VTK-m, `UnknownArrayHandle` contains a method named `CastAndCallForTypes`
+/// in VTK-m, `UnknownArrayHandle` contains a method named `CastAndCallForTypes()`
 /// that determines the correct type from some known list of value types and
 /// storage. This mechanism is used internally by VTK-m's worklet invocation
 /// mechanism to determine the type when running algorithms.
 ///
 /// If the `UnknownArrayHandle` is used in a context where the possible array
 /// types can be whittled down to a finite list (or you have to), you can
-/// specify lists of value types and storage using the `ResetTypesAndStorage`
+/// specify lists of value types and storage using the `ResetTypesAndStorage()`
 /// method. This will convert this object to an `UncertainArrayHandle` of the
 /// given types. In cases where a finite set of types need to specified but
 /// there is no known subset, `VTKM_DEFAULT_TYPE_LIST` and
@@ -468,7 +444,7 @@ public:
   {
   }
 
-  /// \brief Returns whether an array is stored in this `UnknownArrayHandle`.
+  /// @brief Returns whether an array is stored in this `UnknownArrayHandle`.
   ///
   /// If the `UnknownArrayHandle` is constructed without an `ArrayHandle`, it
   /// will not have an underlying type, and therefore the operations will be
@@ -476,7 +452,7 @@ public:
   /// `ArrayHandle`.
   VTKM_CONT bool IsValid() const;
 
-  /// \brief Create a new array of the same type as this array.
+  /// @brief Create a new array of the same type as this array.
   ///
   /// This method creates a new array that is the same type as this one and
   /// returns a new `UnknownArrayHandle` for it. This method is convenient when
@@ -484,7 +460,7 @@ public:
   ///
   VTKM_CONT UnknownArrayHandle NewInstance() const;
 
-  /// \brief Create a new `ArrayHandleBasic` with the same `ValueType` as this array.
+  /// @brief Create a new `ArrayHandleBasic` with the same `ValueType` as this array.
   ///
   /// This method creates a new `ArrayHandleBasic` that has the same `ValueType` as the
   /// array held by this one and returns a new `UnknownArrayHandle` for it. This method
@@ -493,7 +469,7 @@ public:
   ///
   VTKM_CONT UnknownArrayHandle NewInstanceBasic() const;
 
-  /// \brief Create a new `ArrayHandleBasic` with the base component of `FloatDefault`
+  /// @brief Create a new `ArrayHandleBasic` with the base component of `vtkm::FloatDefault`
   ///
   /// This method creates a new `ArrayHandleBasic` that has a `ValueType` that is similar
   /// to the array held by this one except that the base component type is replaced with
@@ -511,22 +487,22 @@ public:
   ///
   VTKM_CONT UnknownArrayHandle NewInstanceFloatBasic() const;
 
-  /// \brief Returns the name of the value type stored in the array.
+  /// @brief Returns the name of the value type stored in the array.
   ///
   /// Returns an empty string if no array is stored.
   VTKM_CONT std::string GetValueTypeName() const;
 
-  /// \brief Returns the name of the base component of the value type stored in the array.
+  /// @brief Returns the name of the base component of the value type stored in the array.
   ///
   /// Returns an empty string if no array is stored.
   VTKM_CONT std::string GetBaseComponentTypeName() const;
 
-  /// \brief Returns the name of the storage tag for the array.
+  /// @brief Returns the name of the storage tag for the array.
   ///
   /// Returns an empty string if no array is stored.
   VTKM_CONT std::string GetStorageTypeName() const;
 
-  /// \brief Returns a string representation of the underlying data type.
+  /// @brief Returns a string representation of the underlying data type.
   ///
   /// The returned string will be of the form `vtkm::cont::ArrayHandle<T, S>` rather than the name
   /// of an actual subclass. If no array is stored, an empty string is returned.
@@ -549,7 +525,7 @@ public:
     return this->IsStorageTypeImpl(typeid(StorageType));
   }
 
-  /// \brief Returns true if this array's `ValueType` has the provided base component type.
+  /// @brief Returns true if this array's `ValueType` has the provided base component type.
   ///
   /// The base component type is the recursive component type of any `Vec`-like object. So
   /// if the array's `ValueType` is `vtkm::Vec<vtkm::Float32, 3>`, then the base component
@@ -566,17 +542,17 @@ public:
     return this->IsBaseComponentTypeImpl(detail::UnknownAHComponentInfo::Make<BaseComponentType>());
   }
 
-  /// \brief Returns true if this array matches the ArrayHandleType template argument.
+  /// @brief Returns true if this array matches the ArrayHandleType template argument.
   ///
   /// Note that `UnknownArrayHandle` has some special handling for `ArrayHandleCast` and
   /// `ArrayHandleMultiplexer`. If you stored an array of one of these types into an
-  /// `UnknownArrayHandle`, the type of the underlying array will change and `IsType`
+  /// `UnknownArrayHandle`, the type of the underlying array will change and `IsType()`
   /// will fail. However, you can still get the array back out as that type using
   /// `AsArrayHandle`.
   ///
-  /// Use the `CanConvert` method instead to determine if the `UnknownArrayHandle`
+  /// Use the `CanConvert()` method instead to determine if the `UnknownArrayHandle`
   /// contains an array that "matches" the array of a given type. Under most
-  /// circumstances, you should prefer `CanConvert` over `IsType`.
+  /// circumstances, you should prefer `CanConvert()` over `IsType()`.
   ///
   template <typename ArrayHandleType>
   VTKM_CONT bool IsType() const
@@ -586,7 +562,7 @@ public:
             this->IsStorageType<typename ArrayHandleType::StorageTag>());
   }
 
-  /// \brief Assigns potential value and storage types.
+  /// @brief Assigns potential value and storage types.
   ///
   /// Calling this method will return an `UncertainArrayHandle` with the provided
   /// value and storage type lists. The returned object will hold the same
@@ -599,11 +575,11 @@ public:
     NewValueTypeList = NewValueTypeList{},
     NewStorageTypeList = NewStorageTypeList{}) const;
 
-  /// \brief Returns the number of values in the array.
+  /// @brief Returns the number of values in the array.
   ///
   VTKM_CONT vtkm::Id GetNumberOfValues() const;
 
-  /// \brief Returns the number of components for each value in the array.
+  /// @brief Returns the number of components for each value in the array.
   ///
   /// If the array holds `vtkm::Vec` objects, this will return the number of components
   /// in each value. If the array holds a basic C type (such as `float`), this will return 1.
@@ -612,7 +588,7 @@ public:
   ///
   VTKM_CONT vtkm::IdComponent GetNumberOfComponents() const;
 
-  /// \brief Returns the total number of components for each value in the array.
+  /// @brief Returns the total number of components for each value in the array.
   ///
   /// If the array holds `vtkm::Vec` objects, this will return the total number of components
   /// in each value assuming the object is flattened out to one level of `Vec` objects.
@@ -621,26 +597,28 @@ public:
   /// of components (in this case 3).
   /// If the array holds a hierarchy of `Vec`s (such as `vtkm::Vec<vtkm::Vec3f, 2>`), this will
   /// return the total number of vecs (in this case 6).
-  /// If the array holds `Vec`-like objects that have the number of components that can vary
-  /// at runtime, this method will return 0 (because there is no consistent answer).
+  ///
+  /// If this object is holding an array where the number of components can be selected at
+  /// runtime (for example, `vtkm::cont::ArrayHandleRuntimeVec`), this method will still return
+  /// the correct number of components. However, if each value in the array can be a `Vec` of
+  /// a different size (such as `vtkm::cont::ArrayHandleGroupVecVariable`),
+  /// this method will return 0 (because there is no consistent answer).
   ///
   VTKM_CONT vtkm::IdComponent GetNumberOfComponentsFlat() const;
 
-  /// \brief Reallocate the data in the array.
+  /// @brief Reallocate the data in the array.
   ///
-  /// The allocation works the same as the `Allocate` method of `vtkm::cont::ArrayHandle`.
-  ///
-  /// @{
+  /// The allocation works the same as the `Allocate()` method of `vtkm::cont::ArrayHandle`.
   VTKM_CONT void Allocate(vtkm::Id numValues,
                           vtkm::CopyFlag preserve,
                           vtkm::cont::Token& token) const;
+  /// @copydoc Allocate
   VTKM_CONT void Allocate(vtkm::Id numValues, vtkm::CopyFlag preserve = vtkm::CopyFlag::Off) const;
-  /// @}
 
-  /// \brief Determine if the contained array can be passed to the given array type.
+  /// @brief Determine if the contained array can be passed to the given array type.
   ///
-  /// This method will return true if calling `AsArrayHandle` of the given type will
-  /// succeed. The result is similar to `IsType`, and if `IsType` returns true, then
+  /// This method will return true if calling `AsArrayHandle()` of the given type will
+  /// succeed. The result is similar to `IsType()`, and if `IsType()` returns true, then
   /// this will return true. However, this method will also return true for other
   /// types such as an `ArrayHandleMultiplexer` that can contain the array.
   ///
@@ -671,24 +649,23 @@ private:
   }
 
 public:
-  ///@{
   /// Returns this array cast appropriately and stored in the given `ArrayHandle` type.
-  /// Throws an `ErrorBadType` if the stored array cannot be stored in the given array type.
-  /// Use the `CanConvert` method to determine if the array can be returned with the given type.
-  ///
+  /// Throws a `vtkm::cont::ErrorBadType` if the stored array cannot be stored in the given
+  /// array type. Use the `CanConvert()` method to determine if the array can be returned
+  /// with the given type.
   template <typename T, typename S>
   VTKM_CONT void AsArrayHandle(vtkm::cont::ArrayHandle<T, S>& array) const
   {
     this->BaseAsArrayHandle(array);
   }
-
+  /// @copydoc AsArrayHandle
   template <typename T>
   VTKM_CONT void AsArrayHandle(vtkm::cont::ArrayHandle<T>& array) const;
-
+  /// @copydoc AsArrayHandle
   template <typename T, typename... Ss>
   VTKM_CONT void AsArrayHandle(
     vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagMultiplexer<Ss...>>& array) const;
-
+  /// @copydoc AsArrayHandle
   template <typename TargetT, typename SourceT, typename SourceS>
   VTKM_CONT void AsArrayHandle(
     vtkm::cont::ArrayHandle<TargetT, vtkm::cont::StorageTagCast<SourceT, SourceS>>& array) const
@@ -697,7 +674,7 @@ public:
     array = vtkm::cont::ArrayHandleCast<TargetT, ContainedArrayType>(
       this->AsArrayHandle<ContainedArrayType>());
   }
-
+  /// @copydoc AsArrayHandle
   template <typename T>
   VTKM_CONT void AsArrayHandle(
     vtkm::cont::ArrayHandle<T, vtkm::cont::StorageTagRuntimeVec>& array) const
@@ -717,7 +694,7 @@ public:
       this->BaseAsArrayHandle(array);
     }
   }
-
+  /// @copydoc AsArrayHandle
   template <typename ArrayType>
   VTKM_CONT ArrayType AsArrayHandle() const
   {
@@ -726,12 +703,12 @@ public:
     this->AsArrayHandle(array);
     return array;
   }
-  ///@}
+
 #ifdef VTKM_MSVC
   VTKM_DEPRECATED_SUPPRESS_END
 #endif
 
-  /// \brief Deep copies data from another `UnknownArrayHandle`.
+  /// @brief Deep copies data from another `UnknownArrayHandle`.
   ///
   /// This method takes an `UnknownArrayHandle` and deep copies data from it.
   ///
@@ -740,60 +717,60 @@ public:
   ///
   void DeepCopyFrom(const vtkm::cont::UnknownArrayHandle& source);
 
-  /// \brief Deep copies data from another `UnknownArrayHandle`.
+  /// @brief Deep copies data from another `UnknownArrayHandle`.
   ///
   /// This method takes an `UnknownArrayHandle` and deep copies data from it.
   ///
   /// If this object does not point to an existing `ArrayHandle`, this const version
-  /// of `DeepCopyFrom` throws an exception.
+  /// of `DeepCopyFrom()` throws an exception.
   ///
   void DeepCopyFrom(const vtkm::cont::UnknownArrayHandle& source) const;
 
-  /// \brief Attempts a shallow copy of an array or a deep copy if that is not possible.
+  /// @brief Attempts a shallow copy of an array or a deep copy if that is not possible.
   ///
   /// This method takes an `UnknownArrayHandle` and attempts to perform a shallow copy.
   /// This shallow copy occurs if this object points to an `ArrayHandle` of the same type
   /// or does not point to any `ArrayHandle` at all. If this is not possible, then
   /// the array is deep copied.
   ///
-  /// This method is roughly equivalent to the `ArrayCopyShallowIfPossible` function
+  /// This method is roughly equivalent to the `vtkm::cont::ArrayCopyShallowIfPossible()` function
   /// (defined in `vtkm/cont/ArrayCopy.h`). However, this method can be used without
-  /// having to use a device compiler (whereas `ArrayCopyShallowIfPossible` does require
+  /// having to use a device compiler (whereas `vtkm::cont::ArrayCopyShallowIfPossible()` does require
   /// a device device compiler).
   ///
   void CopyShallowIfPossible(const vtkm::cont::UnknownArrayHandle& source);
 
-  /// \brief Attempts a shallow copy of an array or a deep copy if that is not possible.
+  /// @brief Attempts a shallow copy of an array or a deep copy if that is not possible.
   ///
   /// This method takes an `UnknownArrayHandle` and attempts to perform a shallow copy.
   /// This shallow copy occurs if this object points to an `ArrayHandle` of the same type.
   /// If the types are incompatible, then the array is deep copied.
   ///
   /// If this object does not point to an existing `ArrayHandle`, this const version
-  /// of `CopyShallowIfPossible` throws an exception.
+  /// of `CopyShallowIfPossible()` throws an exception.
   ///
-  /// This method is roughly equivalent to the `ArrayCopyShallowIfPossible` function
+  /// This method is roughly equivalent to the `vtkm::cont::ArrayCopyShallowIfPossible()` function
   /// (defined in `vtkm/cont/ArrayCopy.h`). However, this method can be used without
-  /// having to use a device compiler (whereas `ArrayCopyShallowIfPossible` does require
+  /// having to use a device compiler (whereas `vtkm::cont::ArrayCopyShallowIfPossible()` does require
   /// a device device compiler).
   ///
   void CopyShallowIfPossible(const vtkm::cont::UnknownArrayHandle& source) const;
 
-  /// \brief Extract a component of the array.
+  /// @brief Extract a component of the array.
   ///
   /// This method returns an array that holds the data for a given flat component of the data.
   /// The `BaseComponentType` has to be specified and must match the contained array (i.e.
-  /// the result of `IsBaseComponentType` must succeed for the given type).
+  /// the result of `IsBaseComponentType()` must succeed for the given type).
   ///
-  /// This method treats each value in the array as a flat `Vec` even if it is a `Vec` of
-  /// `Vec`s. For example, if the array actually holds values of type `Vec<Vec<T, 3>, 2>`,
-  /// it is treated as if it holds a `Vec<T, 6>`. See `vtkm::VecFlat` for details on how
-  /// vectors are flattened.
+  /// This method treats each value in the array as a flat `vtkm::Vec` even if it is a
+  /// `vtkm::Vec` of `Vec`s. For example, if the array actually holds values of type
+  /// `vtkm::Vec<vtkm::Vec<T, 3>, 2>`, it is treated as if it holds a `Vec<T, 6>`. See
+  /// `vtkm::VecFlat` for details on how vectors are flattened.
   ///
-  /// The point of using `ExtractComponent` over `AsArrayHandle` is that it drastically reduces
-  /// the amount of types you have to try. Most of the type the base component type is one of
+  /// The point of using `ExtractComponent()` over `AsArrayHandle()` is that it drastically reduces
+  /// the amount of types you have to try. Most of the time the base component type is one of
   /// the basic C types (i.e. `int`, `long`, `float`, etc.). You do not need to know what shape
-  /// the containing `Vec` is in, nor do you need to know the actual storage of the array.
+  /// the containing `vtkm::Vec` is in, nor do you need to know the actual storage of the array.
   ///
   /// Note that the type of the array returned is `ArrayHandleStride`. Using this type of
   /// array handle has a slight overhead over basic arrays like `ArrayHandleBasic` and
@@ -824,38 +801,39 @@ public:
     return ComponentArrayType(buffers);
   }
 
-  /// \brief Extract the array knowing only the component type of the array.
+  /// @brief Extract the array knowing only the component type of the array.
   ///
   /// This method returns an `ArrayHandle` that points to the data in the array. This method
-  /// differs from `AsArrayHandle` because you do not need to know the exact `ValueType` and
+  /// differs from `AsArrayHandle()` because you do not need to know the exact `ValueType` and
   /// `StorageTag` of the array. Instead, you only need to know the base component type.
   ///
-  /// `ExtractArrayFromComponents` works by calling the `ExtractComponent` method and then
+  /// `ExtractArrayFromComponents()` works by calling the `ExtractComponent()` method and then
   /// combining them together in a fancy `ArrayHandle`. This allows you to ignore the storage
   /// type of the underlying array as well as any `Vec` structure of the value type. However,
   /// it also places some limitations on how the data can be pulled from the data.
   ///
   /// First, you have to specify the base component type. This must match the data in the
-  /// underlying array (as reported by `IsBaseComponentType`).
+  /// underlying array (as reported by `IsBaseComponentType()`).
   ///
   /// Second, the array returned will have the `Vec`s flattened. For example, if the underlying
-  /// array has a `ValueType` of `Vec<Vec<T, 3>, 3>`, then this method will tread the data as
-  /// if it was `Vec<T, 9>`. There is no way to get an array with `Vec` of `Vec` values.
+  /// array has a `ValueType` of `vtkm::Vec<vtkm::Vec<T, 3>, 3>`, then this method will treat
+  /// the data as if it was `vtkm::Vec<T, 9>`. There is no way to get an array with `vtkm::Vec`
+  /// of `vtkm::Vec` values.
   ///
   /// Third, because the `Vec` length of the values in the returned `ArrayHandle` must be
-  /// determined at runtime, that can break many assumptions of using `Vec` objects. The
-  /// type is not going to be a `Vec<T,N>` type but rather an internal class that is intended
-  /// to behave like that. The type should behave mostly like a `Vec`, but will have some
+  /// determined at runtime, that can break many assumptions of using `vtkm::Vec` objects. The
+  /// type is not going to be a `vtkm::Vec<T,N>` type but rather an internal class that is intended
+  /// to behave like that. The type should behave mostly like a `vtkm::Vec`, but will have some
   /// differences that can lead to unexpected behavior. For example, this `Vec`-like object
   /// will not have a `NUM_COMPONENTS` constant static expression because it is not known
-  /// at compile time. (Use the `GetNumberOfComponents` method instead.) And for the same
+  /// at compile time. (Use the `GetNumberOfComponents()` method instead.) And for the same
   /// reason you will not be able to pass these objects to classes overloaded or templated
   /// on the `Vec` type. Also, these `Vec`-like objects cannot be created as new instances.
   /// Thus, you will likely have to iterate over all components rather than do operations on
   /// the whole `Vec`.
   ///
-  /// Fourth, because `ExtractArrayFromComponents` uses `ExtractComponent` to pull data from
-  /// the array (which in turn uses `ArrayExtractComponent`), there are some `ArrayHandle` types
+  /// Fourth, because `ExtractArrayFromComponents()` uses `ExtractComponent()` to pull data from
+  /// the array (which in turn uses `ArrayExtractComponent()`), there are some `ArrayHandle` types
   /// that will require copying data to a new array. This could be problematic in cases where
   /// you want to write to the array. To prevent data from being copied, set the optional
   ///  `allowCopy` to `vtkm::CopyFlag::Off`. This will cause an exception to be thrown if
@@ -878,9 +856,9 @@ public:
     return result;
   }
 
-  /// \brief Call a functor using the underlying array type.
+  /// @brief Call a functor using the underlying array type.
   ///
-  /// `CastAndCallForTypes` attempts to cast the held array to a specific value type,
+  /// `CastAndCallForTypes()` attempts to cast the held array to a specific value type,
   /// and then calls the given functor with the cast array. You must specify
   /// the `TypeList` and `StorageList` as template arguments.
   ///
@@ -890,9 +868,9 @@ public:
   template <typename TypeList, typename StorageList, typename Functor, typename... Args>
   VTKM_CONT void CastAndCallForTypes(Functor&& functor, Args&&... args) const;
 
-  /// \brief Call a functor using the underlying array type with a float cast fallback.
+  /// @brief Call a functor using the underlying array type with a float cast fallback.
   ///
-  /// `CastAndCallForTypesWithFloatFallback` attempts to cast the held array to a specific
+  /// `CastAndCallForTypesWithFloatFallback()` attempts to cast the held array to a specific
   /// value type, and then calls the given functor with the cast array. You must specify
   /// the `TypeList` and `StorageList` as template arguments.
   ///
@@ -900,28 +878,28 @@ public:
   /// passed to the functor after the converted `ArrayHandle`.
   ///
   /// If the underlying array does not match any of the requested array types, the
-  /// array is copied to a new `ArrayHandleBasic` with `FloatDefault` components
+  /// array is copied to a new `ArrayHandleBasic` with `vtkm::FloatDefault` components
   /// in its value and attempts to cast to those types.
   ///
   template <typename TypeList, typename StorageList, typename Functor, typename... Args>
   VTKM_CONT void CastAndCallForTypesWithFloatFallback(Functor&& functor, Args&&... args) const;
 
-  /// \brief Call a functor on an array extracted from the components.
+  /// @brief Call a functor on an array extracted from the components.
   ///
-  /// `CastAndCallWithExtractedArray` behaves similarly to `CastAndCallForTypes`.
+  /// `CastAndCallWithExtractedArray()` behaves similarly to `CastAndCallForTypes()`.
   /// It converts the contained data to an `ArrayHandle` and calls a functor with
   /// that `ArrayHandle` (and any number of optionally specified arguments).
   ///
-  /// The advantage of `CastAndCallWithExtractedArray` is that you do not need to
+  /// The advantage of `CastAndCallWithExtractedArray()` is that you do not need to
   /// specify any `TypeList` or `StorageList`. Instead, it internally uses
-  /// `ExtractArrayFromComponents` to work with most `ArrayHandle` types with only
-  /// about 10 instances of the functor. In contrast, calling `CastAndCallForTypes`
+  /// `ExtractArrayFromComponents()` to work with most `ArrayHandle` types with only
+  /// about 10 instances of the functor. In contrast, calling `CastAndCallForTypes()`
   /// with, for example, `VTKM_DEFAULT_TYPE_LIST` and `VTKM_DEFAULT_STORAGE_LIST`
   /// results in many more instances of the functor but handling many fewer types
   /// of `ArrayHandle`.
   ///
   /// There are, however, costs to using this method. Details of these costs are
-  /// documented for the `ExtractArrayFromComponents` method, but briefly they
+  /// documented for the `ExtractArrayFromComponents()` method, but briefly they
   /// are that `Vec` types get flattened, the resulting array has a strange `Vec`-like
   /// value type that has many limitations on its use, there is an overhead for
   /// retrieving each value from the array, and there is a potential that data
@@ -939,6 +917,7 @@ public:
   ///
   VTKM_CONT void ReleaseResources() const;
 
+  /// Prints a summary of the array's type, size, and contents.
   VTKM_CONT void PrintSummary(std::ostream& out, bool full = false) const;
 };
 

@@ -169,12 +169,7 @@ vtkHyperTreeGrid::vtkHyperTreeGrid()
   this->Information->Set(vtkDataObject::DATA_EXTENT(), this->Extent, 6);
 
   // Generate default information
-  this->Bounds[0] = 0.0;
-  this->Bounds[1] = -1.0;
-  this->Bounds[2] = 0.0;
-  this->Bounds[3] = -1.0;
-  this->Bounds[4] = 0.0;
-  this->Bounds[5] = -1.0;
+  vtkMath::UninitializeBounds(this->Bounds);
 
   this->Center[0] = 0.0;
   this->Center[1] = 0.0;
@@ -271,12 +266,7 @@ void vtkHyperTreeGrid::Initialize()
   this->Information->Set(vtkDataObject::DATA_EXTENT(), this->Extent, 6);
 
   // Generate default information
-  this->Bounds[0] = 0.0;
-  this->Bounds[1] = -1.0;
-  this->Bounds[2] = 0.0;
-  this->Bounds[3] = -1.0;
-  this->Bounds[4] = 0.0;
-  this->Bounds[5] = -1.0;
+  vtkMath::UninitializeBounds(this->Bounds);
 
   this->Center[0] = 0.0;
   this->Center[1] = 0.0;
@@ -497,7 +487,9 @@ void vtkHyperTreeGrid::CopyStructure(vtkDataObject* ds)
   // Search for hyper tree with given index
   this->HyperTrees.clear();
 
-  for (auto it = htg->HyperTrees.begin(); it != htg->HyperTrees.end(); ++it)
+  for (std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>>::const_iterator it =
+         htg->HyperTrees.begin();
+       it != htg->HyperTrees.end(); ++it)
   {
     vtkHyperTree* tree = vtkHyperTree::CreateInstance(this->BranchFactor, this->Dimension);
     assert("pre: same_type" && tree != nullptr);
@@ -588,12 +580,6 @@ void vtkHyperTreeGrid::GetCellDims(unsigned int cellDims[3]) const
 //------------------------------------------------------------------------------
 void vtkHyperTreeGrid::SetExtent(const int extent[6])
 {
-  assert("pre: valid_extent_0" && extent[0] == 0);
-  assert("pre: valid_extent_1" && extent[1] >= -1); // -1 is the unset extent
-  assert("pre: valid_extent_2" && extent[2] == 0);
-  assert("pre: valid_extent_3" && extent[3] >= -1); // -1 is the unset extent
-  assert("pre: valid_extent_4" && extent[4] == 0);
-  assert("pre: valid_extent_5" && extent[5] >= -1); // -1 is the unset extent
   int description = vtkStructuredData::SetExtent(const_cast<int*>(extent), this->Extent);
   // why vtkStructuredData::SetExtent don't take const int* ?
 
@@ -733,7 +719,7 @@ bool vtkHyperTreeGrid::HasMask()
 }
 
 //------------------------------------------------------------------------------
-vtkIdType vtkHyperTreeGrid::GetMaxNumberOfTrees()
+vtkIdType vtkHyperTreeGrid::GetMaxNumberOfTrees() const
 {
   return this->CellDims[0] * this->CellDims[1] * this->CellDims[2];
 }
@@ -770,13 +756,6 @@ unsigned int vtkHyperTreeGrid::GetNumberOfLevels()
 vtkIdType vtkHyperTreeGrid::GetNumberOfNonEmptyTrees()
 {
   return this->HyperTrees.size();
-}
-
-//------------------------------------------------------------------------------
-vtkIdType vtkHyperTreeGrid::GetNumberOfVertices()
-{
-  VTK_LEGACY_REPLACED_BODY(GetNumberOfVertices, "VTK 9.2", GetNumberOfCells);
-  return this->GetNumberOfCells();
 }
 
 //------------------------------------------------------------------------------
@@ -1105,6 +1084,8 @@ vtkHyperTreeGrid::NewNonOrientedUnlimitedMooreSuperCursor(vtkIdType index, bool 
 //------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
 {
+  assert("pre: not_tree" && index < this->GetMaxNumberOfTrees());
+
   // Wrap convenience macro for outside use
   vtkHyperTree* tree = GetHyperTreeFromThisMacro(index);
 
@@ -1117,10 +1098,6 @@ vtkHyperTree* vtkHyperTreeGrid::GetTree(vtkIdType index, bool create)
     this->HyperTrees[index] = tree;
     tree->Delete();
 
-    // JB pour initialiser le scales au niveau de HT
-    // Esperons qu'aucun HT n'est cree hors de l'appel a cette methode
-    // Ce service ne devrait pas exister ou etre visible car c'est au niveau d'un HT ou d'un
-    // cursor que cet appel est fait
     if (!tree->HasScales())
     {
       double origin[3];
@@ -1225,7 +1202,9 @@ void vtkHyperTreeGrid::DeepCopy(vtkDataObject* src)
   this->Superclass::DeepCopy(src);
   this->HyperTrees.clear();
 
-  for (auto it = htg->HyperTrees.begin(); it != htg->HyperTrees.end(); ++it)
+  for (std::map<vtkIdType, vtkSmartPointer<vtkHyperTree>>::const_iterator it =
+         htg->HyperTrees.begin();
+       it != htg->HyperTrees.end(); ++it)
   {
     vtkHyperTree* tree = vtkHyperTree::CreateInstance(this->BranchFactor, this->Dimension);
     assert("pre: same_type" && tree != nullptr);
@@ -1324,8 +1303,14 @@ vtkBitArray* vtkHyperTreeGrid::GetPureMask()
   else
   {
     this->PureMask = vtkBitArray::New();
+    this->PureMask->SetName("vtkPureMask");
   }
-  this->PureMask->SetNumberOfTuples(this->GetNumberOfCells());
+  // Do not use GetNumberOfCells method because it is not the real size of a value
+  // field due to the possible use of an indirection array (GlobalNodeIndex
+  // not implicit).
+  // Prefer to use GetGlobalNodeIndexMax()+1 which is one value above the highest
+  // index
+  this->PureMask->SetNumberOfTuples(this->GetGlobalNodeIndexMax() + 1);
 
   // Check material interface intercepts
   // The first two fields of Intercepts describe the first and the
@@ -1456,12 +1441,67 @@ void vtkHyperTreeGrid::GetIndexFromLevelZeroCoordinates(
 }
 
 //------------------------------------------------------------------------------
+// The shift is a request along each of the axes I,J,K
+// which in 2D depending on the Orientation corresponds to an IJ request which
+// translates according to the orientation value
+// The call to this method must be consistent with the existence of a neighboring
+// cell following the requested shift.
 vtkIdType vtkHyperTreeGrid::GetShiftedLevelZeroIndex(
-  vtkIdType treeindex, unsigned int i, unsigned int j, unsigned int k) const
+  vtkIdType treeindex, int di, int dj, int dk) const
 {
-  vtkIdType dtreeindex = 0;
-  this->GetIndexFromLevelZeroCoordinates(dtreeindex, i, j, k);
-  return treeindex + dtreeindex;
+  unsigned int local_i, local_j, local_k;
+  // It is very important to use the GetLevelZeroCoordinatesFromIndex method
+  // to convert HyperTree indexes to HyperTree coordinates.
+  // This method takes into account the choice made for TransposedRootIndexing.
+  this->GetLevelZeroCoordinatesFromIndex(treeindex, local_i, local_j, local_k);
+  std::array<unsigned int, 3> local_ijk{ local_i, local_j, local_k };
+  switch (this->Dimension)
+  {
+    case 1:
+    {
+      // The axis used for 1D
+      assert(di >= 0 ||
+        ("there is no neighbor axis 0" && local_ijk[this->GetAxes()[0]] >= static_cast<int>(-di)));
+      local_ijk[this->GetAxes()[0]] += di;
+      // No expected values
+      assert(dj == 0);
+      assert(dk == 0);
+      break;
+    }
+    case 2:
+    {
+      // Axes used for 2D
+      assert(di >= 0 ||
+        ("there is no neighbor axis 0" && local_ijk[this->GetAxes()[0]] >= static_cast<int>(-di)));
+      local_ijk[this->GetAxes()[0]] += di;
+      assert(dj >= 0 ||
+        ("there is no neighbor axis 1" && local_ijk[this->GetAxes()[1]] >= static_cast<int>(-dj)));
+      local_ijk[this->GetAxes()[1]] += dj;
+      // No expected values
+      assert(dk == 0);
+      break;
+    }
+    case 3:
+    {
+      assert(
+        di >= 0 || ("there is no neighbor before axis i" && local_ijk[0] >= static_cast<int>(-di)));
+      local_ijk[0] += di;
+      assert(
+        dj >= 0 || ("there is no neighbor before axis j" && local_ijk[1] >= static_cast<int>(-dj)));
+      local_ijk[1] += dj;
+      assert(
+        dk >= 0 || ("there is no neighbor before axis k" && local_ijk[2] >= static_cast<int>(-dk)));
+      local_ijk[2] += dk;
+      break;
+    }
+  }
+  vtkIdType shifttreeindex;
+  // It is very important to use the GetIndexFromLevelZeroCoordinates method,
+  // GetLevelZeroCoordinatesFromIndex's reciprocal method to convert HyperTree
+  // coordinates to HyperTree indexes.
+  // This method takes into account the choice made for TransposedRootIndexing.
+  this->GetIndexFromLevelZeroCoordinates(shifttreeindex, local_ijk[0], local_ijk[1], local_ijk[2]);
+  return shifttreeindex;
 }
 
 //------------------------------------------------------------------------------
@@ -1585,6 +1625,13 @@ void vtkHyperTreeGrid::InitializeLocalIndexNode()
 //=============================================================================
 // Hyper tree grid iterator
 // Implemented here because it needs access to the internal classes.
+// Remark:
+// - Iterator reference on next HyperTree,
+// - hence the need to call Initialize() then call GetNextTree(),
+//   with or without output argument, to access the first HT,
+// - the second HyperTree is accessed by a new call to GetNextTree(),
+//   with or without output argument,
+// - GetNextTree() when all HypeTrees have been iterated
 //------------------------------------------------------------------------------
 void vtkHyperTreeGrid::vtkHyperTreeGridIterator::Initialize(vtkHyperTreeGrid* grid)
 {
@@ -1600,16 +1647,17 @@ vtkHyperTree* vtkHyperTreeGrid::vtkHyperTreeGridIterator::GetNextTree(vtkIdType&
   {
     return nullptr;
   }
-  vtkHyperTree* t = this->Iterator->second.GetPointer();
+  vtkHyperTree* tree = this->Iterator->second.GetPointer();
   index = this->Iterator->first;
   ++this->Iterator;
-  return t;
+
+  return tree;
 }
 
 //------------------------------------------------------------------------------
 vtkHyperTree* vtkHyperTreeGrid::vtkHyperTreeGridIterator::GetNextTree()
 {
-  vtkIdType index;
+  vtkIdType index{ 0 };
   return GetNextTree(index);
 }
 
@@ -1647,7 +1695,75 @@ unsigned int vtkHyperTreeGrid::GetChildMask(unsigned int child)
 }
 
 //------------------------------------------------------------------------------
+// Helper functions for vtkHyperTreeGrid::GetBounds()
+namespace
+{
+//------------------------------------------------------------------------------
+// Recursively traverses a hyper tree, appending geometry bounds to non-masked leaf nodes.
+void RecursivelyExpandTreeBounds(
+  vtkHyperTreeGridNonOrientedGeometryCursor* cursor, vtkBoundingBox& bounds)
+{
+  if (cursor->IsLeaf())
+  {
+    double cursorBounds[6];
+    cursor->GetBounds(cursorBounds);
+    bounds.AddBounds(cursorBounds);
+    return;
+  }
+
+  auto childNb = cursor->GetNumberOfChildren();
+  for (unsigned char itChild = 0; itChild < childNb; itChild++)
+  {
+    cursor->ToChild(itChild);
+    if (!cursor->IsMasked())
+    {
+      ::RecursivelyExpandTreeBounds(cursor, bounds);
+    }
+    cursor->ToParent();
+  }
+}
+}
+
+//------------------------------------------------------------------------------
+void vtkHyperTreeGrid::ComputeBounds()
+{
+  if (this->GetMTime() > this->ComputeTime)
+  {
+    vtkIdType inIndex;
+    vtkHyperTreeGrid::vtkHyperTreeGridIterator it;
+    this->InitializeTreeIterator(it);
+    vtkBoundingBox mergedBounds;
+    while (it.GetNextTree(inIndex))
+    {
+      auto cursor = vtk::TakeSmartPointer(this->NewNonOrientedGeometryCursor(inIndex));
+      if (!cursor->IsMasked())
+      {
+        vtkBoundingBox bounds;
+        ::RecursivelyExpandTreeBounds(cursor, bounds);
+        mergedBounds.AddBox(bounds);
+      }
+    }
+    mergedBounds.GetBounds(this->Bounds);
+    this->ComputeTime.Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
 double* vtkHyperTreeGrid::GetBounds()
+{
+  this->ComputeBounds();
+  return this->Bounds;
+}
+
+//------------------------------------------------------------------------------
+void vtkHyperTreeGrid::GetBounds(double* obds)
+{
+  this->ComputeBounds();
+  memcpy(obds, this->Bounds, 6 * sizeof(double));
+}
+
+//------------------------------------------------------------------------------
+void vtkHyperTreeGrid::GetGridBounds(double* bounds)
 {
   assert("pre: exist_coordinates_explict" && this->WithCoordinates);
 
@@ -1658,33 +1774,24 @@ double* vtkHyperTreeGrid::GetBounds()
   {
     if (!coords[i] || !coords[i]->GetNumberOfTuples())
     {
-      return nullptr;
+      return;
     }
   }
 
-  // Get bounds from coordinate arrays
+  // Get grid bounds from coordinate arrays
   for (unsigned int i = 0; i < 3; ++i)
   {
     unsigned int di = 2 * i;
     unsigned int dip = di + 1;
-    this->Bounds[di] = coords[i]->GetComponent(0, 0);
-    this->Bounds[dip] = coords[i]->GetComponent(coords[i]->GetNumberOfTuples() - 1, 0);
+    bounds[di] = coords[i]->GetComponent(0, 0);
+    bounds[dip] = coords[i]->GetComponent(coords[i]->GetNumberOfTuples() - 1, 0);
 
     // Ensure that the bounds are increasing
-    if (this->Bounds[di] > this->Bounds[dip])
+    if (bounds[di] > bounds[dip])
     {
-      std::swap(this->Bounds[di], this->Bounds[dip]);
+      std::swap(bounds[di], bounds[dip]);
     }
   }
-
-  return this->Bounds;
-}
-
-//------------------------------------------------------------------------------
-void vtkHyperTreeGrid::GetBounds(double* obds)
-{
-  double* bds = this->GetBounds();
-  memcpy(obds, bds, 6 * sizeof(double));
 }
 
 //------------------------------------------------------------------------------

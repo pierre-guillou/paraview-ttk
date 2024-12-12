@@ -6,6 +6,8 @@
 
 #include "vtkCommonCoreModule.h"
 
+#include "vtkType.h"
+
 /**
  * \struct vtkAffineImplicitBackend
  * \brief A utility structure serving as a backend for affine (as a function of the index) implicit
@@ -48,7 +50,7 @@ struct VTKCOMMONCORE_EXPORT vtkAffineImplicitBackend final
    * \param index the index at which one wished to evaluate the backend
    * \return the affinely computed value
    */
-  ValueType operator()(int index) const;
+  ValueType operator()(vtkIdType index) const;
 
   /**
    * The slope of the affine function on the indices
@@ -61,4 +63,28 @@ struct VTKCOMMONCORE_EXPORT vtkAffineImplicitBackend final
 };
 VTK_ABI_NAMESPACE_END
 
+#if defined(VTK_AFFINE_BACKEND_INSTANTIATING)
+
+#define VTK_INSTANTIATE_AFFINE_BACKEND(ValueType)                                                  \
+  VTK_ABI_NAMESPACE_BEGIN                                                                          \
+  template struct VTKCOMMONCORE_EXPORT vtkAffineImplicitBackend<ValueType>;                        \
+  VTK_ABI_NAMESPACE_END
+
+#elif defined(VTK_USE_EXTERN_TEMPLATE)
+
+#ifndef VTK_AFFINE_BACKEND_TEMPLATE_EXTERN
+#define VTK_AFFINE_BACKEND_TEMPLATE_EXTERN
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4910) // extern and dllexport incompatible
+#endif
+VTK_ABI_NAMESPACE_BEGIN
+vtkExternTemplateMacro(extern template struct VTKCOMMONCORE_EXPORT vtkAffineImplicitBackend);
+VTK_ABI_NAMESPACE_END
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#endif // VTK_AFFINE_IMPLICIT_BACKEND_TEMPLATE_EXTERN
+
+#endif
 #endif // vtkAffineImplicitBackend_h

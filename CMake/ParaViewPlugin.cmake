@@ -281,6 +281,7 @@ Once all plugins have been scanned, they need to be built.
 paraview_plugin_build(
   PLUGINS <plugin>...
   [AUTOLOAD <plugin>...]
+  [DELAYED_LOAD <plugin>...]
   [PLUGINS_COMPONENT <component>]
 
   [TARGET <target>]
@@ -288,6 +289,7 @@ paraview_plugin_build(
   [CMAKE_DESTINATION <destination>]
   [TARGET_COMPONENT <component>]
   [INSTALL_HEADERS <ON|OFF>]
+  [USE_FILE_SETS <ON|OFF>]
 
   [HEADERS_DESTINATION <destination>]
   [RUNTIME_DESTINATION <destination>]
@@ -305,6 +307,10 @@ paraview_plugin_build(
 
   * `PLUGINS`: (Required) The list of plugins to build. May be empty.
   * `AUTOLOAD`: A list of plugins to mark for autoloading.
+  * `DELAYED_LOAD`: A list of plugins to mark for delayed loading. A delayed load
+    plugin is a plugin where only the XMLs are loaded on load, while the actual
+    shared library of the plugin is loaded only when a proxy defined in these XMLs
+    is used.
   * `PLUGINS_COMPONENT`: (Defaults to `paraview_plugins`) The installation
     component to use for installed plugins.
   * `TARGET`: (Recommended) The name of an interface target to generate. This
@@ -319,6 +325,8 @@ paraview_plugin_build(
   * `TARGET_COMPONENT`: (Defaults to `development`) The component to use for
     `<TARGET>`.
   * `INSTALL_HEADERS`: (Defaults to `ON`) Whether to install headers or not.
+  * `USE_FILE_SETS`: (Defaults to `OFF`) Whether to use `FILE_SET` source
+    specification or not.
   * `HEADERS_DESTINATION`: (Defaults to `${CMAKE_INSTALL_INCLUDEDIR}`) Where to
     install include files.
   * `RUNTIME_DESTINATION`: (Defaults to `${CMAKE_INSTALL_BINDIR}`) Where to
@@ -348,8 +356,8 @@ paraview_plugin_build(
 function (paraview_plugin_build)
   cmake_parse_arguments(_paraview_build
     ""
-    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS;DISABLE_XML_DOCUMENTATION;GENERATE_SPDX;SPDX_DOCUMENT_NAMESPACE;SPDX_DOWNLOAD_LOCATION"
-    "PLUGINS;AUTOLOAD"
+    "HEADERS_DESTINATION;RUNTIME_DESTINATION;LIBRARY_DESTINATION;LIBRARY_SUBDIRECTORY;TARGET;PLUGINS_FILE_NAME;INSTALL_EXPORT;CMAKE_DESTINATION;PLUGINS_COMPONENT;TARGET_COMPONENT;ADD_INSTALL_RPATHS;INSTALL_HEADERS;DISABLE_XML_DOCUMENTATION;GENERATE_SPDX;SPDX_DOCUMENT_NAMESPACE;SPDX_DOWNLOAD_LOCATION;USE_FILE_SETS"
+    "PLUGINS;AUTOLOAD;DELAYED_LOAD"
     ${ARGN})
 
   if (_paraview_build_UNPARSED_ARGUMENTS)
@@ -395,6 +403,10 @@ function (paraview_plugin_build)
 
   if (NOT DEFINED _paraview_build_INSTALL_HEADERS)
     set(_paraview_build_INSTALL_HEADERS ON)
+  endif ()
+
+  if (NOT DEFINED _paraview_build_USE_FILE_SETS)
+    set(_paraview_build_USE_FILE_SETS OFF)
   endif ()
 
   if (NOT DEFINED _paraview_build_ADD_INSTALL_RPATHS)
@@ -701,12 +713,46 @@ static void ${_paraview_build_target_safe}_initialize()
     set(_paraview_build_xml_content
       "<?xml version=\"1.0\"?>\n<Plugins>\n")
     foreach (_paraview_build_plugin IN LISTS _paraview_build_PLUGINS)
+
+      # Make a variable for where the plugin should go.
+      set(_paraview_build_plugin_directory
+        "${_paraview_build_plugin_destination}/${_paraview_build_plugin}")
+
       set(_paraview_build_autoload 0)
       if (_paraview_build_plugin IN_LIST _paraview_build_AUTOLOAD)
         set(_paraview_build_autoload 1)
       endif ()
+      set(_paraview_build_delayed_load 0)
+      if (_paraview_build_plugin IN_LIST _paraview_build_DELAYED_LOAD)
+        set(_paraview_build_delayed_load 1)
+      endif ()
       string(APPEND _paraview_build_xml_content
-        "  <Plugin name=\"${_paraview_build_plugin}\" auto_load=\"${_paraview_build_autoload}\"/>\n")
+        "  <Plugin name=\"${_paraview_build_plugin}\" auto_load=\"${_paraview_build_autoload}\" delayed_load=\"${_paraview_build_delayed_load}\"")
+
+      if (_paraview_build_delayed_load)
+        string(APPEND _paraview_build_xml_content ">\n")
+
+        get_property(_paraview_build_plugin_delayed_load_xmls GLOBAL
+          PROPERTY "_paraview_plugin_${_paraview_build_plugin}_xmls")
+        foreach (_paraview_build_plugin_delayed_load_xml IN LISTS _paraview_build_plugin_delayed_load_xmls)
+          # Copy XML to build for easier usage
+          configure_file(${_paraview_build_plugin_delayed_load_xml} "${CMAKE_BINARY_DIR}/${_paraview_build_plugin_directory}" COPYONLY)
+
+          # Add XML relative path to to plugin config file
+          cmake_path(GET _paraview_build_plugin_delayed_load_xml FILENAME _paraview_build_plugin_delayed_load_xml_name)
+          string(APPEND _paraview_build_xml_content "    <XML filename=\"${_paraview_build_plugin}/${_paraview_build_plugin_delayed_load_xml_name}\"/>\n")
+        endforeach ()
+        string(APPEND _paraview_build_xml_content "  </Plugin>\n")
+
+        # Install XMLs
+        install(
+          FILES       ${_paraview_build_plugin_delayed_load_xmls}
+          DESTINATION "${_paraview_build_plugin_directory}"
+          COMPONENT   "${_paraview_build_TARGET_COMPONENT}")
+      else ()
+       string(APPEND _paraview_build_xml_content "/>\n")
+      endif ()
+
     endforeach ()
     string(APPEND _paraview_build_xml_content
       "</Plugins>\n")
@@ -1132,6 +1178,7 @@ function (paraview_add_plugin name)
     vtk_module_build(
       MODULES             ${plugin_modules}
       PACKAGE             "${_paraview_build_plugin}"
+      USE_FILE_SETS       "${_paraview_build_USE_FILE_SETS}"
       ${_paraview_add_plugin_module_install_export_args}
       INSTALL_HEADERS     "${_paraview_build_INSTALL_HEADERS}"
       TARGETS_COMPONENT   "${_paraview_build_PLUGINS_COMPONENT}"
@@ -1247,6 +1294,10 @@ function (paraview_add_plugin name)
         "${_paraview_add_plugin_xml}")
     endforeach ()
 
+    set_property(GLOBAL APPEND
+      PROPERTY
+        "_paraview_plugin_${_paraview_build_plugin}_xmls" "${_paraview_add_plugin_xmls}")
+
     paraview_server_manager_process_files(
       TARGET    "${_paraview_build_plugin}_server_manager"
       ${_paraview_add_plugin_install_export_args}
@@ -1292,6 +1343,12 @@ function (paraview_add_plugin name)
         PATTERNS          "*.html" "*.css" "*.png" "*.jpg" "*.js"
                           ${_paraview_add_plugin_DOCUMENTATION_ADD_PATTERNS})
 
+      set(_paraview_add_plugin_depends_args)
+      if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+        list(APPEND _paraview_add_plugin_depends_args
+          DEPENDS_EXPLICIT_ONLY)
+      endif ()
+
       list(APPEND _paraview_add_plugin_extra_include_dirs
         "${CMAKE_CURRENT_BINARY_DIR}")
       set(_paraview_add_plugin_qch_output
@@ -1301,7 +1358,7 @@ function (paraview_add_plugin name)
       add_custom_command(
         OUTPUT "${_paraview_add_plugin_qch_output}"
         COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
-                $<TARGET_FILE:ParaView::ProcessXML>
+                "$<TARGET_FILE:ParaView::ProcessXML>"
                 -base64
                 "${_paraview_add_plugin_qch_output}"
                 \"\"
@@ -1311,7 +1368,8 @@ function (paraview_add_plugin name)
         DEPENDS "${_paraview_build_plugin_qch_path}"
                 "${_paraview_build_plugin}_qch"
                 "$<TARGET_FILE:ParaView::ProcessXML>"
-        COMMENT "Generating header for ${_paraview_build_plugin} documentation")
+        COMMENT "Generating header for ${_paraview_build_plugin} documentation"
+        ${_paraview_add_plugin_depends_args})
       set_property(SOURCE "${_paraview_add_plugin_qch_output}"
         PROPERTY
           SKIP_AUTOMOC 1)
@@ -1459,10 +1517,17 @@ function (paraview_add_plugin name)
         "WrappedPython_${_paraview_build_plugin}_${_paraview_add_plugin_python_module_mangled}.h")
       set(_paraview_add_plugin_python_header
         "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_add_plugin_python_header_name}")
+
+      set(_paraview_add_plugin_python_depends_args)
+      if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+        list(APPEND _paraview_add_plugin_python_depends_args
+          DEPENDS_EXPLICIT_ONLY)
+      endif ()
+
       add_custom_command(
         OUTPUT  "${_paraview_add_plugin_python_header}"
         COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
-                $<TARGET_FILE:ParaView::ProcessXML>
+                "$<TARGET_FILE:ParaView::ProcessXML>"
                 "${_paraview_add_plugin_python_header}"
                 "module_${_paraview_add_plugin_python_module_mangled}_"
                 "_string"
@@ -1470,7 +1535,8 @@ function (paraview_add_plugin name)
                 "${_paraview_add_plugin_python_path}"
         DEPENDS "${_paraview_add_plugin_python_path}"
                 "$<TARGET_FILE:ParaView::ProcessXML>"
-        COMMENT "Convert Python module ${_paraview_add_plugin_python_module_name} for ${_paraview_build_plugin}")
+        COMMENT "Convert Python module ${_paraview_add_plugin_python_module_name} for ${_paraview_build_plugin}"
+        ${_paraview_add_plugin_python_depends_args})
 
       list(APPEND _paraview_add_plugin_python_sources
         "${_paraview_add_plugin_python_header}")
@@ -1531,14 +1597,22 @@ function (paraview_add_plugin name)
   endif ()
   string(APPEND CMAKE_ARCHIVE_OUTPUT_DIRECTORY "/${_paraview_build_plugin}")
 
-  add_library("${_paraview_build_plugin}" "${_paraview_build_plugin_type}"
-    ${_paraview_add_plugin_header}
-    ${_paraview_add_plugin_source}
-    ${_paraview_add_plugin_eula_sources}
-    ${_paraview_add_plugin_binary_headers}
-    ${_paraview_add_plugin_ui_sources}
-    ${_paraview_add_plugin_python_sources}
-    ${_paraview_add_plugin_SOURCES})
+  add_library("${_paraview_build_plugin}" "${_paraview_build_plugin_type}")
+  target_sources("${_paraview_build_plugin}"
+    PRIVATE
+      ${_paraview_add_plugin_source}
+      ${_paraview_add_plugin_eula_sources}
+      ${_paraview_add_plugin_ui_sources}
+      ${_paraview_add_plugin_python_sources}
+      ${_paraview_add_plugin_SOURCES})
+  # Forward the file set option internally.
+  set(_vtk_build_USE_FILE_SETS "${_paraview_build_USE_FILE_SETS}")
+  _vtk_module_add_file_set("${_paraview_build_plugin}"
+    NAME  paraview_plugin_headers
+    VIS   PRIVATE
+    BASE_DIRS "${CMAKE_CURRENT_BINARY_DIR}"
+    FILES ${_paraview_add_plugin_header}
+          ${_paraview_add_plugin_binary_headers})
   if (NOT BUILD_SHARED_LIBS OR _paraview_add_plugin_FORCE_STATIC)
     target_compile_definitions("${_paraview_build_plugin}"
       PRIVATE

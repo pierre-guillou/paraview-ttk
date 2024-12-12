@@ -6,8 +6,6 @@
 
 #include "pqPythonModule.h"
 
-#include "vtkParaViewDeprecation.h" // for deprecation
-
 #include <QList>
 #include <QMap>
 #include <QObject>
@@ -60,13 +58,6 @@ public:
    * Hide file by prepending a `.` to its name.
    * Hidden file in macro directory are not loaded.
    */
-  PARAVIEW_DEPRECATED_IN_5_12_0("Use hideFile instead.")
-  static void removeStoredMacro(const QString& fileName);
-
-  /**
-   * Hide file by prepending a `.` to its name.
-   * Hidden file in macro directory are not loaded.
-   */
   static void hideFile(const QString& fileName);
 
   /**
@@ -74,22 +65,27 @@ public:
    */
   static QString macroNameFromFileName(const QString& fileName);
 
+  static void setNameForMacro(const QString& macroPath, const QString& name);
+
+  /**
+   * Get a macro tooltip from the fileName (absolute path of macro file).
+   */
+  static QString macroToolTipFromFileName(const QString& fileName);
+
+  static void setTooltipForMacro(const QString& macroPath, const QString& name);
+
   /**
    * Get an icon path from the fileName (absolute path of macro file).
    * If no corresponding icon, return an empty string.
    */
   static QString iconPathFromFileName(const QString& fileName);
 
+  static void setIconForMacro(const QString& macroPath, const QString& iconPath);
+
   /**
    * Get a list a "*.py" files from macro directories.
    */
   static QStringList getMacrosFilePaths();
-
-  static QStringList getSupportedIconFormats()
-  {
-    return QStringList() << ".svg"
-                         << ".png";
-  }
 
 Q_SIGNALS:
 
@@ -115,6 +111,7 @@ public Q_SLOTS:
    * a macro with the given fileName it's macroname will be updated to the
    * one given. Macro names do not have to be unique.
    */
+  void addMacro(const QString& macroName, const QString& tip, const QString& fileName);
   void addMacro(const QString& macroName, const QString& fileName);
   void addMacro(const QString& fileName);
 

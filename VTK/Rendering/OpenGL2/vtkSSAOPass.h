@@ -19,6 +19,9 @@
 
 #include "vtkImageProcessingPass.h"
 #include "vtkRenderingOpenGL2Module.h" // For export macro
+#include "vtkWrappingHints.h"          // For VTK_MARSHALAUTO
+
+#include "vtkTextureObject.h" // For texture format enum
 
 #include <vector> // For vector
 
@@ -26,9 +29,8 @@ VTK_ABI_NAMESPACE_BEGIN
 class vtkMatrix4x4;
 class vtkOpenGLFramebufferObject;
 class vtkOpenGLQuadHelper;
-class vtkTextureObject;
 
-class VTKRENDERINGOPENGL2_EXPORT vtkSSAOPass : public vtkImageProcessingPass
+class VTKRENDERINGOPENGL2_EXPORT VTK_MARSHALAUTO vtkSSAOPass : public vtkImageProcessingPass
 {
 public:
   static vtkSSAOPass* New();
@@ -101,9 +103,36 @@ public:
   vtkBooleanMacro(Blur, bool);
   ///@}
 
+  /**
+   *  Set the format to use for the depth texture
+   *  vtkTextureObject::Float32 and vtkTextureObject::Fixed32 are supported.
+   */
+  vtkSetMacro(DepthFormat, int);
+
+  ///@{
+  /**
+   * Get/Set the opacity threshold value used to write depth information for volumes.
+   * When the opacity of the current raycast sample reaches this value, the fragment depth is
+   * written to the depth buffer which results in SSAO being applied at this location.
+   * Default is 0.9
+   */
+  vtkGetMacro(VolumeOpacityThreshold, double);
+  vtkSetClampMacro(VolumeOpacityThreshold, double, 0.0, 1.0);
+  ///@}
+
 protected:
   vtkSSAOPass() = default;
   ~vtkSSAOPass() override = default;
+
+  /**
+   * Called in PreRender to add the GLDepthMaskOverride information key to volumes,
+   * which allows them to write to the depth texture by overriding the value of glDepthMask.
+   */
+  void PreRenderProp(vtkProp* prop) override;
+  /**
+   * Called in PostRender to clean the GLDepthMaskOverride information key on volumes.
+   */
+  void PostRenderProp(vtkProp* prop) override;
 
   void ComputeKernel();
   void InitializeGraphicsResources(vtkOpenGLRenderWindow* renWin, int w, int h);
@@ -118,6 +147,8 @@ protected:
   vtkTextureObject* SSAOTexture = nullptr;
   vtkTextureObject* DepthTexture = nullptr;
 
+  int DepthFormat = vtkTextureObject::Float32;
+
   vtkOpenGLFramebufferObject* FrameBufferObject = nullptr;
 
   vtkOpenGLQuadHelper* SSAOQuadHelper = nullptr;
@@ -128,6 +159,8 @@ protected:
   double Radius = 0.5;
   double Bias = 0.01;
   bool Blur = false;
+
+  double VolumeOpacityThreshold = 0.9;
 
 private:
   vtkSSAOPass(const vtkSSAOPass&) = delete;

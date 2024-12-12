@@ -3119,6 +3119,140 @@
     </Proxy>
 
     <!-- ================================================================== -->
+    <Proxy name="PolarGridActor"
+           label="Polar Grid Actor"
+           class="vtkPolarAxesActor2D"
+           processes="client|dataserver|renderserver">
+      <Documentation short_help="Polar coordinates grid for render view.">
+        PolarGridActor is a polar coordinates grid that can be displayed in overlay of a render view.
+      </Documentation>
+      <IntVectorProperty name="Visibility"
+                         command="SetVisibility"
+                         number_of_elements="1"
+                         default_values="0"
+                         panel_visibility="default">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Show/hide the polar grid.
+        </Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty name="Origin"
+        command="SetOrigin"
+        number_of_elements="2"
+        default_values="0.5 0.5"
+        panel_visibility="default">
+        <DoubleRangeDomain name="range" min="0" max="1" />
+        <Documentation>
+          The origin of the axes (in normalized coordinates). Default is at center [0.5, 0.5].
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="StartAngle"
+        command="SetStartAngle"
+        number_of_elements="1"
+        default_values="0"
+        panel_visibility="default">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+          This is the orientation of the first axis (in degrees). It starts from a left-to-right axis
+          and is measured counter-clockwise.
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="EndAngle"
+        command="SetEndAngle"
+        number_of_elements="1"
+        default_values="180"
+        panel_visibility="default">
+        <DoubleRangeDomain name="range" />
+        <Documentation>
+          This is the orientation of the last axis (in degrees). It starts from a left-to-right axis
+          and is measured counter-clockwise.
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty name="AxesLength"
+        command="SetAxesLength"
+        number_of_elements="1"
+        default_values="100"
+        panel_visibility="default">
+          <Documentation>
+            The length of each radial axis in Viewport coordinates (in pixels).
+          </Documentation>
+         <DoubleRangeDomain name="range" min="0" />
+      </DoubleVectorProperty>
+
+      <IntVectorProperty name="NumberOfAxes"
+        command="SetNumberOfAxes"
+        number_of_elements="1"
+        default_values="6"
+        panel_visibility="advanced">
+          <Documentation>
+            The number of axes to display. Axes are evenly oriented around Origin
+            and starting at StartAngle.
+          </Documentation>
+         <IntRangeDomain name="range" min="2" />
+      </IntVectorProperty>
+
+      <IntVectorProperty name="NumberOfTicks"
+        command="SetNumberOfAxesTicks"
+        number_of_elements="1"
+        default_values="6"
+        panel_visibility="advanced">
+          <Documentation>
+            The number of ticks to display on each axis.
+          </Documentation>
+         <IntRangeDomain name="range" min="2" />
+      </IntVectorProperty>
+
+      <SubProxy command="SetProperty">
+        <Proxy name="2DProperty" class="vtkProperty2D"  >
+          <DoubleVectorProperty default_values="1.0 1.0 1.0"
+                                name="GridColor"
+                                command="SetColor"
+                                number_of_elements="3"
+                                panel_visibility="advanced"
+                                panel_widget="color_selector">
+            <DoubleRangeDomain max="1 1 1" min="0 0 0" name="range" />
+            <Documentation>Color for the axes and the arcs.</Documentation>
+          </DoubleVectorProperty>
+        </Proxy>
+        <ExposedProperties>
+          <Property name="GridColor" />
+        </ExposedProperties>
+      </SubProxy>
+
+      <PropertyGroup label=" " panel_visibility="advanced">
+        <Property name="NumberOfAxes" />
+        <Property name="NumberOfTicks" />
+        <Property name="GridColor" />
+      </PropertyGroup>
+
+      <SubProxy command="SetAxesTextProperty">
+        <Proxy name="AxesTextProperties" proxygroup="properties" proxyname="TextProperty" />
+        <ExposedProperties>
+          <Property exposed_name="AxesLabelColor" name="Color" />
+          <Property exposed_name="AxesLabelFontFamily" name="FontFamily" />
+          <Property exposed_name="AxesLabelBold" name="Bold" />
+          <Property exposed_name="AxesLabelItalic" name="Italic" />
+          <Property exposed_name="AxesLabelShadow" name="Shadow" />
+          <Property exposed_name="AxesLabelFontSize" name="FontSize" default_values="12"/>
+        </ExposedProperties>
+      </SubProxy>
+
+      <PropertyGroup label="Axes Font Properties" panel_widget="FontEditor" panel_visibility="advanced">
+        <Property name="AxesLabelColor" function="Color"/>
+        <Property name="AxesLabelFontFamily" function="Family"/>
+        <Property name="AxesLabelBold" function="Bold" />
+        <Property name="AxesLabelItalic" function="Italics"/>
+        <Property name="AxesLabelFontSize" function="Size" />
+        <Property name="AxesLabelShadow" function="Shadow" />
+      </PropertyGroup>
+
+    </Proxy>
+
+    <!-- ================================================================== -->
     <Proxy name="LegendGridActor"
            label="Legend Grid Actor"
            class="vtkLegendScaleActor"
@@ -3136,6 +3270,37 @@
           Show/hide the axes grid.
         </Documentation>
       </IntVectorProperty>
+
+      <SubProxy command="SetAxesProperty">
+        <Proxy name="2DProperty" class="vtkProperty2D" processes="client|dataserver|renderserver" >
+          <DoubleVectorProperty default_values="1.0 1.0 1.0"
+                                name="GridColor"
+                                command="SetColor"
+                                number_of_elements="3"
+                                panel_widget="color_selector">
+            <DoubleRangeDomain max="1 1 1" min="0 0 0" name="range" />
+            <Documentation>Color used when coloring the axes and grid</Documentation>
+          </DoubleVectorProperty>
+        </Proxy>
+        <ExposedProperties>
+          <Property name="GridColor" />
+        </ExposedProperties>
+      </SubProxy>
+
+      <IntVectorProperty command="SetGridVisibility"
+                        default_values="0"
+                        name="GridVisibility"
+                        number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          When turned on, show the full axis grid
+        </Documentation>
+      </IntVectorProperty>
+
+      <PropertyGroup label="Axis appearance">
+        <Property name="GridColor" />
+        <Property name="GridVisibility" />
+      </PropertyGroup>
 
       <IntVectorProperty name="RightBorderOffset"
                         command="SetRightBorderOffset"
@@ -3189,6 +3354,13 @@
         </Documentation>
       </IntVectorProperty>
 
+      <PropertyGroup label="Axis positions" panel_visibility="advanced">
+        <Property name="RightBorderOffset" />
+        <Property name="LeftBorderOffset" />
+        <Property name="TopBorderOffset" />
+        <Property name="BottomBorderOffset" />
+      </PropertyGroup>
+
       <SubProxy command="SetAxesTextProperty">
         <Proxy name="AxesTextProperties" proxygroup="properties" proxyname="TextProperty" />
         <ExposedProperties>
@@ -3213,6 +3385,83 @@
         <Property name="LegendLabelShadow" function="Shadow" />
         <Property name="LegendLabelOpacity" function="Opacity" />
       </PropertyGroup>
+
+      <IntVectorProperty name="AxisNotation"
+                        command="SetNotation"
+                        default_values="0"
+                        number_of_elements="1">
+        <Documentation>
+          Set the numerical notation for axis labels: standard, scientific or mixed.
+        </Documentation>
+        <EnumerationDomain name="enum">
+          <Entry text="Default" value="0" />
+          <Entry text="Scientific" value="1" />
+          <Entry text="Fixed" value="2" />
+        </EnumerationDomain>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetPrecision"
+                        default_values="2"
+                        name="AxisPrecision"
+                        number_of_elements="1">
+        <IntRangeDomain name="range" min="0"/>
+        <Documentation>
+          Set the numerical precision to use for the axis (only for scientific and fixed-point notation).
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="CompositeDecorator">
+            <Expression type="or">
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="AxisNotation" value="1"/>
+              <PropertyWidgetDecorator type="GenericDecorator" mode="visibility" property="AxisNotation" value="2"/>
+            </Expression>
+          </PropertyWidgetDecorator>
+        </Hints>
+      </IntVectorProperty>
+
+      <PropertyGroup label="Axis Label notation">
+        <Property name="AxisNotation"/>
+        <Property name="AxisPrecision"/>
+      </PropertyGroup>
+
+      <IntVectorProperty command="SetNumberOfHorizontalLabels"
+                        default_values="5"
+                        panel_visibility="advanced"
+                        name="HorizontalLabelNumber"
+                        number_of_elements="1">
+        <IntRangeDomain name="range" min="0" max="24"/>
+        <Documentation>
+          Set the number of ticks and labels for the horizontal axis.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetNumberOfVerticalLabels"
+                        default_values="5"
+                        panel_visibility="advanced"
+                        name="VerticalLabelNumber"
+                        number_of_elements="1">
+        <IntRangeDomain name="range" min="0" max="24"/>
+        <Documentation>
+          Set the number of ticks and labels for the vertical axis.
+        </Documentation>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty name="Origin"
+                          command="SetOrigin"
+                          panel_visibility="advanced"
+                          number_of_elements="3"
+                          default_values="0 0 0">
+        <Documentation>
+          The origin of the measure.
+        </Documentation>
+      </DoubleVectorProperty>
+
+
+      <PropertyGroup label="Tick configuration" panel_visibility="advanced">
+        <Property name="HorizontalLabelNumber" />
+        <Property name="VerticalLabelNumber" />
+        <Property name="Origin" />
+      </PropertyGroup>
+
     </Proxy>
 
     <!-- ================================================================== -->

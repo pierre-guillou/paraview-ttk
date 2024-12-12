@@ -26,6 +26,8 @@ public:
   std::string StatusMessage;
   bool AutoLoadForce;
   bool AutoLoad;
+  bool DelayedLoad;
+  std::vector<std::string> XMLs;
   bool Loaded;
   bool RequiredOnClient;
   bool RequiredOnServer;
@@ -33,6 +35,7 @@ public:
   vtkItem()
     : AutoLoadForce(false)
     , AutoLoad(false)
+    , DelayedLoad(false)
     , Loaded(false)
     , RequiredOnClient(false)
     , RequiredOnServer(false)
@@ -86,6 +89,25 @@ public:
     {
       return false;
     }
+
+    if (!stream.GetArgument(0, offset++, &this->DelayedLoad))
+    {
+      return false;
+    }
+    size_t nXMLs;
+    if (!stream.GetArgument(0, offset++, &nXMLs))
+    {
+      return false;
+    }
+    for (size_t i = 0; i < nXMLs; i++)
+    {
+      if (!stream.GetArgument(0, offset++, &temp_ptr))
+      {
+        return false;
+      }
+      this->XMLs.push_back(temp_ptr);
+    }
+
     if (!stream.GetArgument(0, offset++, &this->Loaded))
     {
       return false;
@@ -108,8 +130,15 @@ public:
 void operator<<(vtkClientServerStream& stream, const vtkItem& item)
 {
   stream << item.Name.c_str() << item.FileName.c_str() << item.RequiredPlugins.c_str()
-         << item.Description.c_str() << item.Version.c_str() << item.AutoLoad << item.Loaded
-         << item.RequiredOnClient << item.RequiredOnServer;
+         << item.Description.c_str() << item.Version.c_str() << item.AutoLoad << item.DelayedLoad;
+
+  stream << item.XMLs.size();
+  for (std::string xml : item.XMLs)
+  {
+    stream << xml.c_str();
+  }
+
+  stream << item.Loaded << item.RequiredOnClient << item.RequiredOnServer;
 }
 }
 
@@ -199,9 +228,8 @@ void vtkPVPluginsInformation::CopyFromStream(const vtkClientServerStream* stream
 void vtkPVPluginsInformation::CopyFromObject(vtkObject*)
 {
   this->Internals->clear();
-  vtkPVPluginLoader* loader = vtkPVPluginLoader::New();
+  vtkNew<vtkPVPluginLoader> loader;
   this->SetSearchPaths(loader->GetSearchPaths());
-  loader->Delete();
 
   vtkPVPluginTracker* tracker = vtkPVPluginTracker::GetInstance();
   for (unsigned int cc = 0; cc < tracker->GetNumberOfPlugins(); cc++)
@@ -210,6 +238,8 @@ void vtkPVPluginsInformation::CopyFromObject(vtkObject*)
     item.Name = tracker->GetPluginName(cc);
     item.FileName = tracker->GetPluginFileName(cc);
     item.AutoLoad = tracker->GetPluginAutoLoad(cc);
+    item.DelayedLoad = tracker->GetPluginDelayedLoad(cc);
+    item.XMLs = tracker->GetPluginXMLs(cc);
     item.AutoLoadForce = false;
 
     vtkPVPlugin* plugin = tracker->GetPlugin(cc);
@@ -411,51 +441,34 @@ bool vtkPVPluginsInformation::GetAutoLoad(unsigned int cc)
 }
 
 //----------------------------------------------------------------------------
-bool vtkPVPluginsInformation::PluginRequirementsSatisfied(
-  vtkPVPluginsInformation* client_plugins, vtkPVPluginsInformation* server_plugins)
+void vtkPVPluginsInformation::SetDelayedLoad(unsigned int cc, bool val)
 {
-  std::set<vtkItem, vtkItem> client_set;
-  std::set<vtkItem, vtkItem> server_set;
-  std::copy(client_plugins->Internals->begin(), client_plugins->Internals->end(),
-    std::inserter(client_set, client_set.begin()));
-  std::copy(server_plugins->Internals->begin(), server_plugins->Internals->end(),
-    std::inserter(server_set, server_set.begin()));
-
-  bool all_requirements_are_met = true;
-  std::vector<vtkItem>::iterator iter;
-  for (iter = client_plugins->Internals->begin(); iter != client_plugins->Internals->end(); ++iter)
+  if (cc < this->GetNumberOfPlugins())
   {
-    if (iter->RequiredOnServer)
-    {
-      std::set<vtkItem, vtkItem>::iterator iter2 = server_set.find(*iter);
-      if (iter2 == server_set.end() || iter2->Loaded == false)
-      {
-        all_requirements_are_met = false;
-        iter->StatusMessage = "Must be loaded on Server as well";
-      }
-      else
-      {
-        iter->StatusMessage = "";
-      }
-    }
+    (*this->Internals)[cc].DelayedLoad = val;
   }
-
-  for (iter = server_plugins->Internals->begin(); iter != server_plugins->Internals->end(); ++iter)
+  else
   {
-    if (iter->RequiredOnClient)
-    {
-      std::set<vtkItem, vtkItem>::iterator iter2 = client_set.find(*iter);
-      if (iter2 == client_set.end() || iter2->Loaded == false)
-      {
-        all_requirements_are_met = false;
-        iter->StatusMessage = "Must be loaded on Client as well";
-      }
-      else
-      {
-        iter->StatusMessage = "";
-      }
-    }
+    vtkWarningMacro("Invalid index: " << cc);
   }
+}
 
-  return all_requirements_are_met;
+//----------------------------------------------------------------------------
+bool vtkPVPluginsInformation::GetDelayedLoad(unsigned int cc)
+{
+  if (cc < this->GetNumberOfPlugins())
+  {
+    return (*this->Internals)[cc].DelayedLoad;
+  }
+  return false;
+}
+
+//----------------------------------------------------------------------------
+std::vector<std::string> vtkPVPluginsInformation::GetXMLs(unsigned int cc)
+{
+  if (cc < this->GetNumberOfPlugins())
+  {
+    return (*this->Internals)[cc].XMLs;
+  }
+  return {};
 }

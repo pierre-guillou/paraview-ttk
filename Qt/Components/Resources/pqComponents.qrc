@@ -12,6 +12,7 @@
         <file>Icons/PVSplashScreen.png</file>
         <file>Icons/pq2DTransferFunction.svg</file>
         <file>Icons/pq3DView16.png</file>
+        <file>Icons/pqActiveViewFullscreen.svg</file>
         <file>Icons/pqAdvanced.svg</file>
         <file>Icons/pqAddFavorites16.png</file>
         <file>Icons/pqApply.svg</file>
@@ -38,6 +39,7 @@
         <file>Icons/pqCellData.svg</file>
         <file>Icons/pqChangeInput.svg</file>
         <file>Icons/pqChecked.svg</file>
+        <file>Icons/pqChooseIcon.svg</file>
         <file>Icons/pqCinemaScience.svg</file>
         <file>Icons/pqClearSort.svg</file>
         <file>Icons/pqClient32.png</file>
@@ -71,6 +73,7 @@
         <file>Icons/pqFilterEyeball16.png</file>
         <file>Icons/pqFindData.svg</file>
         <file>Icons/pqFixedRepr32.png</file>
+        <file>Icons/pqFrustumSelectionBlock.svg</file>
         <file>Icons/pqFrustumSelectionCell.svg</file>
         <file>Icons/pqFrustumSelectionPoint.svg</file>
         <file>Icons/pqFullscreen.svg</file>
@@ -87,6 +90,7 @@
         <file>Icons/pqHistogramReload24.png</file>
         <file>Icons/pqHome.svg</file>
         <file>Icons/pqHomeWithSave.svg</file>
+        <file>Icons/pqImportScene.svg</file>
         <file>Icons/pqInsituServerRunning16.png</file>
         <file>Icons/pqInsituServerPaused16.png</file>
         <file>Icons/pqInsituBreakpoint16.png</file>
@@ -194,9 +198,18 @@
         <file>Icons/pqSplitHorizontal.svg</file>
         <file>Icons/pqSplitVertical.svg</file>
         <file>Icons/pqSpreadsheet.svg</file>
+        <file>Icons/pqStateBlockInherited.svg</file>
+        <file>Icons/pqStateDisabled.svg</file>
+        <file>Icons/pqStateMixedInherited.svg</file>
+        <file>Icons/pqStateRepresentationInherited.svg</file>
+        <file>Icons/pqStateSet.svg</file>
+        <file>Icons/pqStateSetAndBlockInherited.svg</file>
+        <file>Icons/pqStateSetAndMixedInherited.svg</file>
+        <file>Icons/pqStateSetAndRepresentationInherited.svg</file>
         <file>Icons/pqStep24.png</file>
         <file>Icons/pqStreamTracer.svg</file>
         <file>Icons/pqStructuredGrid16.png</file>
+        <file>Icons/pqSubElement.svg</file>
         <file>Icons/pqSurfaceHoveringPoint.svg</file>
         <file>Icons/pqSurfaceHoveringCell.svg</file>
         <file>Icons/pqSurfaceSelectionCell.svg</file>

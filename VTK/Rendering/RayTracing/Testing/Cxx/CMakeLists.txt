@@ -2,7 +2,7 @@ if (VTK_ENABLE_OSPRAY)
   vtk_add_test_cxx(vtkRenderingRayTracingCxxTests tests
     # Surface rendering tests
     TestOSPRayAmbient.cxx
-    TestOSPRayAMRVolumeRenderer.cxx
+#   TestOSPRayAMRVolumeRenderer.cxx #19221
     TestOSPRayCompositePolyDataMapper2.cxx
     TestOSPRayDepthOfField.cxx
     TestOSPRayDynamicObject.cxx
@@ -12,7 +12,7 @@ if (VTK_ENABLE_OSPRAY)
     TestOSPRayLayers.cxx
     TestOSPRayLights.cxx
     TestOSPRayMultiBlock.cxx
-    TestOSPRayMultiBlockPartialArrayFieldData.cxx
+#   TestOSPRayMultiBlockPartialArrayFieldData.cxx #19221
     TestOSPRayOrthographic.cxx
     TestOSPRayPass.cxx
     TestOSPRayPointGaussianMapper.cxx
@@ -38,9 +38,9 @@ if (VTK_ENABLE_OSPRAY)
     TestGPURayCastVolumeScale.cxx
     TestGPURayCastVolumeUpdate.cxx
     TestGPUVolumeRayCastMapper.cxx
-    TestOSPRayVolumeRenderer.cxx
+#   TestOSPRayVolumeRenderer.cxx #19221
     TestOSPRayVolumeRendererCrop.cxx
-    TestSmartVolumeMapper.cxx
+#   TestSmartVolumeMapper.cxx #19221
     # Path tracer tests
     TestCategoricalMaterials.cxx
     TestCategoricalMultiBlock.cxx
@@ -75,7 +75,7 @@ if (VTK_ENABLE_VISRTX)
     TestOSPRayLayers
     TestOSPRayLights
     TestOSPRayMultiBlock
-    TestOSPRayMultiBlockPartialArrayFieldData
+#   TestOSPRayMultiBlockPartialArrayFieldData #19221
     TestOSPRayOrthographic
     TestOSPRayPass
     TestOSPRayRenderMesh
@@ -121,7 +121,7 @@ vtk_test_cxx_executable(vtkRenderingRayTracingCxxTests all_tests RENDERING_FACTO
 
 
 # Do we have MPI and parallel support
-if (VTK_ENABLE_OSPRAY AND TARGET vtkRenderingParallel AND TARGET vtkParallelMPI)
+if (VTK_ENABLE_OSPRAY AND TARGET VTK::RenderingParallel AND TARGET VTK::ParallelMPI)
   set(vtkRenderingRayTracingCxx-MPI_NUMPROCS 2)
   vtk_add_test_mpi(vtkRenderingRayTracingCxx-MPI tests
     TESTING_DATA
@@ -130,9 +130,4 @@ if (VTK_ENABLE_OSPRAY AND TARGET vtkRenderingParallel AND TARGET vtkParallelMPI)
   vtk_test_cxx_executable(vtkRenderingRayTracingCxx-MPI tests RENDERING_FACTORY
     vtkOSPRayTestInteractor.cxx
     )
-
-  target_link_libraries(vtkRenderingRayTracingCxx-MPI
-    PRIVATE
-      vtkRenderingParallel
-      vtkParallelMPI)
 endif ()

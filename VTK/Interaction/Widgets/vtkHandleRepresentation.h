@@ -33,17 +33,17 @@
 #ifndef vtkHandleRepresentation_h
 #define vtkHandleRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCoordinate;
 class vtkRenderer;
 class vtkPointPlacer;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkHandleRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkHandleRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   ///@{
@@ -63,9 +63,9 @@ public:
    * methods are often subclassed because special constraint operations can
    * be used to control the actual positioning.
    */
-  virtual void SetDisplayPosition(double pos[3]);
-  virtual void GetDisplayPosition(double pos[3]);
-  virtual double* GetDisplayPosition() VTK_SIZEHINT(3);
+  virtual void SetDisplayPosition(double pos[2]);
+  virtual void GetDisplayPosition(double pos[2]);
+  virtual double* GetDisplayPosition() VTK_SIZEHINT(2);
   virtual void SetWorldPosition(double pos[3]);
   virtual void GetWorldPosition(double pos[3]);
   virtual double* GetWorldPosition() VTK_SIZEHINT(3);
@@ -104,10 +104,6 @@ public:
     Translating,
     Scaling
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
   ///@{
   /**

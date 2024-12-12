@@ -42,10 +42,9 @@
 #ifndef vtkBalloonRepresentation_h
 #define vtkBalloonRepresentation_h
 
-#include "vtkDeprecation.h"              // For VTK_DEPRECATED_IN_9_2_0
 #include "vtkInteractionWidgetsModule.h" // For export macro
-#include "vtkLegacy.h"                   // for VTK_LEGACY_REMOVE
 #include "vtkWidgetRepresentation.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkTextMapper;
@@ -64,7 +63,8 @@ class vtkPolyData;
 class vtkPolyDataMapper2D;
 class vtkTexturedActor2D;
 
-class VTKINTERACTIONWIDGETS_EXPORT vtkBalloonRepresentation : public vtkWidgetRepresentation
+class VTKINTERACTIONWIDGETS_EXPORT VTK_MARSHALAUTO vtkBalloonRepresentation
+  : public vtkWidgetRepresentation
 {
 public:
   /**
@@ -207,10 +207,6 @@ public:
     OnText,
     OnImage
   };
-#if !defined(VTK_LEGACY_REMOVE)
-  VTK_DEPRECATED_IN_9_2_0("because leading underscore is reserved")
-  typedef InteractionStateType _InteractionState;
-#endif
 
 protected:
   vtkBalloonRepresentation();

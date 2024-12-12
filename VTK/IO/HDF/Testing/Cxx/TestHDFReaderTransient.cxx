@@ -3,6 +3,7 @@
 
 #include "vtkHDFReader.h"
 
+#include "vtkAMRBox.h"
 #include "vtkAppendDataSets.h"
 #include "vtkAppendFilter.h"
 #include "vtkCellData.h"
@@ -12,12 +13,18 @@
 #include "vtkImageData.h"
 #include "vtkMath.h"
 #include "vtkMathUtilities.h"
+#include "vtkOverlappingAMR.h"
+#include "vtkPartitionedDataSet.h"
 #include "vtkPointData.h"
 #include "vtkRTAnalyticSource.h"
 #include "vtkSphereSource.h"
+#include "vtkTestUtilities.h"
 #include "vtkTesting.h"
+#include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
+#include "vtkXMLPartitionedDataSetReader.h"
 #include "vtkXMLPolyDataReader.h"
+#include "vtkXMLUniformGridAMRReader.h"
 
 #include <cstdlib>
 #include <map>
@@ -39,6 +46,8 @@ std::map<int, std::vector<double>> EXPECTED_POINTS_AT_TIMESTEP = {
       16.5446 } }
 };
 
+constexpr int EXPECTED_SHAPE_AT_TIMESTEP[3][2] = { { 3, 1 }, { 1, 2 }, { 2, 2 } };
+
 // analytical functions
 template <typename Vec>
 double Sin11T(double t, const Vec& point);
@@ -52,10 +61,12 @@ int TestUGTransient(const std::string& dataRoot);
 int TestImageDataTransient(const std::string& dataRoot);
 int TestPolyDataTransient(const std::string& dataRoot);
 int TestPolyDataTransientWithOffset(const std::string& dataRoot);
-
-int TestUGTransientWithCache(const std::string& dataRoot);
+int TestUGTransientWithCachePartitioned(const std::string& dataRoot);
+int TestUGTransientPartitionedNoCache(const std::string& dataRoot);
 int TestImageDataTransientWithCache(const std::string& dataRoot);
 int TestPolyDataTransientWithCache(const std::string& dataRoot);
+int TestPolyDataTransientFieldData(const std::string& dataRoot);
+int TestOverlappingAMRTransient(const std::string& dataRoot);
 }
 
 //------------------------------------------------------------------------------
@@ -68,9 +79,13 @@ int TestHDFReaderTransient(int argc, char* argv[])
   res |= ::TestImageDataTransient(dataRoot);
   res |= ::TestPolyDataTransient(dataRoot);
   res |= ::TestPolyDataTransientWithOffset(dataRoot);
-  res |= ::TestUGTransientWithCache(dataRoot);
+  res |= ::TestUGTransientPartitionedNoCache(dataRoot);
+  res |= ::TestUGTransientWithCachePartitioned(dataRoot);
   res |= ::TestImageDataTransientWithCache(dataRoot);
   res |= ::TestPolyDataTransientWithCache(dataRoot);
+  res |= ::TestPolyDataTransientFieldData(dataRoot);
+  res |= ::TestOverlappingAMRTransient(dataRoot);
+
   return res;
 }
 
@@ -91,13 +106,23 @@ public:
     this->Reader->SetFileName(filePath.c_str());
     this->Reader->Update();
   }
-
-  vtkSmartPointer<vtkDataSet> operator()(std::size_t timeStep)
+  vtkSmartPointer<vtkDataObject> operator()(std::size_t timeStep)
   {
     this->Reader->SetStep(timeStep);
     this->Reader->Update();
-    vtkSmartPointer<vtkDataSet> res = this->Reader->GetOutputAsDataSet();
+    vtkSmartPointer<vtkDataObject> res = this->Reader->GetOutputDataObject(0);
     return res;
+  }
+
+  vtkOverlappingAMR* GetDataObjectAsAMR()
+  {
+    return vtkOverlappingAMR::SafeDownCast(this->Reader->GetOutput());
+  }
+
+  void UpdateStep(std::size_t timeStep)
+  {
+    this->Reader->SetStep(timeStep);
+    this->Reader->Update();
   }
 
   vtkHDFReader* GetReader() { return this->Reader; }
@@ -272,7 +297,7 @@ bool GeometryCheckerWorklet::operator()(vtkPolyData* lhs, vtkPolyData* rhs)
 }
 
 //------------------------------------------------------------------------------
-int TestUGTransientBase(OpenerWorklet& opener)
+int TestUGTransientBase(OpenerWorklet& opener, bool testMeshMTime = false)
 {
   // Generic Time data checks
   if (opener.GetReader()->GetNumberOfSteps() != 10)
@@ -307,12 +332,12 @@ int TestUGTransientBase(OpenerWorklet& opener)
   appender->AddInputData(sphere1->GetOutput());
   appender->Update();
   vtkDataSet* refGeometry = vtkDataSet::SafeDownCast(appender->GetOutputDataObject(0));
+  std::array<vtkMTimeType, 2> meshMTime{ 0, 0 };
 
   for (std::size_t iStep = 0; iStep < 10; ++iStep)
   {
     // Open data at right time
-    vtkSmartPointer<vtkDataSet> dSet = opener(iStep);
-
+    vtkSmartPointer<vtkDataSet> dSet = vtkDataSet::SafeDownCast(opener(iStep));
     // Local Time Checks
     if (!vtkMathUtilities::FuzzyCompare(
           opener.GetReader()->GetTimeValue(), static_cast<double>(iStep) / 10, CHECK_TOLERANCE))
@@ -362,9 +387,156 @@ int TestUGTransientBase(OpenerWorklet& opener)
       std::cerr << "PointData: Failed array checks" << std::endl;
       return EXIT_FAILURE;
     }
+
+    meshMTime[1] = meshMTime[0];
+    meshMTime[0] = vtkUnstructuredGrid::SafeDownCast(dSet)->GetMeshMTime();
+    if (testMeshMTime && (iStep > 0 && iStep < 10))
+    {
+      if (meshMTime[0] != meshMTime[1])
+      {
+        std::cerr << "MTime: Failed MeshMTime check - previous = " << meshMTime[1]
+                  << " while current = " << meshMTime[0] << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
   }
 
   return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
+int TestUGTransientPartitioned(
+  OpenerWorklet& opener, const std::string& dataRoot, bool testMeshMTime = false)
+{
+  // Generic Time data checks
+  if (opener.GetReader()->GetNumberOfSteps() != 10)
+  {
+    std::cerr << "Number of time steps is not correct: " << opener.GetReader()->GetNumberOfSteps()
+              << " != " << 10 << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  auto tRange = opener.GetReader()->GetTimeRange();
+  if (!vtkMathUtilities::FuzzyCompare(tRange[0], 0.0, CHECK_TOLERANCE) ||
+    !vtkMathUtilities::FuzzyCompare(tRange[1], 0.9, CHECK_TOLERANCE))
+  {
+    std::cerr << "Time range is incorrect: (0.0, 0.9) != (" << tRange[0] << ", " << tRange[1] << ")"
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  std::array<vtkMTimeType, 2> meshMTime{ 0, 0 };
+  for (std::size_t iStep = 0; iStep < 10; ++iStep)
+  {
+    // Open data at right time
+    vtkSmartPointer<vtkPartitionedDataSet> dSet =
+      vtkPartitionedDataSet::SafeDownCast(opener(iStep));
+
+    // Reference Geometry
+    vtkNew<vtkXMLPartitionedDataSetReader> refReader;
+    refReader->SetFileName((dataRoot + "/Data/hdf_transient_partitioned_ug_twin/transient_sphere_" +
+      std::to_string(iStep) + ".vtpd")
+                             .c_str());
+    vtkPartitionedDataSet* refGeometry =
+      vtkPartitionedDataSet::SafeDownCast(refReader->GetOutputDataObject(0));
+    refReader->Update();
+
+    // Local Time Checks
+    if (!vtkMathUtilities::FuzzyCompare(
+          opener.GetReader()->GetTimeValue(), static_cast<double>(iStep) / 10, CHECK_TOLERANCE))
+    {
+      std::cerr << "Property: TimeValue is wrong: " << opener.GetReader()->GetTimeValue()
+                << " != " << static_cast<double>(iStep) / 10 << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    auto timeArr = dSet->GetFieldData()->GetArray("Time");
+    if (!timeArr)
+    {
+      std::cerr << "No Time array in FieldData" << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    if (!vtkMathUtilities::FuzzyCompare(
+          timeArr->GetComponent(0, 0), static_cast<double>(iStep) / 10, CHECK_TOLERANCE))
+    {
+      std::cerr << "FieldData: Time value is wrong: " << timeArr->GetComponent(0, 0)
+                << " != " << static_cast<double>(iStep) / 10 << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    unsigned int dSetPartitionNb = dSet->GetNumberOfPartitions();
+    unsigned int refGeometryPartitionNb = refGeometry->GetNumberOfPartitions();
+
+    if (dSetPartitionNb != refGeometryPartitionNb)
+    {
+      std::cerr << "The number of partitions of the data is wrong :" << dSetPartitionNb
+                << " should be " << refGeometryPartitionNb << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    int maxMeshMTimePartition = -1;
+
+    for (unsigned int i = 0; i < refGeometryPartitionNb; i++)
+    {
+      auto refPartition = vtkUnstructuredGrid::SafeDownCast(refGeometry->GetPartition(i));
+      auto dSetPartition = vtkUnstructuredGrid::SafeDownCast(dSet->GetPartition(i));
+
+      if (testMeshMTime)
+      {
+        maxMeshMTimePartition = std::max(
+          static_cast<int>(vtkUnstructuredGrid::SafeDownCast(dSetPartition)->GetMeshMTime()),
+          maxMeshMTimePartition);
+      }
+
+      GeometryCheckerWorklet gChecker(CHECK_TOLERANCE);
+      if (!gChecker(refPartition, dSetPartition))
+      {
+        std::cerr << "Geometry: Failed geometry checks." << std::endl;
+        return EXIT_FAILURE;
+      }
+
+      CheckerWorklet checks(CHECK_TOLERANCE);
+
+      // Point Data checks
+      auto getLHSPData = [&](vtkIdType iP) {
+        std::array<double, 3> point = { 0 };
+        dSetPartition->GetPoint(iP, point.data());
+        return ::Sin11T(dSet->GetFieldData()->GetArray("Time")->GetComponent(0, 0), point);
+      };
+      auto getRHSPData = [&](vtkIdType iP) {
+        return dSetPartition->GetPointData()->GetArray("Modulator")->GetComponent(iP, 0);
+      };
+
+      if (!checks(0, dSetPartition->GetNumberOfPoints(), getLHSPData, getRHSPData))
+      {
+        std::cerr << "PointData: Failed array checks" << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+
+    meshMTime[1] = meshMTime[0];
+    meshMTime[0] = maxMeshMTimePartition;
+    if (testMeshMTime && (iStep > 0 && iStep < 10))
+    {
+      if (meshMTime[0] != meshMTime[1])
+      {
+        std::cerr << "MTime: Failed MeshMTime check - previous = " << meshMTime[1]
+                  << " while current = " << meshMTime[0] << " at timestep :" << iStep << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
+int TestUGTransientPartitionedNoCache(const std::string& dataRoot)
+{
+  OpenerWorklet opener(dataRoot + "/Data/transient_sphere.hdf");
+  opener.GetReader()->SetMergeParts(false);
+  return TestUGTransientPartitioned(opener, dataRoot, false);
 }
 
 //------------------------------------------------------------------------------
@@ -375,11 +547,12 @@ int TestUGTransient(const std::string& dataRoot)
 }
 
 //------------------------------------------------------------------------------
-int TestUGTransientWithCache(const std::string& dataRoot)
+int TestUGTransientWithCachePartitioned(const std::string& dataRoot)
 {
   OpenerWorklet opener(dataRoot + "/Data/transient_sphere.hdf");
   opener.GetReader()->UseCacheOn();
-  return TestUGTransientBase(opener);
+  opener.GetReader()->SetMergeParts(false);
+  return TestUGTransientPartitioned(opener, dataRoot, true);
 }
 
 //------------------------------------------------------------------------------
@@ -410,7 +583,7 @@ int TestImageDataTransientBase(OpenerWorklet& opener)
   for (std::size_t iStep = 0; iStep < 10; ++iStep)
   {
     // Open data at right time
-    vtkSmartPointer<vtkDataSet> dSet = opener(iStep);
+    vtkSmartPointer<vtkDataSet> dSet = vtkDataSet::SafeDownCast(opener(iStep));
 
     // Local Time Checks
     if (!vtkMathUtilities::FuzzyCompare(
@@ -488,10 +661,10 @@ int TestImageDataTransientWithCache(const std::string& dataRoot)
 {
   OpenerWorklet opener(dataRoot + "/Data/transient_wavelet.hdf");
   opener.GetReader()->UseCacheOn();
+  opener.GetReader()->SetMergeParts(false);
   return TestImageDataTransientBase(opener);
 }
 
-//------------------------------------------------------------------------------
 int TestPolyDataTransientBase(
   OpenerWorklet& opener, const std::string& dataRoot, bool testMeshMTime = false)
 {
@@ -516,7 +689,7 @@ int TestPolyDataTransientBase(
   for (std::size_t iStep = 0; iStep < 10; ++iStep)
   {
     // Open data at right time
-    vtkSmartPointer<vtkDataSet> dSet = opener(iStep);
+    vtkSmartPointer<vtkDataSet> dSet = vtkDataSet::SafeDownCast(opener(iStep));
 
     // Reference Geometry
     vtkNew<vtkXMLPolyDataReader> refReader;
@@ -602,6 +775,149 @@ int TestPolyDataTransientBase(
 }
 
 //------------------------------------------------------------------------------
+int TestPolyDataTransientPartitionedWithCache(
+  OpenerWorklet& opener, const std::string& dataRoot, bool testMeshMTime = false)
+{
+  // Generic Time data checks
+  if (opener.GetReader()->GetNumberOfSteps() != 10)
+  {
+    std::cerr << "Number of time steps is not correct: " << opener.GetReader()->GetNumberOfSteps()
+              << " != " << 10 << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  auto tRange = opener.GetReader()->GetTimeRange();
+  if (!vtkMathUtilities::FuzzyCompare(tRange[0], 0.0, CHECK_TOLERANCE) ||
+    !vtkMathUtilities::FuzzyCompare(tRange[1], 0.9, CHECK_TOLERANCE))
+  {
+    std::cerr << "Time range is incorrect: (0.0, 0.9) != (" << tRange[0] << ", " << tRange[1] << ")"
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  std::array<int, 2> meshMTime{ 0, 0 };
+  for (std::size_t iStep = 0; iStep < 10; ++iStep)
+  {
+    // Open data at right time
+    vtkSmartPointer<vtkPartitionedDataSet> dSet =
+      vtkPartitionedDataSet::SafeDownCast(opener(iStep));
+
+    // Reference Geometry
+    vtkNew<vtkXMLPartitionedDataSetReader> refReader;
+    refReader->SetFileName(
+      (dataRoot + "/Data/hdf_transient_partitioned_poly_data_twin/transient_sphere_" +
+        std::to_string(iStep) + ".vtpd")
+        .c_str());
+    refReader->Update();
+
+    vtkPartitionedDataSet* refGeometry =
+      vtkPartitionedDataSet::SafeDownCast(refReader->GetOutputDataObject(0));
+
+    unsigned int dSetPartitionNb = dSet->GetNumberOfPartitions();
+    unsigned int refGeometryPartitionNb = refGeometry->GetNumberOfPartitions();
+
+    if (dSetPartitionNb != refGeometryPartitionNb)
+    {
+      std::cerr << "The number of partitions of the data is wrong :" << dSetPartitionNb
+                << " should be " << refGeometryPartitionNb << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    int maxMeshMTimePartition = -1;
+    for (unsigned int i = 0; i < refGeometryPartitionNb; i++)
+    {
+      auto refPartition = vtkPolyData::SafeDownCast(refGeometry->GetPartition(i));
+      auto dSetPartition = vtkPolyData::SafeDownCast(dSet->GetPartition(i));
+
+      GeometryCheckerWorklet gChecker(CHECK_TOLERANCE);
+      if (!gChecker(refPartition, dSetPartition))
+      {
+        std::cerr << "Geometry: Failed geometry checks for partition : " << i << std::endl;
+        return EXIT_FAILURE;
+      }
+
+      maxMeshMTimePartition =
+        std::max(static_cast<int>(vtkPolyData::SafeDownCast(dSetPartition)->GetMeshMTime()),
+          maxMeshMTimePartition);
+
+      CheckerWorklet checks(CHECK_TOLERANCE);
+
+      // Point Data checks
+      auto lhsPRange =
+        vtk::DataArrayValueRange<3>(refPartition->GetPointData()->GetArray("Warping"));
+      auto getLHSPData = [&](vtkIdType iC) { return lhsPRange[iC]; };
+      auto rhsPRange =
+        vtk::DataArrayValueRange<3>(dSetPartition->GetPointData()->GetArray("Warping"));
+      auto getRHSPData = [&](vtkIdType iC) { return rhsPRange[iC]; };
+      if (!checks(0, dSetPartition->GetNumberOfPoints() * 3, getLHSPData, getRHSPData))
+      {
+        std::cerr << "PointData: Failed array checks at step " << iStep << " for partition :" << i
+                  << std::endl;
+        return EXIT_FAILURE;
+      }
+
+      // Cell Data checks
+      auto lhsCRange =
+        vtk::DataArrayValueRange<1>(refPartition->GetCellData()->GetArray("Materials"));
+      auto getLHSCData = [&](vtkIdType iC) { return lhsCRange[iC]; };
+      auto rhsCRange =
+        vtk::DataArrayValueRange<1>(dSetPartition->GetCellData()->GetArray("Materials"));
+      auto getRHSCData = [&](vtkIdType iC) { return rhsCRange[iC]; };
+
+      if (!checks(0, dSetPartition->GetNumberOfCells(), getLHSCData, getRHSCData))
+      {
+        std::cerr << "CellData: Failed array checks at step " << iStep << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+    meshMTime[0] = meshMTime[1];
+    meshMTime[1] = maxMeshMTimePartition;
+    if (testMeshMTime && (iStep > 0 && iStep < 6))
+    {
+      if (meshMTime[0] != meshMTime[1])
+      {
+        std::cerr << "MTime: Failed MeshMTime check - previous = " << meshMTime[1]
+                  << " while current = " << meshMTime[0] << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+    else if (testMeshMTime && (iStep == 6))
+    {
+      if (meshMTime[0] == meshMTime[1])
+      {
+        std::cerr << "MTime: Failed MeshMTime souldn't be equal - previous = " << meshMTime[1]
+                  << " while current = " << meshMTime[0] << std::endl;
+        return EXIT_FAILURE;
+      }
+    }
+    // Local Time Checks
+    if (!vtkMathUtilities::FuzzyCompare(
+          opener.GetReader()->GetTimeValue(), static_cast<double>(iStep) / 10, CHECK_TOLERANCE))
+    {
+      std::cerr << "Property: TimeValue is wrong: " << opener.GetReader()->GetTimeValue()
+                << " != " << static_cast<double>(iStep) / 10 << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    auto timeArr = dSet->GetFieldData()->GetArray("Time");
+    if (!timeArr)
+    {
+      std::cerr << "No Time array in FieldData" << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    if (!vtkMathUtilities::FuzzyCompare(
+          timeArr->GetComponent(0, 0), static_cast<double>(iStep) / 10, CHECK_TOLERANCE))
+    {
+      std::cerr << "FieldData: Time value is wrong: " << timeArr->GetComponent(0, 0)
+                << " != " << static_cast<double>(iStep) / 10 << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+  return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
 int TestPolyDataTransient(const std::string& dataRoot)
 {
   OpenerWorklet opener(dataRoot + "/Data/test_transient_poly_data.hdf");
@@ -613,9 +929,11 @@ int TestPolyDataTransientWithCache(const std::string& dataRoot)
 {
   OpenerWorklet opener(dataRoot + "/Data/test_transient_poly_data.hdf");
   opener.GetReader()->UseCacheOn();
+  opener.GetReader()->SetMergeParts(false);
+
   // We should be able to activate the MeshMTime testing once the cache can store
   // the intermediate vtkPoints and vtkCellArrays
-  return TestPolyDataTransientBase(opener, dataRoot, false /*testMeshMTime*/);
+  return TestPolyDataTransientPartitionedWithCache(opener, dataRoot, true /*testMeshMTime*/);
 }
 
 //------------------------------------------------------------------------------
@@ -643,7 +961,7 @@ int TestPolyDataTransientWithOffset(const std::string& dataRoot)
   for (int iStep = 0; iStep < 12; iStep += 5)
   {
     // Open data at right time
-    vtkSmartPointer<vtkDataSet> dSet = opener(iStep);
+    vtkSmartPointer<vtkDataSet> dSet = vtkDataSet::SafeDownCast(opener(iStep));
 
     int it = 0;
     for (vtkIdType id = 0; id < dSet->GetNumberOfPoints(); id += 500)
@@ -690,4 +1008,165 @@ int TestPolyDataTransientWithOffset(const std::string& dataRoot)
 
   return EXIT_SUCCESS;
 }
+
+//------------------------------------------------------------------------------
+int TestPolyDataTransientFieldData(const std::string& dataRoot)
+{
+  OpenerWorklet opener(dataRoot + "/Data/test_transient_poly_data_field_data.vtkhdf");
+
+  // Generic Time data checks
+  if (opener.GetReader()->GetNumberOfSteps() != 10)
+  {
+    std::cerr << "Number of time steps is not correct: " << opener.GetReader()->GetNumberOfSteps()
+              << " != " << 10 << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  auto tRange = opener.GetReader()->GetTimeRange();
+  if (!vtkMathUtilities::FuzzyCompare(tRange[0], 0.0, CHECK_TOLERANCE) ||
+    !vtkMathUtilities::FuzzyCompare(tRange[1], 0.9, CHECK_TOLERANCE))
+  {
+    std::cerr << "Time range is incorrect: (0.0, 0.9) != (" << tRange[0] << ", " << tRange[1] << ")"
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  for (int iStep = 0; iStep < 10; iStep++)
+  {
+    // Open data at right time
+    vtkSmartPointer<vtkDataSet> dSet = vtkDataSet::SafeDownCast(opener(iStep));
+
+    auto* polyData = vtkPolyData::SafeDownCast(dSet);
+    if (!polyData)
+    {
+      std::cerr << "The data isn't a polydata." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    vtkFieldData* fdData = polyData->GetFieldData();
+    if (!fdData)
+    {
+      std::cerr << "The data should contains field data." << std::endl;
+      return EXIT_FAILURE;
+    }
+    vtkAbstractArray* testArray = fdData->GetAbstractArray("Test");
+    if (!testArray)
+    {
+      std::cerr << "The data should contains field data a field data array \"Test\"." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    int expectedNbComponents = EXPECTED_SHAPE_AT_TIMESTEP[iStep % 3][0];
+    int expectedNbTuples = EXPECTED_SHAPE_AT_TIMESTEP[iStep % 3][1];
+    if (testArray->GetNumberOfComponents() != expectedNbComponents ||
+      testArray->GetNumberOfTuples() != expectedNbTuples)
+    {
+      std::cerr << "The field data's shape doesn't match the expected (" << expectedNbComponents
+                << ", " << expectedNbTuples << ") for step " << iStep << ", instead got ("
+                << testArray->GetNumberOfComponents() << ", " << testArray->GetNumberOfTuples()
+                << ")" << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
+//------------------------------------------------------------------------------
+int TestOverlappingAMRTransient(const std::string& dataRoot)
+{
+  OpenerWorklet opener(dataRoot + "/Data/vtkHDF/test_transient_overlapping_amr.vtkhdf");
+
+  // Generic Time data checks
+  vtkIdType nbSteps = 3;
+  if (opener.GetReader()->GetNumberOfSteps() != nbSteps)
+  {
+    std::cerr << "Number of time steps is not correct: " << opener.GetReader()->GetNumberOfSteps()
+              << " != " << nbSteps << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  auto tRange = opener.GetReader()->GetTimeRange();
+  if (!vtkMathUtilities::FuzzyCompare(tRange[0], 0.0, CHECK_TOLERANCE) ||
+    !vtkMathUtilities::FuzzyCompare(tRange[1], 1.0, CHECK_TOLERANCE))
+  {
+    std::cerr << "Time range is incorrect: (0.0, 1.0) != (" << tRange[0] << ", " << tRange[1] << ")"
+              << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  for (vtkIdType iStep = 0; iStep < nbSteps; iStep++)
+  {
+    // Open data at right time
+    opener.UpdateStep(iStep);
+    auto dSet = opener.GetDataObjectAsAMR();
+
+    vtkNew<vtkXMLUniformGridAMRReader> outputReader;
+    std::string expectedFileName = dataRoot +
+      "/Data/vtkHDF/Transient/transient_expected_overlapping_amr_" + std::to_string(iStep) +
+      ".vthb";
+    outputReader->SetFileName(expectedFileName.c_str());
+    outputReader->SetMaximumLevelsToReadByDefault(0);
+    outputReader->Update();
+    auto expectedData = vtkOverlappingAMR::SafeDownCast(outputReader->GetOutput());
+
+    if (dSet == nullptr || expectedData == nullptr)
+    {
+      std::cerr << "Input dataset is empty at timestep " << iStep << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    unsigned int numLevels = dSet->GetNumberOfLevels();
+    if (numLevels != expectedData->GetNumberOfLevels())
+    {
+      std::cerr << "Expected " << expectedData->GetNumberOfLevels() << "levels but got "
+                << numLevels << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    auto origin = dSet->GetOrigin();
+    auto expectedOrigin = expectedData->GetOrigin();
+    bool wrongOriginX =
+      !vtkMathUtilities::FuzzyCompare(origin[0], expectedOrigin[0], CHECK_TOLERANCE);
+    bool wrongOriginY =
+      !vtkMathUtilities::FuzzyCompare(origin[1], expectedOrigin[1], CHECK_TOLERANCE);
+    bool wrongOriginZ =
+      !vtkMathUtilities::FuzzyCompare(origin[2], expectedOrigin[2], CHECK_TOLERANCE);
+
+    if (wrongOriginX || wrongOriginY || wrongOriginZ)
+    {
+      std::cerr << "Wrong origin, it should be {" << expectedOrigin[0] << "," << expectedOrigin[1]
+                << "," << expectedOrigin[2] << "} but got {" << origin[0] << "," << origin[1] << ","
+                << origin[2] << "}." << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    for (unsigned int levelIndex = 0; levelIndex < expectedData->GetNumberOfLevels(); ++levelIndex)
+    {
+      if (dSet->GetNumberOfDataSets(levelIndex) != expectedData->GetNumberOfDataSets(levelIndex))
+      {
+        std::cerr << "Number of datasets does not match for level " << levelIndex
+                  << ". Expected: " << expectedData->GetNumberOfDataSets(0)
+                  << " got: " << dSet->GetNumberOfDataSets(0) << std::endl;
+        return EXIT_FAILURE;
+      }
+
+      for (unsigned int datasetIndex = 0;
+           datasetIndex < expectedData->GetNumberOfDataSets(levelIndex); ++datasetIndex)
+      {
+        auto dataset = dSet->GetDataSet(levelIndex, datasetIndex);
+        auto expectedDataset = expectedData->GetDataSet(levelIndex, datasetIndex);
+        if (!vtkTestUtilities::CompareDataObjects(dataset, expectedDataset))
+        {
+          std::cerr << "Datasets does not match for level " << levelIndex << " dataset "
+                    << datasetIndex << std::endl;
+          return EXIT_FAILURE;
+        }
+      }
+    }
+  }
+
+  return EXIT_SUCCESS;
+}
+
 }

@@ -19,8 +19,8 @@
 /**
  * @brief Vertex or Fragment shader, combined into a ShaderProgram.
  *
- * This class creates a Vertex, Fragment or Geometry shader, that can be
- * attached to a ShaderProgram in order to render geometry etc.
+ * This class creates a Vertex, Fragment, Geometry or Compute shader,
+ * that can be attached to a ShaderProgram in order to render geometry etc.
  */
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -34,10 +34,13 @@ public:
   /** Available shader types. */
   enum Type
   {
-    Vertex,   /**< Vertex shader */
-    Fragment, /**< Fragment shader */
-    Geometry, /**< Geometry shader */
-    Unknown   /**< Unknown (default) */
+    Vertex,         /**< Vertex shader */
+    Fragment,       /**< Fragment shader */
+    Geometry,       /**< Geometry shader */
+    Compute,        /**< Compute shader */
+    TessControl,    /**< Tessellation Control*/
+    TessEvaluation, /**< Tessellation Evaluation*/
+    Unknown         /**< Unknown (default) */
   };
 
   /** Set the shader type. */
@@ -68,6 +71,12 @@ public:
    * Shader.
    */
   void Cleanup();
+
+  /** Check if compute shaders are supported. */
+  static bool IsComputeShaderSupported();
+
+  /** Check if tessellation shaders are supported. */
+  static bool IsTessellationShaderSupported();
 
   class ReplacementSpec
   {

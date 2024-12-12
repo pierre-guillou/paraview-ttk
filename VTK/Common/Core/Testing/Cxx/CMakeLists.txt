@@ -142,6 +142,7 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestMinimalStandardRandomSequence.cxx
   TestNew.cxx
   TestNumberOfGenerationsFromBase.cxx
+  TestNumberToString.cxx
   TestObjectFactory.cxx
   TestObservers.cxx
   TestObserversPerformance.cxx
@@ -179,11 +180,12 @@ vtk_add_test_cxx(vtkCommonCoreCxxTests tests
   TestCompositeImplicitBackend.cxx
   TestConstantArray.cxx
   TestImplicitArraysBase.cxx
+  TestImplicitTypedArray.cxx
   TestImplicitArrayTraits.cxx
   TestIndexedArray.cxx
   TestIndexedImplicitBackend.cxx
   TestStdFunctionArray.cxx
-  )
+  TestStructuredPointArray.cxx)
 
 # Special test to check whether disabling loguru signal handling, i.e.,
 # stack trace printing when it catches a signal, works. We add an

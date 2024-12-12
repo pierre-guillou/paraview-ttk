@@ -28,7 +28,8 @@ struct SphereLevelSetBackend
   }
   double operator()(int idx) const
   {
-    double* pt = this->Grid->GetPoint(idx);
+    double pt[3];
+    this->Grid->GetPoint(idx, pt);
     return vtkMath::Norm(pt) - this->Radius;
   }
   vtkDataSet* Grid = nullptr;
@@ -54,7 +55,7 @@ int TestContourImplicitArrays(int argc, char* argv[])
 
   vtkNew<vtkContourFilter> contour;
   contour->SetInputData(baseGrid);
-  contour->SetValue(0, 0.0);
+  contour->SetContourValues({ 0.0 });
 
   contour->Update();
 

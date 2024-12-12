@@ -12,12 +12,12 @@ set(classes
   pqAnimationProgressDialog
   pqAnimationTimeWidget
   pqAnimationTrackEditor
-  pqAnimationViewWidget
   pqArrayListDomain
   pqArrayListWidget
   pqArraySelectionWidget
   pqArraySelectorPropertyWidget
   pqArrayStatusPropertyWidget
+  pqBlockProxyWidget
   pqCalculatorWidget
   pqCameraDialog
   pqCameraKeyFrameWidget
@@ -63,6 +63,7 @@ set(classes
   pqFindDataSelectionDisplayFrame
   pqSpreadSheetColumnsVisibility
   pqHighlightItemDelegate
+  pqIconBrowser
   pqImageTip
   pqIndexSelectionWidget
   pqInputSelectorWidget
@@ -81,10 +82,14 @@ set(classes
   pqLinksManager
   pqLiveInsituManager
   pqLiveInsituVisualizationManager
+  pqLiveSourceItem
+  pqLiveSourceManager
   pqLockViewSizeCustomDialog
   pqLogViewerDialog
   pqMemoryInspectorPanel
   pqMultiBlockInspectorWidget
+  pqMultiBlockPropertiesEditorWidget
+  pqMultiBlockPropertiesStateWidget
   pqMultiViewWidget
   pqOneLinerTextEdit
   pqOrbitCreatorDialog
@@ -107,6 +112,7 @@ set(classes
   pqPropertyWidgetDecorator
   pqPropertyWidgetInterface
   pqProxiesWidget
+  pqProxyAction
   pqProxyEditorPropertyWidget
   pqProxyInformationWidget
   pqProxyPropertyWidget
@@ -116,7 +122,6 @@ set(classes
   pqRecentFilesMenu
   pqRemoteCommandDialog
   pqRemoteCommandTemplateDialog
-  pqRescaleRange
   pqRescaleScalarRangeToCustomDialog
   pqRescaleScalarRangeToDataOverTimeDialog
   pqSingleLogViewerWidget
@@ -195,6 +200,7 @@ set(ui_files
   Resources/UI/pqFindDataCurrentSelectionFrame.ui
   Resources/UI/pqFindDataSelectionDisplayFrame.ui
   Resources/UI/pqHelpWindow.ui
+  Resources/UI/pqIconBrowser.ui
   Resources/UI/pqItemViewSearchWidget.ui
   Resources/UI/pqKeyFrameEditor.ui
   Resources/UI/pqKeyFrameTypeWidget.ui
@@ -218,7 +224,6 @@ set(ui_files
   Resources/UI/pqPythonAnimationCue.ui
   Resources/UI/pqRemoteCommandDialogForm.ui
   Resources/UI/pqRemoteCommandTemplateDialogForm.ui
-  Resources/UI/pqRescaleRangeDialog.ui
   Resources/UI/pqRescaleScalarRangeToCustomDialog.ui
   Resources/UI/pqRescaleScalarRangeToDataOverTimeDialog.ui
   Resources/UI/pqScalarValueListPropertyWidget.ui
