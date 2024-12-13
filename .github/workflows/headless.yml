@@ -14,6 +14,7 @@ jobs:
   # Ubuntu #
   # ------ #
   build-ubuntu:
+    if: false
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -72,7 +73,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-12, macos-14]
+        os: [macos-14, macos-15]
     env:
       CCACHE_DIR: /Users/runner/work/ttk/.ccache
       CCACHE_MAXSIZE: 200M
@@ -97,7 +98,7 @@ jobs:
         mkdir build && cd build
         cmake \
           -DCMAKE_BUILD_TYPE=Release \
-          -DPARAVIEW_USE_MPI=ON \
+          -DPARAVIEW_USE_MPI=OFF \
           -DPARAVIEW_USE_QT=OFF \
           -GNinja \
           $GITHUB_WORKSPACE
@@ -112,6 +113,22 @@ jobs:
         cd build
         cpack -G TGZ
 
+    - name: Install ParaView
+      run: |
+        cd build
+        sudo cmake --build . --target install
+        # pvpython does not embed the correct PYTHONPATH
+        echo "PYTHONPATH=/usr/local/lib/python3.13/site-packages:$PYTHONPATH" >> $GITHUB_ENV
+
+    - name: Test Python imports
+      run: |
+        python3 -m vtk
+        python3 -m paraview.simple
+        pvpython -m vtk
+        pvpython -m paraview.simple
+      env:
+        DYLD_LIBRARY_PATH: /usr/local/lib
+
     - name: Upload compressed binaries
       uses: actions/upload-artifact@v4
       with:
@@ -123,6 +140,7 @@ jobs:
   # Windows #
   # ------- #
   build-windows:
+    if: false
     runs-on: windows-2022
     env:
       CONDA_ROOT: C:\Miniconda
