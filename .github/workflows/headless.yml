@@ -89,7 +89,7 @@ jobs:
     - name: Install macOS dependencies
       run: |
         # ParaView dependencies
-        brew reinstall python
+        brew reinstall python@3.12
         brew install --cask xquartz
         brew install ninja open-mpi
 
@@ -118,7 +118,7 @@ jobs:
         cd build
         sudo cmake --build . --target install
         # pvpython does not embed the correct PYTHONPATH
-        echo "PYTHONPATH=/usr/local/lib/python3.13/site-packages:$PYTHONPATH" >> $GITHUB_ENV
+        echo "PYTHONPATH=/usr/local/lib/python3.12/site-packages:$PYTHONPATH" >> $GITHUB_ENV
 
     - name: Test Python imports
       run: |
