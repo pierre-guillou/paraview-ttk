@@ -24,6 +24,7 @@ class vtkActor;
 class vtkInformationDoubleKey;
 class vtkInformationIntegerKey;
 class vtkInformationObjectBaseKey;
+class vtkInformationStringVectorKey;
 class vtkInformationStringKey;
 class vtkMapper;
 class vtkPiecewiseFunction;
@@ -41,13 +42,13 @@ public:
    * Overridden to take into account my renderables time, including
    * mapper and data into mapper inclusive of composite input
    */
-  virtual vtkMTimeType GetMTime() override;
+  vtkMTimeType GetMTime() override;
 
   /**
    * Scaling modes for the spheres and cylinders that the back-end
    * renders for points and lines created by VTK.
    */
-  enum class ScalingMode
+  enum class ScalingMode : int8_t
   {
     ALL_EXACT = -1,
     ALL_APPROXIMATE,
@@ -118,9 +119,38 @@ public:
   static double GetLuminosity(vtkProperty*);
   //@}
 
+  /**
+   * Name of the node, used for debugging or representation
+   * metadata in case an ANARI backend is chosen which - instead
+   * of rendering to a screen - outputs to intermediate
+   * authoring stages (such as files or network resources).
+   */
+  static vtkInformationStringKey* ACTOR_NODE_NAME();
+
+  /**
+   * Indicates that the actor includes point and cell attribute arrays
+   * within its rendering output. This allows ANARI backends that transfer
+   * rendering data to intermediate authoring stages to get access to
+   * additional data than what is typically used by VTK's rendering itself.
+   */
+  static vtkInformationIntegerKey* OUTPUT_POINT_AND_CELL_ARRAYS();
+
+  /**
+   * Whether the output enabled with OUTPUT_POINT_AND_CELL_ARRAYS should
+   * convert double arrays to float.
+   */
+  static vtkInformationIntegerKey* OUTPUT_POINT_AND_CELL_ARRAYS_DOUBLE_TO_FLOAT();
+
+  /**
+   * Array metadata for intermediate authoring steps, which denotes the arrays
+   * which are not written out separately for every timestep,
+   * but instead contain only a single representation for all timesteps.
+   */
+  static vtkInformationStringVectorKey* SCENEGRAPH_TIME_CONSTANT_POINT_ARRAYS();
+  static vtkInformationStringVectorKey* SCENEGRAPH_TIME_CONSTANT_CELL_ARRAYS();
+
 protected:
   vtkAnariActorNode();
-  ~vtkAnariActorNode() = default;
 
 private:
   vtkAnariActorNode(const vtkAnariActorNode&) = delete;

@@ -50,22 +50,22 @@ public:
   /**
    * Set / get the bounding box using various methods.
    */
-  void SetXMin(double p[3]);
+  void SetXMin(VTK_FUTURE_CONST double p[3]);
   void SetXMin(double x, double y, double z);
-  void GetXMin(double p[3]);
-  void GetXMin(double& x, double& y, double& z);
+  void GetXMin(double p[3]) VTK_FUTURE_CONST;
+  void GetXMin(double& x, double& y, double& z) VTK_FUTURE_CONST;
   ///@}
 
-  void SetXMax(double p[3]);
+  void SetXMax(VTK_FUTURE_CONST double p[3]);
   void SetXMax(double x, double y, double z);
-  void GetXMax(double p[3]);
-  void GetXMax(double& x, double& y, double& z);
+  void GetXMax(double p[3]) VTK_FUTURE_CONST;
+  void GetXMax(double& x, double& y, double& z) VTK_FUTURE_CONST;
 
   void SetBounds(double xMin, double xMax, double yMin, double yMax, double zMin, double zMax);
   void SetBounds(const double bounds[6]);
-  void GetBounds(
-    double& xMin, double& xMax, double& yMin, double& yMax, double& zMin, double& zMax);
-  void GetBounds(double bounds[6]);
+  void GetBounds(double& xMin, double& xMax, double& yMin, double& yMax, double& zMin,
+    double& zMax) VTK_FUTURE_CONST;
+  void GetBounds(double bounds[6]) VTK_FUTURE_CONST;
   double* GetBounds() VTK_SIZEHINT(6);
 
   /**
@@ -90,7 +90,7 @@ public:
 
   /**
    * Intersect a line with the box.  Give the endpoints of the line in
-   * p1 and p2.  The parameteric distances from p1 to the entry and exit
+   * p1 and p2.  The parametric distances from p1 to the entry and exit
    * points are returned in t1 and t2, where t1 and t2 are clamped to the
    * range [0,1].  The entry and exit planes are returned in plane1 and
    * plane2 where integers (0, 1, 2, 3, 4, 5) stand for the
@@ -160,12 +160,12 @@ private:
   void operator=(const vtkBox&) = delete;
 };
 
-inline void vtkBox::SetXMin(double p[3])
+inline void vtkBox::SetXMin(VTK_FUTURE_CONST double p[3])
 {
   this->SetXMin(p[0], p[1], p[2]);
 }
 
-inline void vtkBox::SetXMax(double p[3])
+inline void vtkBox::SetXMax(VTK_FUTURE_CONST double p[3])
 {
   this->SetXMax(p[0], p[1], p[2]);
 }

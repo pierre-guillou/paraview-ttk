@@ -19,11 +19,14 @@
 #ifndef vtkProperty_h
 #define vtkProperty_h
 
+#include "vtkDeprecation.h" // For deprecation
 #include "vtkObject.h"
 #include "vtkRenderingCoreModule.h" // For export macro
-#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
-#include <map>                      // used for ivar
-#include <string>                   // used for ivar
+#include "vtkSetGet.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
+
+#include <map>    // used for ivar
+#include <string> // used for ivar
 
 // shading models
 #define VTK_FLAT 0
@@ -99,6 +102,19 @@ public:
   vtkSetMacro(Lighting, bool);
   vtkBooleanMacro(Lighting, bool);
   ///@}
+
+  enum class Point2DShapeType
+  {
+    Round,
+    Square,
+  };
+
+  /**
+   * Set/Get the 2D shape of points to use when RenderPointsAsSpheres=false.
+   * Some graphics implementations may ignore this setting.
+   */
+  vtkSetEnumMacro(Point2DShape, Point2DShapeType);
+  vtkGetEnumMacro(Point2DShape, Point2DShapeType);
 
   ///@{
   /**
@@ -474,6 +490,30 @@ public:
 
   ///@{
   /**
+   * Set/Get the edge width.
+   * Default is 1.
+   * @note When UseLineWidthForEdgeThickness is false, this property
+   * controls the thickness of edges of cells.
+   */
+  vtkSetClampMacro(EdgeWidth, float, 0, VTK_FLOAT_MAX);
+  vtkGetMacro(EdgeWidth, float);
+  ///@}
+
+  ///@{
+  /**
+   * When UseLineWidthForEdgeThickness is true, the thickness of edges in a cell
+   * is controlled by `LineWidth` property.
+   * When UseLineWidthForEdgeThickness is false, the thickness of edges in a cell
+   * is controlled by `EdgeWidth` property.
+   * @note Default value is true. Edge width is determined by the value of `LineWidth`
+   */
+  vtkBooleanMacro(UseLineWidthForEdgeThickness, bool);
+  vtkSetMacro(UseLineWidthForEdgeThickness, bool);
+  vtkGetMacro(UseLineWidthForEdgeThickness, bool);
+  ///@}
+
+  ///@{
+  /**
    * Set/Get the stippling pattern of a Line, as a 16-bit binary pattern
    * (1 = pixel on, 0 = pixel off).
    * This is only implemented for OpenGL, not OpenGL2. The default is 0xFFFF.
@@ -550,47 +590,59 @@ public:
    * - \p numVars - number of variables being set
    * - \p x - values
    */
-  virtual void AddShaderVariable(const char* name, int numVars, int* x);
-  virtual void AddShaderVariable(const char* name, int numVars, float* x);
-  virtual void AddShaderVariable(const char* name, int numVars, double* x);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  virtual void AddShaderVariable(const char*, int, int*)
+  { /* noop */
+  }
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  virtual void AddShaderVariable(const char*, int, float*)
+  { /* noop */
+  }
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  virtual void AddShaderVariable(const char*, int, double*)
+  { /* noop */
+  }
   ///@}
 
   ///@{
   /**
    * Methods to provide to add shader variables from wrappers.
    */
-  void AddShaderVariable(const char* name, int v) { this->AddShaderVariable(name, 1, &v); }
-  void AddShaderVariable(const char* name, float v) { this->AddShaderVariable(name, 1, &v); }
-  void AddShaderVariable(const char* name, double v) { this->AddShaderVariable(name, 1, &v); }
-  void AddShaderVariable(const char* name, int v1, int v2)
-  {
-    int v[2] = { v1, v2 };
-    this->AddShaderVariable(name, 2, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, int)
+  { /* noop */
   }
-  void AddShaderVariable(const char* name, float v1, float v2)
-  {
-    float v[2] = { v1, v2 };
-    this->AddShaderVariable(name, 2, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, float)
+  { /* noop */
   }
-  void AddShaderVariable(const char* name, double v1, double v2)
-  {
-    double v[2] = { v1, v2 };
-    this->AddShaderVariable(name, 2, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, double)
+  { /* noop */
   }
-  void AddShaderVariable(const char* name, int v1, int v2, int v3)
-  {
-    int v[3] = { v1, v2, v3 };
-    this->AddShaderVariable(name, 3, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, int, int)
+  { /* noop */
   }
-  void AddShaderVariable(const char* name, float v1, float v2, float v3)
-  {
-    float v[3] = { v1, v2, v3 };
-    this->AddShaderVariable(name, 3, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, float, float)
+  { /* noop */
   }
-  void AddShaderVariable(const char* name, double v1, double v2, double v3)
-  {
-    double v[3] = { v1, v2, v3 };
-    this->AddShaderVariable(name, 3, v);
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, double, double)
+  { /* noop */
+  }
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, int, int, int)
+  { /* noop */
+  }
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, float, float, float)
+  { /* noop */
+  }
+  VTK_DEPRECATED_IN_9_4_0("AddShaderVariable is a no-op and will be removed")
+  void AddShaderVariable(const char*, double, double, double)
+  { /* noop */
   }
   ///@}
 
@@ -697,10 +749,13 @@ public:
    */
   int GetNumberOfTextures();
 
+  ///@{
   /**
-   * Returns all the textures in this property and their names
+   * Set/get all the textures in this property and their names
    */
+  void SetAllTextures(std::map<std::string, vtkTexture*>& textures);
   std::map<std::string, vtkTexture*>& GetAllTextures() { return this->Textures; }
+  ///@}
 
   /**
    * Release any graphics resources that are being consumed by this
@@ -713,9 +768,7 @@ public:
   /**
    * Set/Get the information object associated with the Property.
    */
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   vtkGetObjectMacro(Information, vtkInformation);
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   virtual void SetInformation(vtkInformation*);
   ///@}
 
@@ -784,8 +837,10 @@ protected:
   double EdgeTint[3];
   float PointSize;
   float LineWidth;
+  float EdgeWidth = 1.0;
   float SelectionPointSize = 2.f;
   float SelectionLineWidth = 2.f;
+  bool UseLineWidthForEdgeThickness = true;
   int LineStipplePattern;
   int LineStippleRepeatFactor;
   int Interpolation;
@@ -795,6 +850,7 @@ protected:
   vtkTypeBool BackfaceCulling;
   vtkTypeBool FrontfaceCulling;
   bool Lighting;
+  Point2DShapeType Point2DShape = Point2DShapeType::Square;
   bool RenderPointsAsSpheres;
   bool RenderLinesAsTubes;
   bool ShowTexturesOnBackface;

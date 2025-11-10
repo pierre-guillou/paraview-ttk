@@ -17,6 +17,11 @@ if (POLICY CMP0116)
   cmake_policy(SET CMP0116 NEW)
 endif()
 
+# Set behavior for `cmake_dependent_option`.
+if (POLICY CMP0127)
+  cmake_policy(SET CMP0127 NEW)
+endif()
+
 #------------------------------------------------------------------------------
 # Set a default build type if none was specified
 get_property(generator_is_multi_config GLOBAL
@@ -57,6 +62,9 @@ if (NOT CMAKE_INSTALL_LICENSEDIR)
 endif ()
 
 set(paraview_cmake_dir "${CMAKE_CURRENT_SOURCE_DIR}/CMake")
+
+# Use tighter baseline image comparison method in VTK
+set(DEFAULT_USE_SSIM_IMAGE_COMP ON)
 
 option(PARAVIEW_USE_EXTERNAL_VTK "Use an external VTK." OFF)
 mark_as_advanced(PARAVIEW_USE_EXTERNAL_VTK)
@@ -290,6 +298,7 @@ if (NOT PARAVIEW_USE_EXTERNAL_VTK)
   include(vtkModuleDebugging)
   include(vtkEncodeString)
   include(vtkObjectFactory)
+  include(vtkOpenGLOptions)
   include(vtkExternalData)
   include(vtkVersion)
   include(VTKDetermineVersion)
@@ -335,6 +344,7 @@ set(paraview_default_plugins
   DigitalSignalProcessing
   EULATestPlugin
   EmbossingRepresentations
+  EnSightGoldCombinedReader
   EyeDomeLighting
   ExplicitStructuredGrid
   FlipBookPlugin
@@ -343,8 +353,8 @@ set(paraview_default_plugins
   GMVReader
   HyperTreeGridADR
   LagrangianParticleTracker
-  LANLX3DReader
   LegacyExodusReader
+  LegacyExodusWriter
   LegacyGhostCellsGenerator
   Moments
   MooseXfemClip
@@ -362,7 +372,8 @@ set(paraview_default_plugins
   StreamingParticles
   ThickenLayeredCells
   VTKmFilters
-  pvblot)
+  pvblot
+  XArrayCFReader)
 
 if (PARAVIEW_BUILD_TRANSLATIONS)
   list(APPEND paraview_default_plugins TranslationsTesting)
@@ -763,6 +774,10 @@ else ()
   mark_as_advanced(PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE)
   set(VTK_WINDOWS_PYTHON_DEBUGGABLE ${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE})
 
+  if (PARAVIEW_USE_QT)
+    set(VTK_QT_VERSION "${PARAVIEW_QT_MAJOR_VERSION}")
+  endif ()
+
   cmake_dependent_option(PARAVIEW_SKIP_CLANG_TIDY_FOR_VTK "Skip `clang-tidy` rules for VTK source" ON
     "CMAKE_C_CLANG_TIDY OR CMAKE_CXX_CLANG_TIDY" OFF)
   if (PARAVIEW_SKIP_CLANG_TIDY_FOR_VTK)
@@ -1002,7 +1017,8 @@ if (PARAVIEW_USE_PYTHON)
       USE_DEBUG_SUFFIX    "${PARAVIEW_WINDOWS_PYTHON_DEBUGGABLE}"
       HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}/vtkpythonmodules"
       WRAPPED_MODULES vtk_python_wrapped_modules
-      TARGET          VTK::vtkpythonmodules)
+      TARGET          VTK::vtkpythonmodules
+      WRAP_TARGET     vtkpythonmodules-wrap)
 
     add_subdirectory(VTK/Wrapping/Python)
 
@@ -1042,6 +1058,7 @@ if (PARAVIEW_USE_PYTHON)
     HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}/pvpythonmodules"
     WRAPPED_MODULES paraview_python_wrapped_modules
     TARGET          ParaView::pvpythonmodules
+    WRAP_TARGET     pvpythonmodules-wrap
     DEPENDS         VTK::vtkpythonmodules)
 
   vtk_module_wrap_python(
@@ -1056,7 +1073,36 @@ if (PARAVIEW_USE_PYTHON)
     HEADERS_DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/paraview${paraview_version_suffix}/pvincubatorpythonmodules"
     WRAPPED_MODULES paraview_incubator_python_wrapped_modules
     TARGET          ParaView::pvincubatorpythonmodules
+    WRAP_TARGET     pvincubatorpythonmodules-wrap
     DEPENDS         VTK::vtkpythonmodules)
+
+  set(paraview_python_targets)
+  if (NOT PARAVIEW_USE_EXTERNAL_VTK)
+    list(APPEND paraview_python_targets
+      vtkpythonmodules-wrap
+      vtk_python_copy)
+    if (TARGET VTK::WebPython)
+      list(APPEND paraview_python_targets
+        WebPython-vtkmodules.web)
+    endif ()
+  endif ()
+  if (TARGET ParaView::PVWebPython)
+    list(APPEND paraview_python_targets
+      PVWebPython-paraview.web)
+  endif ()
+  if (TARGET ParaView::CinemaSci)
+    list(APPEND paraview_python_targets
+      CinemaSci-paraview.tpl.cinemasci)
+  endif ()
+
+  add_custom_target(paraview_all_python_modules
+    DEPENDS
+      pvpythonmodules-wrap
+      pvincubatorpythonmodules-wrap
+      paraview_python_copy
+      ${paraview_python_targets}
+    COMMENT
+      "Ensure all Python modules of ParaView exist")
 
   if (PARAVIEW_INSTALL_DEVELOPMENT_FILES)
     export(

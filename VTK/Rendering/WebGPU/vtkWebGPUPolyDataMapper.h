@@ -5,18 +5,21 @@
 
 #include "vtkPolyDataMapper.h"
 
-#include "vtkRenderingWebGPUModule.h" // for export macro
-#include "vtkType.h"                  // for types
-#include "vtk_wgpu.h"                 // for webgpu
+#include "vtkProperty.h"                       // for VTK_SURFACE constants
+#include "vtkRenderingWebGPUModule.h"          // for export macro
+#include "vtkWeakPointer.h"                    // for vtkWeakPointer
+#include "vtkWebGPUCellToPrimitiveConverter.h" // for TopologySourceType
+#include "vtkWebGPUComputePipeline.h"          // for ivar
+#include "vtk_wgpu.h"                          // for webgpu
 
 #include <unordered_set> // for the not set compute render buffers
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCellArray;
-class vtkTypeFloat32Array;
 class vtkWebGPURenderWindow;
 class vtkWebGPURenderer;
 class vtkWebGPUComputeRenderBuffer;
+class vtkWebGPUConfiguration;
 
 class VTKRENDERINGWEBGPU_EXPORT vtkWebGPUPolyDataMapper : public vtkPolyDataMapper
 {
@@ -46,19 +49,34 @@ public:
   {
     CELL_COLORS = 0,
     CELL_NORMALS,
-    CELL_EDGES,
     CELL_NB_ATTRIBUTES,
     CELL_UNDEFINED
   };
 
   /**
+   * This mapper uses different `wgpu::RenderPipeline` to render
+   * a list of primitives. Each pipeline uses an appropriate
+   * shader module, bindgroup and primitive type.
+   */
+  enum GraphicsPipelineType : int
+  {
+    // Pipeline that renders points
+    GFX_PIPELINE_POINTS = 0,
+    // Pipeline that renders lines with rounded caps and rounded joins.
+    GFX_PIPELINE_LINES_ROUND_CAP_ROUND_JOIN,
+    // Pipeline that renders lines with miter joins.
+    GFX_PIPELINE_LINES_MITER_JOIN,
+    // Pipeline that renders triangles
+    GFX_PIPELINE_TRIANGLES,
+    GFX_PIPELINE_NB_TYPES
+  };
+
+  vtkPolyDataMapper::MapperHashType GenerateHash(vtkPolyData* polydata) override;
+
+  /**
    * Implemented by sub classes. Actual rendering is done here.
    */
-  void RenderPiece(vtkRenderer* ren, vtkActor* act) override;
-  void EncodeRenderCommands(
-    vtkRenderer* renderer, vtkActor* act, const wgpu::RenderPassEncoder& passEncoder);
-  void EncodeRenderCommands(
-    vtkRenderer* renderer, vtkActor* act, const wgpu::RenderBundleEncoder& bundleEncoder);
+  void RenderPiece(vtkRenderer* renderer, vtkActor* act) override;
 
   /**
    * Release any graphics resources that are being consumed by this mapper.
@@ -76,11 +94,6 @@ public:
   bool GetSupportsSelection() override { return false; }
 
   /**
-   * Make a shallow copy of this mapper.
-   */
-  void ShallowCopy(vtkAbstractMapper* m) override;
-
-  /**
    * Select a data array from the point/cell data
    * and map it to a generic vertex attribute.
    * vertexAttributeName is the name of the vertex attribute.
@@ -94,11 +107,13 @@ public:
   void MapDataArrayToVertexAttribute(const char* vertexAttributeName, const char* dataArrayName,
     int fieldAssociation, int componentno = -1) override;
 
-  // This method will Map the specified data array for use as
-  // a texture coordinate for texture tname. The actual
-  // attribute will be named tname_coord so as to not
-  // conflict with the texture sampler definition which will
-  // be tname.
+  /**
+   * This method will Map the specified data array for use as
+   * a texture coordinate for texture tname. The actual
+   * attribute will be named tname_coord so as to not
+   * conflict with the texture sampler definition which will
+   * be tname.
+   */
   void MapDataArrayToMultiTextureAttribute(const char* tname, const char* dataArrayName,
     int fieldAssociation, int componentno = -1) override;
 
@@ -157,35 +172,167 @@ protected:
   void ComputeBounds() override;
 
   /**
-   * Sets up bindgroup layouts and creates a pipeline layout.
+   * This method keeps track of few properties of the actor which when changed,
+   * require rebuilding a render bundle. For example, if representation changed
+   * from wireframe to surface, the last set of draw commands were recorded using
+   * the SurfaceMesh pipeline. In order to draw wireframes, the render bundle
+   * will need to be rebuilt using the wireframe pipeline instead.
+   *
+   * This method returns true if the cached properties have changed or the properties of the actor
+   * are cached for the first time, false otherwise.
    */
-  void SetupPipelineLayout(const wgpu::Device& device, vtkRenderer* renderer, vtkActor* actor);
+  bool CacheActorRendererProperties(vtkActor* actor, vtkRenderer* renderer);
 
   /**
-   * Creates bind groups for all the buffers in the MeshGeometryBuffers struct.
-   * This method should be invoked if the buffer sizes have changed.
+   * Record draw calls in the render pass encoder. It also sets the bind group, graphics pipeline to
+   * use before making the draw calls.
    */
-  void SetupBindGroups(const wgpu::Device& device, vtkRenderer* renderer);
+  void RecordDrawCommands(
+    vtkRenderer* renderer, vtkActor* actor, const wgpu::RenderPassEncoder& passEncoder);
+  void RecordDrawCommands(
+    vtkRenderer* renderer, vtkActor* actor, const wgpu::RenderBundleEncoder& bundleEncoder);
 
   /**
-   * Enqueues a write command on the device queue for all buffers whose data is outdated.
-   * Internally, dawn uses a staging ring buffer, as a result, vtk arrays are copied
-   * into that host-side buffer and kept alive until uploaded.
+   * Looks at the point/cell data of `vtkPolyData` object and determines
+   * which attributes are available. Scalars should have been mapped if required.
+   */
+  void DeducePointCellAttributeAvailability(vtkPolyData* mesh);
+
+  /**
+   * Reset the internal `Has{Point,Cell}Attribute` booleans to `false`.
+   */
+  void ResetPointCellAttributeState();
+
+  /**
+   * Create a bind group layout for the mesh attribute bind group.
+   */
+  static wgpu::BindGroupLayout CreateMeshAttributeBindGroupLayout(
+    const wgpu::Device& device, const std::string& label);
+
+  /**
+   * Create a bind group layout for the `TopologyRenderInfo::BindGroup`
+   */
+  static wgpu::BindGroupLayout CreateTopologyBindGroupLayout(
+    const wgpu::Device& device, const std::string& label);
+
+  /**
+   * Create a render pipeline.
+   */
+  static wgpu::RenderPipeline CreateRenderPipeline(const wgpu::Device& device,
+    wgpu::RenderPipelineDescriptor* pipelineDescriptor, const wgpu::ShaderModule& shaderModule,
+    wgpu::PrimitiveTopology primitiveTopology);
+
+  /**
+   * Create a bind group for the point and cell attributes of a mesh. It has three bindings.
+   *
+   * 0: [storage] AttributeDescriptorBuffer
+   *      tells where different attributes start and end for each
+   *      sub-buffer in the point/cell buffers.
+   *
+   * 1: [storage] MeshSSBO.Point.Buffer
+   *      all point attributes
+   *      @sa vtkWebGPUPolyDataMapper::PointDataAttributes
+   *
+   * 2: [storage] MeshSSBO.Cell.Buffer
+   *      all cell attributes
+   *      @sa vtkWebGPUPolyDataMapper::CellDataAttributes
+   */
+  wgpu::BindGroup CreateMeshAttributeBindGroup(
+    const wgpu::Device& device, const std::string& label);
+
+  /**
+   * Create a bind group for the primitives of a mesh. It has 2 bindings.
+   *
+   * 0: [storage] TopologyRenderInfo.TopologyBuffer
+   *      sequence of cell_id,point_id for all vertices
+   *      @sa vtkWebGPUPolyDataMapper::TopologyRenderInfo
+   *
+   * 1: [storage] TopologyRenderInfo.EdgeArrayBuffer
+   *      sequence of edge_value for all triangles
+   *      @sa vtkWebGPUPolyDataMapper::TopologyRenderInfo
+   */
+  wgpu::BindGroup CreateTopologyBindGroup(const wgpu::Device& device, const std::string& label,
+    vtkWebGPUCellToPrimitiveConverter::TopologySourceType topologySourceType);
+
+  /**
+   * Returns the size of the 'sub-buffer' within the whole point data SSBO for the given attribute
+   */
+  unsigned long GetPointAttributeByteSize(vtkWebGPUPolyDataMapper::PointDataAttributes attribute);
+
+  /**
+   * Returns the size of the 'sub-buffer' within the whole cell data SSBO for the given attribute
+   */
+  unsigned long GetCellAttributeByteSize(vtkWebGPUPolyDataMapper::CellDataAttributes attribute);
+
+  /**
+   * Returns the size in bytes of one element of the given attribute.
+   * 4 * sizeof(float) for an RGBA color attribute for example
+   */
+  unsigned long GetPointAttributeElementSize(
+    vtkWebGPUPolyDataMapper::PointDataAttributes attribute);
+
+  /**
+   * Returns the size in bytes of one element of the given attribute.
+   * 4 * sizeof(float) for an RGBA color attribute for example
+   */
+  unsigned long GetCellAttributeElementSize(vtkWebGPUPolyDataMapper::CellDataAttributes attribute);
+
+  /**
+   * Returns the offset at which the 'sub-buffer' of 'attribute' starts within the mesh SSBO point
+   * data buffer
+   */
+  vtkIdType GetPointAttributeByteOffset(PointDataAttributes attribute);
+
+  /**
+   * Returns the offset at which the 'sub-buffer' of 'attribute' starts within the mesh SSBO cell
+   * data buffer
+   */
+  vtkIdType GetCellAttributeByteOffset(CellDataAttributes attribute);
+
+  /**
+   * Calculates the size of a buffer that is large enough to contain
+   * all the values from the point attributes. See vtkWebGPUPolyDataMapper::PointDataAttributes
+   * for the kinds of attributes.
    */
   unsigned long GetExactPointBufferSize();
+
+  /**
+   * Calculates the size of a buffer that is large enough to contain
+   * all the values from the cell attributes. See vtkWebGPUPolyDataMapper::PointDataAttributes
+   * for the kinds of attributes.
+   */
   unsigned long GetExactCellBufferSize();
-  std::vector<unsigned long> GetExactConnecitivityBufferSizes();
-  bool UpdateMeshGeometryBuffers(const wgpu::Device& device, vtkActor* actor);
-  bool UpdateMeshIndexBuffers(const wgpu::Device& device);
-  vtkTypeFloat32Array* ComputeEdgeArray(vtkCellArray* polys);
+
+  ///@{
+  /**
+   * Creates buffers as needed and updates them with point/cell attributes,
+   * topology, draw parameters.
+   *
+   * This function enqueues a `BufferWrite` command on the device queue for all buffers
+   * whose data is outdated.
+   * Note that internally, dawn uses a staging ring buffer, as a result, vtk arrays are copied
+   * into that host-side buffer and kept alive until uploaded.
+   */
+  void UpdateMeshGeometryBuffers(vtkWebGPURenderWindow* wgpuRenderWindow);
+  ///@}
+
+  /**
+   * Get the name of the graphics pipeline type as a string.
+   */
+  const char* GetGraphicsPipelineTypeAsString(GraphicsPipelineType graphicsPipelineType);
 
   /**
    * Creates the graphics pipeline. Rendering state is frozen after this point.
+   * The build timestamp is recorded in `GraphicsPipelineBuildTimestamp`.
    */
-  void SetupGraphicsPipeline(const wgpu::Device& device, vtkRenderer* renderer, vtkActor* actor);
+  void SetupGraphicsPipelines(const wgpu::Device& device, vtkRenderer* renderer, vtkActor* actor);
 
-  wgpu::PipelineLayout PipelineLayout;
-  wgpu::ShaderModule Shader;
+  /**
+   * Get whether the graphics pipeline needs rebuilt.
+   * This method checks MTime of the vtkActor's vtkProperty instance against the build timestamp of
+   * the graphics pipeline.
+   */
+  bool GetNeedToRebuildGraphicsPipelines(vtkActor* actor, vtkRenderer* renderer);
 
   struct MeshAttributeBuffers
   {
@@ -193,12 +340,14 @@ protected:
     {
       // point attributes.
       wgpu::Buffer Buffer;
+      uint64_t Size = 0;
     } Point;
 
     struct
     {
       // cell attributes.
       wgpu::Buffer Buffer;
+      uint64_t Size = 0;
     } Cell;
   };
   MeshAttributeBuffers MeshSSBO;
@@ -208,7 +357,6 @@ protected:
     vtkTypeUInt32 Start = 0;
     vtkTypeUInt32 NumTuples = 0;
     vtkTypeUInt32 NumComponents = 0;
-    vtkTypeUInt32 Pad = 0; // for 16-byte alignment in MeshAttributeDescriptor
   };
   struct MeshAttributeDescriptor
   {
@@ -219,21 +367,26 @@ protected:
     AttributeDescriptor UVs;
     AttributeDescriptor CellColors;
     AttributeDescriptor CellNormals;
-    AttributeDescriptor CellEdgeArray;
+    vtkTypeUInt32 ApplyOverrideColors = 0;
+    vtkTypeFloat32 Opacity = 0;
+    vtkTypeUInt32 CompositeId = 0;
+    vtkTypeFloat32 Ambient[3] = {};
+    vtkTypeUInt32 ProcessId = 0;
+    vtkTypeFloat32 Diffuse[3] = {};
+    vtkTypeUInt32 Pickable = false;
   };
   wgpu::Buffer AttributeDescriptorBuffer;
 
-  vtkTimeStamp PointCellAttributesBuildTimestamp;
-  vtkTimeStamp Primitive2CellIDsBuildTimestamp;
+  ///@{ Timestamps help reuse previous resources as much as possible.
+  vtkTimeStamp CellAttributesBuildTimestamp[CELL_NB_ATTRIBUTES];
+  vtkTimeStamp PointAttributesBuildTimestamp[POINT_NB_ATTRIBUTES];
+  vtkTimeStamp
+    IndirectDrawBufferUploadTimeStamp[vtkWebGPUCellToPrimitiveConverter::NUM_TOPOLOGY_SOURCE_TYPES];
+  ///@}
 
-  bool InitializedPipeline = false;
-  bool UpdatedPrimitiveSizes = false;
-  bool HasPointColors = false;
-  bool HasPointNormals = false;
-  bool HasPointTangents = false;
-  bool HasPointUVs = false;
-  bool HasCellColors = false;
-  bool HasCellNormals = false;
+  bool HasPointAttributes[POINT_NB_ATTRIBUTES];
+  bool HasCellAttributes[CELL_NB_ATTRIBUTES];
+  bool RebuildGraphicsPipelines = true;
   // used by RenderPiece and functions it calls to reduce
   // calls to get the input and allow for rendering of
   // other polydata (not the input)
@@ -246,35 +399,39 @@ protected:
 
   // 1 bind group for this polydata mesh
   wgpu::BindGroup MeshAttributeBindGroup;
-  // 1 bind group layout for the above bindgroup
-  wgpu::BindGroupLayout MeshAttributeBindGroupLayout;
 
-  struct PrimitiveBindGroupInfo
+  struct TopologyBindGroupInfo
   {
-    // 1 uniform buffer for the primitive size.
-    wgpu::Buffer PrimitiveSizeBuffer;
-    // 1 buffer for the primitive cell ids and point ids.
-    wgpu::Buffer Buffer;
-    // 1 bind group for the primitive size uniform.
+    // buffer for the primitive cell ids and point ids.
+    wgpu::Buffer TopologyBuffer;
+    // buffer for edge array. this lets fragment shader hide internal edges of a polygon
+    // when edge visibility is turned on.
+    wgpu::Buffer EdgeArrayBuffer;
+    // // buffer for indirect draw command
+    // wgpu::Buffer IndirectDrawBuffer;
+    // bind group for the primitive size uniform.
     wgpu::BindGroup BindGroup;
-    // each primitive-type gets a pipeline.
-    wgpu::RenderPipeline Pipeline;
     // vertexCount for draw call.
     vtkTypeUInt32 VertexCount = 0;
   };
-  // 1 bind group layout for the above bindgroups.
-  wgpu::BindGroupLayout PrimitiveBindGroupLayout;
 
-  PrimitiveBindGroupInfo PointPrimitiveBGInfo;
-  PrimitiveBindGroupInfo LinePrimitiveBGInfo;
-  PrimitiveBindGroupInfo TrianglePrimitiveBGInfo;
-  unsigned long EdgeArrayCount = 0;
+  vtkNew<vtkWebGPUCellToPrimitiveConverter> CellConverter;
+  TopologyBindGroupInfo
+    TopologyBindGroupInfos[vtkWebGPUCellToPrimitiveConverter::NUM_TOPOLOGY_SOURCE_TYPES] = {};
+  std::string GraphicsPipelineKeys[GFX_PIPELINE_NB_TYPES] = {};
 
-  // Cache these so that subsequent arrivals to UpdateMeshGeometry do not unnecessarily invoke
-  // MapScalars().
-  int LastScalarMode;
-  bool LastScalarVisibility;
-  vtkDataArray* LastColors = nullptr;
+  // Cache these so that subsequent executions of UpdateMeshGeometryBuffers() do not unnecessarily
+  // invoke MapScalars().
+  int LastScalarMode = -1;
+  bool LastScalarVisibility = false;
+  struct ActorState
+  {
+    bool LastActorBackfaceCulling = false;
+    bool LastActorFrontfaceCulling = false;
+    bool LastVertexVisibility = false;
+    int LastRepresentation = VTK_SURFACE;
+    bool LastHasRenderingTranslucentGeometry = false;
+  };
 
 private:
   friend class vtkWebGPUComputeRenderBuffer;
@@ -316,37 +473,10 @@ private:
    * Order in which the cell data attributes are concatenated into the mapper mesh SSBO
    */
   const CellDataAttributes CellDataAttributesOrder[CellDataAttributes::CELL_NB_ATTRIBUTES] = {
-    CellDataAttributes::CELL_EDGES, CellDataAttributes::CELL_COLORS,
-    CellDataAttributes::CELL_NORMALS
+    CellDataAttributes::CELL_COLORS, CellDataAttributes::CELL_NORMALS
   };
 
-  ///@{
-  /**
-   * Returns the size of the 'sub-buffer' within the whole point/cell data SSBO for the given
-   * attribute
-   */
-  unsigned long GetPointAttributeByteSize(vtkWebGPUPolyDataMapper::PointDataAttributes attribute);
-  unsigned long GetCellAttributeByteSize(vtkWebGPUPolyDataMapper::CellDataAttributes attribute);
-  ///@}
-
-  ///@{
-  /**
-   * Returns the size in bytes of one element of the given attribute.
-   * 4 * sizeof(float) for an RGBA color attribute for example
-   */
-  unsigned long GetPointAttributeElementSize(
-    vtkWebGPUPolyDataMapper::PointDataAttributes attribute);
-  unsigned long GetCellAttributeElementSize(vtkWebGPUPolyDataMapper::CellDataAttributes attribute);
-  ///@}
-
-  ///@{
-  /**
-   * Returns the offset at which the 'sub-buffer' of 'attribute' starts within the mesh SSBO point
-   * data buffer
-   */
-  vtkIdType GetPointAttributeByteOffset(PointDataAttributes attribute);
-  vtkIdType GetCellAttributeByteOffset(CellDataAttributes attribute);
-  ///@}
+  std::map<std::pair<vtkActor*, vtkRenderer*>, ActorState> CachedActorRendererProperties;
 
   vtkWebGPUPolyDataMapper(const vtkWebGPUPolyDataMapper&) = delete;
   void operator=(const vtkWebGPUPolyDataMapper&) = delete;

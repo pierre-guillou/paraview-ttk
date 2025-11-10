@@ -418,7 +418,7 @@ std::multiset<std::pair<std::string, int>, Comparator> FindWordsSortedByFrequenc
   std::map<std::string, int> wordContainer;
 
   // If a title is present add it with a high frequency
-  if (wordCloud->GetTitle().length() > 0)
+  if (!wordCloud->GetTitle().empty())
   {
     wordContainer[wordCloud->GetTitle()] = 1000;
   }
@@ -460,8 +460,9 @@ std::multiset<std::pair<std::string, int>, Comparator> FindWordsSortedByFrequenc
 
   // Defining a lambda function to compare two pairs. It will compare
   // two pairs using second field
-  Comparator compFunctor = [](const std::pair<std::string, int>& elem1,
-                             const std::pair<std::string, int>& elem2) {
+  Comparator compFunctor =
+    [](const std::pair<std::string, int>& elem1, const std::pair<std::string, int>& elem2)
+  {
     if (elem1.second == elem2.second)
     {
       return elem1.first.length() > elem2.first.length();
@@ -517,11 +518,11 @@ bool AddWordToFinal(vtkWordCloud* wordCloud, std::string word, int frequency, st
   // Setup a property for the strings containing fixed parameters
   auto colors = vtkSmartPointer<vtkNamedColors>::New();
   auto textProperty = vtkSmartPointer<vtkTextProperty>::New();
-  if (wordCloud->GetWordColorName().length() > 0)
+  if (!wordCloud->GetWordColorName().empty())
   {
     textProperty->SetColor(colors->GetColor3d(wordCloud->GetWordColorName()).GetData());
   }
-  else if (wordCloud->GetColorSchemeName().length() > 0)
+  else if (!wordCloud->GetColorSchemeName().empty())
   {
     auto colorScheme = vtkSmartPointer<vtkColorSeries>::New();
     colorScheme->SetColorSchemeByName(wordCloud->GetColorSchemeName());
@@ -548,7 +549,7 @@ bool AddWordToFinal(vtkWordCloud* wordCloud, std::string word, int frequency, st
   textProperty->SetLineOffset(4);
 
   // Check if a font file is present
-  if (wordCloud->GetFontFileName().length() > 0)
+  if (!wordCloud->GetFontFileName().empty())
   {
     textProperty->SetFontFile(wordCloud->GetFontFileName().c_str());
     textProperty->SetFontFamily(VTK_FONT_FILE);

@@ -12,6 +12,7 @@ DEPENDS
   VTK::CommonCore
   VTK::CommonExecutionModel
   VTK::CommonMisc
+  VTK::IOCore
   VTK::RenderingCore
   VTK::vtksys
 PRIVATE_DEPENDS
@@ -32,4 +33,3 @@ TEST_DEPENDS
   VTK::InteractionStyle
   VTK::RenderingOpenGL2
   VTK::TestingRendering
-  VTK::opengl

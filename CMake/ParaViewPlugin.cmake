@@ -718,6 +718,7 @@ static void ${_paraview_build_target_safe}_initialize()
       set(_paraview_build_plugin_directory
         "${_paraview_build_plugin_destination}/${_paraview_build_plugin}")
 
+      # Recover different attributes of the plugin
       set(_paraview_build_autoload 0)
       if (_paraview_build_plugin IN_LIST _paraview_build_AUTOLOAD)
         set(_paraview_build_autoload 1)
@@ -726,8 +727,13 @@ static void ${_paraview_build_target_safe}_initialize()
       if (_paraview_build_plugin IN_LIST _paraview_build_DELAYED_LOAD)
         set(_paraview_build_delayed_load 1)
       endif ()
+      get_property(_paraview_build_plugin_version GLOBAL
+        PROPERTY "_paraview_plugin_${_paraview_build_plugin}_version")
+      get_property(_paraview_build_plugin_description GLOBAL
+        PROPERTY "_paraview_plugin_${_paraview_build_plugin}_description")
+
       string(APPEND _paraview_build_xml_content
-        "  <Plugin name=\"${_paraview_build_plugin}\" auto_load=\"${_paraview_build_autoload}\" delayed_load=\"${_paraview_build_delayed_load}\"")
+        "  <Plugin name=\"${_paraview_build_plugin}\" auto_load=\"${_paraview_build_autoload}\" delayed_load=\"${_paraview_build_delayed_load}\" version=\"${_paraview_build_plugin_version}\" description=\"${_paraview_build_plugin_description}\"")
 
       if (_paraview_build_delayed_load)
         string(APPEND _paraview_build_xml_content ">\n")
@@ -1070,6 +1076,9 @@ function (paraview_add_plugin name)
     message(FATAL_ERROR
       "The `VERSION` argument is required.")
   endif ()
+  set_property(GLOBAL
+    PROPERTY
+      "_paraview_plugin_${name}_version" "${_paraview_add_plugin_VERSION}")
 
   if (NOT DEFINED _paraview_add_plugin_XML_DOCUMENTATION)
     set(_paraview_add_plugin_XML_DOCUMENTATION ON)
@@ -1308,81 +1317,72 @@ function (paraview_add_plugin name)
 
   if ((_paraview_add_plugin_module_xmls OR _paraview_add_plugin_xmls) AND
       PARAVIEW_USE_QT AND _paraview_add_plugin_XML_DOCUMENTATION)
+    set(_paraview_build_plugin_docdir
+      "${CMAKE_CURRENT_BINARY_DIR}/paraview_help")
 
-    if (PARAVIEW_QT_MAJOR_VERSION VERSION_GREATER "5")
-      # see https://gitlab.kitware.com/paraview/paraview/-/issues/19742
-      if (NOT DEFINED ENV{CI})
-        message(AUTHOR_WARNING "Building the plugin documentation with Qt6 is not supported")
-      endif ()
-    else ()
+    paraview_client_documentation(
+      TARGET      "${_paraview_build_plugin}_doc"
+      OUTPUT_DIR  "${_paraview_build_plugin_docdir}"
+      XMLS        ${_paraview_add_plugin_module_xmls}
+                  ${_paraview_add_plugin_xmls})
 
-      set(_paraview_build_plugin_docdir
-        "${CMAKE_CURRENT_BINARY_DIR}/paraview_help")
+    set(_paraview_build_plugin_doc_source_args)
+    if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR)
+      list(APPEND _paraview_build_plugin_doc_source_args
+        SOURCE_DIR "${_paraview_add_plugin_DOCUMENTATION_DIR}")
+    endif ()
 
-      paraview_client_documentation(
-        TARGET      "${_paraview_build_plugin}_doc"
-        OUTPUT_DIR  "${_paraview_build_plugin_docdir}"
-        XMLS        ${_paraview_add_plugin_module_xmls}
-                    ${_paraview_add_plugin_xmls})
+    paraview_client_generate_help(
+      NAME              "${_paraview_build_plugin}"
+      OUTPUT_PATH        _paraview_build_plugin_qch_path
+      OUTPUT_DIR        "${_paraview_build_plugin_docdir}"
+      TARGET            "${_paraview_build_plugin}_qch"
+                        ${_paraview_build_plugin_doc_source_args}
+      TABLE_OF_CONTENTS "${_paraview_add_plugin_DOCUMENTATION_TOC}"
+      DEPENDS           "${_paraview_build_plugin}_doc"
+                        "${_paraview_add_plugin_DOCUMENTATION_DEPENDENCIES}"
+      PATTERNS          "*.html" "*.css" "*.png" "*.jpg" "*.js"
+                        ${_paraview_add_plugin_DOCUMENTATION_ADD_PATTERNS})
 
-      set(_paraview_build_plugin_doc_source_args)
-      if (DEFINED _paraview_add_plugin_DOCUMENTATION_DIR)
-        list(APPEND _paraview_build_plugin_doc_source_args
-          SOURCE_DIR "${_paraview_add_plugin_DOCUMENTATION_DIR}")
-      endif ()
+    set(_paraview_add_plugin_depends_args)
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
+      list(APPEND _paraview_add_plugin_depends_args
+        DEPENDS_EXPLICIT_ONLY)
+    endif ()
 
-      paraview_client_generate_help(
-        NAME              "${_paraview_build_plugin}"
-        OUTPUT_PATH        _paraview_build_plugin_qch_path
-        OUTPUT_DIR        "${_paraview_build_plugin_docdir}"
-        TARGET            "${_paraview_build_plugin}_qch"
-                          ${_paraview_build_plugin_doc_source_args}
-        TABLE_OF_CONTENTS "${_paraview_add_plugin_DOCUMENTATION_TOC}"
-        DEPENDS           "${_paraview_build_plugin}_doc"
-                          "${_paraview_add_plugin_DOCUMENTATION_DEPENDENCIES}"
-        PATTERNS          "*.html" "*.css" "*.png" "*.jpg" "*.js"
-                          ${_paraview_add_plugin_DOCUMENTATION_ADD_PATTERNS})
+    list(APPEND _paraview_add_plugin_extra_include_dirs
+      "${CMAKE_CURRENT_BINARY_DIR}")
+    set(_paraview_add_plugin_qch_output
+      "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_build_plugin}_qch.h")
+    list(APPEND _paraview_add_plugin_binary_headers
+      "${_paraview_add_plugin_qch_output}")
+    add_custom_command(
+      OUTPUT "${_paraview_add_plugin_qch_output}"
+      COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+              "$<TARGET_FILE:ParaView::ProcessXML>"
+              -base64
+              "${_paraview_add_plugin_qch_output}"
+              \"\"
+              "_qch"
+              "_qch"
+              "${_paraview_build_plugin_qch_path}"
+      DEPENDS "${_paraview_build_plugin_qch_path}"
+              "${_paraview_build_plugin}_qch"
+              "$<TARGET_FILE:ParaView::ProcessXML>"
+      COMMENT "Generating header for ${_paraview_build_plugin} documentation"
+      ${_paraview_add_plugin_depends_args})
+    set_property(SOURCE "${_paraview_add_plugin_qch_output}"
+      PROPERTY
+        SKIP_AUTOMOC 1)
 
-      set(_paraview_add_plugin_depends_args)
-      if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.27")
-        list(APPEND _paraview_add_plugin_depends_args
-          DEPENDS_EXPLICIT_ONLY)
-      endif ()
-
-      list(APPEND _paraview_add_plugin_extra_include_dirs
-        "${CMAKE_CURRENT_BINARY_DIR}")
-      set(_paraview_add_plugin_qch_output
-        "${CMAKE_CURRENT_BINARY_DIR}/${_paraview_build_plugin}_qch.h")
-      list(APPEND _paraview_add_plugin_binary_headers
-        "${_paraview_add_plugin_qch_output}")
-      add_custom_command(
-        OUTPUT "${_paraview_add_plugin_qch_output}"
-        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
-                "$<TARGET_FILE:ParaView::ProcessXML>"
-                -base64
-                "${_paraview_add_plugin_qch_output}"
-                \"\"
-                "_qch"
-                "_qch"
-                "${_paraview_build_plugin_qch_path}"
-        DEPENDS "${_paraview_build_plugin_qch_path}"
-                "${_paraview_build_plugin}_qch"
-                "$<TARGET_FILE:ParaView::ProcessXML>"
-        COMMENT "Generating header for ${_paraview_build_plugin} documentation"
-        ${_paraview_add_plugin_depends_args})
-      set_property(SOURCE "${_paraview_add_plugin_qch_output}"
-        PROPERTY
-          SKIP_AUTOMOC 1)
-
-      string(APPEND _paraview_add_plugin_includes
-        "#include \"${_paraview_build_plugin}_qch.h\"\n")
-      string(APPEND _paraview_add_plugin_binary_resources
+    string(APPEND _paraview_add_plugin_includes
+      "#include \"${_paraview_build_plugin}_qch.h\"\n")
+    string(APPEND _paraview_add_plugin_binary_resources
         "  {
       const char *text = ${_paraview_build_plugin}_qch();
       resources.emplace_back(text);
       delete [] text;
     }\n")
-    endif ()
   endif ()
 
   set(_paraview_add_plugin_eula_sources)
@@ -1490,8 +1490,12 @@ function (paraview_add_plugin name)
   set(_paraview_add_plugin_python_modules)
   set(_paraview_add_plugin_python_module_sources)
   set(_paraview_add_plugin_python_package_flags)
+  set(_paraview_add_plugin_python_libraries)
   if (_paraview_add_plugin_PYTHON_MODULES)
     set(_paraview_add_plugin_with_python 1)
+    # python code may include servermanager XML
+    set(_paraview_add_plugin_with_xml 1)
+    list(APPEND _paraview_add_plugin_python_libraries "ParaView::RemotingServerManagerPython")
     foreach (_paraview_add_plugin_python_module IN LISTS _paraview_add_plugin_PYTHON_MODULES)
       set(_paraview_add_plugin_python_path
         "${CMAKE_CURRENT_SOURCE_DIR}/${_paraview_add_plugin_python_module}")
@@ -1621,6 +1625,7 @@ function (paraview_add_plugin name)
   target_link_libraries("${_paraview_build_plugin}"
     PRIVATE
       ParaView::RemotingCore
+      ${_paraview_add_plugin_python_libraries}
       ${_paraview_add_plugin_required_libraries})
   target_include_directories("${_paraview_build_plugin}"
     PRIVATE

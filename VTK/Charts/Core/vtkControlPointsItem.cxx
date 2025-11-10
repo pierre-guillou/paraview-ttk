@@ -19,7 +19,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkSmartPointer.h"
 #include "vtkTransform2D.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 
 #include <algorithm>
 #include <cassert>
@@ -990,11 +990,11 @@ bool vtkControlPointsItem::MouseMoveEvent(const vtkContextMouseEvent& mouse)
         {
           return false;
         }
-        else if (this->GetEndPointsXMovable())
+        if (!this->GetEndPointsYMovable())
         {
           deltaPos.SetY(0);
         }
-        else if (this->GetEndPointsYMovable())
+        if (!this->GetEndPointsXMovable())
         {
           deltaPos.SetX(0);
         }
@@ -1023,11 +1023,11 @@ bool vtkControlPointsItem::MouseMoveEvent(const vtkContextMouseEvent& mouse)
         {
           return false;
         }
-        else if (this->GetEndPointsXMovable())
+        if (!this->GetEndPointsYMovable())
         {
           curPos.SetY(currentPoint[1]);
         }
-        else if (this->GetEndPointsYMovable())
+        if (!this->GetEndPointsXMovable())
         {
           curPos.SetX(currentPoint[0]);
         }

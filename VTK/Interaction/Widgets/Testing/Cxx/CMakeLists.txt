@@ -10,7 +10,7 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestAngleWidget2D.cxx
   TestAngleWidget3D.cxx
   TestBalloonWidget.cxx
-  TestBiDimensionalWidget.cxx
+  TestBiDimensionalWidget.cxx,LOOSE_VALID
   TestBorderWidget.cxx
   TestBrokenLineWidget.cxx
   TestCamera3DWidget.cxx
@@ -26,7 +26,7 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestCoordinateFrameWidget.cxx
   TestDijkstraImageGeodesicPath.cxx
   TestDisplaySizedImplicitPlaneWidget.cxx
-  TestDistanceWidget.cxx
+  TestDistanceWidget.cxx,LOOSE_VALID
   TestDistanceWidget3D.cxx
   TestFinitePlaneWidget.cxx
   TestFixedSizeHandleRepresentation3D.cxx
@@ -34,8 +34,12 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestHandleWidget.cxx
   TestHandleWidget2D.cxx
   TestImageActorContourWidget.cxx
+  TestImplicitAnnulusRadius.cxx
+  TestImplicitAnnulusWidget.cxx
+  TestImplicitConeWidget.cxx
   TestImplicitCylinderWidget.cxx
   TestImplicitCylinderWidget2.cxx
+  TestImplicitFrustumWidget.cxx
   TestImplicitPlaneWidget.cxx
   TestImplicitPlaneWidget2.cxx
   TestImplicitPlaneWidget2LockNormalToCamera.cxx
@@ -50,6 +54,7 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestMultipleViewports.cxx
   TestOrientationMarkerWidget.cxx
   TestOrientationMarkerWidget2.cxx
+  TestOrientationMarkerWidgetRepeatedAdd.cxx
   TestOrientationWidget.cxx
   TestOrthoPlanes.cxx
   TestParallelopipedWidget.cxx
@@ -64,7 +69,7 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests tests
   TestRectilinearWipeWidget.cxx
   TestResliceCursorWidget2.cxx
   TestResliceCursorWidget3.cxx
-  TestScalarBarWidget.cxx
+  TestScalarBarWidget.cxx,LOOSE_VALID
   TestSeedWidget.cxx
   TestSeedWidget2.cxx
   TestSeedWidgetNonUniformRepresentations.cxx
@@ -133,11 +138,9 @@ vtk_add_test_cxx(vtkInteractionWidgetsCxxTests data_tests
   TestImageTracerWidget.cxx
   )
 
-if(NOT VTK_OPENGL_HAS_OSMESA)
-  vtk_add_test_cxx(vtkInteractionWidgetsCxxTests ogl_tests
-    TestPickingManagerWidgets.cxx
-    )
-endif()
+vtk_add_test_cxx(vtkInteractionWidgetsCxxTests ogl_tests
+  TestPickingManagerWidgets.cxx
+  )
 
 set(all_tests
   ${tests}
@@ -157,14 +160,12 @@ endif()
 set_tests_properties(VTK::InteractionWidgetsCxx-TerrainPolylineEditor
   PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TerrainPolylineEditor})
 
-if(NOT VTK_OPENGL_HAS_OSMESA)
-  # Allow local customization of timeout for this test.
-  if(NOT VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget)
-    set(VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget 400)
-  endif()
-  set_tests_properties(VTK::InteractionWidgetsCxx-TestPickingManagerSeedWidget
-    PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget})
+# Allow local customization of timeout for this test.
+if(NOT VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget)
+  set(VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget 400)
 endif()
+set_tests_properties(VTK::InteractionWidgetsCxx-TestPickingManagerSeedWidget
+  PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestPickingManagerSeedWidget})
 
 # On some machines this test takes ~220 seconds to complete, allow for some
 # extra time

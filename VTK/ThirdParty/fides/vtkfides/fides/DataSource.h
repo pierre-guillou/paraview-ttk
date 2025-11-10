@@ -11,6 +11,7 @@
 #ifndef fides_datamodel_DataSource_H_
 #define fides_datamodel_DataSource_H_
 
+#include <fides/Deprecated.h>
 #include <fides/FidesTypes.h>
 #include <fides/MetaData.h>
 
@@ -18,7 +19,7 @@
 #include <map>
 #include <set>
 #include <vector>
-#include <vtkm/cont/UnknownArrayHandle.h>
+#include <viskores/cont/UnknownArrayHandle.h>
 
 namespace fides
 {
@@ -49,7 +50,7 @@ enum class IsVector
 ///
 /// \c fides::io::DataSource is responsible of performing the
 /// actual IO operations to load arrays into memory. It produces
-/// VTK-m arrays. Only ADIOS2 is currently supported.
+/// Viskores arrays. Only ADIOS2 is currently supported.
 struct DataSource
 {
   /// \c FileNameMode determines how full file paths are formed
@@ -62,6 +63,11 @@ struct DataSource
 
   /// Used only when \c FileNameMode is set to \c Relative.
   std::string FileName = "";
+
+  /// When \c FileNameMode is set to \c Relative, the \c FileName will
+  /// be relative to this directory unless otherwise specified in the
+  /// paths.
+  std::string RelativePath = "";
 
   /// Determines whether to close gaps between uniform grid blocks
   /// with the use of shared points.
@@ -110,6 +116,18 @@ struct DataSource
 
   /// Prepare data source for reading. This needs to be called before
   /// any meta-data or heavy-data operations can be performed.
+  /// A map of paths to find data sources and the name of the data source
+  /// is provided to find the pathname of the source file.
+  /// In most cases, useMPI should be true (the default value), but in some
+  /// cases it is useful to open a source without using MPI
+  /// (See DataSetReader::CheckForDataModelAttribute for details).
+  /// useMPI is ignored if Fides is built without MPI support.
+  void OpenSource(const std::unordered_map<std::string, std::string>& paths,
+                  const std::string& dataSourceName,
+                  bool useMPI = true);
+
+  /// Prepare data source for reading. This needs to be called before
+  /// any meta-data or heavy-data operations can be performed.
   /// In most cases, useMPI should be true (the default value), but in some
   /// cases it is useful to open a source without using MPI
   /// (See DataSetReader::CheckForDataModelAttribute for details).
@@ -131,7 +149,7 @@ struct DataSource
   /// Applies the provided set of selections to potentially restricted
   /// what is loaded. Actual reading happens when \c DoAllReads() or
   /// \c EndStep() is called.
-  std::vector<vtkm::cont::UnknownArrayHandle> ReadVariable(
+  std::vector<viskores::cont::UnknownArrayHandle> ReadVariable(
     const std::string& varName,
     const fides::metadata::MetaData& selections,
     IsVector isit = IsVector::Auto);
@@ -141,24 +159,24 @@ struct DataSource
   /// As with \c ReadVariable(), actual reading happens when \c DoAllReads() or
   /// \c EndStep() is called.
   /// Inline engine is not supported with this type of read
-  std::vector<vtkm::cont::UnknownArrayHandle> ReadMultiBlockVariable(
+  std::vector<viskores::cont::UnknownArrayHandle> ReadMultiBlockVariable(
     const std::string& varName,
     const fides::metadata::MetaData& selections);
 
   /// Reads a scalar variable and can be used when when an
   /// actual value is needed immediately.
-  std::vector<vtkm::cont::UnknownArrayHandle> GetScalarVariable(
+  std::vector<viskores::cont::UnknownArrayHandle> GetScalarVariable(
     const std::string& varName,
     const fides::metadata::MetaData& selections);
 
-  std::vector<vtkm::cont::UnknownArrayHandle> GetTimeArray(
+  std::vector<viskores::cont::UnknownArrayHandle> GetTimeArray(
     const std::string& varName,
     const fides::metadata::MetaData& selections);
 
   /// Returns the dimensions and start of an n-dimensional variable.
   /// The first n values are the dimensions and the last n the start.
   /// Unlike ReadVariable(), the values are accessible immediately.
-  std::vector<vtkm::cont::UnknownArrayHandle> GetVariableDimensions(
+  std::vector<viskores::cont::UnknownArrayHandle> GetVariableDimensions(
     const std::string& varName,
     const fides::metadata::MetaData& selections);
 

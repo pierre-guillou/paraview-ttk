@@ -206,7 +206,8 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
   std::string tcoordsName; // name of active tcoords
   int lineNumber = 0;      // current line number
 
-  const auto flushLine = [this, &parser, &lineNumber]() {
+  const auto flushLine = [this, &parser, &lineNumber]()
+  {
     std::string remaining;
 
     auto result = parser->Parse(remaining);
@@ -809,6 +810,7 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
     vtkNew<vtkIdList> normalIds;
     vtkNew<vtkIdList> tmpCell;
 
+    int matId = 0;
     for (vtkIdType celli = 0; celli < vertexPolys->GetNumberOfCells(); ++celli)
     {
       vertexPolys->GetCellAtId(celli, vertexIds);
@@ -827,7 +829,6 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
       const auto normalCount = normalIds->GetNumberOfIds();
       const auto tcoordCount = tcoordIds->GetNumberOfIds();
 
-      int matId = 0;
       if (hasTcoords)
       {
         // keep a record of the material for each cell
@@ -943,10 +944,10 @@ int vtkOBJReader::RequestData(vtkInformation* vtkNotUsed(request),
 
     if (hasMaterial)
     {
+      int matId = 0;
       // keep a record of the material for each cell
       for (vtkIdType celli = 0; celli < vertexPolys->GetNumberOfCells(); ++celli)
       {
-        int matId = 0;
         const auto citer = startCellToMaterialName.find(celli);
         if (citer != startCellToMaterialName.end())
         {

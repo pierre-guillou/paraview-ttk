@@ -374,6 +374,12 @@ bool FillTopology(T* dataset, conduit_cpp::Node& conduit_node)
       case VTK_VERTEX:
         topologies_node["elements/shape"] = "point";
         break;
+      case VTK_PYRAMID:
+        topologies_node["elements/shape"] = "pyramid";
+        break;
+      case VTK_WEDGE:
+        topologies_node["elements/shape"] = "wedge";
+        break;
       default:
         vtkLogF(ERROR, "Unsupported cell type in %s. Cell type: %s", datasetType,
           vtkCellTypes::GetClassNameFromTypeId(cell_type));
@@ -482,6 +488,33 @@ bool FillTopology(vtkDataSet* data_set, conduit_cpp::Node& conduit_node)
   {
     return FillTopology(polydata, conduit_node);
   }
+  else if (auto pointset = vtkPointSet::SafeDownCast(data_set))
+  {
+    if (data_set->GetNumberOfCells() == 0) // Implicit topology
+    {
+      auto coords_node = conduit_node["coordsets/coords"];
+
+      coords_node["type"] = "explicit";
+
+      auto values_node = coords_node["values"];
+      if (!ConvertDataArrayToMCArray(
+            pointset->GetPoints()->GetData(), values_node, { "x", "y", "z" }))
+      {
+        vtkLog(ERROR, "Failed ConvertPoints for point set");
+        return false;
+      }
+
+      auto topologies_node = conduit_node["topologies/mesh"];
+      topologies_node["type"] = "points";
+      topologies_node["coordset"] = "coords";
+      topologies_node["elements/shape"] = "point";
+    }
+    else
+    {
+      vtkLog(ERROR, "Unsupported point set type: " << data_set->GetClassName());
+      return false;
+    }
+  }
   else
   {
     vtkLog(ERROR, "Unsupported data set type: " << data_set->GetClassName());
@@ -496,7 +529,7 @@ bool FillFields(
   vtkFieldData* field_data, const std::string& association, conduit_cpp::Node& conduit_node)
 {
   bool is_success = true;
-
+  auto dataset_attributes = vtkDataSetAttributes::SafeDownCast(field_data);
   int array_count = field_data->GetNumberOfArrays();
   for (int array_index = 0; is_success && array_index < array_count; ++array_index)
   {
@@ -546,6 +579,26 @@ bool FillFields(
 
       auto values_node = field_node["values"];
       is_success = ConvertDataArrayToMCArray(data_array, values_node);
+      if (dataset_attributes)
+      {
+        bool is_dataset_attribute = false;
+        for (int i = 0; i < vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES; ++i)
+        {
+          if (dataset_attributes->GetAttribute(i) == data_array)
+          {
+            auto field_metadata_node = conduit_node["state/metadata/vtk_fields"][name];
+            field_metadata_node["attribute_type"] =
+              vtkDataSetAttributes::GetAttributeTypeAsString(i);
+            is_dataset_attribute = true;
+            break;
+          }
+        }
+        if (!is_dataset_attribute && strcmp(name, vtkDataSetAttributes::GhostArrayName()) == 0)
+        {
+          auto field_metadata_node = conduit_node["state/metadata/vtk_fields"][name];
+          field_metadata_node["attribute_type"] = "Ghosts";
+        }
+      }
     }
     else
     {

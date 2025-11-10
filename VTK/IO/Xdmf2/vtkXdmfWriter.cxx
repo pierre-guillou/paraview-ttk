@@ -441,8 +441,7 @@ int vtkXdmfWriter::WriteCompositeDataSet(vtkCompositeDataSet* dobj, xdmf2::XdmfG
   else
   {
     // fine for vtkMultiBlockDataSet
-    // vtkHierarchicalBoxDataSet would be better served by a different xdmf tree type
-    // vtkTemporalDataSet is internal to the VTK pipeline so I am ignoring it
+    // vtkOverlappingAMR would be better served by a different xdmf tree type
     grid->SetGridType(XDMF_GRID_TREE);
   }
 
@@ -814,9 +813,8 @@ int vtkXdmfWriter::CreateTopology(vtkDataSet* ds, xdmf2::XdmfGrid* grid, vtkIdTy
         da->SetNumberOfComponents(1);
         vtkUnstructuredGrid* ugrid = vtkUnstructuredGrid::SafeDownCast(ds);
         const int ESTIMATE = 4; /*celltype+numids+id0+id1 or celtype+id0+id1+id2*/
-        auto countConnSize = [](vtkCellArray* ca) {
-          return ca->GetNumberOfCells() + ca->GetNumberOfConnectivityIds();
-        };
+        auto countConnSize = [](vtkCellArray* ca)
+        { return ca->GetNumberOfCells() + ca->GetNumberOfConnectivityIds(); };
         if (ugrid)
         {
           da->Allocate(countConnSize(ugrid->GetCells()) * ESTIMATE);

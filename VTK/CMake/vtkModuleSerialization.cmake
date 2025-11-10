@@ -10,7 +10,7 @@ vtkModuleSerialization
 .. cmake:command:: vtk_module_generate_library_serdes_registrar
 
   Generate functions that register (de)serialization functions for all classes
-  in a library. |module-wrapping-serdes|
+  in a library. |module-serialization|
 
   .. code-block:: cmake
 
@@ -21,7 +21,7 @@ vtkModuleSerialization
       REGISTRAR_HEADER   <registrar_header>
       REGISTRAR_SOURCE   <registrar_source>
       CLASSES            <class>...)
-  
+
   Declares registrar function for ``MODULE`` in ``REGISTRAR_HEADER`` and
   writes implementation of the registrar in ``REGISTRAR_SOURCE``.
 
@@ -82,9 +82,9 @@ function (vtk_module_generate_library_serdes_registrar)
   set(_vtk_serdes_register_classes_decls "")
   foreach (_vtk_serdes_class IN LISTS _vtk_serdes_CLASSES)
     string(APPEND _vtk_serdes_register_classes_decls
-      "  int RegisterHandlers_${_vtk_serdes_class}SerDes(void* serializer, void* deserializer);\n")
+      "  int RegisterHandlers_${_vtk_serdes_class}SerDes(void* serializer, void* deserializer, void* invoker);\n")
     string(APPEND _vtk_serdes_register_classes "
-  if(!RegisterHandlers_${_vtk_serdes_class}SerDes(serializer, deserializer))
+  if(!RegisterHandlers_${_vtk_serdes_class}SerDes(serializer, deserializer, invoker))
   {
     *error = \"Failed to register handlers for ${_vtk_serdes_class}\";
     return FAIL;
@@ -104,7 +104,7 @@ endfunction ()
 .. cmake:command:: vtk_module_generate_libraries_serdes_registrar
 
   Generate functions that register (de)serialization handlers for a
-  collection of modules. |module-wrapping-serdes|
+  collection of modules. |module-serialization|
 
   .. code-block:: cmake
 
@@ -113,7 +113,7 @@ endfunction ()
       REGISTRAR_SOURCE   <registrar_source>
       [MANDATORY_MODULES  <module>...]
       [OPTIONAL_MODULES   <module>...])
-  
+
   Invokes registrar functions for all modules from ``OPTIONAL_MODULES`` and ``MANDATORY_MODULES``.
   Code is generated in ``REGISTRAR_SOURCE``.
 
@@ -157,7 +157,7 @@ function (vtk_module_generate_libraries_serdes_registrar)
     string(APPEND _vtk_serdes_include_mandatory_libraries_registrar_headers
       "#include \"${_vtk_serdes_library_name}SerDes.h\"")
     string(APPEND _vtk_serdes_register_mandatory_libraries "
-  if(!${_vtk_serdes_library_name}SerDesRegistrar::RegisterClasses(serializer, deserializer, error))
+  if(!RegisterClasses_${_vtk_serdes_library_name}(serializer, deserializer, invoker, error))
   {
     return FAIL;
   }\n")
@@ -181,7 +181,7 @@ function (vtk_module_generate_libraries_serdes_registrar)
 #endif\n")
     string(APPEND _vtk_serdes_register_optional_libraries "
 #if ${_vtk_serdes_module_enabled_condition}
-  if(!${_vtk_serdes_library_name}SerDesRegistrar::RegisterClasses(serializer, deserializer, error))
+  if(!RegisterClasses_${_vtk_serdes_library_name}(serializer, deserializer, invoker, error))
   {
     return FAIL;
   }
@@ -198,7 +198,7 @@ endfunction ()
 .. cmake:command:: _vtk_module_serdes_generate_sources
 
   Generate (de)serialization functions for classes that belong to
-  ``MODULE`` in ``SERDES_SOURCES``. |module-wrapping-serdes|
+  ``MODULE`` in ``SERDES_SOURCES``. |module-serialization|
 
   .. code-block:: cmake
 
@@ -206,7 +206,7 @@ endfunction ()
       MODULE              <module>
       SERIALIZED_CLASSES  <serialzied_classes>
       SERDES_SOURCES      <serdes_sources>)
-  
+
   * ``MODULE``: Generates serialization sources for all classes in ``MODULE``
   * ``SERIALIZED_CLASSES``: This variable will contain the list of all classes that
     were serialized.
@@ -219,7 +219,7 @@ function (_vtk_module_serdes_generate_sources)
     ""
     "MODULE;SERIALIZED_CLASSES;SERDES_SOURCES"
     "")
-  
+
   if (_vtk_serdes_UNPARSED_ARGUMENTS)
     message (FATAL_ERROR
       "Unparsed arguments for _vtk_module_serdes_generate_sources: "
@@ -404,7 +404,7 @@ endfunction ()
 #[==[.rst:
 .. cmake:command:: vtk_module_serdes
 
-  Generate (de)serialization code for all classes in a ``MODULE``. |module-wrapping-serdes|
+  Generate (de)serialization code for all classes in a ``MODULE``. |module-serialization|
 
   .. code-block:: cmake
 
@@ -415,7 +415,7 @@ endfunction ()
       REGISTRAR_HEADER  <header>
       REGISTRAR_SOURCE  <source>
       SERDES_SOURCES    <serdes_sources>)
-  
+
   * ``MODULE``: The name of a module.
   * ``EXPORT_MACRO_NAME``: The name of the export macro for ``MODULE``.
   * ``EXPORT_FILE_NAME``: The name of the header file which defines ``EXPORT_MACRO_NAME``

@@ -202,13 +202,13 @@ if (NOT cdash_show_third_party_warnings)
     # Warnings due to DIY
     "xmemory.*: warning C4996:.*Default Bounds constructor"
 
-    # vtkm uses deprecated TBB headers
+    # viskores uses deprecated TBB headers
     "TBB Warning: tbb/task.h is deprecated"
 
-    # vtkm related warnings, someone working on vtkm should fix these and once fixed
+    # viskores related warnings, someone working on viskores should fix these and once fixed
     # remove these suppressions
-    "struct VTKM_DEPRECATED"
-    "vtkm::filter"
+    "struct VISKORES_DEPRECATED"
+    "viskores::filter"
 
     # eigen uses this internal header from CUDA that should not be used.
     # [-Wcpp]
@@ -233,8 +233,14 @@ if (NOT cdash_show_third_party_warnings)
     # Warnings from template instantiations. Remove once cmake/cmake!4766 is releasted.
     "x(memory0|utility)\\([0-9]+\\): warning C4244"
 
-    # Timeout errors of SCCACHE are common cases for long builds such as VTK+VTKm+CUDA
+    # Timeout errors of SCCACHE are common cases for long builds such as VTK+Viskores+CUDA
     "sccache: warning: The server looks like it shut down unexpectedly, compiling locally instead"
+
+    # Ignore warnings from Apple's new linker about duplicate rpath flags.
+    "ld: warning: duplicate -rpath"
+
+    # Libxml2 has an ignored warning in a line with a string containing `warning`
+    "xmlVFormatLegacyError.*validity warning"
   )
 endif ()
 
@@ -248,7 +254,7 @@ endif ()
 if (NOT "$ENV{CI}" STREQUAL "")
   # Warning exclusions for old compilers and dependencies.
   if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "mindeps")
-    # GCC 4.8.5
+    # GCC 8.0.0
     if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "el7")
       list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
         # Deprecated classes trigger "usage" warnings in methods marked with

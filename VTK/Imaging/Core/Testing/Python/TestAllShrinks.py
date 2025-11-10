@@ -69,7 +69,7 @@ class TestAllShrinks(vtkmodules.test.Testing.vtkTest):
             actor.update({operator:vtkActor2D()})
             actor[operator].SetMapper(mapper[operator])
             imager.update({operator:vtkRenderer()})
-            imager[operator].AddActor2D(actor[operator])
+            imager[operator].AddViewProp(actor[operator])
             renWin.AddRenderer(imager[operator])
 
         shrink["Minimum"].Update
@@ -92,7 +92,7 @@ class TestAllShrinks(vtkmodules.test.Testing.vtkTest):
         renWin.Render()
 
         img_file = "TestAllShrinks.png"
-        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file), threshold=25)
+        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file))
         vtkmodules.test.Testing.interact()
 
 if __name__ == "__main__":

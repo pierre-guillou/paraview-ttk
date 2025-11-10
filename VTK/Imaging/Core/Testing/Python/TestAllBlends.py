@@ -123,7 +123,7 @@ class TestAllBlends(vtkmodules.test.Testing.vtkTest):
                 actor[bg][fg].SetMapper(mapper[bg][fg])
 
                 imager.update({bg:{fg:vtkRenderer()}})
-                imager[bg][fg].AddActor2D(actor[bg][fg])
+                imager[bg][fg].AddViewProp(actor[bg][fg])
                 imager[bg][fg].SetViewport(column * deltaX, row * deltaY, (column + 1) * deltaX, (row + 1) * deltaY)
 
                 renWin.AddRenderer(imager[bg][fg])
@@ -137,7 +137,7 @@ class TestAllBlends(vtkmodules.test.Testing.vtkTest):
         renWin.Render()
 
         img_file = "TestAllBlends.png"
-        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file), threshold=25)
+        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file))
         vtkmodules.test.Testing.interact()
 
 if __name__ == "__main__":

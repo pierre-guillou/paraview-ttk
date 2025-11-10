@@ -103,7 +103,7 @@ vtkSmartPointer<vtkCellArray> BuildStencils(vtkPointSet* input)
   // links from the points to the (line) cells using the output of
   // vtkExtractEdges.
   vtkStaticCellLinksTemplate<vtkIdType> links;
-  links.ThreadedBuildLinks(numPts, numLines, lines);
+  links.BuildLinks(numPts, numLines, lines);
   vtkIdType linksSize = links.GetLinksSize();
 
   // Building the links does most of the work. Now we transform the links
@@ -379,7 +379,8 @@ struct AttrWorker
 
     // In place lambda to compute error scalars and vectors
     vtkSMPTools::For(0, numPts,
-      [&inPtsArray, &outPtsArray, &scalars, &vectors](vtkIdType ptId, vtkIdType endPtId) {
+      [&inPtsArray, &outPtsArray, &scalars, &vectors](vtkIdType ptId, vtkIdType endPtId)
+      {
         const auto inPts = vtk::DataArrayTupleRange<3>(inPtsArray);
         const auto outPts = vtk::DataArrayTupleRange<3>(outPtsArray);
 
@@ -442,7 +443,7 @@ int vtkConstrainedSmoothingFilter::RequestData(vtkInformation* vtkNotUsed(reques
   vtkPointSet* input = vtkPointSet::SafeDownCast(inInfo->Get(vtkDataObject::DATA_OBJECT()));
   vtkPointSet* output = vtkPointSet::SafeDownCast(outInfo->Get(vtkDataObject::DATA_OBJECT()));
 
-  vtkLog(INFO, "Executing constrained smoothing filter");
+  vtkLog(TRACE, "Executing constrained smoothing filter");
 
   // Sanity check the input
   vtkIdType numPts = input->GetNumberOfPoints();

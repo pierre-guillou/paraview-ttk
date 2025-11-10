@@ -3,7 +3,7 @@
 
 #include "vtkOpenGLGPUVolumeRayCastMapper.h"
 
-#include <vtk_glew.h>
+#include <vtk_glad.h>
 
 #include "vtkVolumeShaderComposer.h"
 #include "vtkVolumeStateRAII.h"
@@ -1069,9 +1069,8 @@ bool vtkOpenGLGPUVolumeRayCastMapper::vtkInternal::IsGeometryUpdateRequired(
   const auto GeomTime = this->BBoxPolyData->GetMTime();
   const bool uploadTimeChanged =
     any_of(this->Parent->AssembledInputs.begin(), this->Parent->AssembledInputs.end(),
-      [&GeomTime](const std::pair<int, vtkVolumeInputHelper>& item) {
-        return item.second.Texture->UploadTime > GeomTime;
-      });
+      [&GeomTime](const std::pair<int, vtkVolumeInputHelper>& item)
+      { return item.second.Texture->UploadTime > GeomTime; });
 
   return (this->NeedToInitializeResources || uploadTimeChanged ||
     this->IsCameraInside(ren, vol, geometry) || this->CameraWasInsideInLastUpdate ||
@@ -2252,13 +2251,13 @@ vtkTextureObject* vtkOpenGLGPUVolumeRayCastMapper::GetColorTexture()
 //------------------------------------------------------------------------------
 void vtkOpenGLGPUVolumeRayCastMapper::GetDepthImage(vtkImageData* output)
 {
-  return this->Impl->ConvertTextureToImageData(this->Impl->RTTDepthTextureObject, output);
+  this->Impl->ConvertTextureToImageData(this->Impl->RTTDepthTextureObject, output);
 }
 
 //------------------------------------------------------------------------------
 void vtkOpenGLGPUVolumeRayCastMapper::GetColorImage(vtkImageData* output)
 {
-  return this->Impl->ConvertTextureToImageData(this->Impl->RTTColorTextureObject, output);
+  this->Impl->ConvertTextureToImageData(this->Impl->RTTColorTextureObject, output);
 }
 
 //------------------------------------------------------------------------------
@@ -3198,7 +3197,7 @@ void vtkOpenGLGPUVolumeRayCastMapper::GPURender(vtkRenderer* ren, vtkVolume* vol
   }
 
   vtkOpenGLRenderWindow* renWin = vtkOpenGLRenderWindow::SafeDownCast(ren->GetRenderWindow());
-  this->ResourceCallback->RegisterGraphicsResources(static_cast<vtkOpenGLRenderWindow*>(renWin));
+  this->ResourceCallback->RegisterGraphicsResources(renWin);
   // Make sure the context is current
   renWin->MakeCurrent();
 

@@ -150,25 +150,6 @@ void pqCopyReaction::paste()
 
 namespace
 {
-// checks that source is a downstream filter of some item in selection
-bool checkDownstream(QList<pqPipelineSource*>& selection, pqPipelineSource* source)
-{
-  for (auto src2 : selection)
-  {
-    if (src2 == source)
-    {
-      continue;
-    }
-    auto consumers = src2->getAllConsumers();
-    if (consumers.contains(source))
-    {
-      return true;
-    }
-    return checkDownstream(consumers, source);
-  }
-
-  return false;
-}
 
 //-----------------------------------------------------------------------------
 // Returns nullptr if there are more than 1 input port to the whole pipeline
@@ -352,18 +333,21 @@ void pqCopyReaction::copyPipeline()
   for (auto item : selection)
   {
     auto proxy = qobject_cast<pqProxy*>(item);
-    SelectedProxyConnections.insert(proxy, QObject::connect(proxy, &QObject::destroyed, [proxy] {
-      auto& connection = SelectedProxyConnections[proxy];
-      QObject::disconnect(connection);
-      SelectedProxyConnections.remove(proxy);
-      FilterSelection.clear();
-      SelectionRoot = nullptr;
+    SelectedProxyConnections.insert(proxy,
+      QObject::connect(proxy, &QObject::destroyed,
+        [proxy]
+        {
+          auto& connection = SelectedProxyConnections[proxy];
+          QObject::disconnect(connection);
+          SelectedProxyConnections.remove(proxy);
+          FilterSelection.clear();
+          SelectionRoot = nullptr;
 
-      for (auto paster : PastePipelineContainer)
-      {
-        paster->updateEnableState();
-      }
-    }));
+          for (auto paster : PastePipelineContainer)
+          {
+            paster->updateEnableState();
+          }
+        }));
 
     FilterSelection.insert(proxy);
   }

@@ -30,6 +30,7 @@
 VTK_ABI_NAMESPACE_BEGIN
 class vtkOpenGLRenderWindow;
 class vtkOpenXRRenderWindow;
+class vtkOpenXRSceneObserver;
 
 class VTKRENDERINGOPENXR_EXPORT vtkOpenXRManager
 {
@@ -89,15 +90,19 @@ public:
 
   ///@{
   /**
+   * Internal API. Managed by `vtkOpenXRRenderWindow`.
+   *
    * Initialize the OpenXR SDK to render images in a virtual reality device.
-   * The helper window must be a vtkWin32OpenGLRenderWindow if the platform is Win32,
+   * The HelperWindow of xrWindow must be a vtkWin32OpenGLRenderWindow if the platform is Win32,
    * else a vtkXOpenGLRenderWindow if the platform is X.
    */
-  bool Initialize(vtkOpenGLRenderWindow*);
+  bool Initialize(vtkOpenXRRenderWindow* xrWindow);
   ///@}
 
   ///@{
   /**
+   * Internal API. Managed by `vtkOpenXRRenderWindow`.
+   *
    * End the OpenXR session and destroy it and the OpenXR instance.
    */
   void Finalize();
@@ -169,9 +174,21 @@ public:
   ///@{
   /**
    * Return true if the runtime supports the depth extension.
+   *
+   * This value is defined by `vtkOpenXRManager::Initialize`.
    */
   bool IsDepthExtensionSupported() { return this->OptionalExtensions.DepthExtensionSupported; }
   ///@}
+
+  /**
+   * Return true if the runtime supports the scene understanding extension.
+   *
+   * This value is defined by `vtkOpenXRManager::Initialize`.
+   */
+  bool IsSceneUnderstandingSupported()
+  {
+    return this->OptionalExtensions.SceneUnderstandingSupported;
+  }
 
   ///@{
   /**
@@ -336,8 +353,8 @@ public:
    * \p action to emit vibration on \p hand to emit on \p amplitude 0.0 to 1.0.
    * \p duration nanoseconds, default 25ms \p frequency (hz)
    */
-  bool ApplyVibration(const Action_t& actionT, int hand, float amplitude = 0.5f,
-    float duration = 25000000.0f, float frequency = XR_FREQUENCY_UNSPECIFIED);
+  bool ApplyVibration(const Action_t& actionT, int hand, float amplitude = 0.5,
+    float duration = 25000000.0, float frequency = XR_FREQUENCY_UNSPECIFIED);
 
   enum ControllerIndex
   {
@@ -354,7 +371,8 @@ public:
     XrAction Action;
     XrActionType ActionType;
 
-    union {
+    union
+    {
       XrActionStateFloat _float;
       XrActionStateBoolean _boolean;
       XrActionStatePose _pose;
@@ -382,25 +400,29 @@ public:
   vtkOpenXRManagerConnection* GetConnectionStrategy() { return this->ConnectionStrategy; }
   ///@}
 
-  ///@{
+  VTK_DEPRECATED_IN_9_5_0(
+    "Use vtkOpenXRRenderWindow::SetUseDepthExtension instead. This has no effect!")
+  void SetUseDepthExtension(bool) {}
+  VTK_DEPRECATED_IN_9_5_0(
+    "Use vtkOpenXRRenderWindow::GetUseDepthExtension instead. This returns false!")
+  bool GetUseDepthExtension() const { return false; }
+
   /**
-   * Enable or disable XR_KHR_composition_layer_depth extension even when it is available.
-   *
-   * This must be set before vtkOpenXRManager initialization.
-   * Do nothing if XR_KHR_composition_layer_depth isn't available.
-   *
-   * Depth information is useful for augmented reality devices such as the Hololens 2.
-   * When enabled and XR_KHR_composition_layer_depth is available,
-   * the depth texture of the render window is submitted to the runtime.
-   * The runtime will use this information increase hologram stability of the Hololens 2.
-   *
-   * Note: enabling this option without providing the depth information could reduce stability.
-   *
-   * Default value: `false`
+   * Return OpenXR System ID associated with the XrSession
    */
-  void SetUseDepthExtension(bool value) { this->UseDepthExtension = value; }
-  bool GetUseDepthExtension() const { return this->UseDepthExtension; }
-  ///@}
+  XrSystemId GetSystemID() const { return this->SystemId; }
+
+  /**
+   * Return XrSpace associated with the XrSession
+   */
+  XrSpace GetReferenceSpace() const { return this->ReferenceSpace; }
+
+  /**
+   * Return runtime predicted display time for next frame.
+   * This may be needed for some OpenXR API calls that requires time information.
+   * This is updated by `WaitAndBeginFrame()`
+   */
+  XrTime GetPredictedDisplayTime() const { return this->PredictedDisplayTime; }
 
 protected:
   vtkOpenXRManager();
@@ -412,8 +434,8 @@ protected:
    * This is where we select the extensions using
    * SelectExtensions
    */
-  bool CreateInstance();
-  std::vector<const char*> SelectExtensions();
+  bool CreateInstance(vtkOpenXRRenderWindow* window);
+  std::vector<const char*> SelectExtensions(vtkOpenXRRenderWindow* window);
   ///@}
 
   ///@{
@@ -564,6 +586,8 @@ protected:
     bool HandInteractionSupported{ false };
     bool HandTrackingSupported{ false };
     bool RemotingSupported{ false };
+    bool SceneUnderstandingSupported{ false };
+    bool SceneMarkerSupported{ false };
   } OptionalExtensions;
   ///@}
 
@@ -600,7 +624,7 @@ protected:
     std::vector<XrCompositionLayerProjectionView> ProjectionLayerViews;
     std::vector<XrCompositionLayerDepthInfoKHR> DepthInfoViews;
   };
-  std::unique_ptr<RenderResources_t> RenderResources{};
+  std::unique_ptr<RenderResources_t> RenderResources;
   ///@}
 
   // There is one subaction path for each hand.
@@ -615,7 +639,6 @@ protected:
    */
   XrTime PredictedDisplayTime;
 
-  bool UseDepthExtension = false;
   bool SessionRunning = false;
   // Following each WaitAndBeginFrame operation, the OpenXR runtime may indicate
   // whether the current frame should be rendered using the `XrFrameState.shouldRender`

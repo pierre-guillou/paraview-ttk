@@ -8,7 +8,7 @@ set(python_files
   paraview/apps/__main__.py
   paraview/apps/_internals.py
   paraview/apps/glance.py
-  paraview/apps/trame.py
+  paraview/apps/packages.py
   paraview/benchmark/__init__.py
   paraview/benchmark/basic.py
   paraview/benchmark/logbase.py
@@ -24,6 +24,7 @@ set(python_files
   paraview/collaboration.py
   paraview/coprocessing.py
   paraview/cpstate.py
+  paraview/decorator_utils.py
   paraview/demos/__init__.py
   paraview/demos/export_catalyst_state.py
   paraview/demos/filedriver_miniapp.py
@@ -42,6 +43,10 @@ set(python_files
   paraview/detail/python_selector.py
   paraview/detail/catalyst_export.py
   paraview/incubator/__init__.py.in
+  paraview/incubator/pythoninteractorbase.py
+  paraview/info/__init__.py
+  paraview/info/__main__.py
+  paraview/info/info.py
   paraview/inspect.py
   paraview/live.py
   paraview/modules/__init__.py.in
@@ -51,13 +56,38 @@ set(python_files
   paraview/python_view.py
   paraview/selection.py
   paraview/servermanager.py
-  paraview/simple.py
+  paraview/simple/__init__.py
+  paraview/simple/animation.py
+  paraview/simple/camera.py
+  paraview/simple/catalyst.py
+  paraview/simple/color.py
+  paraview/simple/compatibility.py
+  paraview/simple/deprecated.py
+  paraview/simple/example/__init__.py
+  paraview/simple/example/demo1.py
+  paraview/simple/example/demo2.py
+  paraview/simple/example/trame.py
+  paraview/simple/io.py
+  paraview/simple/layout.py
+  paraview/simple/light.py
+  paraview/simple/link.py
+  paraview/simple/plugin.py
+  paraview/simple/proxy.py
+  paraview/simple/rendering.py
+  paraview/simple/selection.py
+  paraview/simple/session.py
+  paraview/simple/setting.py
+  paraview/simple/texture.py
+  paraview/simple/version.py
+  paraview/simple/view.py
+  paraview/simple/widget.py
   paraview/smstate.py
   paraview/smtesting.py
   paraview/smtrace.py
   paraview/spatiotemporalparallelism.py
   paraview/tests/basic_rendering.py
   paraview/tests/__init__.py
+  paraview/tests/fetch_composite.py
   paraview/tests/internals.py
   paraview/tests/__main__.py
   paraview/tests/proxy_deprecation.py
@@ -66,9 +96,15 @@ set(python_files
   paraview/tpl/__init__.py
   paraview/util/__init__.py
   paraview/util/vtkAlgorithm.py
+  paraview/util/proxy.py
   paraview/variant.py
   paraview/vtkConstants.py
   paraview/vtk.py)
+
+if (TARGET ParaView::PVWebPython)
+  list(APPEND python_files
+    paraview/apps/trame.py)
+endif ()
 
 # build the "__all__ = [...]" list for paraview/incubator/__init__.py
 set(_paraview_incubator)

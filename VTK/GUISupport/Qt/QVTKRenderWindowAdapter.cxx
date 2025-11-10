@@ -6,6 +6,7 @@
 #include <vtkCommand.h>
 #include <vtkGenericOpenGLRenderWindow.h>
 #include <vtkLogger.h>
+#include <vtkOpenGLError.h>
 #include <vtkOpenGLFramebufferObject.h>
 #include <vtkOpenGLState.h>
 #include <vtkRenderWindowInteractor.h>
@@ -35,7 +36,6 @@
   {                                                                                                \
     std::ostringstream str;                                                                        \
     str << "QVTKRenderWindowAdapter(" << this << "): " << msg;                                     \
-    cout << str.str() << endl;                                                                     \
     this->Logger->logMessage(                                                                      \
       QOpenGLDebugMessage::createApplicationMessage(QString(str.str().c_str())));                  \
   }
@@ -218,6 +218,7 @@ public:
     if (auto iren = this->RenderWindow->GetInteractor())
     {
       iren->UpdateSize(deviceSize.width(), deviceSize.height());
+      iren->InvokeEvent(vtkCommand::ConfigureEvent);
     }
     else
     {
@@ -380,6 +381,11 @@ public:
   {
     this->ParentWindow ? this->ParentWindow->setCursor(cursor)
                        : this->ParentWidget->setCursor(cursor);
+  }
+
+  void setEnableTouchEventProcessing(bool val)
+  {
+    this->InteractorAdapter.SetEnableTouchEventProcessing(val);
   }
 
   void setEnableHiDPI(bool val)
@@ -565,6 +571,15 @@ bool QVTKRenderWindowAdapter::handleEvent(QEvent* evt)
 }
 
 //------------------------------------------------------------------------------
+void QVTKRenderWindowAdapter::setEnableTouchEventProcessing(bool value)
+{
+  if (this->Internals)
+  {
+    this->Internals->setEnableTouchEventProcessing(value);
+  }
+}
+
+//------------------------------------------------------------------------------
 void QVTKRenderWindowAdapter::setEnableHiDPI(bool value)
 {
   if (this->Internals)
@@ -596,6 +611,9 @@ QSurfaceFormat QVTKRenderWindowAdapter::defaultFormat(bool stereo_capable)
   fmt.setRenderableType(QSurfaceFormat::OpenGL);
   fmt.setVersion(3, 2);
   fmt.setProfile(QSurfaceFormat::CoreProfile);
+#if defined(VTK_REPORT_OPENGL_ERRORS)
+  fmt.setOption(QSurfaceFormat::DebugContext);
+#endif
   fmt.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
   fmt.setRedBufferSize(8);
   fmt.setGreenBufferSize(8);

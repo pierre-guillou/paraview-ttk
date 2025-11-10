@@ -5,7 +5,7 @@
 // with the composite method.
 
 #include <vtkAnariPass.h>
-#include <vtkAnariRendererNode.h>
+#include <vtkAnariSceneGraph.h>
 #include <vtkCamera.h>
 #include <vtkClipPolyData.h>
 #include <vtkColorTransferFunction.h>
@@ -31,6 +31,8 @@
 #include <vtkTimerLog.h>
 #include <vtkVolumeProperty.h>
 #include <vtkXMLImageDataReader.h>
+
+#include "vtkAnariTestUtilities.h"
 
 int TestAnariSmartVolumeMapper(int argc, char* argv[])
 {
@@ -103,11 +105,7 @@ int TestAnariSmartVolumeMapper(int argc, char* argv[])
 
   vtkNew<vtkAnariPass> anariPass;
   ren->SetPass(anariPass);
-  vtkAnariRendererNode::SetLibraryName("environment", ren);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, ren);
-  vtkAnariRendererNode::SetLightFalloff(.5, ren);
-  vtkAnariRendererNode::SetUseDenoiser(1, ren);
-  vtkAnariRendererNode::SetCompositeOnGL(1, ren);
+  SetParameterDefaults(anariPass, ren, false, "TestAnariSmartVolumeMapper");
 
   ren->AddViewProp(volume);
   ren->AddActor(dssActor);

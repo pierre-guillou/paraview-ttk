@@ -7,7 +7,7 @@
 #include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLVertexArrayObject.h"
 #include "vtkShaderProgram.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkOpenGLQuadHelper::vtkOpenGLQuadHelper(
@@ -97,7 +97,7 @@ void vtkOpenGLQuadHelper::ReleaseGraphicsResources(vtkWindow*)
     this->VAO->ReleaseGraphicsResources();
   }
 
-  // Owner is shader cache. When the render window releases it's graphic ressources,
+  // Owner is shader cache. When the render window releases it's graphic resources,
   // OpenGL state is deleted, so the cache is deleted as well.
   this->Program = nullptr;
 }

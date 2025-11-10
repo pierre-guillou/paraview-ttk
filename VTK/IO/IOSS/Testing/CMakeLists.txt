@@ -11,6 +11,7 @@ set(datasets
   Data/Exodus/can.e.4/can.e.4.1
   Data/Exodus/can.e.4/can.e.4.2
   Data/Exodus/can.e.4/can.e.4.3
+  Data/Exodus/exo_cell_vec2.e
   Data/Exodus/ExRestarts/blow.e
   Data/Exodus/ExRestarts/blow.e-s.001
   Data/Exodus/ExRestarts/blow.ex-timeseries
@@ -32,7 +33,7 @@ if (VTK_WRAP_PYTHON)
   )
 endif ()
 
-# functino to add conduit data. it passes the dataset_name, num_mpi_nodes, and num_timesteps as arguments
+# function to add conduit data. it passes the dataset_name, num_mpi_nodes, and num_timesteps as arguments
 function(vtk_add_conduit_data dataset_name num_mpi_nodes num_timesteps)
   set(local_datasets)
   math(EXPR max_mpi_node "${num_mpi_nodes} - 1")

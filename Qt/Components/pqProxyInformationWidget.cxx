@@ -33,6 +33,7 @@
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkSmartPointer.h"
+#include <memory>
 #include <vtksys/SystemTools.hxx>
 
 #include <tuple>
@@ -133,19 +134,26 @@ void pqArraysModel::setDataInformation(vtkPVDataInformation* dinfo)
   this->beginResetModel();
   this->DataInformation = dinfo;
   this->ArrayInformations.clear();
-  for (int cc = 0; dinfo && cc < vtkDataObject::NUMBER_OF_ASSOCIATIONS; ++cc)
+  for (int attributeIdx = 0; dinfo && attributeIdx < vtkDataObject::NUMBER_OF_ASSOCIATIONS;
+       ++attributeIdx)
   {
-    if (auto dsa = dinfo->GetAttributeInformation(cc))
+    if (auto dsa = dinfo->GetAttributeInformation(attributeIdx))
     {
-      this->AttributeInformations[cc] = dsa;
-      for (int kk = 0, max = dsa->GetNumberOfArrays(); kk < max; ++kk)
+      this->AttributeInformations[attributeIdx] = dsa;
+
+      std::shared_ptr<vtkPVDataSetAttributesInformation::AlphabeticalArrayInformationIterator> iter(
+        dsa->NewAlphabeticalArrayInformationIterator());
+      int arrayIdx = 0;
+      for (iter->GoToFirstItem(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
       {
-        this->ArrayInformations.emplace_back(cc, kk, dsa->GetArrayInformation(kk));
+        this->ArrayInformations.emplace_back(
+          attributeIdx, arrayIdx, iter->GetCurrentArrayInformation());
+        ++arrayIdx;
       }
     }
     else
     {
-      this->AttributeInformations[cc] = nullptr;
+      this->AttributeInformations[attributeIdx] = nullptr;
     }
   }
   this->endResetModel();
@@ -166,7 +174,14 @@ QVariant pqArraysModel::data(const QModelIndex& indx, int role) const
   }
   else if (role == Qt::ForegroundRole)
   {
-    return ainfo->GetIsPartial() ? QBrush(Qt::darkBlue) : QBrush(Qt::darkGreen);
+    if (pqCoreUtilities::isDarkTheme())
+    {
+      return ainfo->GetIsPartial() ? QBrush(Qt::blue) : QBrush(Qt::green);
+    }
+    else
+    {
+      return ainfo->GetIsPartial() ? QBrush(Qt::darkBlue) : QBrush(Qt::darkGreen);
+    }
   }
   else if (role == Qt::ToolTipRole)
   {
@@ -664,10 +679,12 @@ pqProxyInformationWidget::pqProxyInformationWidget(QWidget* parentWdg)
   ui.rawCompositeTree->hide();
   ui.rawAssemblyTree->hide();
 
-  QObject::connect(button, &QToolButton::toggled, [&ui](bool showRaw) {
-    ui.rawCompositeTree->setVisible(showRaw);
-    ui.rawAssemblyTree->setVisible(showRaw);
-  });
+  QObject::connect(button, &QToolButton::toggled,
+    [&ui](bool showRaw)
+    {
+      ui.rawCompositeTree->setVisible(showRaw);
+      ui.rawAssemblyTree->setVisible(showRaw);
+    });
   ui.dataGroupingTab->setCornerWidget(button);
 
   // monitor active port.

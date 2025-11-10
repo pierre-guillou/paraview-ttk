@@ -91,11 +91,43 @@ public:
   static QString getParaViewApplicationDirectory();
 
   /**
+   * Return the AppData directory for Paraview.
+   * Relies on Qt QStandardPaths::AppLocalDataLocation to get platform specific values.
+   * The directory will created if needed.
+   */
+  static QString getParaViewApplicationDataDirectory();
+
+  /**
+   * Return the list of directories that can contains ParaView configurations.
+   * First is the User Directory.
+   * @see getParaViewUserDirectory(),  getApplicationDirectories()
+   */
+  static QStringList getParaViewApplicationConfigDirectories();
+
+  /**
    * Return the list of full available path that exists inside the shared
    * application path and the user specific one
+   * see getApplicationDirectories()
    */
   static QStringList findParaviewPaths(
-    QString directoryOrFileName, bool lookupInAppDir, bool lookupInUserDir);
+    const QString& directoryOrFileName, bool lookupInAppDir, bool lookupInUserDir);
+
+  /**
+   * Return the list of possible directories for share application path and user directory.
+   * App directories are computed from current application installation.
+   * see getParaViewApplicationDirectory(), vtkPVStandardPaths::GetInstallDirectories()
+   */
+  static QStringList getApplicationDirectories(bool lookupInAppDir, bool lookupInUserDir);
+
+  /**
+   * Returns the first app directory found that contains the given relative path.
+   * Return an empty string if not found.
+   * Do not look in user space.
+   *
+   * @see getApplicationDirectories(true, false)
+   */
+  static QString findInApplicationDirectories(const QString& relativePath);
+
   static QString getNoneExistingFileName(QString expectedFilePath);
 
   /**
@@ -215,6 +247,12 @@ public:
    * with a modal popup dialog.
    */
   static void remove(const QString& filePath);
+
+  /**
+   * Returns true if the current application is running in dark mode.
+   * This is determined based on the current application palette.
+   */
+  static bool isDarkTheme();
 
 private:
   static QWidget* findMainWindow();

@@ -134,8 +134,8 @@ void FillCells(const int entityTag, GmshWriterInternal* internal,
       continue;
     }
 
-    char gmshType =
-      static_cast<char>(GmshWriterInternal::TRANSLATE_CELLS_TYPE.find(currentType)->second);
+    signed char gmshType =
+      static_cast<signed char>(GmshWriterInternal::TRANSLATE_CELLS_TYPE.find(currentType)->second);
     // If this type is not natively supported, it will be transleted in either lines or triangles
     if (gmshType < 0)
     {
@@ -443,9 +443,8 @@ void vtkGmshWriter::LoadNodeData()
   // Generate Gmsh tags
   std::size_t totNodeTags = 0;
   std::for_each(this->Internal->VtkGmshNodeMap.begin(), this->Internal->VtkGmshNodeMap.end(),
-    [&totNodeTags](std::pair<std::size_t, std::unordered_map<vtkIdType, std::size_t>> p) {
-      totNodeTags += p.second.size();
-    });
+    [&totNodeTags](std::pair<std::size_t, std::unordered_map<vtkIdType, std::size_t>> p)
+    { totNodeTags += p.second.size(); });
   std::vector<std::size_t> tags(totNodeTags);
   std::iota(tags.begin(), tags.end(), 1);
 

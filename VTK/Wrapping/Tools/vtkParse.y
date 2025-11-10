@@ -164,7 +164,7 @@ static const char** Definitions = NULL;
 
 /* include specified on the command line */
 static int NumberOfMacroIncludes = 0;
-static const char** MacroIncludes == NULL;
+static const char** MacroIncludes = NULL;
 
 /* for dumping diagnostics about macros */
 static int DumpMacros = 0;
@@ -263,7 +263,7 @@ static const char* vtkstrncat(size_t n, const char** str)
   {
     if (j[i])
     {
-      strncpy(&cp[m], str[i], j[i]);
+      memcpy(&cp[m], str[i], j[i]);
       m += j[i];
     }
   }
@@ -4175,8 +4175,8 @@ static int count_from_dimensions(ValueInfo* val)
 }
 
 /* deal with types that include function pointers or arrays */
-static void handle_complex_type(ValueInfo* val, unsigned int attributes,
-  unsigned int datatype, unsigned int extra, const char* funcSig)
+static void handle_complex_type(ValueInfo* val, unsigned int attributes, unsigned int datatype,
+  unsigned int extra, const char* funcSig)
 {
   FunctionInfo* func = 0;
 
@@ -4347,6 +4347,11 @@ static void handle_attribute(const char* att, int pack)
     {
       addAttribute(VTK_PARSE_WRAPEXCLUDE);
     }
+    else if (l == 16 && strncmp(att, "vtk::propexclude", l) == 0 && !args &&
+      role == VTK_PARSE_ATTRIB_DECL)
+    {
+      addAttribute(VTK_PARSE_PROPEXCLUDE);
+    }
     else if (l == 16 && strncmp(att, "vtk::newinstance", l) == 0 && !args &&
       role == VTK_PARSE_ATTRIB_DECL)
     {
@@ -4356,6 +4361,11 @@ static void handle_attribute(const char* att, int pack)
       role == VTK_PARSE_ATTRIB_DECL)
     {
       addAttribute(VTK_PARSE_ZEROCOPY);
+    }
+    else if (l == 19 && strncmp(att, "vtk::unblockthreads", l) == 0 && !args &&
+      role == VTK_PARSE_ATTRIB_DECL)
+    {
+      addAttribute(VTK_PARSE_UNBLOCKTHREADS);
     }
     else if (l == 13 && strncmp(att, "vtk::filepath", l) == 0 && !args &&
       role == VTK_PARSE_ATTRIB_DECL)
@@ -4574,6 +4584,13 @@ static void output_function(void)
       /* remove "wrapexclude" attrib from ReturnValue, attach it to function */
       currentFunction->ReturnValue->Attributes ^= VTK_PARSE_WRAPEXCLUDE;
       currentFunction->IsExcluded = 1;
+    }
+
+    if (currentFunction->ReturnValue->Attributes & VTK_PARSE_PROPEXCLUDE)
+    {
+      /* remove "propexclude" attrib from ReturnValue, attach it to function */
+      currentFunction->ReturnValue->Attributes ^= VTK_PARSE_PROPEXCLUDE;
+      currentFunction->IsPropExcluded = 1;
     }
 
     if (currentFunction->ReturnValue->Attributes & VTK_PARSE_DEPRECATED)
@@ -4861,7 +4878,7 @@ FileInfo* vtkParse_ParseFile(const char* filename, FILE* ifile, FILE* errfile)
 
   /* "preprocessor" is a global struct used by the parser */
   preprocessor = (PreprocessInfo*)malloc(sizeof(PreprocessInfo));
-  vtkParsePreprocess_Init(preprocessor, filename, dt);
+  vtkParsePreprocess_Init(preprocessor, filename);
   preprocessor->Strings = data->Strings;
   preprocessor->System = &system_cache;
   vtkParsePreprocess_AddStandardMacros(

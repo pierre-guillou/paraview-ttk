@@ -270,7 +270,7 @@ public:
   struct TextureInfo
   {
     int Index = -1;
-    int TexCoord;
+    int TexCoord = -1;
   };
 
   /**
@@ -376,6 +376,7 @@ public:
     int InverseBindMatricesAccessorId;
     int Skeleton;
     std::string Name;
+    vtkSmartPointer<vtkPolyData> Armature;
   };
 
   /**
@@ -431,7 +432,7 @@ public:
 
   /**
    * This struct describes a glTF camera object.
-   * glTF can define both perpective or orthographic cameras.
+   * glTF can define both perspective or orthographic cameras.
    * Some of the struct's members will be unused depending on the camera type.
    */
   struct Camera
@@ -607,11 +608,44 @@ public:
   ///@{
   /**
    * Set/Get the Stream start, where the GLB starts. By default it is 0,
-   * but can be different than 0 for file formats have a GLB embeded in it,
+   * but can be different than 0 for file formats have a GLB embedded in it,
    * for instance 3D Tiles B3DM.
    */
   vtkSetMacro(GLBStart, vtkTypeInt64);
   vtkGetMacro(GLBStart, vtkTypeInt64);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether to load animation keyframes from buffers
+   *
+   * Defaults to true
+   */
+  vtkSetMacro(LoadAnimation, bool);
+  vtkGetMacro(LoadAnimation, bool);
+  vtkBooleanMacro(LoadAnimation, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether to load images from filesystem and bufferView, if available
+   *
+   * Defaults to true
+   */
+  vtkSetMacro(LoadImages, bool);
+  vtkGetMacro(LoadImages, bool);
+  vtkBooleanMacro(LoadImages, bool);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether to load inverse bind matrices from buffers into model's Skin structs
+   *
+   * Defaults to true
+   */
+  vtkSetMacro(LoadSkinMatrix, bool);
+  vtkGetMacro(LoadSkinMatrix, bool);
+  vtkBooleanMacro(LoadSkinMatrix, bool);
   ///@}
 
 protected:
@@ -655,6 +689,11 @@ private:
   bool BuildPolyDataFromPrimitive(Primitive& primitive);
 
   /**
+   * Creates and populates the Skin's geometry vtkPolyData member with all the armature hierarchy
+   */
+  bool BuildPolyDataFromSkin(Skin& skin);
+
+  /**
    * Load keyframes from buffers.
    */
   bool LoadAnimationData();
@@ -669,6 +708,13 @@ private:
   static const std::vector<std::string> SupportedExtensions;
   std::vector<std::string> UsedExtensions;
   vtkTypeInt64 GLBStart = 0;
+
+  /**
+   * Selectively load model data
+   */
+  bool LoadAnimation = true;
+  bool LoadImages = true;
+  bool LoadSkinMatrix = true;
 };
 
 VTK_ABI_NAMESPACE_END

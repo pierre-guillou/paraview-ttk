@@ -3,11 +3,12 @@
   <!-- This section list all categories/toolbar filters. Filters should be duplicated in the next section -->
   <Category name="Common" menu_label="&amp;Common" preserve_order="1" show_in_toolbar="1">
     <Proxy group="filters" name="Calculator" />
+    <Proxy group="filters" name="CellDataToPointData" />
+    <Proxy group="filters" name="ResampleToImage" />
     <Proxy group="filters" name="Contour" />
     <Proxy group="filters" name="Clip" />
     <Proxy group="filters" name="Cut" />
     <Proxy group="filters" name="Threshold" />
-    <Proxy group="filters" name="ExtractGrid" />
     <Proxy group="filters" name="Glyph" />
     <Proxy group="filters" name="StreamTracer" />
     <Proxy group="filters" name="WarpVector" />
@@ -46,14 +47,15 @@
       <Proxy group="filters" name="GroupDataSets" />
       <Proxy group="filters" name="HyperTreeGridAxisReflection" />
       <Proxy group="filters" name="HyperTreeGridCellCenters" />
-      <Proxy group="filters" name="HyperTreeGridVisibleLeavesSize" />
       <Proxy group="filters" name="HyperTreeGridDepthLimiter" />
       <Proxy group="filters" name="HyperTreeGridEvaluateCoarse" />
       <Proxy group="filters" name="HyperTreeGridFeatureEdges" />
+      <Proxy group="filters" name="HyperTreeGridGenerateFields" />
       <Proxy group="filters" name="HyperTreeGridGeometry" />
       <Proxy group="filters" name="HyperTreeGridGhostCellsGenerator" />
       <Proxy group="filters" name="HyperTreeGridToDualGrid" />
       <Proxy group="filters" name="HyperTreeGridToUnstructuredGrid" />
+      <Proxy group="filters" name="HyperTreeGridVisibleLeavesSize" />
       <Proxy group="filters" name="Threshold" />
     </Category>
     <Category name="CosmoTools" menu_label="C&amp;osmoTools" show_in_toolbar="0">
@@ -118,7 +120,7 @@
       <Proxy group="filters" name="ExtractLocation" omit_from_toolbar="1" />
       <Proxy group="filters" name="ExtractSelection" />
       <Proxy group="filters" name="ExtractSelectionOverTime" />
-      <Proxy group="filters" name="IntegrateAttributes" omit_from_toolbar="1" />
+      <Proxy group="filters" name="IntegrateAttributes" />
       <Proxy group="filters" name="PlotAttributes" omit_from_toolbar="1" />
       <Proxy group="filters" name="PlotDataOverTime" omit_from_toolbar="1" />
       <Proxy group="filters" name="PlotOnIntersectionCurves" omit_from_toolbar="1" />
@@ -189,6 +191,7 @@
 
   <Category name="Mesh" menu_label="Mesh">
     <Category name="MeshAnalysis" menu_label="Analysis">
+      <Proxy group="filters" name="CellQuality" />
       <Proxy group="filters" name="CellSize" />
       <Proxy group="filters" name="ConnectedSurfaceProperties" />
       <Proxy group="filters" name="Coordinates" />
@@ -250,6 +253,7 @@
       <Proxy group="filters" name="OverlappingAMRLevelIds" />
       <Proxy group="filters" name="PVConnectivityFilter" />
       <Proxy group="filters" name="ProcessIds" />
+      <Proxy group="filters" name="FeatureEdgesRegionIds" />
     </Category>
     <Category name="Statistics" menu_label="&amp;Statistics">
       <Proxy group="filters" name="ContingencyStatistics" />
@@ -286,6 +290,9 @@
   <Proxy group="filters" name="AppendPolyData" />
   <Proxy group="filters" name="AppendReductionFilter" />
   <Proxy group="filters" name="ArbitrarySourceStreamTracer" />
+  <Proxy group="filters" name="AxisAlignedReflectionFilter" />
+  <Proxy group="filters" name="AxisAlignedSlice" />
+  <Proxy group="filters" name="AxisAlignedTransformFilter" />
   <Proxy group="filters" name="BlockIdScalars" />
   <Proxy group="filters" name="BlockIds" />
   <Proxy group="filters" name="BoundaryMeshQuality"/>
@@ -293,9 +300,13 @@
   <Proxy group="filters" name="CTHPart" />
   <Proxy group="filters" name="Calculator" icon=":/pqWidgets/Icons/pqCalculator.svg" />
   <Proxy group="filters" name="CellCenters" />
-  <Proxy group="filters" name="CellDataToPointData" />
+  <Proxy group="filters" name="CellDataToPointData" icon=":/pqWidgets/Icons/pqCellDataToPointData.svg" />
   <Proxy group="filters" name="CellDerivatives" />
+  <Proxy group="filters" name="CellGridCenters" />
   <Proxy group="filters" name="CellGridPointProbe" />
+  <Proxy group="filters" name="CellGridToUnstructuredGrid" />
+  <Proxy group="filters" name="CellGridTransform" />
+  <Proxy group="filters" name="CellGridWarp" />
   <Proxy group="filters" name="CellSize" />
   <Proxy group="filters" name="CleanPolyData" />
   <Proxy group="filters" name="CleanUnstructuredGrid" />
@@ -334,11 +345,11 @@
   <Proxy group="filters" name="Delaunay3D" />
   <Proxy group="filters" name="DescriptiveStatistics" />
   <Proxy group="filters" name="DistributePoints" />
-  <Proxy group="filters" name="PointAndCellIds" />
   <Proxy group="filters" name="ElevationFilter" />
   <Proxy group="filters" name="EnvironmentAnnotation" />
   <Proxy group="filters" name="EqualizerFilter"/>
   <Proxy group="filters" name="EvenlySpacedStreamlines2D" />
+  <Proxy group="filters" name="ExplodeDataSet" />
   <Proxy group="filters" name="ExtractBlock" icon=":/pqWidgets/Icons/pqGroupExtract.svg" />
   <Proxy group="filters" name="ExtractCellsAlongLine" />
   <Proxy group="filters" name="ExtractCellsAlongLineCustom" />
@@ -361,6 +372,7 @@
   <Proxy group="filters" name="ExtractTimeSteps" />
   <Proxy group="filters" name="FFTSelectionOverTime" />
   <Proxy group="filters" name="FeatureEdges" />
+  <Proxy group="filters" name="FeatureEdgesRegionIds" />
   <Proxy group="filters" name="FieldArraysFromFile" />
   <Proxy group="filters" name="FieldDataToDataSetAttribute" />
   <Proxy group="filters" name="FiniteElementFieldDistributor" />
@@ -385,19 +397,20 @@
   <Proxy group="filters" name="GroupTimeSteps" />
   <Proxy group="filters" name="HyperTreeGridAxisReflection" />
   <Proxy group="filters" name="HyperTreeGridCellCenters" />
-  <Proxy group="filters" name="HyperTreeGridVisibleLeavesSize" />
   <Proxy group="filters" name="HyperTreeGridDepthLimiter" />
   <Proxy group="filters" name="HyperTreeGridEvaluateCoarse" />
   <Proxy group="filters" name="HyperTreeGridFeatureEdges" />
+  <Proxy group="filters" name="HyperTreeGridGenerateFields" />
   <Proxy group="filters" name="HyperTreeGridGeometry" />
   <Proxy group="filters" name="HyperTreeGridGhostCellsGenerator" />
   <Proxy group="filters" name="HyperTreeGridToDualGrid" />
   <Proxy group="filters" name="HyperTreeGridToUnstructuredGrid" />
+  <Proxy group="filters" name="HyperTreeGridVisibleLeavesSize" />
   <Proxy group="filters" name="ImageDataToAMR" />
   <Proxy group="filters" name="ImageDataToAMR" />
   <Proxy group="filters" name="ImageDataToPointSet" />
   <Proxy group="filters" name="ImageDataToUniformGrid" />
-  <Proxy group="filters" name="IntegrateAttributes" />
+  <Proxy group="filters" name="IntegrateAttributes" icon=":/pqWidgets/Icons/pqIntegrateAttributes.svg" />
   <Proxy group="filters" name="IntegrateFlowThroughSurface" />
   <Proxy group="filters" name="IntersectFragments" />
   <Proxy group="filters" name="IsoVolume" />
@@ -444,6 +457,7 @@
   <Proxy group="filters" name="PlotDataOverTime" />
   <Proxy group="filters" name="PlotOnIntersectionCurves" />
   <Proxy group="filters" name="PlotOnSortedLines" />
+  <Proxy group="filters" name="PointAndCellIds" />
   <Proxy group="filters" name="PointDataToCellData" />
   <Proxy group="filters" name="PointDatasetInterpolator" />
   <Proxy group="filters" name="PointLineInterpolator" />
@@ -457,7 +471,6 @@
   <Proxy group="filters" name="ProbeCustomLines" />
   <Proxy group="filters" name="ProbeLine" icon=":/pqWidgets/Icons/pqPlotOverLine.svg" />
   <Proxy group="filters" name="ProbePoint" icon=":/pqWidgets/Icons/pqProbeLocation.svg" />
-  <Proxy group="filters" name="ProcessIdScalars" />
   <Proxy group="filters" name="ProcessIds" />
   <Proxy group="filters" name="ProgrammableAnnotation" icon=":/pqWidgets/Icons/pqProgrammableAnnotation.svg" />
   <Proxy group="filters" name="ProgrammableFilter" icon=":/pqWidgets/Icons/pqProgrammableFilter.svg" />
@@ -467,6 +480,7 @@
   <Proxy group="filters" name="QuadraturePointsGenerator" />
   <Proxy group="filters" name="QuadratureSchemeDictionaryGenerator" />
   <Proxy group="filters" name="QuadricClustering" />
+  <Proxy group="filters" name="QuadricDecimation" />
   <Proxy group="filters" name="RandomAttributeGenerator" />
   <Proxy group="filters" name="RectilinearGridConnectivity" />
   <Proxy group="filters" name="RectilinearGridToPointSet" />
@@ -474,7 +488,7 @@
   <Proxy group="filters" name="ReflectionFilter" icon=":/pqWidgets/Icons/pqReflect.svg" />
   <Proxy group="filters" name="RemoveGhostInformation" />
   <Proxy group="filters" name="RenameArrays" />
-  <Proxy group="filters" name="ResampleToImage" />
+  <Proxy group="filters" name="ResampleToImage" icon=":/pqWidgets/Icons/pqResampleToImage.svg" />
   <Proxy group="filters" name="ResampleToLine" />
   <Proxy group="filters" name="ResampleWithDataset" />
   <Proxy group="filters" name="ReverseSense" />
@@ -488,7 +502,6 @@
   <Proxy group="filters" name="ScatterPlot" />
   <Proxy group="filters" name="ShrinkFilter" />
   <Proxy group="filters" name="SliceAlongPolyLine" />
-  <Proxy group="filters" name="AxisAlignedSlice" />
   <Proxy group="filters" name="SliceWithPlane" />
   <Proxy group="filters" name="SmoothPolyDataFilter" />
   <Proxy group="filters" name="SpatioTemporalHarmonics" />
@@ -509,9 +522,9 @@
   <Proxy group="filters" name="TemporalCache" />
   <Proxy group="filters" name="TemporalInterpolator" />
   <Proxy group="filters" name="TemporalShiftScale" />
+  <Proxy group="filters" name="TemporalSmoothing" />
   <Proxy group="filters" name="TemporalSnapToTimeStep" />
   <Proxy group="filters" name="TemporalStatistics" />
-  <Proxy group="filters" name="TemporalSmoothing" />
   <Proxy group="filters" name="TensorGlyph" />
   <Proxy group="filters" name="TensorPrincipalInvariants" />
   <Proxy group="filters" name="TessellatorFilter" />

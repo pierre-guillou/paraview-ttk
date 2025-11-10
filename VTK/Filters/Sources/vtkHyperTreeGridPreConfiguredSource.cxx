@@ -266,7 +266,7 @@ void vtkHyperTreeGridPreConfiguredSource::Preprocess(vtkHyperTreeGrid* htg, unsi
     vtkErrorMacro("Supplied extent is not long enough");
     return;
   }
-  if (subdivisions.size() < static_cast<unsigned int>(dim))
+  if (subdivisions.size() < dim)
   {
     vtkErrorMacro("Supplied subdivisions is not long enough");
     return;
@@ -277,8 +277,8 @@ void vtkHyperTreeGridPreConfiguredSource::Preprocess(vtkHyperTreeGrid* htg, unsi
   htg->SetDimensions(subdivisions3d.data());
   htg->SetBranchFactor(factor);
 
-  auto fillArray = [](
-                     vtkDoubleArray* array, vtkIdType numPoints, double minBound, double maxBound) {
+  auto fillArray = [](vtkDoubleArray* array, vtkIdType numPoints, double minBound, double maxBound)
+  {
     array->SetNumberOfComponents(1);
     array->SetNumberOfTuples(numPoints);
     double step = (maxBound - minBound) / static_cast<double>(numPoints - 1);

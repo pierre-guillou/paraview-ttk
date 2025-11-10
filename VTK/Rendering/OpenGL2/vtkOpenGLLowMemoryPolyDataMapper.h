@@ -78,43 +78,6 @@ public:
    */
   bool GetSupportsSelection() override { return true; }
 
-  ///@{
-  /**
-   * By default, this class uses the dataset's point and cell ids during
-   * rendering. However, one can override those by specifying cell and point
-   * data arrays to use instead. Currently, only vtkIdType array is supported.
-   * Set to NULL string (default) to use the point ids instead.
-   */
-  vtkSetStdStringFromCharMacro(PointIdArrayName);
-  vtkGetCharFromStdStringMacro(PointIdArrayName);
-  vtkSetStdStringFromCharMacro(CellIdArrayName);
-  vtkGetCharFromStdStringMacro(CellIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * If this class should override the process id using a data-array,
-   * set this variable to the name of the array to use. It must be a
-   * point-array.
-   */
-  vtkSetStdStringFromCharMacro(ProcessIdArrayName);
-  vtkGetCharFromStdStringMacro(ProcessIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * Generally, this class can render the composite id when iterating
-   * over composite datasets. However in some cases (as in AMR), the rendered
-   * structure may not correspond to the input data, in which case we need
-   * to provide a cell array that can be used to render in the composite id in
-   * selection passes. Set to NULL (default) to not override the composite id
-   * color set by vtkCompositePainter if any.
-   * The array *MUST* be a cell array and of type vtkUnsignedIntArray.
-   */
-  vtkSetStdStringFromCharMacro(CompositeIdArrayName);
-  vtkGetCharFromStdStringMacro(CompositeIdArrayName);
-  ///@}
-
   /// If you removed all mods, call this to go back to default setting.
   virtual void ResetModsToDefault();
   void AddMod(const std::string& className);
@@ -223,6 +186,8 @@ protected:
     vtkRenderer* renderer, vtkActor* actor, std::string& vsSource, std::string& fsSource);
   void ReplaceShaderTCoord(
     vtkRenderer* renderer, vtkActor* actor, std::string& vsSource, std::string& fsSource);
+  void ReplaceShaderClip(
+    vtkRenderer* renderer, vtkActor* actor, std::string& vsSource, std::string& fsSource);
   void SetShaderParameters(vtkRenderer* renderer, vtkActor* actor);
   // compute and set the maximum point and cell ID used in selection
   void UpdateMaximumPointCellIds(vtkRenderer* ren, vtkActor* actor);
@@ -291,7 +256,7 @@ protected:
   /// @name Coordinate shift scale for datasets whose bounding box is far from origin.
   std::array<double, 3> ShiftValues;
   std::array<double, 3> ScaleValues;
-  bool CoordinateShiftAndScaleInUse;
+  bool CoordinateShiftAndScaleInUse = false;
   vtkNew<vtkTransform> SSInverseTransform; // Inverse transform which can undo shift + scale.
   vtkNew<vtkMatrix4x4> SSMatrix;           // Transpose of the above inverse transform.
 
@@ -340,11 +305,6 @@ protected:
   /// @name Selection data
   bool PopulateSelectionSettings = true;
   bool PointPicking = false;
-  // additional picking indirection
-  std::string PointIdArrayName;
-  std::string CellIdArrayName;
-  std::string ProcessIdArrayName;
-  std::string CompositeIdArrayName;
 
   /// @name Cached PBR information
   bool HasAnisotropy = false;
@@ -361,6 +321,8 @@ private:
   friend class vtkOpenGLLowMemoryVerticesAgent;
   friend class vtkOpenGLLowMemoryLinesAgent;
   friend class vtkOpenGLLowMemoryPolygonsAgent;
+
+  vtkNew<vtkMatrix4x4> TempMatrix4;
 };
 
 VTK_ABI_NAMESPACE_END

@@ -44,19 +44,15 @@ public:
     NumberOfDepthTextureCompareFunctions
   };
 
-// ClampToBorder is not supported in ES 2.0
-// Wrap values.
-#ifndef GL_ES_VERSION_3_0
-  enum { ClampToEdge = 0, Repeat, MirroredRepeat, ClampToBorder, NumberOfWrapModes };
-#else
+  // Wrap values.
   enum
   {
     ClampToEdge = 0,
     Repeat,
     MirroredRepeat,
+    ClampToBorder,
     NumberOfWrapModes
   };
-#endif
 
   // MinificationFilter values.
   enum
@@ -194,6 +190,15 @@ public:
     unsigned int width, unsigned int height, int numComps, int dataType, void* data);
 
   /**
+   * Create a 2D texture array from client memory
+   * `data` contains a pointer to the layers of the texture array.
+   * All layers must be the same size and contiguous in memory.
+   * If `data` is null, the texture is allocated without initialization.
+   */
+  bool Create2DArrayFromRaw(
+    unsigned int width, unsigned int height, int numComps, int dataType, int nbLayers, void* data);
+
+  /**
    * Create a 2D depth texture using a raw pointer.
    * This is a blocking call. If you can, use PBO instead.
    * raw can be null in order to allocate texture without initialization.
@@ -233,7 +238,7 @@ public:
    * shaderSupportsTextureInt is true if the shader has an alternate
    * implementation supporting sampler with integer values.
    * Even if the card supports texture int, it does not mean that
-   * the implementor of the shader made a version that supports texture int.
+   * the implementer of the shader made a version that supports texture int.
    */
   bool Create1D(int numComps, vtkPixelBufferObject* pbo, bool shaderSupportsTextureInt);
 

@@ -67,7 +67,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_EXPLICIT_STRUCTURED_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_EXPLICIT_STRUCTURED_GRID; }
 
   ///@{
   /**
@@ -85,6 +85,7 @@ public:
   void GetPointCells(vtkIdType ptId, vtkIdList* cellIds) override;
   int GetMaxCellSize() override { return 8; } // hexahedron is the largest
   int GetMaxSpatialDimension() override { return 3; }
+  int GetMinSpatialDimension() override { return 3; }
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
 
@@ -104,7 +105,7 @@ public:
   /**
    * Return the dimensionality of the data.
    */
-  inline int GetDataDimension() { return 3; }
+  int GetDataDimension() { return 3; }
 
   ///@{
   /**
@@ -127,7 +128,7 @@ public:
   /**
    * The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   ///@{
   /**

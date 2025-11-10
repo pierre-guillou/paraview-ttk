@@ -38,8 +38,9 @@ public:
 
     this->setupPipeline();
 
-    QObject::connect(
-      this->ComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), [this](int) {
+    QObject::connect(this->ComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+      [this](int)
+      {
         const QString filter = this->ComboBox->currentData().toString();
         if (filter.isEmpty())
         {
@@ -125,7 +126,7 @@ private:
 
 } // end of namespace
 
-int TabbedMultiViewWidgetFilteringApp(int argc, char* argv[])
+extern int TabbedMultiViewWidgetFilteringApp(int argc, char* argv[])
 {
   QApplication app(argc, argv);
   pqApplicationCore appCore(argc, argv);

@@ -240,10 +240,19 @@ void vtkOpenGLBatchedExtrusionMapper::AppendOneBufferObject(vtkRenderer* ren, vt
   if (parent->FieldAssociation != vtkDataObject::FIELD_ASSOCIATION_CELLS)
   {
     vtkDataArray* scalars = this->GetInputArrayToProcess(0, this->CurrentInput);
+
     if (scalars)
     {
-      // create "scalar" attribute on vertex buffer
-      this->VBOs->AppendDataArray("scalar", scalars, scalars->GetDataType());
+      if (scalars->GetDataType() != VTK_ID_TYPE)
+      {
+        // create "scalar" attribute on vertex buffer
+        this->VBOs->AppendDataArray("scalar", scalars, scalars->GetDataType());
+      }
+      else
+      {
+        vtkErrorMacro(<< "Data type selected for extrusion is currently ID type which is not "
+                         "supported (64bit type)");
+      }
     }
 
     vtkDataArray* normals = this->CurrentInput->GetPointData()->GetNormals();
@@ -295,6 +304,13 @@ void vtkOpenGLBatchedExtrusionMapper::ReplaceShaderValues(
         "uniform int normalizeData;\n"
         "in float scalar;\n"
         "in vec3 normals;\n");
+
+      vtkShaderProgram::Substitute(
+        VSSource, "//VTK::PositionVC::Dec", "out vec4 vertexVCVSOutput;");
+
+      vtkShaderProgram::Substitute(VSSource, "//VTK::Camera::Dec",
+        "uniform mat4 MCDCMatrix;\n"
+        "uniform mat4 MCVCMatrix;\n");
 
       vtkShaderProgram::Substitute(VSSource, "//VTK::PositionVC::Impl",
         "float factor = scalar * extrusionFactor;\n"
@@ -399,7 +415,7 @@ void vtkOpenGLExtrusionMapperDelegator::ShallowCopy(vtkCompositePolyDataMapper* 
 void vtkOpenGLExtrusionMapperDelegator::GetDataRange(double range[2])
 {
   auto glExtrusionMapper = static_cast<vtkOpenGLBatchedExtrusionMapper*>(this->GLDelegate);
-  return glExtrusionMapper->GetDataRange(range);
+  glExtrusionMapper->GetDataRange(range);
 }
 
 //------------------------------------------------------------------------------

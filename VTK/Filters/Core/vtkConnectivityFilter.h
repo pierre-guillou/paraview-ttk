@@ -39,7 +39,7 @@
  * or number of cells.
  *
  * @sa
- * vtkPolyDataConnectivityFilter
+ * vtkPolyDataConnectivityFilter, vtkGenerateRegionIds
  */
 
 #ifndef vtkConnectivityFilter_h
@@ -272,7 +272,7 @@ protected:
 
   /**
    * Compress the given array, returning a vtkImplicitArray.
-   * Useful for RegionId arrays, that offten have a small amount of different values.
+   * Useful for RegionId arrays, that often have a small amount of different values.
    *
    * see ColorRegions.
    * Uses vtkToImplicitArrayFilter and relevant strategy.

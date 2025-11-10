@@ -61,10 +61,10 @@
   } while (false)
 
 #ifdef VTK_USE_64BIT_IDS
-//#ifdef NC_INT64
+// #ifdef NC_INT64
 //// This may or may not work with the netCDF 4 library reading in netCDF 3 files.
-//#define nc_get_vars_vtkIdType nc_get_vars_longlong
-//#else // NC_INT64
+// #define nc_get_vars_vtkIdType nc_get_vars_longlong
+// #else // NC_INT64
 VTK_ABI_NAMESPACE_BEGIN
 static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], const size_t count[],
   const ptrdiff_t stride[], vtkIdType* ip)
@@ -95,7 +95,7 @@ static int nc_get_vars_vtkIdType(int ncid, int varid, const size_t start[], cons
   return NC_NOERR;
 }
 VTK_ABI_NAMESPACE_END
-//#endif // NC_INT64
+// #endif // NC_INT64
 #else // VTK_USE_64_BIT_IDS
 #define nc_get_vars_vtkIdType nc_get_vars_int
 #endif // VTK_USE_64BIT_IDS
@@ -391,7 +391,7 @@ int vtkPSLACReader::RequestInformation(
   vtkInformation* request, vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
   // It would be more efficient to read the meta data on just process 0 and
-  // propgate to the rest.  However, this will probably have a profound effect
+  // propagate to the rest.  However, this will probably have a profound effect
   // only on big jobs accessing parallel file systems.  Until we need that,
   // I'm not going to bother.
   if (!this->Superclass::RequestInformation(request, inputVector, outputVector))
@@ -654,6 +654,11 @@ int vtkPSLACReader::ReadConnectivity(
   // only have keys and we need to set the values.
   vtkIdType localId = 0;
   vtkIdType numLocalIds = this->PInternal->LocalToGlobalIds->GetNumberOfTuples();
+  // As Controller->GatherV needs to know lengths and offsets in all processes, this has to be
+  // computed locally. PInternal attributes can not be used in this matter because it needs to
+  // be modified only for the requested piece.
+  std::vector<vtkIdType> localLengths(this->NumberOfPieces);
+  std::vector<vtkIdType> localOffsets(this->NumberOfPieces + 1);
   for (int process = 0; process < this->NumberOfPieces; process++)
   {
     VTK_CREATE(vtkIdTypeArray, pointList);
@@ -677,6 +682,7 @@ int vtkPSLACReader::ReadConnectivity(
     this->Controller->Gather(&numPoints,
       this->PInternal->PointsToSendToProcessesLengths->WritePointer(0, this->NumberOfPieces), 1,
       process);
+
     vtkIdType offset = 0;
     if (process == this->RequestedPiece)
     {
@@ -687,10 +693,18 @@ int vtkPSLACReader::ReadConnectivity(
       }
       this->PInternal->PointsToSendToProcesses->SetNumberOfTuples(offset);
     }
+
+    this->Controller->AllGather(&numPoints, localLengths.data(), 1);
+
+    localOffsets[0] = 0;
+    for (std::size_t i = 0; i < localLengths.size(); i++)
+    {
+      localOffsets[i + 1] = localOffsets[i] + localLengths[i];
+    }
+
     this->Controller->GatherV(pointList->GetPointer(0),
       this->PInternal->PointsToSendToProcesses->WritePointer(0, offset), numPoints,
-      this->PInternal->PointsToSendToProcessesLengths->GetPointer(0),
-      this->PInternal->PointsToSendToProcessesOffsets->GetPointer(0), process);
+      localLengths.data(), localOffsets.data(), process);
   }
 
   // Calculate the offsets for the incoming point data into the local array.
@@ -768,12 +782,21 @@ int vtkPSLACReader::ReadConnectivity(
           offset += len;
         }
       }
+
+      this->Controller->AllGather(&numEdges, localLengths.data(), 1);
+      localOffsets[0] = 0;
+      for (std::size_t i = 0; i < localLengths.size(); i++)
+      {
+        localLengths[i] *= edgeLists[process]->GetNumberOfComponents();
+        localOffsets[i + 1] = localOffsets[i] + localLengths[i];
+      }
+
       this->PInternal->EdgesToSendToProcesses->SetNumberOfComponents(2);
       this->PInternal->EdgesToSendToProcesses->SetNumberOfTuples(offset / 2);
       this->Controller->GatherV(edgeLists[process]->GetPointer(0),
-        this->PInternal->EdgesToSendToProcesses->WritePointer(0, offset), numEdges * 2,
-        this->PInternal->EdgesToSendToProcessesLengths->GetPointer(0),
-        this->PInternal->EdgesToSendToProcessesOffsets->GetPointer(0), process);
+        this->PInternal->EdgesToSendToProcesses->WritePointer(0, offset),
+        numEdges * edgeLists[process]->GetNumberOfComponents(), localLengths.data(),
+        localOffsets.data(), process);
     }
   }
   return 1;

@@ -8,6 +8,7 @@
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenXRManagerOpenGLGraphics.h"
 #include "vtkOpenXRRenderWindow.h"
+#include "vtkOpenXRSceneObserver.h"
 #include "vtkOpenXRUtilities.h"
 #include "vtkRendererCollection.h"
 #include "vtkWindows.h" // Does nothing if we are not on windows
@@ -42,11 +43,15 @@ vtkOpenXRManager::InstanceVersion vtkOpenXRManager::QueryInstanceVersion(
   // Create the instance with enabled extensions.
   XrInstanceCreateInfo createInfo{ XR_TYPE_INSTANCE_CREATE_INFO };
   createInfo.applicationInfo = XrApplicationInfo{
-    "OpenXR with VTK",      // .applicationName
-    1,                      // .applicationVersion
-    "",                     // .engineName
-    1,                      // .engineVersion
-    XR_CURRENT_API_VERSION, // .apiVersion
+    "OpenXR with VTK",    // .applicationName
+    1,                    // .applicationVersion
+    "",                   // .engineName
+    1,                    // .engineVersion
+#ifdef XR_API_VERSION_1_0 // available with OpenXR 1.1.37 or later:
+    XR_API_VERSION_1_0,   // .apiVersion
+#else                     // for 1.1.36 and earlier:
+    XR_MAKE_VERSION(1, 0, XR_VERSION_PATCH(XR_CURRENT_API_VERSION)), // .apiVersion
+#endif
   };
   createInfo.enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size());
   createInfo.enabledExtensionNames = enabledExtensions.data();
@@ -91,15 +96,17 @@ vtkOpenXRManager::vtkOpenXRManager()
 }
 
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::Initialize(vtkOpenGLRenderWindow* helperWindow)
+bool vtkOpenXRManager::Initialize(vtkOpenXRRenderWindow* xrWindow)
 {
+  vtkOpenGLRenderWindow* helperWindow = xrWindow->GetHelperWindow();
+
   if (!this->ConnectionStrategy->Initialize())
   {
     vtkWarningWithObjectMacro(nullptr, "Failed to initialize connection strategy.");
     return false;
   }
 
-  if (!this->CreateInstance())
+  if (!this->CreateInstance(xrWindow))
   {
     vtkWarningWithObjectMacro(nullptr, "Initialize failed to CreateInstance");
     return false;
@@ -686,7 +693,7 @@ bool vtkOpenXRManager::PrintReferenceSpaces()
 }
 
 //------------------------------------------------------------------------------
-std::vector<const char*> vtkOpenXRManager::SelectExtensions()
+std::vector<const char*> vtkOpenXRManager::SelectExtensions(vtkOpenXRRenderWindow* window)
 {
   // Fetch the list of extensions supported by the runtime.
   uint32_t extensionCount;
@@ -703,7 +710,8 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions()
 
   std::vector<const char*> enabledExtensions;
   // Add a specific extension to the list of extensions to be enabled, if it is supported.
-  auto EnableExtensionIfSupported = [&](const char* extensionName) {
+  auto EnableExtensionIfSupported = [&](const char* extensionName)
+  {
     for (uint32_t i = 0; i < extensionCount; i++)
     {
       if (strcmp(extensionProperties[i].extensionName, extensionName) == 0)
@@ -739,10 +747,20 @@ std::vector<const char*> vtkOpenXRManager::SelectExtensions()
   this->OptionalExtensions.RemotingSupported =
     EnableExtensionIfSupported(this->ConnectionStrategy->GetExtensionName());
 
-  if (this->UseDepthExtension)
+  if (window->GetUseDepthExtension())
   {
     this->OptionalExtensions.DepthExtensionSupported =
       EnableExtensionIfSupported(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
+  }
+
+  if (window->GetEnableSceneUnderstanding())
+  {
+    this->OptionalExtensions.SceneUnderstandingSupported =
+      EnableExtensionIfSupported(XR_MSFT_SCENE_UNDERSTANDING_EXTENSION_NAME);
+
+    this->OptionalExtensions.SceneMarkerSupported =
+      this->OptionalExtensions.SceneUnderstandingSupported &&
+      EnableExtensionIfSupported(XR_MSFT_SCENE_MARKER_EXTENSION_NAME);
   }
 
   this->PrintOptionalExtensions();
@@ -781,15 +799,23 @@ void vtkOpenXRManager::PrintOptionalExtensions()
   {
     std::cout << "Optional extensions Remoting is supported" << std::endl;
   }
+  if (this->OptionalExtensions.SceneUnderstandingSupported)
+  {
+    std::cout << "Optional extensions Scene Understanding is supported" << std::endl;
+  }
+  if (this->OptionalExtensions.SceneMarkerSupported)
+  {
+    std::cout << "Optional extensions Scene Marker is supported" << std::endl;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Instance and extensions
 //------------------------------------------------------------------------------
-bool vtkOpenXRManager::CreateInstance()
+bool vtkOpenXRManager::CreateInstance(vtkOpenXRRenderWindow* window)
 {
   // Start by selection available extensions
-  const std::vector<const char*> enabledExtensions = this->SelectExtensions();
+  const std::vector<const char*> enabledExtensions = this->SelectExtensions(window);
 
   // Check that the requested rendering backend is supported
   if (!this->RenderingBackendExtensionSupported)
@@ -804,11 +830,15 @@ bool vtkOpenXRManager::CreateInstance()
   createInfo.enabledExtensionNames = enabledExtensions.data();
 
   XrApplicationInfo applicationInfo = {
-    "OpenXR with VTK",      // .applicationName
-    1,                      // .applicationVersion
-    "",                     // .engineName
-    1,                      // .engineVersion
-    XR_CURRENT_API_VERSION, // .apiVersion
+    "OpenXR with VTK",    // .applicationName
+    1,                    // .applicationVersion
+    "",                   // .engineName
+    1,                    // .engineVersion
+#ifdef XR_API_VERSION_1_0 // available with OpenXR 1.1.37 or later:
+    XR_API_VERSION_1_0,   // .apiVersion
+#else                     // for 1.1.36 and earlier:
+    XR_MAKE_VERSION(1, 0, XR_VERSION_PATCH(XR_CURRENT_API_VERSION)), // .apiVersion
+#endif
   };
 
   createInfo.applicationInfo = applicationInfo;
@@ -1026,7 +1056,8 @@ std::tuple<int64_t, int64_t> vtkOpenXRManager::SelectSwapchainPixelFormats()
   // Choose the first runtime-preferred format that this app supports.
   auto selectPixelFormat = [&](const std::vector<int64_t>& runtimePreferredFormats,
                              const std::vector<int64_t>& applicationSupportedFormats,
-                             const std::string& formatName) {
+                             const std::string& formatName)
+  {
     auto found =
       std::find_first_of(std::begin(runtimePreferredFormats), std::end(runtimePreferredFormats),
         std::begin(applicationSupportedFormats), std::end(applicationSupportedFormats));

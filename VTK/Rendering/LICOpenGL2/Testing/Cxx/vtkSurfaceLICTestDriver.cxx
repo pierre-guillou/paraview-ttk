@@ -23,7 +23,7 @@
 #include "vtkSurfaceLICInterface.h"
 #include "vtkSurfaceLICMapper.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include <string>
 #include <vector>
@@ -142,7 +142,7 @@ int vtkSurfaceLICTestDriver(int argc, char** argv, vtkDataObject* dataObj, int n
   }
 
   // Create a mapper and insert the vtkSurfaceLICmapper mapper into the
-  // mapper chain. This is essential since the entire logic of performin the
+  // mapper chain. This is essential since the entire logic of performing the
   // LIC is present in the vtkSurfaceLICmapper.
 
   vtkSmartPointer<vtkCompositeSurfaceLICMapper> mapper =

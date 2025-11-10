@@ -39,7 +39,7 @@ struct EdgeEndpoints
   EdgeEndpoints(const EdgeEndpoints&) = default;
   void operator=(const EdgeEndpoints&) = delete;
 
-  inline bool operator==(const EdgeEndpoints& other) const
+  bool operator==(const EdgeEndpoints& other) const
   {
     return ((this->MinEndPoint == other.MinEndPoint) && (this->MaxEndPoint == other.MaxEndPoint));
   }
@@ -179,7 +179,8 @@ int vtkRecoverGeometryWireframe::RequestData(vtkInformation* vtkNotUsed(request)
   outputPD->AddArray(edgeflags);
   outputPD->SetActiveAttribute("vtkEdgeFlags", vtkDataSetAttributes::EDGEFLAG);
 
-  auto tagEdgeFlags = [&edgeflags](vtkCellArray* inputCell, vtkIdType offset = 0) {
+  auto tagEdgeFlags = [&edgeflags](vtkCellArray* inputCell, vtkIdType offset = 0)
+  {
     auto cellIter = vtk::TakeSmartPointer(inputCell->NewIterator());
     vtkIdType npts;
     const vtkIdType* pts;

@@ -14,8 +14,10 @@ paraview_client_add(
   [APPLICATION_XMLS <xml>...]
   [QCH_FILES <file>...]
 
-  [MAIN_WINDOW_CLASS    <class>]
-  [MAIN_WINDOW_INCLUDE  <include>]
+  [MAIN_WINDOW_CLASS        <class>]
+  [MAIN_WINDOW_INCLUDE      <include>]
+  [APPLICATION_CORE_CLASS   <class>]
+  [APPLICATION_CORE_INCLUDE <include>]
 
   [PLUGINS_TARGETS  <target>...]
   [REQUIRED_PLUGINS <plugin>...]
@@ -55,6 +57,10 @@ paraview_client_add(
   * `MAIN_WINDOW_INCLUDE`: (Defaults to `QMainWindow` or
     `<MAIN_WINDOW_CLASS>.h` if it is specified) The include file for the main
     window.
+  * `APPLICATION_CORE_CLASS` (Defaults to `pqPVApplicationCore`) The name
+    of the application core class.
+  * `APPLICATION_CORE_INCLUDE` (Defaults to `pqPVApplicationCore.h`) The include
+    file for the application core class.
   * `PLUGINS_TARGETS`: The targets for plugins. The associated functions
     will be called upon startup.
   * `REQUIRED_PLUGINS`: Plugins to load upon startup.
@@ -92,7 +98,7 @@ paraview_client_add(
 function (paraview_client_add)
   cmake_parse_arguments(_paraview_client
     ""
-    "NAME;APPLICATION_NAME;ORGANIZATION;TITLE;SPLASH_IMAGE;BUNDLE_DESTINATION;BUNDLE_ICON;BUNDLE_PLIST;APPLICATION_ICON;MAIN_WINDOW_CLASS;MAIN_WINDOW_INCLUDE;VERSION;FORCE_UNIX_LAYOUT;PLUGINS_TARGET;DEFAULT_STYLE;RUNTIME_DESTINATION;LIBRARY_DESTINATION;NAMESPACE;EXPORT;TRANSLATION_TARGET;TRANSLATE_XML;TRANSLATIONS_DIRECTORY"
+    "NAME;APPLICATION_NAME;ORGANIZATION;TITLE;SPLASH_IMAGE;BUNDLE_DESTINATION;BUNDLE_ICON;BUNDLE_PLIST;APPLICATION_ICON;MAIN_WINDOW_CLASS;MAIN_WINDOW_INCLUDE;APPLICATION_CORE_CLASS;APPLICATION_CORE_INCLUDE;VERSION;FORCE_UNIX_LAYOUT;PLUGINS_TARGET;DEFAULT_STYLE;RUNTIME_DESTINATION;LIBRARY_DESTINATION;NAMESPACE;EXPORT;TRANSLATION_TARGET;TRANSLATE_XML;TRANSLATIONS_DIRECTORY"
     "REQUIRED_PLUGINS;OPTIONAL_PLUGINS;APPLICATION_XMLS;SOURCES;QCH_FILES;QCH_FILE;PLUGINS_TARGETS"
     ${ARGN})
 
@@ -193,6 +199,24 @@ function (paraview_client_add)
   if (NOT DEFINED _paraview_client_MAIN_WINDOW_INCLUDE)
     set(_paraview_client_MAIN_WINDOW_INCLUDE
       "${_paraview_client_MAIN_WINDOW_CLASS}.h")
+  endif ()
+
+  if (NOT DEFINED _paraview_client_APPLICATION_CORE_CLASS)
+    if (DEFINED _paraview_client_APPLICATION_CORE_INCLUDE)
+      message(FATAL_ERROR
+        "The `APPLICATION_CORE_INCLUDE` argument cannot be specified without "
+        "`APPLICATION_CORE_CLASS`.")
+    endif ()
+
+    set(_paraview_client_APPLICATION_CORE_CLASS
+      "pqPVApplicationCore")
+    set(_paraview_client_APPLICATION_CORE_INCLUDE
+      "pqPVApplicationCore.h")
+  endif ()
+
+  if (NOT DEFINED _paraview_client_APPLICATION_CORE_INCLUDE)
+    set(_paraview_client_APPLICATION_CORE_INCLUDE
+      "${_paraview_client_APPLICATION_CORE_CLASS}.h")
   endif ()
 
   set(_paraview_client_extra_sources)
@@ -477,7 +501,7 @@ IDI_ICON1 ICON \"${_paraview_client_APPLICATION_ICON}\"\n")
           MACOSX_BUNDLE_ICON_FILE "${_paraview_client_bundle_icon_file}")
       install(
         FILES       "${_paraview_client_BUNDLE_ICON}"
-        DESTINATION "${_paraview_client_BUNDLE_DESTINATION}/${_paraview_client_APPLICATION_NAME}.app/Contents/Resources"
+        DESTINATION "${_paraview_client_BUNDLE_DESTINATION}/${_paraview_client_NAME}.app/Contents/Resources"
         COMPONENT   "runtime")
     endif ()
     if (DEFINED _paraview_client_BUNDLE_PLIST)
@@ -565,17 +589,25 @@ function (paraview_client_documentation)
       "The `XMLS` argument is required.")
   endif ()
 
-  include("${_ParaViewClient_cmake_dir}/paraview-find-package-helpers.cmake" OPTIONAL)
-  find_program(qt_xmlpatterns_executable
-    NAMES xmlpatterns-qt5 xmlpatterns
-    HINTS "${Qt5_DIR}/../../../bin"
-          "${Qt5_DIR}/../../../libexec/qt5/bin"
-    DOC   "Path to xmlpatterns")
-  mark_as_advanced(qt_xmlpatterns_executable)
+  if (PARAVIEW_QT_MAJOR_VERSION EQUAL "5")
+    include("${_ParaViewClient_cmake_dir}/paraview-find-package-helpers.cmake" OPTIONAL)
+    find_program(qt_xmlpatterns_executable
+      NAMES xmlpatterns-qt5 xmlpatterns
+      HINTS "${Qt5_DIR}/../../../bin"
+            "${Qt5_DIR}/../../../libexec/qt5/bin"
+      DOC   "Path to xmlpatterns")
+    mark_as_advanced(qt_xmlpatterns_executable)
+  endif ()
 
-  if (NOT qt_xmlpatterns_executable)
+  find_program(ParaViewClient_xsltproc_executable
+    NAMES xsltproc
+    DOC   "Path to xsltproc")
+  mark_as_advanced(ParaViewClient_xsltproc_executable)
+
+  if (NOT qt_xmlpatterns_executable AND
+      NOT ParaViewClient_xsltproc_executable)
     message(FATAL_ERROR
-      "Cannot find the xmlpatterns executable.")
+      "Cannot find the `xmlpatterns` or `xsltproc` executables.")
   endif ()
 
   set(_paraview_client_doc_xmls)
@@ -597,6 +629,7 @@ function (paraview_client_documentation)
             ${_paraview_client_doc_outputs}
     COMMAND "${CMAKE_COMMAND}"
             "-Dxmlpatterns=${qt_xmlpatterns_executable}"
+            "-Dxsltproc=${ParaViewClient_xsltproc_executable}"
             "-Doutput_dir=${_paraview_client_doc_OUTPUT_DIR}"
             "-Doutput_file=${_paraview_client_doc_OUTPUT_DIR}/${_paraview_client_doc_TARGET}.xslt"
             "-Dxmls_file=${_paraview_client_doc_xmls_file}"
@@ -619,6 +652,53 @@ endfunction ()
 
 # Generate proxy documentation.
 if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
+  function (xslt reason xsl xml)
+    set(output "${ARGV3}")
+
+    if (xsltproc)
+      set(_xslt_output_args)
+      if (output)
+        list(APPEND _xslt_output_args
+          --output "${output}")
+      endif ()
+      execute_process(
+        COMMAND "${xsltproc}"
+                --nonet
+                ${_xslt_output_args}
+                "${xsl}"
+                "${xml}"
+        OUTPUT_VARIABLE _paraview_gpd_output
+        ERROR_VARIABLE  _paraview_gpd_error
+        RESULT_VARIABLE _paraview_gpd_result)
+      string(REPLACE [[<?xml version="1.0"?>]] "" _paraview_gpd_output "${_paraview_gpd_output}")
+    elseif (xmlpatterns)
+      set(_xslt_output_args)
+      if (output)
+        list(APPEND _xslt_output_args
+          -output "${output}")
+      endif ()
+      execute_process(
+        COMMAND "${xmlpatterns}"
+                ${_xslt_output_args}
+                "${xsl}"
+                "${xml}"
+        OUTPUT_VARIABLE _paraview_gpd_output
+        ERROR_VARIABLE  _paraview_gpd_error
+        RESULT_VARIABLE _paraview_gpd_result)
+    else ()
+      message(FATAL_ERROR
+        "No XSL transformer found.")
+    endif ()
+
+    if (_paraview_gpd_result)
+      message(FATAL_ERROR
+        "Failed to ${reason}: ${_paraview_gpd_error}")
+    endif ()
+
+    set(_paraview_gpd_output
+      "${_paraview_gpd_output}"
+      PARENT_SCOPE)
+  endfunction ()
 
   file(READ "${xmls_file}" xmls)
 
@@ -630,17 +710,9 @@ if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
   set(_paraview_gpd_xslt "<xml>\n")
   file(MAKE_DIRECTORY "${output_dir}")
   foreach (_paraview_gpd_xml IN LISTS xmls)
-    execute_process(
-      COMMAND "${xmlpatterns}"
-              "${_paraview_gpd_to_xml}"
-              "${_paraview_gpd_xml}"
-      OUTPUT_VARIABLE _paraview_gpd_output
-      ERROR_VARIABLE  _paraview_gpd_error
-      RESULT_VARIABLE _paraview_gpd_result)
-    if (_paraview_gpd_result)
-      message(FATAL_ERROR
-        "Failed to convert servermanager XML: ${_paraview_gpd_error}")
-    endif ()
+    xslt("convert servermanager XML"
+      "${_paraview_gpd_to_xml}"
+      "${_paraview_gpd_xml}")
 
     string(APPEND _paraview_gpd_xslt
       "${_paraview_gpd_output}")
@@ -650,29 +722,15 @@ if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
 
   file(WRITE "${output_file}.xslt"
     "${_paraview_gpd_xslt}")
-  execute_process(
-    COMMAND "${xmlpatterns}"
-            -output "${output_file}"
-            "${_paraview_gpd_to_catindex}"
-            "${output_file}.xslt"
-    RESULT_VARIABLE _paraview_gpd_result)
-  if (_paraview_gpd_result)
-    message(FATAL_ERROR
-      "Failed to generate category index")
-  endif ()
+  xslt("generate category index"
+    "${_paraview_gpd_to_catindex}"
+    "${output_file}.xslt"
+    "${output_file}")
 
   # Generate HTML files.
-  execute_process(
-    COMMAND "${xmlpatterns}"
-            "${_paraview_gpd_to_html}"
-            "${output_file}"
-    OUTPUT_VARIABLE _paraview_gpd_output
-    RESULT_VARIABLE _paraview_gpd_result
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-  if (_paraview_gpd_result)
-    message(FATAL_ERROR
-      "Failed to generate HTML output")
-  endif ()
+  xslt("generate HTML output"
+    "${_paraview_gpd_to_html}"
+    "${output_file}")
 
   # Escape open/close brackets as HTML entities as they somehow interfere with the foreach loop below.
   string(REPLACE "[" "&#91;" _paraview_gpd_output "${_paraview_gpd_output}")
@@ -682,6 +740,10 @@ if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
   _paraview_client_escape_cmake_list(_paraview_gpd_output)
 
   # Convert into a list of HTML documents.
+  # This version handles the output of xsltproc:
+  string(REPLACE "</html><html>" "</html>\n;<html>"  _paraview_gpd_output "${_paraview_gpd_output}")
+  # This version handles the output of xmlpatterns:
+  # xxx(Remove when Qt5 is deprecated)
   string(REPLACE "</html>\n<html>" "</html>\n;<html>"  _paraview_gpd_output "${_paraview_gpd_output}")
 
   foreach (_paraview_gpd_html_doc IN LISTS _paraview_gpd_output)
@@ -714,10 +776,10 @@ if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
 
   foreach (_paraview_gpd_group IN LISTS _paraview_gpd_groups)
     if (_paraview_gpd_group STREQUAL "readers")
-      set(_paraview_gpd_query "contains(lower-case($proxy_name),'reader')")
+      set(_paraview_gpd_query "contains(translate($proxy_name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'),'reader')")
       set(_paraview_gpd_group_real "sources")
     else ()
-      set(_paraview_gpd_query "not(contains(lower-case($proxy_name),'reader'))")
+      set(_paraview_gpd_query "not(contains(translate($proxy_name, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'),'reader'))")
       set(_paraview_gpd_group_real "${_paraview_gpd_group}")
     endif ()
 
@@ -727,16 +789,9 @@ if (_paraview_generate_proxy_documentation_run AND CMAKE_SCRIPT_MODE_FILE)
       "${_paraview_gpd_to_wiki}"
       "${_paraview_gpd_wiki_xsl}"
       @ONLY)
-    execute_process(
-      COMMAND "${xmlpatterns}"
-              "${_paraview_gpd_wiki_xsl}"
-              "${output_file}"
-      OUTPUT_VARIABLE _paraview_gpd_output
-      RESULT_VARIABLE _paraview_gpd_result)
-    if (_paraview_gpd_result)
-      message(FATAL_ERROR
-        "Failed to generate Wiki output for ${_paraview_gpd_group}")
-    endif ()
+    xslt("generate Wiki output"
+      "${_paraview_gpd_wiki_xsl}"
+      "${output_file}")
     string(REGEX REPLACE " +" " " _paraview_gpd_output "${_paraview_gpd_output}")
     string(REPLACE "\n " "\n" _paraview_gpd_output "${_paraview_gpd_output}")
     file(WRITE "${output_dir}/${_paraview_gpd_group}.wiki"

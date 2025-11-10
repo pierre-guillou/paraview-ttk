@@ -220,11 +220,11 @@ Required:
   * [CMake][cmake]
     - Version 3.12 or newer, however, the latest version is always recommended
   * Supported compiler
-    - GCC 4.8 or newer
-    - Intel 17 or newer
-    - IBM XL 16.1 or newer
-    - Clang 4 or newer
-    - Xcode 9 or newer
+    - GCC 8.0 or newer
+    - Intel 19 or newer
+    - IBM XL 17.1 or newer
+    - Clang 5 or newer
+    - Xcode 10 or newer
     - Visual Studio 2019 or newer
 
 Optional dependencies:
@@ -406,7 +406,7 @@ These settings control capabitities of the build. These begin with the prefix
 
 Less common, but potentially useful variables are:
 
-  * `PARAVIEW_USE_VTKM` (default `ON`): Whether VTK-m based filters are enabled.
+  * `PARAVIEW_USE_VISKORES` (default `ON`): Whether Viskores based filters are enabled.
   * `PARAVIEW_USE_FORTRAN` (default `ON` if Fortran compiler found): Enable
      Fortran support for Catalyst libraries.
   * `PARAVIEW_USE_CUDA` (default `OFF`): Enable CUDA support in ParaView.
@@ -623,6 +623,13 @@ ParaView's plugin system has a similar setup:
     being built.
   * `ParaView_DEBUG_PLUGINS_plugin` (default `OFF`): Log information about
     discovered plugins.
+
+### Building Python
+
+The following target is provided to ensure that everything needed under `import
+paraview` is available:
+
+  * `paraview_all_python_modules`
 
 ### Building documentation
 

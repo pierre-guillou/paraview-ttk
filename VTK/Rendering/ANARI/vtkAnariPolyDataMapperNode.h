@@ -20,11 +20,11 @@
 VTK_ABI_NAMESPACE_BEGIN
 
 class vtkActor;
+class vtkAnariPolyDataMapperInheritInterface;
 class vtkAnariPolyDataMapperNodeInternals;
 class vtkAnariActorNode;
+class vtkAnariSceneGraph;
 class vtkPolyData;
-class vtkDataSetSurfaceFilter;
-class vtkAnariRendererNode;
 
 class VTKRENDERINGANARI_EXPORT vtkAnariPolyDataMapperNode : public vtkPolyDataMapperNode
 {
@@ -34,7 +34,7 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * Ensure this node has been intialized.
+   * Ensure this node has been initialized.
    */
   void Build(bool prepass) override;
   /**
@@ -52,19 +52,22 @@ public:
 
 protected:
   vtkAnariPolyDataMapperNode();
-  ~vtkAnariPolyDataMapperNode();
+  ~vtkAnariPolyDataMapperNode() override;
 
   vtkActor* GetVtkActor() const;
   vtkAnariActorNode* GetAnariActorNode() const;
   bool ActorWasModified() const;
   void RenderSurfaceModels();
   void ClearSurfaces();
+  void SetActorNodeName();
 
-  void AnariRenderPoly(vtkAnariActorNode* const anariActorNode, vtkPolyData* const poly,
-    double* const diffuse, const double opacity, const std::string& materialName);
+  void SetInheritInterface(vtkAnariPolyDataMapperInheritInterface* inheritInterface);
+
+  void AnariRenderPoly(vtkAnariActorNode* anariActorNode, vtkPolyData* poly, double* diffuse,
+    double opacity, const std::string& materialName);
 
   vtkAnariPolyDataMapperNodeInternals* Internal{ nullptr };
-  vtkAnariRendererNode* RendererNode{ nullptr };
+  vtkAnariSceneGraph* RendererNode{ nullptr };
 
 private:
   vtkAnariPolyDataMapperNode(const vtkAnariPolyDataMapperNode&) = delete;

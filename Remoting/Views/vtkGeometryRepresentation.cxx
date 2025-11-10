@@ -380,6 +380,7 @@ int vtkGeometryRepresentation::FillInputPortInformation(int vtkNotUsed(port), vt
   info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCompositeDataSet");
   info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkCellGrid");
 
   // Saying INPUT_IS_OPTIONAL() is essential, since representations don't have
   // any inputs on client-side (in client-server, client-render-server mode) and
@@ -617,6 +618,10 @@ bool vtkGeometryRepresentation::AddToView(vtkView* view)
   {
     rview->GetRenderer()->AddActor(this->Actor);
 
+    // Indicate that the above renderer is the one the actor is relative to
+    // in case the coordinate system is set to physical or device.
+    this->Actor->SetCoordinateSystemRenderer(rview->GetRenderer());
+
     // Indicate that this is prop that we are rendering when hardware selection
     // is enabled.
     rview->RegisterPropForHardwareSelection(this, this->GetRenderedProp());
@@ -631,6 +636,7 @@ bool vtkGeometryRepresentation::RemoveFromView(vtkView* view)
   vtkPVRenderView* rview = vtkPVRenderView::SafeDownCast(view);
   if (rview)
   {
+    this->Actor->SetCoordinateSystemRenderer(nullptr);
     rview->GetRenderer()->RemoveActor(this->Actor);
     rview->UnRegisterPropForHardwareSelection(this, this->GetRenderedProp());
     return this->Superclass::RemoveFromView(view);
@@ -856,9 +862,8 @@ bool vtkGeometryRepresentation::NeedsOrderedCompositing()
 
   // Check is BlockOpacities has any value not 0 or 1.
   if (std::accumulate(this->BlockOpacities.begin(), this->BlockOpacities.end(), false,
-        [](bool result, const std::pair<std::string, double>& apair) {
-          return result || (apair.second > 0.0 && apair.second < 1.0);
-        }))
+        [](bool result, const std::pair<std::string, double>& apair)
+        { return result || (apair.second > 0.0 && apair.second < 1.0); }))
   {
     // a translucent block may be present.
     return true;
@@ -1385,6 +1390,12 @@ void vtkGeometryRepresentation::SetSeamlessV(bool rep)
 }
 
 //----------------------------------------------------------------------------
+void vtkGeometryRepresentation::SetCoordinateSystem(int coordSys)
+{
+  this->Actor->SetCoordinateSystem(static_cast<vtkProp3D::CoordinateSystems>(coordSys));
+}
+
+//----------------------------------------------------------------------------
 void vtkGeometryRepresentation::SetUseOutline(int val)
 {
   if (auto geometryFilter = vtkPVGeometryFilter::SafeDownCast(this->GeometryFilter))
@@ -1510,8 +1521,8 @@ void vtkGeometryRepresentation::SetBlockColor(const char* selector, double r, do
   if (selector != nullptr)
   {
     auto iter = std::find_if(this->BlockColors.begin(), this->BlockColors.end(),
-      [selector](
-        const std::pair<std::string, vtkVector3d>& apair) { return apair.first == selector; });
+      [selector](const std::pair<std::string, vtkVector3d>& apair)
+      { return apair.first == selector; });
     if (iter == this->BlockColors.end())
     {
       this->BlockColors.emplace_back(selector, vtkVector3d(r, g, b));
@@ -1642,9 +1653,8 @@ void vtkGeometryRepresentation::SetBlockArrayName(
   if (selector != nullptr && colorArray != nullptr)
   {
     auto iter = std::find_if(this->BlockArrayNames.begin(), this->BlockArrayNames.end(),
-      [selector](const std::pair<std::string, std::pair<int, std::string>>& apair) {
-        return apair.first == selector;
-      });
+      [selector](const std::pair<std::string, std::pair<int, std::string>>& apair)
+      { return apair.first == selector; });
     if (iter == this->BlockArrayNames.end())
     {
       this->BlockArrayNames.emplace_back(selector, std::make_pair(assoc, colorArray));

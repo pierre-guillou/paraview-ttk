@@ -1,10 +1,8 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-// Hide VTK_DEPRECATED_IN_9_3_0() warnings for this class.
-#include "vtkSetGet.h"
-#define VTK_DEPRECATION_LEVEL 0
 #include "vtkLegacy.h"
+#include "vtkSetGet.h"
 
 #include "vtkCompositePolyDataMapper.h"
 
@@ -85,13 +83,7 @@ vtkCompositePolyDataMapper::vtkCompositePolyDataMapper()
 }
 
 //------------------------------------------------------------------------------
-vtkCompositePolyDataMapper::~vtkCompositePolyDataMapper()
-{
-  this->SetPointIdArrayName(nullptr);
-  this->SetCellIdArrayName(nullptr);
-  this->SetProcessIdArrayName(nullptr);
-  this->SetCompositeIdArrayName(nullptr);
-}
+vtkCompositePolyDataMapper::~vtkCompositePolyDataMapper() = default;
 
 //------------------------------------------------------------------------------
 // Specify the type of data this mapper can handle. If we are
@@ -175,10 +167,7 @@ void vtkCompositePolyDataMapper::ShallowCopy(vtkAbstractMapper* mapper)
   {
     this->SetCompositeDataDisplayAttributes(cpdm->GetCompositeDataDisplayAttributes());
     this->SetColorMissingArraysWithNanColor(cpdm->GetColorMissingArraysWithNanColor());
-    this->SetCellIdArrayName(cpdm->GetCellIdArrayName());
     this->SetCompositeIdArrayName(cpdm->GetCompositeIdArrayName());
-    this->SetPointIdArrayName(cpdm->GetPointIdArrayName());
-    this->SetProcessIdArrayName(cpdm->GetProcessIdArrayName());
   }
   // Now do superclass
   this->vtkPolyDataMapper::ShallowCopy(mapper);
@@ -258,15 +247,12 @@ vtkDataObjectTreeIterator* vtkCompositePolyDataMapper::MakeAnIterator(vtkComposi
 }
 
 //------------------------------------------------------------------------------
-// simple tests, the mapper is tolerant of being
-// called both on opaque and translucent
 bool vtkCompositePolyDataMapper::HasOpaqueGeometry()
 {
   return true;
 }
 
 //------------------------------------------------------------------------------
-// look at children
 bool vtkCompositePolyDataMapper::HasTranslucentPolygonalGeometry()
 {
   // Make sure that we have been properly initialized.
@@ -491,7 +477,8 @@ vtkCompositePolyDataMapper::MapperHashType vtkCompositePolyDataMapper::InsertPol
 
   auto createBatchElement =
     [](vtkPolyData* _polydata,
-      unsigned int _flatIndex) -> vtkCompositePolyDataMapperDelegator::BatchElement {
+      unsigned int _flatIndex) -> vtkCompositePolyDataMapperDelegator::BatchElement
+  {
     vtkCompositePolyDataMapperDelegator::BatchElement element;
     element.PolyData = _polydata;
     element.FlatIndex = _flatIndex;
@@ -1072,31 +1059,6 @@ void vtkCompositePolyDataMapper::GetBlockColor(unsigned int index, double color[
     color[0] = 1.0;
     color[1] = 1.0;
     color[2] = 1.0;
-  }
-}
-
-//------------------------------------------------------------------------------
-double* vtkCompositePolyDataMapper::GetBlockColor(unsigned int index)
-{
-  VTK_LEGACY_REPLACED_BODY(double* vtkCompositePolyDataMapper::GetBlockColor(unsigned int index),
-    "VTK 9.3", void vtkCompositePolyDataMapper::GetBlockColor(unsigned int index, double color[3]));
-  static double white[3] = { 1.0, 1.0, 1.0 };
-
-  if (this->CompositeAttributes)
-  {
-    unsigned int start_index = 0;
-    auto dataObj = vtkCompositeDataDisplayAttributes::DataObjectFromIndex(
-      index, this->GetInputDataObject(0, 0), start_index);
-    if (dataObj)
-    {
-      this->CompositeAttributes->GetBlockColor(dataObj, this->ColorResult.data());
-    }
-
-    return this->ColorResult.data();
-  }
-  else
-  {
-    return white;
   }
 }
 

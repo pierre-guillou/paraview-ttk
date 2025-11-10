@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkDataObjectTypes.h"
 
 #include "vtkAnnotation.h"
@@ -179,6 +183,9 @@ vtkDataObject* vtkDataObjectTypes::NewDataObject(int type)
     case VTK_HIERARCHICAL_DATA_SET:
       return nullptr;
     case VTK_HIERARCHICAL_BOX_DATA_SET:
+      // VTK_DEPRECATED_IN_9_5_0
+      vtkLogF(
+        WARNING, "VTK_HIERARCHICAL_BOX_DATA_SET is deprecated, use VTK_OVERLAPPING_AMR instead");
       return vtkHierarchicalBoxDataSet::New();
     case VTK_GENERIC_DATA_SET:
       return nullptr;
@@ -365,7 +372,8 @@ int vtkDataObjectTypes::GetCommonBaseTypeId(int typeA, int typeB)
     return typeA;
   }
 
-  auto computeBranch = [](int type) {
+  auto computeBranch = [](int type)
+  {
     // list immediate base-classes, no need to list any that are direct subclasses
     // of vtkDataObject since that's assumed by this point.
     static const std::map<int, int> bases = { { VTK_UNIFORM_HYPER_TREE_GRID, VTK_HYPER_TREE_GRID },

@@ -7,7 +7,7 @@
 /// A comma separated list of strings with one or more of the following options:
 /// 1. The shape of the abstract patch which will be tessellated - isolines, triangles, quads.
 /// 2. The type of spacing between tessellated vertices - cw, ccw
-/// 3. The ordering of tesselated vertices that primitive generator must use - isolines, triangles, quads
+/// 3. The ordering of tessellated vertices that primitive generator must use - isolines, triangles, quads
 /// 4. Whether points must be rendered - point_mode
 layout({TessellationOptions}) in;
 
@@ -18,9 +18,11 @@ uniform samplerBuffer shape_vals;
 
 patch in int cellIdTCSOutput;
 patch in int sideIdTCSOutput;
+patch in int instanceIdTCSOutput;
 in vec3 pcoordTCSOutput[];
 
 flat out int cellIdTESOutput;
+flat out int instanceIdTESOutput;
 #if {UsesGeometryShaders}
 smooth out vec3 patchDistanceTESOutput;
 #endif
@@ -69,7 +71,7 @@ void main()
   vec4 position;
   vec3 vertexNormalVC;
   float coordinateArray[{ShapeNumValPP}];
-  vec3 eyeNormalMC = vec3(0.0f, 0.0f, 1.0f); 
+  vec3 eyeNormalMC = vec3(0.0f, 0.0f, 1.0f);
 
   if ({PatchSize} == 2)
   {{
@@ -118,6 +120,7 @@ void main()
   // MCDCMatrix = ModelToWorld X WorldToView X ViewToDisplay
   gl_Position = MCDCMatrix * position;
   cellIdTESOutput = cellIdTCSOutput;
+  instanceIdTESOutput = instanceIdTCSOutput;
   vertexVCTESOutput = MCVCMatrix * position;
   normalVCTESOutput = vertexNormalVC;
 #if {UsesGeometryShaders}

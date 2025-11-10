@@ -19,7 +19,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkTextureSerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkTextureSerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 static nlohmann::json Serialize_vtkTexture(vtkObjectBase* objectBase, vtkSerializer* serializer)
@@ -62,8 +62,6 @@ static nlohmann::json Serialize_vtkTexture(vtkObjectBase* objectBase, vtkSeriali
     }
   }
   state["Wrap"] = object->GetWrap();
-  state["Repeat"] = object->GetRepeat();
-  state["EdgeClamp"] = object->GetEdgeClamp();
   return state;
 }
 
@@ -91,11 +89,10 @@ static void Deserialize_vtkTexture(
   VTK_DESERIALIZE_VALUE_FROM_STATE(RestrictPowerOf2ImageSmaller, int, state, object);
   VTK_DESERIALIZE_VALUE_FROM_STATE(UseSRGBColorSpace, bool, state, object);
   VTK_DESERIALIZE_VECTOR_FROM_STATE(BorderColor, float, state, object);
-  VTK_DESERIALIZE_VALUE_FROM_STATE(Repeat, int, state, object);
-  VTK_DESERIALIZE_VALUE_FROM_STATE(EdgeClamp, int, state, object);
+  VTK_DESERIALIZE_VALUE_FROM_STATE(Wrap, int, state, object);
 }
 
-int RegisterHandlers_vtkTextureSerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkTextureSerDesHelper(void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

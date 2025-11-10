@@ -53,7 +53,7 @@ public:
   /**
    * Standard vtkDataSet API methods. See vtkDataSet for more information.
    */
-  int GetDataObjectType() override { return VTK_UNSTRUCTURED_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_UNSTRUCTURED_GRID; }
 
   /**
    * @brief Pre-allocate memory in internal data structures. Does not change
@@ -218,11 +218,14 @@ public:
    */
   int GetMaxCellSize() override;
 
+  ///@{
   /**
-   * Get the maximum spatial dimensionality of the data
-   * which is the maximum dimension of all cells.
+   * Get the maximum/minimum spatial dimensionality of the data
+   * which is the maximum/minimum dimension of all cells.
    */
   int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
+  ///@}
 
   /**
    * Build topological links from points to lists of cells that use each point.
@@ -237,16 +240,6 @@ public:
   vtkSetSmartPointerMacro(Links, vtkAbstractCellLinks);
   vtkGetSmartPointerMacro(Links, vtkAbstractCellLinks);
   ///@}
-
-  /**
-   * Get the cell links. The cell links will be one of nullptr=0;
-   * vtkCellLinks=1; vtkStaticCellLinksTemplate<VTK_UNSIGNED_SHORT>=2;
-   * vtkStaticCellLinksTemplate<VTK_UNSIGNED_INT>=3;
-   * vtkStaticCellLinksTemplate<VTK_ID_TYPE>=4.  (See enum types defined in
-   * vtkAbstractCellLinks.)
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use GetLinks() instead.")
-  vtkAbstractCellLinks* GetCellLinks();
 
   /**
    * Get the face stream of a polyhedron cell in the following format:
@@ -310,6 +303,17 @@ public:
     vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* cellIds);
   ///@}
 
+  /**
+   * Get the number of faces of a cell.
+   *
+   * Most of the times extracting the number of faces requires only extracting
+   * the cell type. However, for some cell types, the number of faces is not
+   * constant. For example, a convex point set cell can have a different number of
+   * faces for each cell. That's why this method requires the cell id and the dataset.
+   */
+  int GetCellNumberOfFaces(
+    vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell) override;
+
   ///@{
   /**
    * A topological inquiry to determine whether a topological entity (e.g.,
@@ -327,12 +331,6 @@ public:
   {
     vtkIdType neighborCellId;
     return this->IsCellBoundary(cellId, npts, ptIds, neighborCellId);
-  }
-  VTK_DEPRECATED_IN_9_3_0("Use the overload that doesn't take a vtkIdList instead.")
-  bool IsCellBoundary(
-    vtkIdType cellId, vtkIdType npts, const vtkIdType* ptIds, vtkIdList* vtkNotUsed(cellIds))
-  {
-    return this->IsCellBoundary(cellId, npts, ptIds);
   }
   ///@}
 
@@ -449,7 +447,7 @@ public:
    * track the changes on the mesh separately from the data arrays
    * (eg. static mesh over time with transient data).
    */
-  virtual vtkMTimeType GetMeshMTime();
+  vtkMTimeType GetMeshMTime() override;
 
   /**
    * A static method for converting a polyhedron vtkCellArray of format

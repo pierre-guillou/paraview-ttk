@@ -27,13 +27,13 @@ class vtkCompositeDataSet;
  * This is specially useful when working with static meshes and transient data.
  *
  * ## Example of use case
- * Think about the vtkGeometryFilter. On first execution, it extracts boudaries
+ * Think about the vtkGeometryFilter. On first execution, it extracts boundaries
  * of an input mesh alongside with the associated data.
  * On the second execution, if the input mesh didn't change and neither did the
  * vtkGeometryFitlers own properties, then there is no need for boundary extraction:
  * previous output mesh can be reused. Only the associated data should be forwarded.
  *
- * Instead of implementing such logic itself, filtre like the vtkGeometryFilter can instead
+ * Instead of implementing such logic itself, filter like the vtkGeometryFilter can instead
  * rely on the vtkDataObjectMeshCache in order to easily reuse the previously computed mesh,
  * and forward the new data arrays.
  *
@@ -56,9 +56,6 @@ class vtkCompositeDataSet;
  *
  * ## Requirements
  * The data arrays forwarding rely on GlobalIds arrays.
- *
- * Currently, only vtkPolyData and vtkUnstructuredGrid are supported,
- * due to the needs of GetMeshMTime() method for this cache to work.
  *
  * When using vtkCompositeDataSet, every leaves should be of a supported
  * data set type.
@@ -117,7 +114,7 @@ public:
      * Return true if and only if every members are equals.
      * @sa operator!=
      */
-    bool operator==(const Status& other)
+    bool operator==(const Status& other) const
     {
       return other.OriginalDataDefined == this->OriginalDataDefined &&
         other.ConsumerDefined == this->ConsumerDefined &&
@@ -131,7 +128,7 @@ public:
      * Return true if both object are not equals.
      * @sa operator==
      */
-    bool operator!=(const Status& other) { return !(*this == other); }
+    bool operator!=(const Status& other) const { return !(*this == other); }
 
     /**
      * Print members.
@@ -156,7 +153,6 @@ public:
    * Original dataobject is also used to copy data arrays to output,
    * if OriginalIds are configured.
    * Required before any call to CopyCacheToDataObject.
-   * @note Only vtkPolyData, vtkUnstructuredGrid and vtkDataObjectTree are supported.
    * @sa AddOriginalIds, RemoveOriginalIds, ClearOriginalIds
    */
   void SetOriginalDataObject(vtkDataObject* original);
@@ -191,14 +187,14 @@ public:
   /**
    * Compute and returns the current cache status.
    * The cache status details whenever the cache is usable,
-   * with detailed informations.
+   * with detailed information.
    */
   Status GetStatus() const;
 
   /**
    * Fill given dataset with cached data.
    * If original ids are present, copy corresponding attributes.
-   * It is the user responsiblity to check the status before calling this.
+   * It is the user responsibility to check the status before calling this.
    */
   void CopyCacheToDataObject(vtkDataObject* output);
 

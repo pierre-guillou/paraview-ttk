@@ -6,11 +6,13 @@
 
 #include "pqApplicationComponentsModule.h"
 #include "pqBoolPropertyWidgetDecorator.h"
-#include "vtkWeakPointer.h"
+#include "vtkEnableDecorator.h"
 
 /**
  * pqEnableWidgetDecorator can be used to enable/disable a widget based on the
  * status of another property not directly controlled by the widget.
+ *
+ * @see vtkEnableDecorator
  */
 class PQAPPLICATIONCOMPONENTS_EXPORT pqEnableWidgetDecorator : public pqBoolPropertyWidgetDecorator
 {
@@ -19,14 +21,17 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqEnableWidgetDecorator : public pqBoolProp
 
 public:
   pqEnableWidgetDecorator(vtkPVXMLElement* config, pqPropertyWidget* parent);
+  ~pqEnableWidgetDecorator() override = default;
 
   /**
    * overridden from pqPropertyWidget.
    */
-  bool enableWidget() const override { return this->isBoolProperty(); }
+  bool enableWidget() const override { return this->decoratorLogic->IsBoolProperty(); }
 
 private:
   Q_DISABLE_COPY(pqEnableWidgetDecorator)
+
+  vtkNew<vtkEnableDecorator> decoratorLogic;
 };
 
 #endif

@@ -11,6 +11,8 @@
 
 set(test_sources
   TestHyperTreeGrid2DInterfaceShift.cxx
+  TestHyperTreeGrid2DGeometryFillMaterial.cxx,NO_VALID,NO_OUTPUT
+  TestHyperTreeGrid3DAxisCutCoincidentPlane.cxx
   TestHyperTreeGrid3DIntercepts.cxx
   TestHyperTreeGrid3DInterface.cxx
   TestHyperTreeGrid3DSimpleInterface.cxx
@@ -30,6 +32,7 @@ set(test_sources
   TestHyperTreeGridBinary2DDepthLimiter.cxx
   TestHyperTreeGridBinary2DDepthLimiterMaterial.cxx
   TestHyperTreeGridBinary2DFeatureEdges.cxx
+  TestHyperTreeGridBinary2DGradient.cxx,NO_VALID,NO_OUTPUT
   TestHyperTreeGridBinary2DIJK.cxx
   TestHyperTreeGridBinary2DInterfaceMaterial.cxx
   TestHyperTreeGridBinary2DMaterial.cxx
@@ -47,12 +50,14 @@ set(test_sources
   TestHyperTreeGridBinary3DContourDecomposePolyhedra.cxx
   TestHyperTreeGridBinary3DContourImplicit.cxx
   TestHyperTreeGridBinary3DContourImplicitInteger.cxx,NO_VALID,NO_OUTPUT
-  TestHyperTreeGridBinary3DFeatureEdges.cxx, LOOSE_VALID
+  TestHyperTreeGridBinary3DFeatureEdges.cxx,LOOSE_VALID
   TestHyperTreeGridBinary3DGeometry.cxx
   TestHyperTreeGridBinaryClipPlanes.cxx
   TestHyperTreeGridBinaryEllipseMaterial.cxx
   TestHyperTreeGridBinaryHyperbolicParaboloidMaterial.cxx
+  TestHyperTreeGridEvaluateCoarse.cxx,NO_VALID,NO_OUPUT
   TestHyperTreeGridExtractGhostCells.cxx,NO_VALID,NO_OUTPUT
+  TestHyperTreeGridGenerateFields.cxx,NO_VALID,NO_OUPUT
   TestHyperTreeGridGeometryPassCellIds.cxx
   TestHyperTreeGridRemoveGhostCells.cxx,NO_VALID,NO_OUTPUT
   TestHyperTreeGridTernary2D.cxx
@@ -96,8 +101,8 @@ set(test_sources
   TestHyperTreeGridTernaryHyperbola.cxx
   TestHyperTreeGridTernarySphereMaterial.cxx
   TestHyperTreeGridTernarySphereMaterialReflections.cxx
+  TestHyperTreeGridThresholdMethods.cxx,NO_VALID,NO_OUTPUT
   TestHyperTreeGridToDualGrid.cxx
-  TestHyperTreeGridVisibleLeavesSize.cxx,NO_VALID,NO_OUPUT
   )
 
 vtk_add_test_cxx(vtkFiltersHyperTreeCxxTests tests ${test_sources})

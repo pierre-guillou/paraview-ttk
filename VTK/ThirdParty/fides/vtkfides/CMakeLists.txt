@@ -25,15 +25,16 @@ endif ()
 
 include(FidesModule)
 
-if (FALSE) # XXX(kitware): VTK handles VTK-m
+if (FALSE) # XXX(kitware): VTK handles Viskores
 find_package(ADIOS2 REQUIRED)
 
 if (ADIOS2_VERSION VERSION_GREATER_EQUAL "2.8.0")
   set(ADIOS_DEFS FIDES_ADIOS_HAS_RANDOM_ACCESS)
 endif()
 
-# need to continue to support v1.9 for awhile
-find_package(VTKm REQUIRED)
+# Minimum Viskores version is 1.0. Future versions of Viskores should maintain
+# backward compatibility.
+find_package(Viskores 1.0 REQUIRED)
 else ()
 vtk_module_find_package(PACKAGE ADIOS2)
 if (ADIOS2_VERSION VERSION_GREATER_EQUAL "2.8.0")
@@ -42,7 +43,7 @@ endif()
 endif ()
 
 if (FALSE) # XXX(kitware): VTK handles building shared libs/testing and MPI
-if (VTKm_ENABLE_CUDA)
+if (Viskores_ENABLE_CUDA)
   enable_language(CUDA)
 endif()
 

@@ -13,6 +13,7 @@
 #include "vtkStringArray.h"
 #include "vtkUnsignedIntArray.h"
 
+#include <algorithm>
 #include <set>
 #include <vector>
 
@@ -155,9 +156,8 @@ void vtkSelectionSource::SetNodeName(unsigned int nodeId, const char* name)
     return;
   }
   if (std::find_if(this->NodesInfo.begin(), this->NodesInfo.end(),
-        [&safeNodeName](const std::shared_ptr<NodeInformation>& nodeInfo) {
-          return nodeInfo->Name == safeNodeName;
-        }) != this->NodesInfo.end())
+        [&safeNodeName](const std::shared_ptr<NodeInformation>& nodeInfo)
+        { return nodeInfo->Name == safeNodeName; }) != this->NodesInfo.end())
   {
     vtkErrorMacro("Node name already exists: " << safeNodeName);
     return;
@@ -381,19 +381,12 @@ void vtkSelectionSource::SetContentType(unsigned int nodeId, int contentType)
     vtkErrorMacro("Invalid node id: " << nodeId);
     return;
   }
-  if (this->NodesInfo[nodeId]->ContentType !=
-    (contentType < vtkSelectionNode::SelectionContent::GLOBALIDS
-        ? vtkSelectionNode::SelectionContent::GLOBALIDS
-        : (contentType > vtkSelectionNode::SelectionContent::USER
-              ? vtkSelectionNode::SelectionContent::USER
-              : contentType)))
+  contentType =
+    std::min<int>(std::max<int>(contentType, vtkSelectionNode::SelectionContent::GLOBALIDS),
+      vtkSelectionNode::SelectionContent::USER);
+  if (this->NodesInfo[nodeId]->ContentType != contentType)
   {
-    this->NodesInfo[nodeId]->ContentType =
-      (contentType < vtkSelectionNode::SelectionContent::GLOBALIDS
-          ? vtkSelectionNode::SelectionContent::GLOBALIDS
-          : (contentType > vtkSelectionNode::SelectionContent::USER
-                ? vtkSelectionNode::SelectionContent::USER
-                : contentType));
+    this->NodesInfo[nodeId]->ContentType = contentType;
     this->Modified();
   }
 }
@@ -443,11 +436,10 @@ void vtkSelectionSource::SetNumberOfLayers(unsigned int nodeId, int numberOfLaye
     vtkErrorMacro("Invalid node id: " << nodeId);
     return;
   }
-  if (this->NodesInfo[nodeId]->NumberOfLayers !=
-    (numberOfLayers < 0 ? 0 : (numberOfLayers > VTK_INT_MAX ? VTK_INT_MAX : numberOfLayers)))
+  numberOfLayers = std::min(std::max(numberOfLayers, 0), VTK_INT_MAX);
+  if (this->NodesInfo[nodeId]->NumberOfLayers != numberOfLayers)
   {
-    this->NodesInfo[nodeId]->NumberOfLayers =
-      (numberOfLayers < 0 ? 0 : (numberOfLayers > VTK_INT_MAX ? VTK_INT_MAX : numberOfLayers));
+    this->NodesInfo[nodeId]->NumberOfLayers = numberOfLayers;
     this->Modified();
   }
 }

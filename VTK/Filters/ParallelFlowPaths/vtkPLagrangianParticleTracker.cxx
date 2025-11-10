@@ -139,7 +139,7 @@ public:
 
   // Method to send a particle to others ranks
   // if particle contained in bounds
-  void SendParticle(vtkLagrangianParticle* particle)
+  void SendParticle(vtkLagrangianParticle* particle, bool forceSend)
   {
     // Serialize particle
     // This is strongly linked to Constructor and Receive code
@@ -200,7 +200,8 @@ public:
       {
         continue;
       }
-      if (particle->GetPManualShift() || this->Boxes[i].ContainsPoint(particle->GetPosition()))
+      if (forceSend || particle->GetPManualShift() ||
+        this->Boxes[i].ContainsPoint(particle->GetPosition()))
       {
         ++sendStream->count; // increment counter on message
         this->SendRequests.emplace_back(new vtkMPICommunicator::Request, sendStream);
@@ -434,7 +435,7 @@ private:
 //  input a local partition 'status' and outputs the globalStatus
 //  status = 0 - INACTIVE - particle queue is empty and all sent particles have been confirmed as
 //  being received status = 1 - ACTIVE - either the particle queue has particles or we are waiting
-//  on confirmation of pariticles
+//  on confirmation of particles
 //               being received.
 //  - each rank updates master when its status changes
 //  globalStatus is 0 when all partitions are INACTIVE and 1 if at least one partition is ACTIVE.
@@ -849,7 +850,7 @@ void vtkPLagrangianParticleTracker::GenerateParticles(const vtkBoundingBox* boun
       }
       else
       {
-        this->StreamManager->SendParticle(particle);
+        this->StreamManager->SendParticle(particle, this->ForcePManualShift);
         delete particle;
       }
     }
@@ -884,7 +885,7 @@ void vtkPLagrangianParticleTracker::GetParticleFeed(
     this->ReceiveTransferredParticleIds();
 
     // determine local status - active if queue is busy or we are waiting for receipt of sent
-    // pariticles
+    // particles
     status = !particleQueue.empty() ||
       this->StreamManager->GetSendCounter() !=
         this->TransferredParticleIdManager->GetReceivedCounter();
@@ -913,14 +914,14 @@ int vtkPLagrangianParticleTracker::Integrate(vtkInitialValueProblemSolver* integ
   {
     if (particle->GetTermination() == vtkLagrangianParticle::PARTICLE_TERMINATION_OUT_OF_DOMAIN)
     {
-      if (!particle->GetPManualShift())
+      if (!this->ForcePManualShift && !particle->GetPManualShift())
       {
         particle->SetPInsertPreviousPosition(true);
       }
 
       // Stream out of domain particles
       std::lock_guard<std::mutex> guard(this->StreamManagerMutex);
-      this->StreamManager->SendParticle(particle);
+      this->StreamManager->SendParticle(particle, this->ForcePManualShift);
     }
   }
   return ret;
@@ -960,7 +961,7 @@ void vtkPLagrangianParticleTracker::ReceiveParticles(
     receivedParticle->SetThreadedData(this->SerialThreadedData);
 
     // Check for manual shift
-    if (receivedParticle->GetPManualShift())
+    if (this->ForcePManualShift || receivedParticle->GetPManualShift())
     {
       this->IntegrationModel->ParallelManualShift(receivedParticle);
       receivedParticle->SetPManualShift(false);

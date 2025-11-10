@@ -1,5 +1,10 @@
 <?xml version="1.0" ?>
 <pqevents>
+  <pqevent object="pqClientMainWindow/menubar/menu_Edit" command="activate" arguments="actionEditSettings" />
+  <pqevent object="pqClientMainWindow/ApplicationSettings/tabBar" command="set_tab_with_text" arguments="Color Palette" />
+  <pqevent object="pqClientMainWindow/ApplicationSettings/stackedWidget/ScrollAreaColorPalette/qt_scrollarea_viewport/Container/ProxyWidget/LoadPalette/ComboBox" command="activated" arguments="Blue Gray Background" />
+  <pqevent object="pqClientMainWindow/ApplicationSettings/buttonBox/1QPushButton0" command="activate" arguments="" />
+
   <!-- create cone -->
   <pqevent object="pqClientMainWindow/menubar" command="activate" arguments="menuSources" />
   <pqevent object="pqClientMainWindow/menubar/menuSources/Alphabetical" command="activate" arguments="ConeSource" />
@@ -8,6 +13,7 @@
   <!-- open time manager -->
   <pqevent object="pqClientMainWindow/menubar" command="activate" arguments="menu_View" />
   <pqevent object="pqClientMainWindow/menubar/menu_View" command="activate" arguments="Time Manager" />
+  <pqevent object="pqClientMainWindow/timeManagerDock/timeManagerPanel/timeProperties/nbOfFrames/nbOfFramesValue" command="set_int" arguments="10" />
 
   <!-- add track interpolate cameras -->
   <pqevent object="pqClientMainWindow/timeManagerDock/timeManagerPanel/timeline/1pqTimelineView0/qt_scrollarea_viewport/addTrackWidget/proxiesBox" command="activated" arguments="Camera" />
@@ -33,7 +39,7 @@
 
   <!-- save key frames state -->
   <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/widget/pbExportKeyFrames" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/1pqFileDialog0" command="filesSelected" arguments="$PARAVIEW_TEST_ROOT/animation-camera-export.pvkfc" />
+  <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/pqFileDialog" command="filesSelected" arguments="$PARAVIEW_TEST_ROOT/animation-camera-export.pvkfc" />
   <pqevent object="pqClientMainWindow/1QDialog0/1QDialogButtonBox0/1QPushButton0" command="activate" arguments="" />
 
   <!-- delete track and change point of view -->
@@ -50,7 +56,7 @@
 
   <!-- import key frames state -->
   <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/widget/pbImportKeyFrames" command="activate" arguments="" />
-  <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/1pqFileDialog0" command="filesSelected" arguments="$PARAVIEW_TEST_ROOT/animation-camera-export.pvkfc" />
+  <pqevent object="pqClientMainWindow/1QDialog0/pqKeyFrameEditor/pqFileDialog" command="filesSelected" arguments="$PARAVIEW_TEST_ROOT/animation-camera-export.pvkfc" />
   <pqevent object="pqClientMainWindow/1QDialog0/1QDialogButtonBox0/1QPushButton0" command="activate" arguments="" />
 
   <!-- play VCR -->

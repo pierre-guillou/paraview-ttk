@@ -99,10 +99,11 @@ int vtkLegacyCellGridReader::ReadMeshSimple(const std::string& fname, vtkDataObj
       return 1;
     }
 
-    std::string raw;
+    // Use 'char' instead of 'uint8_t' to avoid the following clang >= 19 error:
+    // "implicit instantiation of undefined template 'std::char_traits<unsigned char>'"
+    std::vector<char> raw;
     raw.resize(contentLength);
-    if (!this->GetIStream()->read(
-          const_cast<char*>(raw.data()), static_cast<std::streamsize>(contentLength)))
+    if (!this->GetIStream()->read(raw.data(), static_cast<std::streamsize>(contentLength)))
     {
       vtkErrorMacro(<< "Cannot read encoded dataset.");
       this->CloseVTKFile();
@@ -112,7 +113,10 @@ int vtkLegacyCellGridReader::ReadMeshSimple(const std::string& fname, vtkDataObj
     nlohmann::json jdata;
     try
     {
-      jdata = nlohmann::json::parse(raw);
+      // The final argument (false) indicates that the decoder should allow
+      // partial consumption of raw.data() (meaning the trailing newline will
+      // not cause an exception):
+      jdata = nlohmann::json::from_msgpack(raw.data(), raw.data() + contentLength, false);
     }
     catch (nlohmann::json::exception& e)
     {

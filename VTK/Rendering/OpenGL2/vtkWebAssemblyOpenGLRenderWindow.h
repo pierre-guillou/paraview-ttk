@@ -45,11 +45,6 @@ public:
    */
   void SetFullScreen(vtkTypeBool) override;
 
-  /**
-   * Show or not Show the window
-   */
-  void SetShowWindow(bool val) override;
-
   ///@{
   /**
    * Set the size of the window in pixels.
@@ -75,12 +70,6 @@ public:
    * Get the position in screen coordinates of the window.
    */
   int* GetPosition() VTK_SIZEHINT(2) override;
-
-  /**
-   * Set the name of the window. This appears at the top of the window
-   * normally.
-   */
-  void SetWindowName(const char*) override;
 
   void* GetGenericDisplayId() override { return (void*)this->ContextId; }
   void* GetGenericWindowId() override { return (void*)this->ContextId; }
@@ -153,8 +142,61 @@ public:
   /**
    * Specify the selector of the canvas element in the DOM.
    */
-  vtkGetStringMacro(CanvasId);
-  vtkSetStringMacro(CanvasId);
+  vtkGetStringMacro(CanvasSelector);
+  vtkSetStringMacro(CanvasSelector);
+
+  /**
+   * These enums have a one-one correspondence with the webgpu enums.
+   * They are here so that wrapped languages can make use of them.
+   */
+  enum class PowerPreferenceType
+  {
+    Default,
+    LowPower,
+    HighPerformance
+  };
+
+  ///@{
+  /**
+   * Set/Get the power preference of the graphics adapter.
+   * Available options are:
+   * - `Default`
+   * - `LowPower`
+   * - `HighPerformance`.
+   * The default value is `Default` (most probably LowPower for your browser).
+   * NOTE: Make sure to call this before the first call to Render if you wish to change the
+   * preference.
+   * WARNING: Changing the power preference after the render window is initialized has
+   * no effect.
+   */
+  vtkSetEnumMacro(PowerPreference, PowerPreferenceType);
+  vtkGetEnumMacro(PowerPreference, PowerPreferenceType);
+  ///@}
+
+  ///@{
+  /**
+   * Set preference for a high-performance or low-power device.
+   * The default preference is a default (most probably - low-power device).
+   * NOTE: Make sure to call this before the first call to Render if you wish to change the
+   * preference.
+   * WARNING: Changing the power preference after the render window is initialized has
+   * no effect.
+   */
+  void PreferHighPerformanceAdapter() { PowerPreference = PowerPreferenceType::HighPerformance; }
+  void PreferLowPowerAdapter() { PowerPreference = PowerPreferenceType::LowPower; }
+  ///@}
+
+  /**
+   * Make the setter for UseOffscreenBuffers no-op.
+   * Offscreen buffers end up displaying a black screen which is not very useful.
+   */
+  void SetUseOffScreenBuffers(bool) override {}
+
+  /**
+   * Make the setter for ShowWindow no-op.
+   * This property is meaningless in a web browser context.
+   */
+  void SetShowWindow(bool) override {}
 
 protected:
   vtkWebAssemblyOpenGLRenderWindow();
@@ -162,7 +204,8 @@ protected:
 
   unsigned long ContextId;
   std::stack<unsigned long> ContextStack;
-  char* CanvasId = nullptr;
+  char* CanvasSelector = nullptr;
+  PowerPreferenceType PowerPreference = PowerPreferenceType::Default;
 
   void CleanUpRenderers();
   void CreateAWindow() override;

@@ -50,7 +50,7 @@ class TestWipe(vtkmodules.test.Testing.vtkTest):
         actor = vtkActor2D()
         actor.SetMapper(mapper)
         imager = vtkRenderer()
-        imager.AddActor2D(actor)
+        imager.AddViewProp(actor)
 
         renWin.AddRenderer(imager)
 
@@ -77,7 +77,7 @@ class TestWipe(vtkmodules.test.Testing.vtkTest):
             actor[wipe].SetMapper(mapper[wipe])
 
             imagers.update({wipe:vtkRenderer()})
-            imagers[wipe].AddActor2D(actor[wipe])
+            imagers[wipe].AddViewProp(actor[wipe])
 
             renWin.AddRenderer(imagers[wipe])
 
@@ -99,7 +99,7 @@ class TestWipe(vtkmodules.test.Testing.vtkTest):
         renWin.Render()
 
         img_file = "TestWipe.png"
-        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file), threshold=25)
+        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file))
         vtkmodules.test.Testing.interact()
 
 if __name__ == "__main__":

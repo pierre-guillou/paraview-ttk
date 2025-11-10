@@ -38,8 +38,9 @@
 
 #include "vtkAnariActorNode.h"
 #include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 
 #include <string>
 #include <vector>
@@ -70,22 +71,7 @@ int TestAnariImplicits(int argc, char* argv[])
   vtkNew<vtkAnariPass> anariPass;
   renderer->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, renderer);
-    vtkNew<vtkTesting> testing;
-
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariImplicits";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), renderer);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", renderer);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, renderer);
-  vtkAnariRendererNode::SetLightFalloff(.5, renderer);
-  vtkAnariRendererNode::SetUseDenoiser(1, renderer);
-  vtkAnariRendererNode::SetCompositeOnGL(1, renderer);
+  SetParameterDefaults(anariPass, renderer, useDebugDevice, "TestAnariImplicits");
 
   vtkNew<vtkRTAnalyticSource> wavelet;
   wavelet->SetWholeExtent(-10, 10, -10, 10, -10, 10);

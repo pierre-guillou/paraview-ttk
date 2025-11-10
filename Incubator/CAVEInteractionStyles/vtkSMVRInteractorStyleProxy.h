@@ -9,13 +9,17 @@
 #include <vtkSMProxy.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
+class vtkCamera;
+class vtkMatrix4x4;
 class vtkPVXMLElement;
 class vtkSMProxyLocator;
 class vtkSMProxy;
 class vtkSMDoubleVectorProperty;
+class vtkSMRenderViewProxy;
 class vtkStringList;
 struct vtkVREvent;
 
@@ -42,6 +46,13 @@ public:
   vtkSetStringMacro(ControlledPropertyName);
   vtkGetStringMacro(ControlledPropertyName);
 
+  // An internal interactor style proxy should not be shown in the
+  // UI, but can still be used by the CAVEInteraction plugin for
+  // internal purposes.
+  vtkSetMacro(IsInternal, bool);
+  vtkGetMacro(IsInternal, bool);
+  vtkBooleanMacro(IsInternal, bool);
+
   virtual bool HandleEvent(const vtkVREvent& event);
 
   /// Update() called to update all the remote vtkObjects and perhaps even to render.
@@ -65,9 +76,15 @@ public:
   // Description:
   // Get the role of the input with the given name. If the name is not
   // set or recognized, an empty string is returned.
-  std::string GetValuatorRole(const std::string& name);
   std::string GetButtonRole(const std::string& name);
   std::string GetTrackerRole(const std::string& name);
+
+  // Description:
+  // Valuators are special in that data from all channels is
+  // delivered in an array in a single event.  This method allows
+  // finding that index for any named role which the user has
+  // bound to an event
+  unsigned int GetChannelIndexForValuatorRole(const std::string& role);
 
   // Description:
   // Add a new input role to the interactor style.
@@ -94,8 +111,24 @@ public:
 
   enum
   {
-    INTERACTOR_STYLE_REQUEST_CONFIGURE = vtkCommand::UserEvent + 7370
+    INTERACTOR_STYLE_REQUEST_CONFIGURE = vtkCommand::UserEvent + 7370,
+    INTERACTOR_STYLE_NAVIGATION = vtkCommand::UserEvent + 7371
   };
+
+  // Description:
+  // Get active objects or return nullptr
+  static vtkSMRenderViewProxy* GetActiveViewProxy();
+  static vtkCamera* GetActiveCamera();
+
+  // Description:
+  // Get/Set the matrix used to navigate the scene.
+  vtkMatrix4x4* GetNavigationMatrix();
+  void SetNavigationMatrix(vtkMatrix4x4*);
+
+  typedef std::map<std::string, std::string> StringMap;
+  typedef std::map<std::string, StringMap> StringMapMap;
+
+  void SetValuatorLookupTable(std::shared_ptr<StringMapMap>);
 
 protected:
   vtkSMVRInteractorStyleProxy();
@@ -110,7 +143,6 @@ protected:
   vtkSMProxy* ControlledProxy;
   char* ControlledPropertyName;
 
-  typedef std::map<std::string, std::string> StringMap;
   StringMap Valuators;
   StringMap Buttons;
   StringMap Trackers;
@@ -118,6 +150,10 @@ protected:
   bool SetValueInMap(StringMap& map_, const std::string& key, const std::string& value);
   std::string GetValueInMap(const StringMap& map_, const std::string& key);
   std::string GetKeyInMap(const StringMap& map_, const std::string& value);
+
+  bool IsInternal;
+
+  std::shared_ptr<StringMapMap> valuatorLookupTable;
 
 private:
   vtkSMVRInteractorStyleProxy(const vtkSMVRInteractorStyleProxy&) = delete;

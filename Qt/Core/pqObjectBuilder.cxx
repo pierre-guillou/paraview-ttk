@@ -50,7 +50,6 @@
 #include "pqView.h"
 #include "vtkSMAnimationSceneProxy.h"
 #include "vtkSMProxyManager.h"
-#include "vtkSMSessionProxyManager.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -60,10 +59,10 @@
 #include <cassert>
 #include <chrono>
 
-namespace pqObjectBuilderNS
+namespace
 {
-static bool ContinueWaiting = true;
-static bool processEvents()
+bool ContinueWaiting = true;
+bool processEvents()
 {
   QApplication::processEvents();
   return ContinueWaiting;
@@ -148,13 +147,13 @@ pqPipelineSource* pqObjectBuilder::createSource(
   vtkSMSessionProxyManager* pxm = server->proxyManager();
   vtkSmartPointer<vtkSMProxy> proxy;
   proxy.TakeReference(pxm->NewProxy(sm_group.toUtf8().data(), sm_name.toUtf8().data()));
-  if (!pqObjectBuilderNS::preCreatePipelineProxy(controller, proxy))
+  if (!::preCreatePipelineProxy(controller, proxy))
   {
     return nullptr;
   }
 
-  pqPipelineSource* source = pqObjectBuilderNS::postCreatePipelineProxy(
-    controller, proxy, server, pqObjectBuilderNS::recoverRegistrationName(proxy));
+  pqPipelineSource* source =
+    ::postCreatePipelineProxy(controller, proxy, server, ::recoverRegistrationName(proxy));
   Q_EMIT this->sourceCreated(source);
   Q_EMIT this->proxyCreated(source);
   return source;
@@ -168,7 +167,7 @@ pqPipelineSource* pqObjectBuilder::createFilter(const QString& sm_group, const Q
   vtkSMSessionProxyManager* pxm = server->proxyManager();
   vtkSmartPointer<vtkSMProxy> proxy;
   proxy.TakeReference(pxm->NewProxy(sm_group.toUtf8().data(), sm_name.toUtf8().data()));
-  if (!pqObjectBuilderNS::preCreatePipelineProxy(controller, proxy))
+  if (!::preCreatePipelineProxy(controller, proxy))
   {
     return nullptr;
   }
@@ -194,8 +193,8 @@ pqPipelineSource* pqObjectBuilder::createFilter(const QString& sm_group, const Q
     }
   }
 
-  pqPipelineSource* filter = pqObjectBuilderNS::postCreatePipelineProxy(
-    controller, proxy, server, pqObjectBuilderNS::recoverRegistrationName(proxy));
+  pqPipelineSource* filter =
+    ::postCreatePipelineProxy(controller, proxy, server, ::recoverRegistrationName(proxy));
   Q_EMIT this->filterCreated(filter);
   Q_EMIT this->proxyCreated(filter);
   return filter;
@@ -214,6 +213,8 @@ pqPipelineSource* pqObjectBuilder::createFilter(
 }
 
 //-----------------------------------------------------------------------------
+namespace
+{
 inline QString pqObjectBuilderGetPath(const QString& filename, bool use_dir)
 {
   if (use_dir)
@@ -221,6 +222,7 @@ inline QString pqObjectBuilderGetPath(const QString& filename, bool use_dir)
     return QFileInfo(filename).path();
   }
   return filename;
+}
 }
 
 //-----------------------------------------------------------------------------
@@ -241,7 +243,7 @@ pqPipelineSource* pqObjectBuilder::createReader(
   vtkSMSessionProxyManager* pxm = server->proxyManager();
   vtkSmartPointer<vtkSMProxy> proxy;
   proxy.TakeReference(pxm->NewProxy(sm_group.toUtf8().data(), sm_name.toUtf8().data()));
-  if (!pqObjectBuilderNS::preCreatePipelineProxy(controller, proxy))
+  if (!::preCreatePipelineProxy(controller, proxy))
   {
     return nullptr;
   }
@@ -266,28 +268,27 @@ pqPipelineSource* pqObjectBuilder::createReader(
 
     if (files.size() == 1 || !prop->GetRepeatCommand())
     {
-      pqSMAdaptor::setElementProperty(prop, pqObjectBuilderGetPath(files[0], use_dir));
+      pqSMAdaptor::setElementProperty(prop, ::pqObjectBuilderGetPath(files[0], use_dir));
     }
     else
     {
       QList<QVariant> values;
       Q_FOREACH (QString file, files)
       {
-        values.push_back(pqObjectBuilderGetPath(file, use_dir));
+        values.push_back(::pqObjectBuilderGetPath(file, use_dir));
       }
       pqSMAdaptor::setMultipleElementProperty(prop, values);
     }
     proxy->UpdateVTKObjects();
   }
 
-  QString regName = pqObjectBuilderNS::recoverRegistrationName(proxy);
+  QString regName = ::recoverRegistrationName(proxy);
   if (regName.isEmpty())
   {
     regName = fileRegName;
   }
 
-  pqPipelineSource* reader =
-    pqObjectBuilderNS::postCreatePipelineProxy(controller, proxy, server, regName);
+  pqPipelineSource* reader = ::postCreatePipelineProxy(controller, proxy, server, regName);
   Q_EMIT this->readerCreated(reader, files[0]);
   Q_EMIT this->readerCreated(reader, files);
   Q_EMIT this->sourceCreated(reader);
@@ -337,7 +338,7 @@ pqView* pqObjectBuilder::createView(const QString& type, pqServer* server)
   // this by setting up layouts, etc.
   Q_EMIT this->aboutToCreateView(server);
 
-  QString regName = pqObjectBuilderNS::recoverRegistrationName(proxy);
+  QString regName = ::recoverRegistrationName(proxy);
 
   vtkNew<vtkSMParaViewPipelineController> controller;
   controller->PreInitializeProxy(proxy);
@@ -424,7 +425,7 @@ pqDataRepresentation* pqObjectBuilder::createDataRepresentation(
   vtkNew<vtkSMParaViewPipelineController> controller;
   controller->PreInitializeProxy(reprProxy);
 
-  QString regName = pqObjectBuilderNS::recoverRegistrationName(reprProxy);
+  QString regName = ::recoverRegistrationName(reprProxy);
 
   // Set the reprProxy's input.
   pqSMAdaptor::setInputProperty(
@@ -478,8 +479,8 @@ vtkSMProxy* pqObjectBuilder::createProxy(
     proxy->SetPrototype(true);
   }
 
-  pxm->RegisterProxy(reg_group.toUtf8().data(),
-    pqObjectBuilderNS::recoverRegistrationName(proxy).toUtf8().data(), proxy);
+  pxm->RegisterProxy(
+    reg_group.toUtf8().data(), ::recoverRegistrationName(proxy).toUtf8().data(), proxy);
   return proxy;
 }
 
@@ -618,7 +619,7 @@ bool pqObjectBuilder::forceWaitingForConnection(bool force)
 //-----------------------------------------------------------------------------
 void pqObjectBuilder::abortPendingConnections()
 {
-  pqObjectBuilderNS::ContinueWaiting = false;
+  ::ContinueWaiting = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -632,7 +633,9 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
     return nullptr;
   }
 
-  pqObjectBuilderNS::ContinueWaiting = true;
+  SCOPED_UNDO_EXCLUDE();
+
+  ::ContinueWaiting = true;
 
   pqServerManagerModel* smModel = pqApplicationCore::instance()->getServerManagerModel();
 
@@ -683,25 +686,23 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
   else if (resource.scheme() == "cs")
   {
     id = vtkSMSession::ConnectToRemote(resource.host().toUtf8().data(), resource.port(11111),
-      connectionTimeout, &pqObjectBuilderNS::processEvents, result);
+      connectionTimeout, &::processEvents, result);
   }
   else if (resource.scheme() == "csrc")
   {
     id = vtkSMSession::ReverseConnectToRemote(
-      resource.port(11111), connectionTimeout, &pqObjectBuilderNS::processEvents, result);
+      resource.port(11111), connectionTimeout, &::processEvents, result);
   }
   else if (resource.scheme() == "cdsrs")
   {
     id = vtkSMSession::ConnectToRemote(resource.dataServerHost().toUtf8().data(),
       resource.dataServerPort(11111), resource.renderServerHost().toUtf8().data(),
-      resource.renderServerPort(22221), connectionTimeout, &pqObjectBuilderNS::processEvents,
-      result);
+      resource.renderServerPort(22221), connectionTimeout, &::processEvents, result);
   }
   else if (resource.scheme() == "cdsrsrc")
   {
     id = vtkSMSession::ReverseConnectToRemote(resource.dataServerPort(11111),
-      resource.renderServerPort(22221), connectionTimeout, &pqObjectBuilderNS::processEvents,
-      result);
+      resource.renderServerPort(22221), connectionTimeout, &::processEvents, result);
   }
   else if (resource.scheme() == "catalyst")
   {
@@ -727,6 +728,7 @@ pqServer* pqObjectBuilder::createServer(const pqServerResource& resource, int co
 //-----------------------------------------------------------------------------
 void pqObjectBuilder::removeServer(pqServer* server)
 {
+  SCOPED_UNDO_EXCLUDE();
   if (!server)
   {
     qDebug() << "No server to remove.";

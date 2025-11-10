@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericDataObjectWriter.h"
 
 #include "vtkCompositeDataSet.h"
@@ -144,6 +148,7 @@ void vtkGenericDataObjectWriter::WriteData()
   writer->SetLookupTableName(this->LookupTableName);
   writer->SetFieldDataName(this->FieldDataName);
   writer->SetFileType(this->FileType);
+  writer->SetFileVersion(this->FileVersion);
   writer->SetDebug(this->Debug);
   writer->SetWriteToOutputString(this->WriteToOutputString);
   writer->Write();

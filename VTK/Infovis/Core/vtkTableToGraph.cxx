@@ -599,7 +599,7 @@ int vtkTableToGraph::RequestData(
           //    This is to allow the empty string to indicate null entries.
           // 4. If it is numeric, it's value must be at least 0.
           //    This is to allow a negative value to indicate null entries.
-          if (vertexMap.count(value) == 0 && val.IsValid() && val.ToString().length() > 0 &&
+          if (vertexMap.count(value) == 0 && val.IsValid() && !val.ToString().empty() &&
             (!val.IsNumeric() || val.ToDouble() >= 0.0))
           {
             vertexMap[value] = i;
@@ -612,7 +612,7 @@ int vtkTableToGraph::RequestData(
       else
       {
         // If the domain is hidden, we look through the edge table to
-        // find new hidden vertices which will not be correllated to the
+        // find new hidden vertices which will not be correlated to the
         // vertex table.
         vtkStdString column = linkColumn->GetValue(c);
         vtkAbstractArray* edgeArr = edgeTable->GetColumnByName(column.c_str());

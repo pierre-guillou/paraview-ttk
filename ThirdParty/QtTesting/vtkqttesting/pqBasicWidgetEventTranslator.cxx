@@ -1,34 +1,6 @@
-/*=========================================================================
-
-   Program: ParaView
-   Module:    pqBasicWidgetEventTranslator.cxx
-
-   Copyright (c) 2005-2008 Sandia Corporation, Kitware Inc.
-   All rights reserved.
-
-   ParaView is a free software; you can redistribute it and/or modify it
-   under the terms of the ParaView license version 1.2.
-
-   See License_v1.2.txt for the full ParaView license.
-   A copy of this license can be obtained by contacting
-   Kitware Inc.
-   28 Corporate Drive
-   Clifton Park, NY 12065
-   USA
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHORS OR
-CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-=========================================================================*/
+// SPDX-FileCopyrightText: Copyright (c) Kitware Inc.
+// SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
+// SPDX-License-Identifier: BSD-3-Clause
 
 #include "pqBasicWidgetEventTranslator.h"
 
@@ -46,9 +18,7 @@ pqBasicWidgetEventTranslator::pqBasicWidgetEventTranslator(QObject* p)
 {
 }
 
-pqBasicWidgetEventTranslator::~pqBasicWidgetEventTranslator()
-{
-}
+pqBasicWidgetEventTranslator::~pqBasicWidgetEventTranslator() {}
 
 bool pqBasicWidgetEventTranslator::translateEvent(
   QObject* object, QEvent* event, int eventType, bool& error)
@@ -76,12 +46,17 @@ bool pqBasicWidgetEventTranslator::translateEvent(
       case QEvent::MouseButtonRelease:
       {
         QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(event);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+        auto pos = mouseEvent->pos();
+#else
+        auto pos = mouseEvent->position().toPoint();
+#endif
         QString info = QString("%1,%2,%3,%4,%5")
                          .arg(mouseEvent->button())
                          .arg(mouseEvent->buttons())
                          .arg(mouseEvent->modifiers())
-                         .arg(mouseEvent->x())
-                         .arg(mouseEvent->y());
+                         .arg(pos.x())
+                         .arg(pos.y());
 
         if (event->type() != QEvent::MouseButtonRelease)
         {
@@ -117,16 +92,17 @@ bool pqBasicWidgetEventTranslator::translateEvent(
             int buttons = wheelEvent->buttons();
             int modifiers = wheelEvent->modifiers();
             int numStep = wheelEvent->angleDelta().y();
-            Q_EMIT recordEvent(object, "mouseWheel", QString("%1,%2,%3,%4,%5")
-                                                       .arg(numStep)
-                                                       .arg(buttons)
-                                                       .arg(modifiers)
+            Q_EMIT recordEvent(object, "mouseWheel",
+              QString("%1,%2,%3,%4,%5")
+                .arg(numStep)
+                .arg(buttons)
+                .arg(modifiers)
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
-                                                       .arg(wheelEvent->position().x())
-                                                       .arg(wheelEvent->position().y()));
+                .arg(wheelEvent->position().x())
+                .arg(wheelEvent->position().y()));
 #else
-                                                       .arg(wheelEvent->x())
-                                                       .arg(wheelEvent->y()));
+                .arg(wheelEvent->x())
+                .arg(wheelEvent->y()));
 #endif
           }
         }
@@ -142,11 +118,11 @@ bool pqBasicWidgetEventTranslator::translateEvent(
     if (event->type() == QEvent::MouseMove)
     {
       // Check for available meta prop
-      const QMetaProperty metaProp = widget->metaObject()->userProperty();
+      QMetaProperty metaProp = widget->metaObject()->userProperty();
       if (!metaProp.isValid() && qobject_cast<QWidget*>(widget->parent()) != NULL)
       {
         // MouseEvent can be received by the viewport
-        const QMetaProperty metaProp = widget->parent()->metaObject()->userProperty();
+        metaProp = widget->parent()->metaObject()->userProperty();
       }
       if (metaProp.isValid())
       {
@@ -158,11 +134,11 @@ bool pqBasicWidgetEventTranslator::translateEvent(
     if (event->type() == QEvent::MouseButtonRelease)
     {
       // Generic Meta prop check
-      const QMetaProperty metaProp = widget->metaObject()->userProperty();
+      QMetaProperty metaProp = widget->metaObject()->userProperty();
       if (!metaProp.isValid() && widget->parent() != NULL)
       {
         // MouseEvent can be received by the viewport, so try the parent widget
-        const QMetaProperty metaProp = widget->parent()->metaObject()->userProperty();
+        metaProp = widget->parent()->metaObject()->userProperty();
         widget = qobject_cast<QWidget*>(widget->parent());
       }
 

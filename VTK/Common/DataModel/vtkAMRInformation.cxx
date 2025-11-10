@@ -6,6 +6,7 @@
 #include "vtkDoubleArray.h"
 #include "vtkIntArray.h"
 #include "vtkMath.h"
+#include "vtkMathUtilities.h"
 #include "vtkObjectFactory.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUnsignedIntArray.h"
@@ -229,6 +230,26 @@ bool vtkAMRInformation::Audit()
       if (h[d] < 0)
       {
         vtkErrorMacro("Invalid spacing at level " << i << endl);
+      }
+    }
+
+    if (this->HasRefinementRatio())
+    {
+      double ratio = this->Refinement->GetTuple1(0);
+      unsigned int nextLevel = i + 1;
+      if (nextLevel < this->GetNumberOfLevels())
+      {
+        double nextSpacing[3];
+        this->GetSpacing(nextLevel, nextSpacing);
+        for (int axis = 0; axis < 3; axis++)
+        {
+          if (axis != emptyDimension &&
+            !vtkMathUtilities::NearlyEqual(
+              ratio, vtkMathUtilities::SafeDivision(h[axis], nextSpacing[axis]), 10e-6))
+          {
+            vtkErrorMacro("Spacing and refinement ratio are inconsistent for level " << i << endl);
+          }
+        }
       }
     }
   }
@@ -612,7 +633,7 @@ const vtkAMRBox& vtkAMRInformation::GetAMRBox(unsigned int level, unsigned int i
 
 void vtkAMRInformation::GetSpacing(unsigned int level, double spacing[3])
 {
-  return this->Spacing->GetTuple(level, spacing);
+  this->Spacing->GetTuple(level, spacing);
 }
 
 void vtkAMRInformation::CalculateParentChildRelationShip(unsigned int level,
@@ -801,7 +822,7 @@ bool vtkAMRInformation::GetCoarsenedAMRBox(
   return true;
 }
 
-bool vtkAMRInformation::operator==(const vtkAMRInformation& other)
+bool vtkAMRInformation::operator==(const vtkAMRInformation& other) const
 {
   if (this->GridDescription != other.GridDescription)
   {

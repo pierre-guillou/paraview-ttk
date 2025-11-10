@@ -145,6 +145,7 @@ public:
    * Set/Get the Interactor wrapper being controlled by this object.
    * (Satisfy superclass API.)
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void SetInteractor(vtkRenderWindowInteractor* interactor) override;
 
   /**
@@ -154,6 +155,7 @@ public:
    * themselves. This is a legacy requirement, and convenient for the
    * user.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_REDUNDANT)
   void SetEnabled(int) override;
 
   ///@{
@@ -260,7 +262,7 @@ public:
   // be specified in the subclass.
   virtual void OnKeyDown() {}
 
-  // OnKeyUp is triggered by releaseing any key (identical to OnKeyRelease()).
+  // OnKeyUp is triggered by releasing any key (identical to OnKeyRelease()).
   // An empty implementation is provided. The behavior of this function should
   // be specified in the subclass.
   virtual void OnKeyUp() {}

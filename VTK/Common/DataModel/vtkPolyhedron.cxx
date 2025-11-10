@@ -24,7 +24,6 @@
 #include "vtkVector.h"
 
 #include <cmath>
-#include <functional>
 #include <map>
 #include <set>
 #include <unordered_map>
@@ -136,54 +135,12 @@ typedef std::vector<Face> FaceVector;
 // Construct the hexahedron with eight points.
 vtkPolyhedron::vtkPolyhedron()
 {
-  this->Line = vtkLine::New();
-  this->Triangle = vtkTriangle::New();
-  this->Quad = vtkQuad::New();
-  this->Polygon = vtkPolygon::New();
-  this->Tetra = vtkTetra::New();
-  this->GlobalFaces = vtkCellArray::New();
-  this->LegacyGlobalFaces = vtkIdTypeArray::New();
-
-  this->EdgesGenerated = 0;
-  this->EdgeTable = vtkEdgeTable::New();
-  this->Edges = vtkIdTypeArray::New();
   this->Edges->SetNumberOfComponents(2);
-  this->EdgeFaces = vtkIdTypeArray::New();
   this->EdgeFaces->SetNumberOfComponents(2);
-
-  this->FacesGenerated = 0;
-  this->Faces = vtkCellArray::New();
-
-  this->BoundsComputed = 0;
-
-  this->PolyDataConstructed = 0;
-  this->PolyData = vtkPolyData::New();
-  this->LocatorConstructed = 0;
-  this->CellLocator = vtkCellLocator::New();
-  this->CellIds = vtkIdList::New();
-  this->Cell = vtkGenericCell::New();
-  this->IsRandomSequenceSeedInitialized = false;
 }
 
 //------------------------------------------------------------------------------
-vtkPolyhedron::~vtkPolyhedron()
-{
-  this->Line->Delete();
-  this->Triangle->Delete();
-  this->Quad->Delete();
-  this->Polygon->Delete();
-  this->Tetra->Delete();
-  this->GlobalFaces->Delete();
-  this->LegacyGlobalFaces->Delete();
-  this->EdgeTable->Delete();
-  this->Edges->Delete();
-  this->EdgeFaces->Delete();
-  this->Faces->Delete();
-  this->PolyData->Delete();
-  this->CellLocator->Delete();
-  this->CellIds->Delete();
-  this->Cell->Delete();
-}
+vtkPolyhedron::~vtkPolyhedron() = default;
 
 //------------------------------------------------------------------------------
 void vtkPolyhedron::ComputeBounds()
@@ -652,10 +609,10 @@ static const int VTK_VOTE_THRESHOLD = 3;
 // Shoot random rays and count the number of intersections
 int vtkPolyhedron::IsInside(const double x[3], double tolerance)
 {
-  if (!this->IsRandomSequenceSeedInitialized)
+  bool initialized = false;
+  if (this->IsRandomSequenceSeedInitialized.compare_exchange_strong(initialized, true))
   {
-    this->RandomSequence->SetSeed(std::time(nullptr));
-    this->IsRandomSequenceSeedInitialized = true;
+    this->RandomSequence->SetSeed(static_cast<int>(std::time(nullptr)));
   }
 
   // do a quick bounds check
@@ -1026,6 +983,71 @@ int vtkPolyhedron::CellBoundary(int vtkNotUsed(subId), const double pcoords[3], 
   {
     return 0;
   }
+}
+
+//----------------------------------------------------------------------------
+bool vtkPolyhedron::GetCentroid(double centroid[3]) const
+{
+  assert(this->Faces != nullptr && "Faces must be set before calling GetCentroid.");
+  const vtkIdType numPts = this->Points->GetNumberOfPoints();
+  // compute apex center as the centroid of all points
+  double apexCentroid[3] = { 0.0, 0.0, 0.0 }, x[3];
+  for (vtkIdType i = 0; i < numPts; i++)
+  {
+    this->Points->GetPoint(i, x);
+    vtkMath::Add(apexCentroid, x, apexCentroid);
+  }
+  vtkMath::MultiplyScalar(apexCentroid, 1.0 / numPts);
+
+  // computer the weighted barycenter of the pyramids formed by the apex and each face
+  const vtkIdType numFaces = this->Faces->GetNumberOfCells();
+  std::fill_n(centroid, 3, 0.0);
+  double totalVolume = 0.0, normal[3];
+  const vtkIdType* facePts = nullptr;
+  vtkIdType numFacePts;
+  for (vtkIdType i = 0; i < numFaces; ++i)
+  {
+    this->Faces->GetCellAtId(i, numFacePts, facePts);
+    // compute centroid of the face
+    double faceCentroid[3];
+    vtkPolygon::ComputeCentroid(this->Points, numFacePts, facePts, faceCentroid);
+    // compute area and normal of the face
+    const double faceArea = vtkPolygon::ComputeArea(this->Points, numFacePts, facePts, normal);
+    // compute barycenter of the face
+    double baryCenter[3] = { (0.75 * faceCentroid[0]) + (0.25 * apexCentroid[0]),
+      (0.75 * faceCentroid[1]) + (0.25 * apexCentroid[1]),
+      (0.75 * faceCentroid[2]) + (0.25 * apexCentroid[2]) };
+    // compute the volume of the pyramid formed by the face and the apex
+    double centerDiff[3];
+    vtkMath::Subtract(apexCentroid, faceCentroid, centerDiff);
+    // projection along normal that is signed to handle non-convex polyhedra
+    const double height = vtkMath::Dot(centerDiff, normal);
+    const double volume = faceArea * height / 3.0;
+    totalVolume += volume;
+    // accumulate the weighted barycenter and volume
+    vtkMath::MultiplyScalar(baryCenter, volume);
+    vtkMath::Add(centroid, baryCenter, centroid);
+  }
+  if (std::abs(totalVolume) > 1e-12)
+  {
+    vtkMath::MultiplyScalar(centroid, 1.0 / totalVolume);
+    return true;
+  }
+  else
+  {
+    std::copy_n(apexCentroid, 3, centroid);
+    return false;
+  }
+}
+
+//----------------------------------------------------------------------------
+int vtkPolyhedron::GetParametricCenter(double pcoords[3])
+{
+  this->GenerateFaces();
+  double centroid[3];
+  this->GetCentroid(centroid);
+  this->ComputeParametricCoordinate(centroid, pcoords);
+  return 0; // The subId is always 0 for vtkPolyhedron
 }
 
 //------------------------------------------------------------------------------
@@ -1533,7 +1555,7 @@ void FindLowestNeighbor(vtkIdType n, vtkIdType* arr, int idx, bool& mustReverse)
 // therefore the same polygonized border.
 void TriangulateQuad(vtkCell* quad, FaceVector& faces)
 {
-  std::vector<vtkIdType> consistentTri1(3), consistentTri2(2);
+  std::vector<vtkIdType> consistentTri1(3), consistentTri2(3);
   int l = FindLowestIndex(4, quad->GetPointIds()->GetPointer(0));
   bool mustReverse(false);
   FindLowestNeighbor(4, quad->GetPointIds()->GetPointer(0), l, mustReverse);
@@ -2010,7 +2032,8 @@ void vtkPolyhedron::Contour(double value, vtkDataArray* pointScalars,
   }
 
   // the callback lambda will add each polygon found polys cell array
-  std::function<void(vtkIdList*)> cb = [=](vtkIdList* poly) {
+  std::function<void(vtkIdList*)> cb = [=](vtkIdList* poly)
+  {
     if (!poly)
       return;
 
@@ -2311,11 +2334,12 @@ void vtkPolyhedron::Clip(double value, vtkDataArray* pointScalars,
   vtkPointData* outPd, vtkCellData* inCd, vtkIdType cellId, vtkCellData* outCd, int insideOut)
 {
   // set the compare function
-  std::function<bool(double, double)> c = [insideOut](double a, double b) {
+  std::function<bool(double, double)> c = [insideOut](double a, double b)
+  {
     if (insideOut)
-      return std::less_equal<double>()(a, b);
+      return std::less_equal<>()(a, b);
 
-    return std::greater_equal<double>()(a, b);
+    return std::greater_equal<>()(a, b);
   };
 
   bool all(true);
@@ -2432,7 +2456,8 @@ void vtkPolyhedron::Clip(double value, vtkDataArray* pointScalars,
   // variables
   std::vector<std::vector<vtkIdType>>* pPolygons = &polygons;
 
-  std::function<void(vtkIdList*)> cb = [=](vtkIdList* poly) {
+  std::function<void(vtkIdList*)> cb = [=](vtkIdList* poly)
+  {
     vtkIdType nIds = poly->GetNumberOfIds();
     std::vector<vtkIdType> polygon;
     polygon.reserve(nIds);

@@ -135,7 +135,7 @@ static std::string GetRootName(const std::string& filename)
 
   // Create a base filename
   // i.e Image.hdr --> Image
-  if (fileExt.length() > 0)
+  if (!fileExt.empty())
   {
     const std::string::size_type it = filename.find_last_of(fileExt);
     std::string baseName(filename, 0, it - fileExt.length());
@@ -604,7 +604,7 @@ void vtkNIfTIWriter::WriteFileHeader(
 }
 
 void vtkNIfTIWriter::WriteFile(
-  ostream* vtkNotUsed(file), vtkImageData* data, int extent[6], int wholeExtent[])
+  ostream* vtkNotUsed(file), vtkImageData* data, int extent[6], int wholeExtent[6])
 {
   (void)wholeExtent; // Not used
   // struct nifti_1_header nhdr ;
@@ -971,8 +971,7 @@ void vtkNIfTIWriter::WriteFile(
     }
   }
 
-  delete tempUnsignedCharData;
-  tempUnsignedCharData = nullptr;
+  delete[] tempUnsignedCharData;
 
   write_data = 1;
   leave_open = 0;
@@ -1002,9 +1001,7 @@ void vtkNIfTIWriter::WriteFile(
   if (!leave_open)
     vtkznzlib::znzclose(fp);
 
-  delete tempOutUnsignedCharData;
-  tempOutUnsignedCharData = nullptr;
-  out_p = nullptr;
+  delete[] tempOutUnsignedCharData;
 }
 
 //----------------------------------------------------------------------------

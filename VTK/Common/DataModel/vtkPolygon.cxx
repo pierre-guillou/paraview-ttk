@@ -23,6 +23,7 @@
 #include "vtkQuad.h"
 #include "vtkSmartPointer.h"
 #include "vtkTriangle.h"
+#include "vtkVector.h"
 
 #include <limits> // For DBL_MAX
 #include <vector>
@@ -30,7 +31,8 @@
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkPolygon);
 
-constexpr double VTK_POLYGON_TOL = 1.e-08; // Absolute tolerance for testing near polygon boundary
+constexpr double VTK_POLYGON_TOL = 1.e-08; // Absolute tolerance for testing near polygon boundary.
+constexpr double VTK_DEFAULT_PLANARITY_TOLERANCE = 0.1; // dZ / max(dX, dY). See ComputeCentroid.
 
 //------------------------------------------------------------------------------
 // Instantiate polygon.
@@ -200,7 +202,7 @@ void vtkPolygon::ComputeNormal(vtkPoints* p, int numPts, const vtkIdType* pts, d
 // polygons.
 void vtkPolygon::ComputeNormal(vtkIdTypeArray* ids, vtkPoints* p, double n[3])
 {
-  return vtkPolygon::ComputeNormal(p, ids->GetNumberOfTuples(), ids->GetPointer(0), n);
+  vtkPolygon::ComputeNormal(p, ids->GetNumberOfTuples(), ids->GetPointer(0), n);
 }
 
 //------------------------------------------------------------------------------
@@ -208,7 +210,7 @@ void vtkPolygon::ComputeNormal(vtkIdTypeArray* ids, vtkPoints* p, double n[3])
 // will handle non-convex polygons.
 void vtkPolygon::ComputeNormal(vtkPoints* p, double* n)
 {
-  return vtkPolygon::ComputeNormal(p, p->GetNumberOfPoints(), nullptr, n);
+  vtkPolygon::ComputeNormal(p, p->GetNumberOfPoints(), nullptr, n);
 }
 
 //------------------------------------------------------------------------------
@@ -498,7 +500,7 @@ void vtkPolygon::InterpolateFunctionsUsingMVC(const double x[3], double* weights
   // Begin by initializing weights.
   for (int i = 0; i < numPts; i++)
   {
-    weights[i] = static_cast<double>(0.0);
+    weights[i] = 0.0;
   }
 
   // create local array for storing point-to-vertex vectors and distances
@@ -810,15 +812,6 @@ int vtkPolygon::PointInPolygon(double x[3], int numPts, double* pts, double boun
 }
 
 //------------------------------------------------------------------------------
-// Triangulate polygon.
-//
-int vtkPolygon::Triangulate(vtkIdList* outTris)
-{
-  this->SuccessfulTriangulation = 1;
-  return this->EarCutTriangulation(outTris);
-}
-
-//------------------------------------------------------------------------------
 // Split into non-degenerate polygons prior to triangulation
 //
 int vtkPolygon::NonDegenerateTriangulate(vtkIdList* outTris)
@@ -1061,7 +1054,6 @@ public:
   void RemoveVertex(int i, vtkIdList* ids, vtkPriorityQueue* queue = nullptr);
   int CanRemoveVertex(vtkLocalPolyVertex* vtx);
   int CanRemoveVertex(int id);
-  int SimpleTriangulation(vtkIdList* ids); // Handle trivial triangulation cases
 
   double Tol;
   double Tol2;
@@ -1174,7 +1166,7 @@ void vtkPolyVertexList::RemoveVertex(
 // into the priority queue.
 void vtkPolyVertexList::RemoveVertex(int i, vtkIdList* tris, vtkPriorityQueue* queue)
 {
-  return this->RemoveVertex(this->Array + i, tris, queue);
+  this->RemoveVertex(this->Array + i, tris, queue);
 }
 
 //------------------------------------------------------------------------------
@@ -1376,27 +1368,221 @@ int vtkPolyVertexList::CanRemoveVertex(int id)
 
 //------------------------------------------------------------------------------
 // Handles some trivial triangulation cases. Returns 0 if cannot triangulate
-// the current polygon. NOTE: the original implementation had a special case
-// for four vertices, but this affects the way some quads are tessellated,
-// which in turn causes differences in vtkTriangleFilter, which many tests
-// depend on. So adding a special case for four vertices requires more
-// work than might be anticipated.
-int vtkPolyVertexList::SimpleTriangulation(vtkIdList* tris)
+// the current polygon. 3 and 4 points are handled with special care for concave quad.
+int SimpleTriangulation(vtkIdList* ptIds, vtkPoints* pts, double tol2, vtkIdList* tris)
 {
+  int number_of_verts = ptIds->GetNumberOfIds();
   // Just output the single triangle
-  if (this->NumberOfVerts == 3)
+  if (number_of_verts == 3)
   {
-    tris->InsertNextId(this->Array[0].id);
-    tris->InsertNextId(this->Array[1].id);
-    tris->InsertNextId(this->Array[2].id);
-    return 1;
+    double x0[3], x1[3], x2[3];
+    bool valid = true;
+    pts->GetPoint(0, x0);
+    pts->GetPoint(1, x1);
+    pts->GetPoint(2, x2);
+    if (vtkMath::Distance2BetweenPoints(x0, x1) < tol2 ||
+      vtkMath::Distance2BetweenPoints(x1, x2) < tol2 ||
+      vtkMath::Distance2BetweenPoints(x0, x2) < tol2)
+    {
+      valid = false;
+    }
+    if (valid)
+    {
+      tris->SetNumberOfIds(3);
+      std::iota(tris->begin(), tris->end(), 0);
+      return 1;
+    }
   }
 
   // Four points are split into two triangles. Watch out for the
   // concave case (i.e., quad looks like a arrowhead).
-  else if (NumberOfVerts == 4)
+  else if (number_of_verts == 4)
   {
-    return 0;
+    // There are only two ear cutting possibility.
+    // This boolean
+    bool use_d1 = true;
+    bool concave = false;
+    // Temporary storage of the four points
+    double x0[3], x1[3], x2[3], x3[3];
+    // Quad possible diagonals with d1 and d2
+    double d1[3], d2[3];
+    // complementary vector to analyse fan
+    double v1[3], v3[3];
+    // face normal
+    double normal[3];
+    // local tri normal
+    double n1[3], n2[3];
+    double area;
+
+    pts->GetPoint(0, x0);
+    pts->GetPoint(1, x1);
+    pts->GetPoint(2, x2);
+    pts->GetPoint(3, x3);
+    // Build diagonals for ear cutting
+    d1[0] = x2[0] - x0[0];
+    d1[1] = x2[1] - x0[1];
+    d1[2] = x2[2] - x0[2];
+    //
+    d2[0] = x3[0] - x1[0];
+    d2[1] = x3[1] - x1[1];
+    d2[2] = x3[2] - x1[2];
+
+    double d1_n2 = vtkMath::SquaredNorm(d1);
+    double d2_n2 = vtkMath::SquaredNorm(d2);
+    if (d1_n2 < d2_n2)
+    {
+      use_d1 = true;
+      // check diagonal validity
+      if (d1_n2 < tol2)
+      {
+        return 0;
+      }
+      // prepare vector for fan building
+      v1[0] = x1[0] - x0[0];
+      v1[1] = x1[1] - x0[1];
+      v1[2] = x1[2] - x0[2];
+      v3[0] = x3[0] - x0[0];
+      v3[1] = x3[1] - x0[1];
+      v3[2] = x3[2] - x0[2];
+    }
+    else
+    {
+      use_d1 = false;
+      // check diagonal validity
+      if (d2_n2 < tol2)
+      {
+        return 0;
+      }
+      // prepare vector for fan building
+      v1[0] = x2[0] - x1[0];
+      v1[1] = x2[1] - x1[1];
+      v1[2] = x2[2] - x1[2];
+      v3[0] = x0[0] - x1[0];
+      v3[1] = x0[1] - x1[1];
+      v3[2] = x0[2] - x1[2];
+    }
+    // Check points validity
+    if (vtkMath::SquaredNorm(v1) < tol2)
+    {
+      return 0;
+    }
+    if (vtkMath::SquaredNorm(v3) < tol2)
+    {
+      return 0;
+    }
+    // build polygon normal to get coherent result with earcut algo
+    if (use_d1)
+    {
+      vtkMath::Cross(v1, d1, n1);
+      vtkMath::Cross(d1, v3, n2);
+    }
+    else
+    {
+      vtkMath::Cross(v1, d2, n1);
+      vtkMath::Cross(d2, v3, n2);
+    }
+    // Indirect check points validity
+    if (vtkMath::SquaredNorm(n1) < tol2)
+    {
+      return 0;
+    }
+    if (vtkMath::SquaredNorm(n2) < tol2)
+    {
+      return 0;
+    }
+    // Now finalize the normal building
+    normal[0] = n1[0] + n2[0];
+    normal[1] = n1[1] + n2[1];
+    normal[2] = n1[2] + n2[2];
+    if (vtkMath::Normalize(normal) == 0.0)
+    {
+      return 0;
+    }
+
+    // check for concave or invalid case
+    if ((area = vtkMath::Dot(n1, normal)) < 0.0)
+    {
+      concave = true;
+    }
+    else if (area == 0.0)
+    {
+      return 0;
+    }
+    else
+    {
+      if ((area = vtkMath::Dot(n2, normal)) < 0.0)
+      {
+        concave = true;
+      }
+      else if (area == 0.0)
+      {
+        return 0;
+      }
+    }
+    // Best possible case has concavity
+    // Try the opposite case
+    if (concave)
+    {
+      use_d1 = use_d1 != concave; // switch use_d1 if concave is true
+      // Check concavity of opposite triangulation
+      // Two cases:
+      // - arrowhead is OK
+      // - self intersecting like quad is KO
+      if (use_d1)
+      {
+        v1[0] = x1[0] - x0[0];
+        v1[1] = x1[1] - x0[1];
+        v1[2] = x1[2] - x0[2];
+        v3[0] = x3[0] - x0[0];
+        v3[1] = x3[1] - x0[1];
+        v3[2] = x3[2] - x0[2];
+        vtkMath::Cross(v1, d2, n1);
+        vtkMath::Cross(d2, v3, n2);
+      }
+      else
+      {
+        v1[0] = x2[0] - x1[0];
+        v1[1] = x2[1] - x1[1];
+        v1[2] = x2[2] - x1[2];
+        v3[0] = x0[0] - x1[0];
+        v3[1] = x0[1] - x1[1];
+        v3[2] = x0[2] - x1[2];
+        vtkMath::Cross(v1, d1, n1);
+        vtkMath::Cross(d1, v3, n2);
+      }
+      // Check points validity
+      if (vtkMath::SquaredNorm(v1) < tol2)
+      {
+        return 0;
+      }
+      if (vtkMath::SquaredNorm(v3) < tol2)
+      {
+        return 0;
+      }
+      // check for invalid case
+      if (vtkMath::Dot(n1, normal) <= 0.0)
+      {
+        return 0;
+      }
+      if (vtkMath::Dot(n2, normal) <= 0.0)
+      {
+        return 0;
+      }
+    }
+
+    // Finalize the tris
+    tris->SetNumberOfIds(6);
+    if (use_d1)
+    {
+      constexpr std::array<vtkIdType, 6> localPtIds{ 0, 1, 2, 0, 2, 3 };
+      std::copy(localPtIds.begin(), localPtIds.end(), tris->begin());
+    }
+    else
+    {
+      constexpr std::array<vtkIdType, 6> localPtIds{ 0, 1, 3, 1, 2, 3 };
+      std::copy(localPtIds.begin(), localPtIds.end(), tris->begin());
+    }
+    return 1;
   } // if simple cases
 
   return 0;
@@ -1424,16 +1610,16 @@ int vtkPolygon::EarCutTriangulation(vtkIdList* outTris, int measure)
   // Compute the tolerance local to this polygon
   this->ComputeTolerance();
 
+  // Check for trivial triangulation cases
+  if (::SimpleTriangulation(this->PointIds, this->Points, this->Tol * this->Tol, outTris))
+  {
+    return (this->SuccessfulTriangulation = 1);
+  }
+
   // Establish a more convenient structure for the triangulation process
   vtkPolyVertexList poly(this->PointIds, this->Points, this->Tol * this->Tol, measure);
   vtkLocalPolyVertex* vtx;
   int i, id;
-
-  // Check for trivial triangulation cases
-  if (poly.SimpleTriangulation(outTris))
-  {
-    return (this->SuccessfulTriangulation = 1);
-  }
 
   // The polygon normal is needed during triangulation
   //
@@ -2049,71 +2235,92 @@ void vtkPolygon::PrintSelf(ostream& os, vtkIndent indent)
 // Compute the polygon centroid from a points list, the number of points, and an
 // array of point ids that index into the points list. Returns false if the
 // computation is invalid.
-bool vtkPolygon::ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* ids, double c[3])
+bool vtkPolygon::ComputeCentroid(
+  vtkPoints* p, int numPts, const vtkIdType* ids, double c[3], double tolerance)
 {
-  // Strategy:
-  // - Compute centroid of projected polygon on (x,y) if polygon is projectible, (x,z) otherwise
-  // - Accumulate signed projected area as well, which is needed in the centroid's formula
-  // - Infer 3rd dimension using polygon's normal.
-  vtkIdType i;
-  double p0[6];
-  double normal[3] = { 0.0 };
   if (numPts < 2)
   {
     return false;
   }
-  // Handle to the doubled area of the projected polygon on (x,y) or (x,z) if the polygon
-  // projected on (x,y) is degenerate.
-  double a = 0.0;
-  p->GetPoint(ids[0], p0);
 
-  vtkPolygon::ComputeNormal(p, numPts, ids, normal);
-  vtkIdType xOffset = 0, yOffset = 0;
-  // Checking if the polygon is colinear with z axis.
-  // If it is, the centroid computation axis shall be shifted
-  // because the projected polygon on (x,y) is degenerate.
-
+  vtkVector3d normal;
+  vtkPolygon::ComputeNormal(p, numPts, ids, normal.GetData());
+  if (normal.Normalize() <= 0.0)
   {
-    constexpr double z[3] = { 0.0, 0.0, 1.0 };
-    vtkMath::Cross(normal, z, c);
-    // If the normal is orthogonal with z axis, the projected polygon is then a line...
-    if (std::fabs(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] - 1.0) <= VTK_DBL_EPSILON)
-    {
-      yOffset = 1;
-      constexpr double y[3] = { 0.0, 1.0, 0.0 };
-      vtkMath::Cross(normal, y, c);
-      // If the normal is orthogonal with y axis, the projected polygon is then a line...
-      if (std::fabs(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] - 1.0) <= VTK_DBL_EPSILON)
-      {
-        xOffset = 1;
-      }
-    }
-  }
-
-  c[0] = c[1] = c[2] = 0.0;
-
-  double maxabsdet = 0;
-  for (i = 0; i < numPts; i++)
-  {
-    p->GetPoint(ids[(i + 1) % numPts], p0 + 3 * !(i % 2));
-    double det = (p0[3 * (i % 2) + xOffset] * p0[3 * !(i % 2) + 1 + yOffset] -
-      p0[3 * !(i % 2) + xOffset] * p0[3 * (i % 2) + 1 + yOffset]);
-    c[xOffset] += (p0[xOffset] + p0[3 + xOffset]) * det;
-    c[1 + yOffset] += (p0[1 + yOffset] + p0[4 + yOffset]) * det;
-    a += det;
-    maxabsdet = std::abs(det) > maxabsdet ? std::abs(det) : maxabsdet;
-  }
-  if (std::abs(a) < VTK_DBL_EPSILON * maxabsdet)
-  {
-    // Polygon is degenerate
     return false;
   }
-  c[xOffset] /= 3.0 * a;
-  c[1 + yOffset] /= 3.0 * a;
-  c[2 - xOffset - yOffset] = 1.0 / normal[2 - xOffset - yOffset] *
-    (-normal[xOffset] * c[xOffset] - normal[1 + yOffset] * c[1 + yOffset] +
-      vtkMath::Dot(normal, p0));
+
+  // Set xx to be the average coordinate. This is not necessarily the centroid
+  // but will generally produce accurate triangle areas used to compute the centroid.
+  vtkVector3d xx(0, 0, 0);
+  vtkVector3d pp;
+  vtkVector3d qq;
+  double wt = 1. / numPts;
+  for (int ii = 0; ii < numPts; ++ii)
+  {
+    p->GetPoint(ids[ii], pp.GetData());
+    xx += wt * pp;
+  }
+  // Note that pp now contains the final point in the polygon.
+  // If we start again with the first point, we can track pairs
+  // of points along edges.
+
+  // Now compute the centroid of each triangle formed by xx and
+  // the endpoints of one edge in the polygon. Weight the
+  // centroid by the triangle's signed area (negative if the polygon
+  // winds clockwise) and sum them together.
+  //
+  // This is equivalent to computing (Integral(x_i dA) / Integral(dA))
+  // for each coordinate (x_0, x_1, x_2) using the "geometric decomposition"
+  // method.
+  double totalArea = 0.;
+  double area;
+  vtkVector3d accum(0, 0, 0);
+  vtkVector3d ctr;
+  double outOfPlane = 0;
+  double inPlane2 = 0;
+  for (int ii = 0; ii < numPts; ++ii, pp = qq)
+  {
+    p->GetPoint(ids[ii], qq.GetData());
+    // The centroid of xx-pp-qq is 2/3 of the way from xx to the midpoint of qq-pp
+    auto pq = (pp + qq) * 0.5;
+    ctr = (1. / 3. * xx) + (2. / 3. * pq);
+    auto dqx = qq - xx;
+    area = ((pp - xx).Cross(dqx)).Dot(normal) / 2;
+    accum += area * ctr;
+    totalArea += area;
+    // Compute the in-plane and out-of-plane distance from xx to qq.
+    // Note that because xx is the average coordinate, oop and
+    // ip2 will both be half-distances; their ratio will be correct
+    // for comparison to tolerance.
+    double oop = std::abs(dqx.Dot(normal)); // out-of-plane distance
+    if (oop > outOfPlane)
+    {
+      outOfPlane = oop;
+    }
+    double ip2 = (dqx - oop * normal).SquaredNorm();
+    if (ip2 > inPlane2)
+    {
+      inPlane2 = ip2;
+    }
+  }
+  // Fail if the polygon is too far from planarity and the tolerance is "active":
+  if (tolerance > 0. && outOfPlane / std::sqrt(inPlane2) > tolerance)
+  {
+    return false;
+  }
+  // Divide the accumulated product of weighted centroids by the total area
+  // of all the triangles. This produces the final centroid.
+  accum = (1. / totalArea) * accum;
+  c[0] = accum[0];
+  c[1] = accum[1];
+  c[2] = accum[2];
   return true;
+}
+
+bool vtkPolygon::ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* pts, double centroid[3])
+{
+  return vtkPolygon::ComputeCentroid(p, numPts, pts, centroid, VTK_DEFAULT_PLANARITY_TOLERANCE);
 }
 
 //------------------------------------------------------------------------------
@@ -2121,7 +2328,8 @@ bool vtkPolygon::ComputeCentroid(vtkPoints* p, int numPts, const vtkIdType* ids,
 // that index into the points list. Returns false if the computation is invalid.
 bool vtkPolygon::ComputeCentroid(vtkIdTypeArray* ids, vtkPoints* p, double c[3])
 {
-  return vtkPolygon::ComputeCentroid(p, ids->GetNumberOfTuples(), ids->GetPointer(0), c);
+  return vtkPolygon::ComputeCentroid(
+    p, ids->GetNumberOfTuples(), ids->GetPointer(0), c, VTK_DEFAULT_PLANARITY_TOLERANCE);
 }
 
 //------------------------------------------------------------------------------

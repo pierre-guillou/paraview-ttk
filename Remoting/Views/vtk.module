@@ -30,11 +30,13 @@ DEPENDS
   VTK::RenderingContext2D
   VTK::RenderingCore
   VTK::RenderingCellGrid
+  VTK::RenderingGridAxes
   VTK::RenderingParallel
   VTK::ViewsContext2D
   VTK::ViewsCore
 PRIVATE_DEPENDS
   ParaView::RemotingCore
+  ParaView::RemotingSettings
   ParaView::VTKExtensionsExtraction
   ParaView::VTKExtensionsFiltersRendering
   ParaView::VTKExtensionsInteractionStyle
@@ -46,6 +48,7 @@ PRIVATE_DEPENDS
   VTK::FiltersModeling
   VTK::FiltersParallel
   VTK::FiltersParallelDIY2
+  VTK::glad
   VTK::InteractionStyle
   VTK::IOImage
   VTK::IOLegacy
@@ -56,7 +59,6 @@ PRIVATE_DEPENDS
   VTK::RenderingLabel
   VTK::RenderingOpenGL2
   VTK::RenderingVolumeAMR
-  VTK::opengl
   VTK::zlib
 OPTIONAL_DEPENDS
   ParaView::icet
@@ -65,11 +67,10 @@ OPTIONAL_DEPENDS
   VTK::FiltersOpenTURNS
   VTK::ParallelMPI
   VTK::RenderingRayTracing
-  VTK::vtkm
+  VTK::vtkviskores
 TEST_DEPENDS
   ParaView::RemotingApplication
-  VTK::glew
-  VTK::opengl
+  VTK::glad
   VTK::TestingCore
 TEST_OPTIONAL_DEPENDS
   VTK::ParallelMPI

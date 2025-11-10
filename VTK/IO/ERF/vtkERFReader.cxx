@@ -576,7 +576,7 @@ void vtkERFReader::BuildMesh(const hid_t& fileId)
     this->Meshs.insert({ allConnectivities[i], this->MeshPoints[etypnode] });
   }
 
-  // Treat remaning data entities which will be data arrays
+  // Treat remaining data entities which will be data arrays
   for (std::size_t i = 0; i < remainingEntities.size(); i++)
   {
     std::string entityPath = entityresultsPath + "/" + remainingEntities[i];
@@ -930,8 +930,9 @@ std::string vtkERFReader::GetAttributeValueAsStr(
   if (H5Aread(attributeHandler, dataType, &value[0]) >= 0)
   {
     value.erase(std::remove_if(value.begin(), value.end(),
-                  [](char c) {
-                    // convert it to avoid potential issue wit negative char
+                  [](char c)
+                  {
+                    // convert it to avoid potential issue with negative char
                     unsigned char uc = static_cast<unsigned char>(c);
                     return std::isspace(uc) || !std::isalpha(uc);
                   }),

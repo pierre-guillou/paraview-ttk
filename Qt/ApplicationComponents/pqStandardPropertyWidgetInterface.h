@@ -69,6 +69,8 @@ public:
    * \li \c ColorOpacityEditor : pqColorOpacityEditorWidget
    * \li \c FontEditor : pqFontPropertyWidget
    * \li \c SeriesEditor : pqSeriesEditorPropertyWidget
+   * \li \c InteractiveAnnulus: pqAnnulusPropertyWidget
+   * \li \c InteractiveFrustum: pqFrustumPropertyWidget
    * \li \c InteractivePlane : pqDisplaySizedImplicitPlanePropertyWidget
    * \li \c InteractivePlane2 : pqImplicitPlanePropertyWidget
    * \li \c InteractiveBox: pqBoxPropertyWidget
@@ -77,6 +79,7 @@ public:
    * \li \c InteractiveSpline: pqSplinePropertyWidget
    * \li \c InteractiveSphere: pqSpherePropertyWidget
    * \li \c InteractivePolyLine: pqSplinePropertyWidget (with mode==POLYLINE)
+   * \li \c InteractiveCone: pqConePropertyWidget
    * \li \c InteractiveCylinder: pqCylinderPropertyWidget
    * \li \c YoungsMaterial: pqYoungsMaterialPropertyWidget
    * \li \c OMETransferFunctions : pqOMETransferFunctionsPropertyWidget

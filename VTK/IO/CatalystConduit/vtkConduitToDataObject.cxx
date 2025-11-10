@@ -1,12 +1,18 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// Added due to deprecated vtkConduitArrayUtilities::MCGhostArrayToVTKGhostArray
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkConduitToDataObject.h"
 
 #include "vtkAMRBox.h"
 #include "vtkArrayDispatch.h"
 #include "vtkCellArrayIterator.h"
-#include "vtkCellData.h"
 #include "vtkConduitArrayUtilities.h"
+#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmDataModel
+#include "vtkConduitArrayUtilitiesDevice.h"
+#endif
 #include "vtkDataArray.h"
 #include "vtkDataSet.h"
 #include "vtkDataSetAttributes.h"
@@ -18,10 +24,13 @@
 #include "vtkParallelAMRUtilities.h"
 #include "vtkPartitionedDataSet.h"
 #include "vtkRectilinearGrid.h"
+#include "vtkSMPTools.h"
 #include "vtkStringArray.h"
 #include "vtkStructuredGrid.h"
 #include "vtkUniformGrid.h"
 #include "vtkUnstructuredGrid.h"
+
+#include "vtksys/SystemTools.hxx"
 
 #include <catalyst_conduit.hpp>
 #include <catalyst_conduit_blueprint.hpp>
@@ -29,27 +38,378 @@
 #include <numeric>
 #include <set>
 
+namespace AMRUtils
+{
+struct LocalInfo
+{
+  int Rank = 0;
+  conduit_index_t NbOfLeaves = 0;
+  std::vector<int> BlocksPerLevel = { 0 };
+  std::vector<vtkIdType> BlockOffsets;
+  vtkIdType NbOfBlocks = 0;
+  double Origin[3] = { vtkMath::Inf(), vtkMath::Inf(), vtkMath::Inf() };
+  std::map<int, std::pair<int, int>> DomainBlockLevelIds;
+};
+
+struct GlobalInfo
+{
+  int NbOfProcesses = 1;
+  vtkIdType NbOfBlocks = 0;
+  std::vector<int> BlocksPerLevelAndRank;
+  double Origin[3] = { vtkMath::Inf(), vtkMath::Inf(), vtkMath::Inf() };
+  vtkIdType NbOfLevels = 0;
+};
+
+// ---------------------
+// construct structure: nb of blocks per levels, and origin.
+// Local origin is the min of all origins found:
+// so we will get a Global Origin with a simple min reduction
+void ConstructLocalInfo(const conduit_cpp::Node& node, LocalInfo& rankInfo)
+{
+  double origin[3] = { 0, 0, 0 };
+
+  rankInfo.NbOfLeaves = node.number_of_children();
+
+  for (conduit_index_t cc = 0; cc < rankInfo.NbOfLeaves; ++cc)
+  {
+    const auto child = node.child(cc);
+    if (child.has_path("state"))
+    {
+      const int level = child["state/level"].to_int32();
+      const int domain_id = child["state/domain_id"].to_int32();
+      if (std::size_t(level) >= rankInfo.BlocksPerLevel.size())
+      {
+        rankInfo.BlocksPerLevel.resize(level + 1);
+        rankInfo.BlocksPerLevel[level] = 0;
+      }
+      rankInfo.DomainBlockLevelIds[domain_id] = { level, rankInfo.BlocksPerLevel[level] };
+      rankInfo.BlocksPerLevel[level]++;
+
+      origin[0] = child["coordsets/coords/origin/x"].to_float64();
+      origin[1] = child["coordsets/coords/origin/y"].to_float64();
+      origin[2] = child["coordsets/coords/origin/z"].to_float64();
+      // check global origin
+      if (origin[0] <= rankInfo.Origin[0] && origin[1] <= rankInfo.Origin[1] &&
+        origin[2] <= rankInfo.Origin[2])
+      {
+        rankInfo.Origin[0] = origin[0];
+        rankInfo.Origin[1] = origin[1];
+        rankInfo.Origin[2] = origin[2];
+      }
+    }
+  }
+}
+
+// ---------------------
+// MPI comm: reduce nb of levels, blocks and origin
+void GatherInfos(LocalInfo& rankInfo, GlobalInfo& globalInfo)
+{
+  vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
+
+  const vtkIdType levels_local = vtkIdType(rankInfo.BlocksPerLevel.size());
+
+  if (globalInfo.NbOfProcesses == 1)
+  {
+    globalInfo.NbOfLevels = levels_local;
+    std::copy(rankInfo.Origin, rankInfo.Origin + 3, globalInfo.Origin);
+  }
+  else if (controller)
+  {
+    controller->AllReduce(&levels_local, &globalInfo.NbOfLevels, 1, vtkCommunicator::MAX_OP);
+    controller->AllReduce(rankInfo.Origin, globalInfo.Origin, 3, vtkCommunicator::MIN_OP);
+  }
+
+  // need the total number of blocks across all processes
+  rankInfo.BlocksPerLevel.resize(globalInfo.NbOfLevels, 0); // set the extra values created to 0
+  globalInfo.BlocksPerLevelAndRank.resize(globalInfo.NbOfLevels * globalInfo.NbOfProcesses);
+  // the ordering of the blocks for AMR is first all level 0 blocks, then all level 1 blocks, ...
+  // at each level we order based on proc rank first and then local id
+  if (globalInfo.NbOfProcesses == 1)
+  {
+    globalInfo.BlocksPerLevelAndRank = rankInfo.BlocksPerLevel;
+  }
+  else if (controller)
+  {
+    controller->AllGather(rankInfo.BlocksPerLevel.data(), globalInfo.BlocksPerLevelAndRank.data(),
+      globalInfo.NbOfLevels);
+  }
+
+  rankInfo.NbOfBlocks = vtkIdType(rankInfo.DomainBlockLevelIds.size());
+  globalInfo.NbOfBlocks = std::accumulate(
+    globalInfo.BlocksPerLevelAndRank.begin(), globalInfo.BlocksPerLevelAndRank.end(), 0);
+
+  // the offset for the start of each block at each level
+  rankInfo.BlockOffsets.resize(globalInfo.NbOfLevels, 0);
+  if (globalInfo.NbOfProcesses > 1)
+  {
+    for (vtkIdType level = 0; level < globalInfo.NbOfLevels; level++)
+    {
+      vtkIdType offset(0);
+      for (int rank = 0; rank < rankInfo.Rank; rank++)
+      {
+        offset += globalInfo.BlocksPerLevelAndRank[level + rank * globalInfo.NbOfLevels];
+      }
+      rankInfo.BlockOffsets[level] = offset;
+    }
+  }
+}
+
+// ---------------------
+// initialize AMR: each rank has same structure
+// nb of Levels and nb of Blocks per level.
+// init each bloc with nullptr
+void InitializeLocalAMR(GlobalInfo& globalInfo, vtkOverlappingAMR* amr)
+{
+  std::vector<int> blocksPerLevelGlobal(globalInfo.NbOfLevels, 0);
+  for (vtkIdType level = 0; level < globalInfo.NbOfLevels; level++)
+  {
+    for (int rank = 0; rank < globalInfo.NbOfProcesses; rank++)
+    {
+      blocksPerLevelGlobal[level] +=
+        globalInfo.BlocksPerLevelAndRank[level + rank * globalInfo.NbOfLevels];
+    }
+  }
+  amr->Initialize(globalInfo.NbOfLevels, blocksPerLevelGlobal.data());
+  for (int level = 0; level < globalInfo.NbOfLevels; ++level)
+  {
+    for (int block = 0; block < blocksPerLevelGlobal[level]; ++block)
+    {
+      amr->SetDataSet(level, block, nullptr);
+    }
+  }
+
+  // set origin
+  amr->SetOrigin(globalInfo.Origin);
+}
+
+// ---------------------
+// Fill local data
+void FillLocalData(const conduit_cpp::Node& child, const LocalInfo& rankInfo,
+  const GlobalInfo& globalInfo, vtkOverlappingAMR* amr)
+{
+  double origin[3];
+  double spacing[3];
+
+  if (!child.has_path("state"))
+  {
+    return;
+  }
+
+  int pdims[3] = { 0, 0, 0 };
+  const int domain_id = child["state/domain_id"].to_int32();
+  const int level = child["state/level"].to_int32();
+
+  origin[0] = child["coordsets/coords/origin/x"].to_float64();
+  origin[1] = child["coordsets/coords/origin/y"].to_float64();
+  origin[2] = child["coordsets/coords/origin/z"].to_float64();
+  spacing[0] = child["coordsets/coords/spacing/dx"].to_float64();
+  spacing[1] = child["coordsets/coords/spacing/dy"].to_float64();
+  spacing[2] = child["coordsets/coords/spacing/dz"].to_float64();
+  pdims[0] = child["coordsets/coords/dims/i"].to_int32();
+  pdims[1] = child["coordsets/coords/dims/j"].to_int32();
+  pdims[2] = child["coordsets/coords/dims/k"].to_int32();
+
+  vtkNew<vtkUniformGrid> ug;
+  ug->Initialize();
+  ug->SetOrigin(origin);
+  ug->SetSpacing(spacing);
+  ug->SetDimensions(pdims);
+
+  if (child.has_path("fields"))
+  {
+    const auto fields = child["fields"];
+    vtkConduitToDataObject::AddFieldData(ug, fields, true);
+  }
+
+  vtkAMRBox box(origin, pdims, spacing, globalInfo.Origin, amr->GetGridDescription());
+  // set level spacing
+  amr->SetSpacing(level, spacing);
+  amr->SetAMRBox(
+    level, rankInfo.DomainBlockLevelIds.at(domain_id).second + rankInfo.BlockOffsets[level], box);
+  amr->SetDataSet(
+    level, rankInfo.DomainBlockLevelIds.at(domain_id).second + rankInfo.BlockOffsets[level], ug);
+
+  if (child.has_path("nestsets/nest/windows"))
+  {
+    const auto& windows = child["nestsets/nest/windows"];
+    const auto window_count = windows.number_of_children();
+    for (int i = 0; i < window_count; ++i)
+    {
+      const auto& window = windows.child(i);
+      if (window.has_path("ratio") && window.has_path("domain_type"))
+      {
+        amr->SetRefinementRatio(level, window["ratio/i"].to_int32());
+        break;
+      }
+    }
+  }
+}
+
+// distribute AMRBoxes to all processes
+void DistributeAMRBoxes(
+  const LocalInfo& rankInfo, const GlobalInfo& globalInfo, vtkOverlappingAMR* amr)
+{
+  vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
+
+  if (globalInfo.NbOfProcesses == 1 || !controller)
+  {
+    return;
+  }
+  std::vector<vtkIdType> boxBoundsOffsets(globalInfo.NbOfProcesses, 0);
+  std::vector<vtkIdType> boxBoundsCounts(globalInfo.NbOfProcesses);
+  std::vector<int> boxExtentsLocal(8 * rankInfo.NbOfBlocks, 0);
+  std::vector<int> boxExtentsGlobal(8 * globalInfo.NbOfBlocks, 0);
+
+  for (int rank = 0; rank < globalInfo.NbOfProcesses; ++rank)
+  {
+    int num_blocks = 0;
+    for (int level = 0; level < globalInfo.NbOfLevels; level++)
+    {
+      num_blocks += globalInfo.BlocksPerLevelAndRank[level + rank * globalInfo.NbOfLevels];
+    }
+    boxBoundsCounts[rank] = num_blocks * 8;
+    if (rank > 0)
+    {
+      boxBoundsOffsets[rank] = boxBoundsCounts[rank - 1] + boxBoundsOffsets[rank - 1];
+    }
+  }
+
+  int local_index = 0;
+  for (std::map<int, std::pair<int, int>>::const_iterator it = rankInfo.DomainBlockLevelIds.begin();
+       it != rankInfo.DomainBlockLevelIds.end(); ++it)
+  {
+    int level = it->second.first;
+    int id = it->second.second + rankInfo.BlockOffsets[level];
+
+    vtkAMRBox box = amr->GetAMRBox(level, id);
+    const int* loCorner = box.GetLoCorner();
+    const int* hiCorner = box.GetHiCorner();
+    int offset = 8 * local_index;
+    boxExtentsLocal[offset + 0] = level;
+    boxExtentsLocal[offset + 1] = id;
+    boxExtentsLocal[offset + 2] = loCorner[0];
+    boxExtentsLocal[offset + 3] = loCorner[1];
+    boxExtentsLocal[offset + 4] = loCorner[2];
+    boxExtentsLocal[offset + 5] = hiCorner[0];
+    boxExtentsLocal[offset + 6] = hiCorner[1];
+    boxExtentsLocal[offset + 7] = hiCorner[2];
+    ++local_index;
+  }
+
+  controller->AllGatherV(boxExtentsLocal.data(), boxExtentsGlobal.data(), boxExtentsLocal.size(),
+    boxBoundsCounts.data(), boxBoundsOffsets.data());
+  for (int block = 0; block < globalInfo.NbOfBlocks; ++block)
+  {
+    int level = boxExtentsGlobal[8 * block];
+    int id = boxExtentsGlobal[8 * block + 1];
+    int* dims = &boxExtentsGlobal[8 * block + 2];
+    vtkAMRBox box(dims[0], dims[1], dims[2], dims[3], dims[4], dims[5]);
+    amr->SetAMRBox(level, id, box);
+  }
+
+  // set homogeneous spacing
+  std::vector<double> local_spacings(globalInfo.NbOfLevels, 0.);
+  for (int level = 0; level < globalInfo.NbOfLevels; level++)
+  {
+    double lvl_spacing[3];
+    amr->GetSpacing(level, lvl_spacing);
+    local_spacings[level] = lvl_spacing[0];
+  }
+  std::vector<double> global_spacing(globalInfo.NbOfLevels);
+  controller->AllReduce(
+    local_spacings.data(), global_spacing.data(), globalInfo.NbOfLevels, vtkCommunicator::MAX_OP);
+  for (int level = 0; level < globalInfo.NbOfLevels; level++)
+  {
+    // spacing is homogeneous in all 3 directions.
+    double lvl_spacing[3] = { global_spacing[level], global_spacing[level], global_spacing[level] };
+    amr->SetSpacing(level, lvl_spacing);
+  }
+}
+};
+
 namespace vtkConduitToDataObject
 {
 VTK_ABI_NAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
-bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node& node)
+struct FieldMetadata
 {
+  vtkSmartPointer<vtkDataArray> ValuesToReplace = nullptr;
+  vtkSmartPointer<vtkDataArray> ReplacementValues = nullptr;
+  std::string AttributeType;
+
+  static vtkDataSetAttributes::AttributeTypes GetDataSetAttributeType(
+    const std::string& otherAttributeTypeName)
+  {
+    for (int i = 0; i < vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES; ++i)
+    {
+      const std::string attributeTypeName = vtkDataSetAttributes::GetAttributeTypeAsString(i);
+      if (vtksys::SystemTools::UpperCase(otherAttributeTypeName) ==
+        vtksys::SystemTools::UpperCase(attributeTypeName))
+      {
+        return static_cast<vtkDataSetAttributes::AttributeTypes>(i);
+      }
+    }
+    return vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES;
+  }
+
+  static bool IsGhostsAttributeType(const std::string& otherAttributeTypeName)
+  {
+    return vtksys::SystemTools::UpperCase(otherAttributeTypeName) == "GHOSTS";
+  }
+};
+
+//----------------------------------------------------------------------------
+struct ReplaceValuesWorker
+{
+  template <typename Array1T, typename Array2T, typename Array3T>
+  void operator()(Array1T* valuesToReplace, Array2T* replacementValues, Array3T* array) const
+  {
+    const vtkIdType numValuesToReplace = valuesToReplace->GetNumberOfTuples();
+    auto valuesToReplaceRange = vtk::DataArrayValueRange(valuesToReplace);
+    auto replacementValuesRange = vtk::DataArrayValueRange(replacementValues);
+    auto arrayRange = vtk::DataArrayValueRange(array);
+
+    vtkSMPTools::For(0, array->GetNumberOfTuples(),
+      [&](vtkIdType begin, vtkIdType end)
+      {
+        for (vtkIdType inputIdx = begin; inputIdx < end; ++inputIdx)
+        {
+          for (vtkIdType repValueId = 0; repValueId < numValuesToReplace; ++repValueId)
+          {
+            if (valuesToReplaceRange[repValueId] == arrayRange[inputIdx])
+            {
+              arrayRange[inputIdx] = replacementValuesRange[repValueId];
+              break;
+            }
+          }
+        }
+      });
+  }
+};
+
+//----------------------------------------------------------------------------
+bool FillPartitionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node& node)
+{
+#if !VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmDataModel
+  // conduit verify_shapes_node dereferences the shapes array to compare
+  // values with the values in the shapes_map
+  // if the shapes array is in device memory this test crashes
+  // https://github.com/LLNL/conduit/issues/1404
   conduit_cpp::Node info;
   if (!conduit_cpp::BlueprintMesh::verify(node, info))
   {
     vtkLogF(ERROR, "Mesh blueprint verification failed!");
     return false;
   }
-
+  vtkLogF(TRACE, "Mesh blueprint verified!");
+#endif
   std::map<std::string, vtkSmartPointer<vtkDataSet>> datasets;
 
   // process "topologies".
   auto topologies = node["topologies"];
 
-  conduit_index_t nchildren = topologies.number_of_children();
-  for (conduit_index_t i = 0; i < nchildren; ++i)
+  for (conduit_index_t i = 0, nchildren = topologies.number_of_children(); i < nchildren; ++i)
   {
     auto child = topologies.child(i);
     try
@@ -85,9 +445,73 @@ bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node
     return true;
   }
 
+  // read "state/metadata/vtk_fields"
+  std::map<std::string, FieldMetadata> fieldMetadata;
+  if (node.has_path("state/metadata/vtk_fields"))
+  {
+    auto fieldsMetadata = node["state/metadata/vtk_fields"];
+    for (conduit_index_t i = 0, nchildren = fieldsMetadata.number_of_children(); i < nchildren; ++i)
+    {
+      auto fieldMetadataNode = fieldsMetadata.child(i);
+      const auto& name = fieldMetadataNode.name();
+      try
+      {
+        // read values_to_replace and replacement_values if they exist
+        if (fieldMetadataNode.has_path("values_to_replace") &&
+          fieldMetadataNode.has_path("replacement_values"))
+        {
+          auto valuesToReplace = fieldMetadataNode["values_to_replace"];
+          fieldMetadata[name].ValuesToReplace =
+            vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&valuesToReplace));
+          auto replacementValues = fieldMetadataNode["replacement_values"];
+          fieldMetadata[name].ReplacementValues =
+            vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&replacementValues));
+          if (fieldMetadata[name].ValuesToReplace->GetNumberOfTuples() !=
+            fieldMetadata[name].ReplacementValues->GetNumberOfTuples())
+          {
+            vtkLogF(ERROR,
+              "values_to_replace and replacement_values should have equal size for field '%s'.",
+              name.c_str());
+            return false;
+          }
+          if (fieldMetadata[name].ValuesToReplace->GetNumberOfComponents() != 1 ||
+            fieldMetadata[name].ReplacementValues->GetNumberOfComponents() != 1)
+          {
+            vtkLogF(ERROR,
+              "values_to_replace and replacement_values should have 1 component for field '%s'.",
+              name.c_str());
+            return false;
+          }
+        }
+        // read attribute type if it exists
+        if (fieldMetadataNode.has_path("attribute_type"))
+        {
+          const std::string& attributeType = fieldMetadataNode["attribute_type"].as_string();
+          // check if the attribute type is valid
+          if (FieldMetadata::GetDataSetAttributeType(attributeType) !=
+              vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES ||
+            FieldMetadata::IsGhostsAttributeType(attributeType))
+          {
+            fieldMetadata[name].AttributeType = attributeType;
+          }
+          else
+          {
+            vtkLogF(
+              ERROR, "invalid attribute type '%s' for '%s'.", attributeType.c_str(), name.c_str());
+            return false;
+          }
+        }
+      }
+      catch (std::exception& e)
+      {
+        vtkLogF(ERROR, "failed to process '../state/metadata/vtk_fields/%s'.", name.c_str());
+        vtkLogF(ERROR, "ERROR: \n%s\n", e.what());
+        return false;
+      }
+    }
+  }
   auto fields = node["fields"];
-  nchildren = fields.number_of_children();
-  for (conduit_index_t i = 0; i < nchildren; ++i)
+  for (conduit_index_t i = 0, nchildren = fields.number_of_children(); i < nchildren; ++i)
   {
     auto fieldNode = fields.child(i);
     const auto& fieldname = fieldNode.name();
@@ -97,7 +521,7 @@ bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node
       const auto vtk_association = GetAssociation(fieldNode["association"].as_string());
       auto dsa = dataset->GetAttributes(vtk_association);
       auto values = fieldNode["values"];
-      size_t dataset_size;
+      std::size_t dataset_size;
       if (values.number_of_children() == 0)
       {
         dataset_size = values.dtype().number_of_elements();
@@ -108,25 +532,68 @@ bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node
       }
       if (dataset_size > 0)
       {
-        vtkSmartPointer<vtkDataArray> array;
+        // This code path should be removed once MCGhostArrayToVTKGhostArray is removed.
         if (fieldname == "ascent_ghosts")
         {
           // convert ascent ghost information into VTK ghost information
           // the VTK array is named vtkDataSetAttributes::GhostArrayName()
           // and has different values.
-          array = vtkConduitArrayUtilities::MCGhostArrayToVTKGhostArray(
+          auto array = vtkConduitArrayUtilities::MCGhostArrayToVTKGhostArray(
             conduit_cpp::c_node(&values), dsa->IsA("vtkCellData"));
+          dsa->AddArray(array);
+          continue;
+        }
+        vtkSmartPointer<vtkDataArray> array =
+          vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&values), fieldname);
+        if (array->GetNumberOfTuples() != dataset->GetNumberOfElements(vtk_association))
+        {
+          throw std::runtime_error("mismatched tuple count!");
+        }
+        if (fieldMetadata.find(fieldname) != fieldMetadata.end())
+        {
+          const auto& metadata = fieldMetadata[fieldname];
+          // replace values if needed
+          if (metadata.ValuesToReplace && metadata.ReplacementValues)
+          {
+            ReplaceValuesWorker replaceValuesWorker;
+            if (!vtkArrayDispatch::Dispatch3SameValueType::Execute(metadata.ValuesToReplace.Get(),
+                  metadata.ReplacementValues.Get(), array.Get(), replaceValuesWorker))
+            {
+              replaceValuesWorker(
+                metadata.ValuesToReplace.Get(), metadata.ReplacementValues.Get(), array.Get());
+            }
+          }
+          // extract the attribute type, and change the array name if needed
+          auto dsaAttributeType = vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES;
+          if (!metadata.AttributeType.empty())
+          {
+            dsaAttributeType = FieldMetadata::GetDataSetAttributeType(metadata.AttributeType);
+            if (FieldMetadata::IsGhostsAttributeType(metadata.AttributeType))
+            {
+              // convert its name to the VTK ghost array name
+              array->SetName(vtkDataSetAttributes::GhostArrayName());
+              // ensure the array is unsigned char
+              if (!array->IsA("vtkUnsignedCharArray"))
+              {
+                auto ghostArray = vtkSmartPointer<vtkUnsignedCharArray>::New();
+                ghostArray->DeepCopy(array);
+                array = ghostArray;
+              }
+            }
+          }
+          if (dsaAttributeType != vtkDataSetAttributes::AttributeTypes::NUM_ATTRIBUTES)
+          {
+            dsa->SetAttribute(array, dsaAttributeType);
+          }
+          else
+          {
+            dsa->AddArray(array);
+          }
         }
         else
         {
-          array =
-            vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&values), fieldname);
-          if (array->GetNumberOfTuples() != dataset->GetNumberOfElements(vtk_association))
-          {
-            throw std::runtime_error("mismatched tuple count!");
-          }
+          dsa->AddArray(array);
         }
-        dsa->AddArray(array);
       }
     }
     catch (std::exception& e)
@@ -141,235 +608,40 @@ bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node
 }
 
 //----------------------------------------------------------------------------
+bool FillPartionedDataSet(vtkPartitionedDataSet* output, const conduit_cpp::Node& meshNode)
+{
+  return FillPartitionedDataSet(output, meshNode);
+}
+
+//----------------------------------------------------------------------------
 bool FillAMRMesh(vtkOverlappingAMR* amr, const conduit_cpp::Node& node)
 {
-  const int default_refinement_ratio = 2;
+  AMRUtils::LocalInfo rankInfo;
+  AMRUtils::GlobalInfo globalInfo;
 
-  int nprocs = 1;
-  int rank = 0;
   vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
   if (controller)
   {
     // if VTK was initialized properly controller should be non-null but that's not always
     // the case so safer to check if controller is available
-    nprocs = controller->GetNumberOfProcesses();
-    rank = controller->GetLocalProcessId();
+    globalInfo.NbOfProcesses = controller->GetNumberOfProcesses();
+    rankInfo.Rank = controller->GetLocalProcessId();
   }
-  // pre-allocate the levels
-  const auto leaves_on_node = node.number_of_children();
-  std::vector<int> blocksPerLevelLocal(1);
-  std::map<int, std::pair<int, int>> domainID2LvlID;
-  vtkIdType blocks_local = 0;
-  vtkIdType blocks_global = 0;
-  double local_origin[3] = { vtkMath::Inf(), vtkMath::Inf(), vtkMath::Inf() };
-  double origin[3] = { 0, 0, 0 };
-  double spacing[3] = { 0, 0, 0 };
+  AMRUtils::ConstructLocalInfo(node, rankInfo);
 
-  for (conduit_index_t cc = 0; cc < leaves_on_node; ++cc)
+  AMRUtils::GatherInfos(rankInfo, globalInfo);
+
+  AMRUtils::InitializeLocalAMR(globalInfo, amr);
+
+  for (conduit_index_t cc = 0; cc < rankInfo.NbOfLeaves; ++cc)
   {
     const auto child = node.child(cc);
-    if (child.has_path("state"))
-    {
-      const int level = child["state/level"].to_int32();
-      const int domain_id = child["state/domain_id"].to_int32();
-      if (size_t(level) >= blocksPerLevelLocal.size())
-      {
-        blocksPerLevelLocal.resize(level + 1);
-        blocksPerLevelLocal[level] = 0;
-      }
-      domainID2LvlID[domain_id] = { level, blocksPerLevelLocal[level] };
-      blocksPerLevelLocal[level]++;
-
-      origin[0] = child["coordsets/coords/origin/x"].to_float64();
-      origin[1] = child["coordsets/coords/origin/y"].to_float64();
-      origin[2] = child["coordsets/coords/origin/z"].to_float64();
-      // check global origin
-      if (origin[0] <= local_origin[0] && origin[1] <= local_origin[1] &&
-        origin[2] <= local_origin[2])
-      {
-        local_origin[0] = origin[0];
-        local_origin[1] = origin[1];
-        local_origin[2] = origin[2];
-      }
-    }
+    AMRUtils::FillLocalData(child, rankInfo, globalInfo, amr);
   }
 
-  const vtkIdType levels_local = vtkIdType(blocksPerLevelLocal.size());
+  AMRUtils::DistributeAMRBoxes(rankInfo, globalInfo, amr);
 
-  vtkIdType levels_global = 0;
-  double global_origin[3] = { vtkMath::Inf(), vtkMath::Inf(), vtkMath::Inf() };
-  if (nprocs == 1)
-  {
-    levels_global = levels_local;
-    std::copy(local_origin, local_origin + 3, global_origin);
-  }
-  else if (controller)
-  {
-    controller->AllReduce(&levels_local, &levels_global, 1, vtkCommunicator::MAX_OP);
-    controller->AllReduce(local_origin, global_origin, 3, vtkCommunicator::MIN_OP);
-  }
-
-  // need the total number of blocks across all processes
-  blocksPerLevelLocal.resize(levels_global, 0); // set the extra values created to 0
-  // globalBlockCount has block information for each process separated
-  std::vector<int> globalBlockCount(levels_global * nprocs);
-  // the ordering of the blocks for AMR is first all level 0 blocks, then all level 1 blocks, ...
-  // at each level we order based on proc rank first and then local id
-  if (nprocs == 1)
-  {
-    globalBlockCount = blocksPerLevelLocal;
-  }
-  else if (controller)
-  {
-    controller->AllGather(blocksPerLevelLocal.data(), globalBlockCount.data(), levels_global);
-  }
-
-  blocks_local = vtkIdType(domainID2LvlID.size());
-  blocks_global = std::accumulate(globalBlockCount.begin(), globalBlockCount.end(), 0);
-
-  // the offset for the start of each block at each level
-  std::vector<vtkIdType> offset_local(levels_global, 0);
-  if (nprocs > 1)
-  {
-    for (vtkIdType l = 0; l < levels_global; l++)
-    {
-      vtkIdType offset(0);
-      for (int p = 0; p < rank; p++)
-      {
-        offset += globalBlockCount[l + p * levels_global];
-      }
-      offset_local[l] = offset;
-    }
-  }
-  std::vector<int> blocksPerLevelGlobal(levels_global, 0);
-  for (vtkIdType l = 0; l < levels_global; l++)
-  {
-    for (int p = 0; p < nprocs; p++)
-    {
-      blocksPerLevelGlobal[l] += globalBlockCount[l + p * levels_global];
-    }
-  }
-  amr->Initialize(levels_global, blocksPerLevelGlobal.data());
-  for (int l = 0; l < levels_global; ++l)
-  {
-    for (int b = 0; b < blocksPerLevelGlobal[l]; ++b)
-    {
-      amr->SetDataSet(l, b, nullptr);
-    }
-  }
-
-  // set origin
-  amr->SetOrigin(global_origin);
-
-  for (conduit_index_t cc = 0; cc < leaves_on_node; ++cc)
-  {
-    // set the spacing for each level via amr->SetSpacing();
-    const auto child = node.child(cc);
-    if (child.has_path("state"))
-    {
-      int pdims[3] = { 0, 0, 0 };
-      const int domain_id = child["state/domain_id"].to_int32();
-      const int level = child["state/level"].to_int32();
-
-      origin[0] = child["coordsets/coords/origin/x"].to_float64();
-      origin[1] = child["coordsets/coords/origin/y"].to_float64();
-      origin[2] = child["coordsets/coords/origin/z"].to_float64();
-      spacing[0] = child["coordsets/coords/spacing/dx"].to_float64();
-      spacing[1] = child["coordsets/coords/spacing/dy"].to_float64();
-      spacing[2] = child["coordsets/coords/spacing/dz"].to_float64();
-      pdims[0] = child["coordsets/coords/dims/i"].to_int32();
-      pdims[1] = child["coordsets/coords/dims/j"].to_int32();
-      pdims[2] = child["coordsets/coords/dims/k"].to_int32();
-
-      vtkNew<vtkUniformGrid> ug;
-      ug->Initialize();
-      ug->SetOrigin(origin);
-      ug->SetSpacing(spacing);
-      ug->SetDimensions(pdims);
-
-      const auto fields = child["fields"];
-      AddFieldData(ug, fields, true);
-
-      vtkAMRBox box(origin, pdims, spacing, global_origin, amr->GetGridDescription());
-      // set level spacing
-      amr->SetSpacing(level, spacing);
-      amr->SetAMRBox(domainID2LvlID[domain_id].first,
-        domainID2LvlID[domain_id].second + offset_local[domainID2LvlID[domain_id].first], box);
-      amr->SetDataSet(domainID2LvlID[domain_id].first,
-        domainID2LvlID[domain_id].second + offset_local[domainID2LvlID[domain_id].first], ug);
-      amr->SetRefinementRatio(level, default_refinement_ratio);
-      if (child.has_path("nestsets/nest/windows"))
-      {
-        const auto& windows = child["nestsets/nest/windows"];
-        const auto window_count = windows.number_of_children();
-        for (int i = 0; i < window_count; ++i)
-        {
-          const auto& window = windows.child(i);
-          if (window.has_path("ratio") && window.has_path("domain_type"))
-          {
-            amr->SetRefinementRatio(level, window["ratio/i"].to_int32());
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  // distribute AMRBoxes to all processes
-  if (nprocs > 1 && controller)
-  {
-    std::vector<vtkIdType> boxBoundsOffsets(nprocs);
-    std::vector<vtkIdType> boxBoundsCounts(nprocs);
-    std::vector<int> boxExtentsLocal(8 * blocks_local, 0);
-    std::vector<int> boxExtentsGlobal(8 * blocks_global, 0);
-
-    for (int p = 0; p < nprocs; ++p)
-    {
-      int num_blocks = 0;
-      for (int l = 0; l < levels_global; l++)
-      {
-        num_blocks += globalBlockCount[l + p * levels_global];
-      }
-      boxBoundsCounts[p] = num_blocks * 8;
-      if (p > 0)
-      {
-        boxBoundsOffsets[p] = num_blocks * 8 + boxBoundsOffsets[p - 1];
-      }
-    }
-
-    int local_index = 0;
-    for (std::map<int, std::pair<int, int>>::const_iterator it = domainID2LvlID.begin();
-         it != domainID2LvlID.end(); ++it)
-    {
-      int level = it->second.first;
-      int id = it->second.second + offset_local[level];
-
-      vtkAMRBox box = amr->GetAMRBox(level, id);
-      const int* loCorner = box.GetLoCorner();
-      const int* hiCorner = box.GetHiCorner();
-      boxExtentsLocal[8 * local_index + 0] = level;
-      boxExtentsLocal[8 * local_index + 1] = id;
-      boxExtentsLocal[8 * local_index + 2] = loCorner[0];
-      boxExtentsLocal[8 * local_index + 3] = loCorner[1];
-      boxExtentsLocal[8 * local_index + 4] = loCorner[2];
-      boxExtentsLocal[8 * local_index + 5] = hiCorner[0];
-      boxExtentsLocal[8 * local_index + 6] = hiCorner[1];
-      boxExtentsLocal[8 * local_index + 7] = hiCorner[2];
-      ++local_index;
-    }
-
-    controller->AllGatherV(boxExtentsLocal.data(), boxExtentsGlobal.data(), boxExtentsLocal.size(),
-      boxBoundsCounts.data(), boxBoundsOffsets.data());
-    for (int i = 0; i < blocks_global; ++i)
-    {
-      int level = boxExtentsGlobal[8 * i + 0];
-      int id = boxExtentsGlobal[8 * i + 1];
-      int* dims = &boxExtentsGlobal[8 * i + 2];
-      vtkAMRBox box(dims[0], dims[1], dims[2], dims[3], dims[4], dims[5]);
-      amr->SetAMRBox(level, id, box);
-    }
-  }
-  if (nprocs == 1)
+  if (globalInfo.NbOfProcesses == 1)
   {
     vtkAMRUtilities::BlankCells(amr);
   }
@@ -418,6 +690,13 @@ vtkSmartPointer<vtkDataSet> CreateMesh(
     return vtkSmartPointer<vtkUnstructuredGrid>::New();
   }
 
+  if (coords["type"].as_string() == "explicit" && topology["type"].as_string() == "points")
+  {
+    auto pointset = vtkSmartPointer<vtkPointSet>::New();
+    pointset->SetPoints(CreatePoints(coords));
+    return pointset;
+  }
+
   throw std::runtime_error("unsupported topology or coordset");
 }
 
@@ -454,30 +733,21 @@ vtkSmartPointer<vtkImageData> CreateImageData(const conduit_cpp::Node& coordset)
 }
 
 //----------------------------------------------------------------------------
+/**
+ * The "const" of values_xyz is necessary to avoid creating a new object.
+ * If value_xyz is not const, coordset["values/xyz"] must NOT be const either
+ * to call the correct copy constructor.
+ */
 vtkSmartPointer<vtkRectilinearGrid> CreateRectilinearGrid(const conduit_cpp::Node& coordset)
 {
   auto rectilinearGrid = vtkSmartPointer<vtkRectilinearGrid>::New();
 
-  conduit_cpp::Node values_x;
   const bool has_x_values = coordset.has_path("values/x");
-  if (has_x_values)
-  {
-    values_x = coordset["values/x"];
-  }
-
-  conduit_cpp::Node values_y;
+  const conduit_cpp::Node values_x = has_x_values ? coordset["values/x"] : conduit_cpp::Node();
   const bool has_y_values = coordset.has_path("values/y");
-  if (has_y_values)
-  {
-    values_y = coordset["values/y"];
-  }
-
-  conduit_cpp::Node values_z;
+  const conduit_cpp::Node values_y = has_y_values ? coordset["values/y"] : conduit_cpp::Node();
   const bool has_z_values = coordset.has_path("values/z");
-  if (has_z_values)
-  {
-    values_z = coordset["values/z"];
-  }
+  const conduit_cpp::Node values_z = has_z_values ? coordset["values/z"] : conduit_cpp::Node();
 
   vtkIdType x_dimension = 1;
   vtkSmartPointer<vtkDataArray> xArray;
@@ -543,22 +813,29 @@ vtkSmartPointer<vtkDataSet> CreateMonoShapedUnstructuredGrid(
   const conduit_cpp::DataType dtype0 = connectivity.dtype();
   const auto nb_cells = dtype0.number_of_elements();
   unstructured->SetPoints(CreatePoints(coordset));
+  vtkIdType numberOfPoints = unstructured->GetNumberOfPoints();
   const auto vtk_cell_type = GetCellType(topologyNode["elements/shape"].as_string());
   if (nb_cells > 0)
   {
     if (vtk_cell_type == VTK_POLYHEDRON)
     {
+      int8_t id;
+      bool working;
+      bool isDevicePointer =
+        vtkConduitArrayUtilities::IsDevicePointer(connectivity.element_ptr(0), id, working);
+      if (isDevicePointer)
+      {
+        throw std::runtime_error("Viskores does not support VTK_POLYHEDRON cell type");
+      }
       // polyhedra uses O2M and not M2C arrays, so need to process it
       // differently.
       conduit_cpp::Node t_elements = topologyNode["elements"];
       conduit_cpp::Node t_subelements = topologyNode["subelements"];
       auto elements = vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
-        conduit_cpp::c_node(&t_elements), "connectivity");
+        numberOfPoints, conduit_cpp::c_node(&t_elements));
       auto subelements = vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
-        conduit_cpp::c_node(&t_subelements), "connectivity");
+        numberOfPoints, conduit_cpp::c_node(&t_subelements));
 
-      // currently, this is an ugly deep-copy. Once vtkUnstructuredGrid is modified
-      // as proposed here (vtk/vtk#18190), this will get simpler.
       SetPolyhedralCells(unstructured, elements, subelements);
     }
     else if (vtk_cell_type == VTK_POLYGON)
@@ -567,14 +844,14 @@ vtkSmartPointer<vtkDataSet> CreateMonoShapedUnstructuredGrid(
       // differently.
       conduit_cpp::Node t_elements = topologyNode["elements"];
       auto cellArray = vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
-        conduit_cpp::c_node(&t_elements), "connectivity");
+        numberOfPoints, conduit_cpp::c_node(&t_elements));
       unstructured->SetCells(vtk_cell_type, cellArray);
     }
     else
     {
       const auto cell_size = GetNumberOfPointsInCellType(vtk_cell_type);
       auto cellArray = vtkConduitArrayUtilities::MCArrayToVTKCellArray(
-        cell_size, conduit_cpp::c_node(&connectivity));
+        numberOfPoints, vtk_cell_type, cell_size, conduit_cpp::c_node(&connectivity));
       unstructured->SetCells(vtk_cell_type, cellArray);
     }
   }
@@ -583,136 +860,90 @@ vtkSmartPointer<vtkDataSet> CreateMonoShapedUnstructuredGrid(
 }
 
 /**
- * Internal struct to be passed to a worker.
  * See CreateMixedUnstructuredGrid.
  */
-struct MixedPolyhedralCells
+void SetMixedPolyhedralCells(
+  vtkUnstructuredGrid* ug, vtkDataArray* shapes, vtkCellArray* elements, vtkCellArray* subelements)
 {
-  conduit_cpp::Node* ElementShapes;
-  conduit_cpp::Node* ElementSizes;
-  conduit_cpp::Node* ElementOffsets;
-
-  conduit_cpp::Node* SubElementSizes;
-  conduit_cpp::Node* SubElementOffsets;
-
-  MixedPolyhedralCells(conduit_cpp::Node* elementShapes, conduit_cpp::Node* elementSizes,
-    conduit_cpp::Node* elementOffsets, conduit_cpp::Node* subElementSizes,
-    conduit_cpp::Node* subElementOffsets)
-    : ElementShapes(elementShapes)
-    , ElementSizes(elementSizes)
-    , ElementOffsets(elementOffsets)
-    , SubElementSizes(subElementSizes)
-    , SubElementOffsets(subElementOffsets)
+  auto cellTypes = vtk::MakeSmartPointer(vtkUnsignedCharArray::SafeDownCast(shapes));
+  if (!cellTypes)
   {
+    cellTypes = vtkSmartPointer<vtkUnsignedCharArray>::New();
+    cellTypes->DeepCopy(shapes);
+  }
+  // if there are no subelements
+  if (!subelements || subelements->GetNumberOfCells() == 0)
+  {
+    // This is a simple case where we have a mixed cell type, but no polyhedra.
+    ug->SetPolyhedralCells(cellTypes, elements, nullptr, nullptr);
+    return;
   }
 
-  template <typename ConnectivityArray, typename SubConnectivityArray>
-  void operator()(ConnectivityArray* elementConnectivity,
-    SubConnectivityArray* subElementConnectivity, vtkUnstructuredGrid* ug)
+  vtkNew<vtkCellArray> connectivity;
+  vtkNew<vtkCellArray> faces;
+  vtkNew<vtkCellArray> faceLocations;
+  subelements->IsStorage64Bit()
+    ? faces->ConvertTo64BitStorage() && faceLocations->ConvertTo64BitStorage()
+    : faces->ConvertTo64BitStorage() && faceLocations->ConvertTo32BitStorage();
+
+  connectivity->AllocateEstimate(elements->GetNumberOfCells(), 10);
+  faces->AllocateExact(
+    subelements->GetNumberOfCells(), subelements->GetConnectivityArray()->GetNumberOfTuples());
+  faceLocations->AllocateExact(elements->GetNumberOfCells(), subelements->GetNumberOfCells());
+
+  vtkIdType numCellFaces, numFacePointIDs, numCellPointIDs;
+  const vtkIdType *cellGlobalFaceIDs, *facePointIDs, *cellPointIDs;
+  std::set<vtkIdType> cellPointIDsSet;
+  vtkIdType globalFaceId = 0;
+  auto cellTypesRange = vtk::DataArrayValueRange<1>(cellTypes);
+  for (vtkIdType i = 0, numCells = elements->GetNumberOfCells(); i < numCells; ++i)
   {
-    using ConnectivityArrayType = vtk::GetAPIType<ConnectivityArray>;
-    using SubConnectivityArrayType = vtk::GetAPIType<SubConnectivityArray>;
-
-    const auto elementShapesArray =
-      vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(this->ElementShapes));
-    const auto elementSizesArray =
-      vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(this->ElementSizes));
-    const auto elementOffsetsArray =
-      vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(this->ElementOffsets));
-
-    vtkSmartPointer<vtkDataArray> subElementSizesArray(nullptr), subElementOffsetsArray(nullptr);
-    if (this->SubElementSizes != nullptr)
+    const unsigned char& cellType = cellTypesRange[i];
+    if (cellType == VTK_POLYHEDRON)
     {
-      subElementSizesArray =
-        vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(this->SubElementSizes));
-    }
-    if (this->SubElementOffsets != nullptr)
-    {
-      subElementOffsetsArray =
-        vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(this->SubElementOffsets));
-    }
+      cellPointIDsSet.clear();
+      // https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#polyhedra
+      // This in conduit describes a polyhedron' global face IDs, and not its point IDs.
+      // Even after https://gitlab.kitware.com/vtk/vtk/-/issues/18190 was resolved, the conduit
+      // format is still different from the VTK format, so we need to do some conversions for VTK.
+      elements->GetCellAtId(i, numCellFaces, cellGlobalFaceIDs);
 
-    auto elementShapesRange = vtk::DataArrayValueRange(elementShapesArray);
-    auto elementSizesRange = vtk::DataArrayValueRange(elementSizesArray);
-    auto elementOffsetsRange = vtk::DataArrayValueRange(elementOffsetsArray);
-
-    assert(elementShapesRange.size() == elementSizesRange.size());
-    assert(elementShapesRange.size() == elementOffsetsRange.size());
-
-    auto elementSizesIterator = elementSizesRange.begin();
-    auto elementOffsetsIterator = elementOffsetsRange.begin();
-
-    const vtkNew<vtkUnsignedCharArray> cellTypes;
-    const vtkNew<vtkCellArray> connectivity;
-    const vtkNew<vtkCellArray> faces;
-    const vtkNew<vtkCellArray> faceLocations;
-    vtkIdType numFace = 0;
-
-    for (const auto& cellType : elementShapesRange)
-    {
-      auto type = static_cast<unsigned char>(cellType);
-      cellTypes->InsertNextValue(type);
-      if (type == VTK_POLYHEDRON)
+      faceLocations->InsertNextCell(numCellFaces);
+      for (vtkIdType j = 0; j < numCellFaces; ++j)
       {
-        assert(subElementSizesArray != nullptr);
-        assert(subElementOffsetsArray != nullptr);
+        faceLocations->InsertCellPoint(globalFaceId++);
 
-        std::set<vtkIdType> cellPointSet;
-        auto nCellFaces = static_cast<vtkIdType>(*elementSizesIterator++);
-        auto offset = static_cast<vtkIdType>(*elementOffsetsIterator++);
-        faceLocations->InsertNextCell(nCellFaces);
-
-        auto elementRange =
-          vtk::DataArrayValueRange(elementConnectivity, offset, offset + nCellFaces);
-
-        for (const ConnectivityArrayType faceId : elementRange)
-        {
-          const vtkIdType nFacePts = subElementSizesArray->GetVariantValue(faceId).ToLongLong();
-          const vtkIdType faceOffset = subElementOffsetsArray->GetVariantValue(faceId).ToLongLong();
-          faceLocations->InsertCellPoint(numFace++);
-
-          auto facePtRange =
-            vtk::DataArrayValueRange(subElementConnectivity, faceOffset, faceOffset + nFacePts);
-
-          faces->InsertNextCell(nFacePts);
-          for (const SubConnectivityArrayType ptId : facePtRange)
-          {
-            faces->InsertCellPoint(ptId);
-            cellPointSet.insert(ptId);
-          }
-        }
-
-        connectivity->InsertNextCell(static_cast<int>(cellPointSet.size()));
-        for (const vtkIdType cellPoint : cellPointSet)
-        {
-          connectivity->InsertCellPoint(cellPoint);
-        }
+        subelements->GetCellAtId(cellGlobalFaceIDs[j], numFacePointIDs, facePointIDs);
+        // If VTK' polyhedron format had a notion of global face IDs, we could just use
+        // subelements as faces, instead of copying each face, but sadly that's not true.
+        faces->InsertNextCell(numFacePointIDs, facePointIDs);
+        // accumulate point IDs from all faces in this polyhedron
+        cellPointIDsSet.insert(facePointIDs, facePointIDs + numFacePointIDs);
       }
-      else
+
+      // Insert the points IDs of this polyhedron into the 'connectivity' array.
+      connectivity->InsertNextCell(static_cast<int>(cellPointIDsSet.size()));
+      for (const auto& pt : cellPointIDsSet)
       {
-        auto npts = static_cast<vtkIdType>(*elementSizesIterator++);
-        auto offset = static_cast<vtkIdType>(*elementOffsetsIterator++);
-        auto elementRange = vtk::DataArrayValueRange(elementConnectivity, offset, offset + npts);
-
-        connectivity->InsertNextCell(static_cast<int>(npts));
-        for (const ConnectivityArrayType item : elementRange)
-        {
-          connectivity->InsertCellPoint(static_cast<vtkIdType>(item));
-        }
-        faceLocations->InsertNextCell(0);
+        connectivity->InsertCellPoint(pt);
       }
-    }
-
-    if (faces->GetNumberOfCells() > 0)
-    {
-      ug->SetPolyhedralCells(cellTypes, connectivity, faceLocations, faces);
     }
     else
     {
-      ug->SetPolyhedralCells(cellTypes, connectivity, nullptr, nullptr);
+      // A normal cell's point IDs that are just copied over.
+      elements->GetCellAtId(i, numCellPointIDs, cellPointIDs);
+      connectivity->InsertNextCell(numCellPointIDs, cellPointIDs);
+      // This indicates that this cell has no faces that need to be recorded.
+      faceLocations->InsertNextCell(0);
     }
   }
-};
+
+  connectivity->Squeeze();
+  faces->Squeeze();
+  faceLocations->Squeeze();
+
+  ug->SetPolyhedralCells(cellTypes, connectivity, faceLocations, faces);
+}
 
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkDataSet> CreateMixedUnstructuredGrid(
@@ -721,16 +952,30 @@ vtkSmartPointer<vtkDataSet> CreateMixedUnstructuredGrid(
   auto unstructured = vtkSmartPointer<vtkUnstructuredGrid>::New();
   // mixed shapes definition
   conduit_cpp::Node shape_map = topologyNode["elements/shape_map"];
+  auto connectivity = topologyNode["elements/connectivity"];
+  int8_t id;
+  bool working;
+  bool isDevicePointer =
+    vtkConduitArrayUtilities::IsDevicePointer(connectivity.element_ptr(0), id, working);
+  if (isDevicePointer && !working)
+  {
+    throw std::runtime_error("Viskores does not support device" + std::to_string(id));
+  }
 
   // check presence of polyhedra
   bool hasPolyhedra(false);
   conduit_index_t nCells = shape_map.number_of_children();
-  for (conduit_index_t i = 0; i < nCells; ++i)
+  for (conduit_index_t i = 0; i < nCells && !hasPolyhedra; ++i)
   {
     auto child = shape_map.child(i);
     int cellType = child.to_int32();
     hasPolyhedra |= (cellType == VTK_POLYHEDRON);
   }
+  if (isDevicePointer && hasPolyhedra)
+  {
+    throw std::runtime_error("Viskores does not support VTK_POLYHEDRON cell type");
+  }
+
   // if polyhedra are present, the subelements should be present as well.
   if (hasPolyhedra &&
     !(topologyNode.has_path("subelements/shape") &&
@@ -742,50 +987,34 @@ vtkSmartPointer<vtkDataSet> CreateMixedUnstructuredGrid(
   if (nCells > 0)
   {
     unstructured->SetPoints(CreatePoints(coords));
+    auto numberOfPoints = unstructured->GetNumberOfPoints();
 
+    conduit_cpp::Node t_elements = topologyNode["elements"];
     conduit_cpp::Node t_elementShapes = topologyNode["elements/shapes"];
-    conduit_cpp::Node t_elementSizes = topologyNode["elements/sizes"];
-    conduit_cpp::Node t_elementOffsets = topologyNode["elements/offsets"];
-    conduit_cpp::Node t_elementConnectivity = topologyNode["elements/connectivity"];
 
-    auto elementConnectivity =
-      vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&t_elementConnectivity));
-
-    if (elementConnectivity == nullptr)
+    auto shapes =
+      vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&t_elementShapes));
+    auto elements = vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
+      numberOfPoints, conduit_cpp::c_node(&t_elements));
+    if (!elements || !shapes)
     {
-      throw std::runtime_error("element/connectivity not available (nullptr)");
+      throw std::runtime_error("elements or elements/shapes not available (nullptr)");
     }
 
-    conduit_cpp::Node* p_subElementSizes(nullptr);
-    conduit_cpp::Node* p_subElementOffsets(nullptr);
-
-    vtkSmartPointer<vtkDataArray> subConnectivity(nullptr);
     if (hasPolyhedra)
     {
-      // get the face nodes for size, offset and connectivity
-      conduit_cpp::Node t_subElementSizes = topologyNode["subelements/sizes"];
-      conduit_cpp::Node t_subElementOffsets = topologyNode["subelements/offsets"];
-      conduit_cpp::Node t_subElementConnectivity = topologyNode["subelements/connectivity"];
-
-      p_subElementOffsets = &t_subElementOffsets;
-      p_subElementSizes = &t_subElementSizes;
-
-      subConnectivity =
-        vtkConduitArrayUtilities::MCArrayToVTKArray(conduit_cpp::c_node(&t_subElementConnectivity));
-
-      if (subConnectivity == nullptr)
+      conduit_cpp::Node t_subelements = topologyNode["subelements"];
+      auto subelements = vtkConduitArrayUtilities::O2MRelationToVTKCellArray(
+        numberOfPoints, conduit_cpp::c_node(&t_subelements));
+      if (!subelements)
       {
-        throw std::runtime_error("subelements/connectivity not available (nullptr)");
+        throw std::runtime_error("subelements not available (nullptr)");
       }
+      SetMixedPolyhedralCells(unstructured, shapes, elements, subelements);
     }
-
-    // dispatch the mcarrays to create the mixed element grid
-    MixedPolyhedralCells worker(
-      &t_elementShapes, &t_elementSizes, &t_elementOffsets, p_subElementSizes, p_subElementOffsets);
-    if (!vtkArrayDispatch::Dispatch2::Execute(
-          elementConnectivity, subConnectivity, worker, unstructured))
+    else
     {
-      worker(elementConnectivity.GetPointer(), subConnectivity.GetPointer(), unstructured);
+      SetMixedPolyhedralCells(unstructured, shapes, elements, nullptr);
     }
   }
 
@@ -804,7 +1033,7 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
 
     try
     {
-      size_t dataset_size = 0;
+      std::size_t dataset_size = 0;
       if (field_node.number_of_children() == 0)
       {
         dataset_size = field_node.dtype().number_of_elements();
@@ -846,7 +1075,7 @@ bool AddFieldData(vtkDataObject* output, const conduit_cpp::Node& stateFields, b
           }
         }
 
-        if ((field_name == "time" || field_name == "TimeValue") && field_node.dtype().is_float())
+        if ((field_name == "time" || field_name == "TimeValue") && field_node.dtype().is_number())
         {
           // let's also set DATA_TIME_STEP.
           output->GetInformation()->Set(vtkDataObject::DATA_TIME_STEP(), field_node.to_float64());
@@ -895,56 +1124,10 @@ vtkSmartPointer<vtkPoints> CreatePoints(const conduit_cpp::Node& coords)
 void SetPolyhedralCells(
   vtkUnstructuredGrid* grid, vtkCellArray* elements, vtkCellArray* subelements)
 {
-  vtkNew<vtkCellArray> connectivity;
-  vtkNew<vtkCellArray> faces;
-  vtkNew<vtkCellArray> faceLocations;
-
-  connectivity->AllocateEstimate(elements->GetNumberOfCells(), 10);
-  faces->AllocateExact(
-    subelements->GetNumberOfCells(), subelements->GetConnectivityArray()->GetNumberOfTuples());
-  faceLocations->AllocateExact(elements->GetNumberOfCells(), subelements->GetNumberOfCells());
-
-  auto eIter = vtk::TakeSmartPointer(elements->NewIterator());
-  auto seIter = vtk::TakeSmartPointer(subelements->NewIterator());
-
-  std::vector<vtkIdType> cellPoints;
-  vtkIdType faceNum = 0;
-  for (eIter->GoToFirstCell(); !eIter->IsDoneWithTraversal(); eIter->GoToNextCell())
-  {
-    // init;
-    cellPoints.clear();
-
-    // get cell from 'elements'.
-    vtkIdType size;
-    vtkIdType const* seIds;
-    eIter->GetCurrentCell(size, seIds);
-
-    faceLocations->InsertNextCell(size);
-    for (vtkIdType fIdx = 0; fIdx < size; ++fIdx)
-    {
-      faceLocations->InsertCellPoint(faceNum++);
-      seIter->GoToCell(seIds[fIdx]);
-
-      vtkIdType ptSize;
-      vtkIdType const* ptIds;
-      seIter->GetCurrentCell(ptSize, ptIds);
-      faces->InsertNextCell(ptSize, ptIds);
-      // accumulate pts from all faces in this cell to build the 'connectivity' array.
-      std::copy(ptIds, ptIds + ptSize, std::back_inserter(cellPoints));
-    }
-
-    connectivity->InsertNextCell(
-      static_cast<vtkIdType>(cellPoints.size()), cellPoints.empty() ? nullptr : cellPoints.data());
-  }
-
-  connectivity->Squeeze();
-  faces->Squeeze();
-  faceLocations->Squeeze();
-
   vtkNew<vtkUnsignedCharArray> cellTypes;
-  cellTypes->SetNumberOfTuples(connectivity->GetNumberOfCells());
+  cellTypes->SetNumberOfTuples(elements->GetNumberOfCells());
   cellTypes->FillValue(static_cast<unsigned char>(VTK_POLYHEDRON));
-  grid->SetPolyhedralCells(cellTypes, connectivity, faceLocations, faces);
+  SetMixedPolyhedralCells(grid, cellTypes, elements, subelements);
 }
 
 //----------------------------------------------------------------------------
@@ -961,6 +1144,10 @@ vtkIdType GetNumberOfPointsInCellType(int vtk_cell_type)
     case VTK_QUAD:
     case VTK_TETRA:
       return 4;
+    case VTK_PYRAMID:
+      return 5;
+    case VTK_WEDGE:
+      return 6;
     case VTK_HEXAHEDRON:
       return 8;
     default:
@@ -1002,6 +1189,14 @@ int GetCellType(const std::string& shape)
   else if (shape == "polygonal")
   {
     return VTK_POLYGON;
+  }
+  else if (shape == "wedge")
+  {
+    return VTK_WEDGE;
+  }
+  else if (shape == "pyramid")
+  {
+    return VTK_PYRAMID;
   }
   else
   {

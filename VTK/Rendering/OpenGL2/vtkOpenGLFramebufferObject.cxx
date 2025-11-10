@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLFramebufferObject.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLBufferObject.h"
@@ -1130,8 +1130,7 @@ void vtkOpenGLFramebufferObject::DisplayReadBuffer()
 // Display any buffer (convert value into string).
 void vtkOpenGLFramebufferObject::DisplayBuffer(int value)
 {
-  if (value >= static_cast<int>(GL_COLOR_ATTACHMENT0) &&
-    value <= static_cast<int>(GL_COLOR_ATTACHMENT0 + 15))
+  if (value >= GL_COLOR_ATTACHMENT0 && value <= GL_COLOR_ATTACHMENT0 + 15)
   {
     cout << "GL_COLOR_ATTACHMENT" << (value - GL_COLOR_ATTACHMENT0);
   }

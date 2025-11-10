@@ -15,11 +15,14 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkImplicitFunction.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
+
+#include <cmath> // for std::abs
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPoints; // forward declaration
 
-class VTKCOMMONDATAMODEL_EXPORT vtkPlane : public vtkImplicitFunction
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkPlane : public vtkImplicitFunction
 {
 public:
   /**
@@ -48,7 +51,8 @@ public:
   /**
    * Set/get plane normal. Plane is defined by point and normal.
    */
-  vtkSetVector3Macro(Normal, double);
+  virtual void SetNormal(double x, double y, double z);
+  virtual void SetNormal(const double normal[3]);
   vtkGetVectorMacro(Normal, double, 3);
   ///@}
 
@@ -57,8 +61,28 @@ public:
    * Set/get point through which plane passes. Plane is defined by point
    * and normal.
    */
-  vtkSetVector3Macro(Origin, double);
+  virtual void SetOrigin(double x, double y, double z);
+  virtual void SetOrigin(const double origin[3]);
   vtkGetVectorMacro(Origin, double, 3);
+  ///@}
+
+  ///@{
+  /**
+   * The origin is shifted in the direction of the normal
+   * by the offset.
+   */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_IS_REDUNDANT)
+  virtual void SetOffset(double _arg);
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_IS_REDUNDANT)
+  vtkGetMacro(Offset, double);
+  ///@}
+
+  ///@{
+  /**
+   * Accessors for AxisAligned, which locks normal to plane to be aligned with x, y, or z axis.
+   */
+  virtual void SetAxisAligned(bool _arg);
+  vtkGetMacro(AxisAligned, bool);
   ///@}
 
   /**
@@ -156,16 +180,45 @@ public:
   static bool ComputeBestFittingPlane(vtkPoints* pts, double* origin, double* normal);
   ///@}
 
+  ///@{
+  /**
+   * Perform a deep copy of the given plane.
+   */
+  void DeepCopy(vtkPlane* plane);
+  ///@}
+
 protected:
-  vtkPlane();
+  vtkPlane() = default;
   ~vtkPlane() override = default;
 
-  double Normal[3];
-  double Origin[3];
+  // Construct plane passing through origin and normal to z-axis.
+  double Normal[3] = { 0.0, 0.0, 1.0 };
+  double Origin[3] = { 0.0, 0.0, 0.0 };
 
 private:
   vtkPlane(const vtkPlane&) = delete;
   void operator=(const vtkPlane&) = delete;
+
+  // If AxisAligned is enabled, sets axis to the nearest canonical axis.
+  void ComputeInternalNormal();
+  // Shifts the origin in the direction of the normal by the offset.
+  void ComputeInternalOrigin();
+  // Computes InternalNormal and InternalOrigin.
+  void InternalUpdates();
+
+  double Offset = 0.0;
+  bool AxisAligned = false;
+
+  ///@{
+  /**
+   * InternalNormal and InternalOrigin are Normal and Origin that account for Offset and AxisAligned
+   * (@see vtkPlane::ComputeInternalNormal and vtkPlane::ComputeInternalOrigin). They are both
+   * computed whenever a member variable is changed, so that EvaluateFunction and EvaluateGradient
+   * can directly use them (to preserve performances).
+   */
+  double InternalNormal[3] = { 0.0, 0.0, 1.0 };
+  double InternalOrigin[3] = { 0.0, 0.0, 0.0 };
+  ///@}
 };
 
 // Generally the normal should be normalized
@@ -178,8 +231,7 @@ inline double vtkPlane::Evaluate(double normal[3], double origin[3], double x[3]
 // Assumes normal is normalized
 inline double vtkPlane::DistanceToPlane(double x[3], double n[3], double p0[3])
 {
-#define vtkPlaneAbs(x) ((x) < 0 ? -(x) : (x))
-  return (vtkPlaneAbs(n[0] * (x[0] - p0[0]) + n[1] * (x[1] - p0[1]) + n[2] * (x[2] - p0[2])));
+  return (std::abs(n[0] * (x[0] - p0[0]) + n[1] * (x[1] - p0[1]) + n[2] * (x[2] - p0[2])));
 }
 
 VTK_ABI_NAMESPACE_END

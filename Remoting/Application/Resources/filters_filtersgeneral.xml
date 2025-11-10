@@ -83,9 +83,192 @@
                  base_proxygroup="filters"
                  name="AppendLocationAttributes">
 
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'Coordinates'. Please consider using that instead.
       </Deprecated>
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAxisAlignedReflectionFilter"
+                 label="Axis-Aligned Reflection Filter"
+                 name="AxisAlignedReflectionFilter">
+      <Documentation long_help="This filter reflects the input over an axis-aligned plane."
+                     short_help="Reflect input over an axis aligned plane.">
+        The Axis Aligned Reflection filter reflects the input dataset across the
+        specified plane. This filter operates on any type of data
+        set or hyper tree grid and produces a Partitioned DataSet Collection
+        containing partitions of the same type as the input (the reflection
+        and the input if CopyInput is enabled).
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+          <DataType value="vtkCompositeDataSet"/>
+          <DataType value="vtkHyperTreeGrid"/>
+        </DataTypeDomain>
+        <Documentation>
+          This property specifies the input to the Axis Aligned Reflection filter.
+        </Documentation>
+      </InputProperty>
+      <IntVectorProperty command="SetPlaneMode"
+                         default_values="0"
+                         name="PlaneMode"
+                         number_of_elements="1"
+                         panel_visibility="advanced">
+        <EnumerationDomain name="enum">
+          <Entry text="Interactive"
+                 value="0"/>
+          <Entry text="X Min"
+                 value="1"/>
+          <Entry text="Y Min"
+                 value="2"/>
+          <Entry text="Z Min"
+                 value="3"/>
+          <Entry text="X Max"
+                 value="4"/>
+          <Entry text="Y Max"
+                 value="5"/>
+          <Entry text="Z Max"
+                 value="6"/>
+        </EnumerationDomain>
+        <Documentation>
+          The value of this property determines which plane to
+          reflect across. If the value is Interactive, the plane is defined by the Reflection Function.
+          The other six options (X Min, X Max, etc.) place the reflection plane
+          at the specified face of the bounding box of the input dataset.
+        </Documentation>
+      </IntVectorProperty>
+      <ProxyProperty command="SetReflectionPlane"
+                     name="ReflectionPlane">
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="PlaneMode"
+                                   value="0" />
+        </Hints>
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="implicit_functions"
+                 name="Axis Aligned Plane"/>
+        </ProxyListDomain>
+        <Documentation>
+          This property sets the parameters of the reflection plane.
+        </Documentation>
+      </ProxyProperty>
+      <IntVectorProperty command="SetCopyInput"
+                         default_values="1"
+                         name="CopyInput"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          If this property is set to 1, the output will contain
+          a second partition containing a copy of the input data.
+          If set to 0, the output will only contain the reflection.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetReflectAllInputArrays"
+                         default_values="0"
+                         name="ReflectAllInputArrays"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          If off, only Vectors, Normals and Tensors will be reflected.
+          If on, all 3-component data arrays ( considered as 3D vectors),
+          6-component data arrays (considered as symmetric tensors),
+          9-component data arrays (considered as tensors ) of signed type will be reflected.
+          All other arrays won't be reflected and will only be copied.
+        </Documentation>
+      </IntVectorProperty>
+      <!-- End AxisAlignedReflectionFilter -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy class="vtkAxisAlignedTransformFilter"
+                 label="Axis-Aligned Transform Filter"
+                 name="AxisAlignedTransformFilter">
+      <Documentation long_help="This filter applies an axis-aligned affine transformation (translation, scaling, and rotation) ."
+                     short_help="Apply an axis-aligned affine transformation.">
+        The Axis Aligned Transform filter operates on any type of data
+        set or hyper tree grid and applies a transformation that is
+        constrained to be axis-aligned. The output type is the same as the
+        input.
+      </Documentation>
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources"/>
+          <Group name="filters"/>
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet"/>
+          <DataType value="vtkCompositeDataSet"/>
+          <DataType value="vtkHyperTreeGrid"/>
+        </DataTypeDomain>
+        <Documentation>
+          This property specifies the input to the Axis Aligned Transform filter.
+        </Documentation>
+      </InputProperty>
+
+      <DoubleVectorProperty command="SetTranslation"
+                         default_values="0 0 0"
+                         name="Translation"
+                         number_of_elements="3">
+        <Documentation>
+          This property specifies the translation vector of the transformation.
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <DoubleVectorProperty command="SetScale"
+                         default_values="1 1 1"
+                         name="Scale"
+                         number_of_elements="3">
+        <Documentation>
+          This property specifies the scaling vector of the transformation.
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetRotationAngle"
+                         default_values="0"
+                         name="Rotation"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry text="0°"
+                 value="0" />
+          <Entry text="90°"
+                 value="1" />
+          <Entry text="180°"
+                 value="2" />
+          <Entry text="270"
+                 value="3" />
+        </EnumerationDomain>
+        <Documentation>
+          This property specifies the rotation angle of the transformation. The rotation direction
+          is set according to the right hand rule with respect to the rotation axis.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetRotationAxis"
+                         default_values="0"
+                         name="Axis"
+                         number_of_elements="1">
+        <EnumerationDomain name="enum">
+          <Entry text="X Axis"
+                 value="0" />
+          <Entry text="Y Axis"
+                 value="1" />
+          <Entry text="Z Axis"
+                 value="2" />
+        </EnumerationDomain>
+        <Documentation>
+          This property specifies the rotation axis of the transformation.
+        </Documentation>
+      </IntVectorProperty>
+
+      <!-- End AxisAlignedTransformFilter -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -114,7 +297,7 @@
                  base_proxyname="BlockIds"
                  base_proxygroup="filters"
                  name="BlockIdScalars">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This filter has been replaced by 'BlockIds'.
         Please consider using that instead.
       </Deprecated>
@@ -165,7 +348,7 @@
     </SourceProxy>
 
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkCellCenters"
+    <SourceProxy class="vtkPVCellCenters"
                  label="Cell Centers"
                  name="CellCenters">
       <Documentation long_help="Create a point (no geometry) at the center of each input cell."
@@ -179,9 +362,9 @@
                      point in the output. This is useful because vertex cells
                      are rendered, but points are not. The points themselves
                      could be used for placing glyphs (using the Glyph filter).
-                     The Cell Centers filter takes any type of dataset as
-                     input and produces a polygonal dataset as
-                     output.</Documentation>
+                     The Cell Centers filter takes any type of dataset or a
+                     HyperTree Grid as input and produces a polygonal dataset
+                     as output.</Documentation>
       <InputProperty command="SetInputConnection"
                      name="Input">
         <ProxyGroupDomain name="groups">
@@ -190,6 +373,7 @@
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkDataSet" />
+          <DataType value="vtkHyperTreeGrid"/>
         </DataTypeDomain>
         <Documentation>This property specifies the input to the Cell Centers
         filter.</Documentation>
@@ -684,6 +868,18 @@
         </RegistrationNamesDomain>
       </StringVectorProperty>
 
+      <IntVectorProperty
+              name="CombineFirstLayerMultiblock"
+              command="SetCombineFirstLayerMultiblock"
+              number_of_elements="1"
+              default_values="0"
+              panel_visibility="advanced">
+        <BooleanDomain name="bool"/>
+        <Documentation>If on, for multiblock inputs if the output type is also multiblock,
+          the first level will be combined.
+        </Documentation>
+      </IntVectorProperty>
+
       <PropertyGroup label="Block Names">
         <Property name="BlockNames" />
         <Hints>
@@ -775,7 +971,7 @@
                  base_proxyname="OverlappingAMRLevelIds"
                  base_proxygroup="filters"
                  name="OverlappingLevelIdScalars">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'OverlappingAMRLevelIds'. Please consider using that instead.
       </Deprecated>
       <!-- End GroupIdScalars -->
@@ -1356,7 +1552,7 @@
                  base_proxyname="SpatioTemporalHarmonics"
                  base_proxygroup="filters"
                  name="GenerateSpatioTemporalHarmonics">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'SpatioTemporalHarmonics'. Please consider using that instead.
       </Deprecated>
     </SourceProxy>
@@ -1368,7 +1564,7 @@
     <Documentation short_help="Union or intersection of inputs timesteps, without duplicate">
         Merge all inputs timestep list. Remove duplicate using a Tolerance,
         either absolute or relative. The resulting timesteps list can be an union or an
-    intersection of the inputs ones.</Documentation>
+        intersection of the inputs ones.</Documentation>
       <InputProperty clean_command="RemoveAllInputs"
                      command="AddInputConnection"
                      multiple_input="1"
@@ -1760,16 +1956,6 @@
             ids are used if they exist or the point index is otherwise.
           </Documentation>
       </StringVectorProperty>
-
-      <IntVectorProperty command="SetBackwardTime"
-                     panel_visibility="advanced"
-                     default_values="0"
-                     name="BackwardTime"
-                     number_of_elements="1">
-          <BooleanDomain name="bool" />
-          <Documentation>Compute particle path lines when time goes backward.
-          </Documentation>
-      </IntVectorProperty>
 
       <IntVectorProperty command="SetKeepDeadTrails"
                      panel_visibility="advanced"
@@ -2730,6 +2916,49 @@
         <PipelineIcon name="XYChartView" />
         <View type="XYChartView" />
       </Hints>
+
+    </SourceProxy>
+
+    <SourceProxy name="ExplodeDataSet"
+      class="vtkExplodeDataSet">
+      <Documentation short_help="Explode DataSet into a Composite structure, based on data value.">
+        Explode the input DataSet into a composite (PartitionedDataSetCollection) by extracting
+        cells based on a cell scalar iso-value criteria.
+        This is typically useful when the input has some material (or region) ids set on cells.
+        Then the output is a composite, where each partition corresponds to one id.
+        See Connectivity and FeatureEdgesRegionIds filters.
+      </Documentation>
+
+      <InputProperty command="SetInputConnection"
+                     name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkDataSet" />
+        </DataTypeDomain>
+        <InputArrayDomain attribute_type="cell"
+                          name="input_array"
+                          number_of_components="1" />
+        <Documentation>Expects a DataSet with cell scalars as input.</Documentation>
+      </InputProperty>
+
+      <StringVectorProperty command="SetInputArrayToProcess"
+                            element_types="0 0 0 0 2"
+                            label="Scalars"
+                            name="Scalars"
+                            number_of_elements="5">
+        <ArrayListDomain attribute_type="Scalars"
+                         name="array_list">
+          <RequiredProperties>
+            <Property function="Input"
+                      name="Input" />
+          </RequiredProperties>
+        </ArrayListDomain>
+        <Documentation>This property contains the name of the scalar array to use.
+        </Documentation>
+      </StringVectorProperty>
 
     </SourceProxy>
   </ProxyGroup>

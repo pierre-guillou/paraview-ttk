@@ -1418,7 +1418,7 @@ void vtkTecplotReader::GetDataArraysList()
   }
 
 #define READ_UNTIL_TITLE_OR_VARIABLES                                                              \
-  !this->Internal->NextCharEOF && theTpToken != "TITLE" && theTpToken != "VARIABLES"
+  !this->Internal->NextCharEOF&& theTpToken != "TITLE" && theTpToken != "VARIABLES"
   int i;
   int tpTokenLen = 0;
   int guessedXid = -1;
@@ -1605,7 +1605,7 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
   }
 
 #define READ_UNTIL_LINE_END                                                                        \
-  !this->Internal->NextCharEOF && tok != "TITLE" && tok != "VARIABLES" && tok != "ZONE" &&         \
+  !this->Internal->NextCharEOF&& tok != "TITLE" && tok != "VARIABLES" && tok != "ZONE" &&          \
     tok != "GEOMETRY" && tok != "TEXT" && tok != "DATASETAUXDATA"
   int zoneIndex = 0;
   bool firstToken = true;
@@ -2124,7 +2124,9 @@ void vtkTecplotReader::ReadFile(vtkMultiBlockDataSet* multZone)
             pos = tok.find('(');
             if (pos != std::string::npos)
             {
+#ifndef NDEBUG
               std::string exprName(tok.substr(0, pos));
+#endif
               std::string exprDef(tok.substr(pos, tok.size() - pos));
 
               exprDef.replace(0, 1, "{");

@@ -106,16 +106,34 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QProxyStyle>
+#include <QStyleFactory>
 #include <QSysInfo>
 
 #include "vtkPVFileInformation.h"
 #include "vtkPVVersion.h"
 #include "vtkSMProxyManager.h"
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#define pqKeyCombo(mod, key) (mod) | (key)
+#else
+#define pqKeyCombo(mod, key) (mod) + (key)
+#endif
+
 //-----------------------------------------------------------------------------
 class pqActiveDisabledStyle : public QProxyStyle
 {
 public:
+  pqActiveDisabledStyle()
+#if QT_VERSION >= QT_VERSION_CHECK(6, 1, 0)
+    : QProxyStyle(QStyleFactory::create(QApplication::style()->name()))
+#else
+    : QProxyStyle(QStyleFactory::create("fusion"))
+#endif
+  {
+  }
+
+  ~pqActiveDisabledStyle() override = default;
+
   int styleHint(StyleHint hint, const QStyleOption* option = nullptr,
     const QWidget* widget = nullptr, QStyleHintReturn* returnData = nullptr) const override
   {
@@ -145,7 +163,7 @@ void pqParaViewMenuBuilders::buildFileMenu(QMenu& menu)
   ui.actionFileLoadMaterials->setEnabled(false);
 #endif
   new pqRecentFilesMenu(*ui.menuRecentFiles, ui.menuRecentFiles);
-  new pqReloadFilesReaction(ui.actionReloadFiles);
+  new pqReloadFilesReaction(ui.actionReloadFiles, pqReloadFilesReaction::ReloadModes::AllSources);
 
   new pqLoadStateReaction(ui.actionFileLoadServerState);
   new pqSaveStateReaction(ui.actionFileSaveServerState);
@@ -193,7 +211,7 @@ void pqParaViewMenuBuilders::buildEditMenu(QMenu& menu, pqPropertiesPanel* prope
   new pqChangeFileNameReaction(ui.actionChangeFile);
   new pqIgnoreSourceTimeReaction(ui.actionIgnoreTime);
   new pqDeleteReaction(ui.actionDelete);
-  ui.actionDelete->setShortcut(QKeySequence(Qt::ALT + Qt::Key_D));
+  ui.actionDelete->setShortcut(QKeySequence(pqKeyCombo(Qt::ALT, Qt::Key_D)));
   ui.actionDelete->setAutoRepeat(false);
   new pqDeleteReaction(ui.actionDeleteTree, pqDeleteReaction::DeleteModes::TREE);
   new pqDeleteReaction(ui.actionDelete_All, pqDeleteReaction::DeleteModes::ALL);
@@ -215,11 +233,11 @@ void pqParaViewMenuBuilders::buildEditMenu(QMenu& menu, pqPropertiesPanel* prope
   {
     QAction* applyAction = new QAction(QIcon(":/pqWidgets/Icons/pqApply.svg"),
       QCoreApplication::translate("pqEditMenu", "Apply"), &menu);
-    applyAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_A));
+    applyAction->setShortcut(QKeySequence(pqKeyCombo(Qt::ALT, Qt::Key_A)));
     applyAction->setAutoRepeat(false);
     QAction* resetAction = new QAction(QIcon(":/pqWidgets/Icons/pqCancel.svg"),
       QCoreApplication::translate("pqEditMenu", "Reset"), &menu);
-    resetAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_R));
+    resetAction->setShortcut(QKeySequence(pqKeyCombo(Qt::ALT, Qt::Key_R)));
     resetAction->setAutoRepeat(false);
     menu.insertAction(ui.actionDelete, applyAction);
     menu.insertAction(ui.actionDelete, resetAction);
@@ -628,7 +646,7 @@ void pqParaViewMenuBuilders::buildPipelineBrowserContextMenu(QMenu& menu, QMainW
   new pqCopyReaction(actionPBCopyPipeline, false, true);
   new pqCopyReaction(actionPBPastePipeline, true, true);
   new pqChangePipelineInputReaction(actionPBChangeInput);
-  new pqReloadFilesReaction(actionPBReloadFiles);
+  new pqReloadFilesReaction(actionPBReloadFiles, pqReloadFilesReaction::ReloadModes::ActiveSource);
   new pqIgnoreSourceTimeReaction(actionPBIgnoreTime);
   new pqDeleteReaction(actionPBDelete);
   new pqDeleteReaction(actionPBDeleteTree, pqDeleteReaction::DeleteModes::TREE);
@@ -743,11 +761,6 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
     (menu.addAction(QCoreApplication::translate("pqHelpMenu", "ParaView Web Site"))
       << pqSetName("actionWebSite")));
 
-  // ParaView Wiki
-  new pqDesktopServicesReaction(QUrl("http://www.paraview.org/Wiki/ParaView"),
-    (menu.addAction(QCoreApplication::translate("pqHelpMenu", "ParaView Wiki"))
-      << pqSetName("actionWiki")));
-
   // ParaView Community Support
   new pqDesktopServicesReaction(QUrl("https://discourse.paraview.org/c/paraview-support"),
     (menu.addAction(QCoreApplication::translate("pqHelpMenu", "ParaView Community Support"))
@@ -769,7 +782,7 @@ void pqParaViewMenuBuilders::buildHelpMenu(QMenu& menu)
       << pqSetName("actionProfessionalSupport")));
 
   // Professional Training
-  new pqDesktopServicesReaction(QUrl("https://www.kitware.com/support/#training"),
+  new pqDesktopServicesReaction(QUrl("https://www.kitware.com/paraview-solutions/#training"),
     (menu.addAction(QCoreApplication::translate("pqHelpMenu", "Professional Training"))
       << pqSetName("actionTraining")));
 

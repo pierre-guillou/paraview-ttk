@@ -25,8 +25,9 @@
 #include "vtkRenderer.h"
 
 #include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 
 int TestAnariRendererType(int argc, char* argv[])
 {
@@ -54,8 +55,6 @@ int TestAnariRendererType(int argc, char* argv[])
 
   vtkNew<vtkPolyDataNormals> normals;
   normals->SetInputConnection(polysource->GetOutputPort());
-  // normals->ComputePointNormalsOn();
-  // normals->ComputeCellNormalsOff();
 
   vtkNew<vtkPolyDataMapper> mapper;
   mapper->SetInputConnection(normals->GetOutputPort());
@@ -69,37 +68,20 @@ int TestAnariRendererType(int argc, char* argv[])
   vtkNew<vtkAnariPass> anariPass;
   renderer->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, renderer);
-    vtkNew<vtkTesting> testing;
+  SetParameterDefaults(anariPass, renderer, useDebugDevice, "TestAnariRendererType");
 
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariRendererType";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), renderer);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", renderer);
-
+  auto* ar = anariPass->GetAnariRenderer();
   for (int i = 1; i < 9; i++)
   {
     if (i % 2)
     {
       cerr << "Render via default" << endl;
-      vtkAnariRendererNode::SetRendererSubtype("default", renderer);
-      vtkAnariRendererNode::SetSamplesPerPixel(4, renderer);
-      vtkAnariRendererNode::SetLightFalloff(.5, renderer);
-      vtkAnariRendererNode::SetUseDenoiser(1, renderer);
-      vtkAnariRendererNode::SetCompositeOnGL(1, renderer);
+      ar->SetSubtype("default");
     }
     else
     {
       cerr << "Render via raycast" << endl;
-      vtkAnariRendererNode::SetRendererSubtype("raycast", renderer);
-      vtkAnariRendererNode::SetSamplesPerPixel(4, renderer);
-      vtkAnariRendererNode::SetUseDenoiser(1, renderer);
-      vtkAnariRendererNode::SetCompositeOnGL(1, renderer);
+      ar->SetSubtype("raycast");
     }
 
     renWin->Render();

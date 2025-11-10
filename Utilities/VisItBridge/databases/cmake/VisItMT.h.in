@@ -56,6 +56,7 @@ protected:
   bool InitializeAVTReader( const int& timestep ) override;
   bool ActivateTimestep( const int& timestep ) override;
   char *FileName;
+  std::string MetaDataSource;
 
 private:
   @_add_visit_reader_plugin_name@(const @_add_visit_reader_plugin_name@&) = delete;

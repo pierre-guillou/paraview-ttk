@@ -5,6 +5,7 @@
 
 #include "pqAnglePropertyWidget.h"
 #include "pqAnimationShortcutDecorator.h"
+#include "pqAnnulusPropertyWidget.h"
 #include "pqArrayStatusPropertyWidget.h"
 #include "pqBackgroundEditorWidget.h"
 #include "pqBoxPropertyWidget.h"
@@ -19,6 +20,7 @@
 #include "pqColorSelectorPropertyWidget.h"
 #include "pqCommandButtonPropertyWidget.h"
 #include "pqCompositePropertyWidgetDecorator.h"
+#include "pqConePropertyWidget.h"
 #include "pqCoordinateFramePropertyWidget.h"
 #include "pqCylinderPropertyWidget.h"
 #include "pqDataAssemblyPropertyWidget.h"
@@ -30,6 +32,7 @@
 #include "pqFileListPropertyWidget.h"
 #include "pqFileNamePropertyWidget.h"
 #include "pqFontPropertyWidget.h"
+#include "pqFrustumPropertyWidget.h"
 #include "pqGenericPropertyWidgetDecorator.h"
 #include "pqGlyphScaleFactorPropertyWidget.h"
 #include "pqHandlePropertyWidget.h"
@@ -320,9 +323,21 @@ pqPropertyWidget* pqStandardPropertyWidgetInterface::createWidgetForPropertyGrou
   {
     return new pqYoungsMaterialPropertyWidget(proxy, group, parentWidget);
   }
+  else if (panelWidget == "InteractiveAnnulus")
+  {
+    return new pqAnnulusPropertyWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "InteractiveCone")
+  {
+    return new pqConePropertyWidget(proxy, group, parentWidget);
+  }
   else if (panelWidget == "InteractiveCylinder")
   {
     return new pqCylinderPropertyWidget(proxy, group, parentWidget);
+  }
+  else if (panelWidget == "InteractiveFrustum")
+  {
+    return new pqFrustumPropertyWidget(proxy, group, parentWidget);
   }
   else if (panelWidget == "InteractiveLight")
   {

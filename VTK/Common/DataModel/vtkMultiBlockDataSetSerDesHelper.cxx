@@ -17,7 +17,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkMultiBlockDataSetSerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkMultiBlockDataSetSerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 static nlohmann::json Serialize_vtkMultiBlockDataSet(
@@ -74,11 +74,18 @@ static void Deserialize_vtkMultiBlockDataSet(
       {
         const std::string name = blockState.at("Name").get<std::string>();
         const auto& block = blockState.at("DataObject");
-        auto* context = deserializer->GetContext();
-        const auto identifier = block.at("Id").get<vtkTypeUInt32>();
-        auto subObject = context->GetObjectAtId(identifier);
-        deserializer->DeserializeJSON(identifier, subObject);
-        object->SetBlock(i, vtkDataObject::SafeDownCast(subObject));
+        if (!block.empty())
+        {
+          auto* context = deserializer->GetContext();
+          const auto identifier = block.at("Id").get<vtkTypeUInt32>();
+          auto subObject = context->GetObjectAtId(identifier);
+          deserializer->DeserializeJSON(identifier, subObject);
+          object->SetBlock(i, vtkDataObject::SafeDownCast(subObject));
+        }
+        else
+        {
+          object->SetBlock(i, nullptr);
+        }
         object->GetMetaData(i)->Set(vtkCompositeDataSet::NAME(), name);
         i++;
       }
@@ -86,7 +93,8 @@ static void Deserialize_vtkMultiBlockDataSet(
   }
 }
 
-int RegisterHandlers_vtkMultiBlockDataSetSerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkMultiBlockDataSetSerDesHelper(
+  void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

@@ -44,12 +44,14 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestImageDataFindCell.cxx
   TestImageDataInterpolation.cxx
   TestImageDataOrientation.cxx
+  TestImageDataTransformCoordinates.cxx
   TestImageIterator.cxx
   TestInformationDataObjectKey.cxx
   TestInterpolationDerivs.cxx
   TestInterpolationFunctions.cxx
   TestMappedGridDeepCopy.cxx
   TestMappedGridShallowCopy.cxx
+  TestMeshMTime.cxx
   TestPath.cxx
   TestPentagonalPrism.cxx
   TestPiecewiseFunction.cxx
@@ -74,6 +76,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests tests
   TestSMPFeatures.cxx
   TestSelectionExpression.cxx
   TestSelectionSubtract.cxx
+  TestSetCellsPolyhedronBackCompatibility.cxx
   TestSimpleIncrementalOctreePointLocator.cxx
   TestSortFieldData.cxx
   TestStaticCellLocator.cxx
@@ -130,6 +133,7 @@ vtk_add_test_cxx(vtkCommonDataModelCxxTests data_tests
   TestMeanValueCoordinatesInterpolation2.cxx
   TestPolyhedron2.cxx,NO_VALID
   TestPolyhedron4.cxx,NO_VALID,NO_OUTPUT
+  TestPolyhedronConcaveCentroid.cxx,NO_VALID,NO_OUTPUT
   TestPolyhedronContouring.cxx,NO_VALID
   TestPolyhedronCutter.cxx,NO_VALID
   TestPolyhedronDecompose.cxx,NO_DATA

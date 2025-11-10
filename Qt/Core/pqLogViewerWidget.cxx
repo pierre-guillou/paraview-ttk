@@ -7,6 +7,7 @@
 #include "vtkPVLogger.h"
 #include "vtkSMSessionProxyManager.h"
 
+#include <QApplication>
 #include <QByteArray>
 #include <QDebug>
 #include <QPushButton>
@@ -45,7 +46,7 @@ public:
     this->Model.clear();
     this->ActiveScopeItem.clear();
     this->LastItem = nullptr;
-    this->Ui.details->setText(tr(""));
+    this->Ui.details->setText(QCoreApplication::translate("pqLogViewerWidget", ""));
   }
 
   void addLines(const QStringList& lines)
@@ -99,7 +100,7 @@ public:
         // Qt::TextAlignmentRole);
 
         // Change log message color for warnings and errors
-        QColor color;
+        QColor color = QApplication::palette().color(QPalette::Text);
         if (parts[3] == "WARN")
         {
           color.setRgb(174, 173, 39);
@@ -188,7 +189,8 @@ pqLogViewerWidget::pqLogViewerWidget(QWidget* parentObject)
   internals.Ui.treeView->setModel(&internals.FilterModel);
 
   QObject::connect(internals.Ui.treeView->selectionModel(), &QItemSelectionModel::selectionChanged,
-    [&internals](const QItemSelection&, const QItemSelection&) {
+    [&internals](const QItemSelection&, const QItemSelection&)
+    {
       auto indexes = internals.Ui.treeView->selectionModel()->selectedRows();
       QString detailText;
       for (auto index : indexes)
@@ -200,11 +202,14 @@ pqLogViewerWidget::pqLogViewerWidget(QWidget* parentObject)
           detailText.append("\n");
         }
       }
-      internals.Ui.details->setText(detailText);
+      const char* detailTextStr = detailText.toUtf8().data();
+      internals.Ui.details->setText(
+        QCoreApplication::translate("pqLogViewerWidget", detailTextStr));
     });
 
-  QObject::connect(
-    internals.Ui.treeView->verticalScrollBar(), &QScrollBar::valueChanged, [&internals, this]() {
+  QObject::connect(internals.Ui.treeView->verticalScrollBar(), &QScrollBar::valueChanged,
+    [&internals, this]()
+    {
       if (this->signalsBlocked())
       {
         return;

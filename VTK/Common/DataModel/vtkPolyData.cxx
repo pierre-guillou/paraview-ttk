@@ -347,21 +347,23 @@ void vtkPolyData::ComputeCellsBounds()
           continue;
         }
         // Lambda to threaded mark used points
-        vtkSMPTools::For(0, numCells, [&](vtkIdType beginCellId, vtkIdType endCellId) {
-          auto cellPointIds = tlCellPointIds.Local();
-          vtkIdType npts, ptIdx;
-          const vtkIdType* pts;
-          for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
+        vtkSMPTools::For(0, numCells,
+          [&](vtkIdType beginCellId, vtkIdType endCellId)
           {
-            cellArray->GetCellAtId(cellId, npts, pts, cellPointIds);
-            for (ptIdx = 0; ptIdx < npts; ++ptIdx)
+            auto cellPointIds = tlCellPointIds.Local();
+            vtkIdType npts, ptIdx;
+            const vtkIdType* pts;
+            for (vtkIdType cellId = beginCellId; cellId < endCellId; ++cellId)
             {
-              // memory_order_relaxed is safe here, since we're not using the atomics for
-              // synchronization.
-              ptUses[pts[ptIdx]].store(1, std::memory_order_relaxed);
+              cellArray->GetCellAtId(cellId, npts, pts, cellPointIds);
+              for (ptIdx = 0; ptIdx < npts; ++ptIdx)
+              {
+                // memory_order_relaxed is safe here, since we're not using the atomics for
+                // synchronization.
+                ptUses[pts[ptIdx]].store(1, std::memory_order_relaxed);
+              }
             }
-          }
-        }); // end lambda
+          }); // end lambda
       }
       vtkBoundingBox::ComputeBounds(this->Points, ptUses, this->CellsBounds);
       delete[] ptUses;
@@ -630,6 +632,33 @@ int vtkPolyData::GetMaxSpatialDimension()
 }
 
 //------------------------------------------------------------------------------
+int vtkPolyData::GetMinSpatialDimension()
+{
+  int minDim = 3;
+
+  if (this->Verts && this->Verts->GetNumberOfCells() > 0)
+  {
+    minDim = std::min(minDim, 0);
+  }
+
+  if (this->Lines && this->Lines->GetNumberOfCells() > 0)
+  {
+    minDim = std::min(minDim, 1);
+  }
+
+  if (this->Polys && this->Polys->GetNumberOfCells() > 0)
+  {
+    minDim = std::min(minDim, 2);
+  }
+
+  if (this->Strips && this->Strips->GetNumberOfCells() > 0)
+  {
+    minDim = std::min(minDim, 2);
+  }
+  return minDim;
+}
+
+//------------------------------------------------------------------------------
 bool vtkPolyData::AllocateEstimate(vtkIdType numCells, vtkIdType maxCellSize)
 {
   return this->AllocateExact(numCells, numCells * maxCellSize);
@@ -657,7 +686,8 @@ bool vtkPolyData::AllocateExact(vtkIdType numVerts, vtkIdType vertConnSize, vtkI
   vtkIdType stripConnSize)
 {
   auto initCellArray = [](vtkSmartPointer<vtkCellArray>& cellArray, vtkIdType numCells,
-                         vtkIdType connSize) -> bool {
+                         vtkIdType connSize) -> bool
+  {
     cellArray = nullptr;
     if (numCells == 0 && connSize == 0)
     {
@@ -734,7 +764,8 @@ struct BuildCellsImpl
       throw std::runtime_error("Cell map storage capacity exceeded.");
     }
 
-    auto buildCellsOperator = [&](vtkIdType begin, vtkIdType end) {
+    auto buildCellsOperator = [&](vtkIdType begin, vtkIdType end)
+    {
       for (vtkIdType cellId = begin, globalCellId = beginCellId + begin; cellId < end;
            ++cellId, ++globalCellId)
       {
@@ -789,17 +820,19 @@ void vtkPolyData::BuildCells()
 
   if (nPolys > 0)
   {
-    polys->Visit(BuildCellsImpl{}, this->Cells, beginCellId, [](vtkIdType size) -> VTKCellType {
-      switch (size)
+    polys->Visit(BuildCellsImpl{}, this->Cells, beginCellId,
+      [](vtkIdType size) -> VTKCellType
       {
-        case 3:
-          return VTK_TRIANGLE;
-        case 4:
-          return VTK_QUAD;
-        default:
-          return VTK_POLYGON;
-      }
-    });
+        switch (size)
+        {
+          case 3:
+            return VTK_TRIANGLE;
+          case 4:
+            return VTK_QUAD;
+          default:
+            return VTK_POLYGON;
+        }
+      });
     beginCellId += nPolys;
   }
 
@@ -1599,15 +1632,22 @@ void vtkPolyData::RemoveGhostCells()
   vtkPointData* newPointData = newPD->GetPointData();
   vtkCellData* newCellData = newPD->GetCellData();
 
-#ifdef VTK_USE_64BIT_IDS
-  if (!(numPoints >> 31))
+  if (this->Verts)
   {
-    newVerts->ConvertTo32BitStorage();
-    newLines->ConvertTo32BitStorage();
-    newPolys->ConvertTo32BitStorage();
-    newStrips->ConvertTo32BitStorage();
+    this->Verts->IsStorage64Bit() ? newVerts->Use64BitStorage() : newVerts->Use32BitStorage();
   }
-#endif
+  if (this->Lines)
+  {
+    this->Lines->IsStorage64Bit() ? newLines->Use64BitStorage() : newLines->Use32BitStorage();
+  }
+  if (this->Polys)
+  {
+    this->Polys->IsStorage64Bit() ? newPolys->Use64BitStorage() : newPolys->Use32BitStorage();
+  }
+  if (this->Strips)
+  {
+    this->Strips->IsStorage64Bit() ? newStrips->Use64BitStorage() : newStrips->Use32BitStorage();
+  }
 
   newVerts->Allocate(this->GetNumberOfVerts());
   newLines->Allocate(this->GetNumberOfLines());

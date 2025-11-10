@@ -45,7 +45,7 @@ void Value::ProcessJSON(const rapidjson::Value& json, DataSourcesType& sources)
   this->ValueImpl->ProcessJSON(json, sources);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> Value::Read(
+std::vector<viskores::cont::UnknownArrayHandle> Value::Read(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources,
   const fides::metadata::MetaData& selections)
@@ -67,20 +67,13 @@ std::set<std::string> Value::GetGroupNames(
   return this->ValueImpl->GetGroupNames(paths, sources);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> ValueVariableDimensions::Read(
+std::vector<viskores::cont::UnknownArrayHandle> ValueVariableDimensions::Read(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources,
   const fides::metadata::MetaData& selections)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetVariableDimensions(this->VariableName, selections);
 }
 
@@ -89,15 +82,8 @@ size_t ValueVariableDimensions::GetNumberOfBlocks(
   DataSourcesType& sources,
   const std::string& groupName /*=""*/)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetNumberOfBlocks(this->VariableName, groupName);
 }
 
@@ -105,15 +91,8 @@ std::set<std::string> ValueVariableDimensions::GetGroupNames(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetGroupNames(this->VariableName);
 }
 
@@ -131,13 +110,13 @@ void ValueArray::ProcessJSON(const rapidjson::Value& json, DataSourcesType& fide
   }
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> ValueArray::Read(
+std::vector<viskores::cont::UnknownArrayHandle> ValueArray::Read(
   const std::unordered_map<std::string, std::string>& fidesNotUsed(paths),
   DataSourcesType& fidesNotUsed(sources),
   const fides::metadata::MetaData& fidesNotUsed(selections))
 {
-  std::vector<vtkm::cont::UnknownArrayHandle> retVal;
-  retVal.push_back(vtkm::cont::make_ArrayHandle(this->Values, vtkm::CopyFlag::On));
+  std::vector<viskores::cont::UnknownArrayHandle> retVal;
+  retVal.push_back(viskores::cont::make_ArrayHandle(this->Values, viskores::CopyFlag::On));
   return retVal;
 }
 
@@ -145,49 +124,28 @@ std::set<std::string> ValueScalar::GetGroupNames(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetGroupNames(this->VariableName);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> ValueScalar::Read(
+std::vector<viskores::cont::UnknownArrayHandle> ValueScalar::Read(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources,
   const fides::metadata::MetaData& selections)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetScalarVariable(this->VariableName, selections);
 }
 
-std::vector<vtkm::cont::UnknownArrayHandle> ValueArrayVariable::Read(
+std::vector<viskores::cont::UnknownArrayHandle> ValueArrayVariable::Read(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources,
   const fides::metadata::MetaData& selections)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
 
   auto arrays = ds->ReadVariable(this->VariableName, selections);
   return arrays;
@@ -198,15 +156,8 @@ size_t ValueArrayVariable::GetNumberOfBlocks(
   DataSourcesType& sources,
   const std::string& groupName /*=""*/)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetNumberOfBlocks(this->VariableName, groupName);
 }
 
@@ -214,15 +165,8 @@ std::set<std::string> ValueArrayVariable::GetGroupNames(
   const std::unordered_map<std::string, std::string>& paths,
   DataSourcesType& sources)
 {
-  auto itr = paths.find(this->DataSourceName);
-  if (itr == paths.end())
-  {
-    throw std::runtime_error("Could not find data_source with name " + this->DataSourceName +
-                             " among the input paths.");
-  }
   const auto& ds = sources[this->DataSourceName];
-  std::string path = itr->second + ds->FileName;
-  ds->OpenSource(path);
+  ds->OpenSource(paths, this->DataSourceName);
   return ds->GetGroupNames(this->VariableName);
 }
 

@@ -21,6 +21,8 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/mg_diff_0062/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/glTF/NestedRings/NestedRings.glb}"
   "DATA{${paraview_test_data_directory_input}/Data/plotly_json_line_chart.json}"
+  "DATA{${paraview_test_data_directory_input}/Data/WorldWithTexture.obj}"
+  "DATA{${paraview_test_data_directory_input}/Data/WorldWithTexture.png}"
 
 
   # baselines
@@ -33,6 +35,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestCatalystClient.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FontSize.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SaveTransparentImages.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LoadAndApplyTexture.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LoadStateWithTextures.png}"
   )
 
@@ -63,7 +66,7 @@ if (numpy_found)
     # add Matplotlib tests only if matplotlib was found at configure time.
     paraview_add_test_python(
       NO_DATA NO_RT
-      TestPythonViewMatplotlibScript.py
+      TestPythonViewMatplotlibScript.py,LOOSE_VALID
       )
   endif()
 endif()
@@ -79,8 +82,10 @@ paraview_add_test_pvbatch(
 
 paraview_add_test_python(
   NO_RT
-  ColorBy.py
   ColorBlockBy.py
+  ColorBy.py
+  CtxActiveProxy.py
+  Deprecation.py
   GroupDataSets.py
   LegacyPathLine.py
   LegacyStreakLine.py
@@ -95,6 +100,7 @@ paraview_add_test_python(
   TestLineChartLabelPrefix.py
   TestPythonViewScript.py
   TestResetCameraToDirection.py
+  LoadAndApplyTexture.py
   LoadStateWithTextures.py
   ExportGLTF.py
 )
@@ -245,6 +251,32 @@ if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE)
 endif()
 
 #------------------------------------------------------------------------------
+# Test pvx file configuration is available to the client
+if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE AND TARGET pvserver AND TARGET pvpython)
+  set(num_procs 2)
+
+  _paraview_add_tests("paraview_add_cave_python_tests"
+    PREFIX "pv_cave_python"
+    SUFFIX "-${num_procs}"
+    ENVIRONMENT
+      PV_SHARED_WINDOW_SIZE=400x300
+      SMTESTDRIVER_MPI_NUMPROCS=${num_procs}
+    NUMPROCS "${num_procs}"
+    _COMMAND_PATTERN
+      __paraview_smtesting_args__
+      --server "$<TARGET_FILE:ParaView::pvserver>"
+        --enable-bt
+        --force-offscreen-rendering
+        --pvx
+        "${CMAKE_CURRENT_SOURCE_DIR}/../XML/LeftRight.pvx"
+      --client $<TARGET_FILE:ParaView::pvpython>
+        --enable-bt
+        --dr
+        "${CMAKE_CURRENT_SOURCE_DIR}/TestPVXInfoAvailableInClient.py"
+    TEST_NAME "TestPVXInfoAvailableInClient")
+endif()
+
+#------------------------------------------------------------------------------
 # Add a test using python plugin and a python script
 
 paraview_add_test_python(
@@ -253,7 +285,20 @@ paraview_add_test_python(
 )
 
 set_tests_properties(paraviewPython-TestPV_PLUGIN_PATH
-        PROPERTIES ENVIRONMENT "PV_PLUGIN_PATH=${CMAKE_SOURCE_DIR}/Examples/Plugins/PythonAlgorithm/")
+        PROPERTIES ENVIRONMENT "PV_PLUGIN_PATH=${CMAKE_SOURCE_DIR}/Examples/Plugins/PythonAlgorithm/Plugin")
+
+#------------------------------------------------------------------------------
+# Add a couple of tests for pvpython package listing. Just verify they run.
+add_test(NAME pvpython-ListPackagesTest
+  COMMAND
+    "$<TARGET_FILE:ParaView::pvpython>"
+      -m paraview.apps.packages)
+
+add_test(NAME pvpython-ListPackagesRequirementsTest
+  COMMAND
+    "$<TARGET_FILE:ParaView::pvpython>"
+      -m paraview.apps.packages
+      --format requirements)
 
 #------------------------------------------------------------------------------
 # Add HTG rendering tests

@@ -18,7 +18,6 @@
 
 #include "vtkPolyDataMapper.h"
 
-#include "vtkDeprecation.h"         // for VTK_DEPRECATED_IN_9_3_0
 #include "vtkRenderingCoreModule.h" // for export macro
 #include "vtkStateStorage.h"        // for ivar
 #include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
@@ -106,8 +105,6 @@ public:
     double color[3] = { r, g, b };
     this->SetBlockColor(index, color);
   }
-  VTK_DEPRECATED_IN_9_3_0("Use void GetBlockColor(unsigned int index, double color[3])")
-  double* GetBlockColor(unsigned int index);
   void GetBlockColor(unsigned int index, double color[3]);
   void RemoveBlockColor(unsigned int index);
   void RemoveBlockColors();
@@ -236,43 +233,6 @@ public:
    */
   vtkMTimeType GetMTime() override;
 
-  ///@{
-  /**
-   * By default, this class uses the dataset's point and cell ids during
-   * rendering. However, one can override those by specifying cell and point
-   * data arrays to use instead. Currently, only vtkIdType array is supported.
-   * Set to NULL string (default) to use the point ids instead.
-   */
-  vtkSetStringMacro(PointIdArrayName);
-  vtkGetStringMacro(PointIdArrayName);
-  vtkSetStringMacro(CellIdArrayName);
-  vtkGetStringMacro(CellIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * If this class should override the process id using a data-array,
-   * set this variable to the name of the array to use. It must be a
-   * point-array.
-   */
-  vtkSetStringMacro(ProcessIdArrayName);
-  vtkGetStringMacro(ProcessIdArrayName);
-  ///@}
-
-  ///@{
-  /**
-   * Generally, this class can render the composite id when iterating
-   * over composite datasets. However in some cases (as in AMR), the rendered
-   * structure may not correspond to the input data, in which case we need
-   * to provide a cell array that can be used to render in the composite id in
-   * selection passes. Set to NULL (default) to not override the composite id
-   * color set by vtkCompositePainter if any.
-   * The array *MUST* be a cell array and of type vtkUnsignedIntArray.
-   */
-  vtkSetStringMacro(CompositeIdArrayName);
-  vtkGetStringMacro(CompositeIdArrayName);
-  ///@}
-
 protected:
   vtkCompositePolyDataMapper();
   ~vtkCompositePolyDataMapper() override;
@@ -362,12 +322,6 @@ protected:
    */
   vtkTimeStamp BoundsMTime;
 
-  // additional picking indirection
-  char* PointIdArrayName = nullptr;
-  char* CellIdArrayName = nullptr;
-  char* ProcessIdArrayName = nullptr;
-  char* CompositeIdArrayName = nullptr;
-
   vtkStateStorage TranslucentState;
   bool HasTranslucentGeometry = false;
   vtkStateStorage RenderValuesState;
@@ -377,8 +331,6 @@ protected:
 private:
   vtkCompositePolyDataMapper(const vtkCompositePolyDataMapper&) = delete;
   void operator=(const vtkCompositePolyDataMapper&) = delete;
-
-  std::array<double, 3> ColorResult = {};
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;

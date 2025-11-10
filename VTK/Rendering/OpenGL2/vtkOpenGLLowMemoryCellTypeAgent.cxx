@@ -20,7 +20,7 @@
 #include "vtkShaderProgram.h"
 #include "vtkStringToken.h"
 #include "vtkTextureObject.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include <memory>
 
@@ -133,7 +133,10 @@ void vtkOpenGLLowMemoryCellTypeAgent::Draw(vtkRenderer* renderer, vtkActor* acto
   if (actor->GetProperty()->GetRepresentation() == VTK_POINTS || this->InVertexVisibilityPass)
   {
     mapper->NumberOfElements *= this->NumberOfPointsPerPrimitive;
-    mapper->NumberOfInstances = 1;
+  }
+  else
+  {
+    mapper->NumberOfElements *= this->NumberOfPseudoPrimitivesPerElement;
   }
   mapper->ShaderProgram->SetUniformi("cellIdOffset", offsets.CellIdOffset);
   mapper->ShaderProgram->SetUniformi("vertexIdOffset", offsets.VertexIdOffset);

@@ -10,7 +10,7 @@
  * Some vtk examples and tests need to perform differently when they
  * are run as tests versus when they are run as individual
  * programs. Many tests/examples are interactive and eventually call
- * vtkRenderWindowInteration::Start() to initialie the
+ * vtkRenderWindowInteration::Start() to initialize the
  * interaction. But, when run as tests, these programs should
  * exit. This factory overrides vtkRenderWindowInteractor so that the
  * Start() method just returns.
@@ -37,8 +37,11 @@ class VTKTESTINGRENDERING_EXPORT vtkTestingObjectFactory : public vtkObjectFacto
 public:
   static vtkTestingObjectFactory* New();
   vtkTypeMacro(vtkTestingObjectFactory, vtkObjectFactory);
-  const char* GetVTKSourceVersion() override;
-  const char* GetDescription() override { return "Factory for overrides during testing"; }
+  const char* GetVTKSourceVersion() VTK_FUTURE_CONST override;
+  const char* GetDescription() VTK_FUTURE_CONST override
+  {
+    return "Factory for overrides during testing";
+  }
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
 protected:

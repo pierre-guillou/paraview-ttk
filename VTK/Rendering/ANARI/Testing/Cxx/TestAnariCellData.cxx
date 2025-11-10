@@ -1,6 +1,10 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 // This tests whether ANARI properly handles cell data
+#include "vtkAnariPass.h"
+#include "vtkAnariSceneGraph.h"
+#include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 #include <vtkColorTransferFunction.h>
 #include <vtkGPUVolumeRayCastMapper.h>
 #include <vtkImageData.h>
@@ -19,10 +23,6 @@
 #include <vtkTesting.h>
 #include <vtkVolumeProperty.h>
 #include <vtkXMLImageDataReader.h>
-
-#include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
-#include "vtkAnariTestInteractor.h"
 
 int TestAnariCellData(int argc, char* argv[])
 {
@@ -105,23 +105,9 @@ int TestAnariCellData(int argc, char* argv[])
   vtkNew<vtkAnariPass> anariPass;
   ren->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, ren);
-    vtkNew<vtkTesting> testing;
-
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariCellData";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), ren);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", ren);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, ren);
-  vtkAnariRendererNode::SetLightFalloff(1.0, ren);
-  vtkAnariRendererNode::SetUseDenoiser(1, ren);
-  vtkAnariRendererNode::SetCompositeOnGL(1, ren);
-  vtkAnariRendererNode::SetAmbientIntensity(0.5, ren);
+  SetParameterDefaults(anariPass, ren, useDebugDevice, "TestAnariCellData");
+  auto* ar = anariPass->GetAnariRenderer();
+  ar->SetParameterf("ambientRadiance", 0.5f);
 
   renWin->Render();
   ren->ResetCamera();
@@ -135,11 +121,11 @@ int TestAnariCellData(int argc, char* argv[])
 
     if (retVal == vtkRegressionTester::DO_INTERACTOR)
     {
-      vtkNew<vtkAnariTestInteractor> style;
-      style->SetPipelineControlPoints(ren, anariPass, nullptr);
-      style->SetCurrentRenderer(ren);
+      vtkNew<vtkAnariTestInteractor> anariStyle;
+      anariStyle->SetPipelineControlPoints(ren, anariPass, nullptr);
+      anariStyle->SetCurrentRenderer(ren);
 
-      iren->SetInteractorStyle(style);
+      iren->SetInteractorStyle(anariStyle);
       iren->SetDesiredUpdateRate(30.0);
       iren->Start();
     }

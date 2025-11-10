@@ -292,7 +292,7 @@ void return_result(FILE* fp)
           MAX_ARGS);
         return;
       }
-      else if (strcmp(rClass, "vtkVariant") == 0)
+      else if (strcmp(rClass, "vtkVariant") == 0 || strcmp(rClass, "vtkObjectBase") == 0)
       {
         fprintf(fp,
           "      resultStream.Reset();\n"
@@ -495,7 +495,7 @@ void outputFunction(FILE* fp, ClassInfo* data)
         ((currentFunction->ArgTypes[i] & VTK_PARSE_BASE_TYPE) == VTK_PARSE_STRING))
       {
         /* explicit construction avoids possible ambiguity */
-        fprintf(fp, "vtkStdString(temp%i)", i);
+        fprintf(fp, "static_cast<std::string>(vtkStdString(temp%i))", i);
       }
       else
       {
@@ -515,25 +515,6 @@ void outputFunction(FILE* fp, ClassInfo* data)
     wrappedFunctions[numberOfWrappedFunctions] = currentFunction;
     numberOfWrappedFunctions++;
   }
-
-#if 0
-  if (!strcmp("vtkObject",data->Name))
-    {
-    fprintf(fp,"  if (!strcmp(\"AddProgressObserver\",method) && msg.NumberOfArguments == 3 &&\n");
-    fprintf(fp,"      msg.ArgumentTypes[2] == vtkClietnServerStream::string_value)\n");
-    fprintf(fp,"    {\n");
-    fprintf(fp,"    vtkClientServerProgressObserver *apo = vtkClientServerProgressObserver::New();\n");
-    fprintf(fp,"    vtkObject* obj = arlu->GetObjectFromMessage(msg, 0, 1);\n");
-    fprintf(fp,"    apo->SetFilterID(arlu->GetIDFromObject(obj));\n");
-    fprintf(fp,"    apo->SetClientServerUtil(arlu);\n");
-    fprintf(fp,"    char *temp0 = vtkClientServerInterpreter::GetString(msg,2);\n");
-    fprintf(fp,"    op->AddObserver(temp0,apo);\n");
-    fprintf(fp,"    apo->Delete();\n");
-    fprintf(fp,"    delete [] temp0;\n");
-    fprintf(fp,"    return 1;\n");
-    fprintf(fp,"    }\n");
-    }
-#endif
 }
 
 //--------------------------------------------------------------------------nix
@@ -1126,8 +1107,11 @@ void output_DummyInitFunction(FILE* fp, const char* filename)
   fprintf(fp,
     "#include \"vtkSystemIncludes.h\"\n"
     "#include \"vtkClientServerInterpreter.h\"\n"
-    "void VTK_EXPORT %s_Init(vtkClientServerInterpreter* /*csi*/)\n"
+    "extern \"C\"\n"
     "{\n"
+    "VTK_ABI_HIDDEN void %s_Init(vtkClientServerInterpreter* /*csi*/)\n"
+    "{\n"
+    "}\n"
     "}\n",
     basename_dup);
   free(basename_dup);
@@ -1149,7 +1133,9 @@ void output_InitFunction(FILE* fp, NewClassInfo* data)
   fprintf(fp,
     "\n"
     "//-------------------------------------------------------------------------auto\n"
-    "void VTK_EXPORT %s_Init(vtkClientServerInterpreter* csi)\n"
+    "extern \"C\"\n"
+    "{\n"
+    "VTK_ABI_HIDDEN void %s_Init(vtkClientServerInterpreter* csi)\n"
     "{\n"
     "  static vtkClientServerInterpreter* last = nullptr;\n"
     "  if(last != csi)\n"
@@ -1161,7 +1147,7 @@ void output_InitFunction(FILE* fp, NewClassInfo* data)
       data->ClassName, data->ClassName);
   fprintf(
     fp, "    csi->AddCommandFunction(\"%s\", %sCommand);\n", data->ClassName, data->ClassName);
-  fprintf(fp, "    }\n}\n");
+  fprintf(fp, "    }\n}\n}\n");
 }
 
 /* check all methods for use of vtkStdString */
@@ -1352,7 +1338,10 @@ int main(int argc, char* argv[])
     /* Block inclusion of full streams. */
     fprintf(fp, "#define VTK_STREAMS_FWD_ONLY\n");
   }
-  fprintf(fp, "#include \"%s.h\"\n", data->Name);
+  if (strcmp("vtkClientServerInterpreter", data->Name) != 0)
+  {
+    fprintf(fp, "#include \"%s.h\"\n", data->Name);
+  }
   fprintf(fp, "#include \"vtkSystemIncludes.h\"\n");
   if (classUsesStdString(data))
   {
@@ -1370,13 +1359,13 @@ int main(int argc, char* argv[])
   }
   if (!data->IsAbstract)
   {
-    fprintf(fp, "\nvtkObjectBase *%sClientServerNewCommand(void* /*ctx*/)\n{\n", data->Name);
+    fprintf(fp, "\nstatic vtkObjectBase *%sClientServerNewCommand(void* /*ctx*/)\n{\n", data->Name);
     fprintf(fp, "  return %s::New();\n}\n\n", data->Name);
   }
 
   fprintf(fp,
     "\n"
-    "int VTK_EXPORT %sCommand(\n"
+    "static int %sCommand(\n"
     "  vtkClientServerInterpreter *arlu, vtkObjectBase *ob,\n"
     "  const char *method, const vtkClientServerStream& msg,\n"
     "  vtkClientServerStream& resultStream, void* /*ctx*/)\n"

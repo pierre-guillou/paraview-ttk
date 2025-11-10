@@ -19,6 +19,8 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 
+class vtkInformationStringKey;
+
 class VTKRENDERINGANARI_EXPORT vtkAnariVolumeNode : public vtkVolumeNode
 {
 public:
@@ -30,11 +32,17 @@ public:
    * Overridden to take into account this renderables time, including
    * mapper and data into mapper inclusive of composite input
    */
-  virtual vtkMTimeType GetMTime() override;
+  vtkMTimeType GetMTime() override;
+
+  /**
+   * Name of the node, used for debugging or representation
+   * metadata in case ANARI output is written out to intermediate
+   * authoring stages.
+   */
+  static vtkInformationStringKey* VOLUME_NODE_NAME();
 
 protected:
   vtkAnariVolumeNode() = default;
-  ~vtkAnariVolumeNode() = default;
 
 private:
   vtkAnariVolumeNode(const vtkAnariVolumeNode&) = delete;

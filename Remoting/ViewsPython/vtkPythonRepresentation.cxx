@@ -120,7 +120,6 @@ const char* vtkPythonRepresentation::GetAttributeArrayName(int attributeType, in
 void vtkPythonRepresentation::SetAttributeArrayStatus(
   int attributeType, const char* name, int status)
 {
-  std::string nameStr(name);
   this->Internal->AttributeArrayEnabled[attributeType][name] = (status != 0);
 }
 
@@ -172,7 +171,7 @@ int vtkPythonRepresentation::FillInputPortInformation(int port, vtkInformation* 
   return 1;
 }
 
-//#define VTK_PYTHON_REPRESENTATION_DEBUG
+// #define VTK_PYTHON_REPRESENTATION_DEBUG
 
 #if defined(VTK_PYTHON_REPRESENTATION_DEBUG)
 #define vtkPythonRepresentationDebug(x)                                                            \

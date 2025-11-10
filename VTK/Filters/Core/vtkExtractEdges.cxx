@@ -95,7 +95,8 @@ struct ExtractEdges
 
     // In place lambda to do the threaded copying of edges
     vtkSMPTools::For(0, totalEdges,
-      [&edgeOffsets, &edges, offsetsPtr, connPtr](vtkIdType edgeId, vtkIdType endEdgeId) {
+      [&edgeOffsets, &edges, offsetsPtr, connPtr](vtkIdType edgeId, vtkIdType endEdgeId)
+      {
         for (; edgeId < endEdgeId; ++edgeId)
         {
           vtkIdType* c = connPtr + 2 * edgeId;
@@ -120,8 +121,9 @@ struct ExtractEdges
       cellArrays.AddArrays(
         totalEdges, this->InCD, this->OutCD, /*nullValue*/ 0.0, /*promote*/ false);
 
-      vtkSMPTools::For(
-        0, totalEdges, [&edgeOffsets, &edges, &cellArrays](vtkIdType edgeId, vtkIdType endEdgeId) {
+      vtkSMPTools::For(0, totalEdges,
+        [&edgeOffsets, &edges, &cellArrays](vtkIdType edgeId, vtkIdType endEdgeId)
+        {
           for (; edgeId < endEdgeId; ++edgeId)
           {
             vtkIdType numEdges = edgeOffsets[edgeId + 1] - edgeOffsets[edgeId];
@@ -324,7 +326,7 @@ struct ExtractDataSetEdges : public ExtractEdges
 int NonLocatorExtraction(
   vtkIdType numPts, vtkIdType numCells, vtkDataSet* input, vtkPolyData* output)
 {
-  vtkLog(INFO, "Executing edge extractor with original point numbering");
+  vtkLog(TRACE, "Executing edge extractor with original point numbering");
 
   // Is the input a pointset?  In that case we can just reuse the input's
   // points.
@@ -340,14 +342,16 @@ int NonLocatorExtraction(
     newPts->SetNumberOfPoints(numPts);
     output->SetPoints(newPts);
 
-    vtkSMPTools::For(0, numPts, [&input, &newPts](vtkIdType ptId, vtkIdType endPtId) {
-      double pnt[3];
-      for (; ptId < endPtId; ++ptId)
+    vtkSMPTools::For(0, numPts,
+      [&input, &newPts](vtkIdType ptId, vtkIdType endPtId)
       {
-        input->GetPoint(ptId, pnt);
-        newPts->SetPoint(ptId, pnt);
-      }
-    });
+        double pnt[3];
+        for (; ptId < endPtId; ++ptId)
+        {
+          input->GetPoint(ptId, pnt);
+          newPts->SetPoint(ptId, pnt);
+        }
+      });
   }
 
   // Instantiate a cell array to collect all the edges as
@@ -385,7 +389,7 @@ int NonLocatorExtraction(
     vtkSMPTools::For(0, numCells, extractDSE);
   }
 
-  vtkLog(INFO, "Created " << newLines->GetNumberOfCells() << " edges");
+  vtkLog(TRACE, "Created " << newLines->GetNumberOfCells() << " edges");
 
   return 1;
 }
@@ -424,7 +428,7 @@ int vtkExtractEdges::RequestData(vtkInformation* vtkNotUsed(request),
     return NonLocatorExtraction(numPts, numCells, input, output);
   }
 
-  vtkLog(INFO, "Executing edge extractor: points are renumbered");
+  vtkLog(TRACE, "Executing edge extractor: points are renumbered");
 
   // Using a locator
   vtkIdType cellNum, newId;
@@ -540,7 +544,7 @@ int vtkExtractEdges::RequestData(vtkInformation* vtkNotUsed(request),
     } // for all edges of cell
   }   // for all cells
 
-  vtkLog(INFO, "Created " << newLines->GetNumberOfCells() << " edges");
+  vtkLog(TRACE, "Created " << newLines->GetNumberOfCells() << " edges");
 
   //  Update ourselves.
   //

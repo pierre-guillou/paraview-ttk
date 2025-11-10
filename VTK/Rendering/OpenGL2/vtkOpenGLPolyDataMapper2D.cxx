@@ -415,7 +415,7 @@ void vtkOpenGLPolyDataMapper2D::SetPropertyShaderParameters(
     float opacity = static_cast<float>(actor->GetProperty()->GetOpacity());
     double* dColor = actor->GetProperty()->GetColor();
     float diffuseColor[4] = { static_cast<float>(dColor[0]), static_cast<float>(dColor[1]),
-      static_cast<float>(dColor[2]), static_cast<float>(opacity) };
+      static_cast<float>(dColor[2]), opacity };
 
     program->SetUniform4f("diffuseColor", diffuseColor);
   }
@@ -602,6 +602,7 @@ void vtkOpenGLPolyDataMapper2D::UpdateVBO(vtkActor2D* act, vtkViewport* viewport
         this->TransformedPoints->SetPoint(j, itmp[0], itmp[1], 0.0);
       }
     }
+    this->TransformedPoints->Modified();
     p = this->TransformedPoints;
   }
 
@@ -637,6 +638,7 @@ bool vtkOpenGLPolyDataMapper2D::HaveWideLines(vtkViewport* ren, vtkActor2D* acto
   return false;
 }
 
+//------------------------------------------------------------------------------
 void vtkOpenGLPolyDataMapper2D::RenderOverlay(vtkViewport* viewport, vtkActor2D* actor)
 {
   vtkOpenGLClearErrorMacro();

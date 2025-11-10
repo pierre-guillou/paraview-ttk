@@ -6,11 +6,14 @@
 
 #include "pqApplicationComponentsModule.h"
 #include "pqBoolPropertyWidgetDecorator.h"
+#include "vtkShowDecorator.h"
 #include "vtkWeakPointer.h"
 
 /**
  * pqShowWidgetDecorator can be used to show/hide a widget based on the
  * status of another property not directly controlled by the widget.
+ *
+ * @see vtkShowDecorator
  */
 class PQAPPLICATIONCOMPONENTS_EXPORT pqShowWidgetDecorator : public pqBoolPropertyWidgetDecorator
 {
@@ -19,15 +22,18 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqShowWidgetDecorator : public pqBoolProper
 
 public:
   pqShowWidgetDecorator(vtkPVXMLElement* config, pqPropertyWidget* parent);
+  ~pqShowWidgetDecorator() override = default;
 
   bool canShowWidget(bool show_advanced) const override
   {
     (void)show_advanced;
-    return this->isBoolProperty();
+    return decoratorLogic->IsBoolProperty();
   }
 
 private:
   Q_DISABLE_COPY(pqShowWidgetDecorator)
+
+  vtkNew<vtkShowDecorator> decoratorLogic;
 };
 
 #endif

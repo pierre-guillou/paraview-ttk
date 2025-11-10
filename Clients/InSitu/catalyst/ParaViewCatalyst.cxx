@@ -24,6 +24,7 @@
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSourceProxy.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
+#include "vtksys/SystemTools.hxx"
 
 #if VTK_MODULE_ENABLE_VTK_ParallelMPI
 #include "vtkMPI.h"
@@ -35,6 +36,12 @@
 
 #if VTK_MODULE_ENABLE_VTK_IOFides
 #include "vtkFidesReader.h"
+#endif
+
+#if defined(_WIN32) && !defined(__MINGW32__)
+const char SPLIT_PATH_CHAR = ';';
+#else
+const char SPLIT_PATH_CHAR = ':';
 #endif
 
 #include "catalyst_impl_paraview.h"
@@ -105,6 +112,9 @@ static bool update_producer_ioss(const std::string& channel_name, const conduit_
 
   auto algo = vtkIOSSReader::SafeDownCast(producer->GetClientSideObject());
   algo->SetDatabaseTypeOverride("catalyst");
+  // The memory address of the conduit node may or may not change over time. So we need to always
+  // set the property. To accomplish that, we first remove the property and then add it back.
+  algo->RemoveProperty("CATALYST_CONDUIT_NODE");
   algo->AddProperty(
     "CATALYST_CONDUIT_NODE", conduit_cpp::c_node(const_cast<conduit_cpp::Node*>(node)));
   /*
@@ -220,6 +230,7 @@ enum paraview_catalyst_status
 {
   paraview_catalyst_status_invalid_node = 100,
   paraview_catalyst_status_results = 101,
+  paraview_catalyst_status_pipeline_execute_failed = 102,
 };
 #define pvcatalyst_err(name) static_cast<enum catalyst_status>(paraview_catalyst_status_##name)
 
@@ -240,6 +251,7 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
   {
     vtkLogF(
       ERROR, "invalid 'catalyst' node passed to 'catalyst_initialize'. Initialization failed.");
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return pvcatalyst_err(invalid_node);
   }
 
@@ -259,7 +271,13 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
 #else
   const vtkTypeUInt64 comm = 0;
 #endif
-  vtkInSituInitializationHelper::Initialize(comm);
+  std::vector<std::string> python_paths;
+  if (cpp_params.has_path("catalyst/python_path"))
+  {
+    std::string pythonPath = cpp_params["catalyst/python_path"].as_string();
+    python_paths = vtksys::SystemTools::SplitString(pythonPath, SPLIT_PATH_CHAR);
+  }
+  vtkInSituInitializationHelper::Initialize(comm, python_paths);
 
   if (cpp_params.has_path("catalyst/scripts"))
   {
@@ -278,7 +296,7 @@ enum catalyst_status catalyst_initialize_paraview(const conduit_node* params)
         auto pipeline = vtkInSituInitializationHelper::AddPipeline(script.name(), fname);
 
         // check for optional 'args'
-        if (script.has_path("args"))
+        if (script.has_path("args") && pipeline)
         {
           ::process_script_args(vtkInSituPipelinePython::SafeDownCast(pipeline), script["args"]);
         }
@@ -347,6 +365,7 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
   if (!cpp_params.has_path("catalyst"))
   {
     vtkVLogF(PARAVIEW_LOG_CATALYST_VERBOSITY(), "Path 'catalyst' is not provided. Skipping.");
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return pvcatalyst_err(invalid_node);
   }
 
@@ -354,6 +373,7 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
   if (!vtkCatalystBlueprint::Verify("execute", root))
   {
     vtkLogF(ERROR, "invalid 'catalyst' node passed to 'catalyst_execute'. Execution failed.");
+    // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
     return pvcatalyst_err(invalid_node);
   }
 
@@ -517,7 +537,11 @@ enum catalyst_status catalyst_execute_paraview(const conduit_node* params)
       "No 'catalyst/channels' found. No meshes will be processed.");
   }
 
-  vtkInSituInitializationHelper::ExecutePipelines(params);
+  if (!vtkInSituInitializationHelper::ExecutePipelines(params))
+  {
+    vtkLogF(ERROR, "catalyst pipeline failed to execute");
+    return pvcatalyst_err(pipeline_execute_failed);
+  }
 
   return catalyst_status_ok;
 }
@@ -577,5 +601,6 @@ enum catalyst_status catalyst_results_paraview(conduit_node* params)
 
   vtkInSituInitializationHelper::GetResultsFromPipelines(params);
 
+  // NOLINTNEXTLINE(clang-analyzer-optin.core.EnumCastOutOfRange)
   return is_success ? catalyst_status_ok : pvcatalyst_err(results);
 }

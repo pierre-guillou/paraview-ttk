@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 set(classes
-  vtkInitializationHelper)
+  vtkInitializationHelper
+  vtkPVStandardPaths)
 
 set(private_headers
   vtkPVInitializer.h)
@@ -188,6 +189,10 @@ _paraview_remoting_application_optional_xml(
   FILES   Resources/filters_filtersverdict.xml)
 
 _paraview_remoting_application_optional_xml(
+  TARGETS VTK::IOAvmesh
+  FILES   Resources/readers_ioavmesh.xml)
+
+_paraview_remoting_application_optional_xml(
   TARGETS VTK::IOCellGrid
   FILES   Resources/readers_iocellgrid.xml)
 
@@ -220,6 +225,10 @@ _paraview_remoting_application_optional_xml(
 _paraview_remoting_application_optional_xml(
   TARGETS VTK::IOGDAL
   FILES   Resources/proxies_gdal.xml)
+
+_paraview_remoting_application_optional_xml(
+  TARGETS VTK::IOLANLX3D
+  FILES Resources/readers_lanlx3d.xml)
 
 _paraview_remoting_application_optional_xml(
   TARGETS VTK::IOLAS

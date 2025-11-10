@@ -132,8 +132,8 @@ int vtkRandomHyperTreeGridSource::RequestData(
   }
 
   // Create dataset:
-  auto fillArray = [](
-                     vtkDoubleArray* array, vtkIdType numPoints, double minBound, double maxBound) {
+  auto fillArray = [](vtkDoubleArray* array, vtkIdType numPoints, double minBound, double maxBound)
+  {
     array->SetNumberOfComponents(1);
     array->SetNumberOfTuples(numPoints);
     // We differentiate the pathological case at one point from the other cases
@@ -223,7 +223,7 @@ int vtkRandomHyperTreeGridSource::RequestData(
   for (int treeId : hyperTrees)
   {
     /* Initialize RNG per tree to make it easier to distribute,
-     * also make the RNG piece dependent to avoid biais accross
+     * also make the RNG piece dependent to avoid bias across
      * distributed data.
      */
     this->NodeRNG->Initialize(this->Seed + treeId + piece);
@@ -250,7 +250,7 @@ int vtkRandomHyperTreeGridSource::RequestData(
   for (int treeId : hyperTrees)
   {
     /* Initialize RNG per tree to make it easier to distribute,
-     * also make the RNG piece dependent to avoid biais accross
+     * also make the RNG piece dependent to avoid bias across
      * distributed data.
      */
     this->MaskRNG->Initialize(this->Seed + treeId + piece);

@@ -313,7 +313,13 @@ int vtkOrientedGlyphContourRepresentation::ComputeInteractionState(
 {
 
   double pos[4], xyz[3];
-  this->FocalPoint->GetPoint(0, pos);
+  pos[0] = 0.0;
+  pos[1] = 0.0;
+  pos[2] = 0.0;
+  if (this->FocalPoint && this->FocalPoint->GetNumberOfPoints() > 0)
+  {
+    this->FocalPoint->GetPoint(0, pos);
+  }
   pos[3] = 1.0;
   this->Renderer->SetWorldPoint(pos);
   this->Renderer->WorldToDisplay();
@@ -539,7 +545,7 @@ void vtkOrientedGlyphContourRepresentation::Scale(double eventPos[2])
 
   // Compute the scale factor
   const int* size = this->Renderer->GetSize();
-  double dPos = static_cast<double>(eventPos[1] - this->LastEventPosition[1]);
+  double dPos = eventPos[1] - this->LastEventPosition[1];
   sf *= (1.0 + 2.0 * (dPos / size[1])); // scale factor of 2.0 is arbitrary
 
   // Scale the handle

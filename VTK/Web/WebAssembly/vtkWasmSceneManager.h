@@ -33,7 +33,7 @@ public:
 
   /**
    * Set the size of the `vtkRenderWindow` object at `identifier` to
-   * the supplied dimesions.
+   * the supplied dimensions.
    *
    * Returns `true` if the object at `identifier` is a `vtkRenderWindow`
    * with a `vtkRenderWindowInteractor` attached to it,
@@ -91,6 +91,16 @@ public:
    * `false` otherwise.
    */
   bool RemoveObserver(vtkTypeUInt32 identifier, unsigned long tag);
+
+  /**
+   * Bind a `vtkRenderWindow` object at `renderWindowIdentifier` to a canvas element with the
+   * specified `canvasSelector`. This allows the `vtkRenderWindow` to render its content onto the
+   * specified HTML canvas element in a web application.
+   *
+   * @param renderWindowIdentifier The identifier of the `vtkRenderWindow` object to bind.
+   * @param canvasSelector The ID of the HTML canvas element to bind the `vtkRenderWindow` to.
+   */
+  bool BindRenderWindow(vtkTypeUInt32 renderWindowIdentifier, const char* canvasSelector);
 
 protected:
   vtkWasmSceneManager();

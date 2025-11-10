@@ -8,7 +8,6 @@
 #include "vtkCompositeDataIterator.h"
 #include "vtkCompositeDataPipeline.h"
 #include "vtkDoubleArray.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkImageMandelbrotSource.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
@@ -17,6 +16,7 @@
 #include "vtkMultiBlockDataSet.h"
 #include "vtkMultiProcessController.h"
 #include "vtkObjectFactory.h"
+#include "vtkOverlappingAMR.h"
 #include "vtkParallelAMRUtilities.h"
 #include "vtkPointData.h"
 #include "vtkRectilinearGrid.h"
@@ -24,6 +24,7 @@
 #include "vtkUniformGrid.h"
 #include "vtkUnsignedCharArray.h"
 
+#include <algorithm>
 #include <cassert>
 
 vtkStandardNewMacro(vtkHierarchicalFractal);
@@ -88,7 +89,7 @@ public:
       block->SetBlock(index, dataSet);
     }
   }
-  void CreateOutput(vtkHierarchicalBoxDataSet* hbds)
+  void CreateOutput(vtkOverlappingAMR* hbds)
   {
     std::vector<int> blocksPerLevel;
     double origin[3] = { DBL_MAX, DBL_MAX, DBL_MAX };
@@ -101,10 +102,7 @@ public:
         double* gridOrigin = grid->GetOrigin();
         for (int d = 0; d < 3; d++)
         {
-          if (gridOrigin[d] < origin[d])
-          {
-            origin[d] = gridOrigin[d];
-          }
+          origin[d] = std::min(origin[d], gridOrigin[d]);
         }
       }
       for (unsigned int j = static_cast<unsigned int>(blocksPerLevel.size()); j <= level; j++)
@@ -211,7 +209,7 @@ int vtkHierarchicalFractal::RequestDataObject(
   }
   else
   {
-    outData = vtkHierarchicalBoxDataSet::New();
+    outData = vtkOverlappingAMR::New();
   }
 
   outInfo->Set(vtkDataObject::DATA_OBJECT(), outData);
@@ -610,9 +608,9 @@ int vtkHierarchicalFractal::RequestData(vtkInformation* vtkNotUsed(request),
   this->Levels->Initialize();
   this->Traverse(blockId, 0, output, ext[0], ext[1], ext[2], ext[3], ext[4], ext[5], onFace);
 
-  if (vtkHierarchicalBoxDataSet::SafeDownCast(output))
+  if (vtkOverlappingAMR::SafeDownCast(output))
   {
-    this->OutputUtil->CreateOutput(vtkHierarchicalBoxDataSet::SafeDownCast(output));
+    this->OutputUtil->CreateOutput(vtkOverlappingAMR::SafeDownCast(output));
   }
   else if (vtkMultiBlockDataSet::SafeDownCast(output))
   {
@@ -642,7 +640,7 @@ int vtkHierarchicalFractal::RequestData(vtkInformation* vtkNotUsed(request),
     this->AddVectorArray(output);
     this->AddTestArray(output);
     this->AddBlockIdArray(output);
-    vtkHierarchicalBoxDataSet* hset = vtkHierarchicalBoxDataSet::SafeDownCast(output);
+    vtkOverlappingAMR* hset = vtkOverlappingAMR::SafeDownCast(output);
     this->AddDepthArray(hset);
     vtkParallelAMRUtilities::BlankCells(hset, vtkMultiProcessController::GetGlobalController());
     info->Set(vtkCompositeDataPipeline::COMPOSITE_DATA_META_DATA(), hset);
@@ -1218,7 +1216,7 @@ void vtkHierarchicalFractal::AddBlockIdArray(vtkCompositeDataSet* output)
 }
 
 //----------------------------------------------------------------------------
-void vtkHierarchicalFractal::AddDepthArray(vtkHierarchicalBoxDataSet* output)
+void vtkHierarchicalFractal::AddDepthArray(vtkOverlappingAMR* output)
 {
   int levels = output->GetNumberOfLevels();
   int level = 0;
@@ -1304,10 +1302,7 @@ void vtkHierarchicalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], in
     {
       tmp = k - dims[2] + 1 + this->GhostLevels;
     }
-    if (tmp > kLevel)
-    {
-      kLevel = tmp;
-    }
+    kLevel = std::max(kLevel, tmp);
     if (this->TwoDimensional)
     {
       kLevel = 0;
@@ -1323,10 +1318,7 @@ void vtkHierarchicalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], in
       {
         tmp = this->GhostLevels - j;
       }
-      if (tmp > jLevel)
-      {
-        jLevel = tmp;
-      }
+      jLevel = std::max(jLevel, tmp);
       if (onFace[3])
       {
         tmp = j - dims[1] + 1 + this->GhostLevels - 1;
@@ -1335,10 +1327,7 @@ void vtkHierarchicalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], in
       {
         tmp = j - dims[1] + 1 + this->GhostLevels;
       }
-      if (tmp > jLevel)
-      {
-        jLevel = tmp;
-      }
+      jLevel = std::max(tmp, jLevel);
       for (i = 0; i < dims[0]; ++i)
       {
         iLevel = jLevel;
@@ -1350,10 +1339,7 @@ void vtkHierarchicalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], in
         {
           tmp = this->GhostLevels - i;
         }
-        if (tmp > iLevel)
-        {
-          iLevel = tmp;
-        }
+        iLevel = std::max(iLevel, tmp);
         if (onFace[1])
         {
           tmp = i - dims[0] + 1 + this->GhostLevels - 1;
@@ -1362,10 +1348,7 @@ void vtkHierarchicalFractal::AddGhostLevelArray(vtkDataSet* grid, int dim[3], in
         {
           tmp = i - dims[0] + 1 + this->GhostLevels;
         }
-        if (tmp > iLevel)
-        {
-          iLevel = tmp;
-        }
+        iLevel = std::max(iLevel, tmp);
 
         if (iLevel <= 0)
         {

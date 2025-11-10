@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: LicenseRef-BSD-3-Clause-Sandia-USGov
 /**
  * @class vtkmClip
- * @brief Clip a dataset using the accelerated vtk-m Clip filter.
+ * @brief Clip a dataset using the accelerated viskores Clip filter.
  *
  * Clip a dataset using either a given value or by using an vtkImplicitFunction
  * Currently the supported implicit functions are Box, Plane, and Sphere.
@@ -15,10 +15,9 @@
 #define vtkmClip_h
 
 #include "vtkAcceleratorsVTKmFiltersModule.h" // For export macro
-#include "vtkDeprecation.h"                   // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkTableBasedClipDataSet.h"
 
-#include "vtkmlib/vtkmInitializer.h" // Need for initializing vtk-m
+#include "vtkmlib/vtkmInitializer.h" // Need for initializing viskores
 
 #include <memory> // For std::unique_ptr
 
@@ -33,16 +32,6 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /**
-   * The scalar value to use when clipping the dataset. Values greater than
-   * ClipValue are preserved in the output dataset. Default is 0.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use GetValue instead.")
-  double GetClipValue() { return this->GetValue(); }
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetValue instead.")
-  void SetClipValue(double v) { this->SetValue(v); }
-
-  /**
    * If true, all input point data arrays will be mapped onto the output
    * dataset. Default is true.
    */
@@ -53,8 +42,8 @@ public:
   ///@{
   /**
    * When this flag is off (the default), then the computation will fall back
-   * to the serial VTK version if VTK-m fails to run. When the flag is on,
-   * the filter will generate an error if VTK-m fails to run. This is mostly
+   * to the serial VTK version if Viskores fails to run. When the flag is on,
+   * the filter will generate an error if Viskores fails to run. This is mostly
    * useful in testing to make sure the expected algorithm is run.
    */
   vtkGetMacro(ForceVTKm, vtkTypeBool);

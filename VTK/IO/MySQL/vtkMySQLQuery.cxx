@@ -112,7 +112,10 @@ MYSQL_BIND BuildNullParameterStruct()
 //------------------------------------------------------------------------------
 
 #define VTK_MYSQL_TYPENAME_MACRO(type, return_type)                                                \
-  enum enum_field_types vtkMySQLTypeName(type) { return return_type; }
+  enum enum_field_types vtkMySQLTypeName(type)                                                     \
+  {                                                                                                \
+    return return_type;                                                                            \
+  }
 
 VTK_MYSQL_TYPENAME_MACRO(signed char, MYSQL_TYPE_TINY);
 VTK_MYSQL_TYPENAME_MACRO(unsigned char, MYSQL_TYPE_TINY);
@@ -126,9 +129,6 @@ VTK_MYSQL_TYPENAME_MACRO(float, MYSQL_TYPE_FLOAT);
 VTK_MYSQL_TYPENAME_MACRO(double, MYSQL_TYPE_DOUBLE);
 VTK_MYSQL_TYPENAME_MACRO(long long, MYSQL_TYPE_LONGLONG);
 VTK_MYSQL_TYPENAME_MACRO(unsigned long long, MYSQL_TYPE_LONGLONG);
-VTK_MYSQL_TYPENAME_MACRO(const char*, MYSQL_TYPE_STRING);
-VTK_MYSQL_TYPENAME_MACRO(char*, MYSQL_TYPE_STRING);
-VTK_MYSQL_TYPENAME_MACRO(void*, MYSQL_TYPE_BLOB);
 
 template <typename T>
 bool vtkMySQLIsTypeUnsigned(T)

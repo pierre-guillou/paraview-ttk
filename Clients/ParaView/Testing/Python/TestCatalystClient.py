@@ -113,6 +113,7 @@ def _getSourceToExtractName(insituLink):
         name = pm.GetProxyName('sources', pm.GetNumberOfProxies('sources') - 1)
 
     return name
+
 # ----------------------------
 # Create a render view
 renderView1 = CreateRenderView()

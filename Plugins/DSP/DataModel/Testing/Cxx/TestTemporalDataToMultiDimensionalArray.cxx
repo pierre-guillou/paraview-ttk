@@ -24,7 +24,7 @@ namespace
 using DataContainerDouble = typename vtkMultiDimensionalImplicitBackend<double>::DataContainerT;
 }
 
-int TestTemporalDataToMultiDimensionalArray(int argc, char* argv[])
+extern int TestTemporalDataToMultiDimensionalArray(int argc, char* argv[])
 {
   // Read can.ex2 using ioss reader
   char* fileNameC = vtkTestUtilities::ExpandDataFileName(argc, argv, "Testing/Data/can.ex2");
@@ -51,7 +51,8 @@ int TestTemporalDataToMultiDimensionalArray(int argc, char* argv[])
   }
 
   // Retrieve info about point data array "VEL" to test at timestep 0.
-  auto retrieveOutArray = [&](const std::string& arrayName) -> vtkAOSDataArrayTemplate<double>* {
+  auto retrieveOutArray = [&](const std::string& arrayName) -> vtkAOSDataArrayTemplate<double>*
+  {
     auto* outputData =
       vtkPartitionedDataSetCollection::SafeDownCast(readerIOSS->GetOutputDataObject(0));
     if (!outputData)

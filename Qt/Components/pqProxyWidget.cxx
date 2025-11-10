@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "pqProxyWidget.h"
 
+#include "Private/pqProxyWidgetItem.h"
 #include "pqApplicationCore.h"
 #include "pqCommandPropertyWidget.h"
 #include "pqDoubleVectorPropertyWidget.h"
@@ -21,28 +22,31 @@
 #include "pqTimer.h"
 #include "vtkCollection.h"
 #include "vtkNew.h"
+#include "vtkPVGeneralSettings.h"
 #include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMCompoundSourceProxy.h"
 #include "vtkSMDocumentation.h"
 #include "vtkSMDomainIterator.h"
 #include "vtkSMDoubleVectorProperty.h"
+#include "vtkSMInputProperty.h"
 #include "vtkSMIntVectorProperty.h"
 #include "vtkSMNamedPropertyIterator.h"
 #include "vtkSMOrderedPropertyIterator.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyGroup.h"
-#include "vtkSMPropertyHelper.h"
 #include "vtkSMPropertyIterator.h"
 #include "vtkSMProxyListDomain.h"
 #include "vtkSMProxyProperty.h"
 #include "vtkSMSettings.h"
 #include "vtkSMStringVectorProperty.h"
 #include "vtkSMTrace.h"
+#include "vtkSMVectorProperty.h"
 #include "vtkSmartPointer.h"
 #include "vtkStringList.h"
 #include "vtkWeakPointer.h"
 
+#include <QCoreApplication>
 #include <QHideEvent>
 #include <QLabel>
 #include <QMenu>
@@ -50,11 +54,11 @@
 #include <QShowEvent>
 #include <QVBoxLayout>
 
-#include <QCoreApplication>
 #include <cassert>
 #include <cmath>
 #include <list>
 #include <map>
+#include <set>
 #include <sstream>
 #include <utility>
 #include <vector>
@@ -62,26 +66,6 @@
 //-----------------------------------------------------------------------------------
 namespace
 {
-QFrame* newHLine(QWidget* parent)
-{
-  QFrame* line = new QFrame(parent);
-  line->setFrameShadow(QFrame::Sunken);
-  line->setFrameShape(QFrame::HLine);
-  line->setLineWidth(1);
-  line->setMidLineWidth(0);
-  return line;
-}
-
-QWidget* newGroupSeparator(QWidget* parent)
-{
-  QWidget* widget = new QWidget(parent);
-  QVBoxLayout* vbox = new QVBoxLayout(widget);
-  vbox->setContentsMargins(0, 0, 0, pqPropertiesPanel::suggestedVerticalSpacing());
-  vbox->setSpacing(0);
-  vbox->addWidget(newHLine(widget));
-  return widget;
-}
-
 std::vector<vtkWeakPointer<vtkPVXMLElement>> get_decorators(vtkPVXMLElement* hints)
 {
   std::vector<vtkWeakPointer<vtkPVXMLElement>> decoratorTypes;
@@ -101,6 +85,7 @@ std::vector<vtkWeakPointer<vtkPVXMLElement>> get_decorators(vtkPVXMLElement* hin
   return decoratorTypes;
 }
 
+//-----------------------------------------------------------------------------------
 void add_decorators(pqPropertyWidget* widget, vtkPVXMLElement* hints)
 {
   if (widget && hints)
@@ -114,6 +99,7 @@ void add_decorators(pqPropertyWidget* widget, vtkPVXMLElement* hints)
   }
 }
 
+//-----------------------------------------------------------------------------------
 std::string get_group_label(vtkSMPropertyGroup* smgroup)
 {
   assert(smgroup != nullptr);
@@ -131,6 +117,7 @@ std::string get_group_label(vtkSMPropertyGroup* smgroup)
   }
 }
 
+//-----------------------------------------------------------------------------------
 void DetermineLegacyHiddenProperties(QSet<QString>& properties, vtkSMProxy* proxy)
 {
   vtkPVXMLElement* hints = proxy->GetHints();
@@ -150,318 +137,7 @@ void DetermineLegacyHiddenProperties(QSet<QString>& properties, vtkSMProxy* prox
   }
 }
 
-// class corresponding to a single widget for a property/properties.
-class pqProxyWidgetItem : public QObject
-{
-  typedef QObject Superclass;
-  QPointer<QWidget> GroupHeader;
-  QPointer<QWidget> GroupFooter;
-  QPointer<QWidget> LabelWidget;
-  QPointer<pqPropertyWidget> PropertyWidget;
-  QStringList DefaultVisibilityForRepresentations;
-  bool Group;
-  QString GroupTag;
-
-  pqProxyWidgetItem(QObject* parentObj)
-    : Superclass(parentObj)
-    , Group(false)
-    , Advanced(false)
-    , InformationOnly(false)
-  {
-  }
-
-public:
-  // Regular expression with tags used to match search text.
-  QStringList SearchTags;
-  bool Advanced;
-  bool InformationOnly;
-
-  ~pqProxyWidgetItem() override
-  {
-    delete this->GroupHeader;
-    delete this->GroupFooter;
-    delete this->LabelWidget;
-    delete this->PropertyWidget;
-  }
-
-  static pqProxyWidgetItem* newItem(
-    pqPropertyWidget* widget, const QString& label, pqProxyWidget* parentObj)
-  {
-    pqProxyWidgetItem* item = new pqProxyWidgetItem(parentObj);
-    item->PropertyWidget = widget;
-    if (!label.isEmpty() && widget->showLabel())
-    {
-      QLabel* labelWdg = new QLabel(QString("<p>%1</p>").arg(label), widget->parentWidget());
-      labelWdg->setObjectName(QString("%1Label").arg(widget->objectName()));
-      labelWdg->setWordWrap(true);
-      labelWdg->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-      item->LabelWidget = labelWdg;
-      // context menu for manipulating defaults.
-      labelWdg->setContextMenuPolicy(Qt::CustomContextMenu);
-      QPointer<QLabel> labelWdgPtr(labelWdg);
-      QPointer<pqPropertyWidget> widgetPtr(widget);
-      QObject::connect(labelWdg, &QLabel::customContextMenuRequested, parentObj,
-        [labelWdgPtr, widgetPtr, parentObj](const QPoint& pt) {
-          if (!labelWdgPtr || !widgetPtr)
-          {
-            return;
-          }
-          parentObj->showContextMenu(labelWdgPtr->mapToGlobal(pt), widgetPtr);
-        });
-    }
-    else
-    {
-      // context menu for manipulating defaults.
-      widget->setContextMenuPolicy(Qt::CustomContextMenu);
-      QPointer<pqPropertyWidget> widgetPtr(widget);
-      QObject::connect(widget, &QLabel::customContextMenuRequested, parentObj,
-        [widgetPtr, parentObj](const QPoint& pt) {
-          if (!widgetPtr)
-          {
-            return;
-          }
-          parentObj->showContextMenu(widgetPtr->mapToGlobal(pt), widgetPtr);
-        });
-    }
-    return item;
-  }
-
-  /// Creates a new item for a property group. Use this overload when creating
-  /// an item for a group where there's a single widget for all the properties
-  /// in that group.
-  static pqProxyWidgetItem* newGroupItem(
-    pqPropertyWidget* widget, const QString& label, bool showSeparators, pqProxyWidget* parentObj)
-  {
-    if (widget->isSingleRowItem())
-    {
-      pqProxyWidgetItem* item = newItem(widget, label, parentObj);
-      item->Group = true;
-      return item;
-    }
-
-    pqProxyWidgetItem* item = newItem(widget, QString(), parentObj);
-    item->Group = true;
-    if (!label.isEmpty() && widget->showLabel() && showSeparators)
-    {
-      item->GroupHeader = pqProxyWidget::newGroupLabelWidget(label, widget->parentWidget());
-      item->GroupFooter = newGroupSeparator(widget->parentWidget());
-    }
-    return item;
-  }
-
-  /// Creates a new item for a property group with several widgets (for
-  /// individual properties in the group).
-  static pqProxyWidgetItem* newMultiItemGroupItem(const QString& group_label,
-    pqPropertyWidget* widget, const QString& widget_label, bool showSeparators,
-    pqProxyWidget* parentObj)
-  {
-    pqProxyWidgetItem* item = newItem(widget, widget_label, parentObj);
-    item->Group = true;
-    // ensure GroupTag is not nullptr for multi-property groups.
-    item->GroupTag = group_label.isNull() ? QString("") : group_label;
-    if (!group_label.isEmpty() && showSeparators)
-    {
-      item->GroupHeader = pqProxyWidget::newGroupLabelWidget(group_label, widget->parentWidget());
-      item->GroupFooter = newGroupSeparator(widget->parentWidget());
-    }
-    return item;
-  }
-
-  pqPropertyWidget* propertyWidget() const { return this->PropertyWidget; }
-
-  void appendToDefaultVisibilityForRepresentations(const QString& val)
-  {
-    if (!val.isEmpty() && !this->DefaultVisibilityForRepresentations.contains(val))
-    {
-      this->DefaultVisibilityForRepresentations.append(val);
-    }
-  }
-
-  void apply() const
-  {
-    if (this->PropertyWidget)
-    {
-      this->PropertyWidget->apply();
-    }
-  }
-  void reset() const
-  {
-    if (this->PropertyWidget)
-    {
-      this->PropertyWidget->reset();
-    }
-  }
-
-  void select() const
-  {
-    if (this->PropertyWidget)
-    {
-      this->PropertyWidget->select();
-    }
-  }
-
-  void deselect() const
-  {
-    if (this->PropertyWidget)
-    {
-      this->PropertyWidget->deselect();
-    }
-  }
-
-  bool canShowWidget(bool show_advanced, const QString& filterText, vtkSMProxy* proxy) const
-  {
-    if (show_advanced == false && this->isAdvanced(proxy) == true)
-    {
-      // skip advanced properties.
-      return false;
-    }
-    else if (filterText.isEmpty() == false &&
-      this->SearchTags.filter(filterText, Qt::CaseInsensitive).empty())
-    {
-      // skip properties not matching search criteria.
-      return false;
-    }
-
-    Q_FOREACH (const pqPropertyWidgetDecorator* decorator, this->PropertyWidget->decorators())
-    {
-      if (decorator && !decorator->canShowWidget(show_advanced))
-      {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool enableWidget() const
-  {
-    if (this->InformationOnly)
-    {
-      return false;
-    }
-    Q_FOREACH (const pqPropertyWidgetDecorator* decorator, this->PropertyWidget->decorators())
-    {
-      if (decorator && !decorator->enableWidget())
-      {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool isAdvanced(vtkSMProxy* proxy) const
-  {
-    if (!this->DefaultVisibilityForRepresentations.empty() && proxy &&
-      proxy->GetProperty("Representation") &&
-      this->DefaultVisibilityForRepresentations.contains(
-        vtkSMPropertyHelper(proxy, "Representation").GetAsString(), Qt::CaseInsensitive))
-    {
-      return false;
-    }
-    return this->Advanced;
-  }
-
-  void show(
-    const pqProxyWidgetItem* prevVisibleItem, bool enabled = true, bool show_advanced = false) const
-  {
-    // If `this` is not a group, but previous item was, we need to ensure the
-    // previous items group footer is visible.
-    if (!this->Group && prevVisibleItem && prevVisibleItem->Group && prevVisibleItem->GroupFooter)
-    {
-      prevVisibleItem->GroupFooter->show();
-    }
-
-    // If `this` is a group, and belongs to different group than
-    // prevVisibleItem then we need to show `this`'s header.
-    if (this->GroupHeader)
-    {
-      this->GroupHeader->setVisible(this->GroupTag.isNull() || prevVisibleItem == nullptr ||
-        this->GroupTag != prevVisibleItem->GroupTag);
-    }
-
-    if (this->LabelWidget)
-    {
-      this->LabelWidget->show();
-    }
-
-    this->PropertyWidget->updateWidget(show_advanced);
-    this->PropertyWidget->setEnabled(enabled);
-    if (this->InformationOnly)
-    {
-      QPalette palette = this->PropertyWidget->palette();
-      auto styleSheet =
-        QString(":disabled { color: %1; background-color: %2 }")
-          .arg(palette.color(QPalette::Active, QPalette::WindowText).name(QColor::HexArgb))
-          .arg(palette.color(QPalette::Active, QPalette::Base).name(QColor::HexArgb));
-      this->PropertyWidget->setStyleSheet(styleSheet);
-    }
-    this->PropertyWidget->show();
-
-    if (this->GroupFooter)
-    {
-      // I know what you're thinking: "Typo!!!", it's not. It's deliberate. A
-      // footer should only be shown by a next item. It's only needed if a
-      // following item wants it.
-      this->GroupFooter->hide();
-    }
-  }
-
-  void hide() const
-  {
-    if (this->GroupHeader)
-    {
-      this->GroupHeader->hide();
-    }
-    if (this->LabelWidget)
-    {
-      this->LabelWidget->hide();
-    }
-    this->PropertyWidget->hide();
-    if (this->GroupFooter)
-    {
-      this->GroupFooter->hide();
-    }
-  }
-
-  /// Adds widgets to the layout. This is a little greedy. It adds everything
-  /// that could be potentially shown to the layout. We control visibilities
-  /// of things like headers and footers dynamically in show()/hide().
-  void appendToLayout(QGridLayout* glayout, bool singleColumn)
-  {
-    if (this->GroupHeader)
-    {
-      glayout->addWidget(this->GroupHeader, glayout->rowCount(), 0, 1, -1);
-    }
-    if (this->LabelWidget)
-    {
-      const int row = glayout->rowCount();
-      if (singleColumn)
-      {
-        glayout->addWidget(this->LabelWidget, row, 0, 1, -1);
-        glayout->addWidget(this->PropertyWidget, (row + 1), 0, 1, -1);
-      }
-      else
-      {
-        glayout->addWidget(this->LabelWidget, row, 0, Qt::AlignVCenter | Qt::AlignLeft);
-        glayout->addWidget(this->PropertyWidget, row, 1);
-      }
-    }
-    else
-    {
-      glayout->addWidget(this->PropertyWidget, glayout->rowCount(), 0, 1, -1);
-    }
-    if (this->GroupFooter)
-    {
-      glayout->addWidget(this->GroupFooter, glayout->rowCount(), 0, 1, -1);
-    }
-  }
-
-private:
-  Q_DISABLE_COPY(pqProxyWidgetItem)
-};
-
-//--------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
 bool skip(const char* key, const char* visibility, const QStringList& chosenProperties,
   const QSet<QString>& legacyHiddenProperties, const pqProxyWidget* self)
 {
@@ -515,7 +191,7 @@ bool skip(const char* key, const char* visibility, const QStringList& chosenProp
   return false;
 }
 
-//--------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
 // Returns true if the property should be skipped from the panel.
 bool skip_property(vtkSMProperty* smproperty, const std::string& key,
   const QStringList& chosenProperties, const QSet<QString>& legacyHiddenProperties,
@@ -532,7 +208,7 @@ bool skip_property(vtkSMProperty* smproperty, const std::string& key,
     key.c_str(), smproperty->GetPanelVisibility(), chosenProperties, legacyHiddenProperties, self);
 }
 
-//--------------------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
 // Returns true if the group should be skipped from the panel.
 bool skip_group(
   vtkSMPropertyGroup* smgroup, const QStringList& chosenProperties, const pqProxyWidget* self)
@@ -544,8 +220,8 @@ bool skip_group(
 // and have its default value restored.
 bool canSaveDefault(vtkSMProperty* smproperty)
 {
-  return (vtkSMVectorProperty::SafeDownCast(smproperty) && !smproperty->GetNoCustomDefault() &&
-    !smproperty->GetInformationOnly());
+  return (smproperty && !vtkSMInputProperty::SafeDownCast(smproperty) &&
+    !smproperty->GetNoCustomDefault() && !smproperty->GetInformationOnly());
 }
 
 // given a propertyWidget, see if it has a vtkSMProxyListDomain, and
@@ -677,7 +353,7 @@ QWidget* pqProxyWidget::newGroupLabelWidget(
   {
     vbox->addWidget(label);
   }
-  vbox->addWidget(newHLine(parent));
+  vbox->addWidget(pqProxyWidgetItem::newHLine(parent));
   return widget;
 }
 
@@ -719,7 +395,7 @@ public:
 
   ~pqInternals()
   {
-    Q_FOREACH (pqProxyWidgetItem* item, this->Items)
+    for (pqProxyWidgetItem* item : this->Items)
     {
       delete item;
     }
@@ -740,7 +416,7 @@ public:
     assert(gridLayout);
     item->appendToLayout(gridLayout, self->useDocumentationForLabels());
 
-    Q_FOREACH (pqPropertyWidgetDecorator* decorator, item->propertyWidget()->decorators())
+    for (pqPropertyWidgetDecorator* decorator : item->propertyWidget()->decorators())
     {
       this->RequestUpdatePanel.connect(decorator, SIGNAL(visibilityChanged()), SLOT(start()));
       this->RequestUpdatePanel.connect(decorator, SIGNAL(enableStateChanged()), SLOT(start()));
@@ -936,7 +612,7 @@ void pqProxyWidget::showEvent(QShowEvent* sevent)
   this->Superclass::showEvent(sevent);
   if (sevent == nullptr || !sevent->spontaneous())
   {
-    Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+    for (const pqProxyWidgetItem* item : this->Internals->Items)
     {
       item->select();
     }
@@ -948,7 +624,7 @@ void pqProxyWidget::hideEvent(QHideEvent* hevent)
 {
   if (hevent == nullptr || !hevent->spontaneous())
   {
-    Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+    for (const pqProxyWidgetItem* item : this->Internals->Items)
     {
       item->deselect();
     }
@@ -959,9 +635,14 @@ void pqProxyWidget::hideEvent(QHideEvent* hevent)
 //-----------------------------------------------------------------------------
 void pqProxyWidget::applyInternal() const
 {
-  Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+  for (const pqProxyWidgetItem* item : this->Internals->Items)
   {
     item->apply();
+  }
+
+  if (this->shouldPreservePropertyValues())
+  {
+    this->saveAsDefaults();
   }
 }
 
@@ -975,7 +656,7 @@ void pqProxyWidget::apply() const
 //-----------------------------------------------------------------------------
 void pqProxyWidget::reset() const
 {
-  Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+  for (const pqProxyWidgetItem* item : this->Internals->Items)
   {
     item->reset();
   }
@@ -985,7 +666,7 @@ void pqProxyWidget::reset() const
 void pqProxyWidget::setView(pqView* view)
 {
   bool done = false;
-  Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+  for (const pqProxyWidgetItem* item : this->Internals->Items)
   {
     item->propertyWidget()->setView(view);
     // make sure the first widget shown has active keyboard shortcuts.
@@ -1038,7 +719,7 @@ void pqProxyWidget::createWidgets(const QStringList& properties)
   {
     this->create3DWidgets();
   }
-  Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+  for (const pqProxyWidgetItem* item : this->Internals->Items)
   {
     QObject::connect(
       item->propertyWidget(), SIGNAL(changeAvailable()), this, SIGNAL(changeAvailable()));
@@ -1212,16 +893,14 @@ void pqProxyWidget::createPropertyWidgets(const QStringList& properties)
             }
             gwidget->setObjectName(wdgName);
 
-            auto item = pqProxyWidgetItem::newGroupItem(gwidget,
-              QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel()),
-              this->ShowHeadersFooters, this);
-            item->Advanced = (smgroup->GetPanelVisibility() &&
+            bool advanced = (smgroup->GetPanelVisibility() &&
               strcmp(smgroup->GetPanelVisibility(), "advanced") == 0);
-            item->SearchTags << smgroup->GetPanelWidget();
+
+            QStringList searchTags;
+            searchTags << smgroup->GetPanelWidget();
             if (smgroup->GetXMLLabel())
             {
-              item->SearchTags << QCoreApplication::translate(
-                "ServerManagerXML", smgroup->GetXMLLabel());
+              searchTags << QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel());
             }
             // SearchTags should have the labels for all the properties
             // in this group.
@@ -1230,10 +909,14 @@ void pqProxyWidget::createPropertyWidgets(const QStringList& properties)
               auto* groupProp = smgroup->GetProperty(i);
               if (groupProp->GetXMLLabel())
               {
-                item->SearchTags << QCoreApplication::translate(
+                searchTags << QCoreApplication::translate(
                   "ServerManagerXML", groupProp->GetXMLLabel());
               }
             }
+
+            auto item = pqProxyWidgetItem::newGroupItem(gwidget,
+              QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel()),
+              this->ShowHeadersFooters, advanced, searchTags, this);
 
             this->Internals->appendToItems(item, this);
             ref_state = EnumState::Custom;
@@ -1279,24 +962,15 @@ void pqProxyWidget::createPropertyWidgets(const QStringList& properties)
           .arg(xmlDocumentation)
       : QCoreApplication::translate("ServerManagerXML", xmllabel);
 
-    auto item = (smgroup == nullptr)
-      ? pqProxyWidgetItem::newItem(pwidget, QString(itemLabel), this)
-      : pqProxyWidgetItem::newMultiItemGroupItem(
-          QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel()), pwidget,
-          QString(itemLabel), this->ShowHeadersFooters, this);
-
     // save record of the property widget and containing widget
-    item->SearchTags << xmllabel << xmlDocumentation << smkey.c_str();
-    addProxyTags(item->SearchTags, pwidget);
+    QStringList searchTags;
+    searchTags << xmllabel << xmlDocumentation << smkey.c_str();
+    addProxyTags(searchTags, pwidget);
 
-    item->InformationOnly = smproperty->GetInformationOnly();
-    item->Advanced =
+    bool informationOnly = smproperty->GetInformationOnly();
+
+    bool advanced =
       smproperty->GetPanelVisibility() && strcmp(smproperty->GetPanelVisibility(), "advanced") == 0;
-    if (smproperty->GetPanelVisibilityDefaultForRepresentation())
-    {
-      item->appendToDefaultVisibilityForRepresentations(
-        smproperty->GetPanelVisibilityDefaultForRepresentation());
-    }
 
     // handle group decorator, if any.
     if (smgroup)
@@ -1306,8 +980,22 @@ void pqProxyWidget::createPropertyWidgets(const QStringList& properties)
       if (smgroup->GetXMLLabel())
       {
         // see #18498
-        item->SearchTags << QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel());
+        searchTags << QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel());
       }
+    }
+
+    auto item = (smgroup == nullptr)
+      ? pqProxyWidgetItem::newItem(
+          pwidget, QString(itemLabel), advanced, informationOnly, searchTags, this)
+      : pqProxyWidgetItem::newMultiItemGroupItem(
+          QCoreApplication::translate("ServerManagerXML", smgroup->GetXMLLabel()), pwidget,
+          QString(itemLabel), this->ShowHeadersFooters, advanced, informationOnly, searchTags,
+          this);
+
+    if (smproperty->GetPanelVisibilityDefaultForRepresentation())
+    {
+      item->appendToDefaultVisibilityForRepresentations(
+        smproperty->GetPanelVisibilityDefaultForRepresentation());
     }
 
     this->Internals->appendToItems(item, this);
@@ -1336,7 +1024,7 @@ pqPropertyWidget* pqProxyWidget::createWidgetForProperty(
   pqInterfaceTracker* interfaceTracker = pqApplicationCore::instance()->interfaceTracker();
   QList<pqPropertyWidgetInterface*> interfaces =
     interfaceTracker->interfaces<pqPropertyWidgetInterface*>();
-  Q_FOREACH (pqPropertyWidgetInterface* interface, interfaces)
+  for (pqPropertyWidgetInterface* interface : interfaces)
   {
     widget = interface->createWidgetForProperty(smproxy, smproperty, parentObj);
     if (widget)
@@ -1427,7 +1115,7 @@ bool pqProxyWidget::filterWidgets(bool show_advanced, const QString& filterText)
 
   const pqProxyWidgetItem* prevItem = nullptr;
   vtkSMProxy* smProxy = this->Internals->Proxy;
-  Q_FOREACH (const pqProxyWidgetItem* item, this->Internals->Items)
+  for (const pqProxyWidgetItem* item : this->Internals->Items)
   {
     bool visible = item->canShowWidget(show_advanced, filterText, smProxy);
     if (visible)
@@ -1482,7 +1170,6 @@ void pqProxyWidget::updatePanel()
 bool pqProxyWidget::restoreDefaults()
 {
   bool anyReset = false;
-  vtkSMSettings* settings = vtkSMSettings::GetInstance();
   if (this->Internals->Proxy)
   {
     vtkSmartPointer<vtkSMPropertyIterator> iter;
@@ -1498,22 +1185,14 @@ bool pqProxyWidget::restoreDefaults()
         continue;
       }
 
-      // Restore only basic type properties.
-      if (vtkSMVectorProperty::SafeDownCast(smproperty) && !smproperty->GetNoCustomDefault() &&
-        !smproperty->GetInformationOnly())
+      // skip input and information only
+      if (vtkSMInputProperty::SafeDownCast(smproperty) || smproperty->GetInformationOnly())
       {
-        if (!smproperty->IsValueDefault())
-        {
-          anyReset = true;
-        }
-        smproperty->ResetToDefault();
-
-        // Restore to site setting if there is one. If there isn't, this does
-        // not change the property setting. NOTE: user settings have priority
-        // of VTK_DOUBLE_MAX, so we set the site settings priority to a
-        // number just below VTK_DOUBLE_MAX.
-        settings->GetPropertySetting(smproperty, nextafter(VTK_DOUBLE_MAX, 0));
+        continue;
       }
+
+      anyReset =
+        this->resetProperty(smproperty, vtkSMSettings::GetApplicationPriority(), false) || anyReset;
     }
   }
 
@@ -1530,7 +1209,7 @@ bool pqProxyWidget::restoreDefaults()
 }
 
 //-----------------------------------------------------------------------------
-void pqProxyWidget::saveAsDefaults()
+void pqProxyWidget::saveAsDefaults() const
 {
   vtkSMSettings* settings = vtkSMSettings::GetInstance();
   vtkSMNamedPropertyIterator* propertyIt = nullptr;
@@ -1540,7 +1219,7 @@ void pqProxyWidget::saveAsDefaults()
     propertyIt->SetPropertyNames(this->Internals->Properties);
     propertyIt->SetProxy(this->Internals->Proxy);
   }
-  settings->SetProxySettings(this->Internals->Proxy, propertyIt);
+  settings->SetProxySettings(this->Internals->Proxy, propertyIt, false);
   if (propertyIt)
   {
     propertyIt->Delete();
@@ -1550,16 +1229,15 @@ void pqProxyWidget::saveAsDefaults()
 //-----------------------------------------------------------------------------
 void pqProxyWidget::showContextMenu(const QPoint& pt, pqPropertyWidget* propWidget)
 {
-  if (!canSaveDefault(propWidget->property()))
+  if (!::canSaveDefault(propWidget->property()))
   {
     return;
   }
   QMenu menu(this);
   menu.setObjectName("PropertyContextMenu");
-  // if a prop has a dynamic domain, can't save default, but can reset to app default.
-  if (!propWidget->property()->HasDomainsWithRequiredProperties())
-  {
-    auto* useDefault = menu.addAction(tr("Use as Default"), propWidget, [this, propWidget]() {
+  auto* useDefault = menu.addAction(tr("Use as Default"), propWidget,
+    [this, propWidget]()
+    {
       // get the property name
       std::string name = this->Internals->Proxy->GetPropertyName(propWidget->property());
       // tell settings to save a single property by name
@@ -1568,38 +1246,24 @@ void pqProxyWidget::showContextMenu(const QPoint& pt, pqPropertyWidget* propWidg
       propertyIt->SetProxy(this->Internals->Proxy);
       propertyIt->SetPropertyNames(names);
       vtkSMSettings* settings = vtkSMSettings::GetInstance();
-      settings->SetProxySettings(this->Internals->Proxy, propertyIt);
+      settings->SetProxySettings(this->Internals->Proxy, propertyIt, false);
     });
-    useDefault->setObjectName("UseDefault");
-  }
-  auto* resetToDefault =
-    menu.addAction(tr("Reset to Application Default"), propWidget, [this, propWidget]() {
-      bool anyReset = false;
-      // mirror pqProxyWidget::restoreDefaults() for a single property
-      vtkSMProperty* smproperty = propWidget->property();
-      vtkSMSettings* settings = vtkSMSettings::GetInstance();
-      if (!smproperty->IsValueDefault())
-      {
-        anyReset = true;
-      }
-      smproperty->ResetToDefault();
+  useDefault->setObjectName("UseDefault");
 
-      // Restore to site setting if there is one. If there isn't, this does
-      // not change the property setting. NOTE: user settings have priority
-      // of VTK_DOUBLE_MAX, so we set the site settings priority to a
-      // number just below VTK_DOUBLE_MAX.
-      settings->GetPropertySetting(smproperty, nextafter(VTK_DOUBLE_MAX, 0));
-      // The code above bypasses the changeAvailable() and
-      // changeFinished() signal from the pqProxyWidget, so we check here
-      // whether we should act as if changes are available only if any of
-      // the properties have been reset.
-      if (anyReset)
-      {
-        Q_EMIT this->changeAvailable();
-        Q_EMIT this->changeFinished();
-      }
-    });
-  resetToDefault->setObjectName("ResetToDefault");
+  auto pqproxy = pqProxy::findProxy(this->proxy());
+  if (pqproxy)
+  {
+    useDefault->setEnabled(pqproxy->modifiedState() == pqProxy::UNMODIFIED);
+  }
+
+  QAction* resetToAppDefault = menu.addAction(tr("Reset to Application Default"), propWidget,
+    [this, propWidget]() { this->resetPropertyToAppDefault(propWidget); });
+  resetToAppDefault->setObjectName("ResetToDefault");
+
+  QAction* resetToSettings = menu.addAction(tr("Reset to User Settings"), propWidget,
+    [this, propWidget]() { this->resetPropertyToUserDefault(propWidget); });
+  resetToSettings->setObjectName("ResetToSettings");
+
   menu.exec(pt);
 }
 
@@ -1613,7 +1277,57 @@ void pqProxyWidget::onChangeFinished()
     {
       SM_SCOPED_TRACE(PropertiesModified).arg("proxy", this->proxy());
       pqSender->apply();
+
+      if (this->shouldPreservePropertyValues())
+      {
+        this->saveAsDefaults();
+      }
     }
   }
   Q_EMIT this->changeFinished();
+}
+
+//-----------------------------------------------------------------------------
+bool pqProxyWidget::shouldPreservePropertyValues() const
+{
+  vtkSMProxy* proxy = this->proxy();
+  std::set<std::string> possibleGroups = { "filters", "sources", "extractors" };
+  bool preserveProperties = vtkPVGeneralSettings::GetInstance()->GetPreservePropertyValues();
+
+  return preserveProperties && (possibleGroups.count(proxy->GetXMLGroup()) == 1);
+}
+
+//-----------------------------------------------------------------------------
+bool pqProxyWidget::resetProperty(vtkSMProperty* prop, double settingsPriority, bool warn)
+{
+  bool anyReset = !prop->IsValueDefault();
+  prop->ResetToDefault();
+
+  anyReset = prop->ResetToSettings(settingsPriority) || anyReset;
+
+  if (warn && anyReset)
+  {
+    Q_EMIT this->changeAvailable();
+    if (this->ApplyChangesImmediately)
+    {
+      this->apply();
+    }
+    Q_EMIT this->changeFinished();
+  }
+
+  return anyReset;
+}
+
+//-----------------------------------------------------------------------------
+void pqProxyWidget::resetPropertyToAppDefault(pqPropertyWidget* propWidget)
+{
+  vtkSMProperty* smproperty = propWidget->property();
+  this->resetProperty(smproperty, vtkSMSettings::GetApplicationPriority(), true);
+}
+
+//-----------------------------------------------------------------------------
+void pqProxyWidget::resetPropertyToUserDefault(pqPropertyWidget* propWidget)
+{
+  vtkSMProperty* smproperty = propWidget->property();
+  this->resetProperty(smproperty, vtkSMSettings::GetUserPriority(), true);
 }

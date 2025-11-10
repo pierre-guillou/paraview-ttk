@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
-//#include "vtkAbstractTransform.h" // for helper classes stack and concatenation
+// #include "vtkAbstractTransform.h" // for helper classes stack and concatenation
 #include "vtkShadowMapBakerPass.h"
 #include "vtkCameraPass.h"
 #include "vtkInformation.h"
@@ -10,6 +10,7 @@
 #include "vtkLightCollection.h"
 #include "vtkLightsPass.h"
 #include "vtkMath.h"
+#include "vtkMatrix4x4.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpaquePass.h"
@@ -33,8 +34,8 @@
 
 // to be able to dump intermediate passes into png files for debugging.
 // only for vtkShadowMapBakerPass developers.
-//#define VTK_SHADOW_MAP_BAKER_PASS_DEBUG
-//#define DONT_DUPLICATE_LIGHTS
+// #define VTK_SHADOW_MAP_BAKER_PASS_DEBUG
+// #define DONT_DUPLICATE_LIGHTS
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkShadowMapBakerPass);
@@ -453,6 +454,29 @@ void vtkShadowMapBakerPass::Render(const vtkRenderState* s)
         first = false;
       }
 
+      // Rendering a map for each light requires creating a camera from that
+      // light's perspective and doing an opaque rendering pass. That opaque
+      // rendering pass, in turn, updates the light transforms relative to that
+      // particular light camera. When it comes time to create a camera for
+      // a subsequent light, we need to restore it to its original light
+      // transform. We cache them here so we can restore them later.
+      std::map<vtkLight*, vtkSmartPointer<vtkMatrix4x4>> cachedLightTransforms;
+      lights->InitTraversal();
+      l = lights->GetNextItem();
+      while (l != nullptr)
+      {
+        if (!l->GetSwitch() || !this->LightCreatesShadow(l) || l->GetTransformMatrix() == nullptr)
+        {
+          cachedLightTransforms[l] = nullptr;
+        }
+        else
+        {
+          cachedLightTransforms[l] = vtkNew<vtkMatrix4x4>();
+          cachedLightTransforms[l]->DeepCopy(l->GetTransformMatrix());
+        }
+        l = lights->GetNextItem();
+      }
+
       lights->InitTraversal();
       l = lights->GetNextItem();
       this->CurrentLightIndex = 0;
@@ -464,6 +488,19 @@ void vtkShadowMapBakerPass::Render(const vtkRenderState* s)
       {
         if (l->GetSwitch() && this->LightCreatesShadow(l))
         {
+          // Restore the light's original matrix.
+          vtkMatrix4x4* cachedTransform = cachedLightTransforms.at(l);
+          if (cachedTransform != nullptr)
+          {
+            // Restore values without tweaking modified time.
+            vtkMatrix4x4::DeepCopy(*l->GetTransformMatrix()->Element, *cachedTransform->Element);
+          }
+          else
+          {
+            // This may be redundant; it is unlikely if the light didn't
+            // originally have a transform that it would pick one up.
+            l->SetTransformMatrix(nullptr);
+          }
           vtkTextureObject* map = (*this->ShadowMaps)[this->CurrentLightIndex];
           if (map == nullptr)
           {
@@ -558,7 +595,7 @@ bool vtkShadowMapBakerPass::SetShaderParameters(vtkShaderProgram* program, vtkAb
   vtkCamera* lightCamera = (*this->LightCameras)[this->CurrentLightIndex];
   double* crange = lightCamera->GetClippingRange();
 
-  program->SetUniformf("depthC", 11.0);
+  program->SetUniformf("depthC", ExponentialConstant);
   program->SetUniformf("nearZ", crange[0]);
   program->SetUniformf("farZ", crange[1]);
 

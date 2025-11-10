@@ -9,12 +9,14 @@ set(classes
   pqAnimationShortcutDecorator
   pqAnimationShortcutWidget
   pqAnimationTimeToolbar
+  pqAnnulusPropertyWidget
   pqApplicationComponentsInit
   pqApplicationSettingsReaction
   pqApplyBehavior
   pqApplyPropertiesReaction
   pqAutoApplyReaction
   pqAutoLoadPluginXMLBehavior
+  pqAutoSaveBehavior
   pqAxesToolbar
   pqBackgroundEditorWidget
   pqBlockContextMenu
@@ -57,6 +59,7 @@ set(classes
   pqCustomizeShortcutsReaction
   pqCustomizeShortcutsDialog
   pqCheckableProperty
+  pqConePropertyWidget
   pqCoordinateFramePropertyWidget
   pqCustomViewpointsController
   pqCustomViewpointsDefaultController
@@ -87,6 +90,7 @@ set(classes
   pqFiltersMenuReaction
   pqFindDataWidget
   pqFontPropertyWidget
+  pqFrustumPropertyWidget
   pqGenericPropertyWidgetDecorator
   pqGlyphScaleFactorPropertyWidget
   pqHandlePropertyWidget
@@ -143,6 +147,7 @@ set(classes
   pqPointPickingHelper
   pqPreviewMenuManager
   pqPropertyCollectionWidget
+  pqPropertyPanelVisibilitiesBehavior
   pqProxyCategory
   pqProxyGroupMenuManager
   pqProxyInfo
@@ -220,6 +225,7 @@ set(headers
   )
 
 set(ui_files
+  Resources/UI/pqAnnulusPropertyWidget.ui
   Resources/UI/pqAxesToolbar.ui
   Resources/UI/pqBackgroundEditorWidget.ui
   Resources/UI/pqBoxPropertyWidget.ui
@@ -230,6 +236,7 @@ set(ui_files
   Resources/UI/pqColorMapEditor.ui
   Resources/UI/pqColorOpacityEditorWidget.ui
   Resources/UI/pqColorToolbar.ui
+  Resources/UI/pqConePropertyWidget.ui
   Resources/UI/pqConfigureCategoriesDialog.ui
   Resources/UI/pqCustomResolutionDialog.ui
   Resources/UI/pqCylinderPropertyWidget.ui
@@ -244,6 +251,7 @@ set(ui_files
   Resources/UI/pqFileListPropertyWidget.ui
   Resources/UI/pqFindDataWidget.ui
   Resources/UI/pqFontPropertyWidget.ui
+  Resources/UI/pqFrustumPropertyWidget.ui
   Resources/UI/pqHandlePropertyWidget.ui
   Resources/UI/pqImageCompressorWidget.ui
   Resources/UI/pqImplicitPlanePropertyWidget.ui

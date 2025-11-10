@@ -25,8 +25,9 @@
 
 #include "vtkAnariLightNode.h"
 #include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 
 #include <stdlib.h>
 
@@ -50,34 +51,12 @@ int TestAnariAmbient(int argc, char* argv[])
   iren->SetRenderWindow(renWin);
   vtkSmartPointer<vtkRenderer> renderer = vtkSmartPointer<vtkRenderer>::New();
   renWin->AddRenderer(renderer);
-  vtkAnariRendererNode::SetSamplesPerPixel(16, renderer);
 
   // Configure ANARI
   vtkNew<vtkAnariPass> anariPass;
   renderer->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, renderer);
-    vtkNew<vtkTesting> testing;
-
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariAmbient";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), renderer);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", renderer);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, renderer);
-  vtkAnariRendererNode::SetLightFalloff(.5, renderer);
-  vtkAnariRendererNode::SetUseDenoiser(1, renderer);
-  vtkAnariRendererNode::SetCompositeOnGL(1, renderer);
-
-  // Ambient Light
-  vtkNew<vtkLight> ambientLight;
-  renderer->AddLight(ambientLight);
-
-  vtkAnariLightNode::SetIsAmbient(1, ambientLight);
+  SetParameterDefaults(anariPass, renderer, useDebugDevice, "TestAnariAmbient");
 
   // Bunny data
   const char* fileName = vtkTestUtilities::ExpandDataFileName(argc, argv, "Data/bunny.ply");
@@ -94,17 +73,14 @@ int TestAnariAmbient(int argc, char* argv[])
   actor->SetMapper(mapper);
   renWin->SetSize(400, 400);
 
-  double intensity;
+  auto* ar = anariPass->GetAnariRenderer();
   for (double i = 0.; i < 3.14; i += 0.1)
   {
-    intensity = sin(i);
-    ambientLight->SetIntensity(intensity);
-    vtkAnariRendererNode::SetAmbientIntensity(intensity, renderer);
+    ar->SetParameterf("ambientRadiance", float(sin(i)));
     renWin->Render();
   }
 
-  ambientLight->SetIntensity(0.2);
-  vtkAnariRendererNode::SetAmbientIntensity(0.2, renderer);
+  ar->SetParameterf("ambientRadiance", 0.2f);
   renWin->Render();
 
   int retVal = vtkTesting::PASSED;

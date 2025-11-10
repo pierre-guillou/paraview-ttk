@@ -89,8 +89,9 @@ struct vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>::CountFaces
         numberOfCellFaces = this->Input->GetCellNumberOfFaces(cellId, cellType, cell);
         // we mark cells with no faces as having one face so that we can
         // parse them later.
-        numberOfFaces +=
-          numberOfCellFaces > 0 ? numberOfCellFaces : cellType != VTK_EMPTY_CELL ? 1 : 0;
+        numberOfFaces += numberOfCellFaces > 0 ? numberOfCellFaces
+          : cellType != VTK_EMPTY_CELL         ? 1
+                                               : 0;
       }
     }
   }
@@ -116,6 +117,8 @@ struct vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>::CreateFacesInf
   const TInputIdType NumberOfPoints;
 
   vtkSMPThreadLocalObject<vtkGenericCell> TLCell;
+  vtkSMPThreadLocalObject<vtkIdList> TLFaceIds;
+  vtkSMPThreadLocalObject<vtkIdList> TLFacePointIds;
 
   CreateFacesInformation(vtkUnstructuredGrid* input, GeometryInformation& geometryInfo,
     std::shared_ptr<TCellOffSetIdType>& cellOffsets, std::shared_ptr<TInputIdType>& faceHashValues)
@@ -141,8 +144,10 @@ struct vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>::CreateFacesInf
       const unsigned char* cellTypes = This->Input->GetCellTypesArray()->GetPointer(0);
 
       auto cell = This->TLCell.Local();
-      const vtkIdType* faceVerts;
-      int faceId, numFaces;
+      auto faceIdsList = This->TLFaceIds.Local();
+      auto facePointIdsList = This->TLFacePointIds.Local();
+      const vtkIdType *faceVerts, *faceIds, *facePointIds;
+      vtkIdType faceId, numFaces, numFacePoints;
       static constexpr int MAX_FACE_POINTS = 32;
       vtkIdType ptIds[MAX_FACE_POINTS]; // cell face point ids
       static constexpr int pixelConvert[4] = { 0, 1, 3, 2 };
@@ -298,6 +303,18 @@ struct vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>::CreateFacesInf
                 }
               }
               break;
+            case VTK_POLYHEDRON:
+              cellOffsets[cellId] = facesOffset;
+              This->Input->GetPolyhedronFaceLocations()->GetCellAtId(
+                cellId, numFaces, faceIds, faceIdsList);
+              for (faceId = 0; faceId < numFaces; faceId++)
+              {
+                This->Input->GetPolyhedronFaces()->GetCellAtId(
+                  faceIds[faceId], numFacePoints, facePointIds, facePointIdsList);
+                faceHashValues[facesOffset++] =
+                  *std::min_element(facePointIds, facePointIds + numFacePoints);
+              }
+              break;
             default:
               // Other types of 3D linear cells handled by vtkGeometryFilter. Exactly what
               // is a linear cell is defined by vtkCellTypes::IsLinear().
@@ -429,22 +446,24 @@ struct vtkStaticFaceHashLinksTemplate<TInputIdType, TFaceIdType>::PrefixSum
     {
       this->ThreadSum[threadId] += this->ThreadSum[threadId - 1];
     }
-    vtkSMPTools::For(1, this->NumberOfThreads, [&](vtkIdType beginThread, vtkIdType endThread) {
-      const vtkIdType lastThreadId = this->NumberOfThreads - 1;
-      auto faceOffsets = this->FaceOffsets.get();
-      for (vtkIdType threadId = beginThread; threadId < endThread; ++threadId)
+    vtkSMPTools::For(1, this->NumberOfThreads,
+      [&](vtkIdType beginThread, vtkIdType endThread)
       {
-        const vtkIdType begin = threadId * this->NumberOfHashes / this->NumberOfThreads;
-        const vtkIdType end = lastThreadId != threadId
-          ? (threadId + 1) * this->NumberOfHashes / this->NumberOfThreads
-          : this->NumberOfHashes;
-        const auto& threadLocalSum = this->ThreadSum[threadId - 1];
-        for (vtkIdType pointId = begin + 1; pointId <= end; ++pointId)
+        const vtkIdType lastThreadId = this->NumberOfThreads - 1;
+        auto faceOffsets = this->FaceOffsets.get();
+        for (vtkIdType threadId = beginThread; threadId < endThread; ++threadId)
         {
-          faceOffsets[pointId] += threadLocalSum;
+          const vtkIdType begin = threadId * this->NumberOfHashes / this->NumberOfThreads;
+          const vtkIdType end = lastThreadId != threadId
+            ? (threadId + 1) * this->NumberOfHashes / this->NumberOfThreads
+            : this->NumberOfHashes;
+          const auto& threadLocalSum = this->ThreadSum[threadId - 1];
+          for (vtkIdType pointId = begin + 1; pointId <= end; ++pointId)
+          {
+            faceOffsets[pointId] += threadLocalSum;
+          }
         }
-      }
-    });
+      });
   }
 };
 

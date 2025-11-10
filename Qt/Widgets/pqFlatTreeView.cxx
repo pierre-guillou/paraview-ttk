@@ -26,6 +26,8 @@
 #include <QVector>
 #include <QtDebug>
 
+#include <algorithm>
+
 class pqFlatTreeViewColumn
 {
 public:
@@ -908,7 +910,12 @@ bool pqFlatTreeView::startEditing(const QModelIndex& index)
 
     // Create an editor appropriate for the value.
     const QItemEditorFactory* factory = QItemEditorFactory::defaultFactory();
-    this->Internal->Editor = factory->createEditor(value.type(), this->viewport());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QMetaType::Type typeId = static_cast<QMetaType::Type>(value.type());
+#else
+    auto typeId = value.typeId();
+#endif
+    this->Internal->Editor = factory->createEditor(typeId, this->viewport());
     if (!this->Internal->Editor)
     {
       return false;
@@ -918,7 +925,7 @@ bool pqFlatTreeView::startEditing(const QModelIndex& index)
     this->Internal->Index = index;
 
     // Set the editor value.
-    QByteArray name = factory->valuePropertyName(value.type());
+    QByteArray name = factory->valuePropertyName(typeId);
     if (!name.isEmpty())
     {
       this->Internal->Editor->setProperty(name.data(), value);
@@ -948,10 +955,15 @@ void pqFlatTreeView::finishEditing()
   if (this->Internal->Index.isValid() && this->Internal->Editor)
   {
     // Get the new value from the editor.
-    QVariant value;
     QModelIndex index = this->Internal->Index;
+    QVariant value = this->Model->data(index, Qt::DisplayRole);
     const QItemEditorFactory* factory = QItemEditorFactory::defaultFactory();
-    QByteArray name = factory->valuePropertyName(value.type());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QMetaType::Type typeId = static_cast<QMetaType::Type>(value.type());
+#else
+    auto typeId = value.typeId();
+#endif
+    QByteArray name = factory->valuePropertyName(typeId);
     if (!name.isEmpty())
     {
       value = this->Internal->Editor->property(name.data());
@@ -1483,7 +1495,12 @@ void pqFlatTreeView::updateData(const QModelIndex& topLeft, const QModelIndex& b
         {
           QVariant value = this->Model->data(this->Internal->Index, Qt::EditRole);
           const QItemEditorFactory* factory = QItemEditorFactory::defaultFactory();
-          QByteArray name = factory->valuePropertyName(value.type());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+          QMetaType::Type typeId = static_cast<QMetaType::Type>(value.type());
+#else
+          auto typeId = value.typeId();
+#endif
+          QByteArray name = factory->valuePropertyName(typeId);
           if (!name.isEmpty())
           {
             this->Internal->Editor->setProperty(name.data(), value);
@@ -1498,10 +1515,7 @@ void pqFlatTreeView::updateData(const QModelIndex& topLeft, const QModelIndex& b
       else
       {
         int updateWidth = this->viewport()->width();
-        if (this->ContentsWidth > updateWidth)
-        {
-          updateWidth = this->ContentsWidth;
-        }
+        updateWidth = std::max(this->ContentsWidth, updateWidth);
 
         QRect area(0, startPoint, updateWidth, point - startPoint);
         area.translate(-this->horizontalOffset(), -this->verticalOffset());
@@ -1886,10 +1900,7 @@ void pqFlatTreeView::keyPressEvent(QKeyEvent* e)
         if (this->Behavior == pqFlatTreeView::SelectColumns)
         {
           column = this->Model->columnCount() - 1;
-          if (column < 0)
-          {
-            column = 0;
-          }
+          column = std::max(column, 0);
         }
 
         item = this->getLastVisibleItem();
@@ -2436,10 +2447,7 @@ void pqFlatTreeView::paintEvent(QPaintEvent* e)
   // Draw the column selection first so it is behind the text.
   int columnWidth = 0;
   int totalHeight = this->viewport()->height();
-  if (this->ContentsHeight > totalHeight)
-  {
-    totalHeight = this->ContentsHeight;
-  }
+  totalHeight = std::max(this->ContentsHeight, totalHeight);
 
   for (i = 0; i < this->Root->Cells.size(); i++)
   {
@@ -2471,10 +2479,7 @@ void pqFlatTreeView::paintEvent(QPaintEvent* e)
         if (item->RowSelected)
         {
           itemWidth = this->viewport()->width();
-          if (this->ContentsWidth > itemWidth)
-          {
-            itemWidth = this->ContentsWidth;
-          }
+          itemWidth = std::max(this->ContentsWidth, itemWidth);
 
           painter.fillRect(0, item->ContentsY + pqFlatTreeView::PipeLength, itemWidth, itemHeight,
             options.palette.highlight());
@@ -2503,10 +2508,7 @@ void pqFlatTreeView::paintEvent(QPaintEvent* e)
               ox = itemWidth - item->Cells[i].Width - this->DoubleTextMargin;
             }
 
-            if (itemWidth > columnWidth)
-            {
-              itemWidth = columnWidth;
-            }
+            itemWidth = std::min(itemWidth, columnWidth);
 
             // Add a little length to the highlight rectangle to see
             // the text better.
@@ -2569,10 +2571,7 @@ void pqFlatTreeView::paintEvent(QPaintEvent* e)
             index.parent() == item->Index.parent())
           {
             itemWidth = this->viewport()->width();
-            if (this->ContentsWidth > itemWidth)
-            {
-              itemWidth = this->ContentsWidth;
-            }
+            itemWidth = std::max(this->ContentsWidth, itemWidth);
 
             QRect rowRect(0, py, itemWidth, itemHeight);
             this->drawFocus(painter, rowRect, options, item->RowSelected);
@@ -2751,10 +2750,7 @@ void pqFlatTreeView::changeSelection(
   int cy = 0;
   int totalHeight = 0;
   int totalWidth = this->viewport()->width();
-  if (totalWidth < this->ContentsWidth)
-  {
-    totalWidth = this->ContentsWidth;
-  }
+  totalWidth = std::max(totalWidth, this->ContentsWidth);
 
   // Start with the deselected items.
   pqFlatTreeViewItem* parentItem = nullptr;
@@ -2932,10 +2928,7 @@ void pqFlatTreeView::layoutEditor()
     {
       // Add some extra space to the editor.
       editWidth += this->DoubleTextMargin;
-      if (editWidth > columnWidth)
-      {
-        editWidth = columnWidth;
-      }
+      editWidth = std::min(editWidth, columnWidth);
     }
 
     // Figure out how much space is taken up by decoration.
@@ -2964,10 +2957,7 @@ void pqFlatTreeView::layoutItems()
     // The minimum indent width should be 18 to fit the +/- icon.
     QStyleOptionViewItem options = this->getViewOptions();
     this->IndentWidth = options.decorationSize.height() + 2;
-    if (this->IndentWidth < 18)
-    {
-      this->IndentWidth = 18;
-    }
+    this->IndentWidth = std::max(this->IndentWidth, 18);
 
     // If the header is shown, adjust the starting point of the
     // item layout.
@@ -3042,10 +3032,7 @@ void pqFlatTreeView::layoutItem(pqFlatTreeViewItem* item, int& point, const QFon
         {
           QFontMetrics indexFont(qvariant_cast<QFont>(value));
           item->Cells[i].Width = this->getDataWidth(index, indexFont);
-          if (indexFont.height() > preferredHeight)
-          {
-            preferredHeight = indexFont.height();
-          }
+          preferredHeight = std::max(indexFont.height(), preferredHeight);
         }
         else
         {
@@ -3056,10 +3043,7 @@ void pqFlatTreeView::layoutItem(pqFlatTreeViewItem* item, int& point, const QFon
       // The text width, the indent, the icon width, and the padding
       // between the icon and the item all factor into the desired width.
       preferredWidth = this->getWidthSum(item, i);
-      if (preferredWidth > this->Root->Cells[i].Width)
-      {
-        this->Root->Cells[i].Width = preferredWidth;
-      }
+      this->Root->Cells[i].Width = std::max(preferredWidth, this->Root->Cells[i].Width);
     }
 
     // Save the preferred height for the item.
@@ -3079,7 +3063,12 @@ int pqFlatTreeView::getDataWidth(const QModelIndex& index, const QFontMetrics& f
   // item is an image or list of images, the desired width is
   // the image width(s).
   QVariant indexData = index.data();
-  if (indexData.type() == QVariant::Pixmap)
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  QMetaType::Type typeId = static_cast<QMetaType::Type>(indexData.type());
+#else
+  auto typeId = indexData.typeId();
+#endif
+  if (typeId == QMetaType::QPixmap)
   {
     // Make sure the pixmap is scaled to fit the item height.
     QSize pixmapSize = qvariant_cast<QPixmap>(indexData).size();
@@ -3090,7 +3079,11 @@ int pqFlatTreeView::getDataWidth(const QModelIndex& index, const QFontMetrics& f
 
     return pixmapSize.width();
   }
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   else if (indexData.canConvert(QVariant::Icon))
+#else
+  else if (indexData.canConvert(QMetaType(QMetaType::QIcon)))
+#endif
   {
     // Icons will be scaled to fit the style options.
     return this->getViewOptions().decorationSize.width();
@@ -3141,10 +3134,7 @@ bool pqFlatTreeView::updateContentsWidth()
       {
         oldWidth = this->HeaderView->sectionSize(i);
         newWidth = this->HeaderView->sectionSizeHint(i);
-        if (newWidth < this->Root->Cells[i].Width)
-        {
-          newWidth = this->Root->Cells[i].Width;
-        }
+        newWidth = std::max(newWidth, this->Root->Cells[i].Width);
 
         if (newWidth != oldWidth)
         {
@@ -3601,11 +3591,19 @@ bool pqFlatTreeView::drawDecoration(QPainter& painter, int px, int py, const QMo
   QIcon icon;
   QPixmap pixmap;
   QVariant decoration = this->Model->data(index, Qt::DecorationRole);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   if (decoration.canConvert(QVariant::Pixmap))
+#else
+  if (decoration.canConvert(QMetaType(QMetaType::QPixmap)))
+#endif
   {
     icon = qvariant_cast<QPixmap>(decoration);
   }
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   else if (decoration.canConvert(QVariant::Icon))
+#else
+  else if (decoration.canConvert(QMetaType(QMetaType::QIcon)))
+#endif
   {
     icon = qvariant_cast<QIcon>(decoration);
   }
@@ -3640,11 +3638,20 @@ void pqFlatTreeView::drawData(QPainter& painter, int px, int py, const QModelInd
   bool selected)
 {
   QVariant indexData = this->Model->data(index);
-  if (indexData.type() == QVariant::Pixmap || indexData.canConvert(QVariant::Icon))
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  QMetaType::Type typeId = static_cast<QMetaType::Type>(indexData.type());
+#else
+  auto typeId = indexData.typeId();
+#endif
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  if (typeId == QMetaType::QPixmap || indexData.canConvert(QVariant::Icon))
+#else
+  if (typeId == QMetaType::QPixmap || indexData.canConvert(QMetaType(QMetaType::QIcon)))
+#endif
   {
     QIcon icon;
     QPixmap pixmap;
-    if (indexData.type() == QVariant::Pixmap)
+    if (typeId == QMetaType::QPixmap)
     {
       pixmap = qvariant_cast<QPixmap>(indexData);
       if (pixmap.height() > itemHeight)

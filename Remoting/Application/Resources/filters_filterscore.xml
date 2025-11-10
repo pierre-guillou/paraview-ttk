@@ -31,7 +31,7 @@
                  base_proxyname="PolylineLength"
                  base_proxygroup="filters"
                  name="AppendArcLength">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'PolylineLength'. Please consider using that instead.
       </Deprecated>
     </SourceProxy>
@@ -319,6 +319,16 @@
           <!-- show this widget when ExtractionMode==6 -->
         </Hints>
       </DoubleVectorProperty>
+      <IntVectorProperty command="SetCompressArrays"
+                         default_values="0"
+                         name="CompressArrays"
+                         number_of_elements="1">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Controls the extraction of the closest point region.
+          The default is off to make sure selections with cell data work.
+        </Documentation>
+      </IntVectorProperty>
       <Hints>
         <WarnOnCreate>
           <DataTypeDomain name="input_type">
@@ -866,14 +876,14 @@ found and the point will be rejected.</Documentation>
     </SourceProxy>
 
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkFeatureEdges"
+    <SourceProxy class="vtkPVFeatureEdges"
                  label="Feature Edges"
                  name="FeatureEdges">
       <Documentation long_help="This filter will extract edges along sharp edges of surfaces or boundaries of surfaces."
                      short_help="Extract edges that meet the feature criteria.">
                      The Feature Edges filter extracts various subsets of edges
                      from the input data set. This filter operates on polygonal
-                     data and produces polygonal output.</Documentation>
+                     data or hyper tree grids and produces polygonal output.</Documentation>
       <InputProperty command="SetInputConnection"
                      name="Input">
         <ProxyGroupDomain name="groups">
@@ -882,6 +892,7 @@ found and the point will be rejected.</Documentation>
         </ProxyGroupDomain>
         <DataTypeDomain name="input_type">
           <DataType value="vtkPolyData" />
+          <DataType value="vtkHyperTreeGrid"/>
         </DataTypeDomain>
         <Documentation>This property specifies the input to the Feature Edges
         filter.</Documentation>
@@ -894,6 +905,12 @@ found and the point will be rejected.</Documentation>
         <Documentation>If the value of this property is set to 1, boundary
         edges will be extracted. Boundary edges are defined as lines cells or
         edges that are used by only one polygon.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetFeatureEdges"
                          default_values="1"
@@ -905,6 +922,12 @@ found and the point will be rejected.</Documentation>
         two polygons whose dihedral angle is greater than the feature angle.
         (See the FeatureAngle property.) Toggle whether to extract feature
         edges.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetNonManifoldEdges"
                          default_values="1"
@@ -915,6 +938,12 @@ found and the point will be rejected.</Documentation>
         <Documentation>If the value of this property is set to 1, non-manifold
         edges will be extracted. Non-manifold edges are defined as edges that
         are use by three or more polygons.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetManifoldEdges"
                          default_values="0"
@@ -924,6 +953,12 @@ found and the point will be rejected.</Documentation>
         <Documentation>If the value of this property is set to 1, manifold
         edges will be extracted. Manifold edges are defined as edges that are
         used by exactly two polygons.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </IntVectorProperty>
       <IntVectorProperty command="SetColoring"
                          default_values="0"
@@ -933,6 +968,12 @@ found and the point will be rejected.</Documentation>
         <Documentation>If the value of this property is set to 1, then the
         extracted edges are assigned a scalar value based on the type of the
         edge.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </IntVectorProperty>
       <DoubleVectorProperty command="SetFeatureAngle"
                             default_values="30.0"
@@ -945,7 +986,26 @@ found and the point will be rejected.</Documentation>
         edge. If the surface normal between two adjacent triangles is at least
         as large as this Feature Angle, a feature edge exists. (See the
         FeatureEdges property.)</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility"
+                                   exclude="1"/>
+        </Hints>
       </DoubleVectorProperty>
+      <IntVectorProperty animateable="0"
+                         command="SetMergePoints"
+                         default_values="0"
+                         name="MergePoints"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>Select whether to merge duplicated points.</Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="InputDataTypeDecorator"
+                                   name="vtkHyperTreeGrid"
+                                   mode="visibility" />
+        </Hints>
+      </IntVectorProperty>
       <Hints>
         <Visibility replace_input="0" />
       </Hints>
@@ -1058,7 +1118,7 @@ found and the point will be rejected.</Documentation>
                  base_proxyname="PointAndCellIds"
                  base_proxygroup="filters"
                  name="GenerateIdScalars">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'PointAndCellIds'. Please consider using that instead.
       </Deprecated>
       <!-- End GenerateIdScalars -->
@@ -1303,7 +1363,7 @@ found and the point will be rejected.</Documentation>
                  base_proxyname="SurfaceTangents"
                  base_proxygroup="filters"
                  name="PolyDataTangents">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'SurfaceTangents'. Please consider using that instead.
       </Deprecated>
       <!-- End  PolyDataTangents -->
@@ -1393,6 +1453,317 @@ found and the point will be rejected.</Documentation>
         well-behaved.</Documentation>
       </IntVectorProperty>
       <!-- End QuadricClustering -->
+    </SourceProxy>
+
+    <!-- ==================================================================== -->
+    <SourceProxy name="QuadricDecimation" class="vtkQuadricDecimation" label="Quadric Decimation">
+     <Documentation
+        long_help="Reduce the number of trianges in a mesh using vtkQuadricDecimation."
+        short_help="Reduce the number of trianges in a mesh.">
+      Reduce the number of triangles in a triangle mesh, forming a good
+      approximation to the original geometry. Only triangles are treated.
+      To decimate polygonal meshes, first triangulate the polygons with
+      Triangulate.
+     </Documentation>
+     <InputProperty
+        name="Input"
+        command="SetInputConnection">
+           <ProxyGroupDomain name="groups">
+             <Group name="sources"/>
+             <Group name="filters"/>
+           </ProxyGroupDomain>
+           <DataTypeDomain name="input_type">
+             <DataType value="vtkPolyData"/>
+           </DataTypeDomain>
+      </InputProperty>
+
+      <DoubleVectorProperty animateable="1"
+                            command="SetTargetReduction"
+                            name="TargetReduction"
+                            default_values="0.5"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Desired reduction (expressed as a fraction of the original
+          number of triangles). The actual reduction may be less depending on
+          triangulation and topological constraints.
+        </Documentation>
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetVolumePreservation"
+                         name="VolumePreservation"
+                         default_values="0"
+                         panel_visibility="advanced"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Decide whether to activate volume preservation which greatly reduces errors
+          in triangle normal direction. If off, volume preservation is disabled and
+          if AttributeErrorMetric is active, these errors can be large.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetMapPointData"
+                         name="MapPointData"
+                         default_values="1"
+                         panel_visibility="advanced"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Keep point data to the output during decimation.
+        </Documentation>
+      </IntVectorProperty>
+
+      <IntVectorProperty command="SetRegularize"
+                         name="Regularize"
+                         default_values="0"
+                         panel_visibility="advanced"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Boolean property determining whether or not to use the regularization method.
+        </Documentation>
+      </IntVectorProperty>
+      <DoubleVectorProperty animateable="1"
+                            command="SetRegularization"
+                            name="Regularization"
+                            default_values="0.05"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Adjust the level of regularization. Help to have better quality mesh elements
+          at the cost of lower precision on the geometry.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="Regularize"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+
+      <IntVectorProperty command="SetAttributeErrorMetric"
+                         name="AttributeErrorMetric"
+                         default_values="0"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          Decide whether to include data attributes in the error metric. If off,
+          then only geometric error is used to control the decimation.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetScalarsAttribute"
+                         name="ScalarsAttribute"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This flag controls whether scalars attributes are to be included in the error
+          calculation.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetVectorsAttribute"
+                         name="VectorsAttribute"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This flag controls whether vectors attributes are to be included in the error
+          calculation.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetNormalsAttribute"
+                         name="NormalsAttribute"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This flag controls whether normals attributes are to be included in the error
+          calculation.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetTCoordsAttribute"
+                         name="TCoordsAttribute"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This flag controls whether texture coordinates attributes are to be included in
+          the error calculation.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </IntVectorProperty>
+      <IntVectorProperty command="SetTensorsAttribute"
+                         name="TensorsAttribute"
+                         default_values="1"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+        <Documentation>
+          This flag controls whether tensors attributes are to be included in the error
+          calculation.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </IntVectorProperty>
+
+      <DoubleVectorProperty animateable="1"
+                            command="SetScalarsWeight"
+                            name="ScalarsWeight"
+                            default_values="0.5"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Scaling weight contribution of the scalar attribute. This
+          value is used to weight the contribution of the scalar
+          attribute towards the error metric.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="ScalarsAttribute"
+                                   value="1" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty animateable="1"
+                            command="SetVectorsWeight"
+                            name="VectorsWeight"
+                            default_values="0.5"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Scaling weight contribution of the vector attribute. This
+          value is used to weight the contribution of the vector
+          attribute towards the error metric.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="VectorsAttribute"
+                                   value="1" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty animateable="1"
+                            command="SetNormalsWeight"
+                            name="NormalsWeight"
+                            default_values="0.5"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Scaling weight contribution of the normal attribute. This
+          value is used to weight the contribution of the normal
+          attribute towards the error metric.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="NormalsAttribute"
+                                   value="1" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty animateable="1"
+                            command="SetTCoordsWeight"
+                            name="TCoordsWeight"
+                            default_values="0.5"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Scaling weight contribution of the texture coordinates attribute.
+          This value is used to weight the contribution of the texture
+          coordinates attribute towards the error metric.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="TCoordsAttribute"
+                                   value="1" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty animateable="1"
+                            command="SetTensorsWeight"
+                            name="TensorsWeight"
+                            default_values="0.5"
+                            panel_visibility="advanced"
+                            number_of_elements="1">
+        <DoubleRangeDomain max="1"
+                           min="0"
+                           name="range" />
+        <Documentation>
+          Scaling weight contribution of the tensors attribute. This
+          value is used to weight the contribution of the tensors
+          attribute towards the error metric.
+        </Documentation>
+        <Hints>
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="TensorsAttribute"
+                                   value="1" />
+          <PropertyWidgetDecorator type="GenericDecorator"
+                                   mode="visibility"
+                                   property="AttributeErrorMetric"
+                                   value="1" />
+        </Hints>
+      </DoubleVectorProperty>
+      <!-- End QuadricDecimation -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -2438,6 +2809,51 @@ found and the point will be rejected.</Documentation>
         <Hints>
           <ArraySelectionWidget icon_type="row"/>
         </Hints>
+      </StringVectorProperty>
+
+    </SourceProxy>
+
+    <SourceProxy name="FeatureEdgesRegionIds"
+      class="vtkGenerateRegionIds"
+      label="Feature Edges Region Ids">
+      <Documentation short_help="Generate Region Ids" long_help="Add a Region Ids cell array.">
+        Generates a region ids cell array. A region is defined as a collection of connected cells
+        with a maximal angle between their normals.
+
+        Grouping cells into regions is similar to Connectivity filter, while the Normal criteria
+        is similar to Feature Edges computation.
+
+        Note: Duplicated points may create unexpected regions. It is advised to run a Clean filter to remove them.
+
+        Warning: FeatureEdgesRegionIds is not implemented for Distributed environment.
+      </Documentation>
+
+      <InputProperty command="SetInputConnection" name="Input">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkPolyData" />
+        </DataTypeDomain>
+      </InputProperty>
+
+      <DoubleVectorProperty name="MaxAngle"
+        command="SetMaxAngle"
+        default_values="30"
+        number_of_elements="1" >
+        <Documentation>The maximum angle between two adjacent cell of a same face.
+        </Documentation>
+        <DoubleRangeDomain min="0" max="90" name="range" />
+      </DoubleVectorProperty>
+
+      <StringVectorProperty name="RegionIdsName"
+        command="SetRegionIdsArrayName"
+        default_values="vtkRegionIds"
+        number_of_elements="1"
+        panel_visibility="advanced" >
+       <Documentation>The generated region ids array name.
+       </Documentation>
       </StringVectorProperty>
 
     </SourceProxy>

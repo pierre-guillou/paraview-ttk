@@ -284,7 +284,7 @@ bool vtkHyperTreeGridProbeFilter::Initialize(
 
   if (this->UseImplicitArrays)
   {
-    // Instanciate handles array, that will contain the ids of probed cells
+    // Instantiate handles array, that will contain the ids of probed cells
     this->Handles = vtkSmartPointer<vtkIdList>::New();
   }
   else
@@ -382,7 +382,8 @@ public:
     this->ThreadGlobCellIds->SetNumberOfIds(nPointsFound);
     nPointsFound = 0;
 
-    auto mergeThreadResults = [this, &nPointsFound](LocalData& loc) {
+    auto mergeThreadResults = [this, &nPointsFound](LocalData& loc)
+    {
       std::copy(
         loc.pointIds.begin(), loc.pointIds.end(), this->ThreadGlobPointIds->begin() + nPointsFound);
       std::copy(
@@ -544,7 +545,7 @@ void vtkHyperTreeGridProbeFilter::Finalize(
   using SupportedTypes = vtkTypeList::Append<vtkArrayDispatch::AllTypes, std::string>::Result;
   using Dispatcher = vtkArrayDispatch::DispatchByValueType<SupportedTypes>;
 
-  // Replace remaining invalid id values (not overriden during reduction operation)
+  // Replace remaining invalid id values (not overridden during reduction operation)
   // With "NaN index" (id pointing to the NaN value)
   for (int i = 0; i < this->Handles->GetNumberOfIds(); i++)
   {

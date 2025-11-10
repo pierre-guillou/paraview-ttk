@@ -652,15 +652,7 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
   try
     {
     this->AvtFile->FormatGetTimes( timesteps );
-    if (timesteps.empty())
-      {
-      timesteps = this->MetaData->GetTimes();
-      }
     this->AvtFile->FormatGetCycles( cycles );
-    if (cycles.empty())
-      {
-      cycles = this->MetaData->GetCycles();
-      }
     }
   catch(...)
     {
@@ -670,7 +662,6 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
 
   bool hasTime = !timesteps.empty();
   bool hasCycles = !cycles.empty();
-  bool hasTimeAndCycles = hasTime && hasCycles;
 
   //in some case the times and cycles have all zero values,
   //or everything but the first time step have are zero values
@@ -711,6 +702,40 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
     timesteps = newTimesSteps;
     }
 
+  // Alternate methods to report times and cycles
+  if (!hasTime)
+    {
+    if (timesteps.empty())
+      {
+      timesteps = this->MetaData->GetTimes();
+      }
+    if (timesteps.empty())
+      {
+      double time = this->AvtFile->FormatGetTime();
+      if (time != avtFileFormat::INVALID_TIME)
+        {
+        timesteps.push_back(time);
+        }
+      }
+    hasTime = !timesteps.empty();
+    }
+  if (!hasCycles)
+    {
+    if (cycles.empty())
+      {
+      cycles = this->MetaData->GetCycles();
+      }
+    if (cycles.empty())
+      {
+      int cycle = this->AvtFile->FormatGetCycle();
+      if (cycle != avtFileFormat::INVALID_CYCLE)
+        {
+        cycles.push_back(cycle);
+        }
+      }
+    hasCycles = !cycles.empty();
+    }
+  bool hasTimeAndCycles = hasTime && hasCycles;
 
   //need to figure out the use case of when cycles and timesteps don't match
   if (hasTimeAndCycles && timesteps.size()==cycles.size() )
@@ -718,7 +743,7 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
     //presume that timesteps and cycles are just duplicates of each other
     numTimeValues = static_cast<int>(timesteps.size());
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(),
-      &timesteps[0],numTimeValues);
+      timesteps.data(),numTimeValues);
     timeRange[0] = timesteps[0];
     timeRange[1] = timesteps[numTimeValues-1];
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(),
@@ -729,7 +754,7 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
     numTimeValues = static_cast<int>(timesteps.size());
 
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(),
-      &timesteps[0],numTimeValues);
+      timesteps.data(),numTimeValues);
     timeRange[0] = timesteps[0];
     timeRange[1] = timesteps[numTimeValues-1];
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(),
@@ -746,7 +771,7 @@ void vtkAvtFileFormatAlgorithm::SetupTemporalInformation(
     numTimeValues = static_cast<int>(timesteps.size());
 
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_STEPS(),
-      &timesteps[0],numTimeValues);
+      timesteps.data(),numTimeValues);
     timeRange[0] = timesteps[0];
     timeRange[1] = timesteps[numTimeValues-1];
     outInfo->Set(vtkStreamingDemandDrivenPipeline::TIME_RANGE(),
@@ -857,7 +882,6 @@ void vtkAvtFileFormatAlgorithm::SetupMaterialSelections()
     }
   //go through the meta data and get all the material names
   int size = this->MetaData->GetNumMaterials();
-  std::string name;
   for ( int i=0; i < size; ++i)
     {
     const avtMaterialMetaData* matMetaData = this->MetaData->GetMaterial(i);

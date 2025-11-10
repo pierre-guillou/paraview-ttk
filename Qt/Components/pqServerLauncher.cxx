@@ -16,6 +16,7 @@
 #include "vtkCommand.h"
 #include "vtkMinimalStandardRandomSequence.h"
 #include "vtkNetworkAccessManager.h"
+#include "vtkPVLogger.h"
 #include "vtkPVVersion.h"
 #include "vtkPVXMLElement.h"
 #include "vtkProcessModule.h"
@@ -183,7 +184,7 @@ QProcessEnvironment getDefaultEnvironment(const pqServerConfiguration& configura
   options.insert("PV_VERSION_FULL", PARAVIEW_VERSION_FULL);
   options.insert("PV_SERVER_HOST", resource.host());
   options.insert("PV_SERVER_PORT", QString::number(resource.port(11111)));
-  options.insert("PV_SSH_PF_SERVER_PORT", configuration.portForwardingLocalPort());
+  options.insert("PV_SSH_PF_SERVER_PORT", QString::number(configuration.localPortForwardingPort()));
   options.insert("PV_DATA_SERVER_HOST", resource.dataServerHost());
   options.insert("PV_DATA_SERVER_PORT", QString::number(resource.dataServerPort(11111)));
   options.insert("PV_RENDER_SERVER_HOST", resource.renderServerHost());
@@ -428,6 +429,10 @@ void updateEnvironment(const QMap<QString, pqWidget*>& widgets,
       resource.setRenderServerPort(chosen_value.toInt());
       configuration.setResource(resource);
     }
+    else if (name == "PV_SSH_PF_SERVER_PORT")
+    {
+      configuration.setDefaultLocalPortForwardingPort(chosen_value.toInt());
+    }
   }
 }
 
@@ -500,6 +505,7 @@ class pqServerLauncher::pqInternals
 public:
   pqServerConfiguration Configuration;
   QProcessEnvironment Options;
+  QPointer<QProcess> ScriptProcess;
   QPointer<pqServer> Server;
   QMap<QString, pqWidget*> ActiveWidgets; // map to save the widgets in promptOptions().
 };
@@ -631,6 +637,12 @@ bool pqServerLauncher::connectToPrelaunchedServer(bool showConnectionDialog)
     const pqServerResource& resource = this->Internals->Configuration.actualResource();
     this->Internals->Server = builder->createServer(resource, timeout, result);
 
+    if (this->Internals->Server && this->Internals->ScriptProcess)
+    {
+      // add the process to the server so that it can be deleted when needed
+      this->Internals->Server->setScriptProcess(this->Internals->ScriptProcess);
+    }
+
     // Make sure events have been processed
     pqEventDispatcher::processEventsAndWait(100);
 
@@ -759,6 +771,8 @@ bool pqServerLauncher::launchServer(bool show_status_dialog)
     match = regex.match(command);
   }
 
+  vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "launching server using command: %s",
+    command.toUtf8().data());
   return this->processCommand(command, processWait, delay, &this->Internals->Options);
 }
 
@@ -766,45 +780,46 @@ bool pqServerLauncher::launchServer(bool show_status_dialog)
 bool pqServerLauncher::processCommand(
   QString command, double processWait, double delay, const QProcessEnvironment* options)
 {
-  QProcess* process = new QProcess(pqApplicationCore::instance());
+  this->Internals->ScriptProcess = new QProcess(pqApplicationCore::instance());
 
   if (options != nullptr)
   {
-    process->setProcessEnvironment(*options);
+    this->Internals->ScriptProcess->setProcessEnvironment(*options);
   }
-
-  QObject::connect(process, SIGNAL(error(QProcess::ProcessError)), this,
+  QObject::connect(this->Internals->ScriptProcess, SIGNAL(error(QProcess::ProcessError)), this,
     SLOT(processFailed(QProcess::ProcessError)));
-  QObject::connect(process, SIGNAL(readyReadStandardError()), this, SLOT(readStandardError()));
-  QObject::connect(process, SIGNAL(readyReadStandardOutput()), this, SLOT(readStandardOutput()));
+  QObject::connect(this->Internals->ScriptProcess, SIGNAL(readyReadStandardError()), this,
+    SLOT(readStandardError()));
+  QObject::connect(this->Internals->ScriptProcess, SIGNAL(readyReadStandardOutput()), this,
+    SLOT(readStandardOutput()));
 
 // QProcess::start(QString) has been deprecated in Qt 5.15
 #if QT_VERSION < QT_VERSION_CHECK(5, 15, 0)
-  process->start(command);
+  this->Internals->ScriptProcess->start(command);
 #else
   QStringList splitCommand = QProcess::splitCommand(command);
   QString program = splitCommand.takeAt(0);
-  process->start(program, splitCommand);
+  this->Internals->ScriptProcess->start(program, splitCommand);
 #endif
 
   // wait for process to start.
   // waitForStarted() may block until the process starts. That is generally a short
   // span of time, hence we don't worry about it too much.
-  if (process->waitForStarted(processWait > 0. ? static_cast<int>(processWait * 1000.) : -1) ==
-    false)
+  processWait = processWait > 0. ? static_cast<int>(processWait * 1000.) : -1;
+  if (this->Internals->ScriptProcess->waitForStarted(processWait) == false)
   {
     qCritical() << "Command launch timed out.";
-    process->kill();
-    delete process;
+    this->Internals->ScriptProcess->kill();
+    delete this->Internals->ScriptProcess;
     return false;
   }
 
   if (delay == -1)
   {
     // Wait for process to be finished
-    while (process->state() == QProcess::Running)
+    while (this->Internals->ScriptProcess->state() == QProcess::Running)
     {
-      process->waitForFinished(100);
+      this->Internals->ScriptProcess->waitForFinished(100);
     }
   }
   else
@@ -814,29 +829,30 @@ bool pqServerLauncher::processCommand(
   }
 
   // Check process state
-  if (process->state() != QProcess::Running)
+  if (this->Internals->ScriptProcess->state() != QProcess::Running)
   {
-    if (process->exitStatus() != QProcess::NormalExit || process->exitCode() != 0)
+    if (this->Internals->ScriptProcess->exitStatus() != QProcess::NormalExit ||
+      this->Internals->ScriptProcess->exitCode() != 0)
     {
       // if the launched code exited with error, we consider that the process
       // failed. If the process quits with success, we
       // still assume that the script has launched the server successfully (it's
       // just treated as non-blocking).
       qCritical() << "Command aborted.";
-      process->deleteLater();
+      this->Internals->ScriptProcess->deleteLater();
       return false;
     }
     else
     {
       // process has completed, so delete it.
-      process->deleteLater();
+      this->Internals->ScriptProcess->deleteLater();
     }
   }
   else
   {
     // setup slot to delete the QProcess instance when the process exits.
-    QObject::connect(
-      process, SIGNAL(finished(int, QProcess::ExitStatus)), process, SLOT(deleteLater()));
+    QObject::connect(this->Internals->ScriptProcess, SIGNAL(finished(int, QProcess::ExitStatus)),
+      this->Internals->ScriptProcess, SLOT(deleteLater()));
   }
   return true;
 }

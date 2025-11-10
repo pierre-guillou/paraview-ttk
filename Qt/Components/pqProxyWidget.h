@@ -24,9 +24,6 @@ class QPoint;
  * pqProxyWidget doesn't show any widgets in the panel by default (after
  * constructor). Use filterWidgets() or updatePanel() to show widgets matching
  * criteria.
- *
- * Note: This class replaces pqProxyPanel (and subclasses). pqProxyPanel is
- * still available (and supported) for backwards compatibility.
  */
 class PQCOMPONENTS_EXPORT pqProxyWidget : public QWidget
 {
@@ -199,7 +196,7 @@ public Q_SLOTS:
   /**
    * Saves settings as defaults for proxy
    */
-  void saveAsDefaults();
+  void saveAsDefaults() const;
 
   /**
    * create a widget for a property.
@@ -235,6 +232,29 @@ private:
    * create 3D widgets, if any.
    */
   void create3DWidgets();
+
+  /**
+   * Return true if the current values should be saved as default.
+   * This is based on the corresponding settings and on proxy group.
+   */
+  bool shouldPreservePropertyValues() const;
+
+  /**
+   * Reset property to its default and look for settings at given priority.
+   * Return true if the property value has changed.
+   * If warn is true, emit signal on changes.
+   */
+  bool resetProperty(vtkSMProperty* prop, double settingsPriority, bool warn);
+
+  /**
+   * Reset property to its default, and use site settings.
+   */
+  void resetPropertyToAppDefault(pqPropertyWidget* propWidget);
+
+  /**
+   * Reset property to its default, and use user settings.
+   */
+  void resetPropertyToUserDefault(pqPropertyWidget* propWidget);
 
   Q_DISABLE_COPY(pqProxyWidget);
 

@@ -8,22 +8,6 @@ endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(_vtk_test_cxx_wasm_enabled_in_browser ON)
-  set(_proxy_to_pthread_flag "0")
-  if (VTK_WEBASSEMBLY_THREADS)
-    set(_proxy_to_pthread_flag "1")
-  endif ()
-  set(_vtk_test_emscripten_extra_linker_args
-    # O2 or higher make wasm-opt terribly slow.
-    # test executables take a minute to link.
-    "-O1"
-    # don't keep runtime alive after exit() is called.
-    "-sEXIT_RUNTIME=1"
-    # this flag runs main() on a pthread i.e, a web worker.
-    # the primary reason we desire this is to make the unit test access
-    # data files through synchronous XHR which is only posssible from web-worker.
-    "-sPROXY_TO_PTHREAD=${_proxy_to_pthread_flag}"
-    "-sALLOW_MEMORY_GROWTH=1"
-    "-sOFFSCREENCANVAS_SUPPORT=${_proxy_to_pthread_flag}")
 endif ()
 
 vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
@@ -55,6 +39,7 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestColorTransferFunctionStringArray.cxx,NO_VALID
   TestCompositeDataDisplayAttributes.cxx,NO_VALID
   TestCompositePolyDataMapper.cxx,NO_DATA
+  TestCompositePolyDataMapperBlockOpacities.cxx,NO_DATA
   TestCompositePolyDataMapperCameraShiftScale.cxx,NO_DATA
   TestCompositePolyDataMapperCellScalars.cxx,NO_DATA
   TestCompositePolyDataMapperCustomShader.cxx,NO_DATA
@@ -81,10 +66,12 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestDragEvent.cxx
   TestEdgeFlags.cxx
   TestEdgeOpacity.cxx
+  TestEdgeThickness.cxx
   TestFollowerPicking.cxx
   TestGlyph3DMapper.cxx
   TestGlyph3DMapper2.cxx,NO_VALID,NO_RT,NO_DATA
   TestGlyph3DMapperArrow.cxx
+  TestGlyph3DMapperBackfaceColor.cxx
   TestGlyph3DMapperCompositeDisplayAttributeInheritance.cxx,NO_DATA
   TestGlyph3DMapperIndexing.cxx,NO_DATA
   TestGlyph3DMapperMasking.cxx
@@ -95,6 +82,7 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestGradientBackground.cxx
   TestGradientBackgroundWithTiledViewport.cxx,NO_DATA
   TestGradientBackgroundWithTiledViewports.cxx,NO_DATA
+# TestHardwarePicker.cxx,NO_DATA
   TestHomogeneousTransformOfActor.cxx
   TestImageAndAnnotations.cxx,NO_DATA
   TestInteractorStyleImageProperty.cxx,NO_VALID
@@ -102,15 +90,19 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestLabeledContourMapperNoLabels.cxx
   TestLabeledContourMapperWithActorMatrix.cxx
   TestManyActors.cxx,NO_VALID
+  TestManyRenderWindows.cxx,NO_VALID,NO_RT,NO_DATA
   TestMapVectorsAsRGBColors.cxx
   TestMapVectorsToColors.cxx
+  TestMixedGeometryCellScalars.cxx,NO_DATA
   TestOffAxisStereo.cxx
   TestOnAndOffScreenConeCxx.cxx
   TestOpacity.cxx
+  TestOpacityMSAA.cxx
   TestOrderedTriangulator.cxx
   TestOSConeCxx.cxx
   TestPickingManager.cxx,NO_VALID
   TestPickTextActor.cxx,NO_VALID
+  TestPointPicker.cxx,NO_DATA
   TestPointSelection.cxx,NO_VALID
   TestPointSelectionWithCellData.cxx,NO_VALID
   TestPolygonSelection.cxx
@@ -146,6 +138,8 @@ vtk_add_test_cxx(vtkRenderingCoreCxxTests tests
   TestWindowToImageFilter.cxx
   TestResizingWindowToImageFilter.cxx
   TestTextureWrap.cxx
+  TestVertexVisibility.cxx
+  TestWorldPointPicker.cxx,NO_DATA
   # TestViewDependentErrorMetric.cxx # Loads of extra deps - move?
   # TestHierarchicalBoxPipeline.cxx  # legacy code
   )

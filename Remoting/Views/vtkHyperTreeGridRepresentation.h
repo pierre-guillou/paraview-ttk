@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkHyperTreeGridRepresentation
- * @brief   representation for showing vtkHyperTreeGrid as
- * with optimized rendering for 2D datasets.
+ * @brief   representation for showing vtkHyperTreeGrid with optimized memory usage.
  *
- * vtkHyperTreeGridRepresentation is a representation for showing HyperTreeGrid.
- * When given a 2D dataset, the new HTG representation uses the specific HTG
- * mapper that benefits from the AdaptiveDecimation filter to only render part
- * that are shown on the camera frustum. This requires the Parallel Profection
- * to be enabled.
+ * vtkHyperTreeGridRepresentation is a representation for showing HyperTreeGrid with optimized
+ * memory usage. The new HTG representation uses the specific HTG mapper that benefits from the
+ * AdaptiveDecimation filter to only render part that are shown on the camera frustum. This reduces
+ * the memory usage at the expense of render time, as the HTG must be traversed each frame.
  * @par Thanks:
  * This work was supported by CEA/DIF
  * Commissariat a l'Energie Atomique, Centre DAM Ile-De-France, Arpajon, France.
@@ -27,6 +25,7 @@
 
 #include <string> // needed for std::string
 
+class vtkDataObjectTree;
 class vtkOpenGLHyperTreeGridMapper;
 class vtkPVGeometryFilter;
 class vtkPiecewiseFunction;
@@ -247,6 +246,14 @@ public:
   vtkGetMacro(UseShaderReplacements, bool);
   ///@}
 
+  ///@{
+  /**
+   * Update list of selectors that determine the selected blocks.
+   */
+  void AddBlockSelector(const char* selector);
+  void RemoveAllBlockSelectors();
+  ///@}
+
   /**
    * Specify shader replacements using a Json string.
    * Please refer to the XML definition of the property for details about
@@ -299,6 +306,11 @@ protected:
   bool RemoveFromView(vtkView* view) override;
 
   /**
+   * For composite inputs, use block selectors to toggle block visibility.
+   */
+  void UpdateBlockVisibility(vtkDataObjectTree* dtree);
+
+  /**
    * Passes on parameters to vtkProperty and vtkMapper
    */
   virtual void UpdateColoringParameters();
@@ -344,6 +356,7 @@ protected:
   double VisibleDataBounds[6];
   bool UseShaderReplacements = false;
   std::string ShaderReplacementsString;
+  std::vector<std::string> BlockSelectors;
 
 private:
   vtkHyperTreeGridRepresentation(const vtkHyperTreeGridRepresentation&) = delete;

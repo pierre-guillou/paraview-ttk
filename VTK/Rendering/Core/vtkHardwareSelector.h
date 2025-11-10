@@ -5,7 +5,7 @@
  * @brief   manager for OpenGL-based selection.
  *
  * vtkHardwareSelector is a helper that orchestrates color buffer based
- * selection. This relies on OpenGL.
+ * selection.
  * vtkHardwareSelector can be used to select visible cells or points within a
  * given rectangle of the RenderWindow.
  * To use it, call in order:
@@ -124,6 +124,9 @@ public:
     vtkProp* Prop;
     unsigned int CompositeID;
     vtkIdType AttributeID;
+    vtkIdType CellGridCellTypeID;
+    vtkIdType CellGridSourceSpecID;
+    vtkIdType CellGridTupleID;
     PixelInformation()
       : Valid(false)
       , ProcessID(-1)
@@ -131,6 +134,9 @@ public:
       , Prop(nullptr)
       , CompositeID(0)
       , AttributeID(-1)
+      , CellGridCellTypeID(-1)
+      , CellGridSourceSpecID(-1)
+      , CellGridTupleID(-1)
     {
     }
   };
@@ -192,7 +198,7 @@ public:
    * It is possible to use the vtkHardwareSelector for a custom picking. (Look
    * at vtkScenePicker). In that case instead of Select() on can use
    * CaptureBuffers() to render the selection buffers and then get information
-   * about pixel locations suing GetPixelInformation(). Use ClearBuffers() to
+   * about pixel locations using GetPixelInformation(). Use ClearBuffers() to
    * clear buffers after one's done with the scene.
    * The optional final parameter maxDist will look for a cell within the specified
    * number of pixels from display_position. When using the overload with the
@@ -234,6 +240,7 @@ public:
    */
   virtual void UpdateMaximumCellId(vtkIdType attribid);
   virtual void UpdateMaximumPointId(vtkIdType attribid);
+  virtual void UpdateMaximumCellGridTupleId(vtkIdType attribid);
   ///@}
 
   /**
@@ -329,7 +336,7 @@ public:
    * returns the prop associated with a ID. This is valid only until
    * ReleasePixBuffers() gets called.
    */
-  vtkProp* GetPropFromID(int id);
+  virtual vtkProp* GetPropFromID(int id);
 
   // it is very critical that these passes happen in the right order
   // this is because of two complexities
@@ -357,7 +364,12 @@ public:
     CELL_ID_LOW24,
     CELL_ID_HIGH24, // if needed
 
-    MAX_KNOWN_PASS = CELL_ID_HIGH24,
+    CELLGRID_CELL_TYPE_INDEX_PASS,
+    CELLGRID_SOURCE_INDEX_PASS,
+    CELLGRID_TUPLE_ID_LOW24,
+    CELLGRID_TUPLE_ID_HIGH24,
+
+    MAX_KNOWN_PASS = CELLGRID_TUPLE_ID_HIGH24,
     MIN_KNOWN_PASS = ACTOR_PASS
   };
 
@@ -384,6 +396,10 @@ public:
   // does the selection process have high point data
   // requiring a high24 pass
   bool HasHighPointIds();
+
+  // deos the selection process have high cell grid tuple ids
+  // requiring a high24 pass
+  bool HasHighCellGridTupleIds();
 
 protected:
   vtkHardwareSelector();
@@ -425,7 +441,7 @@ protected:
    * \c pos must be relative to the lower-left corner of this->Area.
    */
   int Convert(unsigned int pos[2], unsigned char* pb) { return this->Convert(pos[0], pos[1], pb); }
-  int Convert(int xx, int yy, unsigned char* pb)
+  virtual int Convert(int xx, int yy, unsigned char* pb)
   {
     if (!pb)
     {
@@ -484,18 +500,19 @@ protected:
   /**
    * Clears all pixel buffers.
    */
-  void ReleasePixBuffers();
+  virtual void ReleasePixBuffers();
   vtkRenderer* Renderer;
   unsigned int Area[4];
   int FieldAssociation;
   bool UseProcessIdFromData;
   vtkIdType MaximumPointId;
   vtkIdType MaximumCellId;
+  vtkIdType MaximumCellGridTupleId;
   ///@}
 
-  // At most 10 passes.
-  unsigned char* PixBuffer[10];
-  unsigned char* RawPixBuffer[10];
+  // At most 11 passes.
+  unsigned char* PixBuffer[11];
+  unsigned char* RawPixBuffer[11];
   int ProcessID;
   int CurrentPass;
   int Iteration;

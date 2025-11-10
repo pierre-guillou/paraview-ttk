@@ -132,7 +132,7 @@ IF (ICET_USE_OPENGL)
   ENDIF()
 ENDIF (ICET_USE_OPENGL)
 else ()
-set(ICET_OPENGL_LIBRARIES VTK::opengl)
+set(ICET_OPENGL_LIBRARIES VTK::glad)
 endif ()
 
 if (FALSE) # XXX(kitware): Use the vtkmpi module.

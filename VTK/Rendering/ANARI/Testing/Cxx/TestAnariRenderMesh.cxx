@@ -51,8 +51,9 @@
 #include <vector>
 
 #include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 
 class renderable
 {
@@ -241,22 +242,8 @@ int TestAnariRenderMesh(int argc, char* argv[])
   vtkNew<vtkAnariPass> anariPass;
   renderer->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, renderer);
-    vtkNew<vtkTesting> testing;
+  SetParameterDefaults(anariPass, renderer, useDebugDevice, "TestAnariRendererMesh");
 
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariRenderMesh";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), renderer);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", renderer);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, renderer);
-  vtkAnariRendererNode::SetLightFalloff(.5, renderer);
-  vtkAnariRendererNode::SetUseDenoiser(1, renderer);
-  vtkAnariRendererNode::SetCompositeOnGL(1, renderer);
   // Now, vary most of the many parameters that rendering can vary by.
 
   // representations points, wireframe, surface

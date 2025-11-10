@@ -6,6 +6,7 @@
 #include "vtkCellAttribute.h"
 #include "vtkCellGrid.h"
 #include "vtkCellGridBoundsQuery.h"
+#include "vtkCellGridSidesCache.h"
 #include "vtkDGCell.h"
 #include "vtkDataSetAttributes.h"
 #include "vtkIdTypeArray.h"
@@ -68,6 +69,7 @@ bool vtkDGSidesResponder::HashSides(vtkCellGridSidesQuery* query, vtkDGCell* cel
   entry.resize(nc);
   int numSideTypes = cellType->GetNumberOfSideTypes();
 
+  auto* sideCache = query->GetSideCache();
   if (!cellSpec.Blanked)
   {
     // int minSideDim = cellType->GetDimension() - 1; // We only care about sides of dimension d-1.
@@ -136,7 +138,7 @@ bool vtkDGSidesResponder::HashSides(vtkCellGridSidesQuery* query, vtkDGCell* cel
             }
           }
           // Hash the sideIdx'th side of element ii and add it to the query's storage.
-          query->AddSide(cellTypeToken, ii, sideIdx, shapeName, side);
+          sideCache->AddSide(cellTypeToken, ii, sideIdx, shapeName, side);
         }
       }
     }
@@ -191,7 +193,7 @@ bool vtkDGSidesResponder::HashSides(vtkCellGridSidesQuery* query, vtkDGCell* cel
 
 bool vtkDGSidesResponder::SummarizeSides(vtkCellGridSidesQuery* query, vtkDGCell* cellType)
 {
-  auto& hashes = query->GetHashes();
+  auto& hashes = query->GetSideCache()->GetHashes();
   auto& sides = query->GetSides();
   vtkStringToken cellTypeToken(cellType->GetClassName());
 
@@ -230,17 +232,6 @@ bool vtkDGSidesResponder::SummarizeSides(vtkCellGridSidesQuery* query, vtkDGCell
           switch (cellType->GetDimension())
           {
             case 3:
-              // XXX(c++14)
-#if __cplusplus < 201400L
-              if (firstSide.SideShape != "edge"_token && firstSide.SideShape != "vertex"_token)
-              {
-                if (sidesOfHash.size() % 2 == 0)
-                {
-                  hashes.erase(it);
-                  continue; // Do not output evenly-paired faces.
-                }
-              }
-#else
               switch (firstSide.SideShape.GetId())
               {
                 default:
@@ -257,21 +248,8 @@ bool vtkDGSidesResponder::SummarizeSides(vtkCellGridSidesQuery* query, vtkDGCell
                   // Always output a single side.
                   break;
               }
-#endif
               break;
             case 2:
-              // XXX(c++14)
-#if __cplusplus < 201400L
-              if (firstSide.SideShape == "edge"_token)
-              {
-                if (sidesOfHash.size() % 2 == 0)
-                {
-                  hashes.erase(it);
-                  continue; // Do not output evenly paired edges.
-                }
-              }
-              // else: always ouput vertices.
-#else
               switch (firstSide.SideShape.GetId())
               {
                 case "edge"_hash:
@@ -282,10 +260,9 @@ bool vtkDGSidesResponder::SummarizeSides(vtkCellGridSidesQuery* query, vtkDGCell
                   }
                   break;
                 default:
-                  // Always ouput vertices.
+                  // Always output vertices.
                   break;
               }
-#endif
               break;
             case 1:
               if (sidesOfHash.size() % 2 == 0)
@@ -452,6 +429,7 @@ void vtkDGSidesResponder::HashSidesOfSide(vtkCellGridSidesQuery* query, vtkDGCel
   const std::vector<vtkIdType>& sidesToHash, vtkIdType cellId,
   const std::vector<vtkTypeInt64>& entry, std::set<int>& sidesVisited, vtkDataArray* ngm)
 {
+  auto* sideCache = query->GetSideCache();
   vtkStringToken cellTypeToken = cellType->GetClassName();
   for (const auto& sideId : sidesToHash)
   {
@@ -504,7 +482,8 @@ void vtkDGSidesResponder::HashSidesOfSide(vtkCellGridSidesQuery* query, vtkDGCel
         }
       }
       // Hash the sideId'th side of cellId and add it to the query's storage.
-      query->AddSide(cellTypeToken, cellId, sideId, vtkDGCell::GetShapeName(sideOfSideShape), side);
+      sideCache->AddSide(
+        cellTypeToken, cellId, sideId, vtkDGCell::GetShapeName(sideOfSideShape), side);
     }
     // Regardless of whether we hashed the side, compute any child sides and recurse
     const auto& childSides = cellType->GetSidesOfSide(sideId);

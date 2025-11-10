@@ -1074,7 +1074,7 @@
 
   <ProxyGroup name="palettes">
     <!-- ================================================================= -->
-    <Proxy label="Blue Gray Background (Default)" name="BlueGrayBackground">
+    <Proxy label="Blue Gray Background" name="BlueGrayBackground">
       <DoubleVectorProperty default_values="1.0 1.0 1.0"
                             name="ForegroundColor"
                             number_of_elements="3"></DoubleVectorProperty>
@@ -1125,7 +1125,7 @@
     </Proxy>
 
     <!-- ================================================================= -->
-    <Proxy label="Warm Gray Background" name="WarmGrayBackground">
+    <Proxy label="Warm Gray Background (Default)" name="WarmGrayBackground">
       <DoubleVectorProperty default_values="1.0 1.0 1.0"
                             name="ForegroundColor"
                             number_of_elements="3"></DoubleVectorProperty>
@@ -1254,10 +1254,10 @@
       <DoubleVectorProperty default_values="1.0 1.0 1.0"
                             name="ForegroundColor"
                             number_of_elements="3"></DoubleVectorProperty>
-      <DoubleVectorProperty default_values="0.32 0.34 0.43"
+      <DoubleVectorProperty default_values="0.29 0.27 0.26"
                             name="BackgroundColor"
                             number_of_elements="3"></DoubleVectorProperty>
-      <DoubleVectorProperty default_values="0 0 0.16"
+      <DoubleVectorProperty default_values="0.85 0.83 0.82"
                             name="BackgroundColor2"
                             number_of_elements="3"></DoubleVectorProperty>
       <DoubleVectorProperty default_values="1.0 1.0 1.0"
@@ -2067,7 +2067,7 @@
         Options proxy used to prompt user for python state options.
       </Documentation>
       <IntVectorProperty name="PropertiesToTraceOnCreate"
-                         default_values="1"
+                         default_values="3"
                          number_of_elements="1">
         <Documentation>
           Select which properties to save in state
@@ -2080,6 +2080,7 @@
               are user-modified when saving state.
           <Entry text="only *user-modified* properites" value="2" />
           -->
+          <Entry text="only *actively used* modified properties" value="3"/>
         </EnumerationDomain>
       </IntVectorProperty>
       <IntVectorProperty name="SkipRenderingComponents"
@@ -2088,6 +2089,24 @@
         <BooleanDomain name="bool"/>
         <Documentation>
           Skip rendering components such as views, representations, etc.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="SkipActiveComponents"
+                         panel_visibility="never"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Skip active components such as views, sources, etc.
+        </Documentation>
+      </IntVectorProperty>
+      <IntVectorProperty name="SkipLayoutComponents"
+                         panel_visibility="never"
+                         number_of_elements="1"
+                         default_values="0">
+        <BooleanDomain name="bool"/>
+        <Documentation>
+          Skip layout components.
         </Documentation>
       </IntVectorProperty>
       <IntVectorProperty name="SkipHiddenDisplayProperties"
@@ -2149,6 +2168,17 @@
     </Proxy>
   </ProxyGroup>
 
+  <ProxyGroup name="integration_strategies">
+    <Proxy class="vtkIntegrationLinearStrategy"
+           name="IntegrationLinearStrategy"
+           label="Linear Strategy">
+    </Proxy>
+    <Proxy class="vtkIntegrationGaussianStrategy"
+           name="IntegrationGaussianStrategy"
+           label="Gaussian Strategy">
+    </Proxy>
+  </ProxyGroup>
+
   <ProxyGroup name="polyline_decimation_strategies">
     <Proxy class="vtkDecimatePolylineDistanceStrategy"
                name="DecimationDistanceStrategy">
@@ -2171,6 +2201,15 @@
         for its decimation. The name of this array must be passed
         through the FieldName property.
       </Documentation>
+      <InputProperty is_internal="1" name="DummyInput">
+        <InputArrayDomain name = "input_array_point"
+                          attribute_type="point"/>
+      </InputProperty>
+      <Hints>
+        <ProxyList>
+          <Link name="DummyInput" with_property="Input"/>
+        </ProxyList>
+      </Hints>
       <StringVectorProperty name="FieldName"
                             command="SetFieldName"
                             number_of_elements="1"
@@ -2179,6 +2218,12 @@
           The name of the PointData array from which will be retrieved the data for the
           decimation strategy to be performed.
         </Documentation>
+        <ArrayListDomain input_domain_name="input_array_point"
+                         name="array_list">
+          <RequiredProperties>
+            <Property function="Input" name="DummyInput" />
+          </RequiredProperties>
+        </ArrayListDomain>
       </StringVectorProperty>
     </Proxy>
   </ProxyGroup>

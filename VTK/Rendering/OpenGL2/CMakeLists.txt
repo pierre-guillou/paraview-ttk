@@ -3,7 +3,6 @@ set(classes
   vtkCameraPass
   vtkClearRGBPass
   vtkClearZPass
-  vtkCompositePolyDataMapper2
   vtkDataTransferHelper
   vtkDefaultPass
   vtkDepthImageProcessingPass
@@ -13,6 +12,7 @@ set(classes
   vtkDualDepthPeelingPass
   vtkEDLShading
   vtkEquirectangularToCubeMapTexture
+  vtkFastLabeledDataMapper
   vtkFramebufferPass
   vtkGaussianBlurPass
   vtkGenericOpenGLRenderWindow
@@ -82,6 +82,7 @@ set(classes
   vtkOpenGLVertexBufferObjectCache
   vtkOpenGLVertexBufferObjectGroup
   vtkOrderIndependentTranslucentPass
+  vtkOSOpenGLRenderWindow
   vtkOutlineGlowPass
   vtkOverlayPass
   vtkPBRIrradianceTexture
@@ -115,8 +116,8 @@ set(headers
   "${CMAKE_CURRENT_BINARY_DIR}/vtkRenderingOpenGLConfigure.h")
 
 set(nowrap_headers
-  vtkCompositeMapperHelper2.h
   vtkOpenGLPointGaussianMapperHelper.h
+  vtkOpenGLResourceFreeCallback.h	
   vtkOpenGLShaderDeclaration.h
 )
 
@@ -276,38 +277,42 @@ endforeach ()
 
 # Update sources to include render window specializations for
 # offscreen-only modes, if enabled.
-if (VTK_OPENGL_HAS_OSMESA)
-  list(APPEND classes vtkOSOpenGLRenderWindow)
-endif ()
+set(has_vtkRenderWindow_override 0)
 if (VTK_OPENGL_HAS_EGL)
   list(APPEND classes vtkEGLRenderWindow)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+  endif ()
   set_source_files_properties(vtkEGLRenderWindow.cxx
     PROPERTIES
       COMPILE_DEFINITIONS "VTK_DEFAULT_EGL_DEVICE_INDEX=${VTK_DEFAULT_EGL_DEVICE_INDEX}")
 endif ()
 
-set(has_vtkRenderWindow_override 0)
 # Setup factory overrides and add window system specific render windows.
+# On Linux and Windows, it's possible to have multiple context creation backends that can be used
+# as fallback. vtkOpenGLRenderWindow is made the factory override for vtkRenderWindow because
+# vtkOpenGLRenderWindow has runtime detection of suitable backend in it's New() method.
 if (VTK_USE_X)
-  # Add some custom overrides
-  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkXOpenGLRenderWindow)
-    set(has_vtkRenderWindow_override 1)
-  endif ()
   list(APPEND classes vtkXOpenGLRenderWindow)
-elseif (VTK_USE_WIN32_OPENGL)
-  # Add some custom overrides
-  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS AND NOT has_vtkRenderWindow_override)
     vtk_object_factory_declare(
       BASE vtkRenderWindow
-      OVERRIDE vtkWin32OpenGLRenderWindow)
+      OVERRIDE vtkOpenGLRenderWindow)
     set(has_vtkRenderWindow_override 1)
   endif ()
+elseif (VTK_USE_WIN32_OPENGL)
   list(APPEND classes
     vtkWin32OpenGLRenderWindow
     vtkWin32OpenGLDXRenderWindow)
+  if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS AND NOT has_vtkRenderWindow_override)
+    vtk_object_factory_declare(
+      BASE vtkRenderWindow
+      OVERRIDE vtkOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
+  endif ()
 elseif (VTK_USE_COCOA)
   # Add some custom overrides
   if (NOT VTK_DEFAULT_RENDER_WINDOW_HEADLESS)
@@ -345,14 +350,15 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     vtk_object_factory_declare(
       BASE vtkRenderWindow
       OVERRIDE vtkSDL2OpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
     list(APPEND classes vtkSDL2OpenGLRenderWindow)
   else ()
     vtk_object_factory_declare(
       BASE vtkRenderWindow
       OVERRIDE vtkWebAssemblyOpenGLRenderWindow)
+    set(has_vtkRenderWindow_override 1)
     list(APPEND classes vtkWebAssemblyOpenGLRenderWindow)
   endif ()
-  set(has_vtkRenderWindow_override 1)
 elseif (APPLE_IOS)
   # Add some custom overrides
   vtk_object_factory_declare(
@@ -371,15 +377,9 @@ elseif (APPLE_IOS)
 endif ()
 
 if (VTK_DEFAULT_RENDER_WINDOW_HEADLESS OR NOT has_vtkRenderWindow_override)
-  if (VTK_OPENGL_HAS_EGL)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkEGLRenderWindow)
-  elseif (VTK_OPENGL_HAS_OSMESA)
-    vtk_object_factory_declare(
-      BASE vtkRenderWindow
-      OVERRIDE vtkOSOpenGLRenderWindow)
-  endif ()
+  vtk_object_factory_declare(
+    BASE vtkRenderWindow
+    OVERRIDE vtkOSOpenGLRenderWindow)
 endif ()
 
 vtk_object_factory_configure(

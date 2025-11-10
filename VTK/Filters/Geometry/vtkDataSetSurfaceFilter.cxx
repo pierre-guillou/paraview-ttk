@@ -108,7 +108,8 @@ bool StructuredExecuteWithBlanking(
 
   // Extracts a either the min (or max) face along the `axis` for the cell
   // identified by `cellId` in the input dataset.
-  auto getFace = [&inExtent](const int ijk[3], const int axis, bool minFace) {
+  auto getFace = [&inExtent](const int ijk[3], const int axis, bool minFace)
+  {
     const int iAxis = (axis + 1) % 3;
     const int jAxis = (axis + 2) % 3;
 
@@ -142,7 +143,8 @@ bool StructuredExecuteWithBlanking(
   // Passes data arrays. Also adds `originalIds` the output if `arrayName`
   // non-null.
   auto passData = [](vtkIdTypeArray* originalIds, vtkDataSetAttributes* inputDSA,
-                    vtkDataSetAttributes* outputDSA, const char* arrayName) {
+                    vtkDataSetAttributes* outputDSA, const char* arrayName)
+  {
     const auto numValues = originalIds->GetNumberOfTuples();
     outputDSA->CopyGlobalIdsOn();
     outputDSA->CopyFieldOff(vtkDataSetAttributes::GhostArrayName());
@@ -181,7 +183,8 @@ bool StructuredExecuteWithBlanking(
   vtkNew<vtkIdTypeArray> originalCellIds;
   originalCellIds->Allocate(input->GetNumberOfCells());
 
-  auto addFaceToOutput = [&](const std::array<vtkIdType, 4>& ptIds, vtkIdType inCellId) {
+  auto addFaceToOutput = [&](const std::array<vtkIdType, 4>& ptIds, vtkIdType inCellId)
+  {
     vtkIdType outPtIds[5];
     for (int cc = 0; cc < 4; ++cc)
     {
@@ -691,7 +694,7 @@ int vtkDataSetSurfaceFilter::StructuredExecuteNoBlanking(
   // Cell Array Size is a pretty good estimate.
 
   // Lets figure out how many cells and points we are going to have.
-  // It may be overkill comptuing the exact amount, but we can do it, so ...
+  // It may be overkill computing the exact amount, but we can do it, so ...
   cellArraySize = numPoints = 0;
   // xMin face
   if (ext[0] == wholeExt[0] && ext[2] != ext[3] && ext[4] != ext[5] && ext[0] != ext[1])
@@ -2057,7 +2060,8 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
       }
 
       bool isDegenerateCell = false;
-      auto isDegeneratedSubTriangle = [&](vtkIdType ii) {
+      auto isDegeneratedSubTriangle = [&](vtkIdType ii)
+      {
         return outPts->GetId(pts->GetId(ii)) == outPts->GetId(pts->GetId(ii + 1)) ||
           outPts->GetId(pts->GetId(ii)) == outPts->GetId(pts->GetId(ii + 2)) ||
           outPts->GetId(pts->GetId(ii + 1)) == outPts->GetId(pts->GetId(ii + 2));
@@ -2082,12 +2086,11 @@ int vtkDataSetSurfaceFilter::UnstructuredGridExecuteInternal(
         parametricCoords.resize(maxNumberOfIds * 3);
         std::copy(&pc[0], &pc[0] + numFacePts * 3, parametricCoords.begin());
 
-        // localEdgeMap is simular to this->EdgeMap, but only stores local ids
+        // localEdgeMap is similar to this->EdgeMap, but only stores local ids
         localEdgeMap->clear();
 
-        auto isEqualTo1Or0 = [](double a, double e = 1e-10) {
-          return (std::abs(a) <= e) || (std::abs(a - 1) <= e);
-        };
+        auto isEqualTo1Or0 = [](double a, double e = 1e-10)
+        { return (std::abs(a) <= e) || (std::abs(a - 1) <= e); };
 
         vtkIdType localIdCpt = numFacePts;
         vtkIdType pt1, pt2, id;
@@ -2720,14 +2723,6 @@ vtkIdType vtkDataSetSurfaceFilter::GetOutputPointId(
   }
 
   return outPtId;
-}
-
-//------------------------------------------------------------------------------
-vtkIdType vtkDataSetSurfaceFilter::GetOutputPointIdAndInterpolate(vtkIdType cellPtId,
-  vtkDataSet* input, vtkCell* cell, double* weights, vtkPoints* outPts, vtkPointData* outPD)
-{
-  double* pc = cell->GetParametricCoords();
-  return this->GetOutputPointIdAndInterpolate(cellPtId, input, cell, pc, weights, outPts, outPD);
 }
 
 //------------------------------------------------------------------------------

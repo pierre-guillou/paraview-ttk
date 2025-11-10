@@ -8,7 +8,7 @@
 #ifndef vtkX3DExporterFIWriterHelper_h
 #define vtkX3DExporterFIWriterHelper_h
 
-//#include "vtkX3DExporterFIByteWriter.h"
+// #include "vtkX3DExporterFIByteWriter.h"
 #include "vtkZLibDataCompressor.h"
 #include <cassert>
 
@@ -22,14 +22,15 @@ VTK_ABI_NAMESPACE_BEGIN
 class vtkX3DExporterFIWriterHelper
 {
 public:
-  union float_to_unsigned_int_to_bytes {
+  union float_to_unsigned_int_to_bytes
+  {
     float f;
     unsigned int ui;
     unsigned char ub[4]; // unsigned bytes
   };
 
   template <typename T>
-  static inline void EncodeFloatFI(vtkX3DExporterFIByteWriter* writer, T* value, size_t size)
+  static void EncodeFloatFI(vtkX3DExporterFIByteWriter* writer, T* value, size_t size)
   {
     // We want to start at position 3
     assert(writer->CurrentBytePos == 2);
@@ -64,7 +65,7 @@ public:
   }
 
   template <typename T>
-  static inline void EncodeIntegerFI(vtkX3DExporterFIByteWriter* writer, T* value, size_t size)
+  static void EncodeIntegerFI(vtkX3DExporterFIByteWriter* writer, T* value, size_t size)
   {
     // We want to start at position 3
     assert(writer->CurrentBytePos == 2);
@@ -85,8 +86,7 @@ public:
     EncodeNonEmptyByteString5(writer, bytes);
   }
 
-  static inline void EncodeCharacterString3(
-    vtkX3DExporterFIByteWriter* writer, const std::string& value)
+  static void EncodeCharacterString3(vtkX3DExporterFIByteWriter* writer, const std::string& value)
   {
     // We want to start at position 3
     assert(writer->CurrentBytePos == 2);
@@ -100,7 +100,7 @@ public:
 
   // ITU C.23: Encoding of the NonEmptyByteString starting
   // on the fifth bit of an byte
-  static inline void EncodeNonEmptyByteString5(
+  static void EncodeNonEmptyByteString5(
     vtkX3DExporterFIByteWriter* writer, const std::string& value)
   {
     int length = static_cast<int>(value.length());
@@ -124,7 +124,7 @@ public:
 
   // ITU C.27: Encoding of integers in the range 1 to 2^20
   // starting on the third bit of an byte
-  static inline void EncodeInteger3(vtkX3DExporterFIByteWriter* writer, unsigned int value)
+  static void EncodeInteger3(vtkX3DExporterFIByteWriter* writer, unsigned int value)
   {
     // We want to start at position 3
     assert(writer->CurrentBytePos == 2);
@@ -153,7 +153,7 @@ public:
 
   // ITU C.25: Encoding of integers in the range 1 to 2^20
   // starting on the second bit of an byte
-  static inline void EncodeInteger2(vtkX3DExporterFIByteWriter* writer, unsigned int value)
+  static void EncodeInteger2(vtkX3DExporterFIByteWriter* writer, unsigned int value)
   {
     // We want to start at position 2
     assert(writer->CurrentBytePos == 1);
@@ -172,22 +172,6 @@ public:
     {
       writer->PutBits("110");
       writer->PutBits(value - 8257, 20);
-    }
-  }
-
-  static inline void EncodeLineFeed(vtkX3DExporterFIByteWriter* writer)
-  {
-    static bool firstTime = true;
-    writer->FillByte();
-    if (firstTime)
-    {
-      writer->PutBits("1001000000001010");
-      firstTime = false;
-    }
-    else
-    {
-      // cout << "Encode NOT the first time" << endl;
-      writer->PutBits("10100000");
     }
   }
 
@@ -210,7 +194,7 @@ class X3DEncoderFunctions
 
 public:
   template <typename T>
-  static inline void EncodeIntegerDeltaZ(vtkX3DExporterFIByteWriter* writer, T* value, size_t size,
+  static void EncodeIntegerDeltaZ(vtkX3DExporterFIByteWriter* writer, T* value, size_t size,
     vtkZLibDataCompressor* compressor, bool image = false)
   {
     // We want to start at position 3
@@ -235,7 +219,7 @@ public:
       for (i = 0; i < size; i++)
       {
         int v = 1 + (value[i]);
-        int* vp = reinterpret_cast<int*>(&v);
+        int* vp = &v;
         f = vtkX3DExporterFIWriterHelper::ReverseBytes(vp);
         p = reinterpret_cast<unsigned char*>(&f);
         deltas.push_back(p[0]);
@@ -261,7 +245,7 @@ public:
       for (i = 0; i < static_cast<size_t>(span); i++)
       {
         int v = 1 + value[i];
-        int* vp = reinterpret_cast<int*>(&v);
+        int* vp = &v;
         f = vtkX3DExporterFIWriterHelper::ReverseBytes(vp);
 
         p = reinterpret_cast<unsigned char*>(&f);
@@ -309,8 +293,8 @@ public:
     }
   }
 
-  static inline void EncodeQuantizedzlibFloatArray(vtkX3DExporterFIByteWriter* writer,
-    const double* value, size_t size, vtkZLibDataCompressor* compressor)
+  static void EncodeQuantizedzlibFloatArray(vtkX3DExporterFIByteWriter* writer, const double* value,
+    size_t size, vtkZLibDataCompressor* compressor)
   {
     // We want to start at position 3
     assert(writer->CurrentBytePos == 2);
@@ -329,7 +313,8 @@ public:
     const double* vd = value;
     for (i = 0; i < size; i++)
     {
-      union float_to_unsigned_int_to_bytes {
+      union float_to_unsigned_int_to_bytes
+      {
         float f;
         unsigned int ui;
         unsigned char ub[4]; // unsigned bytes

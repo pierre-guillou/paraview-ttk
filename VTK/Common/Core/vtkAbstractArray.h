@@ -45,6 +45,13 @@
  * Unless `Modified` is called, various cached entities, like array range,
  * map created for `LookupValue` may become obsolete and yield incorrect results.
  *
+ * @warning
+ * In VTK 9.4, new method `nlohmann::json vtkAbstractArray::SerializeValues()` was
+ * introduced which required exposing symbols from
+ * VTK::nlohmannjson library in public API. This method will be removed in VTK 9.5 as it caused
+ * difficulty for downstream projects that linked to a different nlohmannjson. It cannot be
+ * deprecated because doing so prevents fixing the underlying issue.
+ *
  * @sa
  * vtkDataArray vtkStringArray vtkCellArray
  */
@@ -57,9 +64,6 @@
 #include "vtkObject.h"
 #include "vtkVariant.h"       // for variant arguments
 #include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
-
-#include "vtk_nlohmannjson.h"
-#include VTK_NLOHMANN_JSON(json_fwd.hpp)
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkArrayIterator;
@@ -78,8 +82,11 @@ class VTKCOMMONCORE_EXPORT VTK_MARSHALAUTO vtkAbstractArray : public vtkObject
 public:
   vtkTypeMacro(vtkAbstractArray, vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent) override;
+
+  /**
+   * Print the array values to an `ostream` object.
+   */
   void PrintValues(ostream& os);
-  nlohmann::json SerializeValues();
 
   /**
    * Allocate memory for this array. Delete old storage only if necessary.
@@ -182,7 +189,7 @@ public:
    * result in an incomplete trailing tuple.
    */
   VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
-  inline vtkIdType GetNumberOfValues() const { return (this->MaxId + 1); }
+  vtkIdType GetNumberOfValues() const { return (this->MaxId + 1); }
 
   /**
    * Set the tuple at dstTupleIdx in this array to the tuple at srcTupleIdx in
@@ -732,7 +739,7 @@ private:
 template <typename ArrayT>
 struct vtkArrayDownCast_impl
 {
-  inline ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::SafeDownCast(array); }
+  ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::SafeDownCast(array); }
 };
 ///@}
 
@@ -772,7 +779,10 @@ VTK_ABI_NAMESPACE_END
   template <>                                                                                      \
   struct vtkArrayDownCast_impl<ArrayT>                                                             \
   {                                                                                                \
-    inline ArrayT* operator()(vtkAbstractArray* array) { return ArrayT::FastDownCast(array); }     \
+    inline ArrayT* operator()(vtkAbstractArray* array)                                             \
+    {                                                                                              \
+      return ArrayT::FastDownCast(array);                                                          \
+    }                                                                                              \
   }
 ///@}
 

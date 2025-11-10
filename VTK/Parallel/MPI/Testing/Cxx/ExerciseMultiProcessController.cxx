@@ -30,6 +30,7 @@
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnsignedLongArray.h"
 
+#include <cmath>
 #include <string.h>
 #include <time.h>
 #include <vector>
@@ -113,24 +114,18 @@ inline int AreEqual(T a, T b)
   return a == b;
 }
 
-template <class T>
-inline T myAbs(T x)
-{
-  return (x < 0) ? -x : x;
-}
-
 template <>
 inline int AreEqual(float a, float b)
 {
-  float tolerance = myAbs(0.01f * a);
-  return (myAbs(a - b) <= tolerance);
+  float tolerance = std::abs(0.01f * a);
+  return (std::abs(a - b) <= tolerance);
 }
 
 template <>
 inline int AreEqual(double a, double b)
 {
-  double tolerance = myAbs(0.000001f * a);
-  return (myAbs(a - b) <= tolerance);
+  double tolerance = std::abs(0.000001f * a);
+  return (std::abs(a - b) <= tolerance);
 }
 
 //=============================================================================
@@ -334,7 +329,8 @@ static int CompareDataObjects(vtkDataObject* obj1, vtkDataObject* obj2)
     vtkPolyData* pd1 = vtkPolyData::SafeDownCast(ps1);
     vtkPolyData* pd2 = vtkPolyData::SafeDownCast(ps2);
 
-    auto compareCellArrays = [](vtkCellArray* ca1, vtkCellArray* ca2) -> bool {
+    auto compareCellArrays = [](vtkCellArray* ca1, vtkCellArray* ca2) -> bool
+    {
       return (CompareDataArrays(ca1->GetOffsetsArray(), ca2->GetOffsetsArray()) &&
         CompareDataArrays(ca1->GetConnectivityArray(), ca2->GetConnectivityArray()));
     };
@@ -518,8 +514,8 @@ void ExerciseType(vtkMultiProcessController* controller)
   }
   else
   {
-    controller->GatherV(
-      sourceArrays[rank]->GetPointer(0), nullptr, lengths[rank], nullptr, nullptr, destProcessId);
+    controller->GatherV(sourceArrays[rank]->GetPointer(0), nullptr, lengths[rank], lengths.data(),
+      offsets.data(), destProcessId);
   }
   CheckSuccess(controller, result);
 

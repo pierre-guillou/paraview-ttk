@@ -50,6 +50,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/HeadMRVolume.mhd}"
   "DATA{${paraview_test_data_directory_input}/Data/HeadMRVolume.raw}"
   "DATA{${paraview_test_data_directory_input}/Data/hdf_fpm_simulation.erfh5}"
+  "DATA{${paraview_test_data_directory_input}/Data/half_sphere_commented.csv}"
   "DATA{${paraview_test_data_directory_input}/Data/Iron_Xdmf/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/LoadState.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/LoadStateDialog.pvsm}"
@@ -79,6 +80,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/TestCompositePropertyWidgetDecoratorPlugin.xml}"
   "DATA{${paraview_test_data_directory_input}/Data/TestMultipleNumberOfComponentsPlugin.xml}"
   "DATA{${paraview_test_data_directory_input}/Data/VisItBridge/,REGEX:.*}"
+  "DATA{${paraview_test_data_directory_input}/Data/VisItBridge/chombo_hdf5_series/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/nek5000/eddy_uv/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/amr/,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/amr/wavelet/,REGEX:.*}"
@@ -135,10 +137,17 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/glTF/SimpleSkin/SimpleSkin.gltf}"
   "DATA{${paraview_test_data_directory_input}/Data/glTF/WaterBottle/WaterBottle.glb}"
   "DATA{${paraview_test_data_directory_input}/Data/HTG/binary_3D_333_mask.htg}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTG/donut_XZ_shift_2d.htg}"
   "DATA{${paraview_test_data_directory_input}/Data/HTG/ghost.htg}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTGCellCentersBackwardCompat.pvsm}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTGFeatureEdgesBackwardCompat.pvsm}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTGGhostCellsGeneratorBackwardCompat.pvsm}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTGReflectionBackwardCompat.pvsm}"
+  "DATA{${paraview_test_data_directory_input}/Data/HTGVisibleLeavesSizeBackwardCompat.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/HTGMulti.vtm}"
   "DATA{${paraview_test_data_directory_input}/Data/HTGMulti/HTGMulti_0_0.htg}"
   "DATA{${paraview_test_data_directory_input}/Data/HTGMulti/HTGMulti_1_0.htg}"
+  "DATA{${paraview_test_data_directory_input}/Data/ReflectBackwardCompat.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/WaveletGradientLegacy.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/img1.png}"
   "DATA{${paraview_test_data_directory_input}/Data/img1.mypng}"
@@ -168,6 +177,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/MultiPiece/Piece6.vts}"
   "DATA{${paraview_test_data_directory_input}/Data/non_convex_polygon.vtu}"
   "DATA{${paraview_test_data_directory_input}/Data/office.binary.vtk}"
+  "DATA{${paraview_test_data_directory_input}/Data/owave-hole.exdg}"
   "DATA{${paraview_test_data_directory_input}/Data/OMF/test_file.omf}"
   "DATA{${paraview_test_data_directory_input}/Data/OSPRayMaterials/materials.json}"
   "DATA{${paraview_test_data_directory_input}/Data/pbrSpheres.vtp}"
@@ -194,11 +204,14 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/PartialFieldDataMultiBlock/PartialFieldData.vtm}"
   "DATA{${paraview_test_data_directory_input}/Data/PolarAxesDeprecation.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/porphyrin.cml}"
+  "DATA{${paraview_test_data_directory_input}/Data/ProcessIdScalarsBackwardCompat.pvsm}"
   "DATA{${paraview_test_data_directory_input}/Data/quadraticTetra01.vtu}"
   "DATA{${paraview_test_data_directory_input}/Data/quadratic_tets_with_ghost_cells.pvtu}"
   "DATA{${paraview_test_data_directory_input}/Data/quadratic_tets_with_ghost_cells_0.vtu}"
   "DATA{${paraview_test_data_directory_input}/Data/quadratic_tets_with_ghost_cells_1.vtu}"
   "DATA{${paraview_test_data_directory_input}/Data/random_torus.vtp}"
+  "DATA{${paraview_test_data_directory_input}/Data/room.cas}"
+  "DATA{${paraview_test_data_directory_input}/Data/room.dat}"
   "DATA{${paraview_test_data_directory_input}/Data/room.cas.h5}"
   "DATA{${paraview_test_data_directory_input}/Data/room.dat.h5}"
   "DATA{${paraview_test_data_directory_input}/Data/sample.h5part}"
@@ -207,6 +220,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/Udirectory/simpleScript.py}"
   "DATA{${paraview_test_data_directory_input}/Data/Udirectory/LinkRenderViewsCheckSize.py}"
   "DATA{${paraview_test_data_directory_input}/Data/Udirectory/resetSession.py}"
+  "DATA{${paraview_test_data_directory_input}/Data/rectilinear_grid_of_pixel.vtr}"
   "DATA{${paraview_test_data_directory_input}/Data/sineWaves.csv}"
   "DATA{${paraview_test_data_directory_input}/Data/singleSphereAnimation.pvd}"
   "DATA{${paraview_test_data_directory_input}/Data/singleSphereAnimation/,REGEX:.*}"
@@ -218,6 +232,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${paraview_test_data_directory_input}/Data/squareBend/constant/,RECURSE:,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/squareBend/50/,RECURSE:,REGEX:.*}"
   "DATA{${paraview_test_data_directory_input}/Data/squareBend/100/,RECURSE:,REGEX:.*}"
+  "DATA{${paraview_test_data_directory_input}/Data/sphere.stl}"
   "DATA{${paraview_test_data_directory_input}/Data/tensors.pvti}"
   "DATA{${paraview_test_data_directory_input}/Data/test_fielddata.vtk}"
   "DATA{${paraview_test_data_directory_input}/Data/test_transient_poly_data.vtkhdf}"
@@ -262,6 +277,15 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxesGrid8.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxesGrid9.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxesGrid10.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterPDCNoHierarchy.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterPDCNoHierarchy_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterPDCNoHierarchyYAxis.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterPDCNoHierarchyYAxis_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterMBHierarchy.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterMBHierarchy_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterMBHierarchyYAxis.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedCutterMBHierarchyYAxis_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/AxisAlignedReflect.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/BatchAxesGrid.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/BlockContextMenu-bake-HideOneBlock.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/BlockContextMenu-bake-HideTwoBlocks.png}"
@@ -348,6 +372,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CONVERGECFDReaderMesh.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CONVERGECFDReaderMesh_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CONVERGECFDReaderParcels.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CONVERGECFDReaderParcels_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ConvertToMoleculeBonds.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CriticalTimeBetweenX.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/CriticalTimeBetweenZ.png}"
@@ -369,6 +394,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/DeleteSubtreePipelineBrowser2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EdgeTintPBR.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EDLWithSubsampling.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EDLWithSubsampling_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EllipseSource1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EllipseSource2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EllipseSource3.png}"
@@ -386,7 +412,8 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExtractSubsetWithSeed_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExtractSubsetWithSeed_2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExtractSubsetWithSeed_3.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExodusModeShapes.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExodusModeShapes_A.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ExodusModeShapes_B.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/EyeDomeLighting.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FastUniformGridSource1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FastUniformGridSource2.png}"
@@ -399,6 +426,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FeatureEdgesRepresentationHTG.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FidesReader_cartesian.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FidesReader_blocks.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FidesWriter.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FileSeries1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FileSeries2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/FindDataTrace.png}"
@@ -458,6 +486,8 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HistogramSelection3.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HistogramSelection4.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HistogramSelection4_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGrid2DGeometryFillMaterial_Filled.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGrid2DGeometryFillMaterial_Lines.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridAxisClip1-Plane.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridAxisClip2-RevPlane.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridAxisClip3-Box.png}"
@@ -469,8 +499,12 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridContourStrategyA.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridContourStrategyA_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridContourStrategyB.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridContourStrategyB_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridDataAndPolarAxes_Data.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridDataAndPolarAxes_Polar.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridDepthLimiter.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridEvaluateCoarse.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridEvaluateCoarse_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridExtractGhostCells.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridGeometry.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridGradient.png}"
@@ -478,6 +512,18 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridMultipleClip.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridObliquePlaneCutter.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridPlaneCutter.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSourceDistributedA.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSourceDistributedB.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionA.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionA_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionA_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionB.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionB_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionB_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionC.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionD.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionD_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridSurfaceMultiBlockSelectionD_2.png}"
   #"DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridThreshold.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridThreshold-DepthOne.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/HyperTreeGridThreshold-DepthTwo.png}"
@@ -488,14 +534,13 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LightWidget.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LightToolbar.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection1.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection1_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection2.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection2_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection3.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection4.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LineChartSelection4_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView_1.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView_A.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView_A_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkCameraFromView_B.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LinkViewsLinked.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LoadStateMultiView.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/LogColorMap1.png}"
@@ -529,6 +574,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/Molecule-Liquorice.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockChartSelectionPlotView.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockChartSelectionRenderView.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockInspectorMultiBlock.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockInspectorProperties.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockInspectorProperties_A.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/MultiBlockInspectorProperties_B.png}"
@@ -569,10 +615,17 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ParallelCoordinatesView.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ParallelCoordinatesView_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSet_Slice.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSet_Slice_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSet_Slice_2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSet_Surface.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSetCollection_Slice.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSetCollection_Slice_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSetCollection_Slice_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSetCollection_Slice_3.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PartitionedDataSetCollection_Surface.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PBRSpheres.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PickCenter.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PickCenter_Vertex.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PLYWriter.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PaletteBlackBackground.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PaletteBlueGrayBackground.png}"
@@ -595,13 +648,15 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PythonAlgorithmPlugin.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PythonAlgorithmReadersAndWriters.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PythonShellRunScript.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PropertyContextMenu1.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PropertyContextMenu2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/PVCellCentersHyperTreeGrid.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/QuartilePlotArea.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/QuartilePlotArea_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/QuartilePlotLines.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RandomAttributesHTGScalars.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RandomAttributesHTGVectors.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RandomHyperTreeGridSourceA_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RandomHyperTreeGridSourceA.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RandomHyperTreeGridSourceB.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ReadPartitionedCGNS_BCOnly.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ReadPartitionedCGNS_BCOnlyBlockColors.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ReadPartitionedCGNS_CellData.png}"
@@ -630,6 +685,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RenderViewContextMenuArrayColoring.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RenderViewContextMenuSolidColoring.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ResampleToHyperTreeGridBranching_3.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ResampleImageToHyperTreeGrid.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ResampleToHyperTreeGrid2DX.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ResampleToHyperTreeGrid2DY.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ResampleToHyperTreeGrid2DZ.png}"
@@ -657,13 +713,9 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ReverseLegend_B.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RotateAroundOriginTransform.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerA.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerA_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerB.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerB_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerC.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerC_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerD.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/RulerD_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SaveLargeScreenshot.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SaveLargeScreenshot_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SaveSmallScreenshot.png}"
@@ -677,11 +729,8 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ScalarBar7.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ScalarBar8.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsFrustumTrace.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsFrustumTrace_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsInteractiveTrace.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsTrace.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsTrace_1.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectCellsTrace_2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectColorMapFromComboBox_A.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectionByArray.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/SelectionEditor.png}"
@@ -745,6 +794,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestFDSReader_t8_slice_cc.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestFDSReader_t8_slice.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGSelection_A.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGSelection_A_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGSelection_B.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGSelection_C.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestHTGSelection_D.png}"
@@ -762,7 +812,7 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestMultiServer4.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestOFFReader.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPreviewTextScale.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPreviewTextScale_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPreviewTextScale_A.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonView.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonView_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TestPythonViewScript.png}"
@@ -800,12 +850,21 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunctionResetOnVisibilityChange_OneBlock.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunctionResetOnVisibilityChange_TwoBlocks.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DEditor.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DEditor_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DEditor_2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalars.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalars_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalars_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalars_3.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditor.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditor_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorA.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorA_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorA_2.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorB.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorB_1.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorB_2.png}"
+  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TransferFunction2DYScalarsEditorB_3.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/TriangleStrips.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/UniformInverseTransformSamplingGlyph_A.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/UniformInverseTransformSamplingGlyph_B.png}"
@@ -843,7 +902,6 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYChart_DisableBlocks.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYChart_EnableBlocks.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYHistogram_Default.png}"
-  "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYHistogram_Default_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYHistogram_UseIndexForX.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYHistogram_UseIndexForX_1.png}"
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/XYHistogram_WithResult.png}"
@@ -861,11 +919,26 @@ ExternalData_Expand_Arguments(ParaViewData _
   "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/ZoomToEmptyData.png}"
 )
 
+# Set INTEL_MACOS so we can avoid running some tests on macos
+# with intel CPUs. This is because there are OpenGL issues and
+# intel-based macs are end-of-life soon.
+set(INTEL_MACOS FALSE)
+if ("$ENV{CMAKE_CONFIGURATION}" MATCHES "macos_x86_64")
+  # This is the most reliable detection method but is specific to Kitware's CI machines.
+  set(INTEL_MACOS TRUE)
+elseif(APPLE AND "${CMAKE_SYSTEM_PROCESSOR}" MATCHES "x86_64")
+  # Builders may report arm architectures even when targeting x86_64 machines
+  # depending on the cmake executable's architecture. However, this is likely to
+  # work outside of Kitware's CI infrastructure.
+  set(INTEL_MACOS TRUE)
+endif()
+
 # Some tests can take a long time; increase their timeouts.
 # Really very long (300 seconds):
 set(SeparateOpacityArray_TIMEOUT 300)
 set(TransferFunction2DYScalars_TIMEOUT 300)
 set(UndoRedo1_TIMEOUT 300)
+set(GhostFeatureEdgesAndWireframe_TIMEOUT 300)
 
 # Very long (200 seconds):
 set(EqualizeLayout_TIMEOUT 200)
@@ -896,20 +969,25 @@ set(SplitViewTrace_TIMEOUT 150)
 set(SpreadSheet3_TIMEOUT 150)
 set(TemporalParticleKeepDeadTrails_TIMEOUT 150)
 set(TraceExportAndSaveData_TIMEOUT 150)
+set(TraceMultiViews_TIMEOUT 150)
 set(TransferFunction2D_TIMEOUT 150)
 set(ZoomToData_TIMEOUT 150)
 
 list (APPEND TESTS_WITHOUT_BASELINES
   AboutDialog.xml
   AddFieldArrays.xml
+  AnimateProperty.xml
   ArrayBoundsScaleDomain.xml
   ArraySelectionWidget.xml
-  AnimateProperty.xml
+  AutoConvertSingleProperty.xml
   ComputeArrayMagnitudeSetting.xml
+  CSVPreview.xml
+  CellQualityForPixel.xml
   CustomOutputFormat.xml
   DefaultReadersSetting.xml
   DelimitedTextReader.xml
   DynamicFieldDataDomain.xml
+  ExplodeDataSet.xml
   ExportFilteredColumnsSpreadsheet.xml
   ExportSpreadsheetFormatting.xml
   ExpressionsDialog.xml
@@ -918,10 +996,17 @@ list (APPEND TESTS_WITHOUT_BASELINES
   ExtractParticlesOverTime.xml
   FieldDataToAttribute.xml
   FileDialogOpenInteractClose.xml
+  FluentReaderZoneSelection.xml
   ForceStaticMesh.xml
   GradientBackwardsCompatibility.xml
+  HTGCellCentersBackwardCompat.xml
+  HTGFeatureEdgesBackwardCompat.xml
+  HTGGhostCellsGeneratorBackwardCompat.xml
+  HTGReflectionBackwardCompat.xml
+  HTGVisibleLeavesSizeBackwardCompat.xml
   ImportCustomPresets.xml
   InformationPanel.xml
+  IntegrationStrategy.xml
   LogViewer.xml
   MergeTime.xml
   ModifyGUIWindowTitle.xml
@@ -932,6 +1017,8 @@ list (APPEND TESTS_WITHOUT_BASELINES
   PlotOverLineLegacy.xml
   PointCellDataConversion.xml
   PolarAxesBackwardsCompatibility.xml
+  PreservePropertyValues.xml
+  ProcessIdScalarsBackwardCompat.xml
   ProxyCategoriesConfiguration.xml
   ProxyCategoriesDialog.xml
   ProxyCategoriesDialogDefault.xml
@@ -939,24 +1026,36 @@ list (APPEND TESTS_WITHOUT_BASELINES
   ProxyCategoriesFavorites.xml
   ProxyCategoriesMenusDefault.xml
   ProxyCategoriesToolbar.xml
+  QuadraturePointsDS.xml
+  QuadricDecimation.xml
   QuickLaunchCreateProxy.xml
   QuickLaunchNavigation.xml
   QuickLaunchRequest.xml
   ReadIOHDFAMRMaxLevels.xml
   ReaderRegistrationName.xml
+  ReflectBackwardCompat.xml
   ReloadCGNSFile.xml
+  RescaleVisibleRangeOption.xml
   SearchBox.xml
   ServerConnectDialog.xml
+  SettingsNoCustomDefault.xml
+  SettingsOverrideDomain.xml
+  SettingsProxyProperty.xml
+  SettingsRestoreProxyAppDefault.xml
+  SettingsSubProxy.xml
   SliceBackwardsCompatibility.xml
   SpatioTemporalHarmonicsAttribute.xml
   SpatioTemporalHarmonicsSource.xml
   SpreadSheetFieldData.xml
   SpreadSheetSelectedCellConnectivity.xml
+  STLReaderMergePoints.xml
   StringInLineChartView.xml
   TableHistogram.xml
+  TemporalArrayOperator.xml
   TensorPrincipalInvariants.xml
   TestCompositePropertyWidgetDecorator.xml
   TestFileListPropertyWidget.xml
+  TestOpenFOAMRestartFiles.xml
   TextSource.xml
   ThresholdBackwardsCompatibility.xml
   ThresholdTable.xml
@@ -978,6 +1077,12 @@ if (PARAVIEW_ENABLE_OPENVDB)
   )
 endif ()
 
+if (PARAVIEW_ENABLE_CATALYST)
+  list (APPEND TESTS_WITHOUT_BASELINES
+    CatalystLiveConnection.xml
+  )
+endif ()
+
 if (PARAVIEW_USE_QTHELP)
   list(APPEND TESTS_WITHOUT_BASELINES
     HelpWindowHistory.xml)
@@ -991,6 +1096,9 @@ endif()
 
 list (APPEND TESTS_WITH_INLINE_COMPARES
   AxesGrid.xml
+  AxisAlignedCutterMBHierarchy.xml
+  AxisAlignedCutterPDCNoHierarchy.xml
+  AxisAlignedReflect.xml
   BoundingRuler.xml
   BoxWidget.xml
   BlockContextMenu.xml
@@ -998,6 +1106,7 @@ list (APPEND TESTS_WITH_INLINE_COMPARES
   CalculatorQuotedVariable.xml
   CameraLink.xml
   CGNSReaderDataLocation.xml
+  CGNSReaderSurfacePatches.xml
   ChartDefaultSettings.xml
   ChartLoadNoVariables.xml
   ClampAndUpdateColorMap.xml
@@ -1019,12 +1128,14 @@ list (APPEND TESTS_WITH_INLINE_COMPARES
   FeatureEdgesHTGNoMask.xml
   FileSeries.xml
   FontScalingInScreenshots.xml
+  HyperTreeGrid2DGeometryFillMaterial.xml
   HyperTreeGridAxisClip.xml
   HyperTreeGridAxisCut.xml
   HyperTreeGridAxisReflection.xml
   HyperTreeGridCellCenters.xml
   HyperTreeGridContour.xml
   HyperTreeGridContourStrategy.xml
+  HyperTreeGridDataAndPolarAxes.xml
   HyperTreeGridDepthLimiter.xml
   HyperTreeGridEvaluateCoarse.xml
   HyperTreeGridExtractGhostCells.xml
@@ -1035,6 +1146,7 @@ list (APPEND TESTS_WITH_INLINE_COMPARES
   HyperTreeGridObliquePlaneCutter.xml
   HyperTreeGridPlaneCutter.xml
   HyperTreeGridThreshold.xml
+  HyperTreeGridSurfaceMultiBlockSelection.xml
   LightAddRemove.xml
   LightToolbar.xml
   LineChartSelection.xml
@@ -1044,6 +1156,7 @@ list (APPEND TESTS_WITH_INLINE_COMPARES
   LogoSourcesInChartViews.xml
   MemoryInspectorPanel.xml
   Molecule.xml
+  MultiBlockInspectorMultiBlock.xml
   MultiBlockInspectorProperties.xml
   MultiBlockInspectorSelection.xml
   MultiBlockChartSelection.xml
@@ -1059,6 +1172,7 @@ list (APPEND TESTS_WITH_INLINE_COMPARES
   PreviewFontScaling.xml
   PropertyContextMenu.xml
   QuartilePlot.xml
+  RandomHyperTreeGridSource.xml
   ReadPartitionedCGNS.xml
   ReadCGNSBCDataset.xml
   ReadIOHDFFileSeries.xml
@@ -1111,21 +1225,22 @@ if(NOT APPLE)
 endif()
 
 list(APPEND TESTS_WITH_BASELINES
+  AnnulusWidget.xml
   AxisAlignedCutterAMR.xml
   AxisAlignedCutterHTG.xml
-  AxisAlignedCutterMBHierarchy.xml
-  AxisAlignedCutterPDCNoHierarchy.xml
   BDFReader.xml
   BoxWidgetVisibleBlock.xml
   CameraOrientationWidget.xml
   ChartsClearSelection.xml
   CleanToGridRemovePoints.xml
+  ConeWidget.xml
   ConstantShadingPerObject.xml
   CONVERGECFDCGNSReader.xml
   DataAxesGrid.xml
   EmptyInitialCompositeReader.xml # Issue #21293
   FeatureEdgesFilterHTG.xml
   FeatureEdgesRepresentationHTG.xml
+  FrustumWidget.xml
   IOSSMergeExodusEntityBlocks.xml
   ImageChartView.xml
   IntegrateVariablesPDC.xml
@@ -1135,14 +1250,14 @@ list(APPEND TESTS_WITH_BASELINES
   MoleculeScalarBar.xml
   MultiSliceHTG.xml
   NetCDFUGRID.xml
-  QuadraturePointsDS.xml
   PartialFieldDataMultiBlock.xml
   ParticleTracerGlyph.xml
   PassArrays.xml
   PerlinNoise.xml
-  PickCenter.xml
   PointAndCellIdsHTG.xml
   Protractor.xml
+  PVCellCentersHyperTreeGrid.xml
+  RegionIds.xml
   RemoveGhostInformationHTG.xml
   ResampleToLine.xml
   ReverseSense.xml
@@ -1157,19 +1272,34 @@ list(APPEND TESTS_WITH_BASELINES
   TestOpenFOAMWeighByCell.xml
   TestResampleHyperTreeGridWithSphere.xml
   TransferFunction2D.xml
-  TransferFunction2DYScalars.xml
+  UnlinkCameraView.xml
   VolumeOfRevolution.xml
   ZoomClosestOffsetRatio.xml
   ZoomToBox.xml
   ZoomToData.xml
   ZoomToEmptyData.xml
+  PCANormalEstimation.xml
 )
+
+if (NOT INTEL_MACOS)
+  list(APPEND TESTS_WITH_INLINE_COMPARES
+    PickCenter.xml
+  )
+  list(APPEND TESTS_WITH_BASELINES
+    IOSSCellGridHCurl.xml
+    IOSSCellGridHDiv.xml
+    TransferFunction2DYScalars.xml
+  )
+endif()
 
 if(PARAVIEW_ENABLE_VISITBRIDGE)
   list(APPEND TESTS_WITH_BASELINES
     VisItBridgeChombo.xml
+    VisItBridgeChomboFileSeries.xml
     VisItBridgeLAMMPSDump.xml
     VisItBridgeLAMMPSDump2.xml
+    VisItBridgeLAMMPSDumpMultiTime.xml
+    VisItBridgeLAMMPSDumpTimeSeries.xml
     VisItBridgeNas.xml
     VisItBridgeNek.xml
     VisItBridgeMoleculeColoring.xml
@@ -1226,8 +1356,8 @@ macro(ADD_CATALYST_LIVE_TEST test_name duration command_line_connect_command)
   add_pv_test("pv" "_DISABLE_C"
     COMMAND
     --script-ignore-output-errors --script $<TARGET_FILE:ParaView::pvbatch> --sym
-    ${CMAKE_CURRENT_SOURCE_DIR}/${CATALYST_SIMULATION}
-    ${INSITU_SCRIPT} "${duration}"
+      ${CMAKE_CURRENT_SOURCE_DIR}/${CATALYST_SIMULATION}
+      ${INSITU_SCRIPT} "${duration}"
 
     --client ${CLIENT_EXECUTABLE}
     --enable-bt
@@ -1287,6 +1417,7 @@ list(APPEND TESTS_WITH_BASELINES
   AMRCutPlane.xml
   AMReXParticlesReader.xml
   AxisAlignedSliceBackwardCompat.xml
+  AxisAlignedTransform.xml
   AnimationCache.xml
   AnimationCameraExportImport.xml
   AnimationFollowPath.xml
@@ -1305,7 +1436,7 @@ list(APPEND TESTS_WITH_BASELINES
   CTHAMRContour.xml
   CTHAMRDualClip.xml
   CTHAMRMaterialInterfaceFilter.xml
-  CTHDerivedDensity2DClyinder.xml
+  CTHDerivedDensity2DCylinder.xml
   AddActiveValuesFromVisibleObjects.xml
   AnimatePipelineTime.xml
   AngularPeriodicFilter.xml
@@ -1470,7 +1601,6 @@ list(APPEND TESTS_WITH_BASELINES
   PropertyConversion4.xml
   PropertyLink.xml
   QuadraticGhostCells.xml
-  RandomHyperTreeGridSource.xml
   ReadPIOWithHTG.xml
   ReadXMLPolyDataFileSeries.xml
   RecentFiles.xml
@@ -1581,10 +1711,12 @@ if (TARGET VTK::IOFides)
   if (PARAVIEW_ENABLE_ADIOS2)
     list(APPEND TESTS_WITH_INLINE_COMPARES
       FidesReaderADIOS2.xml
+      FidesWriterADIOS2.xml
       )
   else()
     list(APPEND TESTS_WITH_INLINE_COMPARES
       FidesReader.xml
+      FidesWriter.xml
       )
   endif()
 endif()
@@ -1629,8 +1761,8 @@ list(APPEND TESTS_WITH_BASELINES
   # This test makes use of "Point Gaussian" representation, only available with OpenGL2
   BackgroundColorCheck.xml
 
-  # PlotMatrixView is bugging in OpenGL1
   PlotMatrixViewArraySelection.xml
+  PlotMatrixViewParameters.xml
 
   # Composite Glyph Trees are only implemented in OpenGL2
   CompositeGlyphTree.xml
@@ -1712,6 +1844,7 @@ set(NonConvexPolygon_DISABLE_CRS TRUE)
 set(QuartilePlot_DISABLE_CRS TRUE)
 set(TestSelectionOnMultipiece_DISABLE_CRS TRUE)
 set(TestHTGSelection_DISABLE_CRS TRUE)
+set(SelectionByArray_DISABLE_CRS TRUE) # yes, this test does a selection
 set(SelectionBlocks_DISABLE_CRS TRUE)
 set(SelectionEditor_DISABLE_CRS TRUE)
 set(SelectionModifiersCells_DISABLE_CRS TRUE)
@@ -1738,6 +1871,7 @@ set(ZoomToData_DISABLE_CRS TRUE)
 # changed events.
 set (AnimatePipelineTime_FORCE_SERIAL TRUE)
 set (AnimateProperty_FORCE_SERIAL TRUE) # since this uses popup window
+set (AnimationCache_FORCE_SERIAL TRUE) # since this uses popup window
 set (AnimationFollowPath_FORCE_SERIAL TRUE) # since this uses popup window
 set (BlockContextMenu_FORCE_SERIAL TRUE) # requires context menu
 set (CGNSReaderDataLocation_FORCE_SERIAL TRUE)  # since this uses popup-menu
@@ -1745,8 +1879,9 @@ set (CTHAMRBaseline_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (CTHAMRContour_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (CTHAMRDualClip_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (CTHAMRMaterialInterfaceFilter_FORCE_SERIAL TRUE)  # since this uses popup-menu
-set (CTHDerivedDensity2DClyinder_FORCE_SERIAL TRUE)  # since this uses popup-menu
+set (CTHDerivedDensity2DCylinder_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (Calculator_FORCE_SERIAL TRUE) # since this uses popup-menu
+set (CalculatorInput_FORCE_SERIAL TRUE) # since this uses popup-menu
 set (CategoricalAutomaticAnnotations_FORCE_SERIAL TRUE) # Seems to works better in serial
 set (CategoricalColors_FORCE_SERIAL TRUE) # Uses inline edit popups
 set (CategoricalOpacities_FORCE_SERIAL TRUE) # Seems to works better in serial
@@ -1769,6 +1904,7 @@ set (LoadSaveStateVolume_FORCE_SERIAL TRUE)
 set (LogColorMapToggle_FORCE_SERIAL TRUE) # since this pops up output window
 set (LogColorMap_FORCE_SERIAL TRUE) # since this uses popup-menu
 set (MathTextColumn_FORCE_SERIAL TRUE)  # since this uses popup-menu
+set (MoleculeToLines_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (PolygonCellSelection_FORCE_SERIAL TRUE)
 set (PolygonPointSelection_FORCE_SERIAL TRUE)
 set (PropertyLink_FORCE_SERIAL TRUE)
@@ -1790,6 +1926,7 @@ set (SimpleInteraction_FORCE_SERIAL TRUE) # since this uses popup-menu
 set (TestHTGHoverOnCell_FORCE_SERIAL TRUE)  # since this uses QTooltip and QShortcut
 set (TestIsoVolume_FORCE_SERIAL TRUE)  # since this uses popup-menu
 set (TestPythonView_FORCE_SERIAL TRUE) # Seems to work better in serial.
+set (TextSourceBorder_FORCE_SERIAL TRUE) # Seems to work better in serial
 set (TimeKeeper_FORCE_SERIAL TRUE) # since this uses popup window
 set (TooltipCopy_FORCE_SERIAL TRUE)  # since this uses QTooltip and QShortcut
 set (TraceMultiViews_FORCE_SERIAL TRUE) # Seems to works better in serial
@@ -1821,47 +1958,18 @@ set(CTHAMRClip_DISABLE_CRS TRUE)
 set(CTHAMRMaterialInterfaceFilter_DISABLE_CS TRUE)
 set(CTHAMRMaterialInterfaceFilter_DISABLE_CRS TRUE)
 
-# Add image threshold overrides for tests.
-# Generally all tests with wireframes need higher thresholds.
-SET (Flow2_THRESHOLD 15)
-SET (UndoRedo1_THRESHOLD 15)
-SET (UndoRedo4_THRESHOLD 15)
-
-# Differences between systems on whether the lines are anti-aliased or not
-SET (SortLineChartData_THRESHOLD 50)
-
-# Since often there are issues with fonts etc.
-SET (XYChart_THRESHOLD 150)
-SET (CheckableHeader_THRESHOLD 150)
 # Since the test uses surface-selection, it cannot work in render-server mode.
 set(XYChart_DISABLE_CRS TRUE)
 # this uses charts: nb of points changes in client server, so graphs differs
 set(LinkViews_DISABLE_CS TRUE)
 set(LinkViews_DISABLE_CRS TRUE)
 
-SET (XYHistogram_THRESHOLD 150)
-set (ChartAxisRangeAndLabels_THRESHOLD 5)
-
-# The color and opacity are often different on different machines.
-SET (ColorEditorControls_THRESHOLD 60)
-SET (ColorEditorVolumeControls_THRESHOLD 300)
-
-# PlotDataOverTime produces different block labels in parallel
-# This leeway helps that.
-set (PlotDataOverTime-NonDistributed_THRESHOLD 25)
-
 # Test needs to load a plugin, the test only records that for the
 # client side.
 set (SteeringDataGenerator_DISABLE_CS TRUE)
 set (SteeringDataGenerator_DISABLE_CRS TRUE)
 
-# Plot image leeway.
-set (SpreadSheet2_THRESHOLD 50)
-set (PlotOverTimeAutoApply_THRESHOLD 50)
-set (ExportLinePlotToCSV_THRESHOLD 30)
-set (ExportLinePlotToTSV_THRESHOLD 30)
 set (PlotOverTimeAutoApply_DISABLE_CRS TRUE) # since this uses surface selection.
-set (QuartilePlot_THRESHOLD 20)
 # The ExportLinePlotToTSV test uses the same image baseline as the ExportLinePlotToCSV test
 set (ExportLinePlotToTSV_BASELINE ExportLinePlotToCSV.png)
 
@@ -1873,11 +1981,8 @@ set(ExportSceneSpreadSheetView2_DISABLE_CRS TRUE)
 # Cannot support CRS since we do volume rendering of image data
 # in this test.
 set (RemoteRendering_DISABLE_CRS TRUE)
-set (RemoteRendering_THRESHOLD 50)
 set (VolumeRenderingWithContour_DISABLE_CRS TRUE)
-set (VolumeRenderingWithContour_THRESHOLD 50)
 set (VolumeNoMapScalars_DISABLE_CRS TRUE)
-set (VolumeNoMapScalars_THRESHOLD 50)
 set (MultiBlockVolumeRendering_DISABLE_CRS TRUE)
 set (ColorOpacityEditorFreehandDrawing_DISABLE_CRS TRUE)
 
@@ -1893,19 +1998,6 @@ SET (Clip_DISABLE_CRS TRUE)
 set (ImageVolumeRendering_DISABLE_CRS TRUE)
 set (RectilinearVolumeRendering_DISABLE_CRS TRUE)
 
-# These Xdmf tests have wireframes, hence the increased thresholds.
-SET (XdmfReadImageData_THRESHOLD 20)
-SET (XdmfReadRectilinearGrid_THRESHOLD 20)
-SET (XdmfReadRectilinearGridCollection_THRESHOLD 20)
-SET (XdmfReadStructuredGrid_THRESHOLD 20)
-SET (XdmfReadStructuredGridCollection_THRESHOLD 20)
-SET (XdmfReadImageDataCollection_THRESHOLD 20)
-
-# This test renders points and they are offsetted a bit differently on
-# different platforms so just increase the threshold
-SET (SaveCSV_THRESHOLD 40)
-SET (SaveTSV_THRESHOLD 40)
-SET (SaveTXT_THRESHOLD 40)
 # The SaveTXT and SaveTSV tests use the same image baseline as the SaveCSV test
 SET (SaveTSV_BASELINE SaveCSV.png)
 SET (SaveTXT_BASELINE SaveCSV.png)
@@ -1916,10 +2008,8 @@ SET (SaveTXT_BASELINE SaveCSV.png)
 ## selection is not supported in render server mode esp. when number of render
 ## server processes is not the same as the data server processes
 set (FFTOverTime_DISABLE_CRS TRUE)
-set (FFTOverTime_THRESHOLD 70) # since there's a plot, account for minor
-                               # rendering differences.
 
-# ColorEditorVolumeControls does volume rendering of structrued data which required remote
+# ColorEditorVolumeControls does volume rendering of structured data which required remote
 # rendering in client-serve mode.
 SET (ColorEditorVolumeControls_DISABLE_CS TRUE)
 SET (ColorEditorVolumeControls_DISABLE_CRS TRUE)
@@ -1945,12 +2035,6 @@ SET (TransferFunction2DYScalars_DISABLE_CRS TRUE)
 SET (TransferFunction2DYScalarsEditor_DISABLE_CRS TRUE)
 SET (TransferFunction2DYScalarsEditorA_DISABLE_CRS TRUE)
 SET (TransferFunction2DYScalarsEditorB_DISABLE_CRS TRUE)
-## The 2D transfer function editor baselines are different on different machines
-SET (TransferFunction2D_THRESHOLD 300)
-SET (TransferFunction2DYScalars_THRESHOLD 500)
-SET (TransferFunction2DYScalarsEditor_THRESHOLD 500)
-SET (TransferFunction2DYScalarsEditorA_THRESHOLD 500)
-SET (TransferFunction2DYScalarsEditorB_THRESHOLD 500)
 
 # Plugins are only built as shared libraries.
 IF (NOT BUILD_SHARED_LIBS)
@@ -1960,20 +2044,8 @@ ENDIF ()
 SET (NiftiReaderWriterPlugin_DISABLE_CS TRUE)
 SET (NiftiReaderWriterPlugin_DISABLE_CRS TRUE)
 
-# Set image threshold overrides for the tests.
-SET(SaveLargeScreenshot_THRESHOLD 40)
-
 # Make these tests use reverse connection.
 SET (CutMulti_REVERSE_CONNECT TRUE)
-
-# Since this involves charts.
-SET(HistogramSelection_THRESHOLD 40)
-SET(LineChartSelection_THRESHOLD 40)
-SET(MultiBlockChartSelection_THRESHOLD 40)
-
-# Increate threshold for this one since the chart axes
-# tends to render slightly differently.
-set (LoadStateMultiView_THRESHOLD 20)
 
 # Selection not supported in CRS and is needed for this test.
 set (ResetToVisibleRange_DISABLE_CRS TRUE)
@@ -2008,11 +2080,55 @@ set (PlotOverLine_htg_DISABLE_CRS TRUE)
 set (PlotOverLine_surface_DISABLE_CS TRUE)
 set (PlotOverLine_surface_DISABLE_CRS TRUE)
 
-# CGNS BC patches not supported in parallel
+# CGNS BC and Surface patches not supported in parallel
 set(ReadCGNSBCDataset_DISABLE_CS TRUE)
 set(ReadCGNSBCDataset_DISABLE_CRS TRUE)
 set(CONVERGECFDCGNSReader_DISABLE_CS TRUE)
 set(CONVERGECFDCGNSReader_DISABLE_CRS TRUE)
+set(CGNSReaderSurfacePatches_DISABLE_CS TRUE)
+set(CGNSReaderSurfacePatches_DISABLE_CRS TRUE)
+
+# RegionIds is not implemented for Distributed context
+set (RegionIds_DISABLE_CS TRUE)
+set (RegionIds_DISABLE_CRS TRUE)
+
+# AxisAlignedTransform is not implemented for Distributed context yet : issue (https://gitlab.kitware.com/paraview/paraview/-/issues/22949)
+set (AxisAlignedTransform_DISABLE_CS TRUE)
+set (AxisAlignedTransform_DISABLE_CRS TRUE)
+
+# Add image method overrides for tests.
+
+# images with text need loose method
+set(4AxesContextView_METHOD LOOSE_VALID)
+set(BoxClipStateBackwardsCompatibility_METHOD LOOSE_VALID)
+set(ChartAxisRangeAndLabels_METHOD LOOSE_VALID)
+set(ChartLoadNoVariables_METHOD LOOSE_VALID)
+set(ColorOpacityEditorRangeHandles_METHOD LOOSE_VALID)
+set(ExodusModeShapes_METHOD LOOSE_VALID)
+set(ExportLinePlotToCSV_METHOD LOOSE_VALID)
+set(ExportLinePlotToTSV_METHOD LOOSE_VALID)
+set(HistogramSelection_METHOD LOOSE_VALID)
+set(LineChartSelection_METHOD LOOSE_VALID)
+set(OrthographicView_METHOD LOOSE_VALID)
+set(PlotGlobalVariablesOverTime_METHOD LOOSE_VALID)
+set(PointChartView_METHOD LOOSE_VALID)
+set(PolarAxesRemoteRendering_METHOD LOOSE_VALID)
+set(Preview_METHOD LOOSE_VALID)
+set(ProgrammableAnnotation_METHOD LOOSE_VALID)
+set(ReloadExodusFile_METHOD LOOSE_VALID)
+set(SaveLargeScreenshot_METHOD LOOSE_VALID)
+set(SeriesPresetRegexp_METHOD LOOSE_VALID)
+set(SimpleInteraction_METHOD LOOSE_VALID)
+set(SortLineChartData_METHOD LOOSE_VALID)
+set(SpreadSheet2_METHOD LOOSE_VALID)
+set(TileDisplaySplitView-1x1_METHOD LOOSE_VALID)
+set(TileDisplaySplitView-2x1_METHOD LOOSE_VALID)
+set(TileDisplaySplitView-2x2_METHOD LOOSE_VALID)
+set(TileDisplaySplitView-3x1_METHOD LOOSE_VALID)
+set(TransferFunction2DEditor_METHOD LOOSE_VALID)
+set(TransferFunction2DYScalars_METHOD LOOSE_VALID)
+set(XYChart_METHOD LOOSE_VALID)
+set(XYHistogram_METHOD LOOSE_VALID)
 
 set(TESTS_WITH_MULTI_SERVERS_3
   TestMultiServer3.xml
@@ -2020,7 +2136,7 @@ set(TESTS_WITH_MULTI_SERVERS_3
 
 # ResampleToHyperTreeGrid only works in client mode
 paraview_add_client_tests(
-  TEST_SCRIPTS ResampleToHyperTreeGrid.xml
+  TEST_SCRIPTS ResampleToHyperTreeGrid.xml ResampleImageToHyperTreeGrid.xml
 )
 
 # RandomAttributes generate different results depending on the data
@@ -2092,7 +2208,6 @@ if (TARGET ParaView::paraview)
     # command line option as well as loading a Python state file that was
     # generated with PV 5.4.1. Loading the 5.4.1 Python state file checks
     # on backwards compatibility.
-    set (Calculator54State_THRESHOLD 100)
     paraview_add_client_tests(
       ARGS "--state=${CMAKE_CURRENT_SOURCE_DIR}/Calculator54State.py"
       BASELINE_DIR ${PARAVIEW_TEST_BASELINE_DIR}
@@ -2176,3 +2291,16 @@ if (PARAVIEW_PLUGIN_ENABLE_ArrowGlyph)
     FORCE_SERIAL
     TEST_SCRIPTS ${CMAKE_CURRENT_BINARY_DIR}/ServerConnectPluginLoad.xml)
 endif ()
+
+# PropertyPanelVisibilitiesOverride test requires a configuration file.
+# Use a custom TEST_DIRECTORY for that: this overrides user config dir when testing
+# (see pqCoreUtilities::getParaViewUserDirectory). Copy config in it.
+set (PropertyPanelVisibilitiesOverrideDir "${CMAKE_CURRENT_BINARY_DIR}/PropertyPanelVisibilitiesOverride")
+file (MAKE_DIRECTORY ${PropertyPanelVisibilitiesOverrideDir})
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/PropertyPanelVisibilities.json.in"
+  "${PropertyPanelVisibilitiesOverrideDir}/PropertyPanelVisibilities.json" @ONLY)
+paraview_add_client_tests(
+  TEST_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/PropertyPanelVisibilitiesOverride.xml
+  TEST_DIRECTORY ${PropertyPanelVisibilitiesOverrideDir}
+)

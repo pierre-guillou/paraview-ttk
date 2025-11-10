@@ -34,8 +34,10 @@
 
 #include "vtkAbstractPropPicker.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
+class vtkDataObject;
 class vtkRenderer;
 class vtkPoints;
 class vtkPlanes;
@@ -45,7 +47,7 @@ class vtkDataSet;
 class vtkExtractSelectedFrustum;
 class vtkProp;
 
-class VTKRENDERINGCORE_EXPORT vtkAreaPicker : public vtkAbstractPropPicker
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkAreaPicker : public vtkAbstractPropPicker
 {
 public:
   static vtkAreaPicker* New();
@@ -99,6 +101,14 @@ public:
   vtkGetObjectMacro(DataSet, vtkDataSet);
   ///@}
 
+  ///@{
+  /**
+   * Get a pointer to the dataobject that was picked (if any). If nothing
+   * was picked then NULL is returned.
+   */
+  vtkGetObjectMacro(DataObject, vtkDataObject);
+  ///@}
+
   /**
    * Return a collection of all the prop 3D's that were intersected
    * by the pick ray. This collection is not sorted.
@@ -138,6 +148,8 @@ protected:
   vtkProp3DCollection* Prop3Ds; // candidate actors (based on bounding box)
   vtkAbstractMapper3D* Mapper;  // selected mapper (if the prop has a mapper)
   vtkDataSet* DataSet;          // selected dataset (if there is one)
+  vtkDataObject* DataObject;    // selected dataobject (this is useful to represent selected objects
+                                // which directly derive vtkDataObject)
 
   // used internally to do prop intersection tests
   vtkExtractSelectedFrustum* FrustumExtractor;

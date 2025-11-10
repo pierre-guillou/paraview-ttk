@@ -211,7 +211,7 @@ constexpr std::array<int, 13> ACCEPTABLE_LABELS = { 10, 12, 15, 18, 20, 25, 30, 
 
 /**
  * Compute an interval that split range depending on targetedNumTicks,
- * while beeing "rounded" for nice display. Actually, we snap the labels
+ * while being "rounded" for nice display. Actually, we snap the labels
  * to be one of the following, multiply by a power of ten:
  * [10, 12, 15, 18, 20, 25, 30, 40, 50, 60, 80, 90]
  * (see ACCEPTABLE_LABELS)
@@ -659,7 +659,7 @@ void vtkAxisActor2D::UpdateTicksValueAndPosition(vtkViewport* viewport)
 
     for (int minor = 1; minor <= this->NumberOfMinorTicks; minor++)
     {
-      value = value + minor * minorDelta;
+      value = value + minorDelta;
       position = (value - this->Range[0]) * scale;
       if (position > 1)
       {
@@ -877,6 +877,8 @@ void vtkAxisActor2D::BuildLabels(vtkViewport* viewport)
   }
 
   vtkPoints* pts = this->Axis->GetPoints();
+  const vtkIdType nbOfPoints = pts->GetNumberOfPoints();
+
   // Position the mappers
   for (int i = 0; i < this->NumberOfLabelsBuilt; i++)
   {
@@ -885,6 +887,11 @@ void vtkAxisActor2D::BuildLabels(vtkViewport* viewport)
     // first point in the list is the Axis start, not a tick point.
     vtkIdType startPointId = tickId * 2 + 1;
     vtkIdType endPointId = startPointId + 1;
+    if (endPointId >= nbOfPoints)
+    {
+      vtkErrorMacro("Trying to use an inexisting tick when computing label position.");
+      return;
+    }
     pts->GetPoint(endPointId, xTick);
     double theta = this->GetAxisAngle(viewport);
     double textAngle = this->LabelTextProperty->GetOrientation();

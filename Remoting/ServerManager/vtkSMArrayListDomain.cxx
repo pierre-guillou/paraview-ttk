@@ -212,6 +212,9 @@ void vtkSMArrayListDomainInternals::BuildArrayList(
     result.insert(info);
   }
 
+  bool autoConvert =
+    iad ? iad->GetAutoConvertProperties() : vtkSMInputArrayDomain::GetAutomaticPropertyConversion();
+
   // iterate over attributes arrays in dataInfo and add acceptable arrays to the
   // domain.
   for (int type = vtkSMInputArrayDomain::POINT;
@@ -224,7 +227,8 @@ void vtkSMArrayListDomainInternals::BuildArrayList(
     vtkPVDataSetAttributesInformation* attrInfo = dataInfo->GetAttributeInformation(type);
     int acceptable_as = type;
     if (attrInfo == nullptr ||
-      !vtkSMInputArrayDomain::IsAttributeTypeAcceptable(association, type, &acceptable_as))
+      !vtkSMInputArrayDomain::IsAttributeTypeAcceptable(
+        association, type, &acceptable_as, autoConvert))
     {
       continue;
     }
@@ -294,9 +298,8 @@ void vtkSMArrayListDomainInternals::BuildArrayList(
         // array has number of components that doesn't directly match the required
         // component count. The array is being accepted due to automatic property
         // conversion. So we need to split up components and add them individually.
-        assert(acceptedNumberOfComponents == 1 &&
-          vtkSMInputArrayDomain::GetAutomaticPropertyConversion() == true &&
-          arrayInfo->GetNumberOfComponents() > 1);
+        assert(
+          acceptedNumberOfComponents == 1 && autoConvert && arrayInfo->GetNumberOfComponents() > 1);
 
         for (int cc = 0, maxCC = arrayInfo->GetNumberOfComponents(); cc <= maxCC; ++cc)
         {
@@ -374,32 +377,6 @@ int vtkSMArrayListDomain::GetFieldAssociation(unsigned int idx)
 }
 
 //---------------------------------------------------------------------------
-namespace
-{
-vtkPVDataInformation* GetInputSubsetDataInformation(vtkSMDomain* domain, const char* selector,
-  const char* assemblyName, const char* function, unsigned int index = 0)
-{
-  vtkSMProperty* inputProperty = domain->GetRequiredProperty(function);
-  if (!inputProperty)
-  {
-    return nullptr;
-  }
-
-  vtkSMUncheckedPropertyHelper helper(inputProperty);
-  if (helper.GetNumberOfElements() > index)
-  {
-    vtkSMSourceProxy* sp = vtkSMSourceProxy::SafeDownCast(helper.GetAsProxy(index));
-    if (sp)
-    {
-      return sp->GetSubsetDataInformation(helper.GetOutputPort(), selector, assemblyName);
-    }
-  }
-
-  return nullptr;
-}
-}
-
-//---------------------------------------------------------------------------
 void vtkSMArrayListDomain::Update(vtkSMProperty*)
 {
   vtkSMProperty* input = this->GetRequiredProperty("Input");
@@ -434,8 +411,8 @@ void vtkSMArrayListDomain::Update(vtkSMProperty*)
   {
     for (unsigned int i = 0; i < selectors->GetNumberOfElements(); ++i)
     {
-      vtkPVDataInformation* selectorInfo = ::GetInputSubsetDataInformation(
-        this, selectors->GetElement(i), activeAssemblyProp->GetElement(0), "Input");
+      vtkPVDataInformation* selectorInfo = this->GetInputSubsetDataInformation(
+        selectors->GetElement(i), activeAssemblyProp->GetElement(0), "Input");
       if (selectorInfo)
       {
         this->ALDInternals->BuildArrayList(set, this, fieldDataSelection, iad, selectorInfo);

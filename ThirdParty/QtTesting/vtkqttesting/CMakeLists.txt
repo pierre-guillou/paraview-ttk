@@ -129,6 +129,7 @@ SET(QtTesting_SOURCES
   pqNativeFileDialogEventPlayer.cxx
   pqNativeFileDialogEventTranslator.cxx
   pqObjectNaming.cxx
+  pqObjectPlayer.cxx
   pqPlayBackEventsDialog.cxx
   pqRecordEventsDialog.cxx
   pqSpinBoxEventTranslator.cxx
@@ -184,6 +185,7 @@ SET(QtTesting_DEVEL_HEADERS
   pqNativeFileDialogEventPlayer.h
   pqNativeFileDialogEventTranslator.h
   pqObjectNaming.h
+  pqObjectPlayer.h
   pqPlayBackEventsDialog.h
   pqRecordEventsDialog.h
   pqSpinBoxEventTranslator.h

@@ -324,6 +324,10 @@ int vtkAvtSTMDFileFormatAlgorithm::FillAMR(
 
   //number of levels in the AMR
   int numGroups = meshMetaData->numGroups;
+  if (numGroups <= 0)
+    {
+    return 0;
+    }
 
   //TODO: if the cache doesn't have the results we can ask the file format itself
   //determine the ratio for each level

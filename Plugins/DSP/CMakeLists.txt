@@ -2,7 +2,8 @@ set(sources)
 set(interfaces)
 set(uifiles)
 
-option(PARAVIEW_PLUGIN_dsp_enable_audio_player "Enable building the Audio Player Dock. Requires Qt Multimedia." OFF)
+cmake_dependent_option(PARAVIEW_PLUGIN_dsp_enable_audio_player "Enable building the Audio Player Dock. Requires Qt5 Multimedia." OFF
+  "PARAVIEW_QT_MAJOR_VERSION EQUAL 5" OFF)
 mark_as_advanced(PARAVIEW_PLUGIN_dsp_enable_audio_player)
 
 if (PARAVIEW_USE_QT AND PARAVIEW_PLUGIN_dsp_enable_audio_player)
@@ -44,6 +45,18 @@ paraview_add_plugin(DigitalSignalProcessing
   MODULE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/DataModel/vtk.module"
     "${CMAKE_CURRENT_SOURCE_DIR}/Filters/vtk.module")
+
+# XXX(cmake-3.13)
+if (COMMAND target_link_options)
+  # XXX(cmake-3.29): Suppress warnings with Xcode 15+ linkers; resolved with
+  # CMake 3.29.
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang" AND
+      CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "15")
+    target_link_options(DigitalSignalProcessing
+      PRIVATE
+        "$<$<PLATFORM_ID:Darwin>:LINKER:-no_warn_duplicate_libraries>")
+  endif ()
+endif ()
 
 if (PARAVIEW_USE_QT AND PARAVIEW_PLUGIN_dsp_enable_audio_player)
   target_link_libraries(DigitalSignalProcessing

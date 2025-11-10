@@ -777,9 +777,17 @@ void vtkHigherOrderTetra::SetParametricCoords()
   if (this->PointParametricCoordinates->GetNumberOfPoints() != nPoints)
   {
     this->PointParametricCoordinates->Initialize();
-    double order_d = static_cast<vtkIdType>(this->GetOrder());
+    double order_d = this->GetOrder();
     this->PointParametricCoordinates->SetNumberOfPoints(nPoints);
 
+#ifdef ENABLE_CACHING
+    if (static_cast<vtkIdType>(this->BarycentricIndexMap.size()) !=
+      4 * this->GetPointIds()->GetNumberOfIds())
+    {
+      vtkWarningMacro(<< this->GetClassName() << " has not been initialized");
+      return;
+    }
+#endif
     vtkIdType bindex[4];
     for (vtkIdType p = 0; p < nPoints; p++)
     {

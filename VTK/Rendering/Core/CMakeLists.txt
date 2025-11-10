@@ -176,6 +176,7 @@ set_source_files_properties(
 
 set(headers
   vtkGPUInfoListArray.h
+  vtkLabeledDatatypeDefinitions.h
   vtkPythagoreanQuadruples.h
   vtkRayCastStructures.h
   vtkRenderingCoreEnums.h
@@ -195,8 +196,10 @@ if (VTK_WRAP_SERIALIZATION)
     vtkColorTransferFunctionSerDesHelper.cxx
     vtkCompositeDataDisplayAttributesSerDesHelper.cxx
     vtkDataSetMapperSerDesHelper.cxx
+    vtkDiscretizableColorTransferFunctionSerDesHelper.cxx
+    vtkShaderPropertySerDesHelper.cxx
     vtkTextureSerDesHelper.cxx)
-endif ()    
+endif ()
 
 vtk_module_add_module(VTK::RenderingCore
   CLASSES ${classes}

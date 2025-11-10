@@ -15,14 +15,14 @@
 #ifndef vtkPointGaussianMapper_h
 #define vtkPointGaussianMapper_h
 
-#include "vtkDeprecation.h" // For deprecation macro
 #include "vtkPolyDataMapper.h"
 #include "vtkRenderingCoreModule.h" // For export macro
+#include "vtkWrappingHints.h"       // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkPiecewiseFunction;
 
-class VTKRENDERINGCORE_EXPORT vtkPointGaussianMapper : public vtkPolyDataMapper
+class VTKRENDERINGCORE_EXPORT VTK_MARSHALAUTO vtkPointGaussianMapper : public vtkPolyDataMapper
 {
 public:
   static vtkPointGaussianMapper* New();
@@ -161,7 +161,7 @@ public:
   /**
    * When drawing splats as opposed to point mode (splats are bigger than a pixel)
    * this controls how large the splat bound primitive will be. By default it
-   * is large enough to contain a cicle of radius 3.0*scale which works
+   * is large enough to contain a circle of radius 3.0*scale which works
    * well for gaussian splats as after 3.0 standard deviations the
    * opacity is near zero. For custom shader codes a different
    * value can be used. Generally you should use the lowest value you can
@@ -170,10 +170,6 @@ public:
    * to avoid sending many fragments to the shader that will just get
    * discarded.
    */
-  VTK_DEPRECATED_IN_9_3_0("Use SetBoundScale function instead")
-  void SetTriangleScale(float value) { this->SetBoundScale(value); }
-  VTK_DEPRECATED_IN_9_3_0("Use GetBoundScale function instead")
-  float GetTriangleScale() { return this->GetBoundScale(); }
   vtkSetMacro(BoundScale, float);
   vtkGetMacro(BoundScale, float);
   ///@}

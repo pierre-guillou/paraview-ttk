@@ -4,6 +4,10 @@
  * @class   vtkOBJImporter
  * @brief   import from .obj wavefront files
  *
+ * This importer doesn't support scene hierarchy API
+ *
+ * This importer supports the collection API
+ *
  *                        from Wavefront .obj & associated .mtl files.
  * @par Thanks - Peter Karasev (Georgia Tech / Keysight Technologies Inc),:
  *                   Allen Tannenbaum (SUNY Stonybrook), Patricio Vela (Georgia Tech)
@@ -59,6 +63,12 @@ public:
   ///@{
   /**
    * Specify the name of the file to read.
+   * FileName must be provided.
+   * FileNameMTL can be provided, if not provided, we will do, in order:
+   *  - Use mtllib is provided in the .obj file
+   *  - Check for a FileName.mtl and use it if it exists
+   *  - Check for a FileStem.mtl and use it if it exists
+   * TexturePath can be provided, it not provided, the folder containing FileName will be used
    */
   void SetFileName(VTK_FILEPATH const char* arg);
   void SetFileNameMTL(VTK_FILEPATH const char* arg);

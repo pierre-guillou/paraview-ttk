@@ -1,26 +1,14 @@
 vtk_module_test_data(
   Data/pen_1.cur
   Data/pen_1.xcursor
+  Data/overlap_faces.vtm
+  Data/overlap_faces/overlap_faces_0_0.vtp
+  Data/overlap_faces/overlap_faces_1_0.vtp
+  Data/overlap_faces/overlap_faces_2_0.vtp
   )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   set(_vtk_test_cxx_wasm_enabled_in_browser ON)
-  set(_proxy_to_pthread_flag "0")
-  if (VTK_WEBASSEMBLY_THREADS)
-    set(_proxy_to_pthread_flag "1")
-  endif ()
-  set(_vtk_test_emscripten_extra_linker_args
-    # O2 or higher make wasm-opt terribly slow.
-    # test executables take a minute to link.
-    "-O1"
-    # don't keep runtime alive after exit() is called.
-    "-sEXIT_RUNTIME=1"
-    # this flag runs main() on a pthread i.e, a web worker.
-    # the primary reason we desire this is to make the unit test access
-    # data files through synchronous XHR which is only posssible from web-worker.
-    "-sPROXY_TO_PTHREAD=${_proxy_to_pthread_flag}"
-    "-sALLOW_MEMORY_GROWTH=1"
-    "-sOFFSCREENCANVAS_SUPPORT=${_proxy_to_pthread_flag}")
 endif ()
 vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestBlockVisibility.cxx
@@ -28,24 +16,9 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestCameraShiftScale.cxx,NO_DATA
   TestCoincident.cxx
   TestCoincidentFloor.cxx
+  TestCompositeDataOverlappingCells.cxx,
   TestCompositeDataPointGaussian.cxx,NO_DATA
   TestCompositeDataPointGaussianSelection.cxx,NO_DATA
-  TestCompositePolyDataMapper2.cxx,NO_DATA
-  TestCompositePolyDataMapper2CameraShiftScale.cxx,NO_DATA
-  TestCompositePolyDataMapper2CellScalars.cxx,NO_DATA
-  TestCompositePolyDataMapper2CustomShader.cxx,NO_DATA
-  TestCompositePolyDataMapper2MixedGeometryCellScalars.cxx,NO_DATA
-  TestCompositePolyDataMapper2MixedGeometryEdges.cxx,NO_DATA
-  TestCompositePolyDataMapper2NaNPartial.cxx,NO_DATA
-  TestCompositePolyDataMapper2PartialFieldData.cxx,NO_DATA
-  TestCompositePolyDataMapper2PartialPointData.cxx,NO_DATA
-  TestCompositePolyDataMapper2Pickability.cxx,NO_DATA
-  TestCompositePolyDataMapper2Picking.cxx,NO_DATA
-  TestCompositePolyDataMapper2Scalars.cxx,NO_DATA
-# TestCompositePolyDataMapper2ScalarsSurfaceOpacity.cxx,NO_DATA #19221
-  TestCompositePolyDataMapper2SharedArray.cxx,NO_DATA
-  TestCompositePolyDataMapper2Spheres.cxx,NO_DATA
-  TestCompositePolyDataMapper2Vertices.cxx,NO_DATA
   TestComputeShader.cxx,NO_DATA,NO_VALID,NO_OUTPUT
   TestCubeMap.cxx
   TestCubeMap2.cxx
@@ -61,7 +34,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestFXAAPass.cxx
   TestFXAAWithEDLPass.cxx
   TestFlipRenderFramebuffer.cxx
-  TestFloor.cxx, LOOSE_VALID
+  TestFloor.cxx,LOOSE_VALID
   TestFluidMapper.cxx
   TestFramebufferHDR.cxx
   TestFramebufferPass.cxx
@@ -126,6 +99,7 @@ vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
   TestUserShader2.cxx
   TestUserShader2D.cxx,NO_DATA
   TestValuePassFloatingPoint.cxx
+  TestValuePassFloatingPoint2.cxx
   TestVBOPLYMapper.cxx
   TestVBOPointsLines.cxx
   TestWindowBlits.cxx
@@ -139,8 +113,16 @@ endif()
 set_tests_properties(VTK::RenderingOpenGL2Cxx-TestFramebufferHDR
   PROPERTIES TIMEOUT ${VTK_TEST_TIMEOUT_TestFramebufferHDR})
 
-if (VTK_USE_SDL2)
-  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  if (VTK_USE_SDL2)
+    vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests TestSDL2.cxx)
+  endif ()
+endif ()
+
+if (NOT VTK_OPENGL_USE_GLES)
+  # vtkFastLabeledDataMapper needs geometry shaders and GLES does not have them.
+  vtk_add_test_cxx(vtkRenderingOpenGL2CxxTests tests
+    TestLabeledDataMappers.cxx)
 endif ()
 
 if (VTK_USE_WIN32_OPENGL)

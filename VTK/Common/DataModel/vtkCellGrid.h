@@ -58,7 +58,7 @@ public:
    * Return class name of data type.
    * THIS METHOD IS THREAD SAFE
    */
-  int GetDataObjectType() override { return VTK_CELL_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_CELL_GRID; }
 
   /**
    * Return the actual size of the data in kibibytes (1024 bytes). This number
@@ -192,6 +192,8 @@ public:
   }
 
   vtkCellMetadata* AddCellMetadata(vtkCellMetadata* cellType);
+
+  vtkCellMetadata* AddCellMetadata(vtkStringToken cellTypeName);
   ///@}
 
   ///@{
@@ -280,32 +282,8 @@ public:
     this->CellTypes(cellTypes);
     return cellTypes;
   }
-  std::vector<vtkStringToken> CellTypeArray() const
-  {
-#if defined(_MSC_VER) && _MSC_VER >= 1930 && _MSC_VER < 1940 /*17.4+*/
-    // MSVC 2022 bombs when an exported method uses thread_local in its implementation.
-    // See https://github.com/pytorch/pytorch/issues/87957 for more. We omit the
-    // thread_local here, which makes this method non-threadsafe on Windows, which
-    // should be OK in most cases.
-    static std::vector<vtkStringToken> cellTypes;
-#else
-    static thread_local std::vector<vtkStringToken> cellTypes;
-#endif
-    cellTypes.clear();
-    this->CellTypes(cellTypes);
-    return cellTypes;
-  }
-  std::vector<std::string> GetCellTypes() const
-  {
-    auto cta = this->CellTypeArray();
-    std::vector<std::string> result;
-    result.reserve(cta.size());
-    for (const auto& cellTypeToken : cta)
-    {
-      result.push_back(cellTypeToken.Data());
-    }
-    return result;
-  }
+  std::vector<vtkStringToken> CellTypeArray() const;
+  std::vector<std::string> GetCellTypes() const;
   ///@}
 
   ///@{
@@ -360,6 +338,13 @@ public:
   /// Return the cache of cell-attribute range data.
   /// Responders to vtkCellGridRangeQuery are expected to update this.
   vtkCellGridRangeQuery::CacheMap& GetRangeCache() const { return this->RangeCache; }
+
+  /// Clear the cache of cell-attribute range data.
+  ///
+  /// If \a attributeName is empty, the entire cache is cleared.
+  /// Otherwise, attributes with the given name are cleared from the cache.
+  /// This method exists for python scripts.
+  void ClearRangeCache(const std::string& attributeName = std::string());
 
   /// Return the set of cell attribute IDs.
   ///

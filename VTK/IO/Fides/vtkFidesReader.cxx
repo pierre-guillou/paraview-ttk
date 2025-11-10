@@ -23,7 +23,7 @@
 
 #include <fides/DataSetReader.h>
 
-#include <vtkm/filter/clean_grid/CleanGrid.h>
+#include <viskores/filter/clean_grid/CleanGrid.h>
 
 #include <numeric>
 #include <utility>
@@ -37,7 +37,6 @@ struct vtkFidesReader::vtkFidesReaderImpl
   std::unique_ptr<fides::io::DataSetReader> Reader;
   std::unordered_map<std::string, std::string> Paths;
   bool HasParsedDataModel{ false };
-  bool AllDataSourcesSet{ false };
   bool UsePresetModel{ false };
   bool SkipNextPrepareCall{ false };
   int NumberOfDataSources{ 0 };
@@ -201,12 +200,11 @@ void vtkFidesReader::ParseDataModel()
   }
   catch (std::exception& e)
   {
-    (void)e;
     // In some cases it's expected that reading will fail (e.g., not all properties have been set
     // yet), so we don't always want to output the exception. We'll just put it in vtkDebugMacro,
     // so we can just turn it on when we're experiencing some issue.
-    vtkDebugMacro(<< "Exception encountered when trying to set up Fides DataSetReader: "
-                  << e.what());
+    vtkWarningMacro(<< "Exception encountered when trying to set up Fides DataSetReader: "
+                    << e.what());
     this->Impl->HasParsedDataModel = false;
     return;
   }
@@ -224,11 +222,6 @@ void vtkFidesReader::SetDataSourcePath(const std::string& name, const std::strin
   vtkDebugMacro(<< "source " << name << "'s path is " << path);
   this->Impl->Paths[name] = path;
   this->Modified();
-  if (this->Impl->Paths.size() == static_cast<size_t>(this->Impl->NumberOfDataSources))
-  {
-    vtkDebugMacro(<< "All data sources have now been set");
-    this->Impl->AllDataSourcesSet = true;
-  }
 }
 
 void vtkFidesReader::SetDataSourceEngine(const std::string& name, const std::string& engine)
@@ -253,7 +246,6 @@ void vtkFidesReader::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "Next step status: " << this->NextStepStatus << "\n";
   os << indent << "Use Preset model: " << this->Impl->UsePresetModel << "\n";
   os << indent << "Has parsed data model: " << this->Impl->HasParsedDataModel << "\n";
-  os << indent << "All data sources set: " << this->Impl->AllDataSourcesSet << "\n";
   os << indent << "Number of data sources: " << this->Impl->NumberOfDataSources << "\n";
   os << indent << "Create shared points: " << this->CreateSharedPoints << "\n";
 }
@@ -341,12 +333,6 @@ int vtkFidesReader::RequestInformation(
 
   // reset the number of data sources
   this->Impl->SetNumberOfDataSources();
-  if (!this->Impl->Paths.empty() &&
-    this->Impl->Paths.size() == static_cast<size_t>(this->Impl->NumberOfDataSources))
-  {
-    vtkDebugMacro(<< "All data sources have now been set");
-    this->Impl->AllDataSourcesSet = true;
-  }
 
   // for generated data model, we have to set the paths for sources
   if (this->Impl->UsePresetModel)
@@ -375,7 +361,7 @@ int vtkFidesReader::RequestInformation(
     }
   }
 
-  if (this->Impl->NumberOfDataSources == 0 || this->Impl->Paths.empty())
+  if (this->Impl->NumberOfDataSources == 0)
   {
     // no reason to keep going
     // this can happen when using a JSON file instead of a BP file
@@ -410,11 +396,16 @@ int vtkFidesReader::RequestInformation(
     {
       metaData = this->Impl->Reader->ReadMetaData(this->Impl->Paths, groupName);
     }
-    catch (...)
+    catch (std::exception& e)
     {
       // it's possible that we were able to set Fides up, but reading metadata
       // failed, indicating that not all properties have been set before this
-      // RequestInformation call.
+      // RequestInformation call. This is not necessarily an error, but may
+      // indicate a problem with the JSON that will cause errors when reading
+      // the data.
+      vtkWarningMacro(<< "Exception encountered when trying to set up Fides DataSetReader: "
+                      << e.what());
+      this->Impl->HasParsedDataModel = false;
       return 1;
     }
     vtkDebugMacro(<< "MetaData has been read by Fides " << (groupName.empty() ? "for group " : "")
@@ -433,17 +424,17 @@ int vtkFidesReader::RequestInformation(
         fides::keys::FIELDS());
       for (auto& field : fields.Data)
       {
-        if (field.Association == vtkm::cont::Field::Association::Points)
+        if (field.Association == viskores::cont::Field::Association::Points)
         {
           groupMetaData.PointDataArrays.insert(field.Name);
           this->PointDataArraySelection->AddArray(field.Name.c_str());
         }
-        else if (field.Association == vtkm::cont::Field::Association::Cells)
+        else if (field.Association == viskores::cont::Field::Association::Cells)
         {
           groupMetaData.CellDataArrays.insert(field.Name);
           this->CellDataArraySelection->AddArray(field.Name.c_str());
         }
-        else if (field.Association == vtkm::cont::Field::Association::WholeDataSet)
+        else if (field.Association == viskores::cont::Field::Association::WholeDataSet)
         {
           groupMetaData.FieldDataArrays.insert(field.Name);
           this->FieldDataArraySelection->AddArray(field.Name.c_str());
@@ -545,29 +536,30 @@ fides::metadata::Vector<size_t> DetermineBlocksToRead(int nBlocks, int nPieces, 
   return blocksToRead;
 }
 
-vtkDataSet* ConvertDataSet(const vtkm::cont::DataSet& ds)
+vtkDataSet* ConvertDataSet(const viskores::cont::DataSet& ds)
 {
   vtkNew<vtkUnstructuredGrid> dstmp;
   const auto& cs = ds.GetCellSet();
-  if (cs.IsType<vtkm::cont::CellSetSingleType<>>() || cs.IsType<vtkm::cont::CellSetExplicit<>>())
+  if (cs.IsType<viskores::cont::CellSetSingleType<>>() ||
+    cs.IsType<viskores::cont::CellSetExplicit<>>())
   {
     vtkUnstructuredGrid* ug = vtkUnstructuredGrid::New();
     fromvtkm::Convert(ds, ug, dstmp);
     return ug;
   }
-  else if (cs.IsType<vtkm::cont::CellSetStructured<2>>() ||
-    cs.IsType<vtkm::cont::CellSetStructured<3>>())
+  else if (cs.IsType<viskores::cont::CellSetStructured<2>>() ||
+    cs.IsType<viskores::cont::CellSetStructured<3>>())
   {
     const auto& coords = ds.GetCoordinateSystem();
     auto array = coords.GetData();
-    if (array.IsType<vtkm::cont::ArrayHandleUniformPointCoordinates>())
+    if (array.IsType<viskores::cont::ArrayHandleUniformPointCoordinates>())
     {
       vtkImageData* image = vtkImageData::New();
       fromvtkm::Convert(ds, image, dstmp);
       return image;
     }
   }
-  vtkm::filter::clean_grid::CleanGrid filter;
+  viskores::filter::clean_grid::CleanGrid filter;
   filter.SetCompactPointFields(false);
   auto result = filter.Execute(ds);
   return ConvertDataSet(result);
@@ -620,16 +612,11 @@ double vtkFidesReader::GetTimeOfCurrentStep()
   if (this->Impl->NumberOfDataSources == 0)
   {
     this->Impl->SetNumberOfDataSources();
-    if (this->Impl->Paths.size() == static_cast<size_t>(this->Impl->NumberOfDataSources))
-    {
-      vtkDebugMacro(<< "All data sources have now been set");
-      this->Impl->AllDataSourcesSet = true;
-    }
   }
 
-  if (!this->Impl->HasParsedDataModel || !this->Impl->AllDataSourcesSet)
+  if (!this->Impl->HasParsedDataModel)
   {
-    vtkErrorMacro(<< "data model has not been parsed or all data sources have not been set");
+    vtkErrorMacro(<< "data model has not been parsed");
     return 0.0;
   }
 
@@ -646,10 +633,9 @@ double vtkFidesReader::GetTimeOfCurrentStep()
 int vtkFidesReader::RequestData(
   vtkInformation*, vtkInformationVector**, vtkInformationVector* outputVector)
 {
-  if (!this->Impl->HasParsedDataModel || !this->Impl->AllDataSourcesSet)
+  if (!this->Impl->HasParsedDataModel)
   {
-    vtkErrorMacro("RequestData() DataModel must be parsed and all data sources "
-                  "must be set before RequestData()");
+    vtkErrorMacro("RequestData() DataModel must be parsed before RequestData()");
     return 0;
   }
 
@@ -674,7 +660,7 @@ int vtkFidesReader::RequestData(
   if (!this->StreamSteps && outInfo->Has(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP()))
   {
     auto step = outInfo->Get(vtkStreamingDemandDrivenPipeline::UPDATE_TIME_STEP());
-    int index = -1;
+    int index = 0;
     if (outInfo->Has(vtkStreamingDemandDrivenPipeline::TIME_STEPS()))
     {
       auto nSteps = outInfo->Length(vtkStreamingDemandDrivenPipeline::TIME_STEPS());
@@ -691,11 +677,6 @@ int vtkFidesReader::RequestData(
           index = i;
         }
       }
-    }
-    if (index == -1)
-    {
-      vtkErrorMacro(<< "Couldn't find index of time value " << step);
-      index = static_cast<int>(0);
     }
     vtkDebugMacro(<< "RequestData() Not streaming and we have update time step request for step "
                   << step << " with index " << index);
@@ -733,7 +714,7 @@ int vtkFidesReader::RequestData(
       if (this->PointDataArraySelection->ArrayIsEnabled(aname.c_str()))
       {
         // if this array was enabled on the global point data array selection.
-        arraySelection.Data.emplace_back(aname, vtkm::cont::Field::Association::Points);
+        arraySelection.Data.emplace_back(aname, viskores::cont::Field::Association::Points);
       }
     }
     for (const auto& aname : groupMetaData.CellDataArrays)
@@ -741,7 +722,7 @@ int vtkFidesReader::RequestData(
       if (this->CellDataArraySelection->ArrayIsEnabled(aname.c_str()))
       {
         // if this array was enabled on the global cell data array selection.
-        arraySelection.Data.emplace_back(aname, vtkm::cont::Field::Association::Cells);
+        arraySelection.Data.emplace_back(aname, viskores::cont::Field::Association::Cells);
       }
     }
     for (const auto& aname : groupMetaData.FieldDataArrays)
@@ -749,12 +730,12 @@ int vtkFidesReader::RequestData(
       if (this->FieldDataArraySelection->ArrayIsEnabled(aname.c_str()))
       {
         // if this array was enabled on the global field data array selection.
-        arraySelection.Data.emplace_back(aname, vtkm::cont::Field::Association::WholeDataSet);
+        arraySelection.Data.emplace_back(aname, viskores::cont::Field::Association::WholeDataSet);
       }
     }
     selections.Set(fides::keys::FIELDS(), arraySelection);
 
-    vtkm::cont::PartitionedDataSet datasets;
+    viskores::cont::PartitionedDataSet datasets;
     try
     {
       vtkDebugMacro(<< "RequestData() calling ReadDataSet");
@@ -769,7 +750,7 @@ int vtkFidesReader::RequestData(
       vtkErrorMacro(<< e.what());
       return 0;
     }
-    vtkm::Id nParts = datasets.GetNumberOfPartitions();
+    viskores::Id nParts = datasets.GetNumberOfPartitions();
     output->SetNumberOfPartitions(pdsIdx, nParts);
     std::string datasetName;
     {
@@ -778,7 +759,7 @@ int vtkFidesReader::RequestData(
     }
     output->GetMetaData(pdsIdx)->Set(vtkCompositeDataSet::NAME(), datasetName.c_str());
 
-    for (vtkm::Id i = 0; i < nParts; i++)
+    for (viskores::Id i = 0; i < nParts; i++)
     {
       auto& ds = datasets.GetPartition(i);
       if (this->ConvertToVTK)

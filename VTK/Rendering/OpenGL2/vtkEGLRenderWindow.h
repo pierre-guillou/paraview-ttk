@@ -39,7 +39,9 @@ public:
    */
   void Frame() override;
 
-  // override as some EGL systems cannot show the window
+  /**
+   * Overridden because vtkEGLRenderWindow window cannot be shown onscreen, except on android
+   */
   void SetShowWindow(bool) override;
 
   /**
@@ -200,6 +202,8 @@ public:
    */
   bool IsPointSpriteBugPresent() override;
 
+  const char* ReportCapabilities() override;
+
 protected:
   vtkEGLRenderWindow();
   ~vtkEGLRenderWindow() override;
@@ -224,8 +228,6 @@ protected:
 private:
   vtkEGLRenderWindow(const vtkEGLRenderWindow&) = delete;
   void operator=(const vtkEGLRenderWindow&) = delete;
-
-  bool DeviceExtensionsPresent;
 };
 
 VTK_ABI_NAMESPACE_END

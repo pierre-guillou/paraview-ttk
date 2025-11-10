@@ -27,6 +27,8 @@
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkUnstructuredGridAlgorithm.h"
 
+#include <vector> // For std::vector
+
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSetAttributes;
 class vtkDataSetCollection;
@@ -131,9 +133,9 @@ private:
 
   // Get all input data sets that have points, cells, or both.
   // Caller must delete the returned vtkDataSetCollection.
-  vtkDataSetCollection* GetNonEmptyInputs(vtkInformationVector** inputVector);
+  std::vector<vtkSmartPointer<vtkDataSet>> GetNonEmptyInputs(vtkInformationVector** inputVector);
 
-  void AppendArrays(int attributesType, vtkInformationVector** inputVector, vtkIdType* globalIds,
+  void AppendArrays(int attributesType, vtkInformationVector** inputVector,
     vtkUnstructuredGrid* output, vtkIdType totalNumberOfElements);
 };
 

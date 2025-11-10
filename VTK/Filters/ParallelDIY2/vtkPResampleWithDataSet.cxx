@@ -1008,8 +1008,8 @@ void ReceiveResampledPoints(
   int numBlocks = static_cast<int>(block->InputBlocks.size());
   std::vector<std::map<std::string, int>> arrayReceiveCounts(numBlocks);
 
-  diy::Master::IncomingQueues& in = *cp.incoming();
-  for (diy::Master::IncomingQueues::iterator i = in.begin(); i != in.end(); ++i)
+  auto& in = *cp.incoming();
+  for (diy::Master::Proxy::IncomingQueues::iterator i = in.begin(); i != in.end(); ++i)
   {
     if (!i->second)
     {
@@ -1165,14 +1165,12 @@ int vtkPResampleWithDataSet::RequestData(
   block.PointsLookup = nullptr;
   master.exchange();
   // perform resampling on local and remote points
-  master.foreach ([&](DiyBlock* block_, const diy::Master::ProxyWithLink& cp) {
-    PerformResampling(block_, cp, this->Prober.GetPointer());
-  });
+  master.foreach ([&](DiyBlock* block_, const diy::Master::ProxyWithLink& cp)
+    { PerformResampling(block_, cp, this->Prober.GetPointer()); });
   master.exchange();
   // receive resampled points and set the values in output
-  master.foreach ([&](DiyBlock* block_, const diy::Master::ProxyWithLink& cp) {
-    ReceiveResampledPoints(block_, cp, this->Prober->GetValidPointMaskArrayName());
-  });
+  master.foreach ([&](DiyBlock* block_, const diy::Master::ProxyWithLink& cp)
+    { ReceiveResampledPoints(block_, cp, this->Prober->GetValidPointMaskArrayName()); });
 
   if (this->MarkBlankPointsAndCells)
   {

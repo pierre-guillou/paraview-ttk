@@ -3,88 +3,39 @@
 #include "vtkHyperTreeGridGhostCellsGenerator.h"
 #include "vtkHyperTreeGridGhostCellsGeneratorInternals.h"
 
-#include "vtkBitArray.h"
 #include "vtkCellData.h"
 #include "vtkCommunicator.h"
-#include "vtkHyperTree.h"
 #include "vtkHyperTreeGrid.h"
 #include "vtkHyperTreeGridNonOrientedCursor.h"
 #include "vtkInformation.h"
+#include "vtkInformationVector.h"
 #include "vtkMultiProcessController.h"
+#include "vtkObjectFactory.h"
+#include "vtkPartitionedDataSet.h"
+#include "vtkSetGet.h"
+#include "vtkStreamingDemandDrivenPipeline.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkHyperTreeGridGhostCellsGenerator);
-
-namespace
-{
-
-/**
- * Recursively copy the input tree (cell data and mask information)
- * pointed by the cursor to the output.
- * Fills memory gaps if present.
- */
-void CopyInputTreeToOutput(vtkHyperTreeGridNonOrientedCursor* inCursor,
-  vtkHyperTreeGridNonOrientedCursor* outCursor, vtkCellData* inCellData, vtkCellData* outCellData,
-  vtkBitArray* inMask, vtkBitArray* outMask)
-{
-  vtkIdType outIdx = outCursor->GetGlobalNodeIndex();
-  vtkIdType inIdx = inCursor->GetGlobalNodeIndex();
-  if (inMask)
-  {
-    outMask->InsertTuple1(outIdx, inMask->GetValue(inIdx));
-  }
-  outCellData->InsertTuple(outIdx, inIdx, inCellData);
-  if (!inCursor->IsMasked())
-  {
-    if (!inCursor->IsLeaf())
-    {
-      outCursor->SubdivideLeaf();
-      for (int ichild = 0; ichild < inCursor->GetNumberOfChildren(); ++ichild)
-      {
-        outCursor->ToChild(ichild);
-        inCursor->ToChild(ichild);
-        ::CopyInputTreeToOutput(inCursor, outCursor, inCellData, outCellData, inMask, outMask);
-        outCursor->ToParent();
-        inCursor->ToParent();
-      }
-    }
-  }
-}
-
-/**
- * ProcessTree subroutine copying the input tree to the output (cell and mask data information)
- * We do it "by hand" to fill gaps if they exist.
- *
- * Return the number of vertices in output trree
- */
-vtkIdType CopyInputHyperTreeToOutput(
-  vtkHyperTreeGrid* input, vtkHyperTreeGrid* output, vtkBitArray* outputMask)
-{
-  vtkBitArray* inputMask = input->HasMask() ? input->GetMask() : nullptr;
-
-  vtkNew<vtkHyperTreeGridNonOrientedCursor> outCursor, inCursor;
-  vtkHyperTreeGrid::vtkHyperTreeGridIterator inputIterator;
-  vtkIdType inTreeIndex = 0, totalVertices = 0;
-  input->InitializeTreeIterator(inputIterator);
-
-  while (inputIterator.GetNextTree(inTreeIndex))
-  {
-    input->InitializeNonOrientedCursor(inCursor, inTreeIndex);
-    output->InitializeNonOrientedCursor(outCursor, inTreeIndex, true);
-    outCursor->SetGlobalIndexStart(totalVertices);
-    ::CopyInputTreeToOutput(
-      inCursor, outCursor, input->GetCellData(), output->GetCellData(), inputMask, outputMask);
-    totalVertices += outCursor->GetTree()->GetNumberOfVertices();
-  }
-
-  return totalVertices;
-}
-} // Anonymous namespace
+vtkCxxSetObjectMacro(vtkHyperTreeGridGhostCellsGenerator, Controller, vtkMultiProcessController);
 
 //------------------------------------------------------------------------------
 vtkHyperTreeGridGhostCellsGenerator::vtkHyperTreeGridGhostCellsGenerator()
 {
   this->AppropriateOutput = true;
+  this->SetController(vtkMultiProcessController::GetGlobalController());
+}
+
+//------------------------------------------------------------------------------
+vtkHyperTreeGridGhostCellsGenerator::~vtkHyperTreeGridGhostCellsGenerator()
+{
+  this->SetController(nullptr);
+}
+
+//------------------------------------------------------------------------------
+vtkMultiProcessController* vtkHyperTreeGridGhostCellsGenerator::GetController()
+{
+  return this->Controller.Get();
 }
 
 //------------------------------------------------------------------------------
@@ -94,9 +45,108 @@ void vtkHyperTreeGridGhostCellsGenerator::PrintSelf(ostream& os, vtkIndent inden
 }
 
 //------------------------------------------------------------------------------
-int vtkHyperTreeGridGhostCellsGenerator::FillOutputPortInformation(int, vtkInformation* info)
+int vtkHyperTreeGridGhostCellsGenerator::FillInputPortInformation(int, vtkInformation* info)
 {
-  info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkHyperTreeGrid");
+  info->Set(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkHyperTreeGrid");
+  info->Append(vtkAlgorithm::INPUT_REQUIRED_DATA_TYPE(), "vtkPartitionedDataSet");
+  return 1;
+}
+
+//------------------------------------------------------------------------------
+int vtkHyperTreeGridGhostCellsGenerator::RequestData(vtkInformation* vtkNotUsed(request),
+  vtkInformationVector** inputVector, vtkInformationVector* outputVector)
+{
+  this->UpdateProgress(0.);
+
+  vtkInformation* info = outputVector->GetInformationObject(0);
+  int currentPiece = info->Get(vtkStreamingDemandDrivenPipeline::UPDATE_PIECE_NUMBER());
+
+  // Make sure input is either a HTG or a PartitionedDataSet that contains a HTG piece.
+  vtkHyperTreeGrid* inputHTG = vtkHyperTreeGrid::GetData(inputVector[0], 0);
+  vtkPartitionedDataSet* inputPDS = vtkPartitionedDataSet::GetData(inputVector[0], 0);
+
+  if (!inputPDS && !inputHTG)
+  {
+    vtkErrorMacro("Input data is neither HTG or PartitionedDataSet. Cannot proceed with ghost cell "
+                  "generation.");
+    return 0;
+  }
+
+  vtkHyperTreeGrid* outputHTG = vtkHyperTreeGrid::GetData(outputVector, 0);
+  vtkPartitionedDataSet* outputPDS = vtkPartitionedDataSet::GetData(outputVector, 0);
+  if (outputPDS)
+  {
+    outputPDS->CopyStructure(inputPDS);
+  }
+
+  // When the filter receives a PartitionedDataSet, the data for the current rank can be in either
+  // partition, depending on the data generation method. We survey the partitions to find the one
+  // that contains the actual data. There should be exactly one non-null HTG partition in each
+  // piece. If we find multiple, the HTG structure is not capable of merging multiple grids, so we
+  // simply use the last one.
+  if (inputPDS && outputPDS)
+  {
+    for (unsigned int partId = 0; partId < inputPDS->GetNumberOfPartitions(); partId++)
+    {
+      auto partHTG = vtkHyperTreeGrid::SafeDownCast(inputPDS->GetPartitionAsDataObject(partId));
+      if (partHTG)
+      {
+        if (inputHTG)
+        {
+          vtkWarningMacro("Found more than one non-null HTG in the partitioned dataset for piece "
+            << currentPiece << ". Generating ghost data only for partition " << partId);
+        }
+        inputHTG = partHTG;
+        vtkNew<vtkHyperTreeGrid> newOutputHTG;
+        outputPDS->SetPartition(partId, newOutputHTG);
+        outputHTG = newOutputHTG; // Not dangling, outputPDS maintains a reference.
+      }
+    }
+  }
+
+  if (!outputHTG && !outputPDS)
+  {
+    vtkErrorMacro("No output available. Cannot proceed with hyper tree grid algorithm.");
+    return 0;
+  }
+
+  if (!inputHTG)
+  {
+    vtkWarningMacro("Incorrect HTG for piece " << currentPiece);
+  }
+
+  // Make sure every HTG piece has a correct extent and can be processed.
+  // This way, we make sure the `ProcessTrees` function will either be executed by all ranks
+  // or by none, and avoids getting stuck on barriers.
+  int correctExtent = inputHTG && inputHTG->GetExtent()[0] <= inputHTG->GetExtent()[1] &&
+    inputHTG->GetExtent()[2] <= inputHTG->GetExtent()[3] &&
+    inputHTG->GetExtent()[4] <= inputHTG->GetExtent()[5];
+
+  if (!correctExtent)
+  {
+    vtkWarningMacro("Piece " << currentPiece << " does not have a valid extend. Cannot process.");
+  }
+
+  int allCorrect = 1; // Reduction operation cannot be done on bools
+  this->Controller->AllReduce(&correctExtent, &allCorrect, 1, vtkCommunicator::LOGICAL_AND_OP);
+
+  if (!allCorrect)
+  {
+    vtkWarningMacro("Every individual distributed process does not have a valid HTG extent. No "
+                    "ghost cells will be generated.");
+    if (outputHTG)
+    {
+      outputHTG->ShallowCopy(inputHTG);
+    }
+    return 1;
+  }
+  else if (!this->ProcessTrees(inputHTG, outputHTG))
+  {
+    return 0;
+  }
+
+  // Update progress and return
+  this->UpdateProgress(1.);
   return 1;
 }
 
@@ -104,14 +154,20 @@ int vtkHyperTreeGridGhostCellsGenerator::FillOutputPortInformation(int, vtkInfor
 int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
   vtkHyperTreeGrid* input, vtkDataObject* outputDO)
 {
-  vtkMultiProcessController* controller = vtkMultiProcessController::GetGlobalController();
-  int numberOfProcesses = controller->GetNumberOfProcesses();
+  int numberOfProcesses = this->Controller->GetNumberOfProcesses();
 
   vtkHyperTreeGrid* output = vtkHyperTreeGrid::SafeDownCast(outputDO);
   if (!output)
   {
     vtkErrorMacro("Incorrect type of output: " << outputDO->GetClassName());
     return 0;
+  }
+
+  if (input->HasAnyGhostCells())
+  {
+    vtkWarningMacro("Ghost cells already computed, we reuse them.");
+    output->ShallowCopy(input);
+    return 1;
   }
 
   vtkDebugMacro(<< "Start processing trees: copy input structure");
@@ -128,13 +184,9 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     output->GetCellData()->CopyStructure(input->GetCellData());
   }
 
-  vtkSmartPointer<vtkBitArray> outputMask =
-    input->HasMask() ? vtkSmartPointer<vtkBitArray>::Take(vtkBitArray::New()) : nullptr;
-  vtkIdType totalVertices = ::CopyInputHyperTreeToOutput(input, output, outputMask);
+  vtkHyperTreeGridGhostCellsGeneratorInternals subroutines{ this, this->Controller, input, output };
+  subroutines.InitializeCellData();
   this->UpdateProgress(0.1);
-
-  vtkHyperTreeGridGhostCellsGeneratorInternals subroutines{ this, controller, input, output,
-    outputMask, totalVertices };
 
   // Create a vector containing the processId of each consecutive tree in the HTG.
   vtkDebugMacro("Broadcast tree locations");
@@ -151,7 +203,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     vtkErrorMacro("Failure during size exchange, aborting.");
     return 0;
   }
-  controller->Barrier();
+  this->Controller->Barrier();
   this->UpdateProgress(0.4);
 
   vtkDebugMacro("Exchange tree decomposition and masks with neighbors");
@@ -160,7 +212,7 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
     vtkErrorMacro("Failure during mask exchange, aborting.");
     return 0;
   }
-  controller->Barrier();
+  this->Controller->Barrier();
   this->UpdateProgress(0.6);
 
   vtkDebugMacro("Exchange cell data with neighbors");
@@ -170,12 +222,11 @@ int vtkHyperTreeGridGhostCellsGenerator::ProcessTrees(
 
     return 0;
   }
-  controller->Barrier();
+  this->Controller->Barrier();
   this->UpdateProgress(0.8);
 
   vtkDebugMacro("Create ghost array and set output mask");
-  subroutines.AppendGhostArray(totalVertices);
-  output->SetMask(outputMask);
+  subroutines.FinalizeCellData();
 
   this->UpdateProgress(1.);
   return 1;

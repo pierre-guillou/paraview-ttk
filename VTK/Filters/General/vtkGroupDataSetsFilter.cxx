@@ -19,10 +19,10 @@
 #include <cmath>
 #include <string>
 #include <vector>
-#include <vtk_fmt.h>
 
+#include <vtk_fmt.h>
 // clang-format off
-#include VTK_FMT(fmt/core.h)
+#include VTK_FMT(fmt/format.h)
 // clang-format on
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -199,6 +199,7 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
       }
       const auto idx = next++;
       vtkSmartPointer<vtkDataObject> inputDO;
+      auto inputMB = vtkMultiBlockDataSet::SafeDownCast(input.second);
       if (vtkPartitionedDataSetCollection::SafeDownCast(input.second))
       {
         vtkNew<vtkConvertToMultiBlockDataSet> converter;
@@ -211,6 +212,19 @@ int vtkGroupDataSetsFilter::RequestData(vtkInformation* vtkNotUsed(request),
         vtkNew<vtkMultiPieceDataSet> data;
         data->ShallowCopy(inputPD);
         inputDO = data;
+      }
+      else if (inputMB && this->CombineFirstLayerMultiblock)
+      {
+        for (unsigned int i = 0; i < inputMB->GetNumberOfBlocks(); i++)
+        {
+          output->SetBlock(idx + i, inputMB->GetBlock(i));
+          const char* blockName = inputMB->GetMetaData(i)->Get(vtkCompositeDataSet::NAME());
+          std::string safeName = blockName ? std::string(blockName) : "Block" + std::to_string(i);
+          output->GetMetaData(idx + i)->Set(
+            vtkCompositeDataSet::NAME(), input.first + "_" + safeName);
+        }
+        next += inputMB->GetNumberOfBlocks() - 1;
+        continue;
       }
       else
       {

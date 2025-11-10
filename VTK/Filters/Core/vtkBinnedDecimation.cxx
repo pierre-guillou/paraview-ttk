@@ -477,7 +477,7 @@ struct MapOutput
   // set of contributing point ids, which becomes the single point id
   // associated with the bin. Since there are possibly multiple, simultaneous
   // writes to a bin, an atomic is used to prevent data races etc.
-  inline void WritePtId(std::atomic<TIds>& binId, vtkIdType ptId)
+  void WritePtId(std::atomic<TIds>& binId, vtkIdType ptId)
   {
     // Because of zero initialization, a negative ptId is written. The end result is
     // that we select the smallest point id from the set of points within a bin.
@@ -1576,7 +1576,7 @@ void vtkBinnedDecimation::ConfigureBinning(vtkPolyData* input, vtkIdType numPts)
     this->NumberOfDivisions[0] = static_cast<int>(x);
     this->NumberOfDivisions[1] = static_cast<int>(y);
     this->NumberOfDivisions[2] = static_cast<int>(z);
-    vtkLog(INFO,
+    vtkLog(TRACE,
       "Auto adjusted to Divisions(" << this->NumberOfDivisions[0] << ","
                                     << this->NumberOfDivisions[1] << ","
                                     << this->NumberOfDivisions[2] << ")");
@@ -1614,7 +1614,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   vtkIdType numPts;
   if (!input || (numPts = input->GetNumberOfPoints()) < 1)
   {
-    vtkLog(INFO, "Empty input (no points).");
+    vtkLog(TRACE, "Empty input (no points).");
     return 1;
   }
 
@@ -1624,7 +1624,7 @@ int vtkBinnedDecimation::RequestData(vtkInformation* vtkNotUsed(request),
   if (inTris == nullptr || (numTris = inTris->GetNumberOfCells()) < 1 ||
     (triSize = inTris->GetNumberOfConnectivityEntries()) != numTris * 4)
   {
-    vtkLog(INFO, "Empty input, or non-triangles in input.");
+    vtkLog(TRACE, "Empty input, or non-triangles in input.");
     return 1;
   }
 

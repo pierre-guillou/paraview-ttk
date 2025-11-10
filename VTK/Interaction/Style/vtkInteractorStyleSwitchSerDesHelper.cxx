@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkDeserializer.h"
 #include "vtkInteractorStyleSwitch.h"
+#include "vtkRenderWindowInteractor.h"
 #include "vtkSerializer.h"
 
 // clang-format off
@@ -16,7 +17,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkInteractorStyleSwitchSerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkInteractorStyleSwitchSerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 namespace
@@ -37,7 +38,13 @@ static nlohmann::json Serialize_vtkInteractorStyleSwitch(
     state = f(object, serializer);
   }
   state["SuperClassNames"].push_back("vtkInteractorStyleSwitchBase");
-  if (auto currentStyle = object->GetCurrentStyle())
+  // vtkInteractorStyleSwitchBase::GetInteractor is overridden to always return `nullptr`
+  // extract the interactor from it's grandparent class vtkInteractorStyle.
+  if (auto* interactor = object->vtkInteractorStyle::GetInteractor())
+  {
+    state["Interactor"] = serializer->SerializeJSON(interactor);
+  }
+  if (auto* currentStyle = object->GetCurrentStyle())
   {
     vtkTypeUInt8 styleIndex = 0;
     for (const auto& styleName : possibleStyles)
@@ -92,7 +99,8 @@ static void Deserialize_vtkInteractorStyleSwitch(
   }
 }
 
-int RegisterHandlers_vtkInteractorStyleSwitchSerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkInteractorStyleSwitchSerDesHelper(
+  void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

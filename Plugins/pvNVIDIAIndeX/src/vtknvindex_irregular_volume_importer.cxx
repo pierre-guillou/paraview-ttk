@@ -1,4 +1,4 @@
-/* Copyright 2023 NVIDIA Corporation. All rights reserved.
+/* Copyright 2025 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-FileCopyrightText: Copyright 2025 NVIDIA Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <fcntl.h>
@@ -531,7 +531,8 @@ nv::index::IDistributed_data_subset* vtknvindex_irregular_volume_importer::creat
     // * adds a face to the ivol mesh storage
     // * tries to orient faces to have correct CCW vertex ordering
     auto ivol_add_tet_face = [&](mi::Uint32 i0, mi::Uint32 i1, mi::Uint32 i2, Vec3f const& p0,
-                               Vec3f const& p1, Vec3f const& p2) {
+                               Vec3f const& p1, Vec3f const& p2)
+    {
       const Vec3f e1 = (p1 - p0);
       const Vec3f e2 = (p2 - p0);
 

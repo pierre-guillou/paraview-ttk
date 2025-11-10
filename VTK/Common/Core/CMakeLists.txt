@@ -139,7 +139,7 @@ configure_file(vtkTypeListMacros.h.in vtkTypeListMacros.h)
 # And the ArrayDispatch array list header:
 option(VTK_DISPATCH_AOS_ARRAYS "Include array-of-structs vtkDataArray subclasses in dispatcher." ON)
 option(VTK_DISPATCH_SOA_ARRAYS "Include struct-of-arrays vtkDataArray subclasses in dispatcher." OFF)
-option(VTK_DISPATCH_TYPED_ARRAYS "Include vtkTypedDataArray subclasses (e.g. old mapped arrays) in dispatcher." OFF)
+option(VTK_DISPATCH_TYPED_ARRAYS "Include vtkTypedDataArray subclasses (e.g. old mapped arrays) in dispatcher." OFF) # VTK_DEPRECATED_IN_9_5_0
 
 option(VTK_DISPATCH_AFFINE_ARRAYS "Include implicit vtkDataArray subclasses based on an affine function backend in dispatcher" OFF)
 option(VTK_DISPATCH_CONSTANT_ARRAYS "Include implicit vtkDataArray subclasses based on a constant backend in dispatcher" OFF)
@@ -151,7 +151,7 @@ option(VTK_WARN_ON_DISPATCH_FAILURE "If enabled, vtkArrayDispatch will print a w
 mark_as_advanced(
   VTK_DISPATCH_AOS_ARRAYS
   VTK_DISPATCH_SOA_ARRAYS
-  VTK_DISPATCH_TYPED_ARRAYS
+  VTK_DISPATCH_TYPED_ARRAYS # VTK_DEPRECATED_IN_9_5_0
 
   VTK_DISPATCH_AFFINE_ARRAYS
   VTK_DISPATCH_CONSTANT_ARRAYS
@@ -290,6 +290,7 @@ set(classes
   vtkInformationVariantVectorKey
   vtkInformationVector
   vtkIntArray
+  vtkInvoker
   vtkLargeInteger
   vtkLogger
   vtkLongArray
@@ -329,6 +330,7 @@ set(classes
   vtkStringToken
   vtkTimePointUtility
   vtkTimeStamp
+  vtkThreadedCallbackQueue
   vtkUnsignedCharArray
   vtkUnsignedIntArray
   vtkUnsignedLongArray
@@ -354,6 +356,7 @@ set(template_classes
   vtkMappedDataArray
   vtkSOADataArrayTemplate
   vtkSparseArray
+  vtkThreadedTaskQueue
   vtkTypedArray
   vtkTypedDataArray)
 
@@ -366,10 +369,17 @@ set(nowrap_template_classes
 
 # Hand written (de)serialization routines
 set(serialization_helper_sources)
+set(serialization_helper_headers)
 if (VTK_WRAP_SERIALIZATION)
   list(APPEND serialization_helper_sources
     vtkDataArraySerDesHelper.cxx
-    vtkStringArraySerDesHelper.cxx)
+    vtkInformationSerDesHelper.cxx
+    vtkScalarsToColorsSerDesHelper.cxx
+    vtkStringArraySerDesHelper.cxx
+    vtkVariantArraySerDesHelper.cxx
+    vtkVariantSerDesHelper.cxx)
+  list(APPEND serialization_helper_headers
+    vtkVariantSerDesHelper.h)
 endif ()
 
 set(sources
@@ -432,6 +442,7 @@ set(headers
   vtkSystemIncludes.h
   vtkTemplateAliasMacro.h
   vtkTestDataArray.h
+  vtkThreadedTaskQueue.h
   vtkType.h
   vtkTypeTraits.h
   vtkTypedDataArrayIterator.h
@@ -445,6 +456,7 @@ set(headers
   vtkWindows.h
   vtkWrappingHints.h
   ${vtk_smp_headers}
+  ${serialization_helper_headers}
   "${CMAKE_CURRENT_BINARY_DIR}/vtkABINamespace.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkArrayDispatchArrayList.h"
   "${CMAKE_CURRENT_BINARY_DIR}/vtkMathConfigure.h"
@@ -456,6 +468,7 @@ set(private_headers
 
 set(templates
   vtkArrayIteratorTemplateImplicit.txx
+  vtkThreadedCallbackQueue.txx
   ${vtk_smp_templates})
 
 set(private_templates
@@ -503,6 +516,11 @@ elseif (CMAKE_USE_WIN32_THREADS_INIT)
   set(VTK_USE_WIN32_THREADS 1)
 endif ()
 
+# Honor `VTK_WEBASSEMBLY_THREADS` option.
+if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  set(VTK_USE_PTHREADS ${VTK_WEBASSEMBLY_THREADS})
+endif ()
+
 if(WIN32)
   list(APPEND classes
     vtkWin32OutputWindow
@@ -540,7 +558,7 @@ endforeach ()
 if (VTK_BUILD_VERSION LESS "20000101")
   set(VTK_EPOCH_VERSION "${VTK_BUILD_VERSION}")
 else ()
-  set(VTK_EPOCH_VERSION "20230101")
+  set(VTK_EPOCH_VERSION "20241009")
 endif ()
 
 set(nowrap_headers
@@ -715,4 +733,4 @@ vtk_module_link(VTK::CommonCore
     )
 vtk_module_compile_features(VTK::CommonCore
   PUBLIC
-    cxx_std_11)
+    cxx_std_17)

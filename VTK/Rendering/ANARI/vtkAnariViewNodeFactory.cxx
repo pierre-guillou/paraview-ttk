@@ -5,9 +5,10 @@
 #include "vtkAnariCameraNode.h"
 #include "vtkAnariCompositePolyDataMapperNode.h"
 #include "vtkAnariFollowerNode.h"
+#include "vtkAnariGlyph3DMapperNode.h"
 #include "vtkAnariLightNode.h"
 #include "vtkAnariPolyDataMapperNode.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariVolumeMapperNode.h"
 #include "vtkAnariVolumeNode.h"
 
@@ -17,7 +18,7 @@ VTK_ABI_NAMESPACE_BEGIN
 
 vtkViewNode* ren_maker()
 {
-  vtkAnariRendererNode* vn = vtkAnariRendererNode::New();
+  vtkAnariSceneGraph* vn = vtkAnariSceneGraph::New();
   return vn;
 }
 
@@ -63,6 +64,12 @@ vtkViewNode* cpd_maker()
   return vn;
 }
 
+vtkViewNode* gm_maker()
+{
+  vtkAnariGlyph3DMapperNode* gm = vtkAnariGlyph3DMapperNode::New();
+  return gm;
+}
+
 vtkViewNode* fol_maker()
 {
   vtkAnariFollowerNode* vn = vtkAnariFollowerNode::New();
@@ -84,14 +91,13 @@ vtkAnariViewNodeFactory::vtkAnariViewNodeFactory()
   this->RegisterOverride("vtkPVLight", light_maker);
   this->RegisterOverride("vtkPainterPolyDataMapper", pd_maker);
   this->RegisterOverride("vtkOpenGLPolyDataMapper", pd_maker);
-  // VTK_DEPRECATED_IN_9_3_0: Remove CPDM2 override after vtkCompositePolyDataMapper2 is removed
-  this->RegisterOverride("vtkCompositePolyDataMapper2", cpd_maker);
   this->RegisterOverride("vtkCompositePolyDataMapper", cpd_maker);
   this->RegisterOverride("vtkVolume", vol_maker);
   this->RegisterOverride("vtkPVLODVolume", vol_maker);
   this->RegisterOverride("vtkSmartVolumeMapper", vm_maker);
   this->RegisterOverride("vtkAnariVolumeMapper", vm_maker);
   this->RegisterOverride("vtkMultiBlockVolumeMapper", vm_maker);
+  this->RegisterOverride("vtkGlyph3DMapper", gm_maker);
   this->RegisterOverride("vtkOpenGLGPUVolumeRayCastMapper", vm_maker);
 }
 

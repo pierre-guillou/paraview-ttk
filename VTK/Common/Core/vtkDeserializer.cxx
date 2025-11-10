@@ -24,15 +24,19 @@ public:
   std::unordered_map<std::string, vtkDeserializer::ConstructorType> Constructors;
 };
 
+//------------------------------------------------------------------------------
 vtkStandardNewMacro(vtkDeserializer);
 
+//------------------------------------------------------------------------------
 vtkDeserializer::vtkDeserializer()
   : Internals(new vtkInternals())
 {
 }
 
+//------------------------------------------------------------------------------
 vtkDeserializer::~vtkDeserializer() = default;
 
+//------------------------------------------------------------------------------
 void vtkDeserializer::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -49,6 +53,7 @@ void vtkDeserializer::PrintSelf(ostream& os, vtkIndent indent)
   }
 }
 
+//------------------------------------------------------------------------------
 vtkObjectBase* vtkDeserializer::ConstructObject(
   const std::string& className, const std::vector<std::string>& superClassNames)
 {
@@ -56,8 +61,8 @@ vtkObjectBase* vtkDeserializer::ConstructObject(
   if (const auto constructor = this->GetConstructor(className, superClassNames))
   {
     objectBase = constructor();
-    vtkLogF(
-      TRACE, "Constructing %s %s", className.c_str(), objectBase->GetObjectDescription().c_str());
+    vtkVLogF(this->GetDeserializerLogVerbosity(), "Constructing %s %s", className.c_str(),
+      objectBase->GetObjectDescription().c_str());
   }
   if (objectBase == nullptr)
   {
@@ -71,6 +76,7 @@ vtkObjectBase* vtkDeserializer::ConstructObject(
   return objectBase;
 }
 
+//------------------------------------------------------------------------------
 bool vtkDeserializer::DeserializeJSON(
   const vtkTypeUInt32& identifier, vtkSmartPointer<vtkObjectBase>& objectBase)
 {
@@ -81,32 +87,33 @@ bool vtkDeserializer::DeserializeJSON(
   }
   std::string className;
   std::vector<std::string> superClassNames;
-  {
-    const auto iter = state.find("ClassName");
-    if (iter == state.end())
-    {
-      vtkErrorMacro(<< "Failed to find 'ClassName' in state at id=" << identifier);
-      return false;
-    }
-    else
-    {
-      className = iter->get<std::string>();
-    }
-  }
-  {
-    const auto iter = state.find("SuperClassNames");
-    if (iter == state.end())
-    {
-      vtkErrorMacro(<< "Failed to find 'SuperClassNames' in state at id=" << identifier);
-      return false;
-    }
-    else
-    {
-      superClassNames = iter->get<std::vector<std::string>>();
-    }
-  }
   if (objectBase == nullptr)
   {
+    // Only look for ClassName and SuperClassNames if we are going to construct the object.
+    {
+      const auto iter = state.find("ClassName");
+      if (iter == state.end())
+      {
+        vtkErrorMacro(<< "Failed to find 'ClassName' in state at id=" << identifier);
+        return false;
+      }
+      else
+      {
+        className = iter->get<std::string>();
+      }
+    }
+    {
+      const auto iter = state.find("SuperClassNames");
+      if (iter == state.end())
+      {
+        vtkErrorMacro(<< "Failed to find 'SuperClassNames' in state at id=" << identifier);
+        return false;
+      }
+      else
+      {
+        superClassNames = iter->get<std::vector<std::string>>();
+      }
+    }
     if (auto ptr = this->ConstructObject(className, superClassNames))
     {
       objectBase = vtk::TakeSmartPointer(ptr);
@@ -130,7 +137,8 @@ bool vtkDeserializer::DeserializeJSON(
   auto* objectPtr = objectBase.Get();
   if (this->Context->IsProcessed(identifier))
   {
-    vtkLogF(TRACE, "Avoided deserialization of %s", objectBase->GetObjectDescription().c_str());
+    vtkVLogF(this->GetDeserializerLogVerbosity(), "Avoided deserialization of %s",
+      objectBase->GetObjectDescription().c_str());
     this->Context->AddChild(identifier);
     return true;
   }
@@ -138,7 +146,7 @@ bool vtkDeserializer::DeserializeJSON(
   {
     if (this->Context->IsProcessing(identifier))
     {
-      vtkLogF(TRACE, "Prevented recursive deserialization for %s",
+      vtkVLogF(this->GetDeserializerLogVerbosity(), "Prevented recursive deserialization for %s",
         objectPtr->GetObjectDescription().c_str());
     }
     else
@@ -146,7 +154,7 @@ bool vtkDeserializer::DeserializeJSON(
       try
       {
         vtkMarshalContext::ScopedParentTracker parentTracker(this->Context, identifier);
-        vtkLogScopeF(TRACE, "Deserialize %s at identifier=%u",
+        vtkVLogScopeF(this->GetDeserializerLogVerbosity(), "Deserialize %s at identifier=%u",
           objectPtr->GetObjectDescription().c_str(), identifier);
         f(state, objectPtr, this);
       }
@@ -163,49 +171,58 @@ bool vtkDeserializer::DeserializeJSON(
   return false;
 }
 
+//------------------------------------------------------------------------------
 void vtkDeserializer::RegisterConstructor(const std::string& className, ConstructorType constructor)
 {
   auto& internals = (*this->Internals);
-  vtkDebugMacro(<< "Register constructor for " << className);
+  vtkVLog(this->GetDeserializerLogVerbosity(), << "Register constructor for " << className);
   internals.Constructors[className] = constructor;
 }
 
+//------------------------------------------------------------------------------
 vtkDeserializer::ConstructorType vtkDeserializer::GetConstructor(
   const std::string& className, const std::vector<std::string>& superClassNames)
 {
   const auto& internals = (*this->Internals);
-  std::string name = className;
-  const auto& numSuperClasses = superClassNames.size();
-  std::size_t superClassId = numSuperClasses;
-  do
+  std::vector<std::string> classNamesToTry = { className };
+  // Note that the `superClassNames` is ordered from least derived to most derived.
+  // For example, if the class hierarchy is A->B->C, the `superClassNames` will be ['A','B'] and
+  // className will be 'C'. Since we are trying to construct C, we want to try C first, then B, and
+  // finally A.
+  // So we need to reverse the order of `superClassNames` to get correct order ['C','B','A']. This
+  // is important for classes that use object factory to create the objects.
+  classNamesToTry.insert(classNamesToTry.end(), superClassNames.rbegin(), superClassNames.rend());
+  for (const auto& name : classNamesToTry)
   {
     auto iter = internals.Constructors.find(name);
     if (iter != internals.Constructors.end() && name != "vtkObject" && name != "vtkObjectBase")
     {
       return iter->second;
     }
-    name = superClassNames[--superClassId];
-  } while (superClassId > 0);
+  }
   vtkErrorMacro(<< "There is no constructor registered for type " << className
                 << ". Check stack trace to see how we got here.");
   vtkWarningMacro(<< vtksys::SystemInformation::GetProgramStack(2, 1));
   return nullptr;
 }
 
+//------------------------------------------------------------------------------
 void vtkDeserializer::UnRegisterConstructor(const std::string& className)
 {
   auto& internals = (*this->Internals);
   internals.Constructors.erase(className);
 }
 
+//------------------------------------------------------------------------------
 void vtkDeserializer::RegisterHandler(const std::type_info& type, HandlerType handler)
 {
   auto& internals = (*this->Internals);
-  vtkDebugMacro(<< "Register handler at { .name=" << type.name()
-                << " .hashCode=" << type.hash_code() << " }");
+  vtkVLog(this->GetDeserializerLogVerbosity(),
+    << "Register handler at { .name=" << type.name() << " .hashCode=" << type.hash_code() << " }");
   internals.Handlers[type.hash_code()] = handler;
 }
 
+//------------------------------------------------------------------------------
 vtkDeserializer::HandlerType vtkDeserializer::GetHandler(const std::type_info& type) const
 {
   const auto& internals = (*this->Internals);
@@ -224,9 +241,37 @@ vtkDeserializer::HandlerType vtkDeserializer::GetHandler(const std::type_info& t
   return nullptr;
 }
 
+//------------------------------------------------------------------------------
 bool vtkDeserializer::UnRegisterHandler(const std::type_info& type)
 {
   return this->Internals->Handlers.erase(type.hash_code()) != 0;
 }
 
+//------------------------------------------------------------------------------
+void vtkDeserializer::SetDeserializerLogVerbosity(vtkLogger::Verbosity verbosity)
+{
+  this->DeserializerLogVerbosity = verbosity;
+}
+
+//------------------------------------------------------------------------------
+vtkLogger::Verbosity vtkDeserializer::GetDeserializerLogVerbosity()
+{
+  // initialize the log verbosity if it is invalid.
+  if (this->DeserializerLogVerbosity == vtkLogger::VERBOSITY_INVALID)
+  {
+    this->DeserializerLogVerbosity = vtkLogger::VERBOSITY_TRACE;
+    // Find an environment variable that specifies logger verbosity
+    const char* verbosityKey = "VTK_DESERIALIZER_LOG_VERBOSITY";
+    if (vtksys::SystemTools::HasEnv(verbosityKey))
+    {
+      const char* verbosityCStr = vtksys::SystemTools::GetEnv(verbosityKey);
+      const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityCStr);
+      if (verbosity > vtkLogger::VERBOSITY_INVALID)
+      {
+        this->DeserializerLogVerbosity = verbosity;
+      }
+    }
+  }
+  return this->DeserializerLogVerbosity;
+}
 VTK_ABI_NAMESPACE_END

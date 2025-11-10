@@ -766,6 +766,52 @@ bool vtkBoundingBox::IntersectsLine(const double p1[3], const double p2[3]) cons
 }
 
 // ---------------------------------------------------------------------------
+void vtkBoundingBox::GetDistance(double point[3], double distance[3])
+{
+  for (int i = 0; i < 3; i++)
+  {
+    if (point[i] < this->MinPnt[i])
+    {
+      distance[i] = point[i] - this->MinPnt[i];
+    }
+    else if (point[i] > this->MaxPnt[i])
+    {
+      distance[i] = point[i] - this->MaxPnt[i];
+    }
+    else
+    {
+      distance[i] = 0;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+void vtkBoundingBox::Translate(double motion[3])
+{
+  for (int i = 0; i < 3; i++)
+  {
+    this->MinPnt[i] += motion[i];
+    this->MaxPnt[i] += motion[i];
+  }
+}
+
+// ---------------------------------------------------------------------------
+void vtkBoundingBox::ClampPoint(double point[3])
+{
+  for (int i = 0; i < 3; i++)
+  {
+    if (point[i] < this->MinPnt[i])
+    {
+      point[i] = this->MinPnt[i];
+    }
+    else if (point[i] > this->MaxPnt[i])
+    {
+      point[i] = this->MaxPnt[i];
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 int vtkBoundingBox::ComputeInnerDimension() const
 {
   double thickness = this->MaxPnt[0] - this->MinPnt[0];
@@ -957,7 +1003,7 @@ struct SerialBoundsPointUsesFunctor : public BaseBoundsFunctor<TPointsArray>
     this->Bounds[1] = this->Bounds[3] = this->Bounds[5] = VTK_DOUBLE_MIN;
 
     const auto points = vtk::DataArrayTupleRange<3>(this->PointsArray);
-    const TUsed* used = static_cast<const TUsed*>(this->PointUses);
+    const TUsed* used = this->PointUses;
     double point[3];
 
     for (vtkIdType i = 0; i < numberOfPoints; ++i)

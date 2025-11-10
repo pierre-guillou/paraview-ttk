@@ -6,7 +6,6 @@
 #include "pqApplicationCore.h"
 #include "pqInterfaceTracker.h"
 #include "pqPropertyWidget.h"
-#include "pqPropertyWidgetDecorator.h"
 #include "pqPropertyWidgetInterface.h"
 #include "vtkPVLogger.h"
 #include "vtkPVXMLElement.h"
@@ -21,6 +20,7 @@ pqPropertyWidgetDecorator::pqPropertyWidgetDecorator(
 {
   assert(parentObject);
   parentObject->addDecorator(this);
+  decoratorLogic->Initialize(xmlConfig, parentObject->proxy());
 }
 
 //-----------------------------------------------------------------------------
@@ -30,6 +30,18 @@ pqPropertyWidgetDecorator::~pqPropertyWidgetDecorator()
   {
     pwdg->removeDecorator(this);
   }
+}
+
+//-----------------------------------------------------------------------------
+bool pqPropertyWidgetDecorator::canShowWidget(bool show_advanced) const
+{
+  return this->decoratorLogic->CanShow(show_advanced);
+}
+
+//-----------------------------------------------------------------------------
+bool pqPropertyWidgetDecorator::enableWidget() const
+{
+  return this->decoratorLogic->Enable();
 }
 
 //-----------------------------------------------------------------------------

@@ -13,6 +13,7 @@
 #include "vtkSMDomainIterator.h"
 #include "vtkSMEnumerationDomain.h"
 #include "vtkSMFileListDomain.h"
+#include "vtkSMPropArrayListDomain.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
@@ -45,6 +46,8 @@
 #include "pqTreeView.h"
 #include "pqTreeViewSelectionHelper.h"
 #include "pqTreeWidget.h"
+
+#include "Private/pqComboBoxStyle.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -109,7 +112,7 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
   vtkSMArrayListDomain* arrayListDomain = nullptr;
   vtkSMStringListDomain* stringListDomain = nullptr;
   vtkSMArraySelectionDomain* arraySelectionDomain = nullptr;
-
+  vtkSMPropArrayListDomain* propArrayListDomain = nullptr;
   vtkSMDomainIterator* domainIter = svp->NewDomainIterator();
   for (domainIter->Begin(); !domainIter->IsAtEnd(); domainIter->Next())
   {
@@ -119,6 +122,8 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     fileListDomain = fileListDomain ? fileListDomain : vtkSMFileListDomain::SafeDownCast(domain);
     arrayListDomain =
       arrayListDomain ? arrayListDomain : vtkSMArrayListDomain::SafeDownCast(domain);
+    propArrayListDomain =
+      propArrayListDomain ? propArrayListDomain : vtkSMPropArrayListDomain::SafeDownCast(domain);
     arraySelectionDomain =
       arraySelectionDomain ? arraySelectionDomain : vtkSMArraySelectionDomain::SafeDownCast(domain);
     stringListDomain =
@@ -179,7 +184,7 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
 
     vbox->addWidget(chooser);
   }
-  else if (arrayListDomain)
+  else if (arrayListDomain || propArrayListDomain)
   {
     assert(smProperty->GetRepeatable());
 
@@ -236,8 +241,16 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     // on other property values e.g. when one switches from point-data to
     // cell-data, the available arrays change. Hence we "reset" the widget
     // every time the domain changes.
-    new pqArrayListDomain(
-      listWidget, smProxy->GetPropertyName(smProperty), smProxy, smProperty, arrayListDomain);
+    if (arrayListDomain)
+    {
+      new pqArrayListDomain(
+        listWidget, smProxy->GetPropertyName(smProperty), smProxy, smProperty, arrayListDomain);
+    }
+    else if (propArrayListDomain)
+    {
+      new pqArrayListDomain(
+        listWidget, smProxy->GetPropertyName(smProperty), smProxy, smProperty, propArrayListDomain);
+    }
 
     this->addPropertyLink(listWidget, property_name, SIGNAL(widgetModified()), smProperty);
     this->setChangeAvailableAsChangeFinished(true);
@@ -272,7 +285,7 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `QComboBox`.");
     QComboBox* comboBox = new QComboBox(this);
     comboBox->setObjectName("ComboBox");
-    comboBox->setStyleSheet("combobox-popup: 0;");
+    comboBox->setStyle(new pqComboBoxStyle(/*showPopup=*/false));
     comboBox->setMaxVisibleItems(
       pqPropertyWidget::hintsWidgetHeightNumberOfRows(smProperty->GetHints()));
 
@@ -288,7 +301,7 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
     vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "use `pqComboBoxDomain`.");
     QComboBox* comboBox = new QComboBox(this);
     comboBox->setObjectName("ComboBox");
-    comboBox->setStyleSheet("combobox-popup: 0;");
+    comboBox->setStyle(new pqComboBoxStyle(/*showPopup=*/false));
     comboBox->setMaxVisibleItems(
       pqPropertyWidget::hintsWidgetHeightNumberOfRows(smProperty->GetHints()));
 
@@ -364,10 +377,12 @@ pqStringVectorPropertyWidget::pqStringVectorPropertyWidget(
 
       QPushButton* pushButton = new QPushButton(this);
       pushButton->setIcon(this->style()->standardIcon(QStyle::SP_TitleBarMaxButton));
-      this->connect(pushButton, &QPushButton::clicked, [textEdit]() {
-        pqPythonScriptEditor::linkTo(textEdit);
-        pqPythonScriptEditor::bringFront();
-      });
+      this->connect(pushButton, &QPushButton::clicked,
+        [textEdit]()
+        {
+          pqPythonScriptEditor::linkTo(textEdit);
+          pqPythonScriptEditor::bringFront();
+        });
       hbox->addWidget(pushButton);
       vbox->addWidget(textEdit);
 #else
@@ -558,4 +573,19 @@ bool pqStringVectorPropertyWidget::widgetHintHasAttributeEqualTo(
 {
   return (this->WidgetHint && this->WidgetHint->GetAttribute(attribute.c_str()) &&
     strcmp(this->WidgetHint->GetAttribute(attribute.c_str()), value.c_str()) == 0);
+}
+
+//-----------------------------------------------------------------------------
+void pqStringVectorPropertyWidget::setReadOnly(bool readOnly)
+{
+  pqTextEdit* text = this->findChild<pqTextEdit*>();
+  if (text)
+  {
+    // pqTextEdit is the lonely child when used. No need to look for others.
+    text->setReadOnly(readOnly);
+  }
+  else
+  {
+    this->Superclass::setReadOnly(readOnly);
+  }
 }

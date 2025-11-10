@@ -396,7 +396,7 @@ static void vtkWrapPython_SequenceProtocol(FILE* fp, const char* classname, Clas
     info->has_sequence = 1;
 
     fprintf(fp,
-      "Py_ssize_t Py%s_SequenceSize(PyObject *self)\n"
+      "static Py_ssize_t Py%s_SequenceSize(PyObject *self)\n"
       "{\n"
       "  void *vp = vtkPythonArgs::GetSelfSpecialPointer(self);\n"
       "  %s *op = static_cast<%s *>(vp);\n"
@@ -406,7 +406,7 @@ static void vtkWrapPython_SequenceProtocol(FILE* fp, const char* classname, Clas
       classname, data->Name, data->Name, getItemFunc->SizeHint);
 
     fprintf(fp,
-      "PyObject *Py%s_SequenceItem(PyObject *self, Py_ssize_t i)\n"
+      "static PyObject *Py%s_SequenceItem(PyObject *self, Py_ssize_t i)\n"
       "{\n"
       "  void *vp = vtkPythonArgs::GetSelfSpecialPointer(self);\n"
       "  %s *op = static_cast<%s *>(vp);\n"
@@ -446,7 +446,7 @@ static void vtkWrapPython_SequenceProtocol(FILE* fp, const char* classname, Clas
     if (setItemFunc)
     {
       fprintf(fp,
-        "int Py%s_SequenceSetItem(\n"
+        "static int Py%s_SequenceSetItem(\n"
         "  PyObject *self, Py_ssize_t i, PyObject *arg1)\n"
         "{\n"
         "  void *vp = vtkPythonArgs::GetSelfSpecialPointer(self);\n"
@@ -789,10 +789,10 @@ void vtkWrapPython_GenerateSpecialType(FILE* fp, const char* module, const char*
   /* export New method for use by subclasses */
   fprintf(fp,
     "#ifndef DECLARED_Py%s_TypeNew\n"
-    "extern \"C\" { PyObject *Py%s_TypeNew(); }\n"
+    "extern \"C\" { %s PyObject *Py%s_TypeNew(); }\n"
     "#define DECLARED_Py%s_TypeNew\n"
     "#endif\n\n",
-    classname, classname, classname);
+    classname, "VTK_ABI_HIDDEN", classname, classname);
 
   /* import New method of the superclass */
   if (has_superclass && !supermodule)

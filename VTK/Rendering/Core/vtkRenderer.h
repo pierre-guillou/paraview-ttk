@@ -562,8 +562,26 @@ public:
   /**
    * Given a pixel location, return the Z value. The z value is
    * normalized (0,1) between the front and back clipping planes.
+   * By default this functions accesses the `vtkRenderWindow`'s depth buffer
+   * that is only valid right after this specific renderer has rendered.
+   * If `SafeGetZ` is On, this function will use a `vtkHardwareSelector` to
+   * get the depth information in flight. This approach always works,
+   * but takes more time as it invokes a render on the whole scene.
    */
   double GetZ(int x, int y);
+
+  ///@{
+  /**
+   * If this flag is On `GetZ(int, int)` will use a vtkHardwareSelector
+   * internally to determine the Z value. Otherwise, it will use
+   * `vtkRenderWindow::GetZbufferValue`.
+   * See `GetZ(int, int)` documentation for more information.
+   * Default is off.
+   */
+  vtkSetMacro(SafeGetZ, bool);
+  vtkGetMacro(SafeGetZ, bool);
+  vtkBooleanMacro(SafeGetZ, bool);
+  ///@}
 
   /**
    * Return the MTime of the renderer also considering its ivars.
@@ -852,9 +870,7 @@ public:
   /**
    * Set/Get the information object associated with this algorithm.
    */
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   vtkGetObjectMacro(Information, vtkInformation);
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   virtual void SetInformation(vtkInformation*);
   ///@}
 
@@ -897,6 +913,23 @@ public:
    */
   vtkGetVector3Macro(EnvironmentRight, double);
   vtkSetVector3Macro(EnvironmentRight, double);
+  ///@}
+
+  ///@{
+  /**
+   * If UseOIT is on and there are translucent props in the scene, the renderer will use the
+   * OrderIndependentTranslucentPass to render. If UseOIT is disabled, traditional depth sorting is
+   * used for translucency.
+   * By default, UseOIT is on.
+   *
+   * \note OIT is a newer(better) approach for translucent rendering but doesn't support hardware
+   * multi-sampling. Use FXAA in that case.
+   *
+   * \sa SetUseFXAA()
+   */
+  vtkSetMacro(UseOIT, bool);
+  vtkGetMacro(UseOIT, bool);
+  vtkBooleanMacro(UseOIT, bool);
   ///@}
 
 protected:
@@ -1122,6 +1155,19 @@ protected:
   bool SSAOBlur = false;
 
   /**
+   * If UseOIT is on and there are translucent props in the scene, the renderer will use the
+   * OrderIndependentTranslucentPass to render. If UseOIT is disabled, traditional depth sorting is
+   * used for translucency.
+   * By default, UseOIT is on.
+   *
+   * \note OIT is a newer(better) approach for translucent rendering but doesn't support hardware
+   * multi-sampling. Use FXAA in that case.
+   *
+   * \sa SetUseFXAA()
+   */
+  bool UseOIT = true;
+
+  /**
    * Tells if the last call to DeviceRenderTranslucentPolygonalGeometry()
    * actually used depth peeling.
    * Initial value is false.
@@ -1203,6 +1249,11 @@ private:
    * Modified time from the camera when this->ViewTransformMatrix was set.
    */
   vtkMTimeType LastViewTransformCameraModified;
+
+  /**
+   * If this flag affect GetZ. See Get/Set macro for more information.
+   */
+  bool SafeGetZ = false;
 
   vtkRenderer(const vtkRenderer&) = delete;
   void operator=(const vtkRenderer&) = delete;

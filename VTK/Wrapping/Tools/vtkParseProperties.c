@@ -142,7 +142,7 @@ static int isAsStringMethod(const char* name)
   if (isGetMethod(name))
   {
     n = strlen(name);
-    if (!strncmp(&name[n - 8], "AsString", 8))
+    if (n > 8 && !strncmp(&name[n - 8], "AsString", 8))
     {
       return 1;
     }
@@ -214,13 +214,39 @@ static int isGetMaxValueMethod(const char* name)
  * If shortForm in on, then suffixes such as On, Off, AsString,
  * and ToSomething are considered while doing the categorization */
 
-static unsigned int methodCategory(MethodAttributes* meth, int shortForm)
+static unsigned int methodCategory(const MethodAttributes* meth, int shortForm)
 {
   size_t n;
   const char* name;
   name = meth->Name;
 
-  if (isSetMethod(name))
+  if (isSetNthMethod(name))
+  {
+    if (meth->IsEnumerated)
+    {
+      /* SetNthSomethingToEnumValue(idx) not supported */
+    }
+    else if (meth->IsIndexed)
+    {
+      return VTK_METHOD_SET_NTH;
+    }
+  }
+  else if (isGetNthMethod(name))
+  {
+    if (isAsStringMethod(name))
+    {
+      /* GetNthSomethingAsString(idx) not supported */
+    }
+    else if (meth->IsIndexed && meth->IsRHS)
+    {
+      return VTK_METHOD_GET_NTH_RHS;
+    }
+    else if (meth->IsIndexed)
+    {
+      return VTK_METHOD_GET_NTH;
+    }
+  }
+  else if (isSetMethod(name))
   {
     if (meth->IsEnumerated)
     {
@@ -228,14 +254,7 @@ static unsigned int methodCategory(MethodAttributes* meth, int shortForm)
     }
     else if (meth->IsIndexed)
     {
-      if (isSetNthMethod(name))
-      {
-        return VTK_METHOD_SET_NTH;
-      }
-      else
-      {
-        return VTK_METHOD_SET_IDX;
-      }
+      return VTK_METHOD_SET_IDX;
     }
     else if (meth->IsMultiValue)
     {
@@ -278,25 +297,11 @@ static unsigned int methodCategory(MethodAttributes* meth, int shortForm)
     }
     else if (meth->IsIndexed && meth->IsRHS)
     {
-      if (isGetNthMethod(name))
-      {
-        return VTK_METHOD_GET_NTH_RHS;
-      }
-      else
-      {
-        return VTK_METHOD_GET_IDX_RHS;
-      }
+      return VTK_METHOD_GET_IDX_RHS;
     }
     else if (meth->IsIndexed)
     {
-      if (isGetNthMethod(name))
-      {
-        return VTK_METHOD_GET_NTH;
-      }
-      else
-      {
-        return VTK_METHOD_GET_IDX;
-      }
+      return VTK_METHOD_GET_IDX;
     }
     else if (meth->IsMultiValue)
     {
@@ -467,9 +472,6 @@ static int isIntegral(const ValueInfo* val)
 static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
 {
   int i, n;
-  unsigned int tmptype = 0;
-  const char* tmpclass = 0;
-  int allSame = 0;
   int indexed = 0;
 
   attrs->Name = func->Name;
@@ -491,7 +493,8 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
   attrs->IsNoDiscard = 0;
 
   /* check for major issues with the function */
-  if (!func->Name || func->IsOperator || (func->ReturnValue && func->ReturnValue->Function) ||
+  if (!func->Name || func->IsOperator || func->IsExcluded || func->IsPropExcluded ||
+    (func->ReturnValue && func->ReturnValue->Function) ||
     (func->ReturnValue && func->ReturnValue->NumberOfDimensions > 1))
   {
     return 0;
@@ -517,9 +520,8 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
       if (!isSetNumberOfMethod(func->Name))
       {
         /* make sure this isn't a multi-value int method */
-        tmptype = func->Parameters[0]->Type;
-        tmpclass = func->Parameters[0]->Class;
-        allSame = 1;
+        unsigned int tmptype = func->Parameters[0]->Type;
+        int allSame = 1;
 
         n = func->NumberOfParameters;
         for (i = 0; i < n; i++)
@@ -535,7 +537,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
     /* methods of the form "type GetValue(int i)" */
     if ((!func->ReturnValue ||
           (func->ReturnValue->Type & VTK_PARSE_UNQUALIFIED_TYPE) != VTK_PARSE_VOID) &&
-      func->NumberOfParameters == 1)
+      isGetMethod(func->Name) && func->NumberOfParameters == 1)
     {
       indexed = 1;
     }
@@ -628,9 +630,9 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
   /* check for multiple arguments of the same type */
   if (func->NumberOfParameters > 1 && !indexed)
   {
-    tmptype = func->Parameters[0]->Type;
-    tmpclass = func->Parameters[0]->Class;
-    allSame = 1;
+    unsigned int tmptype = func->Parameters[0]->Type;
+    const char* tmpclass = func->Parameters[0]->Class;
+    int allSame = 1;
 
     n = func->NumberOfParameters;
     for (i = 0; i < n; i++)
@@ -729,7 +731,7 @@ static int getMethodAttributes(FunctionInfo* func, MethodAttributes* attrs)
  * was part of the name match. */
 
 static int methodMatchesProperty(
-  const HierarchyInfo* hinfo, PropertyInfo* property, MethodAttributes* meth, int* longMatch)
+  const HierarchyInfo* hinfo, const PropertyInfo* property, MethodAttributes* meth, int* longMatch)
 {
   size_t n;
   int propertyType, methType;
@@ -832,7 +834,7 @@ static int methodMatchesProperty(
   if (isGetNumberOfMethod(meth->Name) &&
     (methType == VTK_PARSE_INT || methType == VTK_PARSE_SIZE_T || methType == VTK_PARSE_ID_TYPE) &&
     (methType & VTK_PARSE_INDIRECT) == 0 &&
-    ((methodBitfield & (VTK_METHOD_GET_IDX | VTK_METHOD_GET_NTH)) != 0))
+    ((methodBitfield & (VTK_METHOD_GET_IDX | VTK_METHOD_GET_NTH | VTK_METHOD_GET_IDX_RHS)) != 0))
   {
     return 1;
   }
@@ -904,10 +906,10 @@ static int methodMatchesProperty(
     return 0;
   }
 
-  /* if vtkObject, check that classes match or atleast one is derived from the other */
+  /* if vtkObject, check that classes match or at least one is derived from the other */
   if ((methType & VTK_PARSE_BASE_TYPE) == VTK_PARSE_OBJECT)
   {
-    HierarchyEntry* methEntry = vtkParseHierarchy_FindEntry(hinfo, meth->ClassName);
+    const HierarchyEntry* methEntry = vtkParseHierarchy_FindEntry(hinfo, meth->ClassName);
     if (meth->IsMultiValue || (methType & VTK_PARSE_POINTER_MASK) == 0 || meth->Count != 0 ||
       meth->ClassName == 0 || property->ClassName == 0 ||
       (strcmp(meth->ClassName, property->ClassName) != 0 &&
@@ -927,18 +929,15 @@ static int methodMatchesProperty(
  * On/Off, AsString, ToSomething, RemoveAllSomethings, etc. */
 
 static void initializePropertyInfo(
-  PropertyInfo* property, MethodAttributes* meth, unsigned int methodBit)
+  PropertyInfo* property, const MethodAttributes* meth, unsigned int methodBit)
 {
   unsigned int type;
-  const char* typeClass;
   type = meth->Type;
-  typeClass = meth->ClassName;
 
   /* for ValueOn()/Off() or SetValueToEnum() methods, set type to int */
   if (meth->IsBoolean || meth->IsEnumerated)
   {
     type = VTK_PARSE_INT;
-    typeClass = "int";
   }
 
   property->Name = nameWithoutPrefix(meth->Name);
@@ -946,7 +945,6 @@ static void initializePropertyInfo(
   /* get property type, but don't include "ref" as part of type,
    * and use a pointer if the method is multi-valued */
   property->Type = (type & VTK_PARSE_BASE_TYPE);
-  property->ClassName = typeClass;
   if ((!meth->IsMultiValue && (type & VTK_PARSE_POINTER_MASK) == VTK_PARSE_POINTER) ||
     (meth->IsMultiValue && (type & VTK_PARSE_POINTER_MASK) == 0))
   {
@@ -1169,7 +1167,7 @@ static int searchForRepeatedMethods(
 static void addProperty(const HierarchyInfo* hinfo, ClassProperties* properties,
   ClassPropertyMethods* methods, int i, int matchedMethods[])
 {
-  MethodAttributes* meth = methods->Methods[i];
+  const MethodAttributes* meth = methods->Methods[i];
   PropertyInfo* property;
   unsigned int category;
 

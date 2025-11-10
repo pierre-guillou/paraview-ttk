@@ -1,5 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+
+// VTK_DEPRECATED_IN_9_5_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkCommunicator.h"
 
 #include "vtkBoundingBox.h"
@@ -55,7 +59,10 @@
           reinterpret_cast<const VTK_TT*>(A), reinterpret_cast<VTK_TT*>(B), length));              \
       }                                                                                            \
     }                                                                                              \
-    int Commutative() override { return 1; }                                                       \
+    int Commutative() override                                                                     \
+    {                                                                                              \
+      return 1;                                                                                    \
+    }                                                                                              \
   };
 
 #define STANDARD_OPERATION_FLOAT_OVERRIDE(name)                                                    \
@@ -171,7 +178,7 @@ int vtkCommunicator::Send(vtkDataObject* data, int remoteHandle, int tag)
     case VTK_GENERIC_DATA_SET:
     case VTK_HYPER_OCTREE:
     case VTK_COMPOSITE_DATA_SET:
-    case VTK_HIERARCHICAL_BOX_DATA_SET: // since we cannot send vtkUniformGrid anyways.
+    case VTK_HIERARCHICAL_BOX_DATA_SET: // obsolete
     case VTK_MULTIGROUP_DATA_SET:       // obsolete
     case VTK_HIERARCHICAL_DATA_SET:     // obsolete
     default:
@@ -365,7 +372,7 @@ int vtkCommunicator::ReceiveDataObject(vtkDataObject* data, int remoteHandle, in
     case VTK_GENERIC_DATA_SET:
     case VTK_HYPER_OCTREE:
     case VTK_COMPOSITE_DATA_SET:
-    case VTK_HIERARCHICAL_BOX_DATA_SET: // since we cannot send vtkUniformGrid anyways.
+    case VTK_HIERARCHICAL_BOX_DATA_SET: // obsolete.
     case VTK_MULTIGROUP_DATA_SET:       // obsolete.
     case VTK_HIERARCHICAL_DATA_SET:     // obsolete.
     default:
@@ -1194,7 +1201,7 @@ int vtkCommunicator::GatherV(
     case VTK_GENERIC_DATA_SET:
     case VTK_HYPER_OCTREE:
     case VTK_COMPOSITE_DATA_SET:
-    case VTK_HIERARCHICAL_BOX_DATA_SET: // since we cannot send vtkUniformGrid anyways.
+    case VTK_HIERARCHICAL_BOX_DATA_SET: // obsolete
     case VTK_MULTIGROUP_DATA_SET:       // obsolete
     case VTK_HIERARCHICAL_DATA_SET:     // obsolete
     default:
@@ -1286,21 +1293,23 @@ int vtkCommunicator::GatherV(vtkDataArray* sendBuffer, vtkDataArray* recvBuffer,
   int numComponents = sendBuffer->GetNumberOfComponents();
   vtkIdType numTuples = sendBuffer->GetNumberOfTuples();
   vtkIdType sendLength = numComponents * numTuples;
-  if (!this->Gather(&sendLength, recvLengths, 1, destProcessId))
+  if (!this->AllGather(&sendLength, recvLengths, 1))
   {
     return 0;
   }
+
+  offsets[0] = 0;
+  for (int i = 0; i < this->NumberOfProcesses; i++)
+  {
+    if ((recvLengths[i] % numComponents) != 0)
+    {
+      vtkWarningMacro(<< "Not all send buffers have same tuple size.");
+    }
+    offsets[i + 1] = offsets[i] + recvLengths[i];
+  }
+
   if (destProcessId == this->LocalProcessId)
   {
-    offsets[0] = 0;
-    for (int i = 0; i < this->NumberOfProcesses; i++)
-    {
-      if ((recvLengths[i] % numComponents) != 0)
-      {
-        vtkWarningMacro(<< "Not all send buffers have same tuple size.");
-      }
-      offsets[i + 1] = offsets[i] + recvLengths[i];
-    }
     recvBuffer->SetNumberOfComponents(numComponents);
     recvBuffer->SetNumberOfTuples(offsets[this->NumberOfProcesses] / numComponents);
   }

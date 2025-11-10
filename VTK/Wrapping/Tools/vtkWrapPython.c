@@ -395,7 +395,7 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
 
   /* do the export of the main entry point */
   fprintf(
-    fp, "extern \"C\" { %s void PyVTKAddFile_%s(PyObject *dict); }\n", "VTK_ABI_EXPORT", name);
+    fp, "extern \"C\" { %s void PyVTKAddFile_%s(PyObject *dict); }\n", "VTK_ABI_HIDDEN", name);
 
   /* get the module that is being wrapped */
   data = file_info->MainClass;
@@ -487,8 +487,8 @@ int VTK_PARSE_MAIN(int argc, char* argv[])
   }
 
   /* The function for adding everything to the module dict */
-  wrapped_anything =
-    (numberOfWrappedClasses || numberOfWrappedNamespaces || contents->NumberOfConstants);
+  wrapped_anything = (numberOfWrappedClasses || numberOfWrappedNamespaces ||
+    contents->NumberOfConstants || contents->NumberOfEnums);
   fprintf(fp,
     "void PyVTKAddFile_%s(\n"
     "  PyObject *%s)\n"

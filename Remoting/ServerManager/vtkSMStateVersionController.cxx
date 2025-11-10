@@ -1164,7 +1164,8 @@ struct Process_5_9_to_5_10
     //   - Property LowerThreshold for the lower threshold value
     //   - Property UpperThreshold for the upper threshold value
     //   - Property ThresholdMethod for the thresholding function
-    auto fixup_threshold = [](pugi::xml_node node) {
+    auto fixup_threshold = [](pugi::xml_node node)
+    {
       if (!node.select_nodes("./Property[@name='ThresholdBetween']").empty())
       {
         const std::string id(node.attribute("id").value());
@@ -2065,6 +2066,307 @@ struct Process_5_12_to_5_13
   }
 };
 
+//===========================================================================
+struct Process_5_13_to_6_0
+{
+  bool operator()(xml_document& document)
+  {
+    return HandlePolarAxesRenaming(document) && HandleAxisAlignedReflectionFilter(document) &&
+      HandleRenamedProxies(document);
+  }
+
+  bool HandlePolarAxesRenaming(xml_document& document)
+  {
+    pugi::xpath_node_set xpath_set = document.select_nodes(
+      "//ServerManagerState/Proxy[@group='representations' and @type='PolarAxesRepresentation']");
+
+    for (auto xpath_node : xpath_set)
+    {
+      auto node = xpath_node.node();
+      // Rename "NumberOfPolarAxes" in "NumberOfArcs"
+      if (auto nbPolarAxesNode = node.find_child_by_attribute("name", "NumberOfPolarAxes"))
+      {
+        nbPolarAxesNode.attribute("name").set_value("NumberOfArcs");
+      }
+
+      // Rename "DeltaRangePolarAxes" in "DeltaRangeArcs"
+      if (auto deltaRangeNode = node.find_child_by_attribute("name", "DeltaRangePolarAxes"))
+      {
+        deltaRangeNode.attribute("name").set_value("DeltaRangeArcs");
+      }
+
+      // Rename "RadialTitleVisibility" in "RadialLabelVisibility"
+      if (auto radialTitleNode = node.find_child_by_attribute("name", "RadialTitleVisibility"))
+      {
+        radialTitleNode.attribute("name").set_value("RadialLabelVisibility");
+      }
+
+      // Rename "RadialTitleFormat" in "RadialLabelFormat"
+      if (auto radialTitleNode = node.find_child_by_attribute("name", "RadialTitleFormat"))
+      {
+        radialTitleNode.attribute("name").set_value("RadialLabelFormat");
+      }
+
+      // Rename "RadialTitleLocation" in "RadialLabelLocation"
+      if (auto radialTitleNode = node.find_child_by_attribute("name", "RadialTitleLocation"))
+      {
+        radialTitleNode.attribute("name").set_value("RadialLabelLocation");
+      }
+
+      // Rename "RadialTitleOffset" in "RadialLabelOffset"
+      if (auto radialTitleNode = node.find_child_by_attribute("name", "RadialTitleOffset"))
+      {
+        radialTitleNode.attribute("name").set_value("RadialLabelOffset");
+      }
+
+      // Rename "PolarTicksVisibility" in "AllTicksVisibility"
+      if (auto polarTicksNode = node.find_child_by_attribute("name", "PolarTicksVisibility"))
+      {
+        polarTicksNode.attribute("name").set_value("AllTicksVisibility");
+      }
+    }
+
+    return true;
+  }
+
+  void BuildAxisAlignedReflectionFilter(std::ostringstream& stream, const char_t* proxyId,
+    const char_t* inputId, const char_t* server, const vtkTypeUInt32 planeId, int copyInput,
+    int flipArrays, int planeMode)
+  {
+    // AxisAlignedReflectionFilter
+    stream << "<Proxy group=\"filters\" type=\"AxisAlignedReflectionFilter\" id=\"" << proxyId
+           << "\" servers=\"" << server << "\">\n";
+    stream << "  <Property name=\"CopyInput\" id=\"" << proxyId
+           << ".CopyInput\" number_of_elements=\"1\">\n"
+           << "    <Element index=\"0\" value=\"" << copyInput << "\"/>\n"
+           << "    <Domain name=\"bool\" id=\"" << proxyId << ".CopyInput.bool\"/>\n"
+           << "  </Property>\n";
+    stream << "  <Property name=\"FlipAllInputArrays\" id=\"" << proxyId
+           << ".FlipAllInputArrays\" number_of_elements=\"1\">\n"
+           << "    <Element index=\"0\" value=\"" << flipArrays << "\"/>\n"
+           << "    <Domain name=\"bool\" id=\"" << proxyId << ".FlipAllInputArrays.bool\"/>\n"
+           << "  </Property>\n";
+    stream << "  <Property name=\"Input\" id=\"" << proxyId
+           << ".Input\" number_of_elements=\"1\">\n";
+    stream << "    <Proxy value=\"" << inputId << "\" output_port=\"0\"/>\n";
+    stream << "    <Domain name=\"groups\" id=\"" << proxyId << ".Input.groups\"/>\n";
+    stream << "    <Domain name=\"input_type\" id=\"" << proxyId << ".Input.input_type\"/>\n";
+    stream << "  </Property>\n";
+
+    stream << "  <Property name=\"PlaneMode\" id=\"" << proxyId
+           << ".PlaneMode\" number_of_elements=\"1\">\n"
+           << "    <Element index=\"0\" value=\"" << planeMode << "\"/>\n"
+           << "    <Domain name=\"enum\" id=\"" << proxyId << ".PlaneMode.enum\">\n"
+           << "      <Entry value=\"0\" text=\"Interactive\"/>\n"
+           << "      <Entry value=\"1\" text=\"X Min\"/>\n"
+           << "      <Entry value=\"2\" text=\"Y Min\"/>\n"
+           << "      <Entry value=\"3\" text=\"Z Min\"/>\n"
+           << "      <Entry value=\"4\" text=\"X Max\"/>\n"
+           << "      <Entry value=\"5\" text=\"Y Max\"/>\n"
+           << "      <Entry value=\"6\" text=\"Z Max\"/>\n"
+           << "    </Domain>\n"
+           << "  </Property>\n";
+
+    stream << "  <Property name=\"ReflectionPlane\" id=\"" << proxyId
+           << ".ReflectionPlane\" number_of_elements=\"1\">\n";
+    stream << "    <Proxy value=\"" << planeId << "\"/>\n";
+    stream << "    <Domain name=\"proxy_list\" id=\"" << proxyId
+           << ".ReflectionPlane.proxy_list\">\n";
+    stream << "      <Proxy value=\"" << planeId << "\"/>\n";
+    stream << "    </Domain>\n";
+    stream << "  </Property>\n";
+
+    stream << "</Proxy>\n";
+  }
+
+  bool HandleAxisAlignedReflectionFilter(xml_document& document)
+  {
+    // Replace HyperTreeGridAxisReflection
+    auto xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='filters'"
+                                           "and @type='HyperTreeGridAxisReflection']");
+    for (auto xpath_node : xpath_set)
+    {
+      auto htgReflectProxy = xpath_node.node();
+      auto proxyId = htgReflectProxy.attribute("id").as_string();
+      auto server = htgReflectProxy.attribute("servers").as_string();
+
+      auto inputProperty = htgReflectProxy.select_node("./Property[@name='Input']").node();
+      auto inputProxy = inputProperty.select_node("./Proxy").node();
+      auto inputId = inputProxy.attribute("value").as_string();
+
+      auto planeNormal = htgReflectProxy.find_child_by_attribute("name", "PlaneNormal");
+      const int normal = planeNormal.child("Element").attribute("value").as_int();
+
+      auto planePosition = htgReflectProxy.find_child_by_attribute("name", "PlanePosition");
+      const int position = planePosition.child("Element").attribute("value").as_int();
+
+      auto parent = htgReflectProxy.parent();
+      parent.remove_child(htgReflectProxy);
+
+      std::ostringstream stream;
+
+      UniqueIdGenerator generator(document);
+      const vtkTypeUInt32 planeId = generator.GetNextUniqueId();
+
+      // Axis Aligned Plane
+      stream << "<Proxy group=\"implicit_functions\" type=\"Axis Aligned Plane\" id=\"" << planeId
+             << "\" servers=\"" << server << "\">\n";
+      stream << "  <Property name=\"AlwaysSnapToNearestAxis\" id=\"" << planeId
+             << ".AlwaysSnapToNearestAxis\" number_of_elements=\"1\">\n"
+             << "    <Element index=\"0\" value=\"1\"/>\n"
+             << "    <Domain name=\"bool\" id=\"" << planeId
+             << ".AlwaysSnapToNearestAxis.bool\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Normal\" id=\"" << planeId
+             << ".Normal\" number_of_elements=\"3\">\n"
+             << "    <Element index=\"0\" value=\"" << (normal == 6 ? 1 : 0) << "\"/>\n"
+             << "    <Element index=\"1\" value=\"" << (normal == 7 ? 1 : 0) << "\"/>\n"
+             << "    <Element index=\"2\" value=\"" << (normal == 8 ? 1 : 0) << "\"/>\n"
+             << "    <Domain name=\"range\" id=\"" << planeId << ".Normal.range\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Offset\" id=\"" << planeId
+             << ".Offset\" number_of_elements=\"1\">\n"
+             << "    <Element index=\"0\" value=\"0\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Origin\" id=\"" << planeId
+             << ".Origin\" number_of_elements=\"3\">\n"
+             << "    <Element index=\"0\" value=\"" << (normal == 6 ? position : 0) << "\"/>\n"
+             << "    <Element index=\"1\" value=\"" << (normal == 7 ? position : 0) << "\"/>\n"
+             << "    <Element index=\"2\" value=\"" << (normal == 8 ? position : 0) << "\"/>\n"
+             << "    <Domain name=\"range\" id=\"" << planeId << ".Origin.range\"/>\n"
+             << "  </Property>\n";
+
+      stream << "</Proxy>\n";
+
+      BuildAxisAlignedReflectionFilter(stream, proxyId, inputId, server, planeId, 0, 0, 0);
+
+      pugi::xml_node smstate = document.root().child("ServerManagerState");
+      std::string buffer = stream.str();
+      if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
+      {
+        vtkGenericWarningMacro("Unable to add AxisAlignedReflectionFilter proxy.");
+      }
+    }
+
+    // Replace ReflectionFilter
+    xpath_set = document.select_nodes("//ServerManagerState/Proxy[@group='filters'"
+                                      "and @type='ReflectionFilter']");
+    for (auto xpath_node : xpath_set)
+    {
+      auto reflectProxy = xpath_node.node();
+      auto proxyId = reflectProxy.attribute("id").as_string();
+      auto server = reflectProxy.attribute("servers").as_string();
+
+      auto inputProperty = reflectProxy.select_node("./Property[@name='Input']").node();
+      auto inputProxy = inputProperty.select_node("./Proxy").node();
+      auto inputId = inputProxy.attribute("value").as_string();
+
+      auto plane = reflectProxy.find_child_by_attribute("name", "Plane");
+      const int planeValue = plane.child("Element").attribute("value").as_int();
+
+      auto center = reflectProxy.find_child_by_attribute("name", "Center");
+      const int centerValue = center.child("Element").attribute("value").as_int();
+
+      auto copyInput = reflectProxy.find_child_by_attribute("name", "CopyInput");
+      const int copyInputValue = copyInput.child("Element").attribute("value").as_int();
+
+      auto flipArrays = reflectProxy.find_child_by_attribute("name", "FlipAllInputArrays");
+      const int flipArraysValue = flipArrays.child("Element").attribute("value").as_int();
+
+      auto parent = reflectProxy.parent();
+      parent.remove_child(reflectProxy);
+
+      std::ostringstream stream;
+
+      UniqueIdGenerator generator(document);
+      const vtkTypeUInt32 planeId = generator.GetNextUniqueId();
+
+      // Axis Aligned Plane
+      stream << "<Proxy group=\"implicit_functions\" type=\"Axis Aligned Plane\" id=\"" << planeId
+             << "\" servers=\"" << server << "\">\n";
+      stream << "  <Property name=\"AlwaysSnapToNearestAxis\" id=\"" << planeId
+             << ".AlwaysSnapToNearestAxis\" number_of_elements=\"1\">\n"
+             << "    <Element index=\"0\" value=\"1\"/>\n"
+             << "    <Domain name=\"bool\" id=\"" << planeId
+             << ".AlwaysSnapToNearestAxis.bool\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Normal\" id=\"" << planeId
+             << ".Normal\" number_of_elements=\"3\">\n"
+             << "    <Element index=\"0\" value=\""
+             << (planeValue == 0 || planeValue == 3 || planeValue == 6 ? 1 : 0) << "\"/>\n"
+             << "    <Element index=\"1\" value=\""
+             << (planeValue == 1 || planeValue == 4 || planeValue == 7 ? 1 : 0) << "\"/>\n"
+             << "    <Element index=\"2\" value=\""
+             << (planeValue == 2 || planeValue == 5 || planeValue == 8 ? 1 : 0) << "\"/>\n"
+             << "    <Domain name=\"range\" id=\"" << planeId << ".Normal.range\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Offset\" id=\"" << planeId
+             << ".Offset\" number_of_elements=\"1\">\n"
+             << "    <Element index=\"0\" value=\"0\"/>\n"
+             << "  </Property>\n";
+      stream << "  <Property name=\"Origin\" id=\"" << planeId
+             << ".Origin\" number_of_elements=\"3\">\n"
+             << "    <Element index=\"0\" value=\""
+             << (planeValue == 0 || planeValue == 3 || planeValue == 6 ? centerValue : 0)
+             << "\"/>\n"
+             << "    <Element index=\"1\" value=\""
+             << (planeValue == 1 || planeValue == 4 || planeValue == 7 ? centerValue : 0)
+             << "\"/>\n"
+             << "    <Element index=\"2\" value=\""
+             << (planeValue == 2 || planeValue == 5 || planeValue == 8 ? centerValue : 0)
+             << "\"/>\n"
+             << "    <Domain name=\"range\" id=\"" << planeId << ".Origin.range\"/>\n"
+             << "  </Property>\n";
+
+      stream << "</Proxy>\n";
+
+      int planeMode = 0;
+      if (planeValue < 6)
+      {
+        planeMode = planeValue + 1;
+      }
+
+      BuildAxisAlignedReflectionFilter(
+        stream, proxyId, inputId, server, planeId, copyInputValue, flipArraysValue, planeMode);
+
+      pugi::xml_node smstate = document.root().child("ServerManagerState");
+      std::string buffer = stream.str();
+      if (!smstate.append_buffer(buffer.c_str(), buffer.size()))
+      {
+        vtkGenericWarningMacro("Unable to add AxisAlignedReflectionFilter proxy.");
+      }
+    }
+    return true;
+  }
+
+  bool HandleRenamedProxies(xml_document& document)
+  {
+    std::map<std::string, std::string> renamedProxies = {
+      { "HyperTreeGridCellCenters", "CellCenters" },
+      { "HyperTreeGridFeatureEdges", "FeatureEdges" },
+      { "HyperTreeGridGhostCellsGenerator", "GhostCells" },
+      { "ProcessIdScalars", "ProcessIds" },
+      { "HyperTreeGridVisibleLeavesSize", "HyperTreeGridGenerateFields" },
+    };
+
+    for (const auto& proxy : renamedProxies)
+    {
+      std::string request =
+        "//ServerManagerState/Proxy[@group='filters' and @type='" + proxy.first + "']";
+      pugi::xpath_node_set xpath_set = document.select_nodes(request.c_str());
+
+      for (auto xpath_node : xpath_set)
+      {
+        auto node = xpath_node.node();
+        // Change filter type
+        node.attribute("type").set_value(proxy.second.c_str());
+      }
+    }
+
+    return true;
+  }
+};
+
 } // end of namespace
 
 vtkStandardNewMacro(vtkSMStateVersionController);
@@ -2191,6 +2493,13 @@ bool vtkSMStateVersionController::Process(vtkPVXMLElement* parent, vtkSMSession*
     Process_5_12_to_5_13 converter;
     status = converter(document);
     version = vtkSMVersion(5, 13, 0);
+  }
+
+  if (status && (version < vtkSMVersion(6, 0, 0)))
+  {
+    Process_5_13_to_6_0 converter;
+    status = converter(document);
+    version = vtkSMVersion(6, 0, 0);
   }
 
   if (status)

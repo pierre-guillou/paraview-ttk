@@ -449,6 +449,12 @@ void vtkAlgorithm::SetInputArrayToProcess(
 }
 
 //------------------------------------------------------------------------------
+void vtkAlgorithm::SetInputArrayToProcess(const char* name, int fieldAssociation)
+{
+  this->SetInputArrayToProcess(0, 0, 0, fieldAssociation, name);
+}
+
+//------------------------------------------------------------------------------
 int vtkAlgorithm::GetInputArrayAssociation(int idx, vtkInformationVector** inputVector)
 {
   int association = vtkDataObject::FIELD_ASSOCIATION_NONE;
@@ -1115,7 +1121,7 @@ void vtkAlgorithm::SetInputConnection(int port, vtkAlgorithmOutput* input)
   // The connection is not present.
   vtkDebugMacro("Setting connection to input port index "
     << consumerPort << " from output port index " << producerPort << " on algorithm "
-    << (producer ? producer->GetObjectDescription() : nullptr) << ".");
+    << (producer ? producer->GetObjectDescription() : std::string("nullptr")) << ".");
 
   // Add this consumer to the new input's list of consumers.
   if (newInfo)

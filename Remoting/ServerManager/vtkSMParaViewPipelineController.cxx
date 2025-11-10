@@ -996,6 +996,7 @@ bool vtkSMParaViewPipelineController::RegisterTextureProxy(vtkSMProxy* proxy, co
   if (filename)
   {
     vtkSMPropertyHelper(proxy, "FileName").Set(filename);
+    vtkSMPropertyHelper(proxy, "Mode").Set(0);
   }
   return true;
 }
@@ -1019,6 +1020,11 @@ bool vtkSMParaViewPipelineController::RegisterTextureProxy(
 
   // Register the proxy itself.
   proxy->GetSessionProxyManager()->RegisterProxy("textures", proxyname, proxy);
+  if (trivialProducerKey)
+  {
+    vtkSMPropertyHelper(proxy, "TrivialProducerKey").Set(trivialProducerKey);
+    vtkSMPropertyHelper(proxy, "Mode").Set(1);
+  }
   return true;
 }
 
@@ -1098,10 +1104,6 @@ bool vtkSMParaViewPipelineController::PreInitializeProxy(vtkSMProxy* proxy)
   {
     return false;
   }
-
-  // 4. Load property values from Settings.
-  vtkSMSettings* settings = vtkSMSettings::GetInstance();
-  settings->GetProxySettings(proxy);
 
   // Now, update the initialization time.
   this->Internals->InitializationTimeStamps[proxy].Modified();
@@ -1203,6 +1205,11 @@ bool vtkSMParaViewPipelineController::PostInitializeProxy(vtkSMProxy* proxy)
     {
       (*siter)->ResetToDomainDefaults();
     }
+
+    // settings override any other initialization
+    vtkSMSettings* settings = vtkSMSettings::GetInstance();
+    settings->GetProxySettings(proxy);
+
     proxy->UpdateVTKObjects();
   }
   return true;

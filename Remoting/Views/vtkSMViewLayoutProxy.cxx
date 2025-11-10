@@ -23,7 +23,6 @@
 #include "vtkSMViewProxy.h"
 #include "vtkSmartPointer.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 #include "vtkViewLayout.h"
 #include "vtkWeakPointer.h"
 
@@ -63,7 +62,7 @@ public:
     }
 
     // now verify that every parent node for location is a split cell.
-    int parent = (static_cast<int>(location) - 1) / 2;
+    int parent = (location - 1) / 2;
     while (this->KDTree[parent].Direction != vtkSMViewLayoutProxy::NONE)
     {
       if (parent == 0)
@@ -71,7 +70,7 @@ public:
         return true;
       }
 
-      parent = (static_cast<int>(parent) - 1) / 2;
+      parent = (parent - 1) / 2;
     }
 
     return false;
@@ -671,10 +670,7 @@ int vtkSMViewLayoutProxy::AssignViewToAnyCell(vtkSMViewProxy* view, int location
     return cur_location;
   }
 
-  if (location_hint < 0)
-  {
-    location_hint = 0;
-  }
+  location_hint = std::max(location_hint, 0);
 
   // If location_hint refers to an empty cell, use it.
   if (this->Internals->IsCellValid(location_hint))

@@ -41,7 +41,7 @@ void vtkSortDataArray::Sort(vtkIdList* keys, int dir)
   }
   else
   {
-    vtkSMPTools::Sort(data, data + numKeys, std::greater<vtkIdType>());
+    vtkSMPTools::Sort(data, data + numKeys, std::greater<>());
   }
 }
 
@@ -75,7 +75,7 @@ void vtkSortDataArray::Sort(vtkAbstractArray* keys, int dir)
     switch (keys->GetDataType())
     {
       vtkExtendedTemplateMacro(vtkSMPTools::Sort(
-        static_cast<VTK_TT*>(data), static_cast<VTK_TT*>(data) + numKeys, std::greater<VTK_TT>()));
+        static_cast<VTK_TT*>(data), static_cast<VTK_TT*>(data) + numKeys, std::greater<>()));
     }
   }
 }
@@ -127,7 +127,7 @@ struct TupleComp
 // array to a final, post-sorted array, Implementation note: the direction of
 // sort (dir) is treated here rather than in the std::sort() function to
 // reduce object file .obj size; e.g., running std::sort with a different
-// comporator function causes inline expansion to produce very large object
+// comparator function causes inline expansion to produce very large object
 // files.
 template <typename T>
 void Shuffle1Tuples(vtkIdType* idx, vtkIdType sze, vtkAbstractArray* arrayIn, T* preSort, int dir)
@@ -233,7 +233,8 @@ void vtkSortDataArray::GenerateSortIndices(
   // Specialized and faster for single component arrays
   if (numComp == 1)
   {
-    return vtkSortDataArray::GenerateSort1Indices(dataType, dataIn, numKeys, idx);
+    vtkSortDataArray::GenerateSort1Indices(dataType, dataIn, numKeys, idx);
+    return;
   }
 
   if (dataType == VTK_VARIANT)
@@ -279,7 +280,8 @@ void vtkSortDataArray::ShuffleArray(vtkIdType* idx, int dataType, vtkIdType numK
   // Specialized for single component arrays
   if (numComp == 1)
   {
-    return vtkSortDataArray::Shuffle1Array(idx, dataType, numKeys, arr, dataIn, dir);
+    vtkSortDataArray::Shuffle1Array(idx, dataType, numKeys, arr, dataIn, dir);
+    return;
   }
 
   if (dataType == VTK_VARIANT)

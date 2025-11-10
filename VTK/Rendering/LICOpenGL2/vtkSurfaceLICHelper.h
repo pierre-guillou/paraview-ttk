@@ -14,7 +14,7 @@
 #include "vtkSmartPointer.h"
 #include "vtkTextureObject.h"
 #include "vtkWeakPointer.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include <deque> // for methods
 
@@ -138,7 +138,7 @@ public:
   /**
    * Compute the index into the 4x4 OpenGL ordered matrix.
    */
-  inline int idx(int row, int col) { return 4 * col + row; }
+  int idx(int row, int col) { return 4 * col + row; }
 
   /**
    * given a axes aligned bounding box in

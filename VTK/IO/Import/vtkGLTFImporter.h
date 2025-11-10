@@ -18,7 +18,6 @@
  * This importer supports all physically-based rendering material features, with the exception of
  * alpha masking and mirrored texture wrapping, which are not supported.
  *
- *
  * This importer does not support materials that use multiple
  * sets of texture coordinates. Only the first set will be used in this case.
  *
@@ -26,6 +25,10 @@
  * animations, morphing or skinning, please consider using vtkGLTFReader.
  *
  * This importer only supports assets that use the 2.x version of the glTF specification.
+ *
+ * This importer support recovering scene hierarchy partially, only actors are available.
+ *
+ * This importer supports the collection API
  *
  * For the full glTF specification, see:
  * https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
@@ -48,16 +51,21 @@
 
 #include "vtkIOImportModule.h" // For export macro
 #include "vtkImporter.h"
-#include "vtkSmartPointer.h" // For SmartPointer
+#include "vtkResourceStream.h" // For Stream
+#include "vtkSmartPointer.h"   // For SmartPointer
+#include "vtkURILoader.h"      // For URILoader
 
 #include <map>    // For map
 #include <vector> // For vector
 
 VTK_ABI_NAMESPACE_BEGIN
+
+// Forward declarations
 class vtkActor;
 class vtkCamera;
 class vtkGLTFDocumentLoader;
 class vtkTexture;
+class vtkURILoader;
 
 class VTKIOIMPORT_EXPORT vtkGLTFImporter : public vtkImporter
 {
@@ -75,6 +83,40 @@ public:
   vtkGetFilePathMacro(FileName);
   ///@}
 
+  ///@{
+  /**
+   * Specify the glTF source stream to read from. When selecting the input method, `Stream` has a
+   * higher priority than `FileName` i.e. if a stream is provided, the filename is ignored.
+   *
+   * \note If the stream contains non-data URIs, specifying a custom uri loader is crucial.
+   * \sa SetStreamURILoader()
+   *
+   * \sa SetStreamIsBinary()
+   */
+  vtkSetSmartPointerMacro(Stream, vtkResourceStream);
+  vtkGetSmartPointerMacro(Stream, vtkResourceStream);
+  ///@}
+
+  ///@{
+  /**
+   * Specify a custom URI loader for non-data URIs in the input stream.
+   * \sa SetStream(), SetStreamIsBinary()
+   */
+  vtkSetSmartPointerMacro(StreamURILoader, vtkURILoader);
+  vtkGetSmartPointerMacro(StreamURILoader, vtkURILoader);
+  ///@}
+
+  ///@{
+  /**
+   * Set/Get whether the input stream is binary
+   *
+   * \sa SetStream()
+   */
+  vtkSetMacro(StreamIsBinary, bool);
+  vtkGetMacro(StreamIsBinary, bool);
+  vtkBooleanMacro(StreamIsBinary, bool);
+  ///@}
+
   /**
    * glTF defines multiple camera objects, but no default behavior for which camera should be
    * used. The importer will by default apply the asset's first camera. This accessor lets you use
@@ -90,7 +132,13 @@ public:
   /**
    * update timestep
    */
-  void UpdateTimeStep(double timeValue) override;
+  bool UpdateAtTimeValue(double timeValue) override;
+
+  /**
+   * Get the level of animation support in this importer, which is always
+   * AnimationSupportLevel::MULTI
+   */
+  AnimationSupportLevel GetAnimationSupportLevel() override { return AnimationSupportLevel::MULTI; }
 
   /**
    * Get the number of available animations.
@@ -155,7 +203,18 @@ protected:
 
   void ApplySkinningMorphing();
 
+  /**
+   * Apply properties on the armature actors.
+   * By default, the armature is represented with spheres for joints
+   * and tubes for bones.
+   * Can be subclassed to change properties.
+   */
+  virtual void ApplyArmatureProperties(vtkActor* actor);
+
   char* FileName = nullptr;
+  vtkSmartPointer<vtkResourceStream> Stream;
+  vtkSmartPointer<vtkURILoader> StreamURILoader;
+  bool StreamIsBinary = false;
 
   std::map<int, vtkSmartPointer<vtkCamera>> Cameras;
   std::map<int, vtkSmartPointer<vtkTexture>> Textures;
@@ -168,6 +227,8 @@ protected:
 private:
   vtkGLTFImporter(const vtkGLTFImporter&) = delete;
   void operator=(const vtkGLTFImporter&) = delete;
+
+  std::map<int, vtkSmartPointer<vtkActor>> ArmatureActors;
 };
 
 VTK_ABI_NAMESPACE_END

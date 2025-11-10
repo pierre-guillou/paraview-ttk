@@ -9,7 +9,9 @@
 #include "pqFileDialog.h"
 #include "pqProxyWidgetDialog.h"
 #include "pqServer.h"
+#include "pqSettings.h"
 #include "pqStandardRecentlyUsedResourceLoaderImplementation.h"
+#include "pqUndoStack.h"
 #include "vtkNew.h"
 #include "vtkSMParaViewPipelineController.h"
 #include "vtkSMPropertyHelper.h"
@@ -52,11 +54,13 @@ bool pqSaveStateReaction::saveState()
 //-----------------------------------------------------------------------------
 bool pqSaveStateReaction::saveState(pqServer* server)
 {
-  QString fileExt = tr("ParaView state file") + QString(" (*.pvsm);;");
+  bool pythonAvailable = false;
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-  fileExt += tr("Python state file") + QString(" (*.py);;");
+  pythonAvailable = true;
 #endif
-  fileExt += tr("All Files") + QString(" (*)");
+
+  QString fileExt =
+    pqApplicationCore::instance()->getDefaultSaveStateFileFormatQString(pythonAvailable, false);
 
   pqFileDialog fileDialog(
     server, pqCoreUtilities::mainWidget(), tr("Save State File"), QString(), fileExt, false, false);
@@ -83,9 +87,10 @@ bool pqSaveStateReaction::saveState(pqServer* server)
 //-----------------------------------------------------------------------------
 bool pqSaveStateReaction::saveState(const QString& filename, vtkTypeUInt32 location)
 {
+  SCOPED_UNDO_EXCLUDE();
   if (!pqApplicationCore::instance()->saveState(filename, location))
   {
-    qCritical() << "Failed to save " << filename;
+    qCritical() << tr("Failed to save %1").arg(filename);
     return false;
   }
   pqServer* server = pqActiveObjects::instance().activeServer();
@@ -96,43 +101,40 @@ bool pqSaveStateReaction::saveState(const QString& filename, vtkTypeUInt32 locat
 }
 
 //-----------------------------------------------------------------------------
-bool pqSaveStateReaction::savePythonState(const QString& filename, vtkTypeUInt32 location)
+bool pqSaveStateReaction::savePythonState(
+  const QString& filename, vtkSMProxy* options, vtkTypeUInt32 location)
 {
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-  vtkSMSessionProxyManager* pxm = pqActiveObjects::instance().proxyManager();
-  assert(pxm);
-
-  vtkSmartPointer<vtkSMProxy> options;
-  options.TakeReference(pxm->NewProxy("pythontracing", "PythonStateOptions"));
-  if (options.GetPointer() == nullptr)
+  SCOPED_UNDO_EXCLUDE();
+  if (strcmp(options->GetXMLName(), "PythonStateOptions") != 0)
   {
+    qCritical() << tr("Unable to read python state options.");
     return false;
   }
 
-  vtkNew<vtkSMParaViewPipelineController> controller;
-  controller->InitializeProxy(options);
-
-  pqProxyWidgetDialog dialog(options);
-  dialog.setWindowTitle(tr("Python State Options"));
-  dialog.setObjectName("StateOptionsDialog");
-  dialog.setApplyChangesImmediately(true);
-  if (dialog.exec() != QDialog::Accepted)
+  vtkSMTrace* tracer = vtkSMTrace::GetActiveTracer();
+  if (tracer)
   {
+    QMessageBox::warning(pqCoreUtilities::mainWidget(),
+      tr("Trace and Python State incompatibility."),
+      tr("Save Python State can not work while Trace is active. Aborting."));
+
     return false;
   }
 
   const std::string state = vtkSMTrace::GetState(options);
   if (state.empty())
   {
-    qWarning("Empty state generated.");
+    qWarning() << tr("Empty state generated.");
     return false;
   }
 
   Q_EMIT pqApplicationCore::instance()->aboutToWriteState(filename);
 
+  vtkSMSessionProxyManager* pxm = pqActiveObjects::instance().proxyManager();
   if (!pxm->SaveString(state.c_str(), filename.toStdString().c_str(), location))
   {
-    qCritical() << tr("Failed to save state in ") << filename;
+    qCritical() << tr("Failed to save state in %1").arg(filename);
     return false;
   }
 
@@ -140,11 +142,63 @@ bool pqSaveStateReaction::savePythonState(const QString& filename, vtkTypeUInt32
   // Add this to the list of recent server resources ...
   pqStandardRecentlyUsedResourceLoaderImplementation::addStateFileToRecentResources(
     server, filename, location);
+
   return true;
+
 #else
   Q_UNUSED(location);
-  qCritical() << "Failed to save '" << filename
-              << "' since Python support in not enabled in this build.";
+  Q_UNUSED(options);
+  qCritical()
+    << tr("Failed to save '%1' since Python support is not enabled in this build.").arg(filename);
+
+  return false;
+#endif
+}
+
+//-----------------------------------------------------------------------------
+vtkSMProxy* pqSaveStateReaction::createPythonStateOptions(bool interactive)
+{
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+  vtkSMSessionProxyManager* pxm = pqActiveObjects::instance().proxyManager();
+  vtkSMProxy* options = pxm->NewProxy("pythontracing", "PythonStateOptions");
+  if (options)
+  {
+    vtkNew<vtkSMParaViewPipelineController> controller;
+    controller->InitializeProxy(options);
+  }
+
+  if (interactive)
+  {
+    pqProxyWidgetDialog dialog(options);
+    dialog.setWindowTitle(tr("Python State Options"));
+    dialog.setObjectName("StateOptionsDialog");
+    dialog.setApplyChangesImmediately(false);
+    dialog.exec();
+  }
+
+  return options;
+
+#else
+  Q_UNUSED(interactive);
+  qCritical() << tr(
+    "Failed to create python state options since Python support is not enabled in this build.");
+
+  return nullptr;
+#endif
+}
+
+//-----------------------------------------------------------------------------
+bool pqSaveStateReaction::savePythonState(const QString& filename, vtkTypeUInt32 location)
+{
+#if VTK_MODULE_ENABLE_ParaView_pqPython
+  vtkSmartPointer<vtkSMProxy> options;
+  options.TakeReference(pqSaveStateReaction::createPythonStateOptions(true));
+
+  return pqSaveStateReaction::savePythonState(filename, options, location);
+#else
+  Q_UNUSED(location);
+  qCritical()
+    << tr("Failed to save '%1' since Python support is not enabled in this build.").arg(filename);
   return false;
 #endif
 }

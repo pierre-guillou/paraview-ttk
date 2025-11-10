@@ -740,18 +740,22 @@ void SurfaceNets<T>::ConfigureOutput(
   // (i.e., row interleaving is performed).
   vtkIdType numRows = this->DyadDims[1];
   vtkIdType numRowPairs = (numRows - 1) / 2 + 1;
-  vtkSMPTools::For(0, numRowPairs, [this](vtkIdType rowPair, vtkIdType endRowPair) {
-    for (; rowPair < endRowPair; ++rowPair)
+  vtkSMPTools::For(0, numRowPairs,
+    [this](vtkIdType rowPair, vtkIdType endRowPair)
     {
-      this->ProduceSquareCases(rowPair, false); // even rows
-    }
-  });
-  vtkSMPTools::For(0, numRowPairs, [this](vtkIdType rowPair, vtkIdType endRowPair) {
-    for (; rowPair < endRowPair; ++rowPair)
+      for (; rowPair < endRowPair; ++rowPair)
+      {
+        this->ProduceSquareCases(rowPair, false); // even rows
+      }
+    });
+  vtkSMPTools::For(0, numRowPairs,
+    [this](vtkIdType rowPair, vtkIdType endRowPair)
     {
-      this->ProduceSquareCases(rowPair, true); // odd rows
-    }
-  });
+      for (; rowPair < endRowPair; ++rowPair)
+      {
+        this->ProduceSquareCases(rowPair, true); // odd rows
+      }
+    });
 
   // Begin prefix sum to determine the point, line, and stencil number
   // offsets for each row.
@@ -1108,7 +1112,7 @@ struct NetsWorker
 
     // Compute the starting offset location for scalar data.  We may be operating
     // on a part of the image.
-    ValueType* scalars = static_cast<ValueType*>(static_cast<ST*>(scalarsArray)->GetPointer(0));
+    ValueType* scalars = static_cast<ValueType*>(scalarsArray->GetPointer(0));
     algo.Scalars = scalars + incs[0] * (updateExt[0] - ext[0]) + incs[1] * (updateExt[2] - ext[2]) +
       incs[2] * (updateExt[4] - ext[4]) + self->GetArrayComponent();
 
@@ -1152,7 +1156,7 @@ struct NetsWorker
 void SmoothOutput(vtkPolyData* geomCache, vtkCellArray* stencils, vtkPolyData* output,
   vtkConstrainedSmoothingFilter* smoother)
 {
-  vtkLog(INFO, "Smoothing output");
+  vtkLog(TRACE, "Smoothing output");
 
   // Smooth the data and replace the output points.
   smoother->SetInputData(geomCache);
@@ -1208,7 +1212,7 @@ vtkMTimeType vtkSurfaceNets2D::GetMTime()
 int vtkSurfaceNets2D::RequestData(vtkInformation* vtkNotUsed(request),
   vtkInformationVector** inputVector, vtkInformationVector* outputVector)
 {
-  vtkLog(INFO, "Executing Surface Nets 2D");
+  vtkLog(TRACE, "Executing Surface Nets 2D");
 
   // Get the information objects
   vtkInformation* inInfo = inputVector[0]->GetInformationObject(0);
@@ -1283,7 +1287,7 @@ int vtkSurfaceNets2D::RequestData(vtkInformation* vtkNotUsed(request),
       return 1;
     }
 
-    vtkLog(INFO,
+    vtkLog(TRACE,
       "Extracted: " << newPts->GetNumberOfPoints() << " points, " << newLines->GetNumberOfCells()
                     << " lines");
 

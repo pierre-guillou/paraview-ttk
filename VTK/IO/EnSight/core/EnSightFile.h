@@ -8,6 +8,8 @@
 
 #include "vtksys/FStream.hxx"
 
+#include <cassert>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -64,6 +66,7 @@ struct EnSightFile
   Endianness ByteOrder = Endianness::Unknown;
   int TimeSet = -1;
   int FileSet = -1;
+  bool InBlockRead = false;
 
   EnSightFile();
   ~EnSightFile();
@@ -103,6 +106,13 @@ struct EnSightFile
   bool SetTimeStepToRead(double ts);
 
   /**
+   * Checks if this file has multiple time steps or not. If there's a wildcard in the
+   * FileNamePattern, return true, otherwise it will check for the existence of the BEGIN TIME STEP
+   * line.
+   */
+  bool CheckForMultipleTimeSteps();
+
+  /**
    * Checks for a BEGIN TIME STEP line and ensures the file is at the correct position
    * to continue reading.
    */
@@ -125,6 +135,12 @@ struct EnSightFile
    * Reads the next line up to size characters (ASCII) or size characters (binary)
    */
   std::pair<bool, std::string> ReadLine(int size = MAX_LINE_LENGTH);
+
+  /** Ignore the the next characters until either the line end delimiter is met or size characters
+   * have been ignored (if provided).
+   * For binary formats, ignore the next size characters + padding (but you should probably use
+   * another method)*/
+  void SkipLine(vtkTypeInt64 size = std::numeric_limits<std::streamsize>::max());
 
   /**
    * Skip the specified number of non-numeric lines when reading.
@@ -175,7 +191,7 @@ struct EnSightFile
   /**
    * Move the read position ahead n bytes.
    */
-  void MoveReadPosition(int numBytes);
+  void MoveReadPosition(vtkTypeInt64 numBytes);
 
   /**
    * Get current position of reader in stream.
@@ -247,7 +263,7 @@ void EnSightFile::SkipNNumbers(vtkIdType n, int numsPerLine /* = 1 */)
     //  for float, 12 characters total
     //  there's also white space allowed between numbers
     int size = getNumChars<T>() * numsPerLine + 10 * numsPerLine;
-    int lineIdx = 0;
+    vtkIdType lineIdx = 0;
     while (lineIdx < n)
     {
       auto result = this->ReadLine(size);
@@ -260,7 +276,7 @@ void EnSightFile::SkipNNumbers(vtkIdType n, int numsPerLine /* = 1 */)
   }
   else
   {
-    int numBytes = n * static_cast<int>(sizeof(T)) + this->FortranSkipBytes * 2;
+    vtkTypeInt64 numBytes = n * sizeof(T) + this->FortranSkipBytes * 2;
     this->MoveReadPosition(numBytes);
   }
 }
@@ -278,6 +294,7 @@ bool EnSightFile::ReadNumber(T* result, bool padBeginning /* = true*/, bool padE
   {
     if (padBeginning)
     {
+      assert(!this->InBlockRead);
       this->MoveReadPosition(this->FortranSkipBytes);
     }
     if (!this->Stream->read((char*)result, sizeof(T)))
@@ -287,6 +304,7 @@ bool EnSightFile::ReadNumber(T* result, bool padBeginning /* = true*/, bool padE
     }
     if (padEnd)
     {
+      assert(!this->InBlockRead);
       this->MoveReadPosition(this->FortranSkipBytes);
     }
     if (this->ByteOrder == Endianness::Little)
@@ -306,6 +324,11 @@ template <typename T>
 bool EnSightFile::ReadArray(T* result, vtkIdType n, bool singleLine /* = false*/,
   bool padBeginning /* = true*/, bool padEnd /* = true*/)
 {
+  if (n <= 0)
+  {
+    return true;
+  }
+
   if (this->Format == FileType::ASCII)
   {
     if (!singleLine)
@@ -336,7 +359,7 @@ bool EnSightFile::ReadArray(T* result, vtkIdType n, bool singleLine /* = false*/
     // In some cases we want to read everything in a single fortran
     // read into a single array, but sometimes we don't want to, so
     // we have to handle the skip bytes appropriately
-    if (padBeginning)
+    if (padBeginning && this->FortranSkipBytes > 0)
     {
       this->MoveReadPosition(this->FortranSkipBytes);
     }
@@ -345,7 +368,7 @@ bool EnSightFile::ReadArray(T* result, vtkIdType n, bool singleLine /* = false*/
       vtkGenericWarningMacro("read array failed");
       return false;
     }
-    if (padEnd)
+    if (padEnd && this->FortranSkipBytes > 0)
     {
       this->MoveReadPosition(this->FortranSkipBytes);
     }

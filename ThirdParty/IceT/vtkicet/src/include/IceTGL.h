@@ -12,10 +12,15 @@
 
 #include <IceT.h>
 
+/* XXX(Kitware): Use vtk's glad */
+#if 0
 #ifdef __APPLE__
 #  include <OpenGL/gl.h>
 #else
 #  include <GL/gl.h>
+#endif
+#else
+#include <vtk_glad.h>
 #endif
 
 #ifdef __cplusplus

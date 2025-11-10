@@ -32,7 +32,7 @@
 #include "vtkTextProperty.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 
 #include <algorithm>
 
@@ -72,7 +72,7 @@ void clampPlaneCenterInImage(vtkPlaneSource* plane, vtkImageData* image)
   clampedIndices[2] =
     vtkMath::ClampValue(indices[2], static_cast<double>(extent[4]), static_cast<double>(extent[5]));
 
-  // check if there are any change to avoid unecessary computation.
+  // check if there are any change to avoid unnecessary computation.
   bool identity = true;
   for (int idx = 0; idx < 3; idx++)
   {

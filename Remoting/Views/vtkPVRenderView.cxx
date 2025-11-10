@@ -10,6 +10,7 @@
 #include "vtkCamera.h"
 #include "vtkCameraOrientationRepresentation.h"
 #include "vtkCameraOrientationWidget.h"
+#include "vtkCaveSynchronizedRenderers.h"
 #include "vtkCollection.h"
 #include "vtkCommand.h"
 #include "vtkCommunicator.h"
@@ -141,6 +142,44 @@ public:
   int OSPRayCount;
   vtkNew<vtkFloatArray> ArrayHolder;
   vtkNew<vtkWindowToImageFilter> ZGrabber;
+
+  bool actorSyncEnabled;
+
+  void EnableActorSync(vtkPVSynchronizedRenderer* syncRen, bool enable)
+  {
+    vtkProcessModule* pm = vtkProcessModule::GetProcessModule();
+    if (!pm)
+    {
+      vtkGenericWarningMacro("Synchronizable actors cannot be used in the current setup.");
+      return;
+    }
+
+    vtkPVSession* activeSession = vtkPVSession::SafeDownCast(pm->GetActiveSession());
+    auto serverInfo = activeSession->GetServerInformation();
+    bool tileMode = serverInfo->GetIsInTileDisplay();
+    bool caveMode = serverInfo->GetIsInCave();
+
+    // If we have a ParallelSynchronizer, and it's specifically the CAVE type,
+    // it needs synchronizable actors enabled.
+    vtkCaveSynchronizedRenderers* pSync =
+      vtkCaveSynchronizedRenderers::SafeDownCast(syncRen->GetParallelSynchronizer());
+    if (pSync)
+    {
+      pSync->EnableSynchronizableActors(enable);
+    }
+
+    // If we have a CSSynchronizer and we're in tile or cave mode, then that
+    // needs synchronizable actors enabled.
+    vtkSynchronizedRenderers* csSync = syncRen->GetCSSynchronizer();
+    if (csSync && (tileMode || caveMode))
+    {
+      csSync->EnableSynchronizableActors(enable);
+    }
+
+    this->actorSyncEnabled = enable;
+  }
+
+  bool GetActorSyncEnabled() { return this->actorSyncEnabled; }
 
   void RegisterSelectionProp(int id, vtkProp*, vtkPVDataRepresentation* rep)
   {
@@ -330,6 +369,7 @@ vtkPVRenderView::vtkPVRenderView()
   this->Internals->OSPRayShadows = false;
   this->Internals->OSPRayDenoise = true;
   this->Internals->OSPRayCount = 0;
+  this->Internals->actorSyncEnabled = false;
 
   this->RemoteRenderingAvailable = true;
 
@@ -742,16 +782,33 @@ void vtkPVRenderView::SetInteractionMode(int mode)
 }
 
 //----------------------------------------------------------------------------
+void vtkPVRenderView::AddAnnotationToView(vtkProp* annotation)
+{
+  if (annotation)
+  {
+    this->AddPropToRenderer(annotation);
+    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler);
+    culler->DoNotCullList.erase(annotation);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::RemoveAnnotationFromView(vtkProp* annotation)
+{
+  if (annotation)
+  {
+    this->RemovePropFromRenderer(annotation);
+    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler);
+    culler->DoNotCullList.insert(annotation);
+  }
+}
+
+//----------------------------------------------------------------------------
 void vtkPVRenderView::SetLegendGridActor(vtkLegendScaleActor* gridActor)
 {
   if (this->LegendGridActor != gridActor)
   {
-    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler.GetPointer());
-    if (this->LegendGridActor)
-    {
-      this->GetRenderer()->RemoveViewProp(this->LegendGridActor);
-      culler->DoNotCullList.erase(this->LegendGridActor);
-    }
+    this->RemoveAnnotationFromView(this->LegendGridActor);
     this->LegendGridActor = gridActor;
     if (this->LegendGridActor)
     {
@@ -761,8 +818,7 @@ void vtkPVRenderView::SetLegendGridActor(vtkLegendScaleActor* gridActor)
       this->LegendGridActor->LegendVisibilityOff();
       this->LegendGridActor->SetCornerOffsetFactor(1);
 
-      this->GetRenderer()->AddViewProp(this->LegendGridActor);
-      culler->DoNotCullList.insert(this->LegendGridActor);
+      this->AddAnnotationToView(this->LegendGridActor);
     }
   }
 }
@@ -772,18 +828,9 @@ void vtkPVRenderView::SetPolarGridActor(vtkPolarAxesActor2D* polarActor)
 {
   if (this->PolarAxesActor != polarActor)
   {
-    vtkPVRendererCuller* culler = vtkPVRendererCuller::SafeDownCast(this->Culler);
-    if (this->PolarAxesActor)
-    {
-      this->GetRenderer()->RemoveViewProp(this->PolarAxesActor);
-      culler->DoNotCullList.erase(this->PolarAxesActor);
-    }
+    this->RemoveAnnotationFromView(this->PolarAxesActor);
     this->PolarAxesActor = polarActor;
-    if (this->PolarAxesActor)
-    {
-      this->GetRenderer()->AddViewProp(this->PolarAxesActor);
-      culler->DoNotCullList.insert(this->PolarAxesActor);
-    }
+    this->AddAnnotationToView(this->PolarAxesActor);
   }
 }
 
@@ -1253,8 +1300,7 @@ void vtkPVRenderView::ResetCameraScreenSpace(double* bounds, double offsetRatio)
 {
   if (!this->LockBounds)
   {
-    this->RenderView->GetRenderer()->ResetCameraScreenSpace(
-      bounds, static_cast<double>(offsetRatio));
+    this->RenderView->GetRenderer()->ResetCameraScreenSpace(bounds, offsetRatio);
   }
   this->InvokeEvent(vtkCommand::ResetCameraEvent);
 }
@@ -2950,6 +2996,8 @@ void vtkPVRenderView::SetStereoRender(int val)
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
 inline int vtkGetNumberOfRendersPerFrame(int stereoMode)
 {
   switch (stereoMode)
@@ -2971,6 +3019,7 @@ inline int vtkGetNumberOfRendersPerFrame(int stereoMode)
     default:
       return 1;
   }
+}
 }
 
 //----------------------------------------------------------------------------
@@ -3003,9 +3052,10 @@ void vtkPVRenderView::UpdateStereoProperties()
     // in this mode, the render server processes are showing results to the user
     // and the stereo mode is more relevant on the server side than the client
     // side since the client is merely a driver.
-    if (vtkGetNumberOfRendersPerFrame(server_type) != vtkGetNumberOfRendersPerFrame(client_type))
+    if (::vtkGetNumberOfRendersPerFrame(server_type) !=
+      ::vtkGetNumberOfRendersPerFrame(client_type))
     {
-      if (vtkGetNumberOfRendersPerFrame(server_type) == 2)
+      if (::vtkGetNumberOfRendersPerFrame(server_type) == 2)
       {
         client_type = VTK_STEREO_EMULATE;
       }
@@ -3020,7 +3070,7 @@ void vtkPVRenderView::UpdateStereoProperties()
     // the client is the main viewport for the user, the server side processes
     // are not showing final results to the user. The server never needs any 2
     // pass mode except VTK_STEREO_EMULATE.
-    if (vtkGetNumberOfRendersPerFrame(client_type) == 2)
+    if (::vtkGetNumberOfRendersPerFrame(client_type) == 2)
     {
       server_type = VTK_STEREO_EMULATE;
     }
@@ -3079,6 +3129,15 @@ void vtkPVRenderView::SetStencilCapable(int val)
   this->GetRenderWindow()->SetStencilCapable(val);
 }
 
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetPhysicalToWorldMatrix(const double matrix[16])
+{
+  vtkMatrix4x4* mat = vtkMatrix4x4::New();
+  mat->DeepCopy(matrix);
+  this->GetRenderWindow()->SetPhysicalToWorldMatrix(mat);
+  mat->Delete();
+}
+
 //*****************************************************************
 // Forwarded to vtkCamera if present on local processes.
 //----------------------------------------------------------------------------
@@ -3089,6 +3148,17 @@ void vtkPVRenderView::SetParallelProjection(int mode)
     this->ParallelProjection = mode;
     this->GetActiveCamera()->SetParallelProjection(mode);
     this->Modified();
+  }
+
+  if (!mode)
+  {
+    this->RemoveAnnotationFromView(this->LegendGridActor);
+    this->RemoveAnnotationFromView(this->PolarAxesActor);
+  }
+  else
+  {
+    this->AddAnnotationToView(this->LegendGridActor);
+    this->AddAnnotationToView(this->PolarAxesActor);
   }
 }
 
@@ -3444,6 +3514,18 @@ void vtkPVRenderView::SetViewTime(double value)
   vtkOSPRayRendererNode::SetViewTime(value, ren);
 #endif
   this->Superclass::SetViewTime(value);
+}
+
+//----------------------------------------------------------------------------
+void vtkPVRenderView::SetEnableSynchronizableActors(bool v)
+{
+  this->Internals->EnableActorSync(this->SynchronizedRenderers, v);
+}
+
+//----------------------------------------------------------------------------
+bool vtkPVRenderView::GetEnableSynchronizableActors()
+{
+  return this->Internals->GetActorSyncEnabled();
 }
 
 //----------------------------------------------------------------------------
@@ -3821,6 +3903,9 @@ void vtkPVRenderView::SetHardwareSelector(vtkPVHardwareSelector* selector)
   // Clear selection props registered with the previous hardware selector
   this->Internals->ClearSelectionProps();
 
-  this->Selector = selector;
-  this->Selector->SetView(this); // not reference counted.
+  if (selector)
+  {
+    this->Selector = selector;
+    this->Selector->SetView(this); // not reference counted.
+  }
 }

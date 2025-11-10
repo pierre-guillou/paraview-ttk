@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2025, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -6,10 +6,13 @@
 
 #pragma once
 
+// IWYU pragma: private, include "CLI/CLI.hpp"
+
 // [CLI11:public_includes:set]
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 // [CLI11:public_includes:end]
@@ -29,15 +32,16 @@ struct ConfigItem {
 
     /// This is the name
     std::string name{};
-
     /// Listing of inputs
     std::vector<std::string> inputs{};
-
+    /// @brief indicator if a multiline vector separator was inserted
+    bool multiline{false};
     /// The list of parents and name joined by "."
-    std::string fullname() const {
+    CLI11_NODISCARD std::string fullname() const {
         std::vector<std::string> tmp = parents;
         tmp.emplace_back(name);
         return detail::join(tmp, ".");
+        (void)multiline;  // suppression for cppcheck false positive
     }
 };
 
@@ -54,15 +58,18 @@ class Config {
     virtual std::vector<ConfigItem> from_config(std::istream &) const = 0;
 
     /// Get a flag value
-    virtual std::string to_flag(const ConfigItem &item) const {
+    CLI11_NODISCARD virtual std::string to_flag(const ConfigItem &item) const {
         if(item.inputs.size() == 1) {
             return item.inputs.at(0);
         }
-        throw ConversionError::TooManyInputsFlag(item.fullname());
+        if(item.inputs.empty()) {
+            return "{}";
+        }
+        throw ConversionError::TooManyInputsFlag(item.fullname());  // LCOV_EXCL_LINE
     }
 
     /// Parse a config file, throw an error (ParseError:ConfigParseError or FileError) on failure
-    std::vector<ConfigItem> from_file(const std::string &name) {
+    CLI11_NODISCARD std::vector<ConfigItem> from_file(const std::string &name) const {
         std::ifstream input{name};
         if(!input.good())
             throw FileError::Missing(name);
@@ -89,8 +96,20 @@ class ConfigBase : public Config {
     char valueDelimiter = '=';
     /// the character to use around strings
     char stringQuote = '"';
-    /// the character to use around single characters
-    char characterQuote = '\'';
+    /// the character to use around single characters and literal strings
+    char literalQuote = '\'';
+    /// the maximum number of layers to allow
+    uint8_t maximumLayers{255};
+    /// the separator used to separator parent layers
+    char parentSeparatorChar{'.'};
+    /// comment default values
+    bool commentDefaultsBool = false;
+    /// specify the config reader should collapse repeated field names to a single vector
+    bool allowMultipleDuplicateFields{false};
+    /// Specify the configuration index to use for arrayed sections
+    int16_t configIndex{-1};
+    /// Specify the configuration section that should be used
+    std::string configSection{};
 
   public:
     std::string
@@ -118,10 +137,49 @@ class ConfigBase : public Config {
         valueDelimiter = vSep;
         return this;
     }
-    /// Specify the quote characters used around strings and characters
-    ConfigBase *quoteCharacter(char qString, char qChar) {
+    /// Specify the quote characters used around strings and literal strings
+    ConfigBase *quoteCharacter(char qString, char literalChar) {
         stringQuote = qString;
-        characterQuote = qChar;
+        literalQuote = literalChar;
+        return this;
+    }
+    /// Specify the maximum number of parents
+    ConfigBase *maxLayers(uint8_t layers) {
+        maximumLayers = layers;
+        return this;
+    }
+    /// Specify the separator to use for parent layers
+    ConfigBase *parentSeparator(char sep) {
+        parentSeparatorChar = sep;
+        return this;
+    }
+    /// comment default value options
+    ConfigBase *commentDefaults(bool comDef = true) {
+        commentDefaultsBool = comDef;
+        return this;
+    }
+    /// get a reference to the configuration section
+    std::string &sectionRef() { return configSection; }
+    /// get the section
+    CLI11_NODISCARD const std::string &section() const { return configSection; }
+    /// specify a particular section of the configuration file to use
+    ConfigBase *section(const std::string &sectionName) {
+        configSection = sectionName;
+        return this;
+    }
+
+    /// get a reference to the configuration index
+    int16_t &indexRef() { return configIndex; }
+    /// get the section index
+    CLI11_NODISCARD int16_t index() const { return configIndex; }
+    /// specify a particular index in the section to use (-1) for all sections to use
+    ConfigBase *index(int16_t sectionIndex) {
+        configIndex = sectionIndex;
+        return this;
+    }
+    /// specify that multiple duplicate arguments should be merged even if not sequential
+    ConfigBase *allowDuplicateFields(bool value = true) {
+        allowMultipleDuplicateFields = value;
         return this;
     }
 };

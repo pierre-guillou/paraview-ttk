@@ -1,4 +1,4 @@
-vtk_module_find_package(PACKAGE OpenXR)
+vtk_module_find_package(PACKAGE OpenXR VERSION 1.0.31)
 
 set(classes
   vtkOpenXRRenderWindow
@@ -7,7 +7,10 @@ set(classes
   vtkOpenXRControlsHelper
   vtkOpenXRModel
   vtkOpenXRRenderer
-  vtkOpenXRInteractorStyle)
+  vtkOpenXRInteractorStyle
+  vtkOpenXRSceneObserver
+  vtkOpenXRSceneComponent
+  )
 
 set(nowrap_classes
   vtkOpenXRManager
@@ -47,7 +50,7 @@ set(openxr_input_files
 foreach(inputfile ${openxr_input_files})
   configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/${inputfile}
-    ${CMAKE_CURRENT_BINARY_DIR}/${input_file}
+    ${CMAKE_CURRENT_BINARY_DIR}/${inputfile}
     COPYONLY)
 endforeach()
 

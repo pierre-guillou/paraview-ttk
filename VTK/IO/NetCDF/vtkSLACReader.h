@@ -121,12 +121,14 @@ public:
   /**
    * This key is attached to the metadata information of all data sets in the
    * output that are part of the internal volume.
+   * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* IS_INTERNAL_VOLUME();
 
   /**
    * This key is attached to the metadata information of all data sets in the
    * output that are part of the external surface.
+   * \ingroup InformationKeys
    */
   static vtkInformationIntegerKey* IS_EXTERNAL_SURFACE();
 
@@ -136,6 +138,7 @@ public:
    * data.  For convenience, the point coordinates (vtkPoints) and point data
    * (vtkPointData) are saved under these keys in the vtkInformation of the
    * output data set.
+   * \ingroup InformationKeys
    */
   static vtkInformationObjectBaseKey* POINTS();
   static vtkInformationObjectBaseKey* POINT_DATA();
@@ -167,9 +170,9 @@ public:
         this->MaxEndPoint = endpointA;
       }
     }
-    inline vtkIdType GetMinEndPoint() const { return this->MinEndPoint; }
-    inline vtkIdType GetMaxEndPoint() const { return this->MaxEndPoint; }
-    inline bool operator==(const EdgeEndpoints& other) const
+    vtkIdType GetMinEndPoint() const { return this->MinEndPoint; }
+    vtkIdType GetMaxEndPoint() const { return this->MaxEndPoint; }
+    bool operator==(const EdgeEndpoints& other) const
     {
       return ((this->GetMinEndPoint() == other.GetMinEndPoint()) &&
         (this->GetMaxEndPoint() == other.GetMaxEndPoint()));

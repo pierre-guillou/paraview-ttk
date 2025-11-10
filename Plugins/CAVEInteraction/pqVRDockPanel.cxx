@@ -15,6 +15,7 @@
 #include "pqServerManagerModel.h"
 #include "pqVRAddConnectionDialog.h"
 #include "pqVRAddStyleDialog.h"
+#include "pqVRCollaborationWidget.h"
 #include "pqVRConnectionManager.h"
 #include "pqVRQueueHandler.h"
 #include "pqView.h"
@@ -27,9 +28,8 @@
 #endif
 
 #include "vtkCamera.h"
-#include "vtkCommand.h"
-#include "vtkMatrix4x4.h"
 #include "vtkNew.h"
+#include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
 #include "vtkPVXMLParser.h"
 #include "vtkSMRenderViewProxy.h"
@@ -37,15 +37,17 @@
 #include "vtkVRInteractorStyleFactory.h"
 #include "vtkWeakPointer.h"
 
+#include <QDebug>
 #include <QListWidgetItem>
-
-#include <QtCore/QDebug>
-#include <QtCore/QMap>
-#include <QtCore/QPointer>
+#include <QMap>
+#include <QPointer>
 
 #include <vtksys/FStream.hxx>
 
 #include <cmath>
+
+typedef std::map<std::string, std::string> StringMap;
+typedef std::map<std::string, StringMap> StringMapMap;
 
 class pqVRDockPanel::pqInternals : public Ui::VRDockPanel
 {
@@ -54,8 +56,10 @@ public:
 
   bool IsRunning;
 
+  pqVRCollaborationWidget* CollaborationWidget;
   vtkWeakPointer<vtkCamera> Camera;
   QMap<QString, vtkSMVRInteractorStyleProxy*> StyleNameMap;
+  std::shared_ptr<StringMapMap> valuatorLookupTable;
 };
 
 //-----------------------------------------------------------------------------
@@ -66,6 +70,8 @@ void pqVRDockPanel::constructor()
   this->Internals = new pqInternals();
   this->Internals->setupUi(container);
   this->setWidget(container);
+
+  this->Internals->valuatorLookupTable = std::make_shared<StringMapMap>();
 
   this->Internals->IsRunning = false;
   this->updateStartStopButtonStates();
@@ -136,6 +142,11 @@ void pqVRDockPanel::constructor()
   QList<pqRenderView*> rviews = ::pqFindItems<pqRenderView*>(smmodel);
   if (rviews.size() != 0)
     this->setActiveView(rviews.first());
+
+#if CAVEINTERACTION_HAS_COLLABORATION
+  this->Internals->CollaborationWidget = new pqVRCollaborationWidget(this);
+  this->Internals->collaborationContainer->addWidget(this->Internals->CollaborationWidget);
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -145,6 +156,12 @@ pqVRDockPanel::~pqVRDockPanel()
   {
     this->stop();
   }
+
+  if (this->Internals->CollaborationWidget)
+  {
+    delete this->Internals->CollaborationWidget;
+  }
+
   delete this->Internals;
 }
 
@@ -170,9 +187,48 @@ void pqVRDockPanel::updateConnections()
 
   pqVRConnectionManager* mgr = pqVRConnectionManager::instance();
   QList<QString> connectionNames = mgr->connectionNames();
+
+  this->Internals->valuatorLookupTable->clear();
+
   Q_FOREACH (const QString& name, connectionNames)
   {
     this->Internals->connectionsTable->addItem(name);
+
+    // Now update our valuator connection/event information
+    bool found = false;
+    std::map<std::string, std::string> valuatorMap;
+
+#if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRPN
+    if (pqVRPNConnection* vrpnConn = mgr->GetVRPNConnection(name))
+    {
+      found = true;
+      valuatorMap = vrpnConn->valuatorMap();
+    }
+#endif
+#if PARAVIEW_PLUGIN_CAVEInteraction_USE_VRUI
+    if (!found)
+    {
+      if (pqVRUIConnection* vruiConn = mgr->GetVRUIConnection(name))
+      {
+        found = true;
+        valuatorMap = vruiConn->valuatorMap();
+      }
+    }
+#endif
+    if (found)
+    {
+      auto& table = *(this->Internals->valuatorLookupTable);
+      auto connMap = table[name.toStdString()];
+
+      for (std::map<std::string, std::string>::const_iterator iter = valuatorMap.begin(),
+                                                              itEnd = valuatorMap.end();
+           iter != itEnd; ++iter)
+      {
+        connMap[iter->second] = iter->first;
+      }
+
+      table[name.toStdString()] = connMap;
+    }
   }
 }
 
@@ -375,6 +431,13 @@ void pqVRDockPanel::updateStyles()
 
   Q_FOREACH (vtkSMVRInteractorStyleProxy* style, pqVRQueueHandler::instance()->styles())
   {
+    style->SetValuatorLookupTable(this->Internals->valuatorLookupTable);
+
+    if (style->GetIsInternal())
+    {
+      continue;
+    }
+
     QString name = this->Internals->createName(style);
     this->Internals->StyleNameMap.insert(name, style);
     this->Internals->stylesTable->addItem(name);
@@ -500,6 +563,17 @@ void pqVRDockPanel::setActiveView(pqView* view)
   {
     this->Internals->proxyCombo->addProxy(0, rview->getSMName(), rview->getProxy());
   }
+
+#if CAVEINTERACTION_HAS_COLLABORATION
+  if (view)
+  {
+    vtkSMRenderViewProxy* proxy = vtkSMRenderViewProxy::SafeDownCast(view->getViewProxy());
+    if (proxy)
+    {
+      proxy->SetEnableSynchronizableActors(true);
+    }
+  }
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -529,6 +603,11 @@ void pqVRDockPanel::saveState()
   if (pqVRQueueHandler* queueHandler = pqVRQueueHandler::instance())
   {
     queueHandler->saveStylesConfiguration(root.GetPointer());
+  }
+
+  if (this->Internals->CollaborationWidget)
+  {
+    this->Internals->CollaborationWidget->saveCollaborationState(root.GetPointer());
   }
 
   vtksys::ofstream os(filename.toUtf8().data(), ios::out);
@@ -573,6 +652,11 @@ void pqVRDockPanel::restoreState()
   {
     queueHandler->configureStyles(root, nullptr);
   }
+
+  if (this->Internals->CollaborationWidget)
+  {
+    this->Internals->CollaborationWidget->restoreCollaborationState(root, nullptr);
+  }
 }
 
 //-----------------------------------------------------------------------------
@@ -613,6 +697,13 @@ void pqVRDockPanel::start()
   }
   QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
   this->disableConnectionButtons();
+
+  if (this->Internals->CollaborationWidget)
+  {
+    this->Internals->CollaborationWidget->initializeCollaboration(
+      pqActiveObjects::instance().activeView());
+  }
+
   pqVRConnectionManager::instance()->start();
   pqVRQueueHandler::instance()->start();
   this->Internals->IsRunning = true;
@@ -634,6 +725,12 @@ void pqVRDockPanel::stop()
   pqVRConnectionManager::instance()->stop();
   pqVRQueueHandler::instance()->stop();
   this->Internals->IsRunning = false;
+
+  if (this->Internals->CollaborationWidget)
+  {
+    this->Internals->CollaborationWidget->stopCollaboration();
+  }
+
   this->updateConnectionButtons(this->Internals->connectionsTable->currentRow());
   this->updateStartStopButtonStates();
   QApplication::restoreOverrideCursor();

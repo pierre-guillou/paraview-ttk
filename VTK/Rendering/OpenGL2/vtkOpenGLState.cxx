@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLState.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLFramebufferObject.h"
@@ -292,6 +292,7 @@ bool reportOpenGLErrors(std::string& result)
 #define vtkOpenGLCheckStateMacro() this->CheckState()
 
 #define vtkCheckOpenGLErrorsWithStack(message)                                                     \
+  do                                                                                               \
   {                                                                                                \
     std::string _tmp;                                                                              \
     if (reportOpenGLErrors(_tmp))                                                                  \
@@ -299,7 +300,7 @@ bool reportOpenGLErrors(std::string& result)
       vtkGenericWarningMacro("Error " << message << _tmp);                                         \
       vtkOpenGLClearErrorMacro();                                                                  \
     }                                                                                              \
-  }
+  } while (false)
 
 VTK_ABI_NAMESPACE_END
 #else // VTK_REPORT_OPENGL_ERRORS
@@ -2171,7 +2172,7 @@ void vtkOpenGLState::InitializeTextureInternalFormats()
   // that is due to expire in the US in summer 2018
 #ifndef GL_ES_VERSION_3_0
   const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
-  if (glVersion && strstr(glVersion, "Mesa") != nullptr && !GLEW_ARB_texture_float)
+  if (glVersion && strstr(glVersion, "Mesa") != nullptr && !GLAD_GL_ARB_texture_float)
   {
     // mesa without float support cannot even use
     // uchar textures with underlying float data

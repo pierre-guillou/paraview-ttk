@@ -80,6 +80,12 @@
 #endif
 
 //-----------------------------------------------------------------------------
+namespace
+{
+static const QString DEFAULT_SAVE_STATE_FORMAT_KEY = "GeneralSettings.DefaultSaveStateFormat";
+};
+
+//-----------------------------------------------------------------------------
 class pqApplicationCore::pqInternals
 {
 public:
@@ -304,6 +310,58 @@ QObject* pqApplicationCore::manager(const QString& function)
 }
 
 //-----------------------------------------------------------------------------
+QString pqApplicationCore::stateFileFormatToExtension(pqApplicationCore::StateFileFormat format)
+{
+  switch (format)
+  {
+    case pqApplicationCore::StateFileFormat::Python:
+      return "py";
+    case pqApplicationCore::StateFileFormat::PVSM:
+    default:
+      return "pvsm";
+  }
+}
+
+//-----------------------------------------------------------------------------
+QString pqApplicationCore::getDefaultSaveStateFileFormatQString(bool pythonAvailable, bool loading)
+{
+  unsigned int value = settings()->value(::DEFAULT_SAVE_STATE_FORMAT_KEY, 0).toInt();
+  pqApplicationCore::StateFileFormat format = pqApplicationCore::StateFileFormat(value);
+
+  QString pvsmExt = tr("ParaView state file");
+  if (loading)
+  {
+    // .png is only added when loading, as saving .png state files is done using the save screenshot
+    // feature
+    pvsmExt += QString(" (*.pvsm *.png);;");
+  }
+  else
+  {
+    pvsmExt += QString(" (*.pvsm);;");
+  }
+
+  QString pyExt;
+  if (pythonAvailable)
+  {
+    pyExt = tr("Python state file") + QString(" (*.py);;");
+  }
+
+  QString fileExt;
+  // Order matters as first argument is default
+  if (format == pqApplicationCore::StateFileFormat::PVSM)
+  {
+    fileExt = pvsmExt + pyExt;
+  }
+  else
+  {
+    fileExt = pyExt + pvsmExt;
+  }
+  fileExt += tr("All Files") + QString(" (*)");
+
+  return fileExt;
+}
+
+//-----------------------------------------------------------------------------
 bool pqApplicationCore::saveState(const QString& filename, vtkTypeUInt32 location)
 {
   // * Save the Proxy Manager state.
@@ -490,21 +548,63 @@ pqServerConfigurationCollection& pqApplicationCore::serverConfigurations()
 }
 
 //-----------------------------------------------------------------------------
+QString pqApplicationCore::getSettingFileBaseName()
+{
+  QString fileBaseName = QApplication::applicationName();
+
+  if (this->VersionedSettings)
+  {
+    fileBaseName += QApplication::applicationVersion();
+  }
+
+  const bool disableSettings = vtkRemotingCoreConfiguration::GetInstance()->GetDisableRegistry();
+  if (disableSettings)
+  {
+    fileBaseName += "-dr";
+  }
+
+  return fileBaseName;
+}
+
+//-----------------------------------------------------------------------------
+void pqApplicationCore::useVersionedSettings(bool use)
+{
+  this->VersionedSettings = use;
+}
+
+//-----------------------------------------------------------------------------
 pqSettings* pqApplicationCore::settings()
 {
   if (!this->Settings)
   {
-    const bool disable_settings = vtkRemotingCoreConfiguration::GetInstance()->GetDisableRegistry();
+    vtkVLogScopeF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "Loading client settings");
 
+    // First look for site settings and set them as SystemScope,
+    // for automatic fallback
     const QString settingsOrg = QApplication::organizationName();
-    const QString settingsApp =
-      QApplication::applicationName() + QApplication::applicationVersion();
+    const QString iniFileBaseName = this->getSettingFileBaseName();
+    // QSettings enforce this directory hierarchy: ini file is under an "organization" subdir.
+    // https://doc.qt.io/qt-5/qsettings.html#platform-specific-notes
+    const QString iniRelativePath = settingsOrg + "/" + iniFileBaseName + ".ini";
+    const QString systemDirPath = pqCoreUtilities::findInApplicationDirectories(iniRelativePath);
+    if (!systemDirPath.isEmpty() && QFile::exists(systemDirPath))
+    {
+      vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        "using system scope settings under " << systemDirPath.toStdString() << ", containing "
+                                             << iniRelativePath.toStdString());
+      QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, systemDirPath);
+    }
+    else
+    {
+      vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        << "system scope settings not found " << iniRelativePath.toStdString());
+    }
 
-    // for the app name, we use a "-dr" suffix is disable_settings is true.
-    const QString suffix(disable_settings ? "-dr" : "");
-
+    // Create settings with UserScope priority.
     auto settings = new pqSettings(
-      QSettings::IniFormat, QSettings::UserScope, settingsOrg, settingsApp + suffix, this);
+      QSettings::IniFormat, QSettings::UserScope, settingsOrg, iniFileBaseName, this);
+
+    const bool disable_settings = vtkRemotingCoreConfiguration::GetInstance()->GetDisableRegistry();
     if (disable_settings || settings->value("pqApplicationCore.DisableSettings", false).toBool())
     {
       vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "loading of Qt settings skipped (disabled).");
@@ -512,7 +612,7 @@ pqSettings* pqApplicationCore::settings()
     }
     else
     {
-      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "loading Qt settings from '%s'",
+      vtkVLogF(PARAVIEW_LOG_APPLICATION_VERBOSITY(), "loading Qt user settings from '%s'",
         settings->fileName().toUtf8().data());
     }
     // now settings are ready!
@@ -656,10 +756,17 @@ QHelpEngine* pqApplicationCore::helpEngine()
   {
     QTemporaryFile tFile;
     tFile.open();
-    this->HelpEngine = new QHelpEngine(tFile.fileName() + ".qhc", this);
+    QString collectionFileName = tFile.fileName() + ".qhc";
+    this->HelpEngine = new QHelpEngine(collectionFileName, this);
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+    this->HelpEngine->setReadOnly(false);
+#endif
     this->connect(
       this->HelpEngine, SIGNAL(warning(const QString&)), SLOT(onHelpEngineWarning(const QString&)));
-    this->HelpEngine->setupData();
+    if (!this->HelpEngine->setupData())
+    {
+      qWarning() << tr("paraview", "Cannot set up help engine from %1").arg(collectionFileName);
+    }
     // register the application's qch file. An application specific qch file can
     // be compiled into the executable in the build_paraview_client() cmake
     // function. If this file is provided, then that gets registered as
@@ -680,7 +787,11 @@ QHelpEngine* pqApplicationCore::helpEngine()
         QString(":/%1/Documentation/%2").arg(QApplication::applicationName()).arg(filename);
       this->registerDocumentation(qch_file);
     }
-    this->HelpEngine->setupData();
+    bool success = this->HelpEngine->setupData();
+    if (!success)
+    {
+      qWarning() << "Failed to setup help engine data.";
+    }
   }
 #endif
 
@@ -701,7 +812,14 @@ void pqApplicationCore::registerDocumentation(const QString& filename)
     // localFile has autoRemove ON by default, so the file will be deleted with
     // the application quits.
     localFile->setParent(engine);
-    engine->registerDocumentation(localFile->fileName());
+    auto localFileName = localFile->fileName();
+    bool success = engine->registerDocumentation(localFileName);
+    if (!success)
+    {
+      qWarning() << tr("Failed to register documentation in %1 via file: %2")
+                      .arg(filename)
+                      .arg(localFile->fileName());
+    }
   }
   else
   {
@@ -798,7 +916,11 @@ QString pqApplicationCore::getTranslationsPathFromInterfaceLanguage(QString pref
 QTranslator* pqApplicationCore::getQtTranslations(QString prefix, QString locale)
 {
   QTranslator* translator = new QTranslator(this);
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   QString qtQmPath(QLibraryInfo::location(QLibraryInfo::TranslationsPath));
+#else
+  QString qtQmPath(QLibraryInfo::path(QLibraryInfo::TranslationsPath));
+#endif
   bool qtLoaded = translator->load(QLocale(locale), prefix, "_", qtQmPath);
   if (qtLoaded)
   {

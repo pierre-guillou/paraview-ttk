@@ -6,11 +6,13 @@
 VTKFileFormats
 smptools
 array_dispatch
-data_assemply
+data_assembly
 
 IOLegacyInformationFormat
 IOXMLInformationFormat
 IOXMLTimeInFieldData
 
 MomentInvariantsArchitecture
+
+WebAssemblyTestSuiteArchitecture
 ```

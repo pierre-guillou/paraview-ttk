@@ -57,9 +57,9 @@ bool IsPChar(char c)
 // Scheme -> Authority -> Path -> Query -> Fragment
 const char* ExtractScheme(const char* uri, const char* end, vtkURIComponent& output)
 {
-  const auto schemeEnd = std::find_if_not(uri, end, [](char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '-' || c == '.';
-  });
+  const auto schemeEnd = std::find_if_not(uri, end,
+    [](char c)
+    { return std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '-' || c == '.'; });
 
   if (schemeEnd == end || *schemeEnd != ':')
   {
@@ -221,9 +221,9 @@ bool CheckSchemeSyntax(const vtkURIComponent& comp)
     return false;
   }
 
-  auto illegalChar = std::find_if_not(scheme.begin(), scheme.end(), [](char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '-' || c == '.';
-  });
+  auto illegalChar = std::find_if_not(scheme.begin(), scheme.end(),
+    [](char c)
+    { return std::isalnum(static_cast<unsigned char>(c)) || c == '+' || c == '-' || c == '.'; });
 
   if (illegalChar != scheme.end())
   {
@@ -236,9 +236,9 @@ bool CheckSchemeSyntax(const vtkURIComponent& comp)
 
 struct AuthorityInfo
 {
-  std::string UserInfo{};
-  std::string Host{};
-  std::string Port{};
+  std::string UserInfo;
+  std::string Host;
+  std::string Port;
 };
 
 AuthorityInfo ExtractAuthorityInfo(const char* auth, const char* end)

@@ -11,6 +11,7 @@
 #include "vtkTimeStamp.h"
 #include "vtkTransform.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cmath>
 
@@ -877,9 +878,10 @@ void vtkCamera::SetViewAngle(double angle)
   double min = 0.00000001;
   double max = 179.0;
 
+  angle = std::min(std::max(angle, min), max);
   if (this->ViewAngle != angle)
   {
-    this->ViewAngle = (angle < min ? min : (angle > max ? max : angle));
+    this->ViewAngle = angle;
     this->Modified();
     this->ViewingRaysModified();
   }
@@ -1604,7 +1606,7 @@ void vtkCamera::DeepCopy(vtkCamera* source)
     if (this->ExplicitProjectionTransformMatrix == nullptr)
     {
       this->ExplicitProjectionTransformMatrix =
-        static_cast<vtkMatrix4x4*>(source->ExplicitProjectionTransformMatrix->NewInstance());
+        source->ExplicitProjectionTransformMatrix->NewInstance();
     }
     this->ExplicitProjectionTransformMatrix->DeepCopy(source->ExplicitProjectionTransformMatrix);
   }
@@ -1726,8 +1728,7 @@ void vtkCamera::DeepCopy(vtkCamera* source)
   {
     if (this->ModelTransformMatrix == nullptr)
     {
-      this->ModelTransformMatrix =
-        static_cast<vtkMatrix4x4*>(source->ModelTransformMatrix->NewInstance());
+      this->ModelTransformMatrix = source->ModelTransformMatrix->NewInstance();
     }
     this->ModelTransformMatrix->DeepCopy(source->ModelTransformMatrix);
   }
@@ -1744,8 +1745,7 @@ void vtkCamera::DeepCopy(vtkCamera* source)
   {
     if (this->EyeTransformMatrix == nullptr)
     {
-      this->EyeTransformMatrix =
-        static_cast<vtkMatrix4x4*>(source->EyeTransformMatrix->NewInstance());
+      this->EyeTransformMatrix = source->EyeTransformMatrix->NewInstance();
     }
     this->EyeTransformMatrix->DeepCopy(source->EyeTransformMatrix);
   }
@@ -1763,7 +1763,7 @@ void vtkCamera::DeepCopy(vtkCamera* source)
     if (this->ProjectionPlaneOrientationMatrix == nullptr)
     {
       this->ProjectionPlaneOrientationMatrix =
-        static_cast<vtkMatrix4x4*>(source->ProjectionPlaneOrientationMatrix->NewInstance());
+        source->ProjectionPlaneOrientationMatrix->NewInstance();
     }
     this->ProjectionPlaneOrientationMatrix->DeepCopy(source->ProjectionPlaneOrientationMatrix);
   }

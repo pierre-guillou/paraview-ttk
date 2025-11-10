@@ -260,11 +260,11 @@ public:
 //-----------------------------------------------------------------------------
 pqDisplayColorWidget::pqDisplayColorWidget(QWidget* parentObject)
   : Superclass(parentObject)
-  , Internals(new pqDisplayColorWidget::pqInternals())
   , CellDataIcon(new QIcon(":/pqWidgets/Icons/pqCellData.svg"))
   , PointDataIcon(new QIcon(":/pqWidgets/Icons/pqPointData.svg"))
   , FieldDataIcon(new QIcon(":/pqWidgets/Icons/pqGlobalData.svg"))
   , SolidColorIcon(new QIcon(":/pqWidgets/Icons/pqSolidColor.svg"))
+  , Internals(new pqDisplayColorWidget::pqInternals())
 {
   QHBoxLayout* hbox = new QHBoxLayout(this);
   hbox->setContentsMargins(pqPropertiesPanel::suggestedMargins());
@@ -285,11 +285,13 @@ pqDisplayColorWidget::pqDisplayColorWidget(QWidget* parentObject)
   this->Variables->setEnabled(false);
   this->Components->setEnabled(false);
 
-  QObject::connect(this->Variables, QOverload<int>::of(&QComboBox::currentIndexChanged), [this]() {
-    this->refreshComponents();
-    this->pruneOutOfDomainEntries();
-    Q_EMIT this->arraySelectionChanged();
-  });
+  QObject::connect(this->Variables, QOverload<int>::of(&QComboBox::currentIndexChanged),
+    [this]()
+    {
+      this->refreshComponents();
+      this->pruneOutOfDomainEntries();
+      Q_EMIT this->arraySelectionChanged();
+    });
   QObject::connect(this->Components, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
     &pqDisplayColorWidget::componentNumberChanged);
 

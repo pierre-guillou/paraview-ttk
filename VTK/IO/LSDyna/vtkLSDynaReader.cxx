@@ -56,7 +56,7 @@
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLSDynaReader);
@@ -125,10 +125,6 @@ vtkStandardNewMacro(vtkLSDynaReader);
 #define LS_MDLOPT_NONE 0
 #define LS_MDLOPT_POINT 1
 #define LS_MDLOPT_CELL 2
-
-#ifdef VTK_LSDYNA_DBG_MULTIBLOCK
-static void vtkDebugMultiBlockStructure(vtkIndent indent, vtkMultiGroupDataSet* mbds);
-#endif // VTK_LSDYNA_DBG_MULTIBLOCK
 
 namespace
 {
@@ -2090,7 +2086,7 @@ int vtkLSDynaReader::ReadHeaderInformation(int curAdapt)
 
         for (int g = 0; g < numGroups; ++g)
         {
-          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_VOLUME_FRACTION_FMT, static_cast<int>(g + 1));
+          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_VOLUME_FRACTION_FMT, g + 1);
           p->AddCellArray(LSDynaMetaData::SHELL, ctmp, 1, 1);
           extraValues--;
         }
@@ -2100,7 +2096,7 @@ int vtkLSDynaReader::ReadHeaderInformation(int curAdapt)
 
         for (int g = 0; hasMass && (g < numGroups); ++g)
         {
-          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_SPECIES_MASS_FMT, static_cast<int>(g + 1));
+          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_SPECIES_MASS_FMT, g + 1);
           p->AddCellArray(LSDynaMetaData::SHELL, ctmp, 1, 1);
           extraValues--;
         }
@@ -2266,7 +2262,7 @@ int vtkLSDynaReader::ReadHeaderInformation(int curAdapt)
 
         for (int g = 0; g < numGroups; ++g)
         {
-          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_VOLUME_FRACTION_FMT, static_cast<int>(g + 1));
+          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_VOLUME_FRACTION_FMT, g + 1);
           p->AddCellArray(LSDynaMetaData::SOLID, ctmp, 1, 1);
           extraValues--;
         }
@@ -2276,7 +2272,7 @@ int vtkLSDynaReader::ReadHeaderInformation(int curAdapt)
 
         for (int g = 0; hasMass && (g < numGroups); ++g)
         {
-          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_SPECIES_MASS_FMT, static_cast<int>(g + 1));
+          snprintf(ctmp, sizeof(ctmp), LS_ARRAYNAME_SPECIES_MASS_FMT, g + 1);
           p->AddCellArray(LSDynaMetaData::SOLID, ctmp, 1, 1);
           extraValues--;
         }

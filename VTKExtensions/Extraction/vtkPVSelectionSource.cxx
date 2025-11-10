@@ -7,11 +7,11 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkSelection.h"
-#include "vtkSelectionNode.h"
 #include "vtkSelectionSource.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkStringArray.h"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <vector>
@@ -89,14 +89,7 @@ vtkStandardNewMacro(vtkPVSelectionSource);
 
 //----------------------------------------------------------------------------
 vtkPVSelectionSource::vtkPVSelectionSource()
-  : Mode(Modes::ID)
-  , FieldType(vtkSelectionNode::CELL)
-  , ContainingCells(0)
-  , Inverse(0)
-  , ArrayName(nullptr)
-  , NumberOfLayers(0)
-  , ProcessID(-1)
-  , Internal(new vtkInternal())
+  : Internal(new vtkInternal())
 {
   memset(this->Frustum, 0.0, sizeof(double) * 32);
   this->SetNumberOfInputPorts(0);
@@ -168,10 +161,7 @@ void vtkPVSelectionSource::RemoveAllPedigreeStringIDs()
 //----------------------------------------------------------------------------
 void vtkPVSelectionSource::AddID(vtkIdType piece, vtkIdType id)
 {
-  if (piece < -1)
-  {
-    piece = -1;
-  }
+  piece = std::max<vtkIdType>(piece, -1);
   this->Mode = ID;
   this->Internal->IDs.insert(vtkInternal::PieceIdType(piece, id));
   this->Modified();
@@ -188,10 +178,7 @@ void vtkPVSelectionSource::RemoveAllIDs()
 //----------------------------------------------------------------------------
 void vtkPVSelectionSource::AddValue(vtkIdType piece, vtkIdType value)
 {
-  if (piece < -1)
-  {
-    piece = -1;
-  }
+  piece = std::max<vtkIdType>(piece, -1);
   this->Mode = VALUES;
   this->Internal->Values.insert(vtkInternal::PieceIdType(piece, value));
   this->Modified();
@@ -209,10 +196,7 @@ void vtkPVSelectionSource::RemoveAllValues()
 void vtkPVSelectionSource::AddCompositeID(
   unsigned int composite_index, vtkIdType piece, vtkIdType id)
 {
-  if (piece < -1)
-  {
-    piece = -1;
-  }
+  piece = std::max<vtkIdType>(piece, -1);
 
   this->Mode = COMPOSITEID;
   this->Internal->CompositeIDs[composite_index].insert(vtkInternal::PieceIdType(piece, id));

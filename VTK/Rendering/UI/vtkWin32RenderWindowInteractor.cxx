@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
+#include <atomic> // for std::atomic
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map> // for std::map
 
 #ifndef WINVER
 #define WINVER 0x0601 // for touch support, 0x0601 means target Windows 7 or later
@@ -61,7 +63,7 @@ VTK_ABI_NAMESPACE_END
 
 typedef TOUCHINPUT* PTOUCHINPUT;
 
-//#define HTOUCHINPUT ULONG
+// #define HTOUCHINPUT ULONG
 #define TOUCHEVENTF_MOVE 0x0001
 #define TOUCHEVENTF_DOWN 0x0002
 #define TOUCHEVENTF_UP 0x0004
@@ -83,7 +85,7 @@ namespace
 //-------------------------------------------------------------
 
 // clang-format off
-// this unicode code to keysym table is meant to provide keysym similar to XLookupString,
+// this unicode code to keysym table is meant to provide keysym similar to X Window System's XLookupString(),
 // for Basic Latin and Latin1 unicode blocks.
 // Generated from xlib/X11/keysymdef.h
 // Duplicated in Rendering/OpenGL2/vtkCocoaGLView.mm
@@ -109,24 +111,24 @@ static const char* UnicodeToKeySymTable[256] = {
   "eth", "ntilde", "ograve", "oacute", "ocircumflex", "otilde", "odiaeresis", "division", "oslash", "ugrave", "uacute", "ucircumflex", "udiaeresis", "yacute", "thorn", "ydiaeresis"
 };
 
-// This table is meant to provide keysym similar to XLookupString from Windows VKeys (Winuser.h)
+// This table is meant to provide keysym similar to X Window System's XLookupString() from Windows VKeys (Winuser.h)
 // that are not mapped in the unicode table above.
-static const char* VKeyCodeToKeySymTable[256] = { 
-  nullptr, nullptr, nullptr, "Cancel", nullptr, nullptr, nullptr, nullptr, "BackSpace", "Tab", nullptr, nullptr, "Clear", "Return", nullptr, nullptr, 
-  "Shift_L", "Control_L", "Alt_L", "Pause", "Caps_Lock", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, "Escape", nullptr, nullptr, nullptr, nullptr, 
-  "space", "Prior", "Next", "End", "Home", "Left", "Up", "Right", "Down", "Select", nullptr, "Execute", "Snapshot", "Insert", "Delete", "Help", 
+static const char* VKeyCodeToKeySymTable[256] = {
+  nullptr, nullptr, nullptr, "Cancel", nullptr, nullptr, nullptr, nullptr, "BackSpace", "Tab", nullptr, nullptr, "Clear", "Return", nullptr, nullptr,
+  "Shift_L", "Control_L", "Alt_L", "Pause", "Caps_Lock", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, "Escape", nullptr, nullptr, nullptr, nullptr,
+  "space", "Prior", "Next", "End", "Home", "Left", "Up", "Right", "Down", "Select", nullptr, "Execute", "Snapshot", "Insert", "Delete", "Help",
   "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", 
-  "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "Win_L", "Win_R", "App", nullptr, nullptr, 
-  "KP_0", "KP_1", "KP_2", "KP_3", "KP_4", "KP_5", "KP_6", "KP_7", "KP_8", "KP_9", "asterisk", "plus", "bar", "minus", "period", "slash", 
-  "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16", 
-  "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-  "Num_Lock", "Scroll_Lock", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o",
+  "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "Win_L", "Win_R", "App", nullptr, nullptr,
+  "KP_0", "KP_1", "KP_2", "KP_3", "KP_4", "KP_5", "KP_6", "KP_7", "KP_8", "KP_9", "asterisk", "plus", "bar", "minus", "period", "slash",
+  "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13", "F14", "F15", "F16",
+  "F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  "Num_Lock", "Scroll_Lock", nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
-  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+  nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr
 };
 // clang-format on
@@ -198,9 +200,41 @@ void RecoverKeyEventInformation(
 
 }
 
+class vtkWin32RenderWindowInteractor::vtkInternals
+{
+public:
+  // this structure is used in the callback internally
+  // instances have to live after calling InternalCreateTimer so we store them
+  // in a map until InternalDestroyTimer is called
+  struct TimerContext
+  {
+    HWND WindowId;
+    int TimerId;
+    int TimerIdForPost;
+    HANDLE PlatformId;
+    std::atomic<bool> Posted{ false };
+  };
+  std::map<int, std::unique_ptr<TimerContext>> TimerContextMap;
+  bool IsRunning = false;
+
+  static void CALLBACK OnTimerFired(PVOID lpParameter, BOOLEAN)
+  {
+    auto* timerContext = static_cast<TimerContext*>(lpParameter);
+    // Do not post another message for the same timer if already posted
+    // to avoid flooding the message queue
+    if (!timerContext->Posted.exchange(true))
+    {
+      PostMessage(timerContext->WindowId, WM_TIMER, timerContext->TimerId, 0);
+    }
+  }
+
+  static void OnTimerMessageReceived(TimerContext* timerContext) { timerContext->Posted = false; }
+};
+
 //------------------------------------------------------------------------------
 // Construct object so that light follows camera motion.
 vtkWin32RenderWindowInteractor::vtkWin32RenderWindowInteractor()
+  : Internals(new vtkInternals())
 {
   this->WindowId = 0;
   this->InstallMessageProc = 1;
@@ -252,8 +286,88 @@ void vtkWin32RenderWindowInteractor::ProcessEvents()
     return;
   }
 
+  /**
+   * NOTE:
+   * Defer processing the timer in next iteration because
+   * a WM_LBUTTONUP or other INPUT event may be wired up to
+   * a callback that destroys a timer. By exiting this loop,
+   * we give a chance to that input event's callback to run
+   * in the next invocation of `ProcessEvents()`.
+   * In this example, the left button down event is wired to a callback
+   * that creates a repeating timer for 10ms. This is a real use case in
+   * vtkInteractorStyle.cxx in the vtkInteractorStyle::StartState and
+   * vtkInteractorStyle::StopState methods.
+   * This diagram illustrates a problem with a single PeekMessage loop
+   * when a WM_TIMER was posted (via `PostMessage`) rather than using
+   * `SetTimer`.
+   *
+   * Time  |      Main thread            |  Timer thread
+   *       |Handle WM_LBUTTONDOWN        |
+   *   0ms | ->CreateRepeatingTimer(10ms)|
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *   10ms|                             | PostMessage(WM_TIMER, ...)
+   *       |Handle WM_TIMER              |
+   *   0ms |  ->OnTimer()                |
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *   10ms|                             | PostMessage(WM_TIMER, ...)
+   *       |Handle WM_TIMER              |
+   *   0ms |  ->OnTimer()                |
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *       |                             |
+   *   10ms|Handle WM_TIMER              | PostMessage(WM_TIMER, ...)
+   *   0ms |  ->OnTimer()                |
+   *       |                             |
+   *   4ms |New WM_LBUTTONUP generated   |
+   *       |  Cannot handle it because   |
+   *       |  we are seeing lots of      |
+   *       |  WM_TIMER                   |
+   *       |                             |
+   *   10ms|Handle WM_TIMER              | PostMessage(WM_TIMER, ...)
+   *   0ms |  ->OnTimer()                |
+   *
+   * For this reason, we split the PeekMessage loop into four sub-loops.
+   * 1. In the first pass, only process INPUT and PAINT events with the PM_QS_INPUT | PM_QS_PAINT
+   * mask.
+   * 2. In the second pass, process all messages that were posted via `PostMessage()`. This includes
+   * WM_TIMER. When this loop sees a WM_TIMER, it breaks immediately in order to give equal chance
+   * to other events that may be connected to callbacks which destroy timers.
+   * Also handle INPUT event to avoid potential hangs when window goes out of focus.
+   * 3. In the final pass, process all messages that were sent via `SendMessage()`. This interactor
+   * does not use `SendMessage`, however, it is provided in case a custom app uses it.
+   */
+  auto& internals = (*this->Internals);
   MSG msg;
-  while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+  // Process input events first
+  while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE | PM_QS_INPUT | PM_QS_PAINT))
+  {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+  }
+  // Process posted messages (which includes timer) and input
+  while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE | PM_QS_POSTMESSAGE | PM_QS_INPUT))
+  {
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
+    if (msg.message == WM_QUIT)
+    {
+      internals.IsRunning = false;
+    }
+    if (msg.message == WM_TIMER)
+    {
+      // defer to next execution of `vtkWin32RenderWindowInteractor::ProcessEvents()`
+      break;
+    }
+  }
+  // Process sent messages
+  while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE | PM_QS_SENDMESSAGE))
   {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
@@ -270,13 +384,11 @@ void vtkWin32RenderWindowInteractor::StartEventLoop()
   }
 
   this->StartedMessageLoop = 1;
-
-  MSG msg;
-  while (GetMessage(&msg, nullptr, 0, 0))
+  do
   {
-    TranslateMessage(&msg);
-    DispatchMessage(&msg);
-  }
+    this->Internals->IsRunning = true;
+    this->ProcessEvents();
+  } while (this->Internals->IsRunning);
 }
 
 //------------------------------------------------------------------------------
@@ -440,17 +552,42 @@ void vtkWin32RenderWindowInteractor::TerminateApp(void)
 
 //------------------------------------------------------------------------------
 int vtkWin32RenderWindowInteractor::InternalCreateTimer(
-  int timerId, int vtkNotUsed(timerType), unsigned long duration)
+  int timerId, int timerType, unsigned long duration)
 {
-  // Win32 always creates repeating timers
-  SetTimer(this->WindowId, timerId, duration, nullptr);
+  auto& internals = (*this->Internals);
+
+  std::unique_ptr<vtkInternals::TimerContext> timerContext(new vtkInternals::TimerContext);
+  timerContext->WindowId = this->WindowId;
+  timerContext->TimerId = timerId;
+
+  if (timerType == vtkRenderWindowInteractor::RepeatingTimer)
+  {
+    CreateTimerQueueTimer(&timerContext->PlatformId, nullptr, vtkInternals::OnTimerFired,
+      timerContext.get(), duration, duration, WT_EXECUTEDEFAULT);
+  }
+  else
+  {
+    CreateTimerQueueTimer(&timerContext->PlatformId, nullptr, vtkInternals::OnTimerFired,
+      timerContext.get(), duration, 0, WT_EXECUTEONLYONCE);
+  }
+
+  internals.TimerContextMap[timerId] = std::move(timerContext);
+
   return timerId;
 }
 
 //------------------------------------------------------------------------------
 int vtkWin32RenderWindowInteractor::InternalDestroyTimer(int platformTimerId)
 {
-  return KillTimer(this->WindowId, platformTimerId);
+  auto& internals = (*this->Internals);
+  auto it = internals.TimerContextMap.find(platformTimerId);
+  if (it != internals.TimerContextMap.end())
+  {
+    BOOL ret = DeleteTimerQueueTimer(nullptr, it->second->PlatformId, nullptr);
+    internals.TimerContextMap.erase(it);
+    return ret;
+  }
+  return 0;
 }
 
 //-------------------------------------------------------------
@@ -636,20 +773,19 @@ int vtkWin32RenderWindowInteractor::OnSize(HWND, UINT, int X, int Y)
 //------------------------------------------------------------------------------
 int vtkWin32RenderWindowInteractor::OnTimer(HWND, UINT timerId)
 {
+  auto& internals = (*this->Internals);
   if (!this->Enabled)
   {
     return 0;
   }
   int tid = static_cast<int>(timerId);
-  const int ret = this->InvokeEvent(vtkCommand::TimerEvent, (void*)&tid);
-
-  // Here we deal with one-shot versus repeating timers
-  if (this->IsOneShotTimer(tid))
+  auto it = internals.TimerContextMap.find(timerId);
+  if (it != internals.TimerContextMap.end())
   {
-    KillTimer(this->WindowId, tid); //'cause windows timers are always repeating
+    vtkInternals::OnTimerMessageReceived(it->second.get());
   }
 
-  return ret;
+  return this->InvokeEvent(vtkCommand::TimerEvent, &tid);
 }
 
 //------------------------------------------------------------------------------

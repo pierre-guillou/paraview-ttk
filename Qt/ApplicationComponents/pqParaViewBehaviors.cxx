@@ -7,6 +7,7 @@
 #include "pqApplicationCore.h"
 #include "pqApplyBehavior.h"
 #include "pqAutoLoadPluginXMLBehavior.h"
+#include "pqAutoSaveBehavior.h"
 #include "pqBlockContextMenu.h"
 #include "pqCollaborationBehavior.h"
 #include "pqCommandLineOptionsBehavior.h"
@@ -28,6 +29,7 @@
 #include "pqPluginSettingsBehavior.h"
 #include "pqPluginToolBarBehavior.h"
 #include "pqPropertiesPanel.h"
+#include "pqPropertyPanelVisibilitiesBehavior.h"
 #include "pqServerManagerModel.h"
 #include "pqSpreadSheetVisibilityBehavior.h"
 #include "pqStandardPropertyWidgetInterface.h"
@@ -52,6 +54,12 @@
 #include <QSlider>
 
 #include <cassert>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+#define pqKeyCombo(mod, key) (mod) | (key)
+#else
+#define pqKeyCombo(mod, key) (mod) + (key)
+#endif
 
 namespace
 {
@@ -116,6 +124,7 @@ PQ_BEHAVIOR_DEFINE_FLAG(UndoRedoBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(AlwaysConnectedBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(CrashRecoveryBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(AutoLoadPluginXMLBehavior, true);
+PQ_BEHAVIOR_DEFINE_FLAG(AutoSaveBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(PluginDockWidgetsBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(VerifyRequiredPluginBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(PluginActionGroupBehavior, true);
@@ -134,6 +143,7 @@ PQ_BEHAVIOR_DEFINE_FLAG(LiveSourceBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(CustomShortcutBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(MainWindowEventBehavior, true);
 PQ_BEHAVIOR_DEFINE_FLAG(UsageLoggingBehavior, false);
+PQ_BEHAVIOR_DEFINE_FLAG(PropertyPanelVisibilitiesBehavior, true);
 #undef PQ_BEHAVIOR_DEFINE_FLAG
 
 #define PQ_IS_BEHAVIOR_ENABLED(_name) enable##_name()
@@ -145,6 +155,11 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
   // Register ParaView interfaces.
   pqInterfaceTracker* pgm = pqApplicationCore::instance()->interfaceTracker();
 
+  if (PQ_IS_BEHAVIOR_ENABLED(PropertyPanelVisibilitiesBehavior))
+  {
+    // Note that this behavior will not modify already created proxy widgets.
+    new pqPropertyPanelVisibilitiesBehavior(this);
+  }
   if (PQ_IS_BEHAVIOR_ENABLED(StandardPropertyWidgets))
   {
     // Register standard types of property widgets.
@@ -205,6 +220,10 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
   if (PQ_IS_BEHAVIOR_ENABLED(CrashRecoveryBehavior))
   {
     new pqCrashRecoveryBehavior(this);
+  }
+  if (PQ_IS_BEHAVIOR_ENABLED(AutoSaveBehavior))
+  {
+    new pqAutoSaveBehavior(this);
   }
   if (PQ_IS_BEHAVIOR_ENABLED(AutoLoadPluginXMLBehavior))
   {
@@ -277,14 +296,14 @@ pqParaViewBehaviors::pqParaViewBehaviors(QMainWindow* mainWindow, QObject* paren
   if (PQ_IS_BEHAVIOR_ENABLED(QuickLaunchShortcuts))
   {
     // Setup quick-launch shortcuts.
-    QShortcut* ctrlSpace = new QShortcut(Qt::CTRL + Qt::Key_Space, mainWindow);
+    QShortcut* ctrlSpace = new QShortcut(pqKeyCombo(Qt::CTRL, Qt::Key_Space), mainWindow);
     QObject::connect(
       ctrlSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
     QShortcut* ctrlShiftSpace =
       new QShortcut(QKeySequence(Qt::CTRL, Qt::SHIFT, Qt::Key_Space), mainWindow);
     QObject::connect(
       ctrlShiftSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
-    QShortcut* altSpace = new QShortcut(Qt::ALT + Qt::Key_Space, mainWindow);
+    QShortcut* altSpace = new QShortcut(pqKeyCombo(Qt::ALT, Qt::Key_Space), mainWindow);
     QObject::connect(
       altSpace, SIGNAL(activated()), pqApplicationCore::instance(), SLOT(quickLaunch()));
   }

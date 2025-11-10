@@ -188,7 +188,21 @@ bool vtkMarshalContext::RegisterObject(vtkObjectBase* objectBase, vtkTypeUInt32&
   {
     identifier = this->MakeId();
   }
-  return internals.WeakObjects.emplace(identifier, objectBase).second;
+  else
+  {
+    // bump the counter so that newer calls to `MakeId` doesn't give out already used identifiers.
+    this->Internals->UniqueId = std::max(this->Internals->UniqueId, identifier);
+  }
+  auto objectIter = internals.WeakObjects.find(identifier);
+  if (objectIter == internals.WeakObjects.end())
+  {
+    return internals.WeakObjects.emplace(identifier, objectBase).second;
+  }
+  else
+  {
+    objectIter->second = objectBase;
+    return true;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -214,9 +228,8 @@ vtkTypeUInt32 vtkMarshalContext::GetId(vtkObjectBase* objectBase) const
 {
   auto& internals = (*this->Internals);
   auto objectIter = std::find_if(internals.WeakObjects.begin(), internals.WeakObjects.end(),
-    [objectBase](const std::pair<const vtkTypeUInt32, vtkWeakPointer<vtkObjectBase>>& item) {
-      return item.second == objectBase;
-    });
+    [objectBase](const std::pair<const vtkTypeUInt32, vtkWeakPointer<vtkObjectBase>>& item)
+    { return item.second == objectBase; });
   if (objectIter != internals.WeakObjects.end())
   {
     return objectIter->first;
@@ -233,7 +246,7 @@ bool vtkMarshalContext::RegisterBlob(vtkSmartPointer<vtkTypeUInt8Array> blob, st
     return false;
   }
   using namespace nlohmann;
-  const auto& blobRange = vtk::DataArrayValueRange(blob.Get());
+  const auto blobRange = vtk::DataArrayValueRange(blob.Get());
   auto binaryContainer =
     json::binary(std::vector<json::binary_t::value_type>(blobRange.begin(), blobRange.end()));
   if (hash.empty())
@@ -294,6 +307,12 @@ std::vector<vtkTypeUInt32> vtkMarshalContext::GetDirectDependencies(vtkTypeUInt3
 void vtkMarshalContext::ResetDirectDependencies()
 {
   this->Internals->Tree.clear();
+}
+
+//------------------------------------------------------------------------------
+void vtkMarshalContext::ResetDirectDependenciesForNode(vtkTypeUInt32 identifier)
+{
+  this->Internals->Tree.erase(identifier);
 }
 
 //------------------------------------------------------------------------------

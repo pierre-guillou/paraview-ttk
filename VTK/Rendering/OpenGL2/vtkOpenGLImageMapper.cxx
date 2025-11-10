@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLImageMapper.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkActor2D.h"
 #include "vtkDataArray.h"
@@ -578,7 +578,7 @@ void vtkOpenGLImageMapper::RenderData(vtkViewport* viewport, vtkImageData* data,
   void* ptr0;
   double shift, scale;
 
-  vtkWindow* window = static_cast<vtkWindow*>(viewport->GetVTKWindow());
+  vtkWindow* window = viewport->GetVTKWindow();
   if (!window)
   {
     vtkErrorMacro(<< "vtkOpenGLImageMapper::RenderData - no window set for viewport");

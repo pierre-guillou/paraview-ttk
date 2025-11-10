@@ -22,7 +22,7 @@ objects in the global dispatch table used by pickle. NumPy is required as well s
 try:
     import copyreg, pickle, numpy
 except ImportError:
-    raise RuntimeError("This module depends on the pickle, copyreg, and numpy modules.\
+    raise ImportError("This module depends on the pickle, copyreg, and numpy modules.\
  Please make sure that it is installed properly.")
 
 from ..vtkParallelCore import vtkCommunicator
@@ -89,7 +89,7 @@ copyreg.pickle(vtkCommonDataModel.vtkStructuredPoints, serialize_VTK_data_object
 
 copyreg.pickle(vtkCommonDataModel.vtkUniformGridAMR, serialize_VTK_data_object)
 copyreg.pickle(vtkCommonDataModel.vtkOverlappingAMR, serialize_VTK_data_object)
-copyreg.pickle(vtkCommonDataModel.vtkHierarchicalBoxDataSet, serialize_VTK_data_object)
+copyreg.pickle(vtkCommonDataModel.vtkHierarchicalBoxDataSet, serialize_VTK_data_object) # VTK_DEPRECATED_IN_9_5_0
 copyreg.pickle(vtkCommonDataModel.vtkNonOverlappingAMR, serialize_VTK_data_object)
 
 copyreg.pickle(vtkCommonDataModel.vtkTable, serialize_VTK_data_object)

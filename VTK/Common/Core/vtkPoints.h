@@ -205,7 +205,8 @@ public:
 
   /**
    * Resize the internal array while conserving the data.  Returns 1 if
-   * resizing succeeded and 0 otherwise.
+   * resizing succeeded (including shrinking) and 0 (or throw std::bad_alloc
+   * based on VTK_DONT_THROW_BAD_ALLOC configuration) otherwise.
    */
   vtkTypeBool Resize(vtkIdType numPoints);
 
@@ -262,16 +263,23 @@ inline void vtkPoints::Reset()
 
 inline void vtkPoints::SetNumberOfPoints(vtkIdType numPoints)
 {
-  this->Data->SetNumberOfComponents(3);
-  this->Data->SetNumberOfTuples(numPoints);
-  this->Modified();
+  if (numPoints != this->Data->GetNumberOfTuples())
+  {
+    this->Data->SetNumberOfComponents(3);
+    this->Data->SetNumberOfTuples(numPoints);
+    this->Modified();
+  }
 }
 
 inline vtkTypeBool vtkPoints::Resize(vtkIdType numPoints)
 {
-  this->Data->SetNumberOfComponents(3);
-  this->Modified();
-  return this->Data->Resize(numPoints);
+  if (numPoints != this->Data->GetNumberOfTuples())
+  {
+    this->Data->SetNumberOfComponents(3);
+    this->Modified();
+    return this->Data->Resize(numPoints);
+  }
+  return 1;
 }
 
 inline void vtkPoints::SetPoint(vtkIdType id, double x, double y, double z)

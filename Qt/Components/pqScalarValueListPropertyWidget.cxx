@@ -262,6 +262,7 @@ public:
   {
     QVector<QVector<QVariant>> rowRanges;
     this->splitSelectedIndexesToRowRanges(toRemove, rowRanges);
+    // NOLINTNEXTLINE(readability-redundant-casting): `qsizetype` in Qt6.
     int numGroups = static_cast<int>(rowRanges.size());
     for (int g = numGroups - 1; g > -1; --g)
     {
@@ -389,9 +390,8 @@ pqScalarValueListPropertyWidget::pqScalarValueListPropertyWidget(
   // update `Remove` button enabled state based on selection.
   ui.Remove->setEnabled(false);
   QObject::connect(ui.Table->selectionModel(), &QItemSelectionModel::selectionChanged,
-    [&ui](const QItemSelection&, const QItemSelection&) {
-      ui.Remove->setEnabled(ui.Table->selectionModel()->selectedIndexes().empty() == false);
-    });
+    [&ui](const QItemSelection&, const QItemSelection&)
+    { ui.Remove->setEnabled(ui.Table->selectionModel()->selectedIndexes().empty() == false); });
 
   if (smProperty->GetInformationOnly())
   {

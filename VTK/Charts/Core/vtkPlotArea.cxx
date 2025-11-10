@@ -17,7 +17,7 @@
 #include "vtkPen.h"
 #include "vtkPoints2D.h"
 #include "vtkTable.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 #include "vtkWeakPointer.h"
 
 #include <algorithm>
@@ -635,6 +635,13 @@ void vtkPlotArea::SetColor(unsigned char r, unsigned char g, unsigned char b, un
 {
   this->Brush->SetColor(r, g, b, a);
   this->Superclass::SetColor(r, g, b, a);
+}
+
+//------------------------------------------------------------------------------
+void vtkPlotArea::SetColor(unsigned char r, unsigned char g, unsigned char b)
+{
+  this->Brush->SetColor(r, g, b);
+  this->Superclass::SetColor(r, g, b);
 }
 
 //------------------------------------------------------------------------------

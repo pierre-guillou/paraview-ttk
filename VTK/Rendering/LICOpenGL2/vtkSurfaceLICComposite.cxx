@@ -221,9 +221,10 @@ float vtkSurfaceLICComposite::GetFudgeFactor(int nx[2])
 {
   float aspect = float(nx[0]) / float(nx[1]);
   float fudge = (aspect > 4.0f) ? 3.0f
-                                : (aspect > 1.0f)
-      ? (2.0f / 3.0f) * aspect + (5.0f / 6.0f)
-      : (aspect < 0.25) ? 3.0f : (aspect < 1.0f) ? (-8.0f / 3.0f) * aspect + (25.0f / 6.0f) : 1.5f;
+    : (aspect > 1.0f)           ? (2.0f / 3.0f) * aspect + (5.0f / 6.0f)
+    : (aspect < 0.25)           ? 3.0f
+    : (aspect < 1.0f)           ? (-8.0f / 3.0f) * aspect + (25.0f / 6.0f)
+                                : 1.5f;
   return fudge;
 }
 
@@ -262,7 +263,7 @@ int vtkSurfaceLICComposite::AddGuardPixels(const deque<vtkPixelExtent>& exts,
   }
   else
   {
-    // when not normailzing during integration we need max(V) on the LIC
+    // when not normalizing during integration we need max(V) on the LIC
     // decomp. Each domain has the potential to require a unique number
     // of guard cells.
     vector<float> vectorMax;

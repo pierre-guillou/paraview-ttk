@@ -26,7 +26,7 @@ vtkVRHMDCamera::vtkVRHMDCamera()
 
 vtkVRHMDCamera::~vtkVRHMDCamera() = default;
 
-// a reminder, with vtk order matrices multiplcation goes right to left
+// a reminder, with vtk order matrices multiplication goes right to left
 // e.g. vtkMatrix4x4::Multiply(BtoC, AtoB, AtoC);
 
 //------------------------------------------------------------------------------
@@ -62,7 +62,8 @@ void vtkVRHMDCamera::GetKeyMatrices(vtkRenderer* ren, vtkMatrix4x4*& wcvc, vtkMa
 {
   if (ren->GetSelector())
   {
-    return this->Superclass::GetKeyMatrices(ren, wcvc, normMat, vcdc, wcdc);
+    this->Superclass::GetKeyMatrices(ren, wcvc, normMat, vcdc, wcdc);
+    return;
   }
 
   // has the camera changed?

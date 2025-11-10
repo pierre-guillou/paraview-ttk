@@ -4,6 +4,25 @@
  * @class   vtkHDFReader
  * @brief   Read VTK HDF files.
  *
+ * Reader for data saved using the VTKHDF format, supporting
+ * image data, poly data, unstructured grid, overlapping AMR, hyper tree grid, partitioned dataset
+ * collection and multiblock.
+ *
+ * Serial and parallel reading are supported, with the possibility of piece selection.
+ *
+ * This reader provides an internal cache with the `UseCache` option,
+ * improving read performance for temporal datasets when the geometry is constant between time
+ * steps.
+ *
+ * For non-composite datasets, constant geometry does not change the MeshMTime between time steps.
+ *
+ * Major version of the specification should be incremented when older readers can no
+ * longer read files written for this reader. Minor versions are
+ * for added functionality that can be safely ignored by older
+ * readers.
+ *
+ * @note vtkHDF file format is defined here :
+ * https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#hdf-file-formats
  */
 
 #ifndef vtkHDFReader_h
@@ -27,6 +46,7 @@ class vtkDataArraySelection;
 class vtkDataObjectMeshCache;
 class vtkDataSet;
 class vtkDataSetAttributes;
+class vtkHyperTreeGrid;
 class vtkImageData;
 class vtkInformationVector;
 class vtkInformation;
@@ -38,23 +58,11 @@ class vtkPointData;
 class vtkPolyData;
 class vtkUnstructuredGrid;
 
-/**
- * Reads data saved using the VTK HDF format which supports all
- * vtkDataSet types (image data, poly data, unstructured grid, overlapping AMR, partitioned dataset
- * collection and multiblock are currently implemented) and serial as well as parallel processing.
- *
- * Can also read temporal data with directions and offsets present
- * in a supplemental 'VTKHDF/Steps' group for vtkUnstructuredGrid
- * vtkPolyData, and vtkImageData.
- *
- * Major version should be incremented when older readers can no
- * longer read files written for this reader. Minor versions are
- * for added functionality that can be safely ignored by older
- * readers.
- *
- * @note vtkHDF file format is defined here :
- * https://docs.vtk.org/en/latest/design_documents/VTKFileFormats.html#hdf-file-formats
- */
+namespace vtkHDFUtilities
+{
+struct TemporalHyperTreeGridOffsets;
+}
+
 class VTKIOHDF_EXPORT vtkHDFReader : public vtkDataObjectAlgorithm
 {
 public:
@@ -150,6 +158,10 @@ public:
 
   ///@{
   /**
+   *  /!\ Now deprecated due to its limitations regarding cache, please do not use!
+   * Settings this flag will have no effect.
+   * This option can be replaced by the vtkMergeBlocks filter.
+   *
    * Boolean property determining whether to merge partitions when reading unstructured data.
    *
    * Merging partitions (true) allows the reader to return either `vtkUnstructuredGrid` or
@@ -158,18 +170,31 @@ public:
    * partitions are what are stored in the cache and merging them before outputting would
    * effectively double the memory constraints.
    *
-   * Default is true
+   * Default is false
    *
    * @note Incompatible with UseCache as vtkAppendDataSet which is used internally doesn't
    * support static mesh.
    */
+  VTK_DEPRECATED_IN_9_5_0("Use vtkMergeBlocks or vtkAppendDataSets instead.")
   vtkGetMacro(MergeParts, bool);
+  VTK_DEPRECATED_IN_9_5_0("Use vtkMergeBlocks vtkAppendDataSets instead.")
   vtkSetMacro(MergeParts, bool);
-  vtkBooleanMacro(MergeParts, bool);
+  VTK_DEPRECATED_IN_9_5_0("Use vtkMergeBlocks vtkAppendDataSets instead.")
+  virtual void MergePartsOn();
+  VTK_DEPRECATED_IN_9_5_0("Use vtkMergeBlocks vtkAppendDataSets instead.")
+  virtual void MergePartsOff();
   ///@}
 
+  ///@{
+  /**
+   * Choose the maximum level to read for AMR structures.
+   * This only applies if LimitAMRLevelsToRead is active.
+   * The value 0 indicates that the level read is not limited.
+   * Default is 0.
+   */
   vtkSetMacro(MaximumLevelsToReadByDefaultForAMR, unsigned int);
   vtkGetMacro(MaximumLevelsToReadByDefaultForAMR, unsigned int);
+  ///@}
 
   ///@{
   /**
@@ -191,11 +216,13 @@ protected:
   ///@{
   /**
    * Reads the 'data' requested in 'outInfo' (through extents or
-   * pieces). Returns 1 if successful, 0 otherwise.
+   * pieces) for a specialized data type.
+   * Returns 1 if successful, 0 otherwise.
    */
   int Read(vtkInformation* outInfo, vtkImageData* data);
   int Read(vtkInformation* outInfo, vtkUnstructuredGrid* data, vtkPartitionedDataSet* pData);
   int Read(vtkInformation* outInfo, vtkPolyData* data, vtkPartitionedDataSet* pData);
+  int Read(vtkInformation* outInfo, vtkHyperTreeGrid* data, vtkPartitionedDataSet* pData);
   int Read(vtkInformation* outInfo, vtkOverlappingAMR* data);
   int Read(vtkInformation* outInfo, vtkPartitionedDataSetCollection* data);
   int Read(vtkInformation* outInfo, vtkMultiBlockDataSet* data);
@@ -264,13 +291,6 @@ protected:
    */
   vtkCallbackCommand* SelectionObserver;
   ///@{
-  /**
-   * Image data topology and geometry.
-   */
-  int WholeExtent[6];
-  double Origin[3];
-  double Spacing[3];
-  ///@}
 
   /**
    * Assembly used for PartitionedDataSetCollection
@@ -281,7 +301,7 @@ protected:
   /**
    * Temporal data properties
    */
-  VTK_DEPRECATED_IN_9_4_0("Use Get/Set TemporalData methods instead.")
+  // VTK_DEPRECATED_IN_9_4_0( )
   bool HasTransientData = false;
   vtkIdType Step = 0;
   vtkIdType NumberOfSteps = 1;
@@ -290,14 +310,13 @@ protected:
   ///@}
 
   /**
+   * /!\ Now deprecated, do not use
    * Determine whether to merge the partitions (true) or return a vtkPartitionedDataSet (false)
    */
-  bool MergeParts = true;
+  // VTK_DEPRECATED_IN_9_5_0( )
+  bool MergeParts = false;
 
   unsigned int MaximumLevelsToReadByDefaultForAMR = 0;
-
-  class Implementation;
-  Implementation* Impl;
 
   bool UseCache = false;
   struct DataCache;
@@ -307,13 +326,30 @@ private:
   vtkHDFReader(const vtkHDFReader&) = delete;
   void operator=(const vtkHDFReader&) = delete;
 
+  class Implementation;
+  Implementation* Impl;
+
+  /**
+   * Read data requested in 'outInfo', dispatching to the right specialized method
+   * following the type of 'data'.
+   */
+  bool ReadData(vtkInformation* outInfo, vtkDataObject* data);
+
+  /**
+   * Read a single HyperTreeGrid piece from the file.
+   * `htgTemporalOffsets` gives the information about the offsets for the current time step.
+   * Returns 1 if successful, 0 otherwise.
+   */
+  int Read(const std::vector<vtkIdType>& numberOfTrees, const std::vector<vtkIdType>& numberOfCells,
+    const std::vector<vtkIdType>& numberOfDepths, const std::vector<vtkIdType>& descriptorSizes,
+    const vtkHDFUtilities::TemporalHyperTreeGridOffsets& htgTemporalOffsets, int filePiece,
+    vtkHyperTreeGrid* pieceData);
+
   /**
    * Setter for UseTemporalData.
    *
-   * Useful to set privatly the deprecate UseTransientData variable to true when it's needed.
+   * Useful to set privatly the deprecated UseTransientData variable to true when it's needed.
    */
-  VTK_DEPRECATED_IN_9_4_0("Use directly UseTemporalData, the purpose of this setter was to set"
-                          "the deprecate value HasTransientData.")
   void SetHasTemporalData(bool useTemporalData);
 
   /**
@@ -329,8 +365,9 @@ private:
 
   /**
    * Add array names from all composite elements to DataArraySelection array.
+   * Return true on success
    */
-  void RetrieveDataArraysFromAssembly();
+  bool RetrieveDataArraysFromAssembly();
 
   /**
    * Helper function to add Ids in the attribute arrays of a dataset.
@@ -359,6 +396,7 @@ private:
   };
 
   bool HasTemporalData = false;
+  std::string CompositeCachePath; // Identifier for the current composite piece
 };
 
 VTK_ABI_NAMESPACE_END

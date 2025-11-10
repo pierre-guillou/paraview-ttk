@@ -14,7 +14,7 @@
  * In this case, these 4 pieces can be collected together using a
  * vtkMultiPieceDataSet.
  * Note that vtkMultiPieceDataSet is intended to be included in other composite
- * datasets eg. vtkMultiBlockDataSet, vtkHierarchicalBoxDataSet. Hence the lack
+ * datasets eg. vtkMultiBlockDataSet. Hence the lack
  * of algorithms producing vtkMultiPieceDataSet.
  */
 
@@ -39,7 +39,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_MULTIPIECE_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_MULTIPIECE_DATA_SET; }
 
   /**
    * Set the number of pieces. This will cause allocation if the new number of

@@ -127,18 +127,18 @@ int vtkMNITagPointReader::ReadLineAfterComments(
     {
       ++pos;
     }
-    if (linetext.length() != 0 && linetext[0] == '%')
+    if (!linetext.empty() && linetext[0] == '%')
     {
-      if (comments.length() > 0)
+      if (!comments.empty())
       {
         comments.push_back('\n');
       }
-      if (linetext.length())
+      if (!linetext.empty())
       {
         comments.append(linetext);
       }
     }
-    else if (linetext.length() != 0 && pos != linetext.end())
+    else if (!linetext.empty() && pos != linetext.end())
     {
       delete[] this->Comments;
       this->Comments = new char[comments.length() + 1];
@@ -243,9 +243,9 @@ int vtkMNITagPointReader::ParseStringValue(
           static char ctrltable[] = { '\a', 'a', '\b', 'b', '\f', 'f', '\n', 'n', '\r', 'r', '\t',
             't', '\v', 'v', '\\', '\\', '\"', '\"', '\0', '\0' };
 
-          if (*pos >= 0 && *pos <= 9)
+          if (isdigit(*pos))
           {
-            for (int j = 0; j < 3 && pos != linetext.end() && *pos >= 0 && *pos <= 9; ++j, ++pos)
+            for (int j = 0; j < 3 && pos != linetext.end() && isdigit(*pos); ++j, ++pos)
             {
               c = ((c << 3) | (*pos - '0'));
             }

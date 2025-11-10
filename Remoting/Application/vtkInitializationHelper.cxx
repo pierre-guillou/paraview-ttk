@@ -13,6 +13,7 @@
 #include "vtkPVLogger.h"
 #include "vtkPVPluginLoader.h"
 #include "vtkPVSession.h"
+#include "vtkPVStandardPaths.h"
 #include "vtkPVStringFormatter.h"
 #include "vtkPVVersion.h"
 #include "vtkProcessModule.h"
@@ -454,8 +455,8 @@ bool vtkInitializationHelper::InitializeSettings(int type, bool defaultCoreConfi
       (prefix + "reverse-connection").c_str(), coreConfig->GetReverseConnection()));
     coreConfig->SetServerPort(
       settings->GetSettingAsInt((prefix + portSetting).c_str(), coreConfig->GetServerPort()));
-    coreConfig->SetBindAddress(
-      settings->GetSettingAsString((prefix + "bind-adress").c_str(), coreConfig->GetBindAddress()));
+    coreConfig->SetBindAddress(settings->GetSettingAsString(
+      (prefix + "bind-address").c_str(), coreConfig->GetBindAddress()));
     coreConfig->SetTimeout(
       settings->GetSettingAsInt((prefix + "timeout").c_str(), coreConfig->GetTimeout()));
     coreConfig->SetTimeoutCommand(settings->GetSettingAsString(
@@ -483,6 +484,22 @@ bool vtkInitializationHelper::InitializeOthers()
 
   // Make sure the ProxyManager get created...
   vtkSMProxyManager::GetProxyManager();
+
+  // Set up any virtual environment prior to loading plugins which may be Python plugins.
+#if PARAVIEW_USE_PYTHON
+  // Set up virtual environment if requested.
+  auto pmConfig = vtkProcessModuleConfiguration::GetInstance();
+  if (!pmConfig->GetVirtualEnvironmentPath().empty())
+  {
+    // Note - this may initialize Python at server startup, even if
+    // Python is not invoked later on, which could add some startup
+    // cost. We need to do it here because there are many
+    // places Python could be initialized in the ParaView and VTK
+    // code base, and we can't initialize the virtual environment
+    // in all those places.
+    InitializePythonVirtualEnvironment();
+  }
+#endif
 
   // Now load any plugins located in the PV_PLUGIN_PATH environment variable.
   // These are always loaded (not merely located).
@@ -522,21 +539,39 @@ bool vtkInitializationHelper::InitializeOthers()
     cout << "Process started" << endl;
   }
 
-#if PARAVIEW_USE_PYTHON
-  // Set up virtual environment if requested.
-  auto pmConfig = vtkProcessModuleConfiguration::GetInstance();
-  if (!pmConfig->GetVirtualEnvironmentPath().empty())
+  // This checks if the environment has VTK_DEFAULT_OPENGL_WINDOW set. If it is not set,
+  // it sets the environment variable to the OpenGL window backend specified in the
+  // vtkRemotingCoreConfiguration. This is done to ensure that VTK creates the correct OpenGL
+  // window, based on the configuration settings.
+  if (!vtksys::SystemTools::HasEnv("VTK_DEFAULT_OPENGL_WINDOW"))
   {
-    // Note - this may initialize Python at server startup, even if
-    // Python is not invoked later on, which could add some startup
-    // cost. We need to do it here because there are many
-    // places Python could be initialized in the ParaView and VTK
-    // code base, and we can't initialize the virtual environment
-    // in all those places.
-    InitializePythonVirtualEnvironment();
+    // Set the OpenGL window backend to use based on the configuration
+    // settings. This is only done if the environment variable is not already set.
+    if (auto glWindowBackend = coreConfig->GetOpenGLWindowBackend();
+        glWindowBackend != vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_DEFAULT)
+    {
+      std::ostringstream putEnvStream;
+      putEnvStream << "VTK_DEFAULT_OPENGL_WINDOW=";
+      switch (glWindowBackend)
+      {
+        case vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_EGL:
+          putEnvStream << "vtkEGLRenderWindow";
+          break;
+        case vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_GLX:
+          putEnvStream << "vtkXOpenGLRenderWindow";
+          break;
+        case vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_OSMESA:
+          putEnvStream << "vtkOSOpenGLRenderWindow";
+          break;
+        case vtkRemotingCoreConfiguration::OPENGL_WINDOW_BACKEND_WIN32:
+          putEnvStream << "vtkWin32OpenGLRenderWindow";
+          break;
+        default:
+          break;
+      }
+      vtksys::SystemTools::PutEnv(putEnvStream.str());
+    }
   }
-#endif
-
   vtkInitializationHelper::ExitCode = EXIT_SUCCESS;
   return true;
 }
@@ -555,9 +590,10 @@ void vtkInitializationHelper::Finalize()
   if (vtkInitializationHelper::SaveUserSettingsFileDuringFinalization)
   {
     // Write out settings file(s)
-    std::string userSettingsFilePath = vtkInitializationHelper::GetUserSettingsFilePath();
+    std::string userSettingsFilePath = vtkPVStandardPaths::GetUserSettingsFilePath();
     vtkSMSettings* settings = vtkSMSettings::GetInstance();
-    bool savingSucceeded = settings->SaveSettingsToFile(userSettingsFilePath);
+    bool savingSucceeded =
+      settings->SaveSettingsToFile(userSettingsFilePath, vtkSMSettings::GetUserPriority());
     if (!savingSucceeded)
     {
       vtkGenericWarningMacro(<< "Saving settings file to '" << userSettingsFilePath << "' failed");
@@ -603,46 +639,18 @@ void vtkInitializationHelper::LoadSettings()
   }
 
   // Load user-level settings
-  std::string userSettingsFilePath = vtkInitializationHelper::GetUserSettingsFilePath();
-  if (!settings->AddCollectionFromFile(userSettingsFilePath, VTK_DOUBLE_MAX))
+  std::string userSettingsFilePath = vtkPVStandardPaths::GetUserSettingsFilePath();
+  if (!settings->AddCollectionFromFile(userSettingsFilePath, vtkSMSettings::GetUserPriority()))
   {
     // Loading user settings failed, so we need to create an empty
     // collection with highest priority manually. Otherwise, if a
     // setting is changed, a lower-priority collection such as site
     // settings may receive the modified setting values.
-    settings->AddCollectionFromString("{}", VTK_DOUBLE_MAX);
+    settings->AddCollectionFromString("{}", vtkSMSettings::GetUserPriority());
   }
 
   // Load site-level settings
-  const auto& app_dir = pm->GetSelfDir();
-
-  // If the application path ends with lib/paraview-X.X, shared
-  // forwarding of the executable was used. Remove that part of the
-  // path to get back to the installation root.
-  std::string installDirectory = app_dir.substr(0, app_dir.find("/lib/paraview-" PARAVIEW_VERSION));
-
-  // Remove the trailing /bin if it is there.
-  if (installDirectory.size() >= 4 &&
-    installDirectory.substr(installDirectory.size() - 4) == "/bin")
-  {
-    installDirectory = installDirectory.substr(0, installDirectory.size() - 4);
-  }
-
-  std::vector<std::string> pathsToSearch;
-  pathsToSearch.push_back(installDirectory + "/share/paraview-" PARAVIEW_VERSION);
-  pathsToSearch.push_back(installDirectory + "/lib/");
-  pathsToSearch.push_back(installDirectory);
-#if defined(__APPLE__)
-  // paths for app
-  pathsToSearch.push_back(installDirectory + "/../../..");
-  pathsToSearch.push_back(installDirectory + "/../../../../lib");
-
-  // paths when doing a unix style install.
-  pathsToSearch.push_back(installDirectory + "/../lib/paraview-" PARAVIEW_VERSION);
-#endif
-  // On windows configuration files are in the parent directory
-  pathsToSearch.push_back(installDirectory + "/../");
-
+  const std::vector<std::string> pathsToSearch = vtkPVStandardPaths::GetInstallDirectories();
   const std::string filename = vtkInitializationHelper::GetApplicationName() + "-SiteSettings.json";
   for (const std::string& path : pathsToSearch)
   {
@@ -660,61 +668,13 @@ void vtkInitializationHelper::LoadSettings()
 //----------------------------------------------------------------------------
 std::string vtkInitializationHelper::GetUserSettingsDirectory()
 {
-  std::string organizationName(vtkInitializationHelper::GetOrganizationName());
-#if defined(_WIN32)
-  const char* appData = vtksys::SystemTools::GetEnv("APPDATA");
-  if (!appData)
-  {
-    return std::string();
-  }
-  std::string separator("\\");
-  std::string directoryPath(appData);
-  if (directoryPath[directoryPath.size() - 1] != separator[0])
-  {
-    directoryPath.append(separator);
-  }
-  directoryPath += organizationName + separator;
-#else
-  std::string directoryPath;
-  std::string separator("/");
-
-  // Emulating QSettings behavior.
-  const char* xdgConfigHome = getenv("XDG_CONFIG_HOME");
-  if (xdgConfigHome && strlen(xdgConfigHome) > 0)
-  {
-    directoryPath = xdgConfigHome;
-    if (directoryPath[directoryPath.size() - 1] != separator[0])
-    {
-      directoryPath += separator;
-    }
-  }
-  else
-  {
-    const char* home = getenv("HOME");
-    if (!home)
-    {
-      return std::string();
-    }
-    directoryPath = home;
-    if (directoryPath[directoryPath.size() - 1] != separator[0])
-    {
-      directoryPath += separator;
-    }
-    directoryPath += ".config/";
-  }
-  directoryPath += organizationName + separator;
-#endif
-  return directoryPath;
+  return vtkPVStandardPaths::GetUserSettingsDirectory();
 }
 
 //----------------------------------------------------------------------------
 std::string vtkInitializationHelper::GetUserSettingsFilePath()
 {
-  std::string path = vtkInitializationHelper::GetUserSettingsDirectory();
-  path.append(vtkInitializationHelper::GetApplicationName());
-  path.append("-UserSettings.json");
-
-  return path;
+  return vtkPVStandardPaths::GetUserSettingsFilePath();
 }
 
 //----------------------------------------------------------------------------

@@ -5,7 +5,7 @@
  * @brief WebGPU rendering window for the X Window system
  *
  * vtkXWebGPURenderWindow is a concrete implementation of the abstract class vtkRenderWindow.
- * vtkWebGPURenderer interfaces to the OpenGL graphics library.  Application programmers should
+ * vtkWebGPURenderer interfaces to the WebGPU graphics library.  Application programmers should
  * normally use vtkRenderWindow instead of the WebGPU specific version.
  */
 
@@ -51,7 +51,7 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  bool Initialize() override;
+  bool WindowSetup() override;
 
   /**
    * "Deinitialize" the rendering window.  This will shutdown all system-specific
@@ -138,6 +138,11 @@ public:
    */
   Display* GetDisplayId();
 
+  /**
+   * Ensure RenderWindow's X display is opened
+   */
+  bool EnsureDisplay() override;
+
   ///@{
   /**
    * Set the X display id for this RenderWindow to use to a pre-existing
@@ -198,7 +203,7 @@ public:
 
   /**
    * Initialize the render window from the information associated
-   * with the currently activated OpenGL context.
+   * with the currently activated native graphics context.
    */
   bool InitializeFromCurrentContext() override;
 

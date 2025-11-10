@@ -27,7 +27,6 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataSet.h"
-#include "vtkDeprecation.h"    // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkSmartPointer.h"   // For vtkSmartPointer
 #include "vtkStructuredData.h" // For inline methods
 
@@ -48,7 +47,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_RECTILINEAR_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_RECTILINEAR_GRID; }
 
   /**
    * Copy the geometric and topological structure of an input rectilinear grid
@@ -93,6 +92,7 @@ public:
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
   int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
   ///@}
@@ -175,13 +175,6 @@ public:
    * simply by cellDims[0]*cellDims[1]*cellDims[2].
    */
   void GetCellDims(int cellDims[3]);
-
-  /**
-   * Given a user-supplied vtkPoints container object, this method fills in all
-   * the points of the RectilinearGrid.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use vtkPoints* GetPoints() instead.")
-  void GetPoints(vtkPoints* points);
 
   ///@{
   /**
@@ -285,7 +278,7 @@ public:
   /**
    * Structured extent. The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   /**
    * Reallocates and copies to set the Extent to the UpdateExtent.
@@ -383,6 +376,12 @@ inline int vtkRectilinearGrid::GetDataDimension()
 
 //----------------------------------------------------------------------------
 inline int vtkRectilinearGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline int vtkRectilinearGrid::GetMinSpatialDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }

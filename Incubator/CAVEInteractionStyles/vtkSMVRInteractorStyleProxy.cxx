@@ -3,14 +3,21 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkSMVRInteractorStyleProxy.h"
 
+#include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
 #include "pqProxy.h"
+#include "pqRenderView.h"
 #include "pqServerManagerModel.h"
+#include "pqView.h"
 
+#include "vtkCamera.h"
+#include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVXMLElement.h"
+#include "vtkSMPropertyHelper.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyLocator.h"
+#include "vtkSMRenderViewProxy.h"
 #include "vtkStringList.h"
 #include "vtkVRQueue.h"
 
@@ -28,6 +35,7 @@ vtkSMVRInteractorStyleProxy::vtkSMVRInteractorStyleProxy()
   : vtkSMProxy()
   , ControlledProxy(nullptr)
   , ControlledPropertyName(nullptr)
+  , IsInternal(false)
 {
 }
 
@@ -386,6 +394,33 @@ std::string vtkSMVRInteractorStyleProxy::GetKeyInMap(
 }
 
 // ----------------------------------------------------------------------------
+unsigned int vtkSMVRInteractorStyleProxy::GetChannelIndexForValuatorRole(const std::string& role)
+{
+  StringMap::const_iterator iter = this->Valuators.find(role);
+
+  if (iter == this->Valuators.end())
+  {
+    vtkErrorMacro(<< "Unknown valuator role: " << role);
+    return 0;
+  }
+
+  std::vector<std::string> tokens = vtkSMVRInteractorStyleProxy::Tokenize(iter->second);
+  auto& table = *(this->valuatorLookupTable);
+  auto connMap = table[tokens[0]];
+  StringMap::const_iterator eventIter = connMap.find(tokens[1]);
+
+  if (eventIter == connMap.end())
+  {
+    vtkErrorMacro(<< "No known valuators for connection: " << tokens[0]);
+    return 0;
+  }
+
+  std::vector<std::string> eventTokens = vtkSMVRInteractorStyleProxy::Tokenize(eventIter->second);
+
+  return static_cast<unsigned int>(std::stoul(eventTokens[1]));
+}
+
+// ----------------------------------------------------------------------------
 bool vtkSMVRInteractorStyleProxy::HandleEvent(const vtkVREvent& event)
 {
   switch (event.eventType)
@@ -440,12 +475,6 @@ int vtkSMVRInteractorStyleProxy::GetNumberOfTrackerRoles()
 }
 
 // ----------------------------------------------------------------------------
-std::string vtkSMVRInteractorStyleProxy::GetValuatorRole(const std::string& name)
-{
-  return this->GetKeyInMap(this->Valuators, name);
-}
-
-// ----------------------------------------------------------------------------
 std::string vtkSMVRInteractorStyleProxy::GetButtonRole(const std::string& name)
 {
   return this->GetKeyInMap(this->Buttons, name);
@@ -491,4 +520,71 @@ bool vtkSMVRInteractorStyleProxy::SetTrackerName(const std::string& role, const 
 std::string vtkSMVRInteractorStyleProxy::GetTrackerName(const std::string& role)
 {
   return this->GetValueInMap(this->Trackers, role);
+}
+
+// ----------------------------------------------------------------------------
+vtkSMRenderViewProxy* vtkSMVRInteractorStyleProxy::GetActiveViewProxy()
+{
+  pqActiveObjects& activeObjs = pqActiveObjects::instance();
+
+  if (pqView* pqview = activeObjs.activeView())
+  {
+    if (pqRenderView* rview = qobject_cast<pqRenderView*>(pqview))
+    {
+      return vtkSMRenderViewProxy::SafeDownCast(rview->getProxy());
+    }
+  }
+
+  return nullptr;
+}
+
+// ----------------------------------------------------------------------------
+vtkCamera* vtkSMVRInteractorStyleProxy::GetActiveCamera()
+{
+  vtkSMRenderViewProxy* rvProxy = vtkSMVRInteractorStyleProxy::GetActiveViewProxy();
+
+  if (rvProxy)
+  {
+    return rvProxy->GetActiveCamera();
+  }
+
+  return nullptr;
+}
+
+// ----------------------------------------------------------------------------
+vtkMatrix4x4* vtkSMVRInteractorStyleProxy::GetNavigationMatrix()
+{
+  vtkCamera* activeCamera = vtkSMVRInteractorStyleProxy::GetActiveCamera();
+  if (activeCamera)
+  {
+    return activeCamera->GetModelTransformMatrix();
+  }
+
+  return nullptr;
+}
+
+// ----------------------------------------------------------------------------
+void vtkSMVRInteractorStyleProxy::SetNavigationMatrix(vtkMatrix4x4* matrix)
+{
+  vtkCamera* activeCamera = vtkSMVRInteractorStyleProxy::GetActiveCamera();
+  if (activeCamera)
+  {
+    activeCamera->SetModelTransformMatrix(matrix);
+
+    vtkNew<vtkMatrix4x4> physicalToWorld;
+    physicalToWorld->DeepCopy(matrix);
+    physicalToWorld->Invert();
+    double matrixBuffer[16];
+    vtkMatrix4x4::DeepCopy(matrixBuffer, physicalToWorld);
+
+    vtkSMRenderViewProxy* viewProxy = vtkSMVRInteractorStyleProxy::GetActiveViewProxy();
+    vtkSMPropertyHelper(viewProxy, "PhysicalToWorldMatrix").Set(matrixBuffer, 16);
+    viewProxy->InvokeEvent(INTERACTOR_STYLE_NAVIGATION, physicalToWorld);
+  }
+}
+
+//----------------------------------------------------------------------------
+void vtkSMVRInteractorStyleProxy::SetValuatorLookupTable(std::shared_ptr<StringMapMap> table)
+{
+  this->valuatorLookupTable = table;
 }

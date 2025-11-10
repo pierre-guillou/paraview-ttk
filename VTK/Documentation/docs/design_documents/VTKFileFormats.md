@@ -946,12 +946,21 @@ It is meant to provide good I/O performance as well as robust and flexible paral
 It currently supports: PolyData, UnstructuredGrid, ImageData, OverlappingAMR, MultiBlockDataSet and the
 PartitionedDataSetCollection.
 
-The current file format version is the **2.2**.
+The current file format version is the **2.3**.
 
 Note: This development is iterative and the format is expected to grow in
 its support for more and more use cases.
 
 ### Changelog
+
+#### VTKHDF - 2.4
+
+- add specification for `HyperTreeGrid`
+
+#### VTKHDF - 2.3
+
+- fix array names which miss the `s` to be consistent with other temporal dataset in case of the temporal
+OverlappingAMR. It concerns these data names: NumberOfBox, AMRBoxOffset, Point/Cell/FieldDataOffset.
 
 #### VTKHDF - 2.2
 
@@ -1082,7 +1091,7 @@ offset.
 
 ### Poly data
 
-The format for unstructured grid is shown in Figure 8. In this case
+The format for poly data is shown in Figure 8. In this case
 the `Type` attribute of the `VTKHDF` group is `PolyData`.
 The poly data is split into partitions, with a partition for
 each MPI rank. This is reflected in the HDF5 file structure. Each HDF
@@ -1144,7 +1153,7 @@ Spacing attribute. The Spacing attribute is a list a three doubles
 describing the spacing in each x/y/z direction.
 The AMRBox dataset contains the bounding box
 for each of these grids. Each line in this dataset is expected to contain
-6 integers describing the the indexed bounds in i, j, k space
+6 integers describing the indexed bounds in i, j, k space
 (imin/imax/jmin/jmax/kmin/kmax).
 The points and cell arrays for these grids are
 stored serialized in one dimension and stored in a dataset in the
@@ -1155,54 +1164,98 @@ PointData or CellData group.
   <figcaption>Figure 9. - Overlapping AMR VTKHDF File Format</figcaption>
 </figure>
 
+### HyperTreeGrid
+
+The schema for the tree-based AMR HyperTreeGrid VTKHDF specification is shown below.
+This specification is very different from the ones mentioned above, because its topology is defined as a grid of refined trees.
+
+Root attribute `Dimensions` defines the dimension of the grid. For a `N * M * P` grid, there are a total of `(N - 1) * (M - 1) * (P - 1)` trees.
+Coordinates arrays `XCoordinates` (size `N`), `YCoordinates` (size `M`) and `ZCoordinates` (size `P`) define the size of trees in each direction.
+Their value can change over time.
+The `BranchFactor` attribute defines the subdivision factor used for tree decomposition.
+
+HyperTrees are defined from a bit array describing tree decomposition, level by level. For each tree, the `Descriptor` dataset has one bit for each cell in the tree, except for its deepest level: 0 if the cell is not refined, and 1 if it is. The descriptor does not describe its deepest level, because we know that no cell is ever refined.
+
+Each cell can be masked using an optional bit array `Mask`. A decomposed (refined) cell cannot be masked.
+The `Descriptors` and `Mask` datasets are packed bit arrays, stored as unsigned chars.
+
+Each new piece is required to start writing descriptors and mask on a new byte, even if the previous byte was not completely used, except if the previous array has a size of 0.
+`DescriptorsSize` stores the size (in **bits**) of the descriptors array for each piece.
+
+`DepthPerTree` contains the depth of each tree listed in `TreeIds` the current piece.
+The size of both arrays is `NumberOfTrees`, indexed at the piece id.
+
+`NumberOfCellsPerTreeDepth`'s size is the sum of `DepthPerTree`.
+For each depth of each tree, it gives the information of the number of cells for this depth.
+For a given piece, we store the size of this dataset as `NumberOfDepths`.
+
+The number of cells for the piece is stored as `NumberOfCells`.
+
+The size of the (optional) `Mask` dataset corresponds to the number of cells divided by 8 (because of bit-packed storage),
+rounded to the next bigger integer value.
+
+For HyperTreeGrids, edges cannot store information.
+This means there can be a `CellData` group containing cell fields, but no `PointData`.
+
+Optionally, `InterfaceNormalsName` and `InterfaceInterceptsName` root attributes can be set to existing cell array names to define HyperTreeGrid interfaces,
+used for interpolation at render time.
+
+For temporal HyperTreeGrids, the "Steps" group contains read offsets into the `DepthPerTree`,
+`NumberOfCellsPerTreeDepth`, `TreeIds`, `Mask` `Descriptors` and coordinate datasets for each timestep.
+
+If some values do not change over time (for example coordinates),
+you can set the offset to the same value as the previous timestep (O),and store data only once.
+
+Note that for `Mask` and `Descriptors`, the offset is in **bytes** (unlike `DescriptorSize` which is in bits),
+because each new piece starts on a new byte, except if it does not contain any value.
+
+```{figure} vtkhdf_images/hypertreegrid_schema.jpg
+:width: 640px
+:align: center
+
+Figure 10. - HyperTreeGrid VTKHDF File Format
+```
+
 ### PartitionedDataSetCollection and MultiBlockDataSet
 
-The general VTKHDF format for vtkPartitionedDataSetCollection (PDC) and vtkMultiBlockDataSet (MB) is shown in Figure 10.
+VTKHDF supports composite types, made of multiple datasets of simple types, organised as a tree.
+The format currently supports vtkPartitionedDataSetCollection (PDC) and vtkMultiBlockDataSet (MB) composite types, as shown in Figure 11.
+The `Type` attribute of the `VTKHDF` group for them should be either `PartitionedDataSetCollection` or `MultiBlockDataSet`.
 
-Both VTK data types share a common structure, with a few notable differences.
-The `Type` attribute of the `VTKHDF` group for them should be `PartitionedDataSetCollection` or `MultiBlockDataSet`.
-The most important element in this design is the `Assembly` group, direct child of the `VTKHDF` group.
-This group describes the composite data hierarchy. The elements of the Assembly group do not contain the data directly.
-Instead, the data blocks are stored as direct children of the `VTKHDF` group, without any hierarchy,
-and any node in the Assembly group can use an [HDF5 symbolic link](https://davis.lbl.gov/Manuals/HDF5-1.8.7/UG/09_Groups.html#HardAndSymbolicLinks)
-to the top-level datasets.
+All simple (non composite) datasets are located in the root `VTKHDF` group, with a unique block name.
+These blocks can have any `Type` specified above, or be empty blocks when no `Type` is specified.
+These top-level data blocks should not be composite themselves : they can only be simple or partitioned (multi-piece) types.
+For temporal datasets, all blocks should have the same number of time steps and time values.
 
-Here lies the main distinction between the PDC and MB formats.
-For PDC, a group in the assembly that is not a softlink represents a node in the vtkAssembly associated to it, and
+Then, dataset tree hierarchy is defined in the `Assembly` group, which is also a direct child of the `VTKHDF` group.
+Sub-groups in the `Assembly` group define the dataset(s) they contain using a [HDF5 symbolic link](https://davis.lbl.gov/Manuals/HDF5-1.8.7/UG/09_Groups.html#HardAndSymbolicLinks)
+to the top-level datasets. The name of the link in the assembly will be the actual name of the block when read.
+Any group can have multiple children that are either links to datasets, or nodes that define datasets deeper in the hierarchy.
+
+The Assembly group and its children need to track creation order to be able to keep subtrees ordered.
+For this, you need to set H5G properties `H5P_CRT_ORDER_TRACKED` and `H5P_CRT_ORDER_INDEXED` on each group when writing the Assembly.
+
+While both MB and PDC share a common structure, there is still a slight distinction in the format between them.
+For PDC, a group in the assembly that is not a softlink represents a node in the vtkDataAssembly associated to it, and
 a softlink represents a dataset index associated to its parent node (similar to what the function `AddDataSetIndex` does in `vtkDataAssembly`).
 This way, a single dataset can be used multiple times in the assembly without any additional storage cost.
 Top-level datasets need to set an `Index` attribute to specify their index in the PDC flat structure.
+
 On the other hand, MB structures work a little differently. First, they don't need no index for their datasets, and
 secondly, an assembly node that is not a softlink represents a nested `vtkMultiBlockDataSet`.
 A softlink in the assembly represents a dataset nested in its parent `vtkMultiBlockDataSet`.
 Again, this MB format can save space when a block is referenced multiple times.
 
-Some additional detail about the format:
-* The data blocks should not be composite themselves : they can only be simple or partitioned types, but not using an assembly.
-* The Assembly group and its children need to track creation order to be able to keep subtrees ordered.
-For this, you need to set H5G properties `H5P_CRT_ORDER_TRACKED` and `H5P_CRT_ORDER_INDEXED` on each group when writing the Assembly.
-* For PDC, the assembly structure only needs to be traversed once at the beginning of the
-reading procedure (and can potentially be read and broadcasted only by the main
-process in a distributed context) to optimize file meta-data reading.
-* The block wise reading implementation and composite level implementation can be
-managed independently from each other.
-* It would be doable for each block to have its own time range and time steps in
-a temporal context with the full composite data set able to collect and expose a
-combined range and set of time values, but for now we only allow
-reading datasets that have all the same number of timesteps.
-* Reading performance can scale linearly with the number of blocks even in a
-distributed context.
-
 ```{figure} vtkhdf_images/partitioned_dataset_collection_hdf_schema.png
 :width: 640px
 :align: center
 
-Figure 10. - PartitionedDataSetCollection/MultiBlockDataset VTKHDF File Format
+Figure 11. - PartitionedDataSetCollection/MultiBlockDataset VTKHDF File Format
 ```
 
 ### Temporal Data
 
-The generic format for all `VTKHDF` temporal data is shown in Figure 11.
+The generic format for all `VTKHDF` temporal data is shown in Figure 12.
 The general idea is to take the static formats described above and use them
 as a base to append all the time dependent data. As such, a file holding static
 data has a very similar structure to a file holding dynamic data. An additional
@@ -1249,7 +1302,7 @@ and one tuple per step are considered.
 :width: 640px
 :align: center
 
-Figure 11. - Temporal Data VTKHDF File Format
+Figure 12. - Temporal Data VTKHDF File Format
 ```
 
 Writing incrementally to `VTKHDF` temporal datasets is relatively straightforward using the
@@ -1267,13 +1320,13 @@ As such, arrays described in temporal `Image Data` should have dimensions ordere
 
 Currently only `AMRBox` and `Point/Cell/Field data` can be temporal, not the `Spacing`. Due to the
 structure of the OverlappingAMR format, the format specify an intermediary group between the `Steps`
-group and the `Point/Cell/FieldDataOffset` group named `LevelX` for each level where `X` is the
+group and the `Point/Cell/FieldDataOffsets` group named `LevelX` for each level where `X` is the
 number of level. These `Level` groups will also contain 2 other datasets to retrieve the `AMRBox`:
 
 - `AMRBoxOffsets` : each entry indicates by how many AMR box to offset reading into the `AMRBox`.
-- `NumberOfAMRBox` : the number of boxes contained in the `AMRBox` for each timestep.
+- `NumberOfAMRBoxes` : the number of boxes contained in the `AMRBox` for each timestep.
 
-```{figure} vtkhdf_images/transient_overlapping_amr_hdf_schema.png
+```{figure} vtkhdf_images/temporal_overlapping_amr_hdf_schema.png
 :width: 640px
 :align: center
 
@@ -1285,6 +1338,9 @@ Figure 12. - Temporal OverlappingAMR VTKHDF File Format
 This specification and the reader available in VTK currently only
 supports ImageData, UnstructuredGrid, PolyData, Overlapping AMR, MultiBlockDataSet and Partitioned
 DataSet Collection. Other dataset types may be added later depending on interest and funding.
+
+Unlike XML formats, VTKHDF does not support field names containing `/` and `.` characters,
+because of a limitation in the HDF5 format specification.
 
 ### Examples
 
@@ -1344,7 +1400,6 @@ GROUP "/" {
          DATASPACE  SIMPLE { ( 2 ) / ( 2 ) }
          DATA {
          (0): 1, 0
-         }
       }
       ATTRIBUTE "WholeExtent" {
          DATATYPE  H5T_STD_I64LE

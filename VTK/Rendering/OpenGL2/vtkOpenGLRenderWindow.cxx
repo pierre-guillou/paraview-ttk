@@ -1,13 +1,14 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkOpenGLRenderWindow.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkOpenGLHelper.h"
 
 #include "vtkFloatArray.h"
 #include "vtkImageData.h"
 #include "vtkJPEGReader.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLActor.h"
@@ -29,6 +30,7 @@
 #include "vtkPerlinNoise.h"
 #include "vtkRenderTimerLog.h"
 #include "vtkRendererCollection.h"
+#include "vtkRenderingOpenGLConfigure.h"
 #include "vtkShaderProgram.h"
 #include "vtkStringOutputWindow.h"
 #include "vtkTextureObject.h"
@@ -36,12 +38,26 @@
 #include "vtkTimerLog.h"
 #include "vtkUnsignedCharArray.h"
 
+#if defined(_WIN32)
+#include "vtkWin32OpenGLRenderWindow.h"
+#endif
+#if defined(VTK_USE_X)
+#include "vtkXOpenGLRenderWindow.h"
+#include "vtkglad/include/glad/glx.h"
+#endif
+#if defined(VTK_OPENGL_HAS_EGL)
+#include "vtkEGLRenderWindow.h"
+#include "vtkglad/include/glad/egl.h"
+#endif
+#include "vtkOSOpenGLRenderWindow.h"
+
 #include "vtksys/SystemTools.hxx"
 
 #include "BlueNoiseTexture64x64.h"
 #include "vtkTextureObjectVS.h" // a pass through shader
 
 #include <cstdlib>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -79,6 +95,12 @@ static const vtkOpenGLRenderWindowDriverInfo vtkOpenGLRenderWindowMSAATextureBug
   // OpenGL Version: 4.6 (Core Profile) Mesa 20.0.8
   // OpenGL Renderer: AMD RAVEN (DRM 3.35.0, 5.4.0-42-generic, LLVM 10.0.0)
   { "X.Org", "", "AMD" },
+
+  // xref https://gitlab.freedesktop.org/mesa/mesa/-/issues/11999
+  // OpenGL Vendor: Mesa
+  // OpenGL Version: 4.3 (Core Profile) Mesa 24.0.9-0ubuntu0.1
+  // OpenGL Renderer: NV137
+  { "Mesa", "", "NV" },
 };
 
 static const char* defaultWindowName = "Visualization Toolkit - OpenGL";
@@ -169,6 +191,106 @@ static const char* FlipShader =
     gl_FragData[0] = texture(tex, texCoord);
   }
   )***";
+
+#if defined(VTK_REPORT_OPENGL_ERRORS) && defined(GLAD_GL)
+static void GLAPIENTRY vtkOpenGLMessageHandler(GLenum source, GLenum type, GLuint id,
+  GLenum severity, GLsizei /*length*/, const GLchar* message, const void* /*userParam*/)
+{
+  std::string messageType;
+  switch (type)
+  {
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+      messageType = "DEPRECATED_BEHAVIOR";
+      break;
+    case GL_DEBUG_TYPE_ERROR:
+      messageType = "ERROR";
+      break;
+    case GL_DEBUG_TYPE_MARKER:
+      messageType = "MARKER";
+      break;
+    case GL_DEBUG_TYPE_OTHER:
+      messageType = "OTHER";
+      break;
+    case GL_DEBUG_TYPE_PERFORMANCE:
+      messageType = "PERFORMANCE";
+      break;
+    case GL_DEBUG_TYPE_POP_GROUP:
+      messageType = "POP_GROUP";
+      break;
+    case GL_DEBUG_TYPE_PORTABILITY:
+      messageType = "PORTABILITY";
+      break;
+    case GL_DEBUG_TYPE_PUSH_GROUP:
+      messageType = "PUSH_GROUP";
+      break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+      messageType = "UNDEFINED_BEHAVIOR";
+      break;
+    default:
+      messageType = "UNKNOWN";
+      break;
+  }
+  std::string messageSeverity;
+  switch (severity)
+  {
+    case GL_DEBUG_SEVERITY_HIGH:
+      messageSeverity = "HIGH";
+      break;
+    case GL_DEBUG_SEVERITY_LOW:
+      messageSeverity = "LOW";
+      break;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+      messageSeverity = "MEDIUM";
+      break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+      messageSeverity = "NOTIFICATION";
+      break;
+    default:
+      messageSeverity = "UNKNOWN";
+      break;
+  }
+
+  std::string sourceType;
+  switch (source)
+  {
+    case GL_DEBUG_SOURCE_API:
+      sourceType = "SOURCE_API";
+      break;
+    case GL_DEBUG_SOURCE_APPLICATION:
+      sourceType = "SOURCE_APPLICATION";
+      break;
+    case GL_DEBUG_SOURCE_OTHER:
+      sourceType = "SOURCE_OTHER";
+      break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER:
+      sourceType = "SOURCE_SHADER_COMPILER";
+      break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:
+      sourceType = "SOURCE_THIRD_PARTY";
+      break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+      sourceType = "SOURCE_WINDOW_SYSTEM";
+      break;
+    default:
+      sourceType = "UNKNOWN";
+      break;
+  }
+
+  std::ostringstream oss;
+  oss << "GL Message: id=" << id << " source=" << sourceType << "(0x" << std::hex << source << ")"
+      << std::dec << " type=" << messageType << "(0x" << std::hex << type << std::dec << ")"
+      << " severity=" << messageSeverity << "(0x" << std::hex << severity << std::dec << ")"
+      << " message=" << message;
+  if (severity == GL_DEBUG_SEVERITY_HIGH)
+  {
+    vtkLog(WARNING, << oss.str());
+  }
+  else
+  {
+    vtkLog(TRACE, << oss.str());
+  }
+}
+#endif
 
 #ifdef GL_ES_VERSION_3_0
 namespace
@@ -396,7 +518,6 @@ vtkOpenGLRenderWindow::vtkOpenGLRenderWindow()
   this->FramebufferFlipY = false;
 
   this->Initialized = false;
-  this->GlewInitValid = false;
 
   this->MultiSamples = vtksys::SystemTools::HasEnv("VTK_TESTING")
     ? 0
@@ -487,6 +608,74 @@ vtkOpenGLRenderWindow::~vtkOpenGLRenderWindow()
 
   this->State->Delete();
 }
+
+#if !(defined(__APPLE__) || defined(__ANDROID__) || defined(__EMSCRIPTEN__))
+//------------------------------------------------------------------------------
+vtkOpenGLRenderWindow* vtkOpenGLRenderWindow::New()
+{
+  const char* backend = std::getenv("VTK_DEFAULT_OPENGL_WINDOW");
+#if defined(_WIN32)
+  if ((backend == nullptr) || (std::string(backend) == "vtkWin32OpenGLRenderWindow"))
+  {
+    vtkNew<vtkWin32OpenGLRenderWindow> win32RenderWindow;
+    win32RenderWindow->SetOffScreenRendering(true);
+    win32RenderWindow->Initialize();
+    if (win32RenderWindow->Initialized)
+    {
+      return win32RenderWindow->NewInstance();
+    }
+  }
+#endif
+#if defined(VTK_USE_X)
+  if ((backend == nullptr) || (std::string(backend) == "vtkXOpenGLRenderWindow"))
+  {
+    // No need to complain if GLX failed to load because vtkXOpenGLRenderWindow will
+    // print the exact reason as a warning anyway.
+    vtkNew<vtkXOpenGLRenderWindow> xRenderWindow;
+    xRenderWindow->SetOffScreenRendering(true);
+    xRenderWindow->Initialize();
+    if (xRenderWindow->Initialized)
+    {
+      return xRenderWindow->NewInstance();
+    }
+  }
+#endif
+#if defined(VTK_OPENGL_HAS_EGL)
+  if ((backend == nullptr) || (std::string(backend) == "vtkEGLRenderWindow"))
+  {
+    // Load core egl functions.
+    if (!gladLoaderLoadEGL(EGL_NO_DISPLAY))
+    {
+      vtkGenericWarningMacro(<< "Failed to load EGL! Please install the EGL library from your "
+                                "distribution's package manager.");
+    }
+    else
+    {
+      vtkNew<vtkEGLRenderWindow> eglRenderWindow;
+      eglRenderWindow->Initialize();
+      if (eglRenderWindow->Initialized)
+      {
+        return eglRenderWindow->NewInstance();
+      }
+    }
+  }
+#endif
+  if ((backend == nullptr) || (std::string(backend) == "vtkOSOpenGLRenderWindow"))
+  {
+    // OSMesa support is always built, don't check for initialization it might work if user has
+    // libOSMesa.so or osmesa.dll.
+    return vtkOSOpenGLRenderWindow::New();
+  }
+  if (backend != nullptr)
+  {
+    vtkGenericWarningMacro(<< "Failed to create a vtkOpenGLRenderWindow subclass with "
+                              "VTK_DEFAULT_OPENGL_WINDOW="
+                           << backend);
+  }
+  // OSMesa support is always built, it might work if user has libOSMesa.so or osmesa.dll.
+  return vtkOSOpenGLRenderWindow::New();
+}
+#endif
 
 //------------------------------------------------------------------------------
 const char* vtkOpenGLRenderWindow::ReportCapabilities()
@@ -661,6 +850,25 @@ void vtkOpenGLRenderWindow::OpenGLInitState()
 }
 
 //------------------------------------------------------------------------------
+bool vtkOpenGLRenderWindow::IsPrimIDBugPresent()
+{
+  if (this->Initialized)
+  {
+    const char* glVendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+    const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+
+    if (!strcmp(glVendor, "Apple"))
+    {
+      if (strstr(glVersion, "Metal") != nullptr)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
 int vtkOpenGLRenderWindow::GetDefaultTextureInternalFormat(
   int vtktype, int numComponents, bool needInt, bool needFloat, bool needSRGB)
 {
@@ -700,34 +908,55 @@ void vtkOpenGLRenderWindow::OpenGLInitContext()
   // When a new OpenGL context is created, force an update
   if (!this->Initialized)
   {
-#ifdef GLEW_OK
-    GLenum result = glewInit();
-    this->GlewInitValid = (result == GLEW_OK);
-    if (!this->GlewInitValid)
+#if defined(GLAD_GL)
+    if (this->SymbolLoader.LoadFunction != nullptr)
     {
-      const char* errorMsg = reinterpret_cast<const char*>(glewGetErrorString(result));
-      vtkErrorMacro("GLEW could not be initialized: " << errorMsg);
-      return;
+      if (gladLoadGLUserPtr(this->SymbolLoader.LoadFunction, this->SymbolLoader.UserData) > 0)
+      {
+        this->Initialized = true;
+      }
+      else
+      {
+        vtkWarningMacro(<< "Failed to initialize OpenGL functions!");
+      }
     }
-
-    if (!GLEW_VERSION_3_2 && !GLEW_VERSION_3_1)
+    else
     {
-      vtkErrorMacro("Unable to find a valid OpenGL 3.2 or later implementation. "
-                    "Please update your video card driver to the latest version. "
-                    "If you are using Mesa please make sure you have version 11.2 or "
-                    "later and make sure your driver in Mesa supports OpenGL 3.2 such "
-                    "as llvmpipe or openswr. If you are on windows and using Microsoft "
-                    "remote desktop note that it only supports OpenGL 3.2 with nvidia "
-                    "quadro cards. You can use other remoting software such as nomachine "
-                    "to avoid this issue.");
-      return;
+      if (gladLoaderLoadGL() > 0)
+      {
+        this->Initialized = true;
+      }
+      else
+      {
+        vtkWarningMacro(<< "Failed to initialize OpenGL functions!");
+      }
     }
-#else
-    // GLEW is not being used, so avoid false failure on GL checks later.
-    this->GlewInitValid = true;
-#endif
+#else // gles
     this->Initialized = true;
+#endif
+    if (!this->Initialized)
+    {
+      vtkWarningMacro(<< "Unable to find a valid OpenGL 3.2 or later implementation. "
+                         "Please update your video card driver to the latest version. "
+                         "If you are using Mesa please make sure you have version 11.2 or "
+                         "later and make sure your driver in Mesa supports OpenGL 3.2 such "
+                         "as llvmpipe or openswr. If you are on windows and using Microsoft "
+                         "remote desktop note that it only supports OpenGL 3.2 with nvidia "
+                         "quadro cards. You can use other remoting software such as nomachine "
+                         "to avoid this issue.");
+      return;
+    }
 
+    // Enable debug output if OpenGL version supports attaching debug callbacks.
+#if defined(VTK_REPORT_OPENGL_ERRORS) && defined(GLAD_GL)
+    if (GLAD_GL_ARB_debug_output)
+    {
+      glEnable(GL_DEBUG_OUTPUT);
+      glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+      glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+      glDebugMessageCallback(vtkOpenGLMessageHandler, this);
+    }
+#endif
     // get this system's supported maximum line width
     // we do it here and store it to avoid repeated glGet
     // calls when the result should not change
@@ -870,6 +1099,15 @@ int vtkOpenGLRenderWindow::GetColorBufferSizes(int* rgba)
     {
       attachment = GL_BACK_LEFT;
     }
+    if (attachment == GL_NONE)
+    {
+      // when using vtkGenericOpenGLRenderWindow through QVTKOpenGLNativeWidget,
+      // or a subclass of QOpenGLWidget, the rendering takes place in an offscreen buffer
+      // and is then transferred to the default framebuffer object which is setup
+      // with glDrawBuffers(GL_NONE). So treat it as if it were GL_BACK_LEFT
+      // before querying the color buffer sizes.
+      attachment = GL_BACK_LEFT;
+    }
 
     // make sure we clear any errors before we start
     // otherwise we may get incorrect results
@@ -936,7 +1174,7 @@ int vtkOpenGLRenderWindow::GetColorBufferInternalFormat(int attachmentPoint)
   int format = 0;
 
 #ifndef GL_ES_VERSION_3_0
-  if (GLEW_ARB_direct_state_access)
+  if (GLAD_GL_ARB_direct_state_access)
   {
     int type;
     glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + attachmentPoint,
@@ -1240,6 +1478,13 @@ void vtkOpenGLRenderWindow::End()
   this->GetState()->PopFramebufferBindings();
 }
 
+//------------------------------------------------------------------------------
+void vtkOpenGLRenderWindow::SetOpenGLSymbolLoader(VTKOpenGLLoaderFunction loader, void* userData)
+{
+  this->SymbolLoader.LoadFunction = loader;
+  this->SymbolLoader.UserData = userData;
+}
+
 void vtkOpenGLRenderWindow::TextureDepthBlit(vtkTextureObject* source, int srcX, int srcY,
   int srcX2, int srcY2, int destX, int destY, int destX2, int destY2)
 {
@@ -1397,19 +1642,28 @@ bool vtkOpenGLRenderWindow::ResolveFlipRenderFramebuffer()
   if (this->MultiSamples > 1 && this->RenderFramebuffer->GetColorAttachmentAsTextureObject(0))
   {
     useTexture = true;
-    const std::string& vendorString = this->GetState()->GetVendor();
-    const std::string& versionString = this->GetState()->GetVersion();
-    const std::string& rendererString = this->GetState()->GetRenderer();
-    size_t numExceptions =
-      sizeof(vtkOpenGLRenderWindowMSAATextureBug) / sizeof(vtkOpenGLRenderWindowDriverInfo);
-    for (size_t i = 0; i < numExceptions; i++)
+    // can set VTK_FORCE_MSAA=0/1 to override driver exclusion
+    const char* useMSAAEnv = std::getenv("VTK_FORCE_MSAA");
+    if (useMSAAEnv)
     {
-      if (vendorString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Vendor) == 0 &&
-        versionString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Version) == 0 &&
-        rendererString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Renderer) == 0)
+      useTexture = strlen(useMSAAEnv) ? (std::atoi(useMSAAEnv) == 1) : true;
+    }
+    else
+    {
+      const std::string& vendorString = this->GetState()->GetVendor();
+      const std::string& versionString = this->GetState()->GetVersion();
+      const std::string& rendererString = this->GetState()->GetRenderer();
+      size_t numExceptions =
+        sizeof(vtkOpenGLRenderWindowMSAATextureBug) / sizeof(vtkOpenGLRenderWindowDriverInfo);
+      for (size_t i = 0; i < numExceptions; i++)
       {
-        useTexture = false;
-        break;
+        if (vendorString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Vendor) == 0 &&
+          versionString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Version) == 0 &&
+          rendererString.find(vtkOpenGLRenderWindowMSAATextureBug[i].Renderer) == 0)
+        {
+          useTexture = false;
+          break;
+        }
       }
     }
   }
@@ -2009,7 +2263,7 @@ int vtkOpenGLRenderWindow::SetRGBAPixelData(
   if (!blend)
   {
     this->GetState()->vtkglDisable(GL_BLEND);
-    this->DrawPixels(x1, y1, x2, y2, 4, VTK_FLOAT, data); // TODO replace dprecated function
+    this->DrawPixels(x1, y1, x2, y2, 4, VTK_FLOAT, data); // TODO replace deprecated function
     this->GetState()->vtkglEnable(GL_BLEND);
   }
   else
@@ -2504,7 +2758,7 @@ int vtkOpenGLRenderWindow::CreateFramebuffers(int width, int height)
 
   if (!this->RenderFramebuffer->GetFBOIndex())
   {
-    // verify that our multisample setting doe snot exceed the hardware
+    // verify that our multisample setting does not exceed the hardware
     if (this->MultiSamples)
     {
 #ifdef GL_MAX_SAMPLES
@@ -2646,36 +2900,48 @@ int vtkOpenGLRenderWindow::SupportsOpenGL()
   rw->SetDisplayId(this->GetGenericDisplayId());
   rw->SetOffScreenRendering(1);
   rw->Initialize();
-  if (!rw->GlewInitValid)
+  if (!rw->Initialized)
   {
-    this->OpenGLSupportMessage = "glewInit failed for this window, OpenGL not supported.";
+    this->OpenGLSupportMessage =
+      "Failed to initialize OpenGL for this window, OpenGL not supported.";
     rw->Delete();
     vtkOutputWindow::SetInstance(oldOW);
     oldOW->Delete();
     return 0;
   }
 
-#ifdef GLEW_OK
-
-  else if (GLEW_VERSION_3_2 || GLEW_VERSION_3_1)
+#if defined(GLAD_GL)
+  else if (GLAD_GL_VERSION_3_2 || GLAD_GL_VERSION_3_1)
   {
     this->OpenGLSupportResult = 1;
     this->OpenGLSupportMessage = "The system appears to support OpenGL 3.2/3.1";
   }
-#else
-#ifdef GL_ES_VERSION_2_0
-  this->OpenGLSupportResult = 1;
-  this->OpenGLSupportMessage = "The system appears to support OpenGL ES 2.0";
-#endif
-#ifdef GL_ES_VERSION_3_0
-  this->OpenGLSupportResult = 1;
-  this->OpenGLSupportMessage = "The system appears to support OpenGL ES 3.0";
-#endif
+#elif defined(GLAD_GLES2)
+  else if (GLAD_GL_ES_VERSION_3_2)
+  {
+    this->OpenGLSupportResult = 1;
+    this->OpenGLSupportMessage = "The system appears to support OpenGL ES 3.2";
+  }
+  else if (GLAD_GL_ES_VERSION_3_1)
+  {
+    this->OpenGLSupportResult = 1;
+    this->OpenGLSupportMessage = "The system appears to support OpenGL ES 3.1";
+  }
+  else if (GLAD_GL_ES_VERSION_3_0)
+  {
+    this->OpenGLSupportResult = 1;
+    this->OpenGLSupportMessage = "The system appears to support OpenGL ES 3.0";
+  }
+  else if (GLAD_GL_ES_VERSION_2_0)
+  {
+    this->OpenGLSupportResult = 1;
+    this->OpenGLSupportMessage = "The system appears to support OpenGL ES 2.0";
+  }
 #endif
 
   if (this->OpenGLSupportResult)
   {
-    // even if glew thinks we have support we should actually try linking a
+    // even if glad thinks we have support we should actually try linking a
     // shader program to make sure
     vtkShaderProgram* newShader = rw->GetShaderCache()->ReadyShaderProgram(
       // simple vert shader

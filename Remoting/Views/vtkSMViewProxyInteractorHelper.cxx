@@ -79,7 +79,7 @@ void vtkSMViewProxyInteractorHelper::SetupInteractor(vtkRenderWindowInteractor* 
     this->Interactor->AddObserver(vtkCommand::EndInteractionEvent, this->Observer);
     this->Interactor->AddObserver(vtkCommand::TimerEvent, this->Observer);
 
-    this->Interactor->AddObserver(vtkCommand::WindowResizeEvent, this->Observer);
+    this->Interactor->AddObserver(vtkCommand::ConfigureEvent, this->Observer);
   }
 }
 
@@ -112,7 +112,7 @@ void vtkSMViewProxyInteractorHelper::Execute(vtkObject* caller, unsigned long ev
   assert(iren);
   switch (event)
   {
-    case vtkCommand::WindowResizeEvent:
+    case vtkCommand::ConfigureEvent:
     {
       this->Resize();
 

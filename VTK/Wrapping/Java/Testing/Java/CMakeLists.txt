@@ -29,13 +29,21 @@ add_library(vtkjava_tests STATIC
 target_compile_options(vtkjava_tests
   PRIVATE
     "SHELL:-classpath \"${vtk_test_classpath}\""
-    "SHELL:-source ${VTK_JAVA_SOURCE_VERSION}"
-    "SHELL:-target ${VTK_JAVA_TARGET_VERSION}")
+    "SHELL:--release ${VTK_JAVA_RELEASE_VERSION}")
 target_link_libraries(vtkjava_tests
   PRIVATE
     VTK::vtkjava)
-# Apparently the Java compilation doesn't set up dependencies properly?
-add_dependencies(vtkjava_tests vtkjava)
+if (TARGET vtkjava_jar)
+  # Apparently the Java compilation doesn't set up dependencies properly,
+  # Thus we need to depend on vtkjava_jar which symbolized that the vtkjava
+  # jar file has been created. This is needed since compiling every java file
+  # requires to have the jars in the classpath of its dependencies.
+  add_dependencies(vtkjava_tests vtkjava_jar WrapJava)
+else ()
+  # If 'vtkjava_jar' doesn't exist, we assume that dependencies are properly
+  # handled via the 'vtkjava' target for the vtk.jar file
+  add_dependencies(vtkjava_tests vtkjava)
+endif ()
 
 set(vtk_test_classpath
   "$<TARGET_FILE:vtkjava_tests>"

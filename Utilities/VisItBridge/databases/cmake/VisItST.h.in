@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef @_add_visit_reader_plugin_name@_h
 #define @_add_visit_reader_plugin_name@_h
+
 #include "vtkIOVisItBridgeModule.h" //for export macro
 #include "vtkAvt@_add_visit_reader_VISIT_READER_TYPE@FileFormatAlgorithm.h"
 #cmakedefine01 _add_visit_reader_uses_interface
@@ -54,6 +55,7 @@ protected:
 
   bool InitializeAVTReader( const int& timestep ) override;
   char *FileName;
+  std::string MetaDataSource;
 
 private:
   @_add_visit_reader_plugin_name@(const @_add_visit_reader_plugin_name@&) = delete;

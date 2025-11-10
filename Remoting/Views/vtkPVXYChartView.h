@@ -14,6 +14,7 @@
 
 #include "vtkAxis.h" //for enums.
 #include "vtkPVContextView.h"
+#include "vtkParaViewDeprecation.h"
 #include "vtkRemotingViewsModule.h" //needed for exports
 
 class vtkChart;
@@ -21,16 +22,40 @@ class vtkPVPlotTime;
 class vtkChartWarning;
 
 #define GENERATE_AXIS_FUNCTIONS(name, type)                                                        \
-  void SetLeft##name(type value) { Set##name(vtkAxis::LEFT, value); }                              \
-  void SetBottom##name(type value) { Set##name(vtkAxis::BOTTOM, value); }                          \
-  void SetRight##name(type value) { Set##name(vtkAxis::RIGHT, value); }                            \
-  void SetTop##name(type value) { Set##name(vtkAxis::TOP, value); }
+  void SetLeft##name(type value)                                                                   \
+  {                                                                                                \
+    Set##name(vtkAxis::LEFT, value);                                                               \
+  }                                                                                                \
+  void SetBottom##name(type value)                                                                 \
+  {                                                                                                \
+    Set##name(vtkAxis::BOTTOM, value);                                                             \
+  }                                                                                                \
+  void SetRight##name(type value)                                                                  \
+  {                                                                                                \
+    Set##name(vtkAxis::RIGHT, value);                                                              \
+  }                                                                                                \
+  void SetTop##name(type value)                                                                    \
+  {                                                                                                \
+    Set##name(vtkAxis::TOP, value);                                                                \
+  }
 
 #define GENERATE_AXIS_FUNCTIONS2(name, type1, type2)                                               \
-  void SetLeft##name(type1 value1, type2 value2) { Set##name(vtkAxis::LEFT, value1, value2); }     \
-  void SetBottom##name(type1 value1, type2 value2) { Set##name(vtkAxis::BOTTOM, value1, value2); } \
-  void SetRight##name(type1 value1, type2 value2) { Set##name(vtkAxis::RIGHT, value1, value2); }   \
-  void SetTop##name(type1 value1, type2 value2) { Set##name(vtkAxis::TOP, value1, value2); }
+  void SetLeft##name(type1 value1, type2 value2)                                                   \
+  {                                                                                                \
+    Set##name(vtkAxis::LEFT, value1, value2);                                                      \
+  }                                                                                                \
+  void SetBottom##name(type1 value1, type2 value2)                                                 \
+  {                                                                                                \
+    Set##name(vtkAxis::BOTTOM, value1, value2);                                                    \
+  }                                                                                                \
+  void SetRight##name(type1 value1, type2 value2)                                                  \
+  {                                                                                                \
+    Set##name(vtkAxis::RIGHT, value1, value2);                                                     \
+  }                                                                                                \
+  void SetTop##name(type1 value1, type2 value2)                                                    \
+  {                                                                                                \
+    Set##name(vtkAxis::TOP, value1, value2);                                                       \
+  }
 
 #define GENERATE_AXIS_FUNCTIONS3(name, type1, type2, type3)                                        \
   void SetLeft##name(type1 value1, type2 value2, type3 value3)                                     \
@@ -459,14 +484,10 @@ public:
    * When plotting data with nonpositive values, ignore the standard warning
    * and draw only the data with positive values.
    */
-  static void SetIgnoreNegativeLogAxisWarning(bool val)
-  {
-    vtkPVXYChartView::IgnoreNegativeLogAxisWarning = val;
-  }
-  static bool GetIgnoreNegativeLogAxisWarning()
-  {
-    return vtkPVXYChartView::IgnoreNegativeLogAxisWarning;
-  }
+  PARAVIEW_DEPRECATED_IN_6_0_0("Use vtkPVGeneralSettings::SetIgnoreNegativeLogAxisWarning instead")
+  static void SetIgnoreNegativeLogAxisWarning(bool val);
+  PARAVIEW_DEPRECATED_IN_6_0_0("Use vtkPVGeneralSettings::GetIgnoreNegativeLogAxisWarning instead")
+  static bool GetIgnoreNegativeLogAxisWarning();
 
   /**
    * Provides access to the chart view.
@@ -518,6 +539,7 @@ protected:
   bool HideTimeMarker;
   bool SortByXAxis;
 
+  // PARAVIEW_DEPRECATED_IN_6_0_0
   static bool IgnoreNegativeLogAxisWarning;
 
 private:

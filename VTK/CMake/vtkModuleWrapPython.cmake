@@ -35,8 +35,8 @@ Known limitations include:
      vtk_module_python_default_destination(<var>
       [MAJOR_VERSION <major>])
 
-  By default, the destination is ``${CMAKE_INSTALL_BINDIR}/Lib/site-packages`` on
-  Windows and ``${CMAKE_INSTALL_LIBDIR}/python<VERSION>/site-packages`` otherwise.
+  By default, the destination is ``Lib/site-packages`` on Windows
+  and ``${CMAKE_INSTALL_LIBDIR}/python<VERSION>/site-packages`` otherwise.
 
   ``<MAJOR_VERSION>``, if specified, must be ``3``.
 #]==]
@@ -63,7 +63,11 @@ function (vtk_module_python_default_destination var)
   endif ()
 
   if (MSVC)
-    set(destination "${CMAKE_INSTALL_BINDIR}/Lib/site-packages")
+    if (CMAKE_INSTALL_LIBDIR STREQUAL "lib")
+      set(destination "lib/site-packages")
+    else ()
+      set(destination "Lib/site-packages")
+    endif ()
   else ()
     if (NOT DEFINED "Python3_VERSION_MAJOR" OR
         NOT DEFINED "Python3_VERSION_MINOR")
@@ -402,11 +406,8 @@ function (_vtk_module_wrap_python_library name)
 
   set(_vtk_python_init_output
     "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${name}Python/${name}Init.cxx")
-  set(_vtk_python_init_impl_output
-    "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${name}Python/${name}InitImpl.cxx")
   list(APPEND _vtk_python_library_sources
-    "${_vtk_python_init_output}"
-    "${_vtk_python_init_impl_output}")
+    "${_vtk_python_init_output}")
 
   set(_vtk_python_wrap_target "VTK::WrapPythonInit")
   if (TARGET VTKCompileTools::WrapPythonInit)
@@ -425,12 +426,10 @@ function (_vtk_module_wrap_python_library name)
   endif()
   add_custom_command(
     OUTPUT  "${_vtk_python_init_output}"
-            "${_vtk_python_init_impl_output}"
     COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
             "$<TARGET_FILE:${_vtk_python_wrap_target}>"
             "${_vtk_python_init_data_file}"
             "${_vtk_python_init_output}"
-            "${_vtk_python_init_impl_output}"
     COMMENT "Generating the Python module initialization sources for ${name}"
     DEPENDS
       "${_vtk_python_init_data_file}"
@@ -619,6 +618,7 @@ endfunction ()
        MODULES <module>...
        [TARGET <target>]
        [WRAPPED_MODULES <varname>]
+       [WRAP_TARGET <target>]
 
        [BUILD_STATIC <ON|OFF>]
        [INSTALL_HEADERS <ON|OFF>]
@@ -657,6 +657,9 @@ endfunction ()
     These modules will have a ``INTERFACE_vtk_module_python_package`` property
     set on them which is the name that should be given to ``import`` statements
     in Python code.
+  * ``WRAP_TARGET``: If provided, a custom target with this name will be
+    created. It will depend on all wrapped Python modules and may be used
+    to ensure that Python wrapping has completed for further work.
   * ``BUILD_STATIC``: Defaults to ``${BUILD_SHARED_LIBS}``. Note that shared
     modules with a static build is not completely supported. For static Python
     module builds, a header named ``<TARGET>.h`` will be available with a
@@ -715,7 +718,7 @@ endfunction ()
 function (vtk_module_wrap_python)
   cmake_parse_arguments(PARSE_ARGV 0 _vtk_python
     ""
-    "MODULE_DESTINATION;STATIC_MODULE_DESTINATION;LIBRARY_DESTINATION;PYTHON_PACKAGE;BUILD_STATIC;INSTALL_HEADERS;INSTALL_EXPORT;TARGET_SPECIFIC_COMPONENTS;TARGET;COMPONENT;WRAPPED_MODULES;CMAKE_DESTINATION;SOABI;USE_DEBUG_SUFFIX;REPLACE_DEBUG_SUFFIX;UTILITY_TARGET;BUILD_PYI_FILES;HEADERS_DESTINATION;INTERPRETER"
+    "MODULE_DESTINATION;STATIC_MODULE_DESTINATION;LIBRARY_DESTINATION;PYTHON_PACKAGE;BUILD_STATIC;INSTALL_HEADERS;INSTALL_EXPORT;TARGET_SPECIFIC_COMPONENTS;TARGET;COMPONENT;WRAPPED_MODULES;CMAKE_DESTINATION;SOABI;USE_DEBUG_SUFFIX;REPLACE_DEBUG_SUFFIX;UTILITY_TARGET;BUILD_PYI_FILES;HEADERS_DESTINATION;INTERPRETER;WRAP_TARGET"
     "DEPENDS;MODULES;WARNINGS")
 
   if (_vtk_python_UNPARSED_ARGUMENTS)
@@ -1058,6 +1061,12 @@ static void ${_vtk_python_TARGET_NAME}_load() {\n")
           ${_vtk_python_all_modules})
     endif ()
 
+    if (_vtk_python_WRAP_TARGET)
+      add_custom_target("${_vtk_python_WRAP_TARGET}"
+        DEPENDS
+          ${_vtk_python_all_modules})
+    endif ()
+
     if (_vtk_python_BUILD_STATIC)
       # Next, we generate a Python module that can be imported to import any
       # static artifacts e.g. all wrapping Python modules in static builds,
@@ -1196,6 +1205,7 @@ static void ${_vtk_python_TARGET_NAME}_load() {\n")
         DEPENDS   ${_vtk_python_module_targets}
                   ${_vtk_python_static_importer_name}
                   "${_vtk_pyi_script}"
+                  vtk_python_copy
         COMMENT   "Creating .pyi files for ${_vtk_python_TARGET_NAME}"
         ${_vtk_python_depends_args})
       cmake_policy(POP)

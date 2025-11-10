@@ -42,16 +42,17 @@
 #include "vtkContourValues.h"  // for vtkContourValues
 #include "vtkDataObjectAlgorithm.h"
 #include "vtkHyperTreeGridAxisCut.h"                // for vtkHyperTreeGridAxisCut
-#include "vtkImplicitFunction.h"                    // fir vtkImplicitFunction
 #include "vtkPVVTKExtensionsFiltersGeneralModule.h" // for export macro
 #include "vtkSmartPointer.h"                        // for vtkSmartPointer
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataAssembly;
+class vtkImplicitFunction;
 class vtkHyperTreeGridAxisCut;
+class vtkMultiProcessController;
 class vtkPartitionedDataSet;
 class vtkPartitionedDataSetCollection;
-class vtkPVPlane;
+class vtkPlane;
 
 class VTKPVVTKEXTENSIONSFILTERSGENERAL_EXPORT vtkAxisAlignedCutter : public vtkDataObjectAlgorithm
 {
@@ -65,8 +66,8 @@ public:
    * Specify the implicit function to perform the cutting.
    * For now, only `Axis-Aligned` planes are supported.
    */
-  vtkSetSmartPointerMacro(CutFunction, vtkImplicitFunction);
-  vtkGetSmartPointerMacro(CutFunction, vtkImplicitFunction);
+  void SetCutFunction(vtkImplicitFunction* function);
+  vtkImplicitFunction* GetCutFunction();
   ///@}
 
   /**
@@ -106,9 +107,18 @@ public:
   vtkGetMacro(LevelOfResolution, int);
   ///@}
 
+  ///@{
+  /**
+   * Get/Set the controller in an MPI environment. If one sets the controller to `nullptr`,
+   * an instance of `vtkDummyController` is stored instead. `GetController` never returns `nullptr`.
+   */
+  void SetController(vtkMultiProcessController* controller);
+  vtkMultiProcessController* GetController();
+  ///@}
+
 protected:
   vtkAxisAlignedCutter();
-  ~vtkAxisAlignedCutter() override;
+  ~vtkAxisAlignedCutter() override = default;
 
   int RequestDataObject(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
   int RequestData(vtkInformation*, vtkInformationVector**, vtkInformationVector*) override;
@@ -121,33 +131,35 @@ private:
   /**
    * Helper methods that perform slicing on input HTG with given plane and fill outputSlices
    */
-  void ProcessHTG(
-    vtkHyperTreeGrid* inputHTG, vtkPVPlane* plane, vtkPartitionedDataSetCollection* outputSlices);
+  bool ProcessHTG(
+    vtkHyperTreeGrid* inputHTG, vtkPlane* plane, vtkPartitionedDataSetCollection* outputSlices);
 
   /**
    * Helper methods that perform slicing on input PDS with given plane. Add produced slices to the
    * output PDC. Slices indices are added in a new layer of nodes in the output hierarchy at given
    * node ID.
    */
-  bool ProcessPDS(vtkPartitionedDataSet* inputPDS, vtkPVPlane* plane,
+  bool ProcessPDS(vtkPartitionedDataSet* inputPDS, vtkPlane* plane,
     vtkPartitionedDataSetCollection* outputPDC, vtkDataAssembly* outputHierarchy, int nodeId);
 
   /**
    * Cut HTG with axis-aligned plane, applying additional plane offset if needed
    */
   void CutHTGWithAAPlane(
-    vtkHyperTreeGrid* input, vtkHyperTreeGrid* output, vtkPVPlane* plane, double offset);
+    vtkHyperTreeGrid* input, vtkHyperTreeGrid* output, vtkPlane* plane, double offset);
 
   /**
    * Cut AMR with axis-aligned plane
    */
-  void CutAMRWithAAPlane(vtkOverlappingAMR* input, vtkOverlappingAMR* output, vtkPVPlane* plane);
+  void CutAMRWithAAPlane(vtkOverlappingAMR* input, vtkOverlappingAMR* output, vtkPlane* plane);
 
   vtkSmartPointer<vtkImplicitFunction> CutFunction;
   vtkNew<vtkHyperTreeGridAxisCut> HTGCutter;
   vtkNew<vtkAMRSliceFilter> AMRCutter;
   int LevelOfResolution = 0;
   vtkNew<vtkContourValues> OffsetValues;
+
+  vtkSmartPointer<vtkMultiProcessController> Controller;
 };
 
 VTK_ABI_NAMESPACE_END

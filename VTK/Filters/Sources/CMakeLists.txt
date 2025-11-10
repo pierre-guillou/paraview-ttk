@@ -2,7 +2,6 @@ set(classes
   vtkArcSource
   vtkArrowSource
   vtkButtonSource
-  vtkCapsuleSource
   vtkCellTypeSource
   vtkConeSource
   vtkCubeSource
@@ -13,6 +12,7 @@ set(classes
   vtkEllipticalButtonSource
   vtkFrustumSource
   vtkGlyphSource2D
+  vtkGoldenBallSource
   vtkGraphToPolyData
   vtkHandleSource
   vtkHyperTreeGridPreConfiguredSource

@@ -256,7 +256,7 @@ void vtkCFSReader::SetRegionArrayStatus(const char* name, int status)
 const char* vtkCFSReader::GetRegionArrayName(int index)
 {
   // we assume the vector is properly traversed
-  assert(index < this->RegionNames.size());
+  assert(index < static_cast<int>(this->RegionNames.size()));
   return this->RegionNames[index].c_str();
 }
 
@@ -286,7 +286,7 @@ void vtkCFSReader::SetNamedNodeArrayStatus(const char* name, int status)
 //-----------------------------------------------------------------------------
 const char* vtkCFSReader::GetNamedNodeArrayName(int index)
 {
-  assert(index < this->NamedNodeNames.size());
+  assert(index < static_cast<int>(this->NamedNodeNames.size()));
   return this->NamedNodeNames[index].c_str();
 }
 
@@ -316,7 +316,7 @@ void vtkCFSReader::SetNamedElementArrayStatus(const char* name, int status)
 //-----------------------------------------------------------------------------
 const char* vtkCFSReader::GetNamedElementArrayName(int index)
 {
-  assert(index < this->NamedElementNames.size());
+  assert(index < static_cast<int>(this->NamedElementNames.size()));
   return this->NamedElementNames[index].c_str();
 }
 
@@ -1024,7 +1024,8 @@ void vtkCFSReader::ReadNodeCellData(vtkMultiBlockDataSet* output, bool isNode)
             {
               phase[i] = (std::abs(imaginaryVals[i]) > 1e-16)
                 ? std::atan2(imaginaryVals[i], realVals[i]) * h180degOverPi
-                : (realVals[i] < 0.0) ? 180 : 0;
+                : (realVals[i] < 0.0) ? 180
+                                      : 0;
             }
             vals.push_back(SaveToArray(phase, actInfo->dofNames, numEntities, phaseName));
           }

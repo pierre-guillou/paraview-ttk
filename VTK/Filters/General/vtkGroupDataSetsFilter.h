@@ -13,6 +13,8 @@
  *
  * This is a more generic version of `vtkMultiBlockDataGroupFilter` and should
  * be preferred.
+ *
+ * @sa vtkMergeBlocks vtkExtractBlock
  */
 
 #ifndef vtkGroupDataSetsFilter_h
@@ -62,6 +64,20 @@ public:
    */
   void ClearInputNames();
 
+  ///@{
+  /**
+   * If on, for multiblock inputs if the output type is also multiblock, the first level will be
+   * combined.
+   * This is useful when this filter is called multiple times on the same multiblock to avoid
+   * creating many layers (legacy behavior related to distributed multiblock data).
+   *
+   * Default is off.
+   */
+  vtkSetMacro(CombineFirstLayerMultiblock, bool);
+  vtkGetMacro(CombineFirstLayerMultiblock, bool);
+  vtkBooleanMacro(CombineFirstLayerMultiblock, bool);
+  ///@}
+
 protected:
   vtkGroupDataSetsFilter();
   ~vtkGroupDataSetsFilter() override;
@@ -76,6 +92,8 @@ private:
   void operator=(const vtkGroupDataSetsFilter&) = delete;
 
   int OutputType;
+
+  bool CombineFirstLayerMultiblock = false;
 
   class vtkInternals;
   std::unique_ptr<vtkInternals> Internals;

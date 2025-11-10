@@ -119,7 +119,7 @@ template <typename VTKObjectType>
 struct ParentClasses<VTKObjectType, false>
 {
   template <typename Functor>
-  inline static void enumerate(Functor& ff)
+  static void enumerate(Functor& ff)
   {
     ff.template operator()<VTKObjectType>();
   }
@@ -130,10 +130,9 @@ struct ParentClasses<VTKObjectType, true>
 {
   // This variant handles Functors with a void return type.
   template <typename Functor>
-  inline static typename std::enable_if<
+  static typename std::enable_if<
     std::is_same<decltype(std::declval<Functor>().template operator()<vtkObject>()), void>::value,
-    void>::type
-  enumerate(Functor& ff)
+    void>::type enumerate(Functor& ff)
   {
     ff.template operator()<VTKObjectType>();
     ParentClasses<typename VTKObjectType::Superclass>::enumerate(ff);
@@ -141,10 +140,9 @@ struct ParentClasses<VTKObjectType, true>
 
   // This variant handles Functors with a bool return type.
   template <typename Functor>
-  inline static typename std::enable_if<
+  static typename std::enable_if<
     std::is_same<decltype(std::declval<Functor>().template operator()<vtkObject>()), bool>::value,
-    void>::type
-  enumerate(Functor& ff)
+    void>::type enumerate(Functor& ff)
   {
     if (ff.template operator()<VTKObjectType>())
     {

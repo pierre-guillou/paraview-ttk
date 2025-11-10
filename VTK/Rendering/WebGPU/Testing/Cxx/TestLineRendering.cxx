@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkActor.h"
 #include "vtkCamera.h"
-#include "vtkColorTransferFunction.h"
-#include "vtkConeSource.h"
-#include "vtkElevationFilter.h"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkNew.h"
-#include "vtkObject.h"
+#include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
+#include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkScalarsToColors.h"
-#include "vtkSphereSource.h"
 
 int TestLineRendering(int argc, char* argv[])
 {
@@ -25,21 +21,20 @@ int TestLineRendering(int argc, char* argv[])
   vtkNew<vtkRenderer> renderer;
   renWin->AddRenderer(renderer);
 
-  // the one and only true triangle
   vtkNew<vtkPolyData> polydata;
   vtkNew<vtkPoints> points;
-  points->InsertPoint(0, -100, -100, 0.0);
-  points->InsertPoint(1, 0.0, 150, 0.0);
-  points->InsertPoint(2, 100, -100, 0.0);
-  points->InsertPoint(3, -200, -200, 0.0);
-  points->InsertPoint(4, 0.0, 250, 0.0);
-  points->InsertPoint(5, 200, -200, 0.0);
-  points->InsertPoint(6, -300, -300, 0.0);
-  points->InsertPoint(7, 0.0, 350, 0.0);
-  points->InsertPoint(8, 300, -300, 0.0);
-  points->InsertPoint(9, -400, -400, 0.0);
-  points->InsertPoint(10, 0.0, 450, 0.0);
-  points->InsertPoint(11, 400, -400, 0.0);
+  points->InsertPoint(0, -1, -1, 0.0);
+  points->InsertPoint(1, 0.0, 1.5, 0.0);
+  points->InsertPoint(2, 1, -1, 0.0);
+  points->InsertPoint(3, -2, -2, 0.0);
+  points->InsertPoint(4, 0.0, 2.5, 0.0);
+  points->InsertPoint(5, 2, -2, 0.0);
+  points->InsertPoint(6, -3, -3, 0.0);
+  points->InsertPoint(7, 0.0, 3.5, 0.0);
+  points->InsertPoint(8, 3, -3, 0.0);
+  points->InsertPoint(9, -4, -4, 0.0);
+  points->InsertPoint(10, 0.0, 4.5, 0.0);
+  points->InsertPoint(11, 4, -4, 0.0);
   polydata->SetPoints(points);
   vtkNew<vtkCellArray> lines;
   lines->InsertNextCell({ 0, 1 });
@@ -50,17 +45,25 @@ int TestLineRendering(int argc, char* argv[])
   polydata->SetLines(lines);
 
   vtkNew<vtkPolyDataMapper> mapper;
-  mapper->DebugOn();
   mapper->SetInputData(polydata);
 
   vtkNew<vtkActor> actor;
   actor->GetProperty()->SetLineWidth(4);
+  bool translucent = false;
+  for (int i = 0; i < argc; ++i)
+  {
+    if (strcmp(argv[i], "--translucent") == 0)
+    {
+      translucent = true;
+      break;
+    }
+  }
+  actor->GetProperty()->SetOpacity(translucent ? 0.4 : 1.0);
   actor->SetMapper(mapper);
   renderer->AddActor(actor);
 
   renderer->ResetCamera();
   renderer->SetBackground(0.2, 0.3, 0.4);
-  renWin->Render();
 
   vtkNew<vtkRenderWindowInteractor> iren;
   iren->SetRenderWindow(renWin);
@@ -70,6 +73,10 @@ int TestLineRendering(int argc, char* argv[])
 
   renWin->Render();
 
-  iren->Start();
-  return 0;
+  const int retVal = vtkRegressionTestImage(renWin);
+  if (retVal == vtkRegressionTester::DO_INTERACTOR)
+  {
+    iren->Start();
+  }
+  return !retVal;
 }

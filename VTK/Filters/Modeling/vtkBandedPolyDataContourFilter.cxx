@@ -145,6 +145,10 @@ vtkBandedPolyDataContourFilter::vtkBandedPolyDataContourFilter()
   this->ClipTolerance = FLT_EPSILON;
   this->Internal->ClipTolerance = FLT_EPSILON;
   this->GenerateContourEdges = 0;
+
+  // by default process active point scalars
+  this->SetInputArrayToProcess(
+    0, 0, 0, vtkDataObject::FIELD_ASSOCIATION_POINTS, vtkDataSetAttributes::SCALARS);
 }
 
 //------------------------------------------------------------------------------
@@ -327,7 +331,7 @@ int vtkBandedPolyDataContourFilter::RequestData(vtkInformation* vtkNotUsed(reque
   vtkPointData* outPD = output->GetPointData();
   vtkCellData* outCD = output->GetCellData();
   vtkPoints* inPts = input->GetPoints();
-  vtkDataArray* inScalars = pd->GetScalars();
+  vtkDataArray* inScalars = this->GetInputArrayToProcess(0, inputVector);
   bool abort = false;
   vtkIdType npts = 0;
   vtkIdType cellId = 0;
@@ -444,6 +448,7 @@ int vtkBandedPolyDataContourFilter::RequestData(vtkInformation* vtkNotUsed(reque
   // numerical precision issues.
   newPts->Allocate(estimatedSize, estimatedSize);
   outPD->CopyScalarsOff();
+  outPD->CopyFieldOff(inScalars->GetName());
   outPD->InterpolateAllocate(pd, 3 * numPts, numPts);
   vtkNew<vtkDoubleArray> outScalars;
   outScalars->SetName(inScalars->GetName());
@@ -754,8 +759,8 @@ int vtkBandedPolyDataContourFilter::RequestData(vtkInformation* vtkNotUsed(reque
 
       // Find the starting vertex, i.e. the vertex with the lowest scalar value,
       // and rotate the indexing array such that it is the first of the indices
-      auto indexed_less = [&polygon, &point_less](
-                            int i1, int i2) { return point_less(polygon[i1], polygon[i2]); };
+      auto indexed_less = [&polygon, &point_less](int i1, int i2)
+      { return point_less(polygon[i1], polygon[i2]); };
       std::rotate(
         index.begin(), std::min_element(index.begin(), index.end(), indexed_less), index.end());
 
@@ -798,7 +803,8 @@ int vtkBandedPolyDataContourFilter::RequestData(vtkInformation* vtkNotUsed(reque
       It l1 = index.end() - 1;
       while (r1 < l1)
       {
-        auto in_band = [&clip_scalar, &polygon](int i) {
+        auto in_band = [&clip_scalar, &polygon](int i)
+        {
           return (polygon[i].scalar == clip_scalar) ||
             ((polygon[i].type == PointType::VERTEX && polygon[i].scalar > clip_scalar));
         };

@@ -32,8 +32,8 @@ public:
     vtkRenderer* renderer, vtkActor* actor, vtkOpenGLLowMemoryPolyDataMapper* mapper) const;
 
   virtual bool ImplementsVertexVisibilityPass() const = 0;
-  inline void BeginVertexVisibilityPass() { this->InVertexVisibilityPass = true; }
-  inline void EndVertexVisibilityPass() { this->InVertexVisibilityPass = false; }
+  void BeginVertexVisibilityPass() { this->InVertexVisibilityPass = true; }
+  void EndVertexVisibilityPass() { this->InVertexVisibilityPass = false; }
 
 protected:
   virtual void PreDrawInternal(
@@ -43,6 +43,8 @@ protected:
 
   int NumberOfPointsPerPrimitive = 1;
   bool InVertexVisibilityPass = false;
+  mutable int NumberOfPseudoPrimitivesPerElement =
+    1; // Used to track how many pseudo primitives are used for each element type.
 };
 
 VTK_ABI_NAMESPACE_END

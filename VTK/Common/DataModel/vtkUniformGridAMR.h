@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /**
  * @class   vtkUniformGridAMR
- * @brief   a concrete implementation of vtkCompositeDataSet
+ * @brief   a multi-resolution dataset based on vtkUniformGrid
  *
- * vtkUniformGridAMR is an AMR (hierarchical) composite dataset that holds vtkUniformGrids.
+ * vtkUniformGridAMR (AMR stands for Adaptive Mesh Refinement)
+ * is a container for vtkUniformGrid. Each grid is added as a block of a given level.
+ *
+ * The structure of the container is described in a vtkAMRInformation object.
  *
  * @sa
- * vtkUniformGridAMRDataIterator
+ * vtkOverlappingAMR, vtkNonOverlappingAMR, vtkAMRInformation, vtkUniformGridAMRDataIterator
  */
 
 #ifndef vtkUniformGridAMR_h
@@ -15,7 +18,6 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkCompositeDataSet.h"
-#include "vtkDeprecation.h" // For VTK_DEPRECATED_IN_9_3_0
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCompositeDataIterator;
@@ -38,7 +40,7 @@ public:
   /**
    * Return class name of data type (see vtkType.h for definitions).
    */
-  int GetDataObjectType() override { return VTK_UNIFORM_GRID_AMR; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_UNIFORM_GRID_AMR; }
 
   /**
    * Restore data object to initial state.
@@ -125,12 +127,6 @@ public:
   void CompositeShallowCopy(vtkCompositeDataSet* src) override;
   void ShallowCopy(vtkDataObject* src) override;
   ///@}
-
-  /**
-   * Deprecated RecursiveShallowCopy method, uses ShallowCopy
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use ShallowCopy instead.")
-  void RecursiveShallowCopy(vtkDataObject* src) override;
 
   /**
    * DeepCopy.

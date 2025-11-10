@@ -18,7 +18,6 @@ vtk_add_test_cxx(vtkRenderingAnariCxxTests tests
   TestAnariRendererType.cxx
   TestAnariScalarBar.cxx
   TestAnariStereo.cxx
-  TestAnariWindow.cxx
   TestAnariShadows.cxx
   TestAnariPBRMaterials.cxx
   TestAnariPBRMapping.cxx
@@ -38,4 +37,5 @@ vtk_add_test_cxx(vtkRenderingAnariCxxTests tests
 vtk_test_cxx_executable(vtkRenderingAnariCxxTests tests RENDERING_FACTORY
   DISABLE_FLOATING_POINT_EXCEPTIONS
   vtkAnariTestInteractor.cxx
+  vtkAnariTestUtilities.cxx
   )

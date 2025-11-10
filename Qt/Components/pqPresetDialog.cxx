@@ -9,15 +9,10 @@
 #include "pqPresetGroupsManager.h"
 #include "pqPresetToPixmap.h"
 #include "pqPropertiesPanel.h"
-#include "pqQVTKWidget.h"
 #include "pqServer.h"
-#include "pqSettings.h"
 
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMTransferFunctionPresets.h"
-#include "vtkSMTransferFunctionProxy.h"
-
-#include "vtksys/FStream.hxx"
 
 #include "vtk_jsoncpp.h"
 
@@ -32,6 +27,14 @@
 #include <QtDebug>
 
 #include <cassert>
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#define pqCheckBoxSignal checkStateChanged
+using pqCheckState = Qt::CheckState;
+#else
+#define pqCheckBoxSignal stateChanged
+using pqCheckState = int;
+#endif
 
 class pqPresetDialogTableModel : public QAbstractTableModel
 {
@@ -69,10 +72,12 @@ public:
     this->Pixmaps.reserve(this->Presets->GetNumberOfPresets());
     this->GroupManager = qobject_cast<pqPresetGroupsManager*>(
       pqApplicationCore::instance()->manager("PRESET_GROUP_MANAGER"));
-    this->connect(this->GroupManager, &pqPresetGroupsManager::groupsUpdated, this, [this]() {
-      this->beginResetModel();
-      this->endResetModel();
-    });
+    this->connect(this->GroupManager, &pqPresetGroupsManager::groupsUpdated, this,
+      [this]()
+      {
+        this->beginResetModel();
+        this->endResetModel();
+      });
   }
 
   ~pqPresetDialogTableModel() override = default;
@@ -501,9 +506,9 @@ public:
       (int)(this->Ui.gradients->verticalHeader()->defaultSectionSize() * 1.5));
 
     QObject::connect(
-      this->Ui.useRegexp, &QCheckBox::stateChanged, [&]() { this->updateRegexpWidgets(); });
+      this->Ui.useRegexp, &QCheckBox::pqCheckBoxSignal, [&]() { this->updateRegexpWidgets(); });
     QObject::connect(
-      this->Ui.annotations, &QCheckBox::stateChanged, [&]() { this->updateRegexpWidgets(); });
+      this->Ui.annotations, &QCheckBox::pqCheckBoxSignal, [&]() { this->updateRegexpWidgets(); });
   }
 
   void updateRegexpWidgets()
@@ -558,14 +563,17 @@ pqPresetDialog::pqPresetDialog(QWidget* parentObject, pqPresetDialog::Modes mode
   this->connect(ui.importPresets, SIGNAL(clicked()), SLOT(importPresets()));
   this->connect(ui.exportPresets, SIGNAL(clicked()), SLOT(exportPresets()));
   this->connect(ui.groupChooser,
-    static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this, [&](int index) {
+    static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged), this,
+    [&](int index)
+    {
       this->Internals->ProxyModel->setCurrentGroupColumn(index);
       this->updateEnabledStateForSelection();
       this->Internals->CurrentGroupColumn = index;
     });
   this->Internals->ProxyModel->connect(
     ui.searchBox, &pqSearchBox::textChanged, this, &pqPresetDialog::updateFiltering);
-  this->connect(ui.showDefault, SIGNAL(stateChanged(int)), SLOT(setPresetIsAdvanced(int)));
+  QObject::connect(ui.showDefault, &QCheckBox::pqCheckBoxSignal, this,
+    [&](pqCheckState state) { this->setPresetIsAdvanced(static_cast<Qt::CheckState>(state)); });
   auto groupMgr = this->Internals->Model->GroupManager;
   this->connect(
     groupMgr, &pqPresetGroupsManager::groupsUpdated, this, &pqPresetDialog::updateGroups);
@@ -939,7 +947,7 @@ void pqPresetDialog::exportPresets()
 }
 
 //-----------------------------------------------------------------------------
-void pqPresetDialog::setPresetIsAdvanced(int newState)
+void pqPresetDialog::setPresetIsAdvanced(Qt::CheckState newState)
 {
   bool showByDefault = newState == Qt::Checked;
   const pqInternals& internals = *this->Internals;

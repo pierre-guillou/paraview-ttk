@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_4_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGenericCell.h"
 
 #include "vtkBezierCurve.h"
@@ -113,7 +116,7 @@ int vtkGenericCell::GetCellDimension()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::IsLinear()
+int vtkGenericCell::IsLinear() VTK_FUTURE_CONST
 {
   return this->Cell->IsLinear();
 }
@@ -125,7 +128,7 @@ int vtkGenericCell::RequiresInitialization()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::RequiresExplicitFaceRepresentation()
+int vtkGenericCell::RequiresExplicitFaceRepresentation() VTK_FUTURE_CONST
 {
   return this->Cell->RequiresExplicitFaceRepresentation();
 }
@@ -149,6 +152,7 @@ int vtkGenericCell::SetCellFaces(vtkCellArray* faces)
   if (!cell)
   {
     vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return 0;
   }
   return cell->SetCellFaces(faces);
 }
@@ -160,6 +164,7 @@ vtkCellArray* vtkGenericCell::GetCellFaces()
   if (!cell)
   {
     vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return nullptr;
   }
   return cell->GetCellFaces();
 }
@@ -171,6 +176,7 @@ void vtkGenericCell::GetCellFaces(vtkCellArray* faces)
   if (!cell)
   {
     vtkErrorMacro("SafeDownCast to vtkPolyhedron failed, the cell is not a polyhedron");
+    return;
   }
   cell->GetCellFaces(faces);
 }
@@ -289,7 +295,7 @@ double* vtkGenericCell::GetParametricCoords()
 }
 
 //------------------------------------------------------------------------------
-int vtkGenericCell::IsPrimaryCell()
+int vtkGenericCell::IsPrimaryCell() VTK_FUTURE_CONST
 {
   return this->Cell->IsPrimaryCell();
 }

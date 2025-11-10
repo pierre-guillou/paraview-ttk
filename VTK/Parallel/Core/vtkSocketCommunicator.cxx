@@ -20,7 +20,7 @@
 // Uncomment the following line to help with debugging. When
 // ENABLE_SYNCHRONIZED_COMMUNICATION is defined, every Send() blocks until the
 // receive is successful.
-//#define ENABLE_SYNCHRONIZED_COMMUNICATION
+// #define ENABLE_SYNCHRONIZED_COMMUNICATION
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkSocketCommunicator::vtkMessageBuffer
@@ -285,12 +285,6 @@ int vtkSocketCommunicator::SendVoidArray(
 }
 
 //------------------------------------------------------------------------------
-inline vtkIdType vtkSocketCommunicatorMin(vtkIdType a, vtkIdType b)
-{
-  return (a < b) ? a : b;
-}
-
-//------------------------------------------------------------------------------
 int vtkSocketCommunicator::ReceiveVoidArray(
   void* data, vtkIdType length, int type, int remoteProcessId, int tag)
 {
@@ -336,7 +330,7 @@ int vtkSocketCommunicator::ReceiveVoidArray(
   // in an integer, break up the array into pieces.
   int ret = 0;
   while (this->ReceiveTagged(
-    byteData, typeSize, vtkSocketCommunicatorMin(maxReceive, length), tag, typeName.c_str()))
+    byteData, typeSize, std::min<vtkIdType>(maxReceive, length), tag, typeName.c_str()))
   {
     this->Count += this->TagMessageLength;
     byteData += this->TagMessageLength * typeSize;
@@ -825,7 +819,7 @@ int vtkSocketCommunicator::ReceiveTagged(
         // data.
         if (this->LogStream)
         {
-          *this->LogStream << "Bufferring last message (" << recvTag << ")" << endl;
+          *this->LogStream << "Buffering last message (" << recvTag << ")" << endl;
         }
         this->ReceivedMessageBuffer->Push(recvTag, length, ptr);
       }

@@ -345,7 +345,7 @@ void vtkZSpaceInteractorStyle::EndPickCallback(vtkSelection* sel)
 
   this->TextActor->SetDisplayPosition(50, 50);
   this->TextActor->SetInput(pickedText.c_str());
-  this->CurrentRenderer->AddActor2D(this->TextActor);
+  this->CurrentRenderer->AddViewProp(this->TextActor);
 }
 
 //----------------------------------------------------------------------------
@@ -557,7 +557,7 @@ std::string vtkZSpaceInteractorStyle::GetPickedText(vtkDataSet* ds, const vtkIdT
     // Cell type
     vtkCell* cell = ds->GetCell(aid);
 
-    // XXX Can be inproved by printing the type of the cell as a string
+    // XXX Can be improved by printing the type of the cell as a string
     // (see vtkSMCoreUtilities::GetStringForCellType in ParaView)
     ssPickedText << "Cell type: " << cell->GetCellType() << "\n";
   }
@@ -713,7 +713,7 @@ void vtkZSpaceInteractorStyle::RemovePickActor()
   if (this->CurrentRenderer)
   {
     this->CurrentRenderer->RemoveActor(this->PickActor);
-    this->CurrentRenderer->RemoveActor2D(this->TextActor);
+    this->CurrentRenderer->RemoveViewProp(this->TextActor);
     this->PickedInteractionProp = nullptr;
   }
 }

@@ -5,11 +5,10 @@
 #include "vtkCellAttribute.h"
 #include "vtkCellGrid.h"
 #include "vtkDGOperatorEntry.h"
-#include "vtkDataSetAttributes.h"
 #include "vtkStringToken.h"
 #include "vtkTypeFloat32Array.h"
 #include "vtkTypeInt32Array.h"
-#include "vtkVectorOperators.h"
+#include "vtkVector.h"
 
 #include <token/Singletons.h>
 
@@ -25,7 +24,7 @@ namespace
 
 ostream& PrintSource(ostream& os, const vtkDGCell::Source& src, bool isCellSpec)
 {
-  os << "Connectivity: " << src.Connectivity;
+  os << src << '\n';
   if (src.Connectivity)
   {
     if (isCellSpec)
@@ -38,12 +37,6 @@ ostream& PrintSource(ostream& os, const vtkDGCell::Source& src, bool isCellSpec)
       os << " (sides: " << src.Connectivity->GetNumberOfTuples() << ")";
     }
   }
-  if (src.NodalGhostMarks)
-  {
-    os << ", NodalGhostMarks " << src.NodalGhostMarks;
-  }
-  os << ", Offset: " << src.Offset << ", Blanked: " << (src.Blanked ? "T" : "F")
-     << ", Shape: " << src.SourceShape << ", SideType: " << src.SideType;
   return os;
 }
 
@@ -125,6 +118,19 @@ const vtkDGCell::Source& vtkDGCell::GetCellSource(int sideType) const
   }
   static Source dummy;
   return dummy;
+}
+
+vtkDGCell::Source& vtkDGCell::GetCellSource(int sideType)
+{
+  if (sideType < 0)
+  {
+    return this->CellSpec;
+  }
+  else if (sideType >= static_cast<int>(this->SideSpecs.size()))
+  {
+    throw std::logic_error("No source specifier at index " + std::to_string(sideType));
+  }
+  return this->SideSpecs[sideType];
 }
 
 vtkDataArray* vtkDGCell::GetCellSourceConnectivity(int sideType) const
@@ -294,42 +300,6 @@ vtkStringToken vtkDGCell::GetShapeName(Shape shape)
 
 vtkDGCell::Shape vtkDGCell::GetShapeEnum(vtkStringToken shapeName)
 {
-  // XXX(c++14)
-#if __cplusplus < 201400L
-  auto snid = shapeName.GetId();
-  if (snid == "vert"_hash || snid == "vertex"_hash || snid == "sphere"_hash)
-  {
-    return Vertex;
-  }
-  else if (snid == "edge"_hash || snid == "line"_hash || snid == "spring"_hash)
-  {
-    return Edge;
-  }
-  else if (snid == "tri"_hash || snid == "triangle"_hash)
-  {
-    return Triangle;
-  }
-  else if (snid == "quad"_hash || snid == "quadrilateral"_hash)
-  {
-    return Quadrilateral;
-  }
-  else if (snid == "tet"_hash || snid == "tetrahedron"_hash)
-  {
-    return Tetrahedron;
-  }
-  else if (snid == "hex"_hash || snid == "hexahedron"_hash)
-  {
-    return Hexahedron;
-  }
-  else if (snid == "wdg"_hash || snid == "wedge"_hash)
-  {
-    return Wedge;
-  }
-  else if (snid == "pyr"_hash || snid == "pyramid"_hash)
-  {
-    return Pyramid;
-  }
-#else
   switch (shapeName.GetId())
   {
     case "vert"_hash:
@@ -361,7 +331,6 @@ vtkDGCell::Shape vtkDGCell::GetShapeEnum(vtkStringToken shapeName)
     default:
       break;
   }
-#endif
   return None;
 }
 

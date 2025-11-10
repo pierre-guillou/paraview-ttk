@@ -8,6 +8,14 @@
 #include "vtkVersion.h"
 #include "vtkWasmSceneManager.h"
 
+// clang-format off
+#include "vtk_nlohmannjson.h"            // for json
+#include VTK_NLOHMANN_JSON(json_fwd.hpp) // for json
+// clang-format on
+
+#include <map>
+#include <set>
+
 namespace
 {
 
@@ -21,6 +29,8 @@ namespace
   } while (0)
 
 vtkWasmSceneManager* Manager = nullptr;
+
+std::map<std::string, std::set<std::string>> SkippedClassProperties;
 
 using namespace emscripten;
 
@@ -46,7 +56,36 @@ void finalize()
 bool registerState(const std::string& state)
 {
   CHECK_INIT;
-  return Manager->RegisterState(state);
+  auto stateJson = nlohmann::json::parse(state, nullptr, false);
+  if (stateJson.is_discarded())
+  {
+    vtkErrorWithObjectMacro(Manager, << "Failed to parse state!");
+    return false;
+  }
+  if (auto classNameIter = stateJson.find("ClassName"); classNameIter != stateJson.end())
+  {
+    if (*classNameIter == "vtkOSOpenGLRenderWindow")
+    {
+      *classNameIter = "vtkWebAssemblyOpenGLRenderWindow";
+    }
+    if (auto propertiesIter = SkippedClassProperties.find(*classNameIter);
+        propertiesIter != SkippedClassProperties.end())
+    {
+      for (const auto& propertyName : propertiesIter->second)
+      {
+        stateJson.erase(propertyName);
+      }
+    }
+  }
+  return Manager->RegisterState(stateJson);
+}
+
+//-------------------------------------------------------------------------------
+bool registerState(val stateJavaScriptJSON)
+{
+  CHECK_INIT;
+  const auto stringified = JSON.call<val>("stringify", stateJavaScriptJSON);
+  return ::registerState(stringified.as<std::string>());
 }
 
 //-------------------------------------------------------------------------------
@@ -61,6 +100,18 @@ val getState(vtkTypeUInt32 identifier)
 {
   CHECK_INIT;
   return JSON.call<val>("parse", Manager->GetState(identifier));
+}
+
+//-------------------------------------------------------------------------------
+void skipProperty(const std::string& className, const std::string& propertyName)
+{
+  SkippedClassProperties[className].insert(propertyName);
+}
+
+//-------------------------------------------------------------------------------
+void unSkipProperty(const std::string& className, const std::string& propertyName)
+{
+  SkippedClassProperties[className].erase(propertyName);
 }
 
 //-------------------------------------------------------------------------------
@@ -122,6 +173,15 @@ void clear()
 }
 
 //-------------------------------------------------------------------------------
+val invoke(vtkTypeUInt32 identifier, const std::string& methodName, val args)
+{
+  CHECK_INIT;
+  const auto stringified = JSON.call<val>("stringify", args);
+  return JSON.call<val>(
+    "parse", Manager->Invoke(identifier, methodName, stringified.as<std::string>()));
+}
+
+//-------------------------------------------------------------------------------
 val getAllDependencies(vtkTypeUInt32 identifier)
 {
   CHECK_INIT;
@@ -155,6 +215,55 @@ void updateStatesFromObjects()
 {
   CHECK_INIT;
   Manager->UpdateStatesFromObjects();
+}
+
+//-------------------------------------------------------------------------------
+void updateObjectFromState(const std::string& state)
+{
+  CHECK_INIT;
+  auto stateJson = nlohmann::json::parse(state, nullptr, false);
+  if (stateJson.is_discarded())
+  {
+    vtkErrorWithObjectMacro(Manager, << "Failed to parse state!");
+  }
+  else if (auto idIter = stateJson.find("Id"); idIter != stateJson.end())
+  {
+    if (auto classNameIter = stateJson.find("ClassName"); classNameIter != stateJson.end())
+    {
+      if (*classNameIter == "vtkOSOpenGLRenderWindow")
+      {
+        *classNameIter = "vtkWebAssemblyOpenGLRenderWindow";
+      }
+    }
+    if (auto objectAtId = Manager->GetObjectAtId(*idIter))
+    {
+      const std::string className = objectAtId->GetClassName();
+      if (auto propertiesIter = SkippedClassProperties.find(className);
+          propertiesIter != SkippedClassProperties.end())
+      {
+        for (const auto& propertyName : propertiesIter->second)
+        {
+          stateJson.erase(propertyName);
+        }
+      }
+    }
+  }
+  Manager->UpdateObjectFromState(stateJson);
+}
+
+//-------------------------------------------------------------------------------
+void updateObjectFromState(val stateJavaScriptJSON)
+{
+  CHECK_INIT;
+  const auto stringified = JSON.call<val>("stringify", stateJavaScriptJSON);
+  updateObjectFromState(stringified.as<std::string>());
+}
+
+//-------------------------------------------------------------------------------
+void updateStateFromObject(vtkTypeUInt32 identifier)
+{
+  CHECK_INIT;
+  Manager->UpdateStateFromObject(identifier);
 }
 
 //-------------------------------------------------------------------------------
@@ -209,6 +318,71 @@ bool removeObserver(vtkTypeUInt32 identifier, unsigned long tag)
 }
 
 //-------------------------------------------------------------------------------
+bool bindRenderWindow(vtkTypeUInt32 renderWindowIdentifier, const std::string& canvasSelector)
+{
+  CHECK_INIT;
+  return Manager->BindRenderWindow(renderWindowIdentifier, canvasSelector.c_str());
+}
+
+//-------------------------------------------------------------------------------
+void import(const std::string& stateFileName, const std::string& blobFileName)
+{
+  CHECK_INIT;
+  Manager->Import(stateFileName, blobFileName);
+}
+
+//-------------------------------------------------------------------------------
+void printSceneManagerInformation()
+{
+  CHECK_INIT;
+  Manager->Print(std::cout);
+}
+
+//-------------------------------------------------------------------------------
+void setDeserializerLogVerbosity(const std::string& verbosityStr)
+{
+  CHECK_INIT;
+  const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityStr.c_str());
+  if (verbosity != vtkLogger::VERBOSITY_INVALID)
+  {
+    Manager->GetDeserializer()->SetDeserializerLogVerbosity(verbosity);
+  }
+}
+
+//-------------------------------------------------------------------------------
+void setInvokerLogVerbosity(const std::string& verbosityStr)
+{
+  CHECK_INIT;
+  const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityStr.c_str());
+  if (verbosity != vtkLogger::VERBOSITY_INVALID)
+  {
+    Manager->GetInvoker()->SetInvokerLogVerbosity(verbosity);
+  }
+}
+
+//-------------------------------------------------------------------------------
+void setObjectManagerLogVerbosity(const std::string& verbosityStr)
+{
+  CHECK_INIT;
+  const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityStr.c_str());
+  if (verbosity != vtkLogger::VERBOSITY_INVALID)
+  {
+    Manager->SetObjectManagerLogVerbosity(verbosity);
+  }
+}
+
+//-------------------------------------------------------------------------------
+void setSerializerLogVerbosity(const std::string& verbosityStr)
+{
+  CHECK_INIT;
+  const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityStr.c_str());
+  if (verbosity != vtkLogger::VERBOSITY_INVALID)
+  {
+    Manager->GetSerializer()->SetSerializerLogVerbosity(verbosity);
+  }
+}
+
+//-------------------------------------------------------------------------------
 std::string getVTKVersion()
 {
   return vtkVersion::GetVTKVersion();
@@ -227,9 +401,12 @@ EMSCRIPTEN_BINDINGS(vtkWasmSceneManager)
   function("initialize", ::initialize);
   function("finalize", ::finalize);
 
-  function("registerState", ::registerState);
+  function("registerState", select_overload<bool(const std::string&)>(::registerState));
+  function("registerStateJSON", select_overload<bool(val)>(::registerState));
   function("unRegisterState", ::unRegisterState);
   function("getState", ::getState);
+  function("skipProperty", ::skipProperty);
+  function("unSkipProperty", ::unSkipProperty);
 
   function("unRegisterObject", ::unRegisterObject);
 
@@ -239,6 +416,7 @@ EMSCRIPTEN_BINDINGS(vtkWasmSceneManager)
   function("pruneUnusedBlobs", ::pruneUnusedBlobs);
 
   function("clear", ::clear);
+  function("invoke", ::invoke);
 
   function("getAllDependencies", ::getAllDependencies);
 
@@ -247,6 +425,11 @@ EMSCRIPTEN_BINDINGS(vtkWasmSceneManager)
 
   function("updateObjectsFromStates", ::updateObjectsFromStates);
   function("updateStatesFromObjects", ::updateStatesFromObjects);
+
+  function(
+    "updateObjectFromState", select_overload<void(const std::string&)>(::updateObjectFromState));
+  function("updateObjectFromStateJSON", select_overload<void(val)>(::updateObjectFromState));
+  function("updateStateFromObject", ::updateStateFromObject);
 
   function("setSize", ::setSize);
   function("render", ::render);
@@ -257,6 +440,18 @@ EMSCRIPTEN_BINDINGS(vtkWasmSceneManager)
 
   function("addObserver", ::addObserver);
   function("removeObserver", ::removeObserver);
+
+  function("bindRenderWindow", ::bindRenderWindow);
+
+  function("import", ::import);
+
+  // debugging
+  function("printSceneManagerInformation", ::printSceneManagerInformation);
+  // accepts JS strings like "INFO", "WARNING", "TRACE", "ERROR"
+  function("setDeserializerLogVerbosity", ::setDeserializerLogVerbosity);
+  function("setInvokerLogVerbosity", ::setInvokerLogVerbosity);
+  function("setObjectManagerLogVerbosity", ::setObjectManagerLogVerbosity);
+  function("setSerializerLogVerbosity", ::setSerializerLogVerbosity);
 
   function("getVTKVersion", ::getVTKVersion);
   function("getVTKVersionFull", ::getVTKVersionFull);

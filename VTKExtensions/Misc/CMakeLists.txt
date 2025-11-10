@@ -2,18 +2,19 @@
 # SPDX-FileCopyrightText: Copyright (c) Sandia Corporation
 # SPDX-License-Identifier: BSD-3-Clause
 set(classes
+  vtkAppendReduceFilter
   vtkAppendRectilinearGrid
   vtkAttributeDataReductionFilter
-  vtkCleanArrays
   vtkCompleteArrays
   vtkEnvironmentAnnotationFilter
-  vtkMergeBlocks
   vtkMinMax
   vtkPExtractHistogram
   vtkPVExtractHistogram2D
   vtkPVBox
   vtkPVChangeOfBasisHelper
+  vtkPVCone
   vtkPVCylinder
+  vtkPVFrustum
   vtkPVMergeTables
   vtkPVMergeTablesMultiBlock
   vtkPVPlane

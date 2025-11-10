@@ -192,11 +192,7 @@ public:
     vtkWarningMacro(<< "vtkPolyhedron::GetPointToOneRingPoints Not Implemented");
     return 0;
   }
-  bool GetCentroid(double vtkNotUsed(centroid)[3]) const override
-  {
-    vtkWarningMacro(<< "vtkPolyhedron::GetCentroid Not Implemented");
-    return false;
-  }
+  bool GetCentroid(double centroid[3]) const override;
   ///@}
 
   /**
@@ -330,14 +326,14 @@ public:
 
   /**
    * Return the center of the cell in parametric coordinates. In this cell,
-   * the center of the bounding box is returned.
+   * the parametric location (within its bounds) of the centroid of its points is returned.
    */
   int GetParametricCenter(double pcoords[3]) override;
 
   /**
    * A polyhedron is a full-fledged primary cell.
    */
-  int IsPrimaryCell() override { return 1; }
+  int IsPrimaryCell() VTK_FUTURE_CONST override { return 1; }
 
   ///@{
   /**
@@ -354,7 +350,7 @@ public:
    * needs explicit faces definition in order to describe the topology
    * of the cell.
    */
-  int RequiresExplicitFaceRepresentation() override { return 1; }
+  int RequiresExplicitFaceRepresentation() VTK_FUTURE_CONST override { return 1; }
 
   /**
    * Set the faces of the polyhedron.
@@ -406,9 +402,8 @@ public:
   /**
    * Get the faces of the polyhedron.
    * Face are expressed as sequences of <b> global point IDs </b>.
-   *
-   * @param faces vtkCellArray that stores the list of polygonal faces with their corresponding
-   * global point IDs
+   * The vtkCellArray stores the list of polygonal faces with their corresponding
+   * global point IDs.
    */
   vtkCellArray* GetCellFaces();
   void GetCellFaces(vtkCellArray* faces);
@@ -450,37 +445,37 @@ protected:
   ~vtkPolyhedron() override;
 
   // Internal classes for supporting operations on this cell
-  vtkLine* Line;
-  vtkTriangle* Triangle;
-  vtkQuad* Quad;
-  vtkPolygon* Polygon;
-  vtkTetra* Tetra;
+  vtkNew<vtkLine> Line;
+  vtkNew<vtkTriangle> Triangle;
+  vtkNew<vtkQuad> Quad;
+  vtkNew<vtkPolygon> Polygon;
+  vtkNew<vtkTetra> Tetra;
 
   // Filled with the SetFaces method.
   // These faces are numbered in global id space
-  vtkCellArray* GlobalFaces;
+  vtkNew<vtkCellArray> GlobalFaces;
 
   // Backward compatibility
-  vtkIdTypeArray* LegacyGlobalFaces;
+  vtkNew<vtkIdTypeArray> LegacyGlobalFaces;
 
   // If edges are needed. Note that the edge numbering is in canonical space.
-  int EdgesGenerated;        // true/false
-  vtkEdgeTable* EdgeTable;   // keep track of all edges
-  vtkIdTypeArray* Edges;     // edge pairs kept in this list, in canonical id space
-  vtkIdTypeArray* EdgeFaces; // face pairs that comprise each edge, with the
-                             // same ordering as EdgeTable
-  int GenerateEdges();       // method populates the edge table and edge array
+  int EdgesGenerated = 0;           // true/false
+  vtkNew<vtkEdgeTable> EdgeTable;   // keep track of all edges
+  vtkNew<vtkIdTypeArray> Edges;     // edge pairs kept in this list, in canonical id space
+  vtkNew<vtkIdTypeArray> EdgeFaces; // face pairs that comprise each edge, with the
+                                    // same ordering as EdgeTable
+  int GenerateEdges();              // method populates the edge table and edge array
 
   // Numerous methods needs faces to be numbered in the canonical space.
   // This method uses PointIdMap to fill the Faces member (faces described
   // with canonical IDs) from the GlobalFaces member (faces described with
   // global IDs).
   void GenerateFaces();
-  vtkCellArray* Faces; // These are numbered in canonical id space
-  int FacesGenerated;  // True when Faces have been successfully constructed
+  vtkNew<vtkCellArray> Faces; // These are numbered in canonical id space
+  int FacesGenerated = 0;     // True when Faces have been successfully constructed
 
   // Bounds management
-  int BoundsComputed;
+  int BoundsComputed = 0;
   void ComputeBounds();
   void ComputeParametricCoordinate(const double x[3], double pc[3]);
   void ComputePositionFromParametricCoordinate(const double pc[3], double x[3]);
@@ -489,14 +484,14 @@ protected:
   void GeneratePointToIncidentFacesAndValenceAtPoint() { this->GeneratePointToIncidentFaces(); }
 
   // Members for supporting geometric operations
-  int PolyDataConstructed;
-  vtkPolyData* PolyData;
+  int PolyDataConstructed = 0;
+  vtkNew<vtkPolyData> PolyData;
   void ConstructPolyData();
-  int LocatorConstructed;
-  vtkCellLocator* CellLocator;
+  int LocatorConstructed = 0;
+  vtkNew<vtkCellLocator> CellLocator;
   void ConstructLocator();
-  vtkIdList* CellIds;
-  vtkGenericCell* Cell;
+  vtkNew<vtkIdList> CellIds;
+  vtkNew<vtkGenericCell> Cell;
 
 private:
   vtkPolyhedron(const vtkPolyhedron&) = delete;
@@ -517,15 +512,8 @@ private:
   std::vector<std::vector<vtkIdType>> PointToIncidentFaces;
 
   vtkNew<vtkMinimalStandardRandomSequence> RandomSequence;
-  bool IsRandomSequenceSeedInitialized;
+  std::atomic<bool> IsRandomSequenceSeedInitialized{ false };
 };
-
-//----------------------------------------------------------------------------
-inline int vtkPolyhedron::GetParametricCenter(double pcoords[3])
-{
-  pcoords[0] = pcoords[1] = pcoords[2] = 0.5;
-  return 0;
-}
 
 VTK_ABI_NAMESPACE_END
 #endif

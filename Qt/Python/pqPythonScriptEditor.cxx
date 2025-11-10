@@ -24,18 +24,6 @@
 
 #include <vtkPythonInterpreter.h>
 
-namespace details
-{
-void FillMenu(QMenu* menu, std::vector<QAction*>& actions)
-{
-  menu->clear();
-  for (auto const& action : actions)
-  {
-    menu->addAction(action);
-  }
-}
-}
-
 pqPythonScriptEditor* pqPythonScriptEditor::UniqueInstance = nullptr;
 
 //-----------------------------------------------------------------------------
@@ -55,17 +43,21 @@ pqPythonScriptEditor::pqPythonScriptEditor(QWidget* p)
 
   this->setWindowTitle(tr("ParaView Python Script Editor"));
 
-  this->connect(this->TabWidget, &pqPythonTabWidget::fileSaved, [this](const QString& filename) {
-    this->setWindowTitle(
-      tr("%1[*] - %2").arg(details::stripFilename(filename)).arg(tr("Script Editor")));
-    this->statusBar()->showMessage(tr("File %1 saved").arg(filename), 4000);
-  });
+  this->connect(this->TabWidget, &pqPythonTabWidget::fileSaved,
+    [this](const QString& filename)
+    {
+      this->setWindowTitle(
+        tr("%1[*] - %2").arg(details::stripFilename(filename)).arg(tr("Script Editor")));
+      this->statusBar()->showMessage(tr("File %1 saved").arg(filename), 4000);
+    });
 
-  this->connect(this->TabWidget, &pqPythonTabWidget::fileOpened, [this](const QString& filename) {
-    this->setWindowTitle(
-      tr("%1[*] - %2").arg(details::stripFilename(filename)).arg(tr("Script Editor")));
-    this->statusBar()->showMessage(tr("File %1 opened").arg(filename), 4000);
-  });
+  this->connect(this->TabWidget, &pqPythonTabWidget::fileOpened,
+    [this](const QString& filename)
+    {
+      this->setWindowTitle(
+        tr("%1[*] - %2").arg(details::stripFilename(filename)).arg(tr("Script Editor")));
+      this->statusBar()->showMessage(tr("File %1 opened").arg(filename), 4000);
+    });
 
   connect(this->TabWidget, &QTabWidget::currentChanged,
     [this]() { this->TabWidget->updateActions(this->Actions); });
@@ -73,6 +65,12 @@ pqPythonScriptEditor::pqPythonScriptEditor(QWidget* p)
   this->TabWidget->connectActions(this->Actions);
   this->TabWidget->updateActions(this->Actions);
   pqPythonEditorActions::connect(this->Actions, this);
+
+  // monitor parent's events so we can intercept the close event
+  if (p)
+  {
+    p->installEventFilter(this);
+  }
 
   this->createStatusBar();
 }
@@ -89,17 +87,30 @@ void pqPythonScriptEditor::runCurrentTab()
 }
 
 //-----------------------------------------------------------------------------
-void pqPythonScriptEditor::closeEvent(QCloseEvent* e)
+bool pqPythonScriptEditor::eventFilter(QObject* watched, QEvent* event)
 {
-  if (this->TabWidget->saveOnClose())
+  if (watched == this->parentWidget() && event->type() == QEvent::Close)
   {
-    pqApplicationCore::instance()->settings()->saveState(*this, "PythonScriptEditor");
-    e->accept();
+    QCloseEvent* closeEvent = static_cast<QCloseEvent*>(event);
+
+    // if the python editor is closed when the main window is closing, force it to show
+    if (!this->isVisible())
+    {
+      this->show();
+    }
+
+    // prompt the user to save any open files if not already saved
+    if (this->TabWidget->saveOnClose())
+    {
+      pqApplicationCore::instance()->settings()->saveState(*this, "PythonScriptEditor");
+      closeEvent->accept();
+    }
+    else
+    {
+      closeEvent->ignore();
+    }
   }
-  else
-  {
-    e->ignore();
-  }
+  return QWidget::eventFilter(watched, event);
 }
 
 //-----------------------------------------------------------------------------

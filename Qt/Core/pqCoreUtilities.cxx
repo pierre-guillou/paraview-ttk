@@ -12,15 +12,20 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QPalette>
+#include <QStandardPaths>
 #include <QString>
 #include <QStringList>
+#include <QStyleHints>
 
 #include "pqApplicationCore.h"
 #include "pqCoreTestUtility.h"
 #include "pqDoubleLineEdit.h"
 #include "pqSettings.h"
+#include "vtkLogger.h"
 #include "vtkObject.h"
 #include "vtkPVGeneralSettings.h"
+#include "vtkPVLogger.h"
+#include "vtkPVStandardPaths.h"
 #include "vtkRemotingCoreConfiguration.h"
 #include "vtkWeakPointer.h"
 #include "vtksys/SystemTools.hxx"
@@ -68,11 +73,52 @@ QString pqCoreUtilities::getParaViewUserDirectory()
   auto testDir = pqCoreTestUtility::TestDirectory();
   if (!testDir.isEmpty() && vtkRemotingCoreConfiguration::GetInstance()->GetDisableRegistry())
   {
-    return QFileInfo(testDir).absolutePath();
+    return QFileInfo(testDir).absoluteFilePath();
   }
 
   pqSettings* settings = pqApplicationCore::instance()->settings();
   return QFileInfo(settings->fileName()).path();
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::getParaViewApplicationDataDirectory()
+{
+  QString dirPath = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+  if (dirPath.isEmpty())
+  {
+    vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+      "Application Data Directory not found, fallback to Application Directory");
+    return pqCoreUtilities::getParaViewApplicationDirectory();
+  }
+
+  QDir dataDir(dirPath);
+  if (!dataDir.exists())
+  {
+    dataDir.mkpath(dirPath);
+    vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+      "Create ApplicationDataDirectory at " << dirPath.toStdString());
+  }
+
+  return dirPath;
+}
+
+//-----------------------------------------------------------------------------
+QStringList pqCoreUtilities::getParaViewApplicationConfigDirectories()
+{
+  QStringList configDirs;
+
+  // Starts with the User directory, because it is:
+  // - writeable
+  // - higher priority on read
+  configDirs += pqCoreUtilities::getParaViewUserDirectory();
+
+  // then add some standard locations
+  configDirs += QStandardPaths::standardLocations(QStandardPaths::ConfigLocation);
+
+  // and end with ParaView custom ones.
+  configDirs += pqCoreUtilities::getApplicationDirectories(true, true);
+
+  return configDirs;
 }
 
 //-----------------------------------------------------------------------------
@@ -82,40 +128,75 @@ QString pqCoreUtilities::getParaViewApplicationDirectory()
 }
 
 //-----------------------------------------------------------------------------
-QStringList pqCoreUtilities::findParaviewPaths(
-  QString directoryOrFileName, bool lookupInAppDir, bool lookupInUserDir)
+QStringList pqCoreUtilities::getApplicationDirectories(bool lookupInAppDir, bool lookupInUserDir)
 {
   QStringList allPossibleDirs;
   if (lookupInAppDir)
   {
-    allPossibleDirs.push_back(
-      getParaViewApplicationDirectory() + QDir::separator() + directoryOrFileName);
-    allPossibleDirs.push_back(getParaViewApplicationDirectory() + "/../" + directoryOrFileName);
-    // Mac specific begin
-    allPossibleDirs.push_back(
-      getParaViewApplicationDirectory() + "/../Support/" + directoryOrFileName);
-    allPossibleDirs.push_back(
-      getParaViewApplicationDirectory() + "/../../../Support/" + directoryOrFileName);
-    // This one's for when running from the build directory.
-    allPossibleDirs.push_back(
-      getParaViewApplicationDirectory() + "/../../../" + directoryOrFileName);
-    // Mac specific end
+    std::vector<std::string> dirs = vtkPVStandardPaths::GetInstallDirectories();
+    for (const std::string& dir : dirs)
+    {
+      allPossibleDirs.push_back(dir.c_str());
+    }
   }
 
   if (lookupInUserDir)
   {
-    allPossibleDirs.push_back(getParaViewUserDirectory() + QDir::separator() + directoryOrFileName);
+    allPossibleDirs.push_back(pqCoreUtilities::getParaViewUserDirectory());
   }
+
+  return allPossibleDirs;
+}
+
+//-----------------------------------------------------------------------------
+QStringList pqCoreUtilities::findParaviewPaths(
+  const QString& directoryOrFileName, bool lookupInAppDir, bool lookupInUserDir)
+{
+  QStringList allPossibleDirs =
+    pqCoreUtilities::getApplicationDirectories(lookupInAppDir, lookupInUserDir);
 
   // Filter with only existing ones
   QStringList existingDirs;
-  Q_FOREACH (QString path, allPossibleDirs)
+  for (const QString& dir : allPossibleDirs)
   {
+    QString path = dir + "/" + directoryOrFileName;
     if (QFile::exists(path))
+    {
       existingDirs.push_back(path);
+    }
   }
 
   return existingDirs;
+}
+
+//-----------------------------------------------------------------------------
+QString pqCoreUtilities::findInApplicationDirectories(const QString& relativePath)
+{
+  QStringList allPossibleDirs = pqCoreUtilities::getApplicationDirectories(true, false);
+
+  vtkVLogScopeF(
+    PARAVIEW_LOG_APPLICATION_VERBOSITY(), "Looking for file '%s'", relativePath.toUtf8().data());
+
+  for (const QString& dirPath : allPossibleDirs)
+  {
+    QDir dir(dirPath);
+    if (dir.exists(relativePath))
+    {
+      vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+        "found application file " << dir.absoluteFilePath(relativePath).toStdString());
+      return dirPath;
+    }
+  }
+
+  vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(),
+    "fails to find requested file " << relativePath.toStdString()
+                                    << " under any of the following paths: ");
+  for (const QString& dirPath : allPossibleDirs)
+  {
+    vtkVLog(PARAVIEW_LOG_APPLICATION_VERBOSITY(), << dirPath.toStdString());
+  }
+
+  return QString();
 }
 
 //-----------------------------------------------------------------------------
@@ -404,7 +485,16 @@ void pqCoreUtilities::initializeClickMeButton(QAbstractButton* button)
 {
   if (button)
   {
-    QPalette applyPalette = button->palette();
+    QPalette applyPalette = QApplication::palette(button);
+    // In dark themes, we use black text on the button. By default, Qt uses white text on
+    // dark buttons, however, this code changes the button color to a light green
+    // so we need to set the text color to black for better contrast.
+    // In light themes, we use the default button text color.
+    if (pqCoreUtilities::isDarkTheme())
+    {
+      applyPalette.setColor(QPalette::Active, QPalette::ButtonText, QColor(Qt::black));
+      applyPalette.setColor(QPalette::Inactive, QPalette::ButtonText, QColor(Qt::black));
+    }
     applyPalette.setColor(QPalette::Active, QPalette::Button, QColor(161, 213, 135));
     applyPalette.setColor(QPalette::Inactive, QPalette::Button, QColor(161, 213, 135));
     button->setPalette(applyPalette);
@@ -465,4 +555,18 @@ void pqCoreUtilities::remove(const QString& filePath)
       pqCoreUtilities::mainWidget())
       .exec();
   }
+}
+
+//-----------------------------------------------------------------------------
+bool pqCoreUtilities::isDarkTheme()
+{
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+  const auto scheme = QGuiApplication::styleHints()->colorScheme();
+  return scheme == Qt::ColorScheme::Dark;
+#else
+  const QPalette defaultPalette;
+  const auto text = defaultPalette.color(QPalette::WindowText);
+  const auto window = defaultPalette.color(QPalette::Window);
+  return text.lightness() > window.lightness();
+#endif
 }

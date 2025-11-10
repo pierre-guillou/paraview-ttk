@@ -100,7 +100,8 @@ void ShrinkFieldData(vtkHyperTreeGrid* htg)
 //------------------------------------------------------------------------------
 void TurnOffLogging(std::ostringstream& logStream)
 {
-  auto stream_sink = [](void* userData, const vtkLogger::Message& message) {
+  auto stream_sink = [](void* userData, const vtkLogger::Message& message)
+  {
     std::ostream& s = *reinterpret_cast<std::ostream*>(userData);
     s << message.preamble << message.message << std::endl;
   };
@@ -616,7 +617,7 @@ std::vector<std::string> TestDataSetFailures(vtkHyperTreeGrid* htg, std::ostring
   auto other = vtkHyperTreeGrid::SafeDownCast(limiter->GetOutputDataObject(0));
 
   CheckErrorMessage<vtkHyperTreeGrid>(vtkTestUtilities::CompareDataObjects(htg, other), logStream,
-    "Mismatched leaves", retLog, "Topology");
+    "Depth Limiter value doesn't match", retLog, "Topology");
 
   return retLog;
 }

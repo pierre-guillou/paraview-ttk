@@ -168,6 +168,7 @@ int get_section_connectivity(int cgioNum, double cgioSectionId, int dim, const c
       if (data == nullptr)
       {
         std::cerr << "Allocation failed for temporary connectivity array\n";
+        return 1;
       }
 
       if (cgio_read_data_type(cgioNum, cgioElemConnectId, srcStart, srcEnd, srcStride, "I4", dim,
@@ -497,6 +498,7 @@ int GetVTKElemType(
       cgnsOrderFlag = true;
       break;
     case CGNS_ENUMV(TRI_10):
+    case CGNS_ENUMV(TRI_15):
       cellType = VTK_LAGRANGE_TRIANGLE;
       higherOrderWarning = true;
       break;
@@ -506,6 +508,7 @@ int GetVTKElemType(
       cgnsOrderFlag = true;
       break;
     case CGNS_ENUMV(TETRA_20):
+    case CGNS_ENUMV(TETRA_35):
       cellType = VTK_LAGRANGE_TETRAHEDRON;
       higherOrderWarning = true;
       cgnsOrderFlag = true;
@@ -520,6 +523,7 @@ int GetVTKElemType(
       cgnsOrderFlag = true;
       break;
     case CGNS_ENUMV(HEXA_64):
+    case CGNS_ENUMV(HEXA_125):
       cellType = VTK_LAGRANGE_HEXAHEDRON;
       higherOrderWarning = true;
       cgnsOrderFlag = true;
@@ -546,6 +550,10 @@ int GetVTKElemType(
 // static const int TRI_3_ToVTK[3] = { 0, 1, 2 };
 //
 // static const int TRI_6_ToVTK[6] = { 0, 1, 2, 3, 4, 5 };
+//
+// static const int TRI_10_ToVTK[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+//
+// static const int TRI_15_ToVTK[15] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 //
 // static const int QUAD_4_ToVTK[4] = { 0, 1, 2, 3 };
 //
@@ -579,12 +587,22 @@ static const int HEXA_27_ToVTK[27] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 16,
 static const int TETRA_20_ToVTK[20] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17,
   18, 19, 16 };
 
+static const int TETRA_35_ToVTK[35] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+  17, 18, 19, 20, 21, 25, 26, 27, 28, 29, 30, 31, 32, 33, 22, 23, 24 };
+
 static const int PENTA_40_ToVTK[40] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 21, 22,
-  23, 12, 13, 14, 15, 16, 17, 24, 37, 25, 26, 28, 27, 29, 30, 32, 31, 34, 33, 35, 36, 38, 39 };
+  23, 12, 13, 14, 15, 16, 17, 24, 37, 25, 26, 28, 27, 29, 30, 32, 31, 33, 34, 36, 35, 38, 39 };
 
 static const int HEXA_64_ToVTK[64] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 12, 15, 14, 24, 25,
-  26, 27, 29, 28, 31, 30, 16, 17, 18, 19, 22, 23, 20, 21, 49, 48, 50, 51, 40, 41, 43, 42, 36, 37,
+  26, 27, 29, 28, 31, 30, 16, 17, 18, 19, 20, 21, 22, 23, 49, 48, 50, 51, 40, 41, 43, 42, 36, 37,
   39, 38, 45, 44, 46, 47, 32, 33, 35, 34, 52, 53, 55, 54, 56, 57, 59, 58, 60, 61, 63, 62 };
+
+static const int HEXA_125_ToVTK[125] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 15, 14,
+  19, 18, 17, 32, 33, 34, 35, 36, 37, 40, 39, 38, 43, 42, 41, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+  29, 30, 31, 82, 81, 80, 83, 88, 87, 84, 85, 86, 62, 63, 64, 69, 70, 65, 68, 67, 66, 53, 54, 55,
+  60, 61, 56, 59, 58, 57, 73, 72, 71, 74, 79, 78, 75, 76, 77, 44, 45, 46, 51, 52, 47, 50, 49, 48,
+  89, 90, 91, 96, 97, 92, 95, 94, 93, 98, 99, 100, 105, 106, 101, 104, 103, 102, 107, 108, 109, 114,
+  115, 110, 113, 112, 111, 116, 117, 118, 123, 124, 119, 122, 121, 120 };
 
 static const int PYRA_30_ToVTK[30] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 9, 12, 11, 13, 14, 15, 16, 17,
   18, 19, 20, 25, 26, 27, 28, 21, 22, 24, 23, 29 };
@@ -592,7 +610,7 @@ static const int PYRA_30_ToVTK[30] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 9, 12, 11,
 static const int QUAD_16_ToVTK[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 9, 8, 11, 10, 12, 13, 15, 14 };
 
 //------------------------------------------------------------------------------
-inline const int* getTranslator(int cellType)
+inline const int* getTranslator(int cellType, int numPointsPerCell)
 {
   switch (cellType)
   {
@@ -624,11 +642,25 @@ inline const int* getTranslator(int cellType)
     case VTK_LAGRANGE_QUADRILATERAL:
       return CGNSRead::QUAD_16_ToVTK;
     case VTK_LAGRANGE_TETRAHEDRON:
-      return CGNSRead::TETRA_20_ToVTK;
+      if (numPointsPerCell == 35)
+      {
+        return CGNSRead::TETRA_35_ToVTK;
+      }
+      else
+      {
+        return CGNSRead::TETRA_20_ToVTK;
+      }
     case VTK_LAGRANGE_WEDGE:
       return CGNSRead::PENTA_40_ToVTK;
     case VTK_LAGRANGE_HEXAHEDRON:
-      return CGNSRead::HEXA_64_ToVTK;
+      if (numPointsPerCell == 125)
+      {
+        return CGNSRead::HEXA_125_ToVTK;
+      }
+      else
+      {
+        return CGNSRead::HEXA_64_ToVTK;
+      }
     case VTK_LAGRANGE_PYRAMID:
       return CGNSRead::PYRA_30_ToVTK;
     default:
@@ -639,14 +671,14 @@ inline const int* getTranslator(int cellType)
 //------------------------------------------------------------------------------
 void CGNS2VTKorder(vtkIdType size, const int* cells_types, vtkIdType* elements)
 {
-  const int maxPointsPerCells = 64;
+  const int maxPointsPerCells = 125;
   int tmp[maxPointsPerCells];
   const int* translator;
   vtkIdType pos = 0;
   for (vtkIdType icell = 0; icell < size; ++icell)
   {
-    translator = getTranslator(cells_types[icell]);
     vtkIdType numPointsPerCell = elements[pos];
+    translator = getTranslator(cells_types[icell], numPointsPerCell);
     pos++;
     if (translator != nullptr)
     {
@@ -671,7 +703,7 @@ void ReorderMonoCellPointsCGNS2VTK(
   tempArray->SetNumberOfTuples(numPointsPerCell);
 
   const int* translator;
-  translator = getTranslator(cell_type);
+  translator = getTranslator(cell_type, numPointsPerCell);
   if (translator == nullptr)
   {
     return;
@@ -877,11 +909,18 @@ bool vtkCGNSMetaData::Parse(const char* cgnsFileName)
   // use cgio routine to open the file
   if (cgio_open_file(cgnsFileName, CGIO_MODE_READ, CG_FILE_NONE, &cgioNum) != CG_OK)
   {
-    cgio_error_exit("cgio_file_open");
+    char message[81];
+    cgio_error_message(message);
+    vtkErrorWithObjectMacro(nullptr, "Error loading CGNS file with cgio_file_open: " << message);
+    return false;
   }
   if (cgio_get_root_id(cgioNum, &rootId) != CG_OK)
   {
-    cgio_error_exit("cgio_get_root_id");
+    char message[81];
+    cgio_error_message(message);
+    vtkErrorWithObjectMacro(
+      nullptr, "Error accessing CGNS root node with cgio_get_root_id: " << message);
+    return false;
   }
 
   // Get base id list :
@@ -1353,6 +1392,18 @@ bool ReadPatchesForBase(vtkCGNSReader* reader, const BaseInformation&)
   if (!reader->GetLoadBndPatch())
   {
     // patches have been globally disabled.
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool ReadSurfacesForBase(vtkCGNSReader* reader, const BaseInformation&)
+{
+  if (!reader->GetLoadSurfacePatch())
+  {
+    // surface patches have been globally disabled.
     return false;
   }
 

@@ -11,6 +11,7 @@ import logging
 import shlex
 import shutil
 import subprocess
+import sys
 import threading
 
 from functools import partial
@@ -19,7 +20,6 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
 
 logger = logging.getLogger("vtkWebAssemblyTestRunner")
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
 # /VTK/Testing/WebAssembly
 BASE_DIR = Path(__file__).parent.absolute().resolve()
@@ -49,19 +49,7 @@ class vtkTestHTTPHandler(SimpleHTTPRequestHandler):
         logger.debug(format, *args)
 
     def end_headers(self):
-        # Opt in to cross-origin isolated state. We want this because wasm inside a
-        # WebWorker needs SharedArrayBuffer.
-        # All VTK unit tests use WebWorkers to run the main(argc, argv),
-        # in order to make synchronous XHR for test data files, baseline images, etc.
-        #
-        # NOTE: This is generally not a good idea because VTK is not thread-safe.
-        # TestGarbageCollector fails to defer collections.
-        # We could go back to main thread after JSPI moves to Phase 4 in https://github.com/WebAssembly/proposals
-        # It is in Phase 3 as on April 2024.
-        # JSPI: https://github.com/WebAssembly/js-promise-integration
-        self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-        self.send_header("Cross-Origin-Embedder-Policy", "require-corp")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Do not allow client to use cache. Ideal for development where .wasm/.js may change.
         self.send_header('Cache-Control', 'no-store')
         super().end_headers()
 
@@ -170,7 +158,10 @@ class vtkWebAssemblyTestRunner:
         self.port = args.port
         self.test_executable = args.test_executable
         self.test_args = args.test_args
-
+        if args.verbose:
+            logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(filename)s:%(lineno)d %(message)s")
+        else:
+            logging.basicConfig(level=logging.INFO, format="%(asctime)s %(filename)s:%(lineno)d %(message)s")
         # The exit code is set when a unit test POSTs an /exit message
         self.exit_code = None
 
@@ -187,27 +178,65 @@ class vtkWebAssemblyTestRunner:
         self._url = None
         self._server_is_shutdown = False
 
+        # Add arguments that are recommended when automating VTK wasm tests with a specific engine
+        self.implicit_engine_args = ""
+        if self.engine:
+            if "chrome" in self.engine or "chromium" in self.engine:
+                flags = [
+                    "--disable-application-cache",
+                    "--disable-restore-session-state",
+                    "--new-window",
+                    "--incognito",
+                    "--no-default-browser-check",
+                    "--no-first-run",
+                ]
+                # on linux, chrome needs more flags to unblock webgpu
+                if sys.platform == "linux":
+                    flags.extend([
+                        "--enable-features=Vulkan",
+                        "--enable-unsafe-webgpu",
+                        "--use-angle=Vulkan",
+                    ])
+                self.implicit_engine_args = " ".join(flags)
+
     def run(self):
-        if not self.engine:
-            # Skip when no engine executable was specified.
-            return 125
 
         # Run the browser after http server is ready to accept connections.
         self._httpd_thread.start()
         self._wait_for_server_start()
-        subprocess_args = [self.engine] + shlex.split(self.engine_args) + [self._url]
-        logger.info(f"Running subprocess '{' '.join(subprocess_args)}'")
-        try:
-            subprocess.run(subprocess_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception as e:
-            logger.error("An error occurred while launching engine subprocess!")
-            logger.error(e)
-            self._server_is_shutdown = True
-            self.exit_code = 1
+        if self.engine:
+            subprocess_args = [self.engine] + shlex.split(self.implicit_engine_args) + shlex.split(self.engine_args) + [self._url]
+            logger.info(f"Running subprocess '{' '.join(subprocess_args)}'")
+            try:
+                subprocess.run(subprocess_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e:
+                logger.error("An error occurred while launching engine subprocess!")
+                logger.error(e)
+                self._server_is_shutdown = True
+                self.exit_code = 1
+            except KeyboardInterrupt:
+                self.exit_code = 1
+                self._server_is_shutdown = True
+        else:
+            logger.info(f"An engine was not specified. Script may appear to hang but it is actually running a http server.")
         # If a test did not send an exit code, this `join` will block. It can happen when a test is stuck.
         # In such scenario, the httpd loop will not break and `ctest`` will terminate us after the timeout interval
         # has elapsed.
-        self._httpd_thread.join()
+        try:
+            while self._httpd_thread.is_alive():
+                self._httpd_thread.join(timeout=1)
+        except KeyboardInterrupt:
+            # On windows, socket recv and select methods are uninterruptible, making CTRL+C unreliable. For that reason,
+            # our `httpd` thread cannot see sigint.
+            # See https://github.com/python/cpython/issues/79115 and https://github.com/python/cpython/issues/85609
+            # For this reason, handle SIGINT on main thread.
+            self._server_is_shutdown = True
+            self.exit_code = 1
+            # Attempt to safely join the thread and release sockets
+            self._httpd_thread.join(timeout=1000)
+            if self._httpd_thread.is_alive():
+                logger.warning(f"Port {self.port} may not be reusable. Failed to stop HTTP server at {self._url}")
+            logger.debug("Caught KeyboardInterrupt, exiting.")
 
         return self.exit_code if self.exit_code is not None else 1
 
@@ -241,10 +270,7 @@ class vtkWebAssemblyTestRunner:
         self._httpd_started.set()
 
         while not self._server_is_shutdown:
-            try:
-                self._process_one_http_request()
-            except KeyboardInterrupt:
-                break
+            self._process_one_http_request()
 
     def _process_one_http_request(self):
 
@@ -270,11 +296,10 @@ if __name__ == "__main__":
         title="WebAssembly Engine",
         description="Arguments that specify the webassembly engine used to run unit tests")
     engine_grp.add_argument("--engine",
-                            help="Path to a webassembly execution engine. Technically, this can point to a web browser or a webview runtime like tauri/wry application.",
-                            required=True)
+                            help="Path to a webassembly execution engine. Technically, this can point to a web browser or a webview runtime like tauri/wry application.")
     engine_grp.add_argument("--engine-args",
                             help="Additional arguments that will be passed to the engine",
-                            required=True)
+                            default="")
 
     httpd_grp = parser.add_argument_group(
         title="HTTP Server",
@@ -299,6 +324,13 @@ if __name__ == "__main__":
         action='store_true',
         default=False,
         required=False)
+    parser.add_argument(
+        "-v", "--verbose",
+        help="Enable verbose output",
+        action='store_true',
+        default=False,
+        required=False
+    )
 
     cmdline_options = parser.parse_args()
     runner = vtkWebAssemblyTestRunner(cmdline_options)

@@ -8,7 +8,6 @@
 #include "vtkDataArraySelection.h"
 #include "vtkDataSet.h"
 #include "vtkEventForwarderCommand.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkInformation.h"
 #include "vtkInformationIntegerKey.h"
 #include "vtkInformationIntegerVectorKey.h"
@@ -201,7 +200,7 @@ std::string vtkXMLCompositeDataReader::GetFileNameFromXML(
   if (!(file[0] == '/' || file[1] == ':'))
   {
     fileName = filePath;
-    if (fileName.length())
+    if (!fileName.empty())
     {
       fileName += "/";
     }

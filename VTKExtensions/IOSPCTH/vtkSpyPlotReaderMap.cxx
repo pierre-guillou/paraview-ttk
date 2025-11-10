@@ -130,6 +130,11 @@ vtkSpyPlotUniReader* vtkSpyPlotReaderMap::GetReader(
     it->second->SetFileName(it->first.c_str());
     // cout << parent->GetController()->GetLocalProcessId()
     // << "Create reader: " << it->second << endl;
+
+    // Set properties from parent class on the new reader. They can be overridden
+    // by later calls to the property setters on the vtkSpyPlotReader object.
+    it->second->SetDownConvertVolumeFraction(parent->GetDownConvertVolumeFraction());
+    it->second->SetGenerateMarkers(parent->GetGenerateMarkers());
   }
   return it->second;
 }
@@ -258,7 +263,7 @@ bool vtkSpyPlotReaderMap::InitializeFromCaseFile(const char* filename)
 
   while (vtksys::SystemTools::GetLineFromStream(ifs, line))
   {
-    if (line.length() != 0) // Skip blank lines
+    if (!line.empty()) // Skip blank lines
     {
       std::string::size_type stp = line.find_first_not_of(" \n\t\r");
       std::string::size_type etp = line.find_last_not_of(" \n\t\r");

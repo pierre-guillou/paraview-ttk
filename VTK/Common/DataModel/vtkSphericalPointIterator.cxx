@@ -154,7 +154,7 @@ struct vtkSphericalPointIterator::SphericalPointIterator
     }
     if (dir == vtkSphericalPointIterator::SORT_DESCENDING)
     {
-      std::sort(radialSort.begin(), radialSort.end(), std::greater<RadialTuple>());
+      std::sort(radialSort.begin(), radialSort.end(), std::greater<>());
     }
     else // ascending
     {
@@ -546,7 +546,7 @@ vtkIdType vtkSphericalPointIterator::GetPoint(int axis, int ptIdx)
 //------------------------------------------------------------------------------
 void vtkSphericalPointIterator::GetAxisPoints(int axis, vtkIdType& npts, const vtkIdType*& pts)
 {
-  return this->Iterator->GetAxisPoints(axis, npts, pts);
+  this->Iterator->GetAxisPoints(axis, npts, pts);
 }
 
 //------------------------------------------------------------------------------

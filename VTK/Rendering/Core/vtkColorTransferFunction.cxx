@@ -17,8 +17,6 @@
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkColorTransferFunction);
 
-#define MY_MAX(x, y) ((x) > (y) ? (x) : (y))
-
 //=============================================================================
 class vtkCTFNode
 {
@@ -159,8 +157,8 @@ inline void vtkColorTransferFunctionInterpolateDiverging(
   {
     // Insert the white midpoint by setting one end to white and adjusting the
     // scalar value.
-    double Mmid = MY_MAX(msh1[0], msh2[0]);
-    Mmid = MY_MAX(88.0, Mmid);
+    double Mmid = std::max(msh1[0], msh2[0]);
+    Mmid = std::max(88.0, Mmid);
     if (s < 0.5)
     {
       msh2[0] = Mmid;
@@ -852,7 +850,7 @@ void vtkColorTransferFunction::GetTable(double xStart, double xEnd, int size, do
       {
         logX =
           logStart + (static_cast<double>(i) / static_cast<double>(size - 1)) * (logEnd - logStart);
-        x = pow(static_cast<double>(10.0), logX);
+        x = pow(10.0, logX);
       }
       else
       {
@@ -864,7 +862,7 @@ void vtkColorTransferFunction::GetTable(double xStart, double xEnd, int size, do
       if (usingLogScale)
       {
         logX = 0.5 * (logStart + logEnd);
-        x = pow(static_cast<double>(10.0), logX);
+        x = pow(10.0, logX);
       }
       else
       {
@@ -1100,6 +1098,20 @@ void vtkColorTransferFunction::GetTable(double xStart, double xEnd, int size, do
         {
           vtkColorTransferFunctionInterpolateLABCIEDE2000(s, rgb1, rgb2, tptr, ciede2000Helper);
         }
+        else if (this->ColorSpace == VTK_CTF_PROLAB)
+        {
+          double prolab1[3], prolab2[3];
+          vtkMath::RGBToProLab(rgb1, prolab1);
+          vtkMath::RGBToProLab(rgb2, prolab2);
+
+          double prolabTmp[3];
+          prolabTmp[0] = (1 - s) * prolab1[0] + s * prolab2[0];
+          prolabTmp[1] = (1 - s) * prolab1[1] + s * prolab2[1];
+          prolabTmp[2] = (1 - s) * prolab1[2] + s * prolab2[2];
+
+          // Now convert back to RGB
+          vtkMath::ProLabToRGB(prolabTmp, tptr);
+        }
         else
         {
           vtkErrorMacro("ColorSpace set to invalid value.");
@@ -1222,6 +1234,25 @@ void vtkColorTransferFunction::GetTable(double xStart, double xEnd, int size, do
         // the diverging color map, but I cannot think of a good use case for
         // that anyway.
         vtkColorTransferFunctionInterpolateDiverging(s, rgb1, rgb2, tptr);
+      }
+      else if (this->ColorSpace == VTK_CTF_PROLAB)
+      {
+        double prolab1[3], prolab2[3];
+        vtkMath::RGBToProLab(rgb1, prolab1);
+        vtkMath::RGBToProLab(rgb2, prolab2);
+
+        double prolabTmp[3];
+        for (j = 0; j < 3; j++)
+        {
+          // Use one slope for both end points
+          slope = prolab2[j] - prolab1[j];
+          t = (1.0 - sharpness) * slope;
+
+          // Compute the value
+          prolabTmp[j] = h1 * prolab1[j] + h2 * prolab2[j] + h3 * t + h4 * t;
+        }
+        // Now convert this back to RGB
+        vtkMath::ProLabToRGB(prolabTmp, tptr);
       }
       else
       {

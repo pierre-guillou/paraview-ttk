@@ -140,7 +140,7 @@
   <ProxyGroup name="implicit_functions">
 
     <!-- ================================================================== -->
-    <Proxy class="vtkPVPlane" name="Plane" processes="dataserver|renderserver|client">
+    <Proxy class="vtkPlane" name="Plane" processes="dataserver|renderserver|client">
       <InputProperty is_internal="1"
                      name="Input"></InputProperty>
       <DoubleVectorProperty command="SetOrigin"
@@ -211,7 +211,7 @@
     </Proxy>
 
     <!-- ================================================================== -->
-    <Proxy class="vtkPVPlane"
+    <Proxy class="vtkPlane"
            name="Axis Aligned Plane">
       <InputProperty is_internal="1"
                      name="Input"></InputProperty>
@@ -479,6 +479,186 @@
     </Proxy>
 
     <!-- ================================================================== -->
+    <Proxy class="vtkAnnulus" name="Annulus">
+      <InputProperty is_internal="1" name="Input" />
+      <DoubleVectorProperty command="SetCenter"
+                            default_values="0 0 0"
+                            name="Center"
+                            number_of_elements="3">
+        <BoundsDomain default_mode="mid" mode="normal" name="range">
+          <RequiredProperties>
+            <Property function="Input" name="Input" />
+          </RequiredProperties>
+        </BoundsDomain>
+        <Documentation>
+          Set the center of the annulus.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetAxis"
+                            default_values="0. 1. 0."
+                            name="Axis"
+                            number_of_elements="3">
+        <Documentation>
+          Set the axis of the annulus. The created annulus is infinite in both directions
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetInnerRadius"
+                            default_values="0.25"
+                            name="InnerRadius"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range"
+                           min="0.0"/>
+        <Documentation>
+          Set the inner radius of the annulus.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetOuterRadius"
+                            default_values="0.5"
+                            name="OuterRadius"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range"
+                           min="0.0"/>
+        <Documentation>
+          Set the outer radius of the annulus.
+        </Documentation>
+      </DoubleVectorProperty>
+      <PropertyGroup label="Annulus Parameters" panel_widget="InteractiveAnnulus">
+        <Property function="Center" name="Center" />
+        <Property function="Axis" name="Axis" />
+        <Property function="InnerRadius" name="InnerRadius" />
+        <Property function="OuterRadius" name="OuterRadius" />
+        <Property function="Input" name="Input" />
+      </PropertyGroup>
+      <Hints>
+        <ProxyList>
+          <Link name="Input" with_property="Input" />
+        </ProxyList>
+      </Hints>
+      <!-- End of Annulus -->
+    </Proxy>
+
+    <!-- ================================================================== -->
+    <Proxy class="vtkPVFrustum" name="Frustum">
+      <InputProperty is_internal="1" name="Input" />
+      <DoubleVectorProperty command="SetOrigin"
+                            default_values="0 0 0"
+                            name="Origin"
+                            number_of_elements="3">
+        <BoundsDomain default_mode="mid" mode="normal" name="range">
+          <RequiredProperties>
+            <Property function="Input" name="Input" />
+          </RequiredProperties>
+        </BoundsDomain>
+        <Documentation>
+          Set the origin of the frustum.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetOrientation"
+                            default_values="0 0 0"
+                            name="Orientation"
+                            number_of_elements="3">
+        <Documentation>
+          Set the orientation of the frustum.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetHorizontalAngle"
+                            default_values="30"
+                            name="HorizontalAngle"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range"
+                           min="0.0"
+                           max="89.0"/>
+        <Documentation>
+          Set the horizontal angle of the frustum, i.e. the angle between its forward axis
+          and its right and left planes.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetVerticalAngle"
+                            default_values="30"
+                            name="VerticalAngle"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range"
+                           min="0.0"
+                           max="89.0"/>
+        <Documentation>
+          Set the vertical angle of the frustum, i.e. the angle between its forward axis
+          and its top and bottom planes.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetNearPlaneDistance"
+                            default_values="0.5"
+                            name="NearPlaneDistance"
+                            number_of_elements="1">
+        <DoubleRangeDomain name="range"
+                           min="0.0"
+                           />
+        <Documentation>
+          The distance between the frustum origin and its near plane,
+          along the forward axis.
+        </Documentation>
+      </DoubleVectorProperty>
+      <PropertyGroup label="Frustum Parameters" panel_widget="InteractiveFrustum">
+        <Property function="Origin" name="Origin" />
+        <Property function="Orientation" name="Orientation" />
+        <Property function="HorizontalAngle" name="HorizontalAngle" />
+        <Property function="VerticalAngle" name="VerticalAngle" />
+        <Property function="NearPlaneDistance" name="NearPlaneDistance"/>
+        <Property function="Input" name="Input" />
+      </PropertyGroup>
+      <Hints>
+        <ProxyList>
+          <Link name="Input" with_property="Input" />
+        </ProxyList>
+      </Hints>
+      <!-- End of Frustum -->
+    </Proxy>
+    <!-- ================================================================== -->
+    <Proxy class="vtkPVCone" name="Cone">
+      <InputProperty is_internal="1" name="Input" />
+      <DoubleVectorProperty command="SetOrigin"
+                            default_values="0 0 0"
+                            name="Origin"
+                            number_of_elements="3">
+        <BoundsDomain default_mode="mid" mode="normal" name="range">
+          <RequiredProperties>
+            <Property function="Input" name="Input" />
+          </RequiredProperties>
+        </BoundsDomain>
+        <Documentation>
+          Set the origin of the cone.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetAxis"
+                            default_values="0. 1. 0."
+                            name="Axis"
+                            number_of_elements="3">
+        <Documentation>
+          Set the axis of the cone. The created cone has infinite length towards this direction.
+        </Documentation>
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetAngle"
+                            default_values="45"
+                            name="Angle"
+                            number_of_elements="1">
+        <Documentation>
+          Set the angle of the cone.
+        </Documentation>
+      </DoubleVectorProperty>
+      <PropertyGroup label="Cone Parameters" panel_widget="InteractiveCone">
+        <Property function="Origin" name="Origin" />
+        <Property function="Axis" name="Axis" />
+        <Property function="Angle" name="Angle" />
+        <Property function="Input" name="Input" />
+      </PropertyGroup>
+      <Hints>
+        <ProxyList>
+          <Link name="Input" with_property="Input" />
+        </ProxyList>
+      </Hints>
+      <!-- End of Cone -->
+    </Proxy>
+
+    <!-- ================================================================== -->
     <Proxy class="vtkPerlinNoise" name="PerlinNoise">
       <InputProperty is_internal="1" name="Input" />
       <DoubleVectorProperty
@@ -617,6 +797,12 @@
            name="Sphere" />
     <Proxy group="implicit_functions"
            name="Cylinder" />
+    <Proxy group="implicit_functions"
+           name="Cone"/>
+    <Proxy group="implicit_functions"
+           name="Frustum" />
+    <Proxy group="implicit_functions"
+           name="Annulus" />
   </ProxyGroup>
   <ProxyGroup name="slice_htg_amr_implicit_functions">
     <Proxy group="implicit_functions"
@@ -643,6 +829,12 @@
            name="Cylinder" />
     <Proxy group="implicit_functions"
            name="Scalar" />
+    <Proxy group="implicit_functions"
+           name="Cone" />
+    <Proxy group="implicit_functions"
+           name="Frustum" />
+    <Proxy group="implicit_functions"
+           name="Annulus" />
   </ProxyGroup>
   <ProxyGroup name="clip_htg_implicit_functions">
     <Proxy group="implicit_functions"

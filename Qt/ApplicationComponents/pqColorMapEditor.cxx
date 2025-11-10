@@ -503,9 +503,8 @@ void pqColorMapEditor::saveAsArrayDefault()
     colorMapEditorHelper->GetSelectedColorArrays(repr);
   // Remove special characters from the array names
   std::transform(arrayNames.begin(), arrayNames.end(), arrayNames.begin(),
-    [](const std::pair<int, std::string>& pair) {
-      return std::make_pair(pair.first, vtkSMCoreUtilities::SanitizeName(pair.second));
-    });
+    [](const std::pair<int, std::string>& pair)
+    { return std::make_pair(pair.first, vtkSMCoreUtilities::SanitizeName(pair.second)); });
 
   const std::vector<vtkSMProxy*> luts = colorMapEditorHelper->GetSelectedLookupTables(repr);
 
@@ -550,9 +549,8 @@ void pqColorMapEditor::restoreDefaults()
     colorMapEditorHelper->GetSelectedColorArrays(repr);
   // Remove special characters from the array names
   std::transform(arrayNames.begin(), arrayNames.end(), arrayNames.begin(),
-    [](const std::pair<int, std::string>& pair) {
-      return std::make_pair(pair.first, vtkSMCoreUtilities::SanitizeName(pair.second));
-    });
+    [](const std::pair<int, std::string>& pair)
+    { return std::make_pair(pair.first, vtkSMCoreUtilities::SanitizeName(pair.second)); });
 
   const std::vector<vtkSMProxy*> luts = colorMapEditorHelper->GetSelectedLookupTables(repr);
 
@@ -573,9 +571,8 @@ void pqColorMapEditor::restoreDefaults()
       stdPresetsKey += arrayName;
       if (settings->HasSetting(stdPresetsKey.c_str()))
       {
-        vtkSMTransferFunctionProxy::ApplyPreset(lutProxy,
-          settings->GetSettingAsString(stdPresetsKey.c_str(), 0, "").c_str(),
-          /*rescale=*/false);
+        const auto stdPreset = settings->GetSettingAsString(stdPresetsKey.c_str(), 0, "");
+        vtkSMTransferFunctionProxy::ApplyPreset(lutProxy, stdPreset.c_str(), /*rescale=*/false);
 
         // Should probably support setting a standard preset for opacity function at some point. */
       }

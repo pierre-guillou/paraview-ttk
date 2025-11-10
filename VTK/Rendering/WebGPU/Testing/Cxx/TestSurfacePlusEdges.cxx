@@ -2,19 +2,15 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkActor.h"
 #include "vtkCamera.h"
-#include "vtkColorTransferFunction.h"
 #include "vtkConeSource.h"
-#include "vtkElevationFilter.h"
 #include "vtkInteractorStyleTrackballCamera.h"
 #include "vtkNew.h"
-#include "vtkObject.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
+#include "vtkRegressionTestImage.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkScalarsToColors.h"
-#include "vtkSphereSource.h"
 
 int TestSurfacePlusEdges(int argc, char* argv[])
 {
@@ -56,7 +52,6 @@ int TestSurfacePlusEdges(int argc, char* argv[])
 
   renderer->ResetCamera();
   renderer->SetBackground(0.1, 0.1, 0.1);
-  renWin->Render();
 
   vtkNew<vtkRenderWindowInteractor> iren;
   iren->SetRenderWindow(renWin);
@@ -65,6 +60,10 @@ int TestSurfacePlusEdges(int argc, char* argv[])
   style->SetDefaultRenderer(renderer);
   renWin->Render();
 
-  iren->Start();
-  return 0;
+  const int retVal = vtkRegressionTestImage(renWin);
+  if (retVal == vtkRegressionTester::DO_INTERACTOR)
+  {
+    iren->Start();
+  }
+  return !retVal;
 }

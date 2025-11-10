@@ -39,8 +39,14 @@ class QMainWindow;
  */
 
 #define PQ_BEHAVIOR_DEFINE_METHODS(_name)                                                          \
-  static void setEnable##_name(bool val) { pqParaViewBehaviors::_name = val; }                     \
-  static bool enable##_name() { return pqParaViewBehaviors::_name; }
+  static void setEnable##_name(bool val)                                                           \
+  {                                                                                                \
+    pqParaViewBehaviors::_name = val;                                                              \
+  }                                                                                                \
+  static bool enable##_name()                                                                      \
+  {                                                                                                \
+    return pqParaViewBehaviors::_name;                                                             \
+  }
 
 #define PQ_BEHAVIOR_DEFINE_METHODS_LEGACY(_name)                                                   \
   VTK_LEGACY(static void setEnable##_name(bool val) { pqParaViewBehaviors::_name = val; });        \
@@ -66,6 +72,7 @@ public:
   PQ_BEHAVIOR_DEFINE_METHODS(UndoRedoBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(AlwaysConnectedBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(CrashRecoveryBehavior);
+  PQ_BEHAVIOR_DEFINE_METHODS(AutoSaveBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(AutoLoadPluginXMLBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(PluginDockWidgetsBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(VerifyRequiredPluginBehavior);
@@ -82,6 +89,7 @@ public:
   PQ_BEHAVIOR_DEFINE_METHODS(PythonShellResetBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(CustomShortcutBehavior);
   PQ_BEHAVIOR_DEFINE_METHODS(MainWindowEventBehavior);
+  PQ_BEHAVIOR_DEFINE_METHODS(PropertyPanelVisibilitiesBehavior);
 
   ///@{
   /**
@@ -130,6 +138,7 @@ private:
   PQ_BEHAVIOR_DECLARE_FLAG(UndoRedoBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(AlwaysConnectedBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(CrashRecoveryBehavior);
+  PQ_BEHAVIOR_DECLARE_FLAG(AutoSaveBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(AutoLoadPluginXMLBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(PluginDockWidgetsBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(VerifyRequiredPluginBehavior);
@@ -149,6 +158,7 @@ private:
   PQ_BEHAVIOR_DECLARE_FLAG(CustomShortcutBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(MainWindowEventBehavior);
   PQ_BEHAVIOR_DECLARE_FLAG(UsageLoggingBehavior);
+  PQ_BEHAVIOR_DECLARE_FLAG(PropertyPanelVisibilitiesBehavior);
 };
 
 #undef PQ_BEHAVIOR_DECLARE_FLAG

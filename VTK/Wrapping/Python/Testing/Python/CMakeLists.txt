@@ -11,11 +11,17 @@ set(python_tests
   TestAlgorithmNumberProtocol.py
   TestConstructorKwargs.py
   TestChar.py
+  TestDeprecated.py
+  TestDataModel.py
   TestErrorObserver.py
   TestPickleSupport.py
   TestProperty.py
   TestUpdateAndCall.py
 )
+
+if (VTK_PYTHON_FULL_THREADSAFE)
+  list(APPEND python_tests TestThreadConcurrency.py)
+endif ()
 
 if (TARGET vtkpythonmodules_pyi)
   set(TestCompilePYI_ARGS

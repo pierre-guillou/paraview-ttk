@@ -45,7 +45,7 @@
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkRenderingVRModule.h" // For export macro
 #include "vtkSmartPointer.h"      // for vtkSmartPointer
-#include "vtk_glew.h"             // used for methods
+#include "vtk_glad.h"             // used for methods
 
 #include <vector> // ivars
 
@@ -268,9 +268,9 @@ public:
    * On is the default.
    */
   VTK_DEPRECATED_IN_9_4_0("Please use vtkVRCamera::SetTrackHMD() instead.")
-  vtkSetMacro(TrackHMD, bool);
+  virtual void SetTrackHMD(bool);
   VTK_DEPRECATED_IN_9_4_0("Please use vtkVRCamera::GetTrackHMD() instead.")
-  vtkGetMacro(TrackHMD, bool);
+  virtual bool GetTrackHMD() VTK_FUTURE_CONST;
   ///@}
 
   ///@{

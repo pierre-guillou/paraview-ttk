@@ -193,7 +193,7 @@ struct Spread
           // point_data /= denum
           auto dstTuple = dstTuples[pid];
           std::transform(dstTuple.cbegin(), dstTuple.cend(), dstTuple.begin(),
-            std::bind(std::divides<T>(), std::placeholders::_1, denom));
+            [denom](T value) { return value / denom; });
         }
       }
     }
@@ -682,7 +682,8 @@ int vtkCellDataToPointData::RequestDataForUnstructuredData(
   const auto nfields = processedCellData->GetNumberOfArrays();
   int fid = 0;
   auto f = [this, &fid, nfields, numberOfPoints, input, num, numberOfCells, highestCellDimension](
-             vtkAbstractArray* aa_srcarray, vtkAbstractArray* aa_dstarray) {
+             vtkAbstractArray* aa_srcarray, vtkAbstractArray* aa_dstarray)
+  {
     // update progress and check for an abort request.
     this->UpdateProgress((fid + 1.0) / nfields);
     ++fid;

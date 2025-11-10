@@ -895,7 +895,7 @@ inline std::string ComputeRGBA2DWithGradientDeclaration(vtkRenderer* vtkNotUsed(
     }
     else
     {
-      // Dependent compoennts (RGBA) || Single component
+      // Dependent components (RGBA) || Single component
       functionBody +=
         "  vec4 yscalar = texture3D(in_transfer2DYAxis, g_dataPos);\n"
         "  yscalar.r = yscalar.r * in_transfer2DYAxis_scale.r + in_transfer2DYAxis_bias.r;\n"
@@ -1045,7 +1045,6 @@ inline std::string ComputeDensityGradientDeclaration(vtkOpenGLGPUVolumeRayCastMa
   {
 
     std::string opacityTFcall;
-    std::string gradComput;
     // this table remembers the correspondence results <-> texture coordinates
     static const std::array<std::pair<const char*, const char*>, 6> results_texPos = { {
       { "  g1.x", "texPosPvec[0]" },
@@ -1240,14 +1239,6 @@ inline std::string ComputeLightingDeclaration(vtkRenderer* vtkNotUsed(ren), vtkV
   {
     shaderStr += "\n  int lightingComponent=0;\n";
   }
-
-  bool const volumetricShadow = glMapper->GetVolumetricScatteringBlending() > 0.0;
-  std::string volumetricCall = volumetricShadow
-    ? "\n   vol_shadow = volumeShadow(g_dataPos, tex_light.xyz, 0.0, component, in_volume[0], "
-      "0, label);"
-    : "";
-  std::string volumetricDeclarations =
-    volumetricShadow ? "\n  float vol_shadow = 1.0;\n  vec4 tex_light = vec4(0.0);\n" : "\n";
 
   // If shading is required, we compute a shading gradient (used for the shading model)
   if (shadeReqd)
@@ -2239,7 +2230,7 @@ inline std::string ComputeOpacity2DDeclaration(vtkRenderer* vtkNotUsed(ren),
   {
     if (useGradient)
     {
-      // Dependent compoennts (RGBA) || Single component
+      // Dependent components (RGBA) || Single component
       toString << "float computeOpacity(vec4 scalar)\n"
                   "{\n"
                   "  return texture2D(" +
@@ -2250,7 +2241,7 @@ inline std::string ComputeOpacity2DDeclaration(vtkRenderer* vtkNotUsed(ren),
     }
     else
     {
-      // Dependent compoennts (RGBA) || Single component
+      // Dependent components (RGBA) || Single component
       toString
         << "float computeOpacity(vec4 scalar)\n"
            "{\n"

@@ -15,11 +15,11 @@
 #include "vtkRenderingOpenGLConfigure.h"
 
 #if defined(VTK_USE_X)
-// There are compile errors in vtkPVXRInterfaceHelper.cxx if Qt, X, and glew
+// There are compile errors in vtkPVXRInterfaceHelper.cxx if Qt, X, and glad
 // are not included here and in just this order.  We have to prevent
 // clang-format from "fixing" this for us or compilation will fail.
 // clang-format off
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 #include <qdir.h>
 #include <qurl.h>
 // clang-format on
@@ -27,8 +27,8 @@
 
 #include "vtkNew.h" // for ivars
 #include "vtkObject.h"
-#include "vtkVRCamera.h"       // for visibility of enum Pose
 #include "vtkOpenGLRenderer.h" // TODO should not be needed
+#include "vtkVRCamera.h"       // for visibility of enum Pose
 
 #include <array>  // for method sig
 #include <map>    // for map

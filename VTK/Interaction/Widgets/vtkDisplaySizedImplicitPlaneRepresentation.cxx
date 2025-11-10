@@ -36,6 +36,7 @@
 #include "vtkTubeFilter.h"
 #include "vtkWindow.h"
 
+#include <algorithm>
 #include <cfloat> //for FLT_EPSILON
 
 VTK_ABI_NAMESPACE_BEGIN
@@ -379,17 +380,14 @@ int vtkDisplaySizedImplicitPlaneRepresentation::ComputeComplexInteractionState(
 //------------------------------------------------------------------------------
 void vtkDisplaySizedImplicitPlaneRepresentation::SetRepresentationState(int state)
 {
+  // Clamp the state
+  state = std::min<int>(std::max<int>(state, vtkDisplaySizedImplicitPlaneRepresentation::Outside),
+    vtkDisplaySizedImplicitPlaneRepresentation::Scaling);
+
   if (this->RepresentationState == state)
   {
     return;
   }
-
-  // Clamp the state
-  state = (state < vtkDisplaySizedImplicitPlaneRepresentation::Outside
-      ? vtkDisplaySizedImplicitPlaneRepresentation::Outside
-      : (state > vtkDisplaySizedImplicitPlaneRepresentation::Scaling
-            ? vtkDisplaySizedImplicitPlaneRepresentation::Scaling
-            : state));
 
   this->RepresentationState = state;
   this->Modified();
@@ -1639,8 +1637,7 @@ void vtkDisplaySizedImplicitPlaneRepresentation::GetPlane(vtkPlane* plane)
     return;
   }
 
-  plane->SetNormal(this->Plane->GetNormal());
-  plane->SetOrigin(this->Plane->GetOrigin());
+  plane->DeepCopy(this->Plane);
 }
 
 //------------------------------------------------------------------------------
@@ -1651,8 +1648,7 @@ void vtkDisplaySizedImplicitPlaneRepresentation::SetPlane(vtkPlane* plane)
     return;
   }
 
-  this->Plane->SetNormal(plane->GetNormal());
-  this->Plane->SetOrigin(plane->GetOrigin());
+  this->Plane->DeepCopy(plane);
 }
 
 //------------------------------------------------------------------------------
@@ -1874,8 +1870,7 @@ void vtkDisplaySizedImplicitPlaneRepresentation::SizeHandles()
     double diagonal = 0.0;
     for (int i = 0; i < 3; i++)
     {
-      double diff = static_cast<double>(this->WidgetBounds[2 * i + 1]) -
-        static_cast<double>(this->WidgetBounds[2 * i]);
+      double diff = this->WidgetBounds[2 * i + 1] - this->WidgetBounds[2 * i];
       diagonal += diff * diff;
     }
     diagonal = std::sqrt(diagonal);

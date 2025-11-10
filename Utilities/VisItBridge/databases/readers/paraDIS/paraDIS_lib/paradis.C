@@ -3,6 +3,14 @@
  a new run at libparadis.C from the ground up 
    Need to do this because the previous design was intentionally entwined with povray and HTS operations for efficiency, and assumed the whole dataset would be read at once. 
  */ 
+
+// Resolve ambiguity of `byte` definition between the typedef `byte` in rpcndr.h
+// or `std::byte` introduced in C++17. This prevents `std::byte` from being defined.
+// Note the neither definition is being used in the code in this file.
+#ifdef _WIN32
+#define _HAS_STD_BYTE 0
+#endif
+
 #include "paradis.h"
 #include <cstring>
 #include <fstream>

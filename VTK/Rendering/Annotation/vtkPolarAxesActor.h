@@ -23,13 +23,13 @@
 
 #include "vtkActor.h"
 #include "vtkAxisActor.h"                 // access to enum values
-#include "vtkDeprecation.h"               // For deprecation macro
 #include "vtkNew.h"                       // used for vtkNew
 #include "vtkRenderingAnnotationModule.h" // For export macro
 #include "vtkSmartPointer.h"              // used for vtkSmartPointer
 #include "vtkWrappingHints.h"             // For VTK_MARSHALAUTO
 #include <list>                           // To process exponent list as reference
 #include <string>                         // used for ivar
+#include <vector>                         // for ivar
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkCamera;
@@ -95,29 +95,6 @@ public:
    */
   vtkSetClampMacro(RequestedNumberOfPolarAxes, vtkIdType, 0, VTK_MAXIMUM_NUMBER_OF_POLAR_AXES);
   vtkGetMacro(RequestedNumberOfPolarAxes, vtkIdType);
-  ///@}
-
-  ///@{
-  /**
-   * Set/Get whether the number of polar axis ticks and arcs should be automatically calculated.
-   * Default: false.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use SetDeltaRangeMajor instead or enable AxisTickMatchesPolarAxes")
-  vtkSetMacro(AutoSubdividePolarAxis, bool);
-  VTK_DEPRECATED_IN_9_3_0("Use SetDeltaRangeMajor instead or enable AxisTickMatchesPolarAxes")
-  vtkGetMacro(AutoSubdividePolarAxis, bool);
-  void AutoSubdividePolarAxisOn();
-  void AutoSubdividePolarAxisOff();
-  ///@}
-
-  ///@{
-  /**
-   * Set/Get a number of ticks that one would like to display along polar axis.
-   * NB: it modifies DeltaRangeMajor to correspond to this number.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use SetDeltaRangeMajor instead or enable AxisTickMatchesPolarAxes")
-  virtual void SetNumberOfPolarAxisTicks(int);
-  int GetNumberOfPolarAxisTicks();
   ///@}
 
   ///@{
@@ -257,8 +234,8 @@ public:
    * Set/Get the labels for the polar axis.
    * Default: "Radial Distance".
    */
-  vtkSetStringMacro(PolarAxisTitle);
-  vtkGetStringMacro(PolarAxisTitle);
+  vtkGetMacro(PolarAxisTitle, std::string);
+  vtkSetMacro(PolarAxisTitle, std::string);
   ///@}
 
   ///@{
@@ -872,15 +849,6 @@ protected:
   void BuildRadialAxes(vtkViewport* viewport = nullptr);
 
   /**
-   * Set Range and PolarAxis members value to build axis ticks
-   * this function doesn't actually build PolarAxis ticks, it set the DeltaRangeMajor and DeltaMajor
-   * attributes
-   * then PolarAxis itself is in charge of ticks drawing
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use SetDeltaRangeMajor instead or enable AxisTickMatchesPolarAxes")
-  void AutoComputeTicksProperties();
-
-  /**
    * return a step attempting to be as rounded as possible according to input parameters
    */
   double ComputeIdealStep(int subDivsRequired, double rangeLength, int maxSubDivs = 1000);
@@ -953,6 +921,8 @@ protected:
    * Compute delta angle of radial axes.
    */
   virtual void ComputeDeltaAngleRadialAxes(vtkIdType);
+
+private:
   /**
    * Coordinates of the pole
    */
@@ -1004,11 +974,6 @@ protected:
    * Range between 2 major ticks (values displayed on the axis).
    */
   double DeltaRangeMajor = 1.0;
-
-  /**
-   * DEPRECATED: Automatically subdivide polar axis.
-   */
-  bool AutoSubdividePolarAxis = false;
 
   /**
    * Range between 2 polar axes.
@@ -1099,14 +1064,14 @@ protected:
   /**
    * Control variables for non-polar radial axes
    */
-  vtkSmartPointer<vtkAxisActor>* RadialAxes = nullptr;
+  std::vector<vtkSmartPointer<vtkAxisActor>> RadialAxes;
 
   ///@{
   /**
    * Title to be used for the polar axis
    * NB: Non-polar radial axes use the polar angle as title and have no labels
    */
-  char* PolarAxisTitle = nullptr;
+  std::string PolarAxisTitle = "Radial Distance";
   char* PolarLabelFormat = nullptr;
   ///@}
 
@@ -1325,16 +1290,6 @@ protected:
   vtkTimeStamp BuildTime;
 
   /**
-   * Title scale factor
-   */
-  double TitleScale = -1.0;
-
-  /**
-   * Label scale factor
-   */
-  double LabelScale = -1.0;
-
-  /**
    * Text screen size
    */
   double ScreenSize = 10.0;
@@ -1347,7 +1302,6 @@ protected:
   double PolarLabelOffset = 10.0, PolarExponentOffset = 5.0;
   ///@}
 
-private:
   static constexpr int VTK_MAXIMUM_NUMBER_OF_POLAR_AXES = 20;
   static constexpr int VTK_MAXIMUM_NUMBER_OF_RADIAL_AXES = 50;
   static constexpr double VTK_MINIMUM_POLAR_ARC_RESOLUTION_PER_DEG = 0.05;

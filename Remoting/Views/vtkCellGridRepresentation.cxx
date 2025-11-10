@@ -62,6 +62,7 @@ void vtkCellGridRepresentation::SetupDefaults()
   auto* surfaceFilter = vtkCellGridComputeSides::New();
   surfaceFilter->PreserveRenderableInputsOn();
   surfaceFilter->OmitSidesForRenderableInputsOn();
+  surfaceFilter->SetSelectionType(vtkCellGridComputeSides::SelectionMode::Input);
   this->GeometryFilter = surfaceFilter;
   this->LODOutlineFilter->Delete();
   this->LODOutlineFilter = vtkPVGeometryFilter::New();
@@ -328,7 +329,7 @@ bool vtkCellGridRepresentation::RemoveFromView(vtkView* view)
 
 void vtkCellGridRepresentation::UpdateColoringParameters()
 {
-  return this->Superclass::UpdateColoringParameters();
+  this->Superclass::UpdateColoringParameters();
 }
 
 void vtkCellGridRepresentation::SetVisibility(bool val)
@@ -407,9 +408,8 @@ bool vtkCellGridRepresentation::NeedsOrderedCompositing()
 
   // Check is BlockOpacities has any value not 0 or 1.
   if (std::accumulate(this->BlockOpacities.begin(), this->BlockOpacities.end(), false,
-        [](bool result, const std::pair<std::string, double>& apair) {
-          return result || (apair.second > 0.0 && apair.second < 1.0);
-        }))
+        [](bool result, const std::pair<std::string, double>& apair)
+        { return result || (apair.second > 0.0 && apair.second < 1.0); }))
   {
     // a translucent block may be present.
     return true;

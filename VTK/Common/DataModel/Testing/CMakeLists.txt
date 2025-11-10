@@ -4,6 +4,7 @@ vtk_module_test_data(
   Data/blowGeom.vtk
   Data/cell_850113.vtu
   Data/cell_12851_26.vtu
+  Data/concavePolyhedron.vtu
   Data/cone.vtp
   Data/headsq/,REGEX:.*
   Data/nonWatertightPolyhedron.vtu
@@ -22,6 +23,7 @@ endif ()
 if (VTK_WRAP_PYTHON)
   vtk_module_test_data(
     Data/dgHexahedra.dg
+    Data/disk_out_ref.ex2
   )
   add_subdirectory(Python)
 endif ()

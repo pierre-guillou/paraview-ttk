@@ -11,6 +11,7 @@ vtk_add_test_python(
   TestCellGrid.py,NO_VALID
   TestComputeBounds.py,NO_DATA,NO_VALID
   TestCopyStructuredData.py,NO_DATA,NO_VALID
+  TestDataModel.py,NO_VALID
   TestGetBounds.py,NO_DATA,NO_VALID
   TestGetBounds2.py,NO_DATA,NO_VALID
   TestNumericArrayImageData.py,NO_DATA,NO_VALID
@@ -52,4 +53,5 @@ vtk_add_test_python(
   TestUniformHyperTreeGrid2DWithFilters.py,NO_DATA,NO_VALID
   TestUniformHyperTreeGrid3DWithFilters.py,NO_DATA,NO_VALID
   TestHyperTreeGrid3DCursorsMandel.py,NO_DATA,NO_VALID
+  TestCompareDataSet.py,NO_DATA,NO_VALID
   )

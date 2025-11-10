@@ -11,7 +11,6 @@
 #include "vtkObjectFactory.h"
 #include "vtkPointData.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 #include "vtksys/FStream.hxx"
 
@@ -67,8 +66,10 @@ void vtkParFlowReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "FileName: " << (this->FileName ? this->FileName : "(null)") << "\n";
-  os << indent
-     << "IsCLMFile: " << (this->IsCLMFile > 0 ? "true" : this->IsCLMFile < 0 ? "infer" : "false")
+  os << indent << "IsCLMFile: "
+     << (this->IsCLMFile > 0      ? "true"
+            : this->IsCLMFile < 0 ? "infer"
+                                  : "false")
      << "\n";
   os << indent << "CLMIrrType: " << this->CLMIrrType << "\n";
   os << indent << "IJKDivs:\n";
@@ -292,9 +293,9 @@ void vtkParFlowReader::BroadcastBlocks()
       this->IJKDivs[ijk].resize(len[ijk]);
     }
   }
-  mpc->Broadcast(&this->IJKDivs[0][0], len[0], 0);
-  mpc->Broadcast(&this->IJKDivs[1][0], len[1], 0);
-  mpc->Broadcast(&this->IJKDivs[2][0], len[2], 0);
+  mpc->Broadcast(this->IJKDivs[0].data(), len[0], 0);
+  mpc->Broadcast(this->IJKDivs[1].data(), len[1], 0);
+  mpc->Broadcast(this->IJKDivs[2].data(), len[2], 0);
 }
 
 std::streamoff vtkParFlowReader::GetBlockOffset(int blockId) const

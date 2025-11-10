@@ -45,40 +45,19 @@ struct SaveArrayWorker
   {
   }
 
-  template <class ArrayT>
+  template <typename ValueType>
+  void operator()(vtkAOSDataArrayTemplate<ValueType>* array)
+  {
+    diy::save(this->BB, array->GetPointer(0), array->GetNumberOfValues());
+  }
+
+  template <typename ArrayT>
   void operator()(ArrayT* array)
   {
-    using ValueType = vtk::GetAPIType<ArrayT>;
-    ValueType* data(nullptr);
-    if (array->HasStandardMemoryLayout())
+    switch (array->GetDataType())
     {
-      // get the void pointer, this is OK for standard memory layout
-      data = static_cast<ValueType*>(array->GetVoidPointer(0));
-    }
-    else
-    {
-      // create a temporary data array for saving.
-      data = new ValueType[array->GetNumberOfValues()];
-
-      const auto range = vtk::DataArrayTupleRange(array);
-      using ConstTupleRef = typename decltype(range)::ConstTupleReferenceType;
-      using ComponentType = typename decltype(range)::ComponentType;
-
-      vtkIdType i(0);
-      for (ConstTupleRef tpl : range)
-      {
-        for (ComponentType comp : tpl)
-        {
-          data[i++] = comp;
-        }
-      }
-      assert(i == array->GetNumberOfValues());
-    }
-
-    diy::save(this->BB, data, array->GetNumberOfValues());
-    if (!array->HasStandardMemoryLayout())
-    {
-      delete[] data;
+      vtkTemplateMacro(vtkNew<vtkAOSDataArrayTemplate<VTK_TT>> aosArray; aosArray->DeepCopy(array);
+                       this->operator()(aosArray.Get()));
     }
   }
 
@@ -239,7 +218,7 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkDataArray* array)
 {
   if (!array)
   {
-    diy::save(bb, static_cast<int>(VTK_VOID));
+    diy::save(bb, VTK_VOID);
   }
   else
   {
@@ -268,11 +247,11 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkStringArray* array)
 {
   if (!array)
   {
-    diy::save(bb, static_cast<int>(VTK_VOID));
+    diy::save(bb, VTK_VOID);
   }
   else
   {
-    diy::save(bb, static_cast<int>(VTK_STRING));
+    diy::save(bb, VTK_STRING);
     diy::save(bb, array->GetNumberOfComponents());
     diy::save(bb, array->GetNumberOfTuples());
     if (array->GetName())
@@ -297,7 +276,7 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkFieldData* fd)
 {
   if (!fd)
   {
-    diy::save(bb, static_cast<int>(0));
+    diy::save(bb, 0);
   }
   else
   {
@@ -307,12 +286,12 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkFieldData* fd)
       vtkAbstractArray* aa = fd->GetAbstractArray(id);
       if (auto da = vtkArrayDownCast<vtkDataArray>(aa))
       {
-        diy::save(bb, static_cast<int>(0)); // vtkDataArray flag
+        diy::save(bb, 0); // vtkDataArray flag
         vtkDIYUtilities::Save(bb, da);
       }
       else if (auto sa = vtkArrayDownCast<vtkStringArray>(aa))
       {
-        diy::save(bb, static_cast<int>(1)); // vtkStringArray flag
+        diy::save(bb, 1); // vtkStringArray flag
         vtkDIYUtilities::Save(bb, sa);
       }
       else
@@ -349,7 +328,7 @@ void vtkDIYUtilities::Save(diy::BinaryBuffer& bb, vtkDataSet* p)
   }
   else
   {
-    diy::save(bb, static_cast<int>(-1)); // can't be VTK_VOID since VTK_VOID == VTK_POLY_DATA.
+    diy::save(bb, -1); // can't be VTK_VOID since VTK_VOID == VTK_POLY_DATA.
   }
 }
 
@@ -361,6 +340,11 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkDataArray*& array)
   if (type == VTK_VOID)
   {
     array = nullptr;
+  }
+  else if (type < VTK_VOID || type > VTK_OBJECT)
+  {
+    array = nullptr;
+    vtkErrorWithObjectMacro(nullptr, "Error while receiving array: wrong type: " << type << ".");
   }
   else
   {
@@ -382,6 +366,11 @@ void vtkDIYUtilities::Load(diy::BinaryBuffer& bb, vtkStringArray*& array)
   if (type == VTK_VOID)
   {
     array = nullptr;
+  }
+  else if (type < VTK_VOID || type > VTK_OBJECT)
+  {
+    array = nullptr;
+    vtkErrorWithObjectMacro(nullptr, "Error while receiving array: wrong type: " << type << ".");
   }
   else
   {

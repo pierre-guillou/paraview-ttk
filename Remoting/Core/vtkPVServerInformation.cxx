@@ -16,6 +16,8 @@
 #include <nvpipe.h>
 #endif
 
+#include <algorithm>
+
 // ------------------------
 // NOTE for OGVSupport
 // ------------------------
@@ -76,7 +78,7 @@ vtkPVServerInformation::vtkPVServerInformation()
   this->SMPBackendName = vtkSMPTools::GetBackend() ? vtkSMPTools::GetBackend() : "";
   this->SMPMaxNumberOfThreads = vtkSMPTools::GetEstimatedNumberOfThreads();
 
-#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmFilters && VTK_ENABLE_VTKM_OVERRIDES
+#if VTK_MODULE_ENABLE_VTK_AcceleratorsVTKmFilters && VTK_ENABLE_VISKORES_OVERRIDES
   this->AcceleratedFiltersOverrideAvailable = true;
 #else
   this->AcceleratedFiltersOverrideAvailable = false;
@@ -207,19 +209,10 @@ void vtkPVServerInformation::AddInformation(vtkPVInformation* info)
 
     // IceT either is there or is not.
     this->UseIceT = serverInfo->GetUseIceT();
-    if (this->NumberOfProcesses < serverInfo->NumberOfProcesses)
-    {
-      this->NumberOfProcesses = serverInfo->NumberOfProcesses;
-    }
+    this->NumberOfProcesses = std::max(this->NumberOfProcesses, serverInfo->NumberOfProcesses);
     this->MPIInitialized = serverInfo->MPIInitialized;
-    if (this->MultiClientsEnable < serverInfo->MultiClientsEnable)
-    {
-      this->MultiClientsEnable = serverInfo->MultiClientsEnable;
-    }
-    if (this->ClientId < serverInfo->ClientId)
-    {
-      this->ClientId = serverInfo->ClientId;
-    }
+    this->MultiClientsEnable = std::max(this->MultiClientsEnable, serverInfo->MultiClientsEnable);
+    this->ClientId = std::max(this->ClientId, serverInfo->ClientId);
     this->SMPBackendName = serverInfo->GetSMPBackendName();
     this->SMPMaxNumberOfThreads = serverInfo->GetSMPMaxNumberOfThreads();
     this->SetIdTypeSize(serverInfo->GetIdTypeSize());

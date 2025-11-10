@@ -16,7 +16,7 @@
 #include <sstream>
 #include <vector>
 
-//#define ENCODEASSTRING 1
+// #define ENCODEASSTRING 1
 
 using namespace vtkX3D;
 
@@ -72,6 +72,9 @@ public:
 
   // Get stream info
   std::string GetStringStream(vtkIdType& size);
+
+  // Put bits for line feed.
+  void EncodeLineFeed();
 
 private:
   unsigned char Append(unsigned int value, unsigned char count);
@@ -230,6 +233,23 @@ void vtkX3DExporterFIByteWriter::PutBits(const std::string& bitstring)
   }
 }
 
+//------------------------------------------------------------------------------
+void vtkX3DExporterFIByteWriter::EncodeLineFeed()
+{
+  static bool firstTime = true;
+  this->FillByte();
+  if (firstTime)
+  {
+    this->PutBits("1001000000001010");
+    firstTime = false;
+  }
+  else
+  {
+    // cout << "Encode NOT the first time" << endl;
+    this->PutBits("10100000");
+  }
+}
+
 VTK_ABI_NAMESPACE_END
 #include "vtkX3DExporterFIWriterHelper.h"
 
@@ -265,7 +285,6 @@ void vtkX3DExporterFIWriter::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 int vtkX3DExporterFIWriter::OpenFile(const char* file)
 {
-  std::string t(file);
   this->CloseFile();
 
   // Delegate to vtkX3DExporterFIByteWriter
@@ -348,7 +367,7 @@ void vtkX3DExporterFIWriter::StartNode(int elementID)
     this->CheckNode(false);
     if (this->IsLineFeedEncodingOn)
     {
-      vtkX3DExporterFIWriterHelper::EncodeLineFeed(this->Writer);
+      this->Writer->EncodeLineFeed();
     }
     this->Writer->FillByte();
   }
@@ -366,7 +385,7 @@ void vtkX3DExporterFIWriter::EndNode()
   this->CheckNode(false);
   if (this->IsLineFeedEncodingOn)
   {
-    vtkX3DExporterFIWriterHelper::EncodeLineFeed(this->Writer);
+    this->Writer->EncodeLineFeed();
   }
   if (!this->InfoStack->back().attributesTerminated)
   {

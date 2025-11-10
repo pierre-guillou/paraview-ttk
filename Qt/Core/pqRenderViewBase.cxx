@@ -41,7 +41,6 @@
 #include "pqRenderView.h"
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
-#include "pqSettings.h"
 #include "pqTimer.h"
 
 #include <cassert>
@@ -208,7 +207,7 @@ bool pqRenderViewBase::eventFilter(QObject* caller, QEvent* e)
         if (!actions.isEmpty())
         {
           QMenu* menu = new QMenu(this->widget());
-          menu->setAttribute(Qt::WA_DeleteOnClose);
+          QObject::connect(menu, &QWidget::close, menu, &QObject::deleteLater);
           menu->addActions(actions);
           menu->popup(qobject_cast<QWidget*>(caller)->mapToGlobal(newPos));
         }
@@ -225,7 +224,7 @@ void pqRenderViewBase::beginDelayInteractiveRender()
 {
   vtkSMDoubleVectorProperty* prop = vtkSMDoubleVectorProperty::SafeDownCast(
     this->getProxy()->GetProperty("NonInteractiveRenderDelay"));
-  double value = prop ? static_cast<double>(prop->GetElement(0)) : 0;
+  double value = prop ? prop->GetElement(0) : 0;
   this->Internal->startInteractiveRenderDelay(value);
   this->InteractiveDelayUpdateTimer->start(100);
 }

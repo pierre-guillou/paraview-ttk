@@ -20,7 +20,7 @@
 #include "vtkFiltersFlowPathsModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 #include "vtkSmartPointer.h"      // For vtkSmartPointer
-#include "vtkTemporalAlgorithm.h" // Fro vtkTemporalAlgorithm
+#include "vtkTemporalAlgorithm.h" // For vtkTemporalAlgorithm
 #include "vtkWeakPointer.h"       // For vtkWeakPointer
 
 #include <list>          // STL Header
@@ -45,6 +45,7 @@ class vtkInitialValueProblemSolver;
 class vtkIntArray;
 class vtkMultiBlockDataSet;
 class vtkMultiProcessController;
+class vtkPartitionedDataSet;
 class vtkPointData;
 class vtkPoints;
 class vtkPolyData;
@@ -194,16 +195,16 @@ public:
    * in `vtkAlgorithm::RequestUpdateExtent`.
    */
   VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead");
+    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
   virtual void SetTerminationTime(double) {}
   VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead");
+    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
   virtual double GetTerminationTime() { return std::numeric_limits<double>::quiet_NaN(); }
   VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead");
+    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
   virtual void SetStartTime(double) {}
   VTK_DEPRECATED_IN_9_4_0(
-    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead");
+    "Please edit the TIME_STEPS information key in vtkAlgorithm::RequestInformation() instead")
   virtual double GetStartTime() { return std::numeric_limits<double>::quiet_NaN(); }
   ///@}
 
@@ -211,13 +212,13 @@ public:
   /**
    * @deprecated Caching is now automated.
    */
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated");
+  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
   virtual void SetDisableResetCache(bool) {}
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated");
+  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
   virtual bool GetDisableResetCache() { return false; }
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated");
+  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
   virtual void DisableResetCacheOn() {}
-  VTK_DEPRECATED_IN_9_4_0("Caching is now automated");
+  VTK_DEPRECATED_IN_9_4_0("Caching is now automated")
   virtual void DisableResetCacheOff() {}
   ///@}
 
@@ -230,7 +231,7 @@ public:
   ///@{
   /**
    * if StaticSeeds is set and the mesh is static,
-   * then every time particles are injected we can re-use the same
+   * then every time particles are injected we can reuse the same
    * injection information. We classify particles according to
    * processor just once before start.
    * If StaticSeeds is set and a moving seed source is specified
@@ -579,9 +580,6 @@ protected:
   // The velocity interpolator
   vtkSmartPointer<vtkTemporalInterpolatedVelocityField> Interpolator;
 
-  // Data for time step CurrentTimeStep-1 and CurrentTimeStep
-  vtkSmartPointer<vtkCompositeDataSet> CachedData[2];
-
   // MPI controller needed when running in parallel
   vtkSmartPointer<vtkMultiProcessController> Controller;
 
@@ -639,6 +637,13 @@ protected:
   friend class StreaklineFilterInternal;
 
   static const double Epsilon;
+
+private:
+  // Internal method to initialize CachedData[1] using the provided input
+  void InitializeNextCachedData(vtkDataObject* input);
+
+  // Data for time step CurrentTimeStep-1 and CurrentTimeStep
+  vtkSmartPointer<vtkPartitionedDataSet> CachedData[2];
 };
 
 VTK_ABI_NAMESPACE_END

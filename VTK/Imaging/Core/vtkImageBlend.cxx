@@ -24,6 +24,7 @@ vtkImageBlend::vtkImageBlend()
   this->BlendMode = VTK_IMAGE_BLEND_MODE_NORMAL;
   this->CompoundThreshold = 0.0;
   this->DataWasPassed = 0;
+  this->BlendAlpha = 0;
   this->CompoundAlpha = 0;
 
   // we have the image inputs and the optional stencil input
@@ -238,7 +239,7 @@ int vtkImageBlend::RequestData(
 // This templated function executes the filter for any type of data.
 template <class T>
 void vtkImageBlendExecute(vtkImageBlend* self, int extent[6], vtkImageData* inData, T*,
-  vtkImageData* outData, T*, double opacity, int id)
+  vtkImageData* outData, T*, double opacity, bool blendAlpha, int id)
 {
   double minA, maxA;
 
@@ -283,6 +284,13 @@ void vtkImageBlendExecute(vtkImageBlend* self, int extent[6], vtkImageData* inDa
           outPtr[i + 0] = T(outPtr[i + 0] * fLocal + inPtr[i + 0] * rLocal);
           outPtr[i + 1] = T(outPtr[i + 1] * fLocal + inPtr[i + 1] * rLocal);
           outPtr[i + 2] = T(outPtr[i + 2] * fLocal + inPtr[i + 2] * rLocal);
+          // Moving this 'if' statement outside the loop could potentially improve performance
+          // by checking blendAlpha only once. However, profiling indicates that keeping it
+          // inside the loop does not result in any measurable performance penalty.
+          if (blendAlpha)
+          {
+            outPtr[i + 3] = T(outPtr[i + 3] * fLocal + inPtr[i + 3] * rLocal);
+          }
         }
         inPtr += inC * (steps / 4);
       }
@@ -389,7 +397,7 @@ void vtkImageBlendExecute(vtkImageBlend* self, int extent[6], vtkImageData* inDa
 // This templated function executes the filter specifically for char data
 template <class T>
 void vtkImageBlendExecuteChar(vtkImageBlend* self, int extent[6], vtkImageData* inData, T*,
-  vtkImageData* outData, T*, double opacity, int id)
+  vtkImageData* outData, T*, double opacity, bool blendAlpha, int id)
 {
   // round opacity to a value in the range [0,256], because division
   // by 256 can be efficiently achieved by bit-shifting by 8 bits
@@ -430,6 +438,14 @@ void vtkImageBlendExecuteChar(vtkImageBlend* self, int extent[6], vtkImageData* 
           outPtr[i + 0] = (v0 + (v0 >> 8) + (v0 >> 16) + 1) >> 16;
           outPtr[i + 1] = (v1 + (v1 >> 8) + (v1 >> 16) + 1) >> 16;
           outPtr[i + 2] = (v2 + (v2 >> 8) + (v2 >> 16) + 1) >> 16;
+          // Moving this 'if' statement outside the loop could potentially improve performance
+          // by checking blendAlpha only once. However, profiling indicates that keeping it
+          // inside the loop does not result in any measurable performance penalty.
+          if (blendAlpha)
+          {
+            int v3 = outPtr[i + 3] * fLocal + inPtr[i + 3] * rLocal;
+            outPtr[i + 3] = (v3 + (v3 >> 8) + (v3 >> 16) + 1) >> 16;
+          }
         }
         inPtr += inC * (steps / 4);
       }
@@ -616,8 +632,8 @@ void vtkImageBlendCompoundExecute(vtkImageBlend* self, int extent[6], vtkImageDa
   }
   else
   {
-    minA = static_cast<double>(inData->GetScalarTypeMin());
-    maxA = static_cast<double>(inData->GetScalarTypeMax());
+    minA = inData->GetScalarTypeMin();
+    maxA = inData->GetScalarTypeMax();
   }
 
   r = opacity;
@@ -798,8 +814,8 @@ void vtkImageBlendCompoundTransferExecute(vtkImageBlend* self, int extent[6], vt
   }
   else
   {
-    minA = static_cast<double>(outData->GetScalarTypeMin());
-    maxA = static_cast<double>(outData->GetScalarTypeMax());
+    minA = outData->GetScalarTypeMin();
+    maxA = outData->GetScalarTypeMax();
   }
 
   double* tmpPtr = tmpIter.BeginSpan();
@@ -932,7 +948,7 @@ void vtkImageBlend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
       tmpData->SetExtent(outExt);
       tmpData->AllocateScalars(
         VTK_DOUBLE, (outData[0]->GetNumberOfScalarComponents() >= 3 ? 3 : 1) + 1);
-      memset(static_cast<void*>(tmpData->GetScalarPointer()), 0,
+      memset(tmpData->GetScalarPointer(), 0,
         (outExt[1] - outExt[0] + 1) * (outExt[3] - outExt[2] + 1) * (outExt[5] - outExt[4] + 1) *
           tmpData->GetNumberOfScalarComponents() * tmpData->GetScalarSize());
 
@@ -944,7 +960,7 @@ void vtkImageBlend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
       }
       alphaWeightSum->SetExtent(outExt);
       alphaWeightSum->AllocateScalars(VTK_DOUBLE, 1);
-      memset(static_cast<void*>(alphaWeightSum->GetScalarPointer()), 0,
+      memset(alphaWeightSum->GetScalarPointer(), 0,
         (outExt[1] - outExt[0] + 1) * (outExt[3] - outExt[2] + 1) * (outExt[5] - outExt[4] + 1) *
           1 * alphaWeightSum->GetScalarSize());
       break;
@@ -1016,7 +1032,7 @@ void vtkImageBlend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
           {
             vtkImageBlendExecuteChar(this, extent, inData[0][idx1],
               static_cast<unsigned char*>(inPtr), outData[0], static_cast<unsigned char*>(outPtr),
-              opacity, id);
+              opacity, this->BlendAlpha, id);
           }
           else
           {
@@ -1024,7 +1040,7 @@ void vtkImageBlend::ThreadedRequestData(vtkInformation* vtkNotUsed(request),
             {
               vtkTemplateMacro(
                 vtkImageBlendExecute(this, extent, inData[0][idx1], static_cast<VTK_TT*>(inPtr),
-                  outData[0], static_cast<VTK_TT*>(outPtr), opacity, id));
+                  outData[0], static_cast<VTK_TT*>(outPtr), opacity, this->BlendAlpha, id));
               default:
                 vtkErrorMacro(<< "Execute: Unknown ScalarType");
                 return;
@@ -1086,6 +1102,8 @@ void vtkImageBlend::PrintSelf(ostream& os, vtkIndent indent)
   }
   os << indent << "Stencil: " << this->GetStencil() << endl;
   os << indent << "BlendMode: " << this->GetBlendModeAsString() << endl
+     << indent << "BlendAlpha: " << this->BlendAlpha << endl
+     << indent << "CompoundAlpha: " << this->CompoundAlpha << endl
      << indent << "CompoundThreshold: " << this->CompoundThreshold << endl;
 }
 

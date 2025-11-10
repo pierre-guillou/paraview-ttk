@@ -8,6 +8,7 @@
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkPVCameraAnimationCue.h"
+#include "vtkPVGeneralSettings.h"
 #include "vtkPVLogger.h"
 #include "vtkSMProperty.h"
 #include "vtkSMPropertyHelper.h"
@@ -24,17 +25,16 @@
 #include <cassert>
 #include <vector>
 
-bool vtkSMAnimationScene::GlobalUseGeometryCache;
 //----------------------------------------------------------------------------
 void vtkSMAnimationScene::SetGlobalUseGeometryCache(bool val)
 {
-  vtkSMAnimationScene::GlobalUseGeometryCache = val;
+  vtkPVGeneralSettings::GetInstance()->SetCacheGeometryForAnimation(val);
 }
 
 //----------------------------------------------------------------------------
 bool vtkSMAnimationScene::GetGlobalUseGeometryCache()
 {
-  return vtkSMAnimationScene::GlobalUseGeometryCache;
+  return vtkPVGeneralSettings::GetInstance()->GetCacheGeometryForAnimation();
 }
 
 //----------------------------------------------------------------------------
@@ -454,8 +454,8 @@ void vtkSMAnimationScene::TickInternal(double currenttime, double deltatime, dou
   // logic in them to periodically check and synchronize the "fullness" of cache
   // among all participating processes. So we don't have to manage that here at
   // all.
-  bool caching_enabled =
-    (!this->ForceDisableCaching) && vtkSMAnimationScene::GlobalUseGeometryCache;
+  bool caching_enabled = (!this->ForceDisableCaching) &&
+    vtkPVGeneralSettings::GetInstance()->GetCacheGeometryForAnimation();
   if (caching_enabled)
   {
     this->Internals->PassUseCache(true);
@@ -485,8 +485,6 @@ void vtkSMAnimationScene::TickInternal(double currenttime, double deltatime, dou
     vtkTickOnPythonCue(
       this->StartTime, this->EndTime, currenttime, deltatime, clocktime, this->Direction));
 
-  this->Internals->UpdateAllViews();
-
   std::for_each(cues.begin(), cues.end(),
     vtkTickOnCameraCue(this->StartTime, this->EndTime, currenttime, deltatime, clocktime,
       this->Direction, this->TimeKeeper));
@@ -503,6 +501,8 @@ void vtkSMAnimationScene::TickInternal(double currenttime, double deltatime, dou
   {
     this->Internals->PassUseCache(false);
   }
+
+  this->Internals->UpdateAllViews();
 }
 
 //----------------------------------------------------------------------------
@@ -596,4 +596,10 @@ void vtkSMAnimationScene::SetFramesPerTimestep(int val)
 void vtkSMAnimationScene::SetStride(int val)
 {
   this->AnimationPlayer->SetStride(val);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMAnimationScene::GetInPlay()
+{
+  return this->AnimationPlayer->GetInPlay();
 }

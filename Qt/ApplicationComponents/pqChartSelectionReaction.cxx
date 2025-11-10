@@ -49,10 +49,12 @@ pqChartSelectionReaction::pqChartSelectionReaction(
 }
 
 //-----------------------------------------------------------------------------
+namespace
+{
 inline void setChartParameters(pqContextView* view, int selectionType, bool update_type,
   int selectionModifier, bool update_modifier)
 {
-  if (view == nullptr && !view->supportsSelection() && view->getContextViewProxy() == nullptr)
+  if (view != nullptr && !view->supportsSelection() && view->getContextViewProxy() == nullptr)
   {
     return;
   }
@@ -85,6 +87,7 @@ inline void setChartParameters(pqContextView* view, int selectionType, bool upda
       chart->SetSelectionMode(selectionModifier);
     }
   }
+}
 }
 
 //-----------------------------------------------------------------------------

@@ -74,7 +74,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_POLY_DATA; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_POLY_DATA; }
 
   /**
    * Copy the geometric and topological structure of an input poly data object.
@@ -155,11 +155,14 @@ public:
    */
   int GetMaxCellSize() override;
 
+  ///@{
   /**
-   * Get the maximum spatial dimensionality of the data
-   * which is the maximum dimension of all cells.
+   * Get the maximum/minimum spatial dimensionality of the data
+   * which is the maximum/minimum  dimension of all cells.
    */
   int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
+  ///@}
 
   /**
    * Maps the cell at position `cellId` inside the `vtkPolyData` to its location in the
@@ -673,7 +676,7 @@ public:
    * track the changes on the mesh separately from the data arrays
    * (eg. static mesh over time with transient data).
    */
-  virtual vtkMTimeType GetMeshMTime();
+  vtkMTimeType GetMeshMTime() override;
 
   /**
    * Get MTime which also considers its cell array MTime.

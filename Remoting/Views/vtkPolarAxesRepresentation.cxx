@@ -314,6 +314,7 @@ int vtkPolarAxesRepresentation::RequestData(
   {
     vtkDataObject* input = vtkDataObject::GetData(inputVector[0], 0);
     this->InitializeDataBoundsFromData(input);
+    this->UpdateBounds();
   }
 
   if (vtkMath::AreBoundsInitialized(this->DataBounds))
@@ -350,14 +351,21 @@ void vtkPolarAxesRepresentation::InitializeDataBoundsFromData(vtkDataObject* dat
     for (iter->InitTraversal(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
     {
       ds = vtkDataSet::SafeDownCast(iter->GetCurrentDataObject());
+      htg = vtkHyperTreeGrid::SafeDownCast(iter->GetCurrentDataObject());
+
+      double bds[6];
       if (ds)
       {
-        double bds[6];
         ds->GetBounds(bds);
-        if (vtkMath::AreBoundsInitialized(bds))
-        {
-          bbox.AddBounds(bds);
-        }
+      }
+      else if (htg)
+      {
+        htg->GetBounds(bds);
+      }
+
+      if (vtkMath::AreBoundsInitialized(bds))
+      {
+        bbox.AddBounds(bds);
       }
     }
     iter->Delete();
@@ -430,7 +438,7 @@ void vtkPolarAxesRepresentation::UpdateBounds()
   this->EnableCustomMinRadius = this->EnableCustomRadius;
 
   double pole[3] = { 0.0, 0.0, 0.0 };
-  double center[2] = { (bds[0] + bds[1]) * 0.5, (bds[2] + bds[3]) * 0.5 };
+  double center[3] = { (bds[0] + bds[1]) * 0.5, (bds[2] + bds[3]) * 0.5, (bds[4] + bds[5]) * 0.5 };
   double maxRadius = this->EnableCustomMaxRadius ? this->MaxRadius : 0.0;
   double minRadius = this->EnableCustomMinRadius ? this->MinRadius : 0.0;
   double minAngle = EnableCustomAngle ? this->MinAngle : 0.0;

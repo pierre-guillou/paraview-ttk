@@ -76,7 +76,7 @@ class TestThreshold(vtkmodules.test.Testing.vtkTest):
                     act[k].SetMapper(map[k])
 
                     ren.append(vtkRenderer())
-                    ren[k].AddActor2D(act[k])
+                    ren[k].AddViewProp(act[k])
 
                     renWin.AddRenderer(ren[k])
 
@@ -102,7 +102,7 @@ class TestThreshold(vtkmodules.test.Testing.vtkTest):
         renWin.Render()
 
         img_file = "TestThreshold.png"
-        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file), threshold=25)
+        vtkmodules.test.Testing.compareImage(iRen.GetRenderWindow(), vtkmodules.test.Testing.getAbsImagePath(img_file))
         vtkmodules.test.Testing.interact()
 
 if __name__ == "__main__":

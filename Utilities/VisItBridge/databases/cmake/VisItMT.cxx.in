@@ -74,7 +74,7 @@ int @_add_visit_reader_plugin_name@::CanReadFile(const char *fname)
     {
     valid = @_add_visit_reader_plugin_name@@_add_visit_reader_VISIT_INTERFACE_FILE@::@_add_visit_reader_VISIT_INTERFACE_CALL@;
     }
-  catch(...){}
+  catch(...){} // NOLINT(bugprone-empty-catch)
   return valid;
 }
 #endif
@@ -82,7 +82,13 @@ int @_add_visit_reader_plugin_name@::CanReadFile(const char *fname)
 //-----------------------------------------------------------------------------
 bool @_add_visit_reader_plugin_name@::InitializeAVTReader(  const int& timestep  )
 {
- if (!this->MetaData)
+  if (this->MetaDataSource != this->FileName)
+  {
+    this->CleanupAVTReader();
+    this->MetaDataSource = this->FileName;
+  }
+
+  if (!this->MetaData)
     {
     this->MetaData = new avtDatabaseMetaData( );
     }

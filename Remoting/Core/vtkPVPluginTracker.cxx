@@ -48,6 +48,8 @@ public:
   bool AutoLoad = false;
   bool DelayedLoad = false;
   std::vector<std::string> XMLs;
+  std::string Version;
+  std::string Description;
 };
 
 /**
@@ -71,18 +73,6 @@ static VectorOfSearchFunctions RegisteredPluginSearchFunctions;
 
 using VectorOfListFunctions = std::vector<vtkPluginListFunction>;
 static VectorOfListFunctions RegisteredPluginListFunctions;
-
-std::vector<std::string> tokenize(const std::string& input, char delimiter)
-{
-  std::vector<std::string> tokens;
-  std::stringstream ss(input);
-  std::string item;
-  while (std::getline(ss, item, delimiter))
-  {
-    tokens.push_back(std::move(item));
-  }
-  return tokens;
-}
 
 /**
  * Locate a plugin library or a config file anchored at standard locations
@@ -197,6 +187,11 @@ class vtkPVPluginTracker::vtkPluginsList : public std::vector<vtkItem>
 public:
   iterator LocateUsingPluginName(const char* pluginname)
   {
+    if (!pluginname)
+    {
+      return this->end();
+    }
+
     for (iterator iter = this->begin(); iter != this->end(); ++iter)
     {
       if (iter->PluginName == pluginname)
@@ -209,6 +204,11 @@ public:
 
   iterator LocateUsingFileName(const char* filename)
   {
+    if (!filename)
+    {
+      return this->end();
+    }
+
     for (iterator iter = this->begin(); iter != this->end(); ++iter)
     {
       if (iter->FileName == filename)
@@ -475,51 +475,100 @@ void vtkPVPluginTracker::LoadPluginConfigurationXMLHinted(
         continue;
       }
       vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(), "found `%s`", plugin_filename.c_str());
-      unsigned int index = this->RegisterAvailablePlugin(plugin_filename.c_str());
 
-      // It is a delayed load plugin, recover the XMLs if provided
+      std::string version;
+      std::string description;
       std::vector<std::string> xmls;
-      if (delayedLoad)
-      {
-        for (unsigned int cd = 0; cd < child->GetNumberOfNestedElements(); cd++)
-        {
-          vtkPVXMLElement* xmlChild = child->GetNestedElement(cd);
-          if (strcmp(xmlChild->GetName(), "XML") != 0)
-          {
-            vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
-              "XML child elements are expected to be named XML, but one is named instead: `%s`, "
-              "skipping element",
-              xmlChild->GetName());
-            continue;
-          }
-          if (!xmlChild->GetAttribute("filename"))
-          {
-            vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
-              "XML child elements are expected to contain a filename attribute, skipping "
-              "element");
-            continue;
-          }
-          std::string xmlFilename = xmlChild->GetAttribute("filename");
-          if (hint && !vtksys::SystemTools::FileIsFullPath(xmlFilename))
-          {
-            std::string basedir =
-              vtksys::SystemTools::CollapseFullPath(vtksys::SystemTools::GetFilenamePath(hint));
-            xmlFilename = vtksys::SystemTools::CollapseFullPath(xmlFilename, basedir);
 
-            // Ensure the path is under the base directory given.
-            if (!vtksys::SystemTools::IsSubDirectory(xmlFilename, basedir))
+      // Check if plugin is already known
+      vtkPluginsList::iterator iter =
+        this->PluginsList->LocateUsingFileName(plugin_filename.c_str());
+      bool isPluginLoaded = false;
+      if (iter == this->PluginsList->end())
+      {
+        iter = this->PluginsList->LocateUsingPluginName(name.c_str());
+      }
+      if (iter == this->PluginsList->end())
+      {
+        // New plugin, add an entry
+        vtkItem item;
+        item.FileName = plugin_filename;
+        item.PluginName = name;
+
+        // Recover version and description if available
+        if (child->GetAttribute("version"))
+        {
+          version = child->GetAttribute("version");
+        }
+        if (child->GetAttribute("description"))
+        {
+          description = child->GetAttribute("description");
+        }
+        item.Version = version;
+        item.Description = description;
+        item.AutoLoad = autoLoad;
+        item.DelayedLoad = delayedLoad;
+
+        // It is a delayed load plugin, recover the XMLs if provided
+        // We could consider always recovering them when available
+        if (delayedLoad)
+        {
+          for (unsigned int cd = 0; cd < child->GetNumberOfNestedElements(); cd++)
+          {
+            vtkPVXMLElement* xmlChild = child->GetNestedElement(cd);
+            if (strcmp(xmlChild->GetName(), "XML") != 0)
             {
               vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
-                "Invalid `filename=` attribute for %s; must be underneath the XML directory.",
-                name.c_str());
+                "XML child elements are expected to be named XML, but one is named instead: `%s`, "
+                "skipping element",
+                xmlChild->GetName());
               continue;
             }
+            if (!xmlChild->GetAttribute("filename"))
+            {
+              vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+                "XML child elements are expected to contain a filename attribute, skipping "
+                "element");
+              continue;
+            }
+            std::string xmlFilename = xmlChild->GetAttribute("filename");
+            if (hint && !vtksys::SystemTools::FileIsFullPath(xmlFilename))
+            {
+              std::string basedir =
+                vtksys::SystemTools::CollapseFullPath(vtksys::SystemTools::GetFilenamePath(hint));
+              xmlFilename = vtksys::SystemTools::CollapseFullPath(xmlFilename, basedir);
+
+              // Ensure the path is under the base directory given.
+              if (!vtksys::SystemTools::IsSubDirectory(xmlFilename, basedir))
+              {
+                vtkVLogF(PARAVIEW_LOG_PLUGIN_VERBOSITY(),
+                  "Invalid `filename=` attribute for %s; must be underneath the XML directory.",
+                  name.c_str());
+                continue;
+              }
+            }
+            xmls.push_back(xmlFilename);
           }
-          xmls.push_back(xmlFilename);
         }
+        item.XMLs = xmls;
+        this->PluginsList->push_back(item);
+        this->InvokeEvent(vtkPVPluginTracker::RegisterAvailablePluginEvent);
+      }
+      else
+      {
+        // Merge modifiable booleans
+        iter->AutoLoad = iter->AutoLoad | autoLoad;
+
+        // Recover needed info for loading
+        version = iter->Version;
+        description = iter->Description;
+        xmls = iter->XMLs;
+
+        // Check if the plugin already loaded
+        isPluginLoaded = iter->Plugin != nullptr;
       }
 
-      if ((autoLoad || forceLoad) && !this->GetPluginLoaded(index))
+      if ((autoLoad || forceLoad) && !isPluginLoaded)
       {
         // load the plugin.
         vtkNew<vtkPVPluginLoader> loader;
@@ -532,7 +581,7 @@ void vtkPVPluginTracker::LoadPluginConfigurationXMLHinted(
           }
           else
           {
-            loader->LoadDelayedLoadPlugin(name, xmls, plugin_filename);
+            loader->LoadDelayedLoadPlugin(name, xmls, plugin_filename, version, description);
           }
         }
         else
@@ -540,9 +589,6 @@ void vtkPVPluginTracker::LoadPluginConfigurationXMLHinted(
           loader->LoadPlugin(plugin_filename.c_str());
         }
       }
-      (*this->PluginsList)[index].AutoLoad = autoLoad;
-      (*this->PluginsList)[index].DelayedLoad = delayedLoad;
-      (*this->PluginsList)[index].XMLs = xmls;
     }
   }
 }
@@ -586,7 +632,11 @@ void vtkPVPluginTracker::RegisterPlugin(vtkPVPlugin* plugin)
 {
   assert(plugin != nullptr);
 
-  vtkPluginsList::iterator iter = this->PluginsList->LocateUsingPluginName(plugin->GetPluginName());
+  vtkPluginsList::iterator iter = this->PluginsList->LocateUsingFileName(plugin->GetFileName());
+  if (iter == this->PluginsList->end())
+  {
+    iter = this->PluginsList->LocateUsingPluginName(plugin->GetPluginName());
+  }
   if (iter == this->PluginsList->end())
   {
     vtkItem item;
@@ -727,6 +777,28 @@ std::vector<std::string> vtkPVPluginTracker::GetPluginXMLs(unsigned int index)
     return {};
   }
   return (*this->PluginsList)[index].XMLs;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkPVPluginTracker::GetPluginVersion(unsigned int index)
+{
+  if (index >= this->GetNumberOfPlugins())
+  {
+    vtkWarningMacro("Invalid index: " << index);
+    return "";
+  }
+  return (*this->PluginsList)[index].Version;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkPVPluginTracker::GetPluginDescription(unsigned int index)
+{
+  if (index >= this->GetNumberOfPlugins())
+  {
+    vtkWarningMacro("Invalid index: " << index);
+    return "";
+  }
+  return (*this->PluginsList)[index].Description;
 }
 
 //-----------------------------------------------------------------------------

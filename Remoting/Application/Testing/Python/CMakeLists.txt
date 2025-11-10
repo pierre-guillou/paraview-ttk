@@ -10,7 +10,6 @@ endif ()
 vtk_module_test_data(
   "${paraview_test_data_directory_input}/Data/StateWithHiddenRepresentations.pvsm")
 
-
 # Add python script names here.
 set(PY_TESTS
   Animation.py
@@ -28,26 +27,41 @@ set(PY_TESTS
   GenerateIdScalarsBackwardsCompatibility.py,NO_VALID
   GetActiveCamera.py,NO_VALID
   GhostCellsInMergeBlocks.py
+  HTGCellCentersBackwardsCompatibilityTest.py,NO_VALID
+  HTGFeatureEdgesBackwardsCompatibilityTest.py,NO_VALID
+  HTGGhostCellsGeneratorBackwardsCompatibilityTest.py,NO_VALID
+  HTGReflectionFilterBackwardsCompatibilityTest.py,NO_VALID
+  HTGVisibleLeavesSizeBackwardsCompatibilityTest.py,NO_VALID
   IntegrateAttributes.py,NO_VALID
   LocatorNonMergingBackwardsCompatibilityTest.py,NO_VALID
   LookupTable.py,NO_VALID
   MultiServer.py,NO_VALID
+  PlotOverLineLeaks.py,NO_VALID
   PointGaussianProperties.py
+  ProcessIdScalarsBackwardsCompatibilityTest.py,NO_VALID
   ProgrammableFilterProperties.py,NO_VALID
   ProgrammableFilter.py,NO_VALID
   ProxyManager.py,NO_VALID
   ProxyPropertyLinks.py
   PythonVersion.py,NO_VALID
   PythonAnimationTrack.py
+  PythonInfoModule.py,NO_VALID
   PythonProgrammableFilterParameters.py,NO_VALID
   PythonPVSimpleCone.py
   PythonPVSimpleExII.py
   PythonPVSimpleSphere.py
   PythonSMTraceTest1.py
   PythonSMTraceTest2.py,NO_VALID
+  PythonSMTraceTest4.py,NO_VALID
+  PythonSMTraceTest5.py,NO_VALID
+  PythonSMTraceTest6.py,NO_VALID
+  PythonSMTraceTest7.py,NO_VALID
+  PythonSMScopedTrace.py,NO_VALID
+  PythonDecorators.py,NO_VALID
   PythonTestBenchmark.py,NO_VALID
   ReaderReload.py,NO_VALID
   RecolorableImageExtractor.py
+  ReflectBackwardsCompatibilityTest.py,NO_VALID
   RepresentationTypeHint.py,NO_VALID
   SaveAnimation.py
   SaveScreenshot.py,NO_VALID
@@ -77,6 +91,12 @@ if (NOT BUILD_SHARED_LIBS)
   list(APPEND PY_TESTS
     ZIPImport.py,NO_VALID)
 endif()
+
+if (VTK_MODULE_ENABLE_VTK_IOAvmesh)
+  list(APPEND PY_TESTS AvmeshReader.py,NO_VALID)
+  vtk_module_test_data(
+    Data/vwing_hexle.avm)
+endif ()
 
 set(SMSTATE_FILE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(ParaView::RemotingApplication_ARGS
@@ -210,7 +230,6 @@ if (PARAVIEW_USE_MPI AND MPIEXEC_EXECUTABLE AND NOT WIN32)
     --symmetric)
   paraview_add_test_pvbatch_mpi(
     NO_DATA NO_OUTPUT NO_VALID
-    TestCleanArrays.py
     TestMPI4PY.py
     ParallelPythonImport.py
     )
@@ -309,6 +328,14 @@ if (NOT PARAVIEW_SERIAL_TESTS_USE_MPIEXEC)
            --
            -m paraview.tests.proxy_deprecation
     TEST_NAME "proxy_deprecation")
+
+  paraview_add_test(
+          PREFIX "ParaView::RemotingApplicationPython::Module::pvpython::paraview.tests"
+          ARGS   "$<TARGET_FILE:ParaView::pvpython>"
+          --dr
+          --
+          -m paraview.tests.fetch_composite
+          TEST_NAME "fetch_composite")
 
 endif()
 

@@ -15,23 +15,25 @@ more user friendly API.
 
 A simple example::
 
-  from paraview.servermanager import *
+.. code:: python
 
-  # Creates a new built-in session and makes it the active session.
-  Connect()
+    from paraview.servermanager import *
 
-  # Creates a new render view on the active session.
-  renModule = CreateRenderView()
+    # Creates a new built-in session and makes it the active session.
+    Connect()
 
-  # Create a new sphere proxy on the active session and register it
-  # in the sources group.
-  sphere = sources.SphereSource(registrationGroup="sources", ThetaResolution=16, PhiResolution=32)
+    # Creates a new render view on the active session.
+    renModule = CreateRenderView()
 
-  # Create a representation for the sphere proxy and adds it to the render
-  # module.
-  display = CreateRepresentation(sphere, renModule)
+    # Create a new sphere proxy on the active session and register it
+    # in the sources group.
+    sphere = sources.SphereSource(registrationGroup="sources", ThetaResolution=16, PhiResolution=32)
 
-  renModule.StillRender()
+    # Create a representation for the sphere proxy and adds it to the render
+    # module.
+    display = CreateRepresentation(sphere, renModule)
+
+    renModule.StillRender()
 
 """
 from __future__ import print_function
@@ -39,8 +41,9 @@ import paraview, re, os, os.path, types, sys
 
 # prefer `vtk` from `paraview` since it doesn't import all
 # vtk modules.
-from paraview import vtk
+from paraview import vtk, print_warning
 from paraview import _backwardscompatibilityhelper as _bc
+from paraview.util import proxy as proxy_util
 
 from paraview.modules.vtkPVVTKExtensionsCore import *
 from paraview.modules.vtkRemotingCore import *
@@ -260,6 +263,9 @@ class Proxy(object):
         self.add_attribute('_Proxy__LastAttrName', None)
         self.add_attribute('SMProxy', None)
         self.add_attribute('IgnoreUnknownSetRequests', False)
+        self.add_attribute('pxm', ProxyManager())
+        self.add_attribute('_prev_active', None)
+
         if 'port' in args:
             self.add_attribute('Port', args['port'])
             del args['port']
@@ -277,6 +283,7 @@ class Proxy(object):
             del args['proxy']
         else:
             self.Initialize(None, update)
+
         if 'registrationGroup' in args:
             registrationGroup = args['registrationGroup']
             del args['registrationGroup']
@@ -284,12 +291,13 @@ class Proxy(object):
             if 'registrationName' in args:
                 registrationName = args['registrationName']
                 del args['registrationName']
-            pxm = ProxyManager()
-            pxm.RegisterProxy(registrationGroup, registrationName, self.SMProxy)
+            self.pxm.RegisterProxy(registrationGroup, registrationName, self.SMProxy)
+
         if update:
             self.UpdateVTKObjects()
-        for key in args.keys():
-            setattr(self, key, args[key])
+
+        proxy_util.set(self, **args)
+
         # Visit all properties so that they are created
         for prop in self:
             pass
@@ -413,6 +421,22 @@ class Proxy(object):
                 property_list.append(name)
         return property_list
 
+    def Set(self, **properties):
+        """Update a set of properties using a keyword argument notation"""
+        available_props = set(self.ListProperties())
+        props_to_set = set(properties.keys())
+        if props_to_set <= available_props:
+            proxy_util.set(self, **properties)
+        else:
+            valid_props = {}
+            for k, v in properties.items():
+                if k not in available_props:
+                    print_warning(f"Property \"{k}={v}\" is not available on {self.GetXMLLabel()}")
+                else:
+                    valid_props[k] = v
+
+            proxy_util.set(self, **valid_props)
+
     def __ConvertArgumentsAndCall(self, *args):
         """ Internal function.
         Used to call a function on SMProxy. Converts input and
@@ -436,7 +460,7 @@ class Proxy(object):
     def __GetActiveCamera(self):
         """ This method handles GetActiveCamera specially.
             We return a decorated vtkCamera object so that whenever
-            the Camera is directly modified using Python API,
+            the Camera is directly modified using the Python API,
             we ensure that the Camera properties on the corresponding
             view proxy are synchronized with the underlying vtkCamera.
         """
@@ -532,6 +556,122 @@ class Proxy(object):
             pass
         return getattr(self.SMProxy, name)
 
+    @property
+    def _active_model(self):
+        model_name = None
+        # /!\ vtkSMRepresentationProxy are vtkSMSourceProxy
+        if self.IsA("vtkSMRepresentationProxy"):
+            pass # no active group for representation
+        elif self.IsA("vtkSMSourceProxy"):
+            model_name = "ActiveSources"
+        elif self.GetXMLGroup() == "views":
+            model_name = "ActiveView"
+
+        if model_name:
+            return self.pxm._get_active_model(model_name)
+
+        return None
+
+    def __enter__(self):
+        """Activate proxy if possible"""
+        active_model = self._active_model
+        if active_model:
+            self._prev_active = active_model.GetCurrentProxy()
+            active_model.SetCurrentProxy(self.SMProxy, active_model.CLEAR_AND_SELECT)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Revert previously activated proxy"""
+        active_model = self._active_model
+        if active_model:
+            active_model.SetCurrentProxy(self._prev_active, active_model.CLEAR_AND_SELECT)
+        self._prev_active = None
+
+def _extract_array_info(array):
+    name = array.GetName()
+    type = array.GetDataType() # need to convert that to a string
+    components = array.GetNumberOfComponents()
+    ranges = []
+    for c_idx in range(components):
+        data_range = array.GetRange(c_idx)
+        default_name = f"component_{c_idx}" if components > 1 else "scalar"
+        range_name = array.GetComponentName(c_idx) or default_name
+        ranges.append({
+            "name": range_name,
+            "min": data_range[0],
+            "max": data_range[1],
+        })
+        if components > 1:
+            data_range = array.GetRange(-1)
+            ranges.append({
+                "name": "Magnitude",
+                "min": data_range[0],
+                "max": data_range[1],
+            })
+    return name, dict(name=name, type=type, components=components, ranges=ranges)
+
+def _field_data_to_str(fields_info, indent=3):
+    lines = [""]
+    for k, v in fields_info.items():
+        lines.append(f"{' '*indent}{k}: type({v.get('type')}) - tuple({v.get('components')})")
+        for r in v.get("ranges"):
+            lines.append(f"{' '*(indent+3)}{r.get('name')}: [{r.get('min')}, {r.get('max')}]")
+
+    return '\n'.join(lines)
+
+class SourceInformation:
+    def __init__(self, source_proxy):
+        data_info = source_proxy.GetDataInformation()
+
+        self.bounds = data_info.DataInformation.GetBounds()
+        self.number_of_points = data_info.DataInformation.GetNumberOfPoints()
+        self.number_of_cells = data_info.DataInformation.GetNumberOfCells()
+        self.data_type = data_info.DataInformation.GetPrettyDataTypeString()
+        self.memory = data_info.DataInformation.GetMemorySize()
+
+        # points
+        self.point_data = {}
+        pd_info = source_proxy.GetPointDataInformation()
+        nb_arrays = pd_info.GetNumberOfArrays()
+        for array_idx in range(nb_arrays):
+            array_info = pd_info.GetArray(array_idx)
+            k, v = _extract_array_info(array_info)
+            self.point_data[k] = v
+
+        # cells
+        self.cell_data = {}
+        cd_info = source_proxy.GetCellDataInformation()
+        nb_arrays = cd_info.GetNumberOfArrays()
+        for array_idx in range(nb_arrays):
+            array_info = cd_info.GetArray(array_idx)
+            k, v = _extract_array_info(array_info)
+            self.cell_data[k] = v
+
+        # fields
+        self.field_data = {}
+        fd_info = source_proxy.GetFieldDataInformation()
+        nb_arrays = fd_info.GetNumberOfArrays()
+        for array_idx in range(nb_arrays):
+            array_info = fd_info.GetArray(array_idx)
+            k, v = _extract_array_info(array_info)
+            self.field_data[k] = v
+
+    def __repr__(self):
+        return f"""Data Information:
+  - bounds: [
+     {self.bounds[0]}, {self.bounds[1]},
+     {self.bounds[2]}, {self.bounds[3]},
+     {self.bounds[4]}, {self.bounds[5]},
+    ]
+  - number_of_points: {self.number_of_points}
+  - number_of_cells: {self.number_of_cells}
+  - data_type: {self.data_type}
+  - memory: {self.memory}
+  - point_data:{_field_data_to_str(self.point_data, 7)}
+  - cell_data:{_field_data_to_str(self.cell_data, 7)}
+  - field_data:{_field_data_to_str(self.field_data, 7)}
+        """
+
 
 class SourceProxy(Proxy):
     """Proxy for a source object. This class adds a few methods to Proxy
@@ -541,6 +681,10 @@ class SourceProxy(Proxy):
     or
     > op = source['some name'].
     """
+
+    def Rename(self, new_name):
+        """Rename proxy in GUI"""
+        proxy_util.rename(self, "sources", new_name)
 
     def UpdatePipeline(self, time=None):
         """This method updates the server-side VTK pipeline and the associated
@@ -605,9 +749,13 @@ class SourceProxy(Proxy):
         self.UpdatePipeline()
         return FieldDataInformation(self.SMProxy, self.Port, "FieldData")
 
+    def GetInformation(self):
+        return SourceInformation(self)
+
     PointData = property(GetPointDataInformation, None, None, "Returns point data information")
     CellData = property(GetCellDataInformation, None, None, "Returns cell data information")
     FieldData = property(GetFieldDataInformation, None, None, "Returns field data information")
+    Information = property(GetInformation, None, None, "Returns a data information summary")
 
 
 class ExodusIIReaderProxy(SourceProxy):
@@ -645,6 +793,160 @@ class MultiplexerSourceProxy(SourceProxy):
         for key, val in cdict.items():
             self.add_attribute(key, val)
 
+
+class RepresentationProxy(SourceProxy):
+    """Proxy for a representation object. This class adds a few methods to Proxy
+    that are specific to representations (ColorBy, ColorBlocksBy).
+    """
+    def GetView(self):
+        for view in self.pxm.GetProxiesInGroup("views").values():
+            try:
+                if self in view.Representations:
+                    return view
+            except AttributeError:
+                continue
+
+        return None
+
+    def ColorBy(self, value=None, separate=False):
+        """Set data array to color a representation by. This will automatically set
+        up the color maps and others necessary state for the representations.
+
+        :param value: Name of the array to color by.
+        :type value: str
+        :param separate: Set to `True` to create a color map unique to this
+            representation. Optional, defaults to the global color map ParaView uses
+            for any object colored by an array of the same name.
+        :type separate: bool"""
+
+        self.UseSeparateColorMap = separate
+        association = self.ColorArrayName.GetAssociation()
+        arrayname = self.ColorArrayName.GetArrayName()
+        component = None
+        if value == None:
+            self.SetScalarColoring(None, GetAssociationFromString(association))
+            return
+        if not isinstance(value, tuple) and not isinstance(value, list):
+            value = (value,)
+        if len(value) == 1:
+            arrayname = value[0]
+        elif len(value) >= 2:
+            association = value[0]
+            arrayname = value[1]
+        if len(value) == 3:
+            # component name provided
+            componentName = value[2]
+            if componentName == "Magnitude":
+                component = -1
+            else:
+                if association == "POINTS":
+                    array = self.Input.PointData.GetArray(arrayname)
+                if association == "CELLS":
+                    array = self.Input.CellData.GetArray(arrayname)
+                if array:
+                    # looking for corresponding component name
+                    for i in range(0, array.GetNumberOfComponents()):
+                        if componentName == array.GetComponentName(i):
+                            component = i
+                            break
+                        # none have been found, try to use the name as an int
+                        if i == array.GetNumberOfComponents() - 1:
+                            try:
+                                component = int(componentName)
+                            except ValueError:
+                                pass
+        if component is None:
+            self.SetScalarColoring(
+                arrayname, GetAssociationFromString(association)
+            )
+        else:
+            self.SetScalarColoring(
+                arrayname, GetAssociationFromString(association), component
+            )
+        self.RescaleTransferFunctionToDataRange()
+
+    def ColorBlocksBy(self, selectors=None, value=None, separate=False):
+        """Like :func:`ColorBy`, set data array by which to color selected blocks within a
+        representation, but color only selected blocks with the specified properties.
+        This will automatically set up the color maps and others necessary state
+        for the representations.
+
+        :param rep: Must be a representation proxy i.e. the value returned by
+            the :func:`GetRepresentation`. Optional, defaults to the display properties
+            for the active source, if possible.
+        :type rep: Representation proxy
+        :param selectors: List of block selectors that choose which blocks to modify
+            with this call.
+        :type selectors: list of str
+        :param value: Name of the array to color by.
+        :type value: str
+        :param separate: Set to `True` to create a color map unique to this
+            representation. Optional, default is that the color map used will be the global
+            color map ParaView uses for any object colored by an array of the same name.
+        :type separate: bool"""
+        if selectors is None or len(selectors) == 0:
+            raise ValueError("No selector can be determined.")
+
+        self.SetBlocksUseSeparateColorMap(selectors, separate)
+
+        firstSelector = selectors[0]
+        associationInt = self.GetBlockColorArrayAssociation(firstSelector)
+        association = (
+            GetAssociationAsString(associationInt)
+            if associationInt != -1
+            else None
+        )
+        arrayname = self.GetBlockColorArrayName(firstSelector)
+        component = None
+        if value is None:
+            if association is not None:
+                self.SetBlocksScalarColoring(
+                    selectors, None, GetAssociationFromString(association)
+                )
+            else:
+                self.SetBlocksScalarColoring(selectors, None, 0)
+            return
+        if not isinstance(value, tuple) and not isinstance(value, list):
+            value = (value,)
+        if len(value) == 1:
+            arrayname = value[0]
+        elif len(value) >= 2:
+            association = value[0]
+            arrayname = value[1]
+        if len(value) == 3:
+            # component name provided
+            componentName = value[2]
+            if componentName == "Magnitude":
+                component = -1
+            else:
+                if association == "POINTS":
+                    array = self.Input.PointData.GetArray(arrayname)
+                if association == "CELLS":
+                    array = self.Input.CellData.GetArray(arrayname)
+                if array:
+                    # looking for corresponding component name
+                    for i in range(0, array.GetNumberOfComponents()):
+                        if componentName == array.GetComponentName(i):
+                            component = i
+                            break
+                        # none have been found, try to use the name as an int
+                        if i == array.GetNumberOfComponents() - 1:
+                            try:
+                                component = int(componentName)
+                            except ValueError:
+                                pass
+        if component is None:
+            self.SetBlocksScalarColoring(
+                selectors, arrayname, GetAssociationFromString(association)
+            )
+        else:
+            self.SetBlocksScalarColoring(
+                selectors,
+                arrayname,
+                GetAssociationFromString(association),
+                component,
+            )
+        self.RescaleBlocksTransferFunctionToDataRange(selectors)
 
 class ViewLayoutProxy(Proxy):
     """Special class to define convenience methods for View Layout"""
@@ -723,11 +1025,6 @@ class Property(object):
         "Returns true if the properties or properties values are the same."
         return ((self is None and other is None) or
                 (self is not None and other is not None and self.__repr__() == other.__repr__()))
-
-    if sys.version_info < (3,):
-        def __ne__(self, other):
-            "Returns true if the properties or properties values are not the same."
-            return not self.__eq__(other)
 
     def __repr__(self):
         """Returns a string representation containing property name
@@ -1795,6 +2092,13 @@ class ProxyManager(object):
         else:
             self.SMProxyManager.RegisterProxy(group, name, aProxy)
 
+    def _get_active_model(self, name):
+        model = self.GetSelectionModel(name)
+        if not model:
+            model = vtkSMProxySelectionModel()
+            self.RegisterSelectionModel(name, model)
+        return model
+
     def NewProxy(self, group, name):
         """Creates a new proxy of given group and name and returns an SMProxy.
         Note that this is a server manager object. You should normally create
@@ -2370,8 +2674,7 @@ def CreateRepresentation(aProxy, view, **extraArgs):
         return None
     proxy = _getPyProxy(display)
     proxy.Input = aProxy
-    for param in extraArgs.items():
-        setattr(proxy, items[0], items[1])
+    proxy.Set(**extraArgs)
     proxy.UpdateVTKObjects()
     view.Representations.append(proxy)
     return proxy
@@ -2462,10 +2765,7 @@ def Fetch(input, arg1=None, arg2=None, idx=0):
     """
 
     import sys
-    if sys.version_info < (3,):
-        integer_types = (int, long,)
-    else:
-        integer_types = (int,)
+    integer_types = (int,)
 
     reducer = filters.ReductionFilter(Input=OutputPort(input, idx))
 
@@ -2474,7 +2774,10 @@ def Fetch(input, arg1=None, arg2=None, idx=0):
         dinfo = input.GetDataInformation(idx)
         if dinfo.IsCompositeDataSet():
             paraview.print_debug_info("use composite data append")
-            reducer.PostGatherHelperName = "vtkMultiBlockDataGroupFilter"
+            groupDataSets = filters.GroupDatasets()
+            groupDataSets.OutputType = dinfo.GetDataSetType()
+            groupDataSets.CombineFirstLayerMultiblock = True
+            reducer.PostGatherHelper = groupDataSets
 
         elif dinfo.GetDataClassName() == "vtkPolyData":
             paraview.print_debug_info("use append poly data filter")
@@ -2951,6 +3254,8 @@ def _createClass(groupName, proxyName, apxm=None, prototype=None):
     # Create the new type
     if proto.GetXMLName() == "ExodusIIReader":
         superclasses = (ExodusIIReaderProxy,)
+    elif proto.IsA("vtkSMRepresentationProxy"):
+        superclasses = (RepresentationProxy,)
     elif proto.IsA("vtkSMMultiplexerSourceProxy"):
         superclasses = (MultiplexerSourceProxy,)
     elif proto.IsA("vtkSMSourceProxy"):
@@ -3345,7 +3650,7 @@ if not vtkProcessModule.GetProcessModule():
     # from master
     pm = vtkProcessModule.GetProcessModule()
     if not pm.GetSymmetricMPIMode() and pm.GetPartitionId() > 0:
-        paraview.options.satelite = True
+        paraview.options.satellite = True
         sid = vtkSMSession.ConnectToSelf()
         pm.GetGlobalController().ProcessRMIs()
         pm.UnRegisterSession(sid)

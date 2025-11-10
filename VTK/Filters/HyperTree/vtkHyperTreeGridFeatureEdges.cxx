@@ -260,15 +260,14 @@ void vtkHyperTreeGridFeatureEdges::RecursivelyProcess3DHTGTree(vtkHyperTreeGrid*
 bool vtkHyperTreeGridFeatureEdges::ShouldAddEdge2D(
   vtkHyperTreeGridNonOrientedVonNeumannSuperCursor* cursor, unsigned int edgeId)
 {
-  auto neighborVisible = [&cursor](unsigned int neighborId) {
-    return cursor->HasTree(neighborId) && !cursor->IsMasked(neighborId);
-  };
+  auto neighborVisible = [&cursor](unsigned int neighborId)
+  { return cursor->HasTree(neighborId) && !cursor->IsMasked(neighborId); };
 
   const unsigned int neighborId = VON_NEUMANN_NEIGH_ID_2D[edgeId];
 
   // A leaf cell generate an edge if:
   // - The cell is visible and there is no visible neighbor (of same level) sharing the edge
-  // - The cell is masked and there is a visible neigbor of inferior level (leaf) sharing the edge
+  // - The cell is masked and there is a visible neighbor of inferior level (leaf) sharing the edge
   return (!cursor->IsMasked() && !neighborVisible(neighborId)) ||
     (cursor->IsMasked() && neighborVisible(neighborId) &&
       cursor->GetLevel(neighborId) < cursor->GetLevel());
@@ -278,17 +277,14 @@ bool vtkHyperTreeGridFeatureEdges::ShouldAddEdge2D(
 bool vtkHyperTreeGridFeatureEdges::ShouldAddEdge3D(
   vtkHyperTreeGridNonOrientedMooreSuperCursor* cursor, unsigned int edgeId)
 {
-  auto neighborVisible = [&cursor](unsigned int neighborId) {
-    return cursor->HasTree(neighborId) && !cursor->IsMasked(neighborId);
-  };
+  auto neighborVisible = [&cursor](unsigned int neighborId)
+  { return cursor->HasTree(neighborId) && !cursor->IsMasked(neighborId); };
 
-  auto neighborVisibleAndInf = [&cursor, &neighborVisible](unsigned int neighborId) {
-    return neighborVisible(neighborId) && cursor->GetLevel(neighborId) < cursor->GetLevel();
-  };
+  auto neighborVisibleAndInf = [&cursor, &neighborVisible](unsigned int neighborId)
+  { return neighborVisible(neighborId) && cursor->GetLevel(neighborId) < cursor->GetLevel(); };
 
-  auto neighborVisibleAndLeaf = [&cursor, &neighborVisible](unsigned int neighborId) {
-    return neighborVisible(neighborId) && cursor->IsLeaf(neighborId);
-  };
+  auto neighborVisibleAndLeaf = [&cursor, &neighborVisible](unsigned int neighborId)
+  { return neighborVisible(neighborId) && cursor->IsLeaf(neighborId); };
 
   const unsigned int* neighborIds = MOORE_NEIGH_IDS_3D[edgeId];
 

@@ -34,7 +34,7 @@ public:
    * should be possible to call them multiple times, even changing WindowId
    * in-between.  This is what WindowRemap does.
    */
-  bool Initialize() override;
+  bool WindowSetup() override;
 
   /**
    * Finalize the rendering window.  This will shutdown all system-specific
@@ -47,11 +47,6 @@ public:
    * Change the window to fill the entire screen.
    */
   void SetFullScreen(vtkTypeBool) override;
-
-  /**
-   * Show or not Show the window
-   */
-  void SetShowWindow(bool val) override;
 
   ///@{
   /**
@@ -70,12 +65,6 @@ public:
    * Get the position in screen coordinates of the window.
    */
   int* GetPosition() VTK_SIZEHINT(2) override;
-
-  /**
-   * Set the name of the window. This appears at the top of the window
-   * normally.
-   */
-  void SetWindowName(const char*) override;
 
   void* GetGenericWindowId() override { return (void*)this->WindowId; }
   void* GetGenericDrawable() override { return (void*)this->WindowId; }
@@ -118,15 +107,27 @@ public:
   /**
    * Specify the selector of the canvas element in the DOM.
    */
-  vtkGetStringMacro(CanvasId);
-  vtkSetStringMacro(CanvasId);
+  vtkGetStringMacro(CanvasSelector);
+  vtkSetStringMacro(CanvasSelector);
+
+  /**
+   * Make the setter for UseOffscreenBuffers no-op.
+   * Offscreen buffers end up displaying a black screen which is not very useful.
+   */
+  void SetUseOffScreenBuffers(bool) override {}
+
+  /**
+   * Make the setter for ShowWindow no-op.
+   * This property is meaningless in a web browser context.
+   */
+  void SetShowWindow(bool) override {}
 
 protected:
   vtkWebAssemblyWebGPURenderWindow();
   ~vtkWebAssemblyWebGPURenderWindow() override;
 
   void* WindowId = nullptr;
-  char* CanvasId;
+  char* CanvasSelector = nullptr;
 
   std::string MakeDefaultWindowNameWithBackend() override;
   void CleanUpRenderers();

@@ -93,7 +93,18 @@ pqColorEditorPropertyWidget::pqColorEditorPropertyWidget(
 
   // edit color map button
   QAction* editColorMapAction = new QAction(this);
-  QObject::connect(Ui.EditColorMap, &QPushButton::clicked, editColorMapAction, &QAction::trigger);
+  editColorMapAction->setCheckable(true);
+  editColorMapAction->setChecked(Ui.EditColorMap->isChecked());
+  QObject::connect(Ui.EditColorMap, &QPushButton::toggled, editColorMapAction, &QAction::trigger);
+  QObject::connect(editColorMapAction, &QAction::toggled, Ui.EditColorMap,
+    [=](bool checked)
+    {
+      // Synchronize the check state of the action with the pushbutton
+      // block signal to avoid infinite loop
+      bool blocked = Ui.EditColorMap->blockSignals(true);
+      Ui.EditColorMap->setChecked(checked);
+      Ui.EditColorMap->blockSignals(blocked);
+    });
   pqEditColorMapReaction* ecmr =
     new pqEditColorMapReaction(editColorMapAction, /*track_active_objects=*/false);
   ecmr->setRepresentation(internals.Representation, selectedPropertiesType);
@@ -158,13 +169,16 @@ pqColorEditorPropertyWidget::pqColorEditorPropertyWidget(
     QObject::connect(this->Internals->StateWidget,
       &pqMultiBlockPropertiesStateWidget::selectedBlockSelectorsChanged, this,
       &pqColorEditorPropertyWidget::updateBlockBasedEnableState);
-    QObject::connect(
-      internals.StateWidget, &pqMultiBlockPropertiesStateWidget::startStateReset, this, [&]() {
+    QObject::connect(internals.StateWidget, &pqMultiBlockPropertiesStateWidget::startStateReset,
+      this,
+      [&]()
+      {
         this->Internals->OldLuts =
           this->Internals->Representation->getLookupTableProxies(vtkSMColorMapEditorHelper::Blocks);
       });
-    QObject::connect(
-      internals.StateWidget, &pqMultiBlockPropertiesStateWidget::endStateReset, this, [&]() {
+    QObject::connect(internals.StateWidget, &pqMultiBlockPropertiesStateWidget::endStateReset, this,
+      [&]()
+      {
         pqDisplayColorWidget::hideScalarBarsIfNotNeeded(
           this->Internals->Representation->getViewProxy(), this->Internals->OldLuts);
         this->Internals->Representation->renderViewEventually();

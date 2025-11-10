@@ -23,6 +23,8 @@
 #include "vtkWindows.h"           // For windows API.
 #include "vtkWrappingHints.h"     // For VTK_MARSHALAUTO
 
+#include <memory> // for std::unique_ptr
+
 #include "vtkTDxConfigure.h" // defines VTK_USE_TDX
 #ifdef VTK_USE_TDX
 VTK_ABI_NAMESPACE_BEGIN
@@ -179,6 +181,9 @@ protected:
 private:
   vtkWin32RenderWindowInteractor(const vtkWin32RenderWindowInteractor&) = delete;
   void operator=(const vtkWin32RenderWindowInteractor&) = delete;
+
+  class vtkInternals;
+  std::unique_ptr<vtkInternals> Internals;
 };
 
 VTK_ABI_NAMESPACE_END

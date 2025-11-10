@@ -21,8 +21,8 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 
-class vtkAnariLightNodeInternals;
-class vtkAnariRendererNode;
+struct vtkAnariLightNodeInternals;
+class vtkAnariSceneGraph;
 class vtkInformationDoubleKey;
 class vtkInformationIntegerKey;
 class vtkLight;
@@ -45,12 +45,12 @@ public:
   /**
    * Make ANARI calls to render me.
    */
-  virtual void Render(bool prepass) override;
+  void Render(bool prepass) override;
 
   /**
    * Invalidates cached rendering data.
    */
-  virtual void Invalidate(bool prepass) override;
+  void Invalidate(bool prepass) override;
 
   /**
    * A global multiplier to all ANARI lights.
@@ -67,21 +67,6 @@ public:
   ///@}
 
   // state beyond rendering core...
-
-  /**
-   * When present on light, the light acts as an ambient source.
-   * An AmbientLight is one that has no specific position in space and for
-   * which only the ambient color term affects the result.
-   */
-  static vtkInformationIntegerKey* IS_AMBIENT();
-
-  //@{
-  /**
-   * Convenience method to set/get IS_AMBIENT on a vtkLight.
-   */
-  static void SetIsAmbient(int, vtkLight*);
-  static int GetIsAmbient(vtkLight*);
-  //@}
 
   /**
    * The radius setting, when > 0.0, produces soft shadows in the
@@ -114,7 +99,7 @@ public:
 
 protected:
   vtkAnariLightNode();
-  ~vtkAnariLightNode();
+  ~vtkAnariLightNode() override;
 
 private:
   vtkAnariLightNode(const vtkAnariLightNode&) = delete;

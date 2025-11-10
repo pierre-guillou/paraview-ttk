@@ -9,11 +9,15 @@
 #include "vtkSMParaViewPipelineController.h"
 #include "vtkSMPropertyHelper.h"
 #include "vtkSMProxyIterator.h"
+#include "vtkSMProxyProperty.h"
+#include "vtkSMProxySelectionModel.h"
+#include "vtkSMRepresentationProxy.h"
 #include "vtkSMScalarBarWidgetRepresentationProxy.h"
 #include "vtkSMSessionProxyManager.h"
 #include "vtkSMSettings.h"
 #include "vtkSMTrace.h"
 #include "vtkSMTransferFunctionProxy.h"
+#include "vtkSMViewProxy.h"
 
 #include <cassert>
 #include <set>
@@ -91,9 +95,8 @@ vtkSMProxy* vtkSMTransferFunctionManager::GetColorTransferFunction(
   stdPresetsKey += arrayName;
   if (settings->HasSetting(stdPresetsKey.c_str()))
   {
-    vtkSMTransferFunctionProxy::ApplyPreset(proxy,
-      settings->GetSettingAsString(stdPresetsKey.c_str(), 0, "").c_str(),
-      /*rescale=*/false);
+    const auto stdPreset = settings->GetSettingAsString(stdPresetsKey.c_str(), 0, "");
+    vtkSMTransferFunctionProxy::ApplyPreset(proxy, stdPreset.c_str(), /*usePresetRange=*/false);
   }
 
   // Look up array-specific transfer function
@@ -111,6 +114,12 @@ vtkSMProxy* vtkSMTransferFunctionManager::GetColorTransferFunction(
     {
       sof->UpdateVTKObjects();
       vtkSMPropertyHelper(proxy, "ScalarOpacityFunction").Set(sof);
+
+      // Since this function is initializing defaults for the lookup tables,
+      // including defaults for the proxy property transfer functions, get the
+      // proxy property to treat its current settings as the defaults.
+      auto* prop = vtkSMProxyProperty::SafeDownCast(proxy->GetProperty("ScalarOpacityFunction"));
+      prop->ResetDefaultsToCurrent();
     }
   }
   if (proxy->GetProperty("TransferFunction2D"))
@@ -120,6 +129,12 @@ vtkSMProxy* vtkSMTransferFunctionManager::GetColorTransferFunction(
     {
       tf2d->UpdateVTKObjects();
       vtkSMPropertyHelper(proxy, "TransferFunction2D").Set(tf2d);
+
+      // Since this function is initializing defaults for the lookup tables,
+      // including defaults for the proxy property transfer functions, get the
+      // proxy property to treat its current settings as the defaults.
+      auto* prop = vtkSMProxyProperty::SafeDownCast(proxy->GetProperty("TransferFunction2D"));
+      prop->ResetDefaultsToCurrent();
     }
   }
   controller->PostInitializeProxy(proxy);
@@ -270,9 +285,17 @@ void vtkSMTransferFunctionManager::ResetAllTransferFunctionRangesUsingCurrentDat
   vtkNew<vtkSMProxyIterator> iter;
   iter->SetSessionProxyManager(pxm);
   iter->SetModeToOneGroup();
+
+  vtkSMRepresentationProxy* representationProxy = nullptr;
+  for (iter->Begin("representations"); !iter->IsAtEnd(); iter->Next())
+  {
+    representationProxy = vtkSMRepresentationProxy::SafeDownCast(iter->GetProxy());
+  }
+
   for (iter->Begin("lookup_tables"); !iter->IsAtEnd(); iter->Next())
   {
     vtkSMProxy* lutProxy = iter->GetProxy();
+
     assert(lutProxy != nullptr);
 
     int rescaleMode = vtkSMPropertyHelper(lutProxy, "AutomaticRescaleRangeMode", true).GetAsInt();
@@ -287,11 +310,20 @@ void vtkSMTransferFunctionManager::ResetAllTransferFunctionRangesUsingCurrentDat
     {
       extend = false;
     }
+    else if (rescaleMode == vtkSMTransferFunctionManager::RESET_VISIBLE_ON_APPLY && !animating)
+    {
+      extend = false;
+    }
     else if (rescaleMode == vtkSMTransferFunctionManager::GROW_ON_APPLY_AND_TIMESTEP && animating)
     {
       extend = true;
     }
     else if (rescaleMode == vtkSMTransferFunctionManager::RESET_ON_APPLY_AND_TIMESTEP && animating)
+    {
+      extend = false;
+    }
+    else if (rescaleMode == vtkSMTransferFunctionManager::RESET_VISIBLE_ON_APPLY_AND_TIMESTEP &&
+      animating)
     {
       extend = false;
     }
@@ -307,6 +339,39 @@ void vtkSMTransferFunctionManager::ResetAllTransferFunctionRangesUsingCurrentDat
     }
     else
     {
+      if (rescaleMode == vtkSMTransferFunctionManager::RESET_VISIBLE_ON_APPLY_AND_TIMESTEP ||
+        rescaleMode == vtkSMTransferFunctionManager::RESET_VISIBLE_ON_APPLY)
+      {
+        vtkSMViewProxy* activeView = nullptr;
+        if (vtkSMProxySelectionModel* viewSM = pxm->GetSelectionModel("ActiveView"))
+        {
+          activeView = vtkSMViewProxy::SafeDownCast(viewSM->GetCurrentProxy());
+        }
+
+        vtkSMSourceProxy* activeSource = nullptr;
+        if (vtkSMProxySelectionModel* sourceSM = pxm->GetSelectionModel("ActiveSources"))
+        {
+          activeSource = vtkSMSourceProxy::SafeDownCast(sourceSM->GetCurrentProxy());
+        }
+
+        // Deduce active representation from active source (if any) and active view
+        vtkSMRepresentationProxy* activeRepr;
+        if (!activeSource)
+        {
+          activeRepr = representationProxy;
+        }
+        else
+        {
+          vtkSMPropertyHelper inputHelper(activeSource, "Input", true);
+          activeRepr = activeView->FindRepresentation(activeSource, inputHelper.GetOutputPort());
+        }
+        if (activeRepr && activeView)
+        {
+          vtkSMColorMapEditorHelper::RescaleTransferFunctionToVisibleRange(activeRepr, activeView);
+        }
+        return;
+      }
+
       double range[2] = { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN };
       if (vtkSMTransferFunctionProxy::ComputeDataRange(lutProxy, range))
       {

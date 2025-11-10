@@ -31,8 +31,9 @@
 #include "vtkVolumeProperty.h"
 
 #include "vtkAnariPass.h"
-#include "vtkAnariRendererNode.h"
+#include "vtkAnariSceneGraph.h"
 #include "vtkAnariTestInteractor.h"
+#include "vtkAnariTestUtilities.h"
 
 typedef vtkSmartPointer<vtkImageData> Transfer2DPtr;
 Transfer2DPtr Create2DTransfer()
@@ -166,22 +167,7 @@ int TestAnariTransfer2D(int argc, char* argv[])
   vtkNew<vtkAnariPass> anariPass;
   ren->SetPass(anariPass);
 
-  if (useDebugDevice)
-  {
-    vtkAnariRendererNode::SetUseDebugDevice(1, ren);
-    vtkNew<vtkTesting> testing;
-
-    std::string traceDir = testing->GetTempDirectory();
-    traceDir += "/anari-trace";
-    traceDir += "/TestAnariTransfer2D";
-    vtkAnariRendererNode::SetDebugDeviceDirectory(traceDir.c_str(), ren);
-  }
-
-  vtkAnariRendererNode::SetLibraryName("environment", ren);
-  vtkAnariRendererNode::SetSamplesPerPixel(6, ren);
-  vtkAnariRendererNode::SetLightFalloff(.5, ren);
-  vtkAnariRendererNode::SetUseDenoiser(1, ren);
-  vtkAnariRendererNode::SetCompositeOnGL(1, ren);
+  SetParameterDefaults(anariPass, ren, useDebugDevice, "TestAnariTransfer2D");
 
   auto cam = ren->GetActiveCamera();
   cam->SetFocalPoint(85.7721, 88.4044, 33.8576);

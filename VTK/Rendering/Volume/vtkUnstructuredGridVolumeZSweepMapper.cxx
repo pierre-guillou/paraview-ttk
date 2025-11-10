@@ -27,7 +27,7 @@
 
 #include "vtkCellArray.h"
 #include "vtkPolyData.h"
-//#include "vtkXMLPolyDataWriter.h"
+// #include "vtkXMLPolyDataWriter.h"
 #include "vtkPointData.h"
 
 #include <cassert>
@@ -36,7 +36,7 @@
 #include <vector>
 
 // do not remove the following line:
-//#define BACK_TO_FRONT
+// #define BACK_TO_FRONT
 
 // Put the internal classes in a namespace to avoid potential naming conflicts.
 namespace vtkUnstructuredGridVolumeZSweepMapperNamespace
@@ -73,11 +73,11 @@ public:
   }
 
   // Return the interpolated values at this pixel.
-  inline double* GetValues() { return this->Values; }
+  double* GetValues() { return this->Values; }
   // Return the interpolated z coordinate in view space at this pixel.
-  inline double GetZview() const { return this->Zview; }
+  double GetZview() const { return this->Zview; }
   // Return whether the fragment comes from an external face.
-  inline bool GetExitFace() const { return this->ExitFace; }
+  bool GetExitFace() const { return this->ExitFace; }
 
   vtkPixelListEntry* GetPrevious() { return this->Previous; }
   vtkPixelListEntry* GetNext() { return this->Next; }
@@ -241,7 +241,7 @@ enum
 #define MOST_SIGNIFICANT
 #define EDGE_EQUATION
 #define HORI_EDGE_EQUATION
-//#define STRICTLY_INSIDE
+// #define STRICTLY_INSIDE
 
 class vtkSimpleScreenEdge : public vtkScreenEdge
 {
@@ -1960,10 +1960,10 @@ public:
   }
 
   // Return the 3 face ids.
-  inline vtkIdType* GetFaceIds() { return this->FaceIds; }
+  vtkIdType* GetFaceIds() { return this->FaceIds; }
 
   // Return whether this face is external.
-  inline int GetExternalSide() { return this->ExternalSide; }
+  int GetExternalSide() { return this->ExternalSide; }
 
   // Are `this' and faceIds equal?
   int IsEqual(vtkIdType faceIds[3])
@@ -3144,14 +3144,14 @@ void vtkUnstructuredGridVolumeZSweepMapper::MainLoop(vtkRenderWindow* renWin)
 
   this->UseSet->SetNotRendered();
 
-  int aborded = 0;
+  int aborted = 0;
   // for each vertex of the "event list"
   while (this->EventList->GetNumberOfItems() > 0)
   {
     this->UpdateProgress(static_cast<double>(progressCount) / sum);
 
-    aborded = renWin->CheckAbortStatus();
-    if (aborded)
+    aborted = renWin->CheckAbortStatus();
+    if (aborted)
     {
       break;
     }
@@ -3303,7 +3303,7 @@ void vtkUnstructuredGridVolumeZSweepMapper::MainLoop(vtkRenderWindow* renWin)
     } // if useset of vertex is not null
   }   // while(eventList->GetNumberOfItems()>0)
 
-  if (!aborded)
+  if (!aborted)
   {
     // Here a final compositing
     vtkDebugMacro(<< "Flush Compositing");

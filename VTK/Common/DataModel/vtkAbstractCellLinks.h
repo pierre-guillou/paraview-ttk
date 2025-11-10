@@ -20,15 +20,16 @@
 #define vtkAbstractCellLinks_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
+#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_5_0
 #include "vtkObject.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 VTK_ABI_NAMESPACE_BEGIN
 class vtkDataSet;
 class vtkCellArray;
 class vtkIdList;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkAbstractCellLinks : public vtkObject
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkAbstractCellLinks : public vtkObject
 {
 public:
   ///@{
@@ -46,12 +47,6 @@ public:
   virtual void SetDataSet(vtkDataSet*);
   vtkGetObjectMacro(DataSet, vtkDataSet);
   ///@}
-
-  /**
-   * Set the input dataset and build the link list array.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use SetDataSet() and BuildLinks() instead.")
-  void BuildLinks(vtkDataSet* data);
 
   /**
    * Build the link list array from the input dataset.
@@ -161,9 +156,28 @@ public:
    * filter always runs in serial mode.) This flag is typically used for
    * benchmarking purposes.
    */
+  VTK_DEPRECATED_IN_9_5_0("No longer used.")
   vtkSetMacro(SequentialProcessing, bool);
+  VTK_DEPRECATED_IN_9_5_0("No longer used.")
   vtkGetMacro(SequentialProcessing, bool);
-  vtkBooleanMacro(SequentialProcessing, bool);
+  VTK_DEPRECATED_IN_9_5_0("No longer used.")
+  virtual void SequentialProcessingOn()
+  {
+    if (!this->SequentialProcessing)
+    {
+      this->SequentialProcessing = true;
+      this->Modified();
+    }
+  }
+  VTK_DEPRECATED_IN_9_5_0("No longer used.")
+  virtual void SequentialProcessingOff()
+  {
+    if (this->SequentialProcessing)
+    {
+      this->SequentialProcessing = false;
+      this->Modified();
+    }
+  }
   ///@}
 
   ///@{
@@ -184,6 +198,7 @@ protected:
   ~vtkAbstractCellLinks() override;
 
   vtkDataSet* DataSet;
+  // VTK_DEPRECATED_IN_9_5_0("No longer used.")
   bool SequentialProcessing; // control whether to thread or not
   int Type;                  // derived classes set this instance variable when constructed
 

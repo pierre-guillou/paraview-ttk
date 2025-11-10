@@ -3,6 +3,8 @@ set(classes
   vtkAggregateDataSetFilter
   vtkAlignImageDataSetFilter
   vtkAngularPeriodicFilter
+  vtkPAxisAlignedReflectionFilter
+  vtkCleanArrays
   vtkCollectGraph
   vtkCollectPolyData
   vtkCollectTable
@@ -17,10 +19,14 @@ set(classes
   vtkHyperTreeGridGenerateGlobalIds
   vtkHyperTreeGridGenerateProcessIds
   vtkHyperTreeGridGhostCellsGenerator
-  vtkPHyperTreeGridProbeFilter
   vtkIntegrateAttributes
+  vtkIntegrationGaussianStrategy
+  vtkIntegrationLinearStrategy
+  vtkIntegrationStrategy
+  vtkMergeBlocks
+  vtkMultiProcessControllerHelper
+  vtkPHyperTreeGridProbeFilter
   vtkPeriodicFilter
-  vtkPCellDataToPointData
   vtkPConvertToMultiBlockDataSet
   vtkPExtractDataArraysOverTime
   vtkPExtractExodusGlobalTemporalVariables
@@ -41,7 +47,6 @@ set(classes
   vtkPReflectionFilter
   vtkPResampleFilter
   vtkPartitionBalancer
-  vtkProcessIdScalars
   vtkPSphereSource
   vtkPTextureMapToSphere
   vtkPYoungsMaterialInterface
@@ -57,15 +62,22 @@ set(headers
   vtkBlockDistribution.h)
 
 set(sources
-  vtkHyperTreeGridGhostCellsGeneratorInternals.cxx)
+  vtkHyperTreeGridGhostCellsGeneratorInternals.cxx
+  vtkIntegrateAttributesFieldList.cxx)
 
 set(private_headers
-  vtkHyperTreeGridGhostCellsGeneratorInternals.h)
+  vtkHyperTreeGridGhostCellsGeneratorInternals.h
+  vtkIntegrateAttributesFieldList.h)
 
 
 vtk_object_factory_declare(
   BASE vtkConvertToMultiBlockDataSet
   OVERRIDE vtkPConvertToMultiBlockDataSet
+  )
+
+vtk_object_factory_declare(
+  BASE      vtkAxisAlignedReflectionFilter
+  OVERRIDE  vtkPAxisAlignedReflectionFilter
   )
 
 vtk_object_factory_configure(

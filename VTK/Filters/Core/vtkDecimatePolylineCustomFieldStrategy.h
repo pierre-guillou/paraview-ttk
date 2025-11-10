@@ -49,9 +49,11 @@ public:
   double ComputeError(
     vtkPointSet* dataset, vtkIdType originId, vtkIdType p1Id, vtkIdType p2Id) override;
 
+  bool IsStateValid(vtkPointSet* dataset) const override;
+
   ///@{
   /**
-   * The name of the field containing the decimation informations to
+   * The name of the field containing the decimation information to
    * evaluate.
    * Defaults to an empty string.
    */

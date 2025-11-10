@@ -1,4 +1,4 @@
-/* Copyright 2023 NVIDIA Corporation. All rights reserved.
+/* Copyright 2025 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-FileCopyrightText: Copyright 2025 NVIDIA Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <algorithm>
@@ -171,9 +171,9 @@ nv::index::IAffinity_information* vtknvindex_cluster_properties::copy_affinity()
 void vtknvindex_cluster_properties::scene_dump_affinity_info(std::ostringstream& s) const
 {
   if (m_affinity_kdtree)
-    return m_affinity_kdtree->scene_dump_affinity_info(s);
+    m_affinity_kdtree->scene_dump_affinity_info(s);
   else if (m_affinity)
-    return m_affinity->scene_dump_affinity_info(s);
+    m_affinity->scene_dump_affinity_info(s);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -465,7 +465,7 @@ bool vtknvindex_cluster_properties::retrieve_cluster_configuration(
 
 // Define this to match local rank i to GPU i. Otherwise IndeX will to the assignment internally,
 // using all available GPUs.
-//#define VTKNVINDEX_MATCH_GPUS_TO_RANKS
+// #define VTKNVINDEX_MATCH_GPUS_TO_RANKS
 #ifdef VTKNVINDEX_MATCH_GPUS_TO_RANKS
   // Gather all gpu ids.
   mi::Sint32 gpu_id = current_localrank;

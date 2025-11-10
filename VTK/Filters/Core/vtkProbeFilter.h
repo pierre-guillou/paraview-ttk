@@ -26,10 +26,10 @@
  * A critical algorithmic component of vtkProbeFilter is the manner in which
  * it finds the cell containing a probe point. By default, the
  * vtkDataSet::FindCell() method is used, which in turn uses a
- * vtkPointLocator to perform an accelerated search. However, using a
- * vtkPointLocator may fail to identify an enclosing cell in some cases. A
- * more robust but slower approach is to use a vtkCellLocator to perform the
- * the FindCell() operation (via specification of the
+ * vtkPointLocator (using a default vtkClosestPointStrategy) to perform an
+ * accelerated search. However, it may fail to identify an enclosing cell in
+ * some cases. A more robust but slower approach is to use a vtkCellLocator to
+ * perform the FindCell() operation (via specification of the
  * CellLocatorPrototype). Finally, more advanced searches can be configured
  * by specifying an instance of vtkFindCellStrategy. (Note: image data
  * probing never uses a locator since finding a containing cell is a simple,
@@ -150,7 +150,7 @@ public:
   ///@}
   ///@{
   /**
-   * Shallow copy the input point data arrays to the output
+   * Shallow copy the input point data arrays to the output.
    * Off by default.
    */
   vtkSetMacro(PassPointArrays, vtkTypeBool);
@@ -300,8 +300,7 @@ private:
   void ProbePointsImageData(
     vtkImageData* input, int srcIdx, vtkDataSet* source, vtkImageData* output);
   void ProbeImagePointsInCell(vtkGenericCell* cell, vtkIdType cellId, vtkDataSet* source,
-    int srcBlockId, const double start[3], const double spacing[3], const int dim[3],
-    vtkPointData* outPD, char* maskArray, double* wtsBuff);
+    int srcBlockId, vtkImageData* input, vtkPointData* outPD, char* maskArray, double* wtsBuff);
 
   class ProbeImageDataWorklet;
 

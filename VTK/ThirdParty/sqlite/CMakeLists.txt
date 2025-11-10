@@ -7,9 +7,9 @@ vtk_module_third_party(
     SPDX_COPYRIGHT_TEXT
       "NONE"
     SPDX_DOWNLOAD_LOCATION
-      "git+https://gitlab.kitware.com/third-party/sqlite.git@for/vtk-20210924-3.36.0"
+      "git+https://gitlab.kitware.com/third-party/sqlite.git@for/vtk-20250102-3.47.2"
     VERSION
-      "3.36.0"
+      "3.47.2"
     STANDARD_INCLUDE_DIRS
   EXTERNAL
     PACKAGE SQLite3
@@ -20,7 +20,7 @@ configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/vtk_sqlite.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/vtk_sqlite.h")
 
-if (VTK_MODULE_USE_EXTERNAL_vtksqlite)
+if (VTK_MODULE_USE_EXTERNAL_VTK_sqlite)
   if (vtk_sqlite_build_binary)
     find_program(VTK_SQLITE_EXECUTABLE
       NAMES sqlite3

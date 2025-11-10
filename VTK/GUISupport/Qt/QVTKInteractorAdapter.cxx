@@ -24,8 +24,9 @@
 
 #include "vtkCommand.h"
 
-// function to get VTK keysyms from ascii characters
 VTK_ABI_NAMESPACE_BEGIN
+
+// function to get VTK keysyms from ascii characters
 static const char* ascii_to_key_sym(int);
 // function to get VTK keysyms from Qt keys
 static const char* qt_key_to_key_sym(Qt::Key, Qt::KeyboardModifiers modifiers);
@@ -42,6 +43,11 @@ QVTKInteractorAdapter::QVTKInteractorAdapter(QObject* parentObject)
 }
 
 QVTKInteractorAdapter::~QVTKInteractorAdapter() = default;
+
+void QVTKInteractorAdapter::SetEnableTouchEventProcessing(bool val)
+{
+  this->EnableTouchEventProcessing = val;
+}
 
 void QVTKInteractorAdapter::SetDevicePixelRatio(float ratio, vtkRenderWindowInteractor* iren)
 {
@@ -104,45 +110,58 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
     return false;
 
   if (t == QEvent::MouseButtonPress || t == QEvent::MouseButtonRelease ||
-    t == QEvent::MouseButtonDblClick || t == QEvent::MouseMove)
+    t == QEvent::MouseButtonDblClick || t == QEvent::MouseMove || t == QEvent::HoverMove)
   {
-    QMouseEvent* e2 = static_cast<QMouseEvent*>(e);
-
+    QInputEvent* inputEvent = static_cast<QInputEvent*>(e);
     // give interactor the event information
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    auto x = e2->x();
-    auto y = e2->y();
+    qreal x, y;
+    if (t == QEvent::HoverMove)
+    {
+      QHoverEvent* hoverEvent = static_cast<QHoverEvent*>(e);
+      x = hoverEvent->posF().x();
+      y = hoverEvent->posF().y();
+    }
+    else
+    {
+      QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(e);
+      x = mouseEvent->x();
+      y = mouseEvent->y();
+    }
 #else
-    auto x = e2->position().x();
-    auto y = e2->position().y();
+    QSinglePointEvent* pointEvent = static_cast<QSinglePointEvent*>(e);
+    auto x = pointEvent->position().x();
+    auto y = pointEvent->position().y();
 #endif
     iren->SetEventInformationFlipY(
       static_cast<int>(x * this->DevicePixelRatio + DevicePixelRatioTolerance),
       static_cast<int>(y * this->DevicePixelRatio + DevicePixelRatioTolerance),
-      (e2->modifiers() & Qt::ControlModifier) > 0 ? 1 : 0,
-      (e2->modifiers() & Qt::ShiftModifier) > 0 ? 1 : 0, 0,
-      e2->type() == QEvent::MouseButtonDblClick ? 1 : 0);
-    iren->SetAltKey((e2->modifiers() & Qt::AltModifier) > 0 ? 1 : 0);
+      (inputEvent->modifiers() & Qt::ControlModifier) > 0 ? 1 : 0,
+      (inputEvent->modifiers() & Qt::ShiftModifier) > 0 ? 1 : 0, 0,
+      inputEvent->type() == QEvent::MouseButtonDblClick ? 1 : 0);
+    iren->SetAltKey((inputEvent->modifiers() & Qt::AltModifier) > 0 ? 1 : 0);
 
-    if (t == QEvent::MouseMove)
+    if (t == QEvent::MouseMove || t == QEvent::HoverMove)
     {
-      iren->InvokeEvent(vtkCommand::MouseMoveEvent, e2);
+      iren->InvokeEvent(vtkCommand::MouseMoveEvent, inputEvent);
+      return true;
     }
 
-    else if (t == QEvent::MouseButtonPress)
+    QMouseEvent* mouseEvent = static_cast<QMouseEvent*>(e);
+    if (t == QEvent::MouseButtonPress)
     {
-      switch (e2->button())
+      switch (mouseEvent->button())
       {
         case Qt::LeftButton:
-          iren->InvokeEvent(vtkCommand::LeftButtonPressEvent, e2);
+          iren->InvokeEvent(vtkCommand::LeftButtonPressEvent, mouseEvent);
           break;
 
         case Qt::MiddleButton:
-          iren->InvokeEvent(vtkCommand::MiddleButtonPressEvent, e2);
+          iren->InvokeEvent(vtkCommand::MiddleButtonPressEvent, mouseEvent);
           break;
 
         case Qt::RightButton:
-          iren->InvokeEvent(vtkCommand::RightButtonPressEvent, e2);
+          iren->InvokeEvent(vtkCommand::RightButtonPressEvent, mouseEvent);
           break;
 
         default:
@@ -151,18 +170,18 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
     }
     else if (t == QEvent::MouseButtonDblClick)
     {
-      switch (e2->button())
+      switch (mouseEvent->button())
       {
         case Qt::LeftButton:
-          iren->InvokeEvent(vtkCommand::LeftButtonDoubleClickEvent, e2);
+          iren->InvokeEvent(vtkCommand::LeftButtonDoubleClickEvent, mouseEvent);
           break;
 
         case Qt::MiddleButton:
-          iren->InvokeEvent(vtkCommand::MiddleButtonDoubleClickEvent, e2);
+          iren->InvokeEvent(vtkCommand::MiddleButtonDoubleClickEvent, mouseEvent);
           break;
 
         case Qt::RightButton:
-          iren->InvokeEvent(vtkCommand::RightButtonDoubleClickEvent, e2);
+          iren->InvokeEvent(vtkCommand::RightButtonDoubleClickEvent, mouseEvent);
           break;
 
         default:
@@ -171,18 +190,18 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
     }
     else if (t == QEvent::MouseButtonRelease)
     {
-      switch (e2->button())
+      switch (mouseEvent->button())
       {
         case Qt::LeftButton:
-          iren->InvokeEvent(vtkCommand::LeftButtonReleaseEvent, e2);
+          iren->InvokeEvent(vtkCommand::LeftButtonReleaseEvent, mouseEvent);
           break;
 
         case Qt::MiddleButton:
-          iren->InvokeEvent(vtkCommand::MiddleButtonReleaseEvent, e2);
+          iren->InvokeEvent(vtkCommand::MiddleButtonReleaseEvent, mouseEvent);
           break;
 
         case Qt::RightButton:
-          iren->InvokeEvent(vtkCommand::RightButtonReleaseEvent, e2);
+          iren->InvokeEvent(vtkCommand::RightButtonReleaseEvent, mouseEvent);
           break;
 
         default:
@@ -191,8 +210,14 @@ bool QVTKInteractorAdapter::ProcessEvent(QEvent* e, vtkRenderWindowInteractor* i
     }
     return true;
   }
+
   if (t == QEvent::TouchBegin || t == QEvent::TouchUpdate || t == QEvent::TouchEnd)
   {
+    if (!this->EnableTouchEventProcessing)
+    {
+      return false;
+    }
+
     QTouchEvent* e2 = dynamic_cast<QTouchEvent*>(e);
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     Q_FOREACH (const QTouchEvent::TouchPoint& point, e2->touchPoints())

@@ -9,7 +9,7 @@
 #include "vtkRenderState.h"
 #include "vtkRenderer.h"
 #include "vtkTextureObject.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 #include <cassert>
 
 // to be able to dump intermediate passes into png files for debugging.
@@ -129,7 +129,7 @@ void vtkImageProcessingPass::RenderDelegate(const vtkRenderState* s, int width, 
          << endl;
 #endif
 
-    angle = 2.0 * atan(tan(angle / 2.0) * largeDim / static_cast<double>(smallDim));
+    angle = 2.0 * atan(tan(angle / 2.0) * largeDim / smallDim);
 
 #ifdef VTK_IMAGE_PROCESSING_PASS_DEBUG
     cout << "new angle =" << angle << " rad=" << vtkMath::DegreesFromRadians(angle) << " deg"

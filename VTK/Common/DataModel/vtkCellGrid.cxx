@@ -99,6 +99,7 @@ void vtkCellGrid::ShallowCopy(vtkDataObject* baseSrc)
     return;
   }
 
+  this->Initialize();
   vtkNew<vtkCellGridCopyQuery> copier;
   copier->SetSource(src);
   copier->SetTarget(this);
@@ -123,6 +124,7 @@ void vtkCellGrid::DeepCopy(vtkDataObject* baseSrc)
     return;
   }
 
+  this->Initialize();
   vtkNew<vtkCellGridCopyQuery> copier;
   copier->SetSource(src);
   copier->SetTarget(this);
@@ -140,6 +142,7 @@ void vtkCellGrid::DeepCopy(vtkDataObject* baseSrc)
 
 bool vtkCellGrid::CopyStructure(vtkCellGrid* other, bool byReference)
 {
+  this->Initialize();
   vtkNew<vtkCellGridCopyQuery> copier;
   copier->SetSource(other);
   copier->SetTarget(this);
@@ -341,6 +344,24 @@ vtkCellMetadata* vtkCellGrid::AddCellMetadata(vtkCellMetadata* cellType)
   return cellType;
 }
 
+vtkCellMetadata* vtkCellGrid::AddCellMetadata(vtkStringToken cellTypeName)
+{
+  // See if we have this type already
+  auto* metadata = this->GetCellType(cellTypeName);
+  if (metadata)
+  {
+    return metadata;
+  }
+
+  // Create a new instance and add it.
+  if (!cellTypeName.IsValid())
+  {
+    return metadata;
+  }
+  metadata = vtkCellMetadata::NewInstance(cellTypeName, this);
+  return metadata;
+}
+
 int vtkCellGrid::AddAllCellMetadata()
 {
   int numAdded = 0;
@@ -399,6 +420,34 @@ int vtkCellGrid::RemoveUnusedCellMetadata()
     }
   }
   return numRemoved;
+}
+
+std::vector<vtkStringToken> vtkCellGrid::CellTypeArray() const
+{
+#if defined(_MSC_VER) && _MSC_VER >= 1930 && _MSC_VER < 1940 /*17.4+*/
+  // MSVC 2022 shows LNK1161 when an exported method uses thread_local in its implementation.
+  // See https://github.com/pytorch/pytorch/issues/87957 for more. We omit the
+  // thread_local here, which makes this method non-threadsafe on Windows, which
+  // should be OK in most cases.
+  static std::vector<vtkStringToken> cellTypes;
+#else
+  static thread_local std::vector<vtkStringToken> cellTypes;
+#endif
+  cellTypes.clear();
+  this->CellTypes(cellTypes);
+  return cellTypes;
+}
+
+std::vector<std::string> vtkCellGrid::GetCellTypes() const
+{
+  auto cta = this->CellTypeArray();
+  std::vector<std::string> result;
+  result.reserve(cta.size());
+  for (const auto& cellTypeToken : cta)
+  {
+    result.push_back(cellTypeToken.Data());
+  }
+  return result;
 }
 
 const vtkCellMetadata* vtkCellGrid::GetCellType(vtkStringToken cellTypeName) const
@@ -525,6 +574,26 @@ bool vtkCellGrid::GetCellAttributeRange(
   return true;
 }
 
+void vtkCellGrid::ClearRangeCache(const std::string& attributeName)
+{
+  if (attributeName.empty())
+  {
+    this->RangeCache.clear();
+    return;
+  }
+  auto* att = this->GetCellAttributeByName(attributeName);
+  if (!att)
+  {
+    return;
+  }
+  auto it = this->RangeCache.find(att);
+  if (it == this->RangeCache.end())
+  {
+    return;
+  }
+  this->RangeCache.erase(it);
+}
+
 std::set<int> vtkCellGrid::GetCellAttributeIds() const
 {
   std::set<int> attributeIds;
@@ -553,7 +622,7 @@ std::vector<vtkSmartPointer<vtkCellAttribute>> vtkCellGrid::GetCellAttributeList
   for (const auto& entry : this->Attributes)
   {
     result.emplace_back(entry.second);
-  };
+  }
   return result;
 }
 

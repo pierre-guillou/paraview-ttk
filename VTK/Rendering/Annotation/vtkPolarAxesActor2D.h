@@ -28,7 +28,7 @@
 #include "vtkSetGet.h" // for macros
 
 VTK_ABI_NAMESPACE_BEGIN
-class vtkArcGridActorPrivate;
+class vtkArcGridActorInternal;
 class vtkRadialGridActor2D;
 class vtkTextProperty;
 
@@ -53,7 +53,7 @@ public:
   int RenderOverlay(vtkViewport* viewport) override;
 
   /**
-   * Overriden as a no-op. Needed to avoid warnings/errors from Superclass
+   * Overridden as a no-op. Needed to avoid warnings/errors from Superclass
    * that expects a Mapper to be defined. It is not the case here as
    * everything is delegated to other internal actors.
    * Return 1.
@@ -150,7 +150,7 @@ private:
   void operator=(const vtkPolarAxesActor2D&) = delete;
 
   vtkNew<vtkRadialGridActor2D> RadialGrid;
-  vtkNew<vtkArcGridActorPrivate> ArcGrid;
+  vtkNew<vtkArcGridActorInternal> ArcGrid;
 };
 
 VTK_ABI_NAMESPACE_END

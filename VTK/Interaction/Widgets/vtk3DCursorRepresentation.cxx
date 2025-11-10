@@ -7,7 +7,6 @@
 #include "vtkHardwarePicker.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkOpenGLPolyDataMapper.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
 #include "vtkRenderer.h"
@@ -178,7 +177,7 @@ void vtk3DCursorRepresentation::WidgetInteraction(double newEventPos[2])
         cpdm->SetCellIdArrayName(nullptr);
       }
     }
-    else if (auto glMapper = vtkOpenGLPolyDataMapper::SafeDownCast(actor->GetMapper()))
+    else if (auto glMapper = vtkPolyDataMapper::SafeDownCast(actor->GetMapper()))
     {
       if (glMapper->GetPointIdArrayName())
       {
@@ -202,7 +201,7 @@ void vtk3DCursorRepresentation::WidgetInteraction(double newEventPos[2])
     {
       cpdm->SetPointIdArrayName(item->second.c_str());
     }
-    else if (auto glMapper = vtkOpenGLPolyDataMapper::SafeDownCast(item->first))
+    else if (auto glMapper = vtkPolyDataMapper::SafeDownCast(item->first))
     {
       glMapper->SetPointIdArrayName(item->second.c_str());
     }
@@ -213,7 +212,7 @@ void vtk3DCursorRepresentation::WidgetInteraction(double newEventPos[2])
     {
       cpdm->SetCellIdArrayName(item->second.c_str());
     }
-    else if (auto glMapper = vtkOpenGLPolyDataMapper::SafeDownCast(item->first))
+    else if (auto glMapper = vtkPolyDataMapper::SafeDownCast(item->first))
     {
       glMapper->SetCellIdArrayName(item->second.c_str());
     }
@@ -303,21 +302,6 @@ void vtk3DCursorRepresentation::SetCustomCursor(vtkActor* customCursor)
       this->Internals->NeedUpdate = true;
     }
   }
-}
-
-//------------------------------------------------------------------------------
-// VTK_DEPRECATED_IN_9_3_0
-void vtk3DCursorRepresentation::SetCursor(vtkActor* cursor)
-{
-  this->SetCursorShape(CUSTOM_SHAPE);
-  this->SetCustomCursor(cursor);
-}
-
-//------------------------------------------------------------------------------
-// VTK_DEPRECATED_IN_9_3_0
-vtkActor* vtk3DCursorRepresentation::GetCursor()
-{
-  return this->GetCustomCursor();
 }
 
 //------------------------------------------------------------------------------

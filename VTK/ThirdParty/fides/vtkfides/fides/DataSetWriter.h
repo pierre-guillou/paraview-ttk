@@ -14,8 +14,8 @@
 #include <fides/FidesTypes.h>
 #include <fides/MetaData.h>
 
-#include <vtkm/cont/DataSet.h>
-#include <vtkm/cont/PartitionedDataSet.h>
+#include <viskores/cont/DataSet.h>
+#include <viskores/cont/PartitionedDataSet.h>
 
 #include <memory>
 #include <set>
@@ -24,6 +24,10 @@
 
 #include "fides_export.h"
 
+#ifdef FIDES_USE_MPI
+#include <vtk_mpi.h>
+#endif
+
 namespace fides
 {
 namespace io
@@ -31,16 +35,19 @@ namespace io
 
 /// \brief General purpose writer for data described by an Fides data model.
 ///
-/// \c fides::io::DataSetWriter writes a vtkm dataset to a file.
+/// \c fides::io::DataSetWriter writes a viskores dataset to a file.
 ///
 
 class FIDES_EXPORT DataSetWriter
 {
 public:
   DataSetWriter(const std::string& outputFile);
+#ifdef FIDES_USE_MPI
+  DataSetWriter(const std::string& outputFile, MPI_Comm comm);
+#endif
   ~DataSetWriter() = default;
 
-  void Write(const vtkm::cont::PartitionedDataSet& dataSets, const std::string& outputMode);
+  void Write(const viskores::cont::PartitionedDataSet& dataSets, const std::string& outputMode);
 
   void SetWriteFields(const std::vector<std::string>& writeFields)
   {
@@ -51,13 +58,6 @@ public:
     this->WriteFieldSet = true;
   }
 
-protected:
-  class GenericWriter;
-  class UniformDataSetWriter;
-  class RectilinearDataSetWriter;
-  class UnstructuredSingleTypeDataSetWriter;
-  class UnstructuredExplicitDataSetWriter;
-
   const unsigned char DATASET_TYPE_NONE = 0x00;
   const unsigned char DATASET_TYPE_UNIFORM = 0x01;
   const unsigned char DATASET_TYPE_RECTILINEAR = 0x02;
@@ -65,27 +65,40 @@ protected:
   const unsigned char DATASET_TYPE_UNSTRUCTURED = 0x10;
   const unsigned char DATASET_TYPE_ERROR = 0xFF;
 
-  void SetDataSetType(const vtkm::cont::PartitionedDataSet& dataSets);
-  unsigned char GetDataSetType(const vtkm::cont::DataSet& ds);
+protected:
+  class GenericWriter;
+  class UniformDataSetWriter;
+  class RectilinearDataSetWriter;
+  class UnstructuredSingleTypeDataSetWriter;
+  class UnstructuredExplicitDataSetWriter;
+
+  void SetDataSetType(const viskores::cont::PartitionedDataSet& dataSets);
+  unsigned char GetDataSetType(const viskores::cont::DataSet& ds);
 
   std::string OutputFile;
   unsigned char DataSetType;
   std::set<std::string> FieldsToWrite;
   bool WriteFieldSet;
+#ifdef FIDES_USE_MPI
+  MPI_Comm Comm = MPI_COMM_WORLD;
+#endif
 };
-
 
 class FIDES_EXPORT DataSetAppendWriter : public DataSetWriter
 {
 public:
   DataSetAppendWriter(const std::string& outputFile);
+#ifdef FIDES_USE_MPI
+  DataSetAppendWriter(const std::string& outputFile, MPI_Comm comm);
+#endif
   ~DataSetAppendWriter() = default;
 
-  void Write(const vtkm::cont::PartitionedDataSet& dataSets, const std::string& outputMode);
+  void Write(const viskores::cont::PartitionedDataSet& dataSets, const std::string& outputMode);
   void Close();
 
 private:
-  void Initialize(const vtkm::cont::PartitionedDataSet& dataSets, const std::string& outputMode);
+  void Initialize(const viskores::cont::PartitionedDataSet& dataSets,
+                  const std::string& outputMode);
   bool IsInitialized;
   std::shared_ptr<DataSetWriter::GenericWriter> Writer;
 };

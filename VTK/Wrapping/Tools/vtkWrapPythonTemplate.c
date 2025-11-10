@@ -114,7 +114,7 @@ size_t vtkWrapPython_PyTemplateName(const char* name, char* pname)
     }
   }
 
-  strncpy(pname, name, i);
+  memcpy(pname, name, i);
 
   if (name[i] != '<')
   {
@@ -359,7 +359,7 @@ int vtkWrapPython_WrapTemplatedClass(
     fprintf(fp, ";\n\n");
 
     fprintf(fp,
-      "PyObject *Py%s_TemplateNew()\n"
+      "static PyObject *Py%s_TemplateNew()\n"
       "{\n"
       "  PyObject *o;\n"
       "\n"

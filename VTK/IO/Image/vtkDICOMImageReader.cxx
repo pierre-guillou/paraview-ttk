@@ -79,13 +79,14 @@ void vtkDICOMImageReader::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------
 int vtkDICOMImageReader::CanReadFile(const char* fname)
 {
-  bool canOpen = this->Parser->OpenFile((const char*)fname);
+  bool canOpen = this->Parser->OpenFile(fname);
   if (!canOpen)
   {
     vtkErrorMacro("DICOMParser couldn't open : " << fname);
     return 0;
   }
   bool canRead = this->Parser->IsDICOMFile();
+  this->Parser->CloseFile();
   if (canRead)
   {
     return 1;
@@ -250,7 +251,12 @@ void vtkDICOMImageReader::ExecuteDataWithInformation(vtkDataObject* output, vtkI
     this->AppHelper->GetImageData(imgData, dataType, imageDataLength);
     if (!imageDataLength)
     {
-      vtkErrorMacro(<< "There was a problem retrieving data from: " << this->FileName);
+      data->GetPointData()->GetScalars()->Fill(0.0);
+      std::string uid = this->AppHelper->GetTransferSyntaxUID();
+      std::string info = this->AppHelper->TransferSyntaxUIDDescription(uid.c_str());
+
+      vtkErrorMacro(<< "Unable to get PixelData from " << this->FileName
+                    << " which has TransferSyntaxUID=" << uid << " (" << info << ")");
       this->SetErrorCode(vtkErrorCode::FileFormatError);
       return;
     }
@@ -311,7 +317,12 @@ void vtkDICOMImageReader::ExecuteDataWithInformation(vtkDataObject* output, vtkI
       this->AppHelper->GetImageData(imgData, dataType, imageDataLengthInBytes);
       if (!imageDataLengthInBytes)
       {
-        vtkErrorMacro(<< "There was a problem retrieving data from: " << file);
+        data->GetPointData()->GetScalars()->Fill(0.0);
+        std::string uid = this->AppHelper->GetTransferSyntaxUID();
+        std::string info = this->AppHelper->TransferSyntaxUIDDescription(uid.c_str());
+
+        vtkErrorMacro(<< "Unable to get PixelData from " << this->FileName
+                      << " which has TransferSyntaxUID=" << uid << " (" << info << ")");
         this->SetErrorCode(vtkErrorCode::FileFormatError);
         return;
       }

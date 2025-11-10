@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_4_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkAlgorithm.h"
 #include "vtkAppendPolyData.h"
 #include "vtkCamera.h"
@@ -263,8 +266,8 @@ vtkSmartPointer<vtkMultiBlockDataSet> tiler(const std::vector<std::string>& inpu
       polyData->GetPointData()->SetScalars(rgb);
     }
   }
-  std::transform(fileOffset.begin(), fileOffset.end(), inputOffset.begin(), fileOffset.begin(),
-    std::plus<double>());
+  std::transform(
+    fileOffset.begin(), fileOffset.end(), inputOffset.begin(), fileOffset.begin(), std::plus<>());
   std::string textureBaseDirectory = SystemTools::GetFilenamePath(files[0]);
 
   vtkNew<vtkCesium3DTilesWriter> writer;

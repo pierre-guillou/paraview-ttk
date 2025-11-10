@@ -10,6 +10,7 @@
 #include "vtkPVArrayInformation.h"
 #include "vtkPVDataInformation.h"
 #include "vtkPVDataSetAttributesInformation.h"
+#include "vtkPVGeneralSettings.h"
 #include "vtkPVRepresentedArrayListSettings.h"
 #include "vtkPVXMLElement.h"
 #include "vtkSMArrayListDomain.h"
@@ -22,14 +23,14 @@
 #include "vtkStringList.h"
 
 #include <vtk_jsoncpp.h>
+#include <vtksys/RegularExpression.hxx>
 
-#include <algorithm>
 #include <cassert>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
 #include <vector>
-#include <vtksys/RegularExpression.hxx>
 
 vtkStandardNewMacro(vtkSMChartSeriesSelectionDomain);
 namespace
@@ -70,9 +71,6 @@ public:
     this->ColorCounter++;
   }
 };
-
-//---------------------------------------------------------------------------
-bool vtkSMChartSeriesSelectionDomain::LoadNoVariables = false;
 
 //----------------------------------------------------------------------------
 vtkSMChartSeriesSelectionDomain::vtkSMChartSeriesSelectionDomain()
@@ -246,11 +244,16 @@ void vtkSMChartSeriesSelectionDomain::PopulateAvailableArrays(const std::string&
   std::set<std::string> uniquestrings;
 
   vtkPVDataSetAttributesInformation* dsa = dataInfo->GetAttributeInformation(fieldAssociation);
-  for (int cc = 0; dsa != nullptr && cc < dsa->GetNumberOfArrays(); cc++)
+  if (dsa != nullptr)
   {
-    vtkPVArrayInformation* arrayInfo = dsa->GetArrayInformation(cc);
-    this->PopulateArrayComponents(
-      chartRepr, blockName, strings, uniquestrings, arrayInfo, flattenTable);
+    std::unique_ptr<vtkPVDataSetAttributesInformation::AlphabeticalArrayInformationIterator> iter(
+      dsa->NewAlphabeticalArrayInformationIterator());
+    for (iter->GoToFirstItem(); !iter->IsDoneWithTraversal(); iter->GoToNextItem())
+    {
+      vtkPVArrayInformation* arrayInfo = iter->GetCurrentArrayInformation();
+      this->PopulateArrayComponents(
+        chartRepr, blockName, strings, uniquestrings, arrayInfo, flattenTable);
+    }
   }
 
   if (fieldAssociation == vtkDataObject::FIELD_ASSOCIATION_POINTS)
@@ -425,7 +428,7 @@ void vtkSMChartSeriesSelectionDomain::UpdateDefaultValues(
 //----------------------------------------------------------------------------
 bool vtkSMChartSeriesSelectionDomain::GetDefaultSeriesVisibility(const char* name)
 {
-  if (vtkSMChartSeriesSelectionDomain::LoadNoVariables)
+  if (vtkPVGeneralSettings::GetInstance()->GetLoadNoChartVariables())
   {
     return false;
   }
@@ -465,4 +468,16 @@ void vtkSMChartSeriesSelectionDomain::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
   os << indent << "HidePartialArrays: " << this->HidePartialArrays << endl;
+}
+
+//----------------------------------------------------------------------------
+void vtkSMChartSeriesSelectionDomain::SetLoadNoChartVariables(bool choice)
+{
+  vtkPVGeneralSettings::GetInstance()->SetLoadNoChartVariables(choice);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSMChartSeriesSelectionDomain::GetLoadNoChartVariables()
+{
+  return vtkPVGeneralSettings::GetInstance()->GetLoadNoChartVariables();
 }

@@ -6,17 +6,15 @@ executed.
 Typical usage is as follows::
 
     from paraview import smtrace
-    config = smtracer.start_trace()
 
-    # config is an instance of vtkSMTrace. One can setup properties on this
-    # object to control  the generated trace. e.g.
-    config.SetFullyTraceSupplementalProxies(True)
+    tracer = ScopedTracer()
+    with tracer:
+      # configure the tracer for this scope
+      tracer.config.SetFullyTraceSupplementalProxies = True
+      # do actions to trace
+      # ...
 
-    # do the actions to trace.
-        ...
-
-    # stop trace. The generated trace is returned.
-    txt = smtracer.stop_trace()
+    txt = tracer.last_trace()
 
 =========================
 Developer Documentation
@@ -64,16 +62,13 @@ garbage collected since there's no reference to it.
 """
 from __future__ import absolute_import, division, print_function
 
+import math
 import weakref
 import paraview.servermanager as sm
 import paraview.simple as simple
-import sys
 from paraview.vtk import vtkTimeStamp
 from paraview.modules.vtkRemotingCore import vtkPVSession
-
-if sys.version_info >= (3,):
-    xrange = range
-
+from paraview.decorator_utils import should_trace_based_on_decorators
 
 def _get_skip_rendering():
     return sm.vtkSMTrace.GetActiveTracer().GetSkipRenderingComponents()
@@ -244,7 +239,7 @@ class Trace(object):
                     accessor = ProxyAccessor(cls.get_varname(varname), obj)
                     cls.Output.append_separated([ \
                         "# get display properties",
-                        "%s = GetDisplayProperties(%s, view=%s)" % \
+                        "%s = GetRepresentation(%s, view=%s)" % \
                         (accessor, inputAccsr, viewAccessor)])
                     return True
         if not skip_rendering and cls.get_registered_name(obj, "lookup_tables"):
@@ -519,6 +514,149 @@ class Accessor(object):
         return self.__Object
 
 
+class PropertyFormatter:
+    def format(self, data, proxy):
+        raise NotImplementedError
+
+
+class DefaultFormatter(PropertyFormatter):
+    def format(self, data, proxy):
+        return repr(data)
+
+
+class TabulatedVectorFormatter(PropertyFormatter):
+    def __init__(self, col_names):
+        self.col_names = col_names
+
+    def format(self, data, proxy):
+        if len(data) == 0:
+            return "[]"
+
+        n_cols = len(self.col_names)
+
+        if n_cols == 0:
+            return repr(data)
+
+        assert len(data) % n_cols == 0
+
+        INDENT = "    "
+
+        lines = []
+        lines.append("[")
+        lines.append(f"{INDENT}# {', '.join(self.col_names)}")
+        for i in range(len(data) // n_cols):
+            start = i * n_cols
+            stop = start + n_cols
+            lines.append(
+                f"{INDENT}{', '.join(str(d) for d in data[start:stop])},"
+            )
+        lines.append("]")
+
+        return "\n".join(lines)
+
+
+class RGBPointsFormatter(TabulatedVectorFormatter):
+    def __init__(self):
+        # Initialize the tabulated vector formatter
+        # We will fall back on using this if we can't figure out any
+        # other way to re-generate the RGBPoints.
+        super().__init__(["scalar", "red", "green", "blue"])
+
+    def _is_default_preset(self, name: str) -> bool:
+        # Check if `name` is one of the default presets
+        presets = sm.vtkSMTransferFunctionPresets.GetInstance()
+        preset_idx = -1
+        for i in range(presets.GetNumberOfPresets()):
+            if last_preset_name == presets.GetPresetName(i):
+                preset_idx = i
+                break
+
+        return preset_idx != -1 and presets.IsPresetBuiltin(preset_idx)
+
+    def _rgb_points_match(self, lut, kwargs: dict) -> bool:
+        # Check if using the provided `kwargs` in `GenerateRGBPoints()`
+        # produces the same RGBPoints as those on `lut`.
+        new_points = simple.color.GenerateRGBPoints(**kwargs)
+        current_points = lut.RGBPoints
+
+        # Due to the unreliability of direct comparison between floating point
+        # numbers, instead of doing `new_points == current_points`, use
+        # `math.isclose()` between every pair of numbers.
+        if len(new_points) != len(current_points):
+            return False
+
+        for v1, v2 in zip(new_points, current_points):
+            # `math.isclose()` by default uses an absolute tolerance of 0
+            # and a relative tolerance of 1e-09.
+            if not math.isclose(v1, v2):
+                return False
+
+        return True
+
+    def _format_generate_rgb_points(self, kwargs: dict) -> str:
+        # Format `GenerateRGBPoints()`, along with its `kwargs`, as it will
+        # appear in the Python state file or Python trace.
+        indent = ' ' * 4
+        kwargs_str = (
+            f'\n{indent}' +
+            f',\n{indent}'.join([f'{k}={repr(v)}' for k, v in kwargs.items()])
+        )
+        return f'GenerateRGBPoints({kwargs_str},\n)'
+
+    def format(self, data, proxy):
+        lut = proxy
+
+        # Make aliases for the long function names
+        matches = self._rgb_points_match
+        format_out = self._format_generate_rgb_points
+
+        kwargs = {}
+        if matches(lut, kwargs):
+            # Defaults worked!
+            return format_out(kwargs)
+
+        last_preset_name = lut.NameOfLastPresetApplied
+        if last_preset_name:
+            kwargs['preset_name'] = last_preset_name
+            if matches(lut, kwargs):
+                # Applying preset with no range specified worked!
+                return format_out(kwargs)
+
+        # Try to make the range match
+        rgb_points = lut.RGBPoints
+        if len(rgb_points) > 3:
+            kwargs['range_min'] = lut.RGBPoints[0]
+            kwargs['range_max'] = lut.RGBPoints[-4]
+            if matches(lut, kwargs):
+                # Specifying range, possibly with a preset, worked!
+                return format_out(kwargs)
+
+        # If all else fails, revert to writing them all out
+        return super().format(data, proxy)
+
+
+DEFAULT_FORMATTER = DefaultFormatter()
+PROPERTY_FORMATTERS = {
+    "RGBPoints": RGBPointsFormatter(),
+}
+
+
+def get_property_formatter(property_trace_helper):
+    return PROPERTY_FORMATTERS.get(
+        property_trace_helper.PropertyName, DEFAULT_FORMATTER
+    )
+
+
+def indent_lines(string, n_indent):
+    if '"""' in string or "'''" in string:
+        # Do not perform any indentation on multiline strings
+        return string
+
+    lines = string.splitlines(keepends=True)
+    INDENT = "    " * n_indent
+    return INDENT.join(lines)
+
+
 class RealProxyAccessor(Accessor):
     __CreateCallbacks = []
 
@@ -585,8 +723,31 @@ class RealProxyAccessor(Accessor):
             prop.get_object().FindDomain("vtkSMFileListDomain") != None
 
     def trace_properties(self, props, in_ctor):
-        joiner = ",\n    " if in_ctor else "\n"
-        return joiner.join([x.get_property_trace(in_ctor) for x in props])
+        if in_ctor:
+            return ",\n    ".join([
+                indent_lines(x.get_property_trace(in_ctor), 1) for x in props]
+            )
+
+        # Sort the props so that any multiline strings get moved to the back.
+        # This is just because it looks nicer...
+        def sort_key(prop):
+            val = prop.get_value()
+            return '"""' in val or "'''" in val
+
+        props = sorted(props, key=sort_key)
+
+        lines = []
+        if len(props) > 1:
+            proxy_name = props[0].ProxyAccessor
+            lines.append(f"{proxy_name}.Set(")
+            for prop in props:
+                lines.append(f"    {indent_lines(prop.get_property_trace(True), 1)},")
+            lines.append(f")")
+        else:
+            for prop in props:
+                lines.append(prop.get_property_trace(False))
+
+        return "\n".join(lines)
 
     def trace_ctor(self, ctor, filter, ctor_args=None, skip_assignment=False,
                    ctor_var=None, ctor_extra_args=None):
@@ -594,7 +755,7 @@ class RealProxyAccessor(Accessor):
         # trace any properties that the 'filter' tells us should be traced
         # in ctor.
         # when ctor is null, add them to the other props to trace in creation
-        other_props = [];
+        other_props = []
         ctor_props = [x for x in self.OrderedProperties if filter.should_trace_in_ctor(x)]
         if not ctor is None:
           ctor_props_trace = self.trace_properties(ctor_props, in_ctor=True)
@@ -625,7 +786,8 @@ class RealProxyAccessor(Accessor):
         # FIXME: would like trace_properties() to return a list instead of
         # a string.
         txt = self.trace_properties(other_props, in_ctor=False)
-        if txt: trace.append(txt)
+        if txt:
+            trace.append(txt)
 
         # Now, if any of the props has ProxyListDomain, we should trace their
         # "ctors" as well. Tracing ctors for ProxyListDomain proxies simply
@@ -679,7 +841,7 @@ class PropertyTraceHelper(object):
             # This is cheating. Since there's no accessor for a proxy in the domain
             # unless the proxy is "active" in the property. However, since ParaView
             # UI never modifies the other properties, we cheat
-            for i in xrange(pld_domain.GetNumberOfProxies()):
+            for i in range(pld_domain.GetNumberOfProxies()):
                 domain_proxy = pld_domain.GetProxy(i)
                 plda = ProxyAccessor(self.get_varname(), sm._getPyProxy(domain_proxy))
                 self.ProxyListDomainProxyAccessors.append(plda)
@@ -757,6 +919,7 @@ class PropertyTraceHelper(object):
                     return "None"
             else:
                 return data[0]
+
         elif (myobject.SMProperty.IsA("vtkSMStringVectorProperty") and not
         (fileListDomain and fileListDomain.GetIsOptional() == 0
          or myobject.Proxy.GetVTKClassName() == "vtkPythonAnnotationFilter")):
@@ -765,7 +928,16 @@ class PropertyTraceHelper(object):
             # nor if the filter is a PythonAnnotation (see #21654)
             return self.create_multiline_string(repr(myobject))
         else:
-            return repr(myobject)
+            return self.format_object(myobject)
+
+    def format_object(self, obj):
+        formatter = get_property_formatter(self)
+        proxy = self.get_proxy()
+
+        try:
+            return formatter.format(obj, proxy)
+        except Exception:
+            return DEFAULT_FORMATTER.format(obj, proxy)
 
     def has_proxy_list_domain(self):
         """Returns True if this property has a ProxyListDomain, else False."""
@@ -842,7 +1014,42 @@ class ProxyFilter(object):
             return False
         trace_props_with_default_values = True \
             if setting == sm.vtkSMTrace.RECORD_ALL_PROPERTIES else False
-        return (trace_props_with_default_values or not prop.get_object().IsValueDefault())
+
+        if trace_props_with_default_values:
+            # We are writing out every property
+            return True
+
+        obj = prop.get_object()
+        if setting == sm.vtkSMTrace.RECORD_ACTIVE_MODIFIED_PROPERTIES:
+          # Check whether the property decorators logic consider this property "relevant".
+          # In this case relevant means that int the current state of paraview
+          # this property is enabled (not grayed-out) and is visible. Visibility
+          # is evaluated based on dependent properties and not "advanced" (i.e.
+          # gear icon) state.
+          proxy = prop.get_proxy()
+          sanitized_label = sm._make_name_valid(obj.GetXMLName())
+          should_trace = should_trace_based_on_decorators(proxy, sanitized_label)
+
+          if should_trace is False:
+              return False
+
+        # Skip writing out `None` strings
+        domain = prop.get_object().FindDomain("vtkSMArrayListDomain")
+        if domain and domain.GetNoneString() == prop.get_property_value():
+            return False
+
+        if isinstance(obj, sm.ProxyProperty):
+            # We already check every property when writing out the trace,
+            # so we don't need to recursively check proxy properties. We only
+            # need to check if the proxies themselves are the default ones.
+            # For example, for a clipping plane, this prevents arguments such
+            # as `ClipType='Plane'` from showing up in the trace when the
+            # clip type in fact was not modified, but some of the plane's
+            # properties were modified. This also applies to transfer
+            # functions and many other proxy properties.
+            return not obj.IsValueDefaultNonRecursive()
+
+        return not obj.IsValueDefault()
 
     def should_trace_in_ctor(self, prop):
         return False if not self.trace_all_in_ctor else \
@@ -974,8 +1181,18 @@ class TransferFunctionProxyFilter(ProxyFilter):
         return False
 
     def should_never_trace(self, prop):
-        if ProxyFilter.should_never_trace(self, prop, hide_gui_hidden=False): return True
-        if prop.get_property_name() in ["ScalarOpacityFunction"]: return True
+        blacklist = [
+            "ScalarOpacityFunction",
+            # We apply this to the RGBPoints explicitly, so no need to
+            # record it here.
+            "NameOfLastPresetApplied",
+        ]
+        if ProxyFilter.should_never_trace(self, prop, hide_gui_hidden=False):
+            return True
+
+        if prop.get_property_name() in blacklist:
+            return True
+
         return False
 
 
@@ -1715,26 +1932,34 @@ class LoadState(TraceItem):
             trace.append("# load state")
             trace.append("LoadState('%s')" % filename)
         elif mode == options.SMProxy.USE_DATA_DIRECTORY:
+            restrict_to_data_directory = 'True' if options.OnlyUseFilesInDataDirectory else 'False'
             trace.append("# load state using data from chosen directory")
             trace.append( \
                 ["LoadState('%s'," % filename,
                  "    data_directory='%s'," % options.DataDirectory,
-                 "    restrict_to_data_directory=%s)",
-                 True if options.OnlyUseFilesInDataDirectory else False])
+                 "    restrict_to_data_directory=%s)" % restrict_to_data_directory])
         elif mode == options.SMProxy.CHOOSE_FILES_EXPLICITLY:
             iter = sm.PropertyIterator(options)
             params = {}
-            for smprop in iter:
-                pname = iter.GetKey()
-                m = re.match(r"(\d+)\.(.+)", pname)
-                if m and options.IsPropertyModified(int(m.group(1)), m.group(2)):
-                    sid = m.group(1)
-                    readername = options.GetReaderName(int(sid))
-                    d = params.get(sid, {'name': readername, 'id': sid})
+
+            # Get the property groups constructed for each reader. We'll parse the label
+            # of the group to get the file name and proxy id in the XML. This label is
+            # formatted and set in vtkSMLoadStateOptionsProxy::vtkInternals::AddProperties()
+            for i in range(options.GetNumberOfPropertyGroups()):
+                group = options.GetPropertyGroup(i)
+                smprop = group.GetProperty(0)
+                property_name = group.GetPropertyName(0)
+                group_label = group.GetXMLLabel()
+                m = re.search(r'^([^(]+).*id=(\d+)', group_label)
+                registration_name = m.group(1)[:-1]
+                sid = int(m.group(2))
+                if m and options.IsPropertyModified(sid, property_name):
+                    readername = options.GetReaderName(sid)
+                    d = params.get(sid, {'name': registration_name, 'id': sid})
                     if smprop.GetNumberOfElements() == 1:
-                        d[m.group(2)] = smprop.GetElement(0)
+                        d[property_name] = smprop.GetElement(0)
                     else:
-                        d[m.group(2)] = [smprop.GetElement(x) for x in range(smprop.GetNumberOfElements())]
+                        d[property_name] = [smprop.GetElement(x) for x in range(smprop.GetNumberOfElements())]
                     params[sid] = d
             if params:
                 trace.append("# load state using specified data files")
@@ -2211,7 +2436,7 @@ def _get_standard_postamble_comment():
 # SaveAnimation()
 #
 ## Please refer to the documentation of paraview.simple
-## https://www.paraview.org/paraview-docs/latest/python/paraview.simple.html
+## https://www.paraview.org/paraview-docs/nightly/python/
 ##--------------------------------------------"""
 
 
@@ -2219,14 +2444,17 @@ def _get_standard_postamble_comment():
 # Public methods
 # ------------------------------------------------------------------------------
 def start_trace(preamble=None):
-    """Starting tracing. On successful start, will return a vtkSMTrace object.
+    """Starting tracing.
+    On successful start, will return a vtkSMTrace object.
     One can set tracing options on it to control how the tracing. If tracing was
-    already started, calling this contine with the same trace."""
+    already started, calling this contine with the same trace.
+    NOTE: please prefer using ScopedTracer, to ensure stop_trace call."""
     return sm.vtkSMTrace.StartTrace(preamble)
 
 
 def stop_trace():
-    """Stops the trace and returns the generated trace output string."""
+    """Stops the trace and returns the generated trace output string.
+    NOTE: please prefer using ScopedTracer"""
     return sm.vtkSMTrace.StopTrace()
 
 
@@ -2256,13 +2484,34 @@ def reset_trace_output():
 
 
 # ------------------------------------------------------------------------------
+class ScopedTracer():
+    """A tracer class that implements context management,
+    to ensure start_trace() call on enter and stop_trace on exit.
+    """
+    def __init__(self, preamble = ""):
+        self._preamble = preamble
+        self.config = None
+        self._last_trace = ""
+
+    def __enter__(self):
+        self.config = start_trace(self._preamble)
+
+    def __exit__(self, type, value, tb):
+        self._last_trace = stop_trace()
+        self.config = None
+
+    def last_trace(self):
+        return self._last_trace
+
+
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
     print("Running test")
-    start_trace()
+    tracer = ScopedTracer("")
+    with tracer.trace() as active_trace:
+        s = simple.Sphere()
+        c = simple.Clip()
+        simple.Show()
+        print("***** TRACE RESULT *****")
 
-    s = simple.Sphere()
-    c = simple.PlotOverLine()
-    simple.Show()
-
-    print("***** TRACE RESULT *****")
-    print(stop_trace())
+    print(tracer.last_trace())

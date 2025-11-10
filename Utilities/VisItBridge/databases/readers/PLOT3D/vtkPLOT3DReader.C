@@ -1255,11 +1255,13 @@ vtkPLOT3DReader::GetFunction(PLOT3DFunctions<DataType> &P3DF_helper, const char 
         numPts, velocity, 
         density, momentum);
 
+    int dims[3];
+    this->output->GetDimensions(dims);
     P3DF_helper.ComputeVorticity(
         numPts, f, 
         (DataType*)this->output->GetPoints()->GetData()->GetVoidPointer(0),
         velocity,
-        this->output->GetDimensions());
+        dims);
 
     delete [] velocity;
     finished = true;
@@ -1271,11 +1273,14 @@ vtkPLOT3DReader::GetFunction(PLOT3DFunctions<DataType> &P3DF_helper, const char 
     P3DF_helper.ComputeVelocity(
         numPts, velocity, 
         density, momentum);
+
+    int dims[3];
+    this->output->GetDimensions(dims);
     P3DF_helper.ComputeVorticity(
         numPts, vorticity, 
         (DataType*)this->output->GetPoints()->GetData()->GetVoidPointer(0),
         velocity,
-        this->output->GetDimensions());
+        dims);
    
     P3DF_helper.ComputeSwirl(
         numPts, f, 
@@ -1292,11 +1297,13 @@ vtkPLOT3DReader::GetFunction(PLOT3DFunctions<DataType> &P3DF_helper, const char 
         numPts, velocity, 
         density, momentum);
 
+    int dims[3];
+    this->output->GetDimensions(dims);
     P3DF_helper.ComputeStrainRate(
         numPts, f, 
         (DataType*)this->output->GetPoints()->GetData()->GetVoidPointer(0),
         velocity,
-        this->output->GetDimensions());
+        dims);
 
     delete [] velocity;
     finished = true;
@@ -1360,11 +1367,13 @@ vtkPLOT3DReader::GetFunction(PLOT3DFunctions<DataType> &P3DF_helper, const char 
         numPts, pressure, 
         density, momentum, energy, this->Gamma);
 
+    int dims[3];
+    this->output->GetDimensions(dims);
     P3DF_helper.ComputePressureGradient(
         numPts, f, 
         (DataType*)this->output->GetPoints()->GetData()->GetVoidPointer(0),
         pressure,
-        this->output->GetDimensions());
+        dims);
 
     delete [] pressure;
     finished = true; 

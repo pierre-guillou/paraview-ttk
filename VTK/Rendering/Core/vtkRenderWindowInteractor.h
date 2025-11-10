@@ -167,11 +167,12 @@ public:
   ///@}
 
   /**
-   * Event loop notification member for window size change.
-   * Window size is measured in pixels.
+   * When the event loop notifies the interactor that the window size has
+   * changed, this method is called to update the Size of the interactor
+   * and its vtkRenderWindow.
    *
-   * If the size has changed, this method will fire
-   * vtkCommand::WindowResizeEvent.
+   * The interactor will fire vtkCommand::ConfigureEvent after the size has
+   * updated.
    */
   virtual void UpdateSize(int x, int y);
 
@@ -342,9 +343,7 @@ public:
    * vtkAbstractPropPicker, meaning that it can identify a particular
    * instance of vtkProp.
    */
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   virtual void SetPicker(vtkAbstractPicker*);
-  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_NOT_SUPPORTED)
   vtkGetObjectMacro(Picker, vtkAbstractPicker);
   ///@}
 
@@ -579,7 +578,7 @@ public:
 
   ///@{
   /**
-   * Set/get the repear count for the key or mouse event. This specifies how
+   * Set/get the repeat count for the key or mouse event. This specifies how
    * many times a key has been pressed.
    */
   vtkSetMacro(RepeatCount, int);
@@ -603,7 +602,7 @@ public:
    * Please note KeySym may NOT be fully reliable across platforms, especially for special
    * characters with modifiers. Please check the actual KeySym on supported platform before relying
    * on it. However, KeySym is intended to always correspond to the key the user intended to press,
-   * even accross layouts and platforms.
+   * even across layouts and platforms.
    *
    * Default is nullptr.
    */

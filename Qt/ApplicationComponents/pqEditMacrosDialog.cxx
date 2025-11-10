@@ -336,7 +336,7 @@ struct pqEditMacrosDialog::pqInternals
         case pqInternals::Columns::Macros:
         case pqInternals::Columns::Tooltips:
         default:
-          return QStyledItemDelegate::updateEditorGeometry(editor, option, index);
+          QStyledItemDelegate::updateEditorGeometry(editor, option, index);
       }
     }
 
@@ -405,12 +405,12 @@ struct pqEditMacrosDialog::pqInternals
     return macroNames.join(separator);
   }
 
-  inline pqPythonMacrosModel* model() const
+  pqPythonMacrosModel* model() const
   {
     return static_cast<pqPythonMacrosModel*>(this->view()->model());
   }
 
-  inline QTreeView* view() const { return this->Ui->macrosTree; }
+  QTreeView* view() const { return this->Ui->macrosTree; }
 
   QScopedPointer<Ui::pqEditMacrosDialog> Ui;
 };
@@ -433,7 +433,9 @@ pqEditMacrosDialog::pqEditMacrosDialog(QWidget* parent)
   this->Internals->view()->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
   QObject::connect(pqPVApplicationCore::instance()->pythonManager()->macroSupervisor(),
-    &pqPythonMacroSupervisor::onAddedMacro, this, [this]() {
+    &pqPythonMacroSupervisor::onAddedMacro, this,
+    [this]()
+    {
       this->Internals->view()->resizeColumnToContents(pqInternals::Icons);
       this->Internals->view()->resizeColumnToContents(pqInternals::Macros);
       this->Internals->view()->resizeColumnToContents(pqInternals::Scripts);
@@ -442,11 +444,13 @@ pqEditMacrosDialog::pqEditMacrosDialog(QWidget* parent)
         QModelIndex(), QItemSelectionModel::NoUpdate);
       this->updateUIState();
     });
-  QObject::connect(this->Internals->model(), &QAbstractItemModel::dataChanged, []() {
-    // Python Manager can't be nullptr as this dialog is built only when Python is enabled
-    pqPythonManager* pythonManager = pqPVApplicationCore::instance()->pythonManager();
-    pythonManager->updateMacroList();
-  });
+  QObject::connect(this->Internals->model(), &QAbstractItemModel::dataChanged,
+    []()
+    {
+      // Python Manager can't be nullptr as this dialog is built only when Python is enabled
+      pqPythonManager* pythonManager = pqPVApplicationCore::instance()->pythonManager();
+      pythonManager->updateMacroList();
+    });
 
   QObject::connect(
     this->Internals->Ui->add, &QToolButton::released, this, &pqEditMacrosDialog::onAddPressed);
@@ -473,12 +477,14 @@ pqEditMacrosDialog::pqEditMacrosDialog(QWidget* parent)
   this->connect(this->Internals->view()->selectionModel(), &QItemSelectionModel::selectionChanged,
     this, &pqEditMacrosDialog::updateUIState);
 
-  this->connect(this->Internals->view(), &QTreeView::clicked, [this](const QModelIndex& index) {
-    if (index.column() == pqInternals::Columns::Scripts)
+  this->connect(this->Internals->view(), &QTreeView::clicked,
+    [this](const QModelIndex& index)
     {
-      this->onEditPressed();
-    }
-  });
+      if (index.column() == pqInternals::Columns::Scripts)
+      {
+        this->onEditPressed();
+      }
+    });
 
   this->updateUIState();
 }

@@ -27,7 +27,7 @@ framework described in the [UPDATING](UPDATING.md) document:
   * [fmt](fmt/update.sh)
   * [freetype](freetype/update.sh)
   * [gl2ps](gl2ps/update.sh)
-  * [glew](glew/update.sh)
+  * [glad](glad/update.sh)
   * [h5part](h5part/update.sh)
   * [hdf5](hdf5/update.sh)
   * [ioss](ioss/update.sh)
@@ -50,13 +50,15 @@ framework described in the [UPDATING](UPDATING.md) document:
   * [pegtl](pegtl/update.sh)
   * [png](png/update.sh)
   * [pugixml](pugixml/update.sh)
+  * [scn](scn/update.sh)
   * [sqlite](sqlite/update.sh)
   * [theora](theora/update.sh)
   * [tiff](tiff/update.sh)
+  * [token](token/update.sh)
   * [utf8](utf8/update.sh)
   * [verdict](verdict/update.sh)
+  * [viskores](viskores/update.sh)
   * [xdmf3](xdmf3/update.sh)
-  * [zfp](zfp/update.sh)
   * [zlib](zlib/update.sh)
 
 <!--
@@ -74,35 +76,11 @@ done | sort --ignore-case
 ```
 -->
 
-## Using `git submodule`
-
-The following third-party project were imported as git submodules:
-
-  * vtkm
-
-<!--
-The list above was generated using the following script:
-
-```
-cd VTK/ThirdParty
-
-root_src_dir=$(git rev-parse --show-toplevel)
-
-for submodule in $(git config --file ${root_src_dir}/.gitmodules --get-regexp path | awk '{ print $2 }'); do
-  # Ignore submodules not associated with the "ThirdParty" directory
-  if ! [[ "$submodule" =~ ^ThirdParty* ]]; then
-    continue
-  fi
-  project=$(echo $submodule | cut -d/ -f2) # "ThirdParty/vtkm/vtkvtkm/vtk-m" -> "vtkm"
-  echo "  * $project"
-done
-```
--->
-
 ## Using `copy`
 
 The following third-party projects were imported by copying the files:
 
+  * glad
   * vpic
   * xdmf2
 
@@ -111,14 +89,13 @@ The list above was generated using the following script:
 
 ```
 root_src_dir=$(git rev-parse --show-toplevel)
-submodule_paths=$(git config --file ${root_src_dir}/.gitmodules --get-regexp path | awk '{ print $2 }')
 
 for path in $(ls -d -1 */); do
   path=${path%/*}  # "dir1/dir2/Dir3/" -> "dir1/dir2/Dir3"
   project=${path##*/}  # "dir1/dir2/Dir3" -> "Dir3"
 
-  # List project that are neither imported through "update.sh" or git submodule
-  if [ ! -f "$path/update.sh" ] && [[ "$submodule_paths" != *"ThirdParty/$project"* ]]; then
+  # List project that isn't imported through "update.sh"
+  if [ ! -f "$path/update.sh" ]; then
     echo "  * $project"
   fi
 done | sort --ignore-case

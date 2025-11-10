@@ -4,7 +4,7 @@
 #define vtkOpenGLError_h
 
 #include "vtkSetGet.h"
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 #include <sstream>
 
 #ifndef NDEBUG
@@ -74,9 +74,7 @@ const char *vtkOpenGLStrError(unsigned int code)
       return "Stack overflow";
     case GL_STACK_UNDERFLOW:
       return "Stack underflow";
-    case GL_TABLE_TOO_LARGE:
-      return "Table too large";
-    case GL_INVALID_FRAMEBUFFER_OPERATION_EXT:
+    case GL_INVALID_FRAMEBUFFER_OPERATION:
       return "Invalid framebuffer operation";
 #endif
   }
@@ -84,7 +82,7 @@ const char *vtkOpenGLStrError(unsigned int code)
 }
 
 /**
- * Check for OpenGL errors. Error status is querried until
+ * Check for OpenGL errors. Error status is queried until
  * OpenGL reports no errors. The list of errors and their
  * descriptions are returned in the user supplied arrays.
  * User passes the size of the arrays as the first argument.
@@ -232,11 +230,16 @@ void vtkClearOpenGLErrors(const unsigned int maxErrors = 16)
 #endif
 
 #if !defined(VTK_REPORT_OPENGL_ERRORS)
-# define vtkOpenGLClearErrorMacro()
+# define vtkOpenGLClearErrorMacro() do {} while (false)
 # define vtkOpenGLCheckErrorMacro(message)
 # define vtkOpenGLStaticCheckErrorMacro(message)
 #else
-# define vtkOpenGLClearErrorMacro() vtkClearOpenGLErrors(16);
+#define vtkOpenGLClearErrorMacro()                                                                 \
+  do                                                                                               \
+  {                                                                                                \
+    vtkClearOpenGLErrors(16);                                                                      \
+  }                                                                                                \
+  while (false)
 # include <sstream> // for error macro
 # define vtkOpenGLCheckErrorMacroImpl(ostr, message) \
 do                                                   \

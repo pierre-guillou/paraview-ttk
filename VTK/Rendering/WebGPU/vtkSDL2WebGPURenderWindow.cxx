@@ -29,10 +29,6 @@
 #pragma clang diagnostic pop
 #endif
 
-#ifdef VTK_DAWN_ENABLE_BACKEND_METAL
-#include "wgpu_utils_metal.h"
-#endif
-
 VTK_ABI_NAMESPACE_BEGIN
 
 namespace
@@ -63,12 +59,12 @@ vtkSDL2WebGPURenderWindow::~vtkSDL2WebGPURenderWindow()
 {
   this->Finalize();
 
-  vtkRenderer* ren;
+  vtkRenderer* renderer;
   vtkCollectionSimpleIterator rit;
   this->Renderers->InitTraversal(rit);
-  while ((ren = this->Renderers->GetNextRenderer(rit)))
+  while ((renderer = this->Renderers->GetNextRenderer(rit)))
   {
-    ren->SetRenderWindow(nullptr);
+    renderer->SetRenderWindow(nullptr);
   }
 }
 
@@ -82,7 +78,15 @@ void vtkSDL2WebGPURenderWindow::PrintSelf(ostream& os, vtkIndent indent)
 //------------------------------------------------------------------------------------------------
 std::string vtkSDL2WebGPURenderWindow::MakeDefaultWindowNameWithBackend()
 {
-  return std::string("Visualization Toolkit - ") + "SDL2 " + this->GetBackendTypeAsString();
+  if (this->WGPUConfiguration)
+  {
+    return std::string("Visualization Toolkit - ") + "SDL2 " +
+      this->WGPUConfiguration->GetBackendInUseAsString();
+  }
+  else
+  {
+    return "Visualization Toolkit - SDL2 undefined backend";
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -112,7 +116,7 @@ bool vtkSDL2WebGPURenderWindow::Initialize()
 //------------------------------------------------------------------------------
 void vtkSDL2WebGPURenderWindow::Finalize()
 {
-  if (this->WGPUInitialized)
+  if (this->Initialized)
   {
     this->WGPUFinalize();
   }

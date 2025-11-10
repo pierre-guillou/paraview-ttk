@@ -263,6 +263,7 @@ public:
    * vtkImplicitFunction, meaning that it can be used by a variety of filters
    * to perform clipping, cutting, and selection of data.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void GetPlane(vtkPlane* plane);
 
   /**
@@ -270,6 +271,7 @@ public:
    * the plane provided is copied into the internal instance of the class
    * cutting vtkPlane.
    */
+  VTK_MARSHALEXCLUDE(VTK_MARSHAL_EXCLUDE_REASON_IS_INTERNAL)
   void SetPlane(vtkPlane* plane);
 
   /**
@@ -342,15 +344,6 @@ public:
   void SetForegroundColor(double, double, double);
   void SetForegroundColor(double c[3]) { this->SetForegroundColor(c[0], c[1], c[2]); }
   ///@}
-
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInteractionColor instead.")
-  void SetSelectedWidgetColor(double a, double b, double c) { this->SetInteractionColor(a, b, c); }
-  VTK_DEPRECATED_IN_9_3_0("Please use SetInteractionColor instead.")
-  void SetSelectedWidgetColor(double c[3]) { this->SetInteractionColor(c); }
-  VTK_DEPRECATED_IN_9_3_0("Please use SetHandleColor instead.")
-  void SetUnselectedWidgetColor(double a, double b, double c) { this->SetHandleColor(a, b, c); }
-  VTK_DEPRECATED_IN_9_3_0("Please use SetHandleColor instead.")
-  void SetUnselectedWidgetColor(double c[3]) { this->SetHandleColor(c); }
 
   ///@{
   /**

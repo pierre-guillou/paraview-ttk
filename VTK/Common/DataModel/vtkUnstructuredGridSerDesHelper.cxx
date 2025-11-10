@@ -3,6 +3,7 @@
 #include "vtkCellArray.h"
 #include "vtkDeserializer.h"
 #include "vtkSerializer.h"
+#include "vtkSmartPointer.h"
 #include "vtkUnsignedCharArray.h"
 #include "vtkUnstructuredGrid.h"
 
@@ -18,7 +19,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkUnstructuredGridSerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkUnstructuredGridSerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 static nlohmann::json Serialize_vtkUnstructuredGrid(
@@ -48,8 +49,8 @@ static void Deserialize_vtkUnstructuredGrid(
     f(state, object, deserializer);
   }
 
-  vtkUnsignedCharArray* cellTypes = nullptr;
-  vtkCellArray* connectivity = nullptr;
+  vtkSmartPointer<vtkUnsignedCharArray> cellTypes;
+  vtkSmartPointer<vtkCellArray> connectivity;
   {
     auto iter = state.find("CellTypes");
     if ((iter != state.end()) && !iter->is_null())
@@ -78,7 +79,8 @@ static void Deserialize_vtkUnstructuredGrid(
   }
 }
 
-int RegisterHandlers_vtkUnstructuredGridSerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkUnstructuredGridSerDesHelper(
+  void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

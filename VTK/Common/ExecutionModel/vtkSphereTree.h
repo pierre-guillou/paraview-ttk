@@ -119,8 +119,8 @@ public:
   /**
    * Methods for cell selection based on a geometric query. Internally
    * different methods are used depending on the dataset type. The method
-   * pupulates an vtkIdList with cell ids that may satisfy the geometric
-   * query (the user must provide a vtkLdList which the methods fill in).
+   * populates an vtkIdList with cell ids that may satisfy the geometric
+   * query (the user must provide a vtkIdList which the methods fill in).
    * SelectPoint lists all cells with a non-zero value that may contain a
    * point. SelectLine lists all cells that may intersect an infinite
    * line. SelectPlane lists all cells that may intersect with an infinite
@@ -179,6 +179,13 @@ public:
   const double* GetTreeSpheres(int level, vtkIdType& numSpheres);
   ///@}
 
+  ///@{
+  /**
+   * Participate in garbage collection via ReportReferences.
+   */
+  bool UsesGarbageCollector() const override { return true; }
+  ///@}
+
 protected:
   vtkSphereTree();
   ~vtkSphereTree() override;
@@ -209,6 +216,8 @@ protected:
   void BuildStructuredHierarchy(vtkStructuredGrid* input, double* tree);
   void BuildUnstructuredHierarchy(vtkDataSet* input, double* tree);
   int SphereTreeType; // keep track of the type of tree hierarchy generated
+
+  void ReportReferences(vtkGarbageCollector*) override;
 
 private:
   vtkSphereTree(const vtkSphereTree&) = delete;

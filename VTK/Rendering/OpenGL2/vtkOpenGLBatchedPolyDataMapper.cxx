@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtkOpenGLBatchedPolyDataMapper.h"
+
+#include "vtkArrayDispatch.h"
 #include "vtkCellData.h"
 #include "vtkColorTransferFunction.h"
 #include "vtkCompositePolyDataMapper.h"
+#include "vtkConstantArray.h"
 #include "vtkFloatArray.h"
 #include "vtkHardwareSelector.h"
 #include "vtkImageData.h"
@@ -28,6 +31,7 @@
 #include "vtkTextureObject.h"
 #include "vtkTransform.h"
 #include "vtkUnsignedIntArray.h"
+
 #include <sstream>
 
 namespace
@@ -88,6 +92,9 @@ void vtkOpenGLBatchedPolyDataMapper::AddBatchElement(unsigned int flatIndex, Bat
 {
   auto address = reinterpret_cast<std::uintptr_t>(element.PolyData);
   auto found = this->VTKPolyDataToGLBatchElement.find(address);
+
+  this->FlatIndexToPolyData[flatIndex] = address;
+
   if (found == this->VTKPolyDataToGLBatchElement.end())
   {
     GLBatchElement glBatchElement;
@@ -122,6 +129,7 @@ vtkCompositePolyDataMapperDelegator::BatchElement* vtkOpenGLBatchedPolyDataMappe
 void vtkOpenGLBatchedPolyDataMapper::ClearBatchElements()
 {
   this->VTKPolyDataToGLBatchElement.clear();
+  this->FlatIndexToPolyData.clear();
 }
 
 //------------------------------------------------------------------------------
@@ -318,6 +326,75 @@ void vtkOpenGLBatchedPolyDataMapper::ProcessSelectorPixelBuffers(
   }
 }
 
+namespace
+{
+struct ProcessFunctor
+{
+  template <typename TArray>
+  void operator()(TArray* array, unsigned char* rawplowdata, unsigned char* rawphighdata,
+    unsigned char* processdata, std::vector<unsigned int>& mypixels,
+    vtkOpenGLCompositePolyDataMapperDelegator::GLBatchElement* glBatchElement)
+  {
+    auto arrayRange = vtk::DataArrayValueRange<1>(array);
+    for (auto pos : mypixels)
+    {
+      unsigned int inval = 0;
+      if (rawphighdata)
+      {
+        inval = rawphighdata[pos];
+        inval = inval << 8;
+      }
+      inval |= rawplowdata[pos + 2];
+      inval = inval << 8;
+      inval |= rawplowdata[pos + 1];
+      inval = inval << 8;
+      inval |= rawplowdata[pos];
+      // as this pass happens after both low and high point passes
+      // the computed value should be higher than StartVertex
+      inval -= glBatchElement->StartVertex;
+      const auto outval = static_cast<unsigned int>(arrayRange[inval]) + 1;
+      processdata[pos] = outval & 0xff;
+      processdata[pos + 1] = (outval & 0xff00) >> 8;
+      processdata[pos + 2] = (outval & 0xff0000) >> 16;
+    }
+  }
+};
+
+struct CompositeFunctor
+{
+  template <typename TArray>
+  void operator()(TArray* array, unsigned char* rawclowdata, unsigned char* rawchighdata,
+    unsigned char* compositedata, std::vector<unsigned int>& mypixels,
+    vtkOpenGLCompositePolyDataMapperDelegator::GLBatchElement* glBatchElement, bool pointPicking)
+  {
+    auto arrayRange = vtk::DataArrayValueRange<1>(array);
+    for (auto pos : mypixels)
+    {
+      unsigned int inval = 0;
+      if (rawchighdata)
+      {
+        inval = rawchighdata[pos];
+        inval = inval << 8;
+      }
+      inval |= rawclowdata[pos + 2];
+      inval = inval << 8;
+      inval |= rawclowdata[pos + 1];
+      inval = inval << 8;
+      inval |= rawclowdata[pos];
+
+      // always gets called after the cell high and low are available
+      // so it is safe
+      vtkIdType vtkCellId =
+        glBatchElement->CellCellMap->ConvertOpenGLCellIdToVTKCellId(pointPicking, inval);
+      const auto outval = static_cast<unsigned int>(arrayRange[vtkCellId]);
+      compositedata[pos] = outval & 0xff;
+      compositedata[pos + 1] = (outval & 0xff00) >> 8;
+      compositedata[pos + 2] = (outval & 0xff0000) >> 16;
+    }
+  }
+};
+}
+
 //------------------------------------------------------------------------------
 void vtkOpenGLBatchedPolyDataMapper::ProcessCompositePixelBuffers(vtkHardwareSelector* sel,
   vtkProp* prop, GLBatchElement* glBatchElement, std::vector<unsigned int>& mypixels)
@@ -346,37 +423,24 @@ void vtkOpenGLBatchedPolyDataMapper::ProcessCompositePixelBuffers(vtkHardwareSel
   if (currPass == vtkHardwareSelector::PROCESS_PASS)
   {
     unsigned char* processdata = sel->GetPixelBuffer(vtkHardwareSelector::PROCESS_PASS);
-    vtkUnsignedIntArray* processArray = nullptr;
+    vtkDataArray* processArray = nullptr;
 
     if (sel->GetUseProcessIdFromData())
     {
-      processArray = this->ProcessIdArrayName
-        ? vtkArrayDownCast<vtkUnsignedIntArray>(pd->GetArray(this->ProcessIdArrayName))
-        : nullptr;
+      processArray = this->ProcessIdArrayName ? pd->GetArray(this->ProcessIdArrayName) : nullptr;
     }
 
-    if (processArray && processdata && rawplowdata)
+    if (processdata && (processArray && processArray->GetDataType() == VTK_UNSIGNED_INT) &&
+      rawplowdata)
     {
-      for (auto pos : mypixels)
+      using UIntArrays =
+        vtkTypeList::Create<vtkAOSDataArrayTemplate<unsigned int>, vtkConstantArray<unsigned int>>;
+      using Dispatcher = vtkArrayDispatch::DispatchByArray<UIntArrays>;
+      ProcessFunctor functor;
+      if (!Dispatcher::Execute(processArray, functor, rawplowdata, rawphighdata, processdata,
+            mypixels, glBatchElement))
       {
-        unsigned int inval = 0;
-        if (rawphighdata)
-        {
-          inval = rawphighdata[pos];
-          inval = inval << 8;
-        }
-        inval |= rawplowdata[pos + 2];
-        inval = inval << 8;
-        inval |= rawplowdata[pos + 1];
-        inval = inval << 8;
-        inval |= rawplowdata[pos];
-        // as this pass happens after both low and high point passes
-        // the computed value should be higher than StartVertex
-        inval -= glBatchElement->StartVertex;
-        unsigned int outval = processArray->GetValue(inval) + 1;
-        processdata[pos] = outval & 0xff;
-        processdata[pos + 1] = (outval & 0xff00) >> 8;
-        processdata[pos + 2] = (outval & 0xff0000) >> 16;
+        functor(processArray, rawplowdata, rawphighdata, processdata, mypixels, glBatchElement);
       }
     }
   }
@@ -478,36 +542,23 @@ void vtkOpenGLBatchedPolyDataMapper::ProcessCompositePixelBuffers(vtkHardwareSel
   {
     unsigned char* compositedata = sel->GetPixelBuffer(vtkHardwareSelector::COMPOSITE_INDEX_PASS);
 
-    vtkUnsignedIntArray* compositeArray = this->CompositeIdArrayName
-      ? vtkArrayDownCast<vtkUnsignedIntArray>(cd->GetArray(this->CompositeIdArrayName))
-      : nullptr;
+    vtkDataArray* compositeArray =
+      this->CompositeIdArrayName ? cd->GetArray(this->CompositeIdArrayName) : nullptr;
 
-    if (compositedata && compositeArray && rawclowdata)
+    if (compositedata && (compositeArray && compositeArray->GetDataType() == VTK_UNSIGNED_INT) &&
+      rawclowdata)
     {
       glBatchElement->CellCellMap->Update(prims, representation, poly->GetPoints());
 
-      for (auto pos : mypixels)
+      using UIntArrays =
+        vtkTypeList::Create<vtkAOSDataArrayTemplate<unsigned int>, vtkConstantArray<unsigned int>>;
+      using Dispatcher = vtkArrayDispatch::DispatchByArray<UIntArrays>;
+      CompositeFunctor functor;
+      if (!Dispatcher::Execute(compositeArray, functor, rawclowdata, rawchighdata, compositedata,
+            mypixels, glBatchElement, pointPicking))
       {
-        unsigned int inval = 0;
-        if (rawchighdata)
-        {
-          inval = rawchighdata[pos];
-          inval = inval << 8;
-        }
-        inval |= rawclowdata[pos + 2];
-        inval = inval << 8;
-        inval |= rawclowdata[pos + 1];
-        inval = inval << 8;
-        inval |= rawclowdata[pos];
-
-        // always gets called after the cell high and low are available
-        // so it is safe
-        vtkIdType vtkCellId =
-          glBatchElement->CellCellMap->ConvertOpenGLCellIdToVTKCellId(pointPicking, inval);
-        unsigned int outval = compositeArray->GetValue(vtkCellId);
-        compositedata[pos] = outval & 0xff;
-        compositedata[pos + 1] = (outval & 0xff00) >> 8;
-        compositedata[pos + 2] = (outval & 0xff0000) >> 16;
+        functor(compositeArray, rawclowdata, rawchighdata, compositedata, mypixels, glBatchElement,
+          pointPicking);
       }
     }
   }
@@ -667,9 +718,17 @@ void vtkOpenGLBatchedPolyDataMapper::DrawIBO(vtkRenderer* renderer, vtkActor* ac
     bool selecting = this->CurrentSelector != nullptr;
     bool tpass = actor->IsRenderingTranslucentPolygonalGeometry();
 
-    for (auto& iter : this->VTKPolyDataToGLBatchElement)
+    for (auto& pair : this->FlatIndexToPolyData)
     {
-      auto glBatchElement = iter.second.get();
+      if (this->VTKPolyDataToGLBatchElement.find(pair.second) ==
+        this->VTKPolyDataToGLBatchElement.end())
+      {
+        vtkDebugMacro(<< "polydata(" << pair.second
+                      << ") hasn't an associated GLBatchElement, skip.");
+        continue;
+      }
+
+      auto glBatchElement = this->VTKPolyDataToGLBatchElement[pair.second].get();
       auto& batchElement = glBatchElement->Parent;
       bool shouldDraw = batchElement.Visibility     // must be visible
         && (!selecting || batchElement.Pickability) // and pickable when selecting

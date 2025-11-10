@@ -24,7 +24,6 @@
 #include "pqFileDialog.h"
 #include "pqPluginManager.h"
 #include "pqServer.h"
-#include "pqSettings.h"
 #include "vtkNew.h"
 #include "vtkPVPythonInformation.h"
 #include "vtkSMSession.h"
@@ -420,8 +419,7 @@ void pqPluginDialog::onPluginItemChanged(QTreeWidgetItem* item, int col)
   if (item && col == ValueCol)
   {
     unsigned int index = 0;
-    vtkPVPluginsInformation* plInfo =
-      this->getPluginInfo(static_cast<QTreeWidgetItem*>(item->parent()), index);
+    vtkPVPluginsInformation* plInfo = this->getPluginInfo(item->parent(), index);
     if (plInfo)
     {
       bool autoLoad = item->checkState(col) == Qt::Checked;

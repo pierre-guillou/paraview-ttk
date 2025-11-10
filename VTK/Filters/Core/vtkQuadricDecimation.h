@@ -26,7 +26,8 @@
  * constraints prevent further reduction. Note that this basic algorithm can
  * be extended to higher dimensions by
  * taking into account variation in attributes (i.e., scalars, vectors, and
- * so on).
+ * so on). Attributes are interpolated during the edge collapse,
+ * except for vtkIdType arrays: values of removed points are discarded.
  *
  * This paper is based on the work of Garland and Heckbert who first
  * presented the quadric error measure at Siggraph '97 "Surface
@@ -44,7 +45,6 @@
 #ifndef vtkQuadricDecimation_h
 #define vtkQuadricDecimation_h
 
-#include "vtkDeprecation.h"       // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkFiltersCoreModule.h" // For export macro
 #include "vtkPolyDataAlgorithm.h"
 
@@ -66,7 +66,8 @@ public:
   /**
    * Set/Get the desired reduction (expressed as a fraction of the original
    * number of triangles). The actual reduction may be less depending on
-   * triangulation and topological constraints.
+   * triangulation, topological constraints and optional maximum error limit.
+   * @see SetMaximumError
    */
   vtkSetClampMacro(TargetReduction, double, 0.0, 1.0);
   vtkGetMacro(TargetReduction, double);
@@ -94,6 +95,16 @@ public:
   vtkSetMacro(VolumePreservation, vtkTypeBool);
   vtkGetMacro(VolumePreservation, vtkTypeBool);
   vtkBooleanMacro(VolumePreservation, vtkTypeBool);
+  ///@}
+
+  ///@{
+  /**
+   * Maximum allowed absolute error for stopping criteria.
+   * VTK_DOUBLE_MAX by default (no limit).
+   * This limit takes precedence over the TargetReduction.
+   */
+  vtkSetMacro(MaximumError, double);
+  vtkGetMacro(MaximumError, double);
   ///@}
 
   ///@{
@@ -138,6 +149,8 @@ public:
   ///@{
   /**
    * Getter/Setter for mapping point data to the output during decimation.
+   * Attributes are interpolated during edge collapses, except for
+   * vtkIdType array where each collapse lead to a single id being kept.
    */
   vtkGetMacro(MapPointData, bool);
   vtkSetMacro(MapPointData, bool);
@@ -260,9 +273,6 @@ protected:
    *
    * The setter needs the entire edge for interpolation of point data
    */
-  VTK_DEPRECATED_IN_9_3_0("Deprecated in favor of the method taking the indexes of both points on "
-                          "the edge to interpolate point data")
-  void SetPointAttributeArray(vtkIdType ptId, const double* x);
   void SetPointAttributeArray(vtkIdType ptId[2], const double* x);
   void GetPointAttributeArray(vtkIdType ptId, double* x);
   ///@}
@@ -333,6 +343,9 @@ protected:
 private:
   vtkQuadricDecimation(const vtkQuadricDecimation&) = delete;
   void operator=(const vtkQuadricDecimation&) = delete;
+
+  // Maximum allowed absolute error for stopping criteria.
+  double MaximumError = VTK_DOUBLE_MAX;
 };
 
 VTK_ABI_NAMESPACE_END

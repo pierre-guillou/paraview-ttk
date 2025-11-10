@@ -9,6 +9,7 @@
 #include "pqFileDialog.h"
 #include "pqServer.h"
 #include "pqSettings.h"
+#include "vtkLogger.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOutputWindow.h"
@@ -25,6 +26,7 @@
 #include <QStandardItemModel>
 #include <QStringList>
 #include <QStyle>
+#include <QStyleHints>
 
 namespace OutputWidgetInternals
 {
@@ -56,7 +58,16 @@ public:
 
   void DisplayText(const char* msg) override
   {
+    static thread_local bool callingDisplayText = false;
+    if (callingDisplayText)
+    {
+      // Note: This line will cause trouble if you redirect the VTK logger to this output window.
+      vtkLog(WARNING, "Detected reentry into OutputWindow display text with message: " << msg);
+      // Quitting so that the mutex below does not lock (and so we don't get in an infinite loop).
+      return;
+    }
     QMutexLocker locker(&this->MutexGenericMessage);
+    QScopedValueRollback callingDisplayTextReset(callingDisplayText, true);
     const auto msgType = this->ConvertMessageType(this->GetCurrentMessageType());
     if (this->Widget)
     {
@@ -308,15 +319,15 @@ public:
     {
       case QtInfoMsg:
       case QtDebugMsg:
-        return QColor(Qt::darkGreen);
+        return (pqCoreUtilities::isDarkTheme() ? QColor(Qt::green) : QColor(Qt::darkGreen));
 
       case QtCriticalMsg:
       case QtFatalMsg:
       case QtWarningMsg:
-        return QColor(Qt::darkRed);
+        return (pqCoreUtilities::isDarkTheme() ? QColor(Qt::red) : QColor(Qt::darkRed));
 
       default:
-        return QColor(Qt::black);
+        return QApplication::palette().color(QPalette::Text);
     }
   }
 

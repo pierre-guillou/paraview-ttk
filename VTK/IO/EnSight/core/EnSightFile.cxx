@@ -3,11 +3,12 @@
 
 #include "EnSightFile.h"
 
+#include <cctype> // for std::tolower
 #include <regex>
 
 #include <vtk_fmt.h>
 // clang-format off
-#include VTK_FMT(fmt/core.h)
+#include VTK_FMT(fmt/format.h)
 // clang-format on
 
 namespace ensight_gold
@@ -104,6 +105,17 @@ int getFileSetIndex(int tsIdx, std::shared_ptr<FileSetInfo> info)
     }
   }
   return -1;
+}
+
+bool hasWildcards(const std::string& pattern)
+{
+  std::regex exp("\\*+");
+  std::smatch sm;
+  if (std::regex_search(pattern, sm, exp))
+  {
+    return true;
+  }
+  return false;
 }
 
 std::string replaceWildcards(const std::string& pattern, int num)
@@ -289,6 +301,31 @@ bool EnSightFile::SetTimeStepToRead(double ts)
 }
 
 //------------------------------------------------------------------------------
+bool EnSightFile::CheckForMultipleTimeSteps()
+{
+  // if there's wildcards in the name then we have multiple time steps
+  if (hasWildcards(this->FileNamePattern))
+  {
+    return true;
+  }
+
+  // we have to check if there's a BEGIN TIME STEP line to see if there's multiple time steps
+  if (!this->OpenFile())
+  {
+    vtkGenericWarningMacro("the file " << this->FileNamePattern << " could not be opened");
+    return false;
+  }
+
+  auto result = this->ReadNextLine();
+  this->ResetFile();
+  if (result.second.find("BEGIN TIME STEP") == std::string::npos)
+  {
+    return false;
+  }
+  return true;
+}
+
+//------------------------------------------------------------------------------
 void EnSightFile::CheckForBeginTimeStepLine()
 {
   // When file sets are used, multiple time steps are in a single file.
@@ -309,7 +346,7 @@ void EnSightFile::CheckForBeginTimeStepLine()
   }
 
   // Adding positions to TimeStepBeginPositions should always happen in SetTimeStepToRead,
-  // but just incase it doesn't, we can add it here.
+  // but just in case it doesn't, we can add it here.
   auto& beginPositions = this->TimeStepBeginPositions[this->CurrentFileIndex];
   if (std::find(beginPositions.begin(), beginPositions.end(), this->GetCurrentPosition()) ==
     beginPositions.end())
@@ -413,7 +450,7 @@ bool EnSightFile::OpenFile(const std::string& filename, bool isCaseFile /* = fal
   else
   {
     // wasn't C Binary, check for Fortran Binary
-    // Fortan files have 4 bytes on each side of each read
+    // Fortran files have 4 bytes on each side of each read
     this->Stream->seekg(0, ios::beg);
     result = this->ReadLine(88);
     auto& fline = result.second;
@@ -503,6 +540,19 @@ std::pair<bool, std::string> EnSightFile::ReadNextLine(int size /* = MAX_LINE_LE
   }
 
   return result;
+}
+
+//------------------------------------------------------------------------------
+void EnSightFile::SkipLine(vtkTypeInt64 size)
+{
+  if (this->Format == FileType::ASCII)
+  {
+    this->Stream->ignore(size, '\n');
+  }
+  else
+  {
+    this->MoveReadPosition(this->FortranSkipBytes * 2 + size);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -601,11 +651,9 @@ bool EnSightFile::DetectByteOrder(int* result)
 }
 
 //------------------------------------------------------------------------------
-void EnSightFile::MoveReadPosition(int numBytes)
+void EnSightFile::MoveReadPosition(vtkTypeInt64 numBytes)
 {
-  auto pos = this->Stream->tellg();
-  pos += numBytes;
-  this->Stream->seekg(pos, ios::beg);
+  this->Stream->seekg(numBytes, ios::cur);
 }
 
 //------------------------------------------------------------------------------

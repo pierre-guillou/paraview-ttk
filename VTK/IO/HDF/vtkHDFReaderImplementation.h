@@ -10,7 +10,6 @@
 #define vtkHDFReaderImplementation_h
 
 #include "vtkHDFReader.h"
-#include "vtkHDFUtilities.h"
 #include "vtk_hdf5.h"
 #include <array>
 #include <map>
@@ -22,6 +21,7 @@ class vtkAbstractArray;
 class vtkDataArray;
 class vtkStringArray;
 class vtkDataAssembly;
+class vtkBitArray;
 
 /**
  * Implementation for the vtkHDFReader. Opens, closes and
@@ -55,10 +55,9 @@ public:
   template <typename T>
   bool GetAttribute(const char* attributeName, size_t numberOfElements, T* value);
   /**
-   * Reads an attribute from the group passed to it
+   * Return true if the attribute exists in the specified group
    */
-  template <typename T>
-  bool GetAttribute(hid_t group, const char* attributeName, size_t numberOfElements, T* value);
+  bool HasAttribute(const char* groupName, const char* attributeName);
   /**
    * Returns the number of partitions for this dataset at the time step
    * `step` if applicable.
@@ -122,13 +121,10 @@ public:
   bool FillAssembly(vtkDataAssembly* data, hid_t assemblyHandle, int assemblyID, std::string path);
   ///@}
 
-  ///@{
   /**
    * Read the number of steps from the opened file
    */
   std::size_t GetNumberOfSteps();
-  std::size_t GetNumberOfSteps(hid_t group);
-  ///@}
 
   ///@{
   /**
@@ -160,9 +156,15 @@ public:
    */
   bool RetrieveHDFInformation(const std::string& rootName);
 
+  /**
+   * Retrieve ImageData attributes and store them.
+   * Return false on failure.
+   */
+  bool GetImageAttributes(int WholeExtent[6], double Origin[3], double Spacing[3]);
+
   ///@{
   /**
-   * Specific public API for AMR supports.
+   * Specific public API for AMR support.
    */
   /**
    * Retrieve for each required level AMRBlocks size and position.
@@ -188,83 +190,50 @@ public:
     vtkDataArraySelection* dataArraySelection[3], bool isTemporalData);
   ///@}
 
-protected:
   /**
-   * Used to store HDF native types in a map
+   * Create a new dataset given its type and the number of pieces.
+   * Create a vtkPartitionedDataSet when the number of pieces is more than 1.
    */
-  struct TypeDescription
-  {
-    int Class;
-    size_t Size;
-    int Sign;
-    TypeDescription()
-      : Class(H5T_NO_CLASS)
-      , Size(0)
-      , Sign(H5T_SGN_ERROR)
-    {
-    }
-    bool operator<(const TypeDescription& other) const
-    {
-      return Class < other.Class || (Class == other.Class && Size < other.Size) ||
-        (Class == other.Class && Size == other.Size && Sign < other.Sign);
-    }
-  };
+  vtkSmartPointer<vtkDataObject> GetNewDataSet(int dataSetType, int numPieces);
 
   /**
-   * Opens the hdf5 dataset given the 'group' and 'name'.
-   * Returns the hdf dataset and sets 'nativeType' and 'dims'.
-   * The caller needs to close the returned hid_t manually using H5Dclose or a Scoped Handle if it
-   * is not an invalid hid.
+   * Read data and build the HyperTreeGrid from descriptors, mask information and cell data array in
+   * the file, reading from the offsets specified as arguments.
+   * Return false on failure.
    */
-  hid_t OpenDataSet(hid_t group, const char* name, hid_t* nativeType, std::vector<hsize_t>& dims);
-  /**
-   * Convert C++ template type T to HDF5 native type
-   * this can be constexpr in C++17 standard
-   */
-  template <typename T>
-  hid_t TemplateTypeToHdfNativeType();
-  /**
-   * Create a vtkDataArray based on the C++ template type T.
-   * For instance, for a float we create a vtkFloatArray.
-   * this can be constexpr in C++17 standard
-   */
-  template <typename T>
-  vtkDataArray* NewVtkDataArray();
+  bool ReadHyperTreeGridData(vtkHyperTreeGrid* htg, const vtkDataArraySelection* arraySelection,
+    vtkIdType cellOffset, vtkIdType treeIdsOffset, vtkIdType depthOffset,
+    vtkIdType descriptorOffset, vtkIdType maskOffset, vtkIdType partOffset,
+    vtkIdType verticesPerDepthOffset, vtkIdType depthLimit, vtkIdType step);
 
-  ///@{
   /**
-   * Reads a vtkDataArray of type T from the attributeType, dataset
-   * The array has type 'T' and 'numberOfComponents'. We are reading
-   * fileExtent slab from the array. It returns the array or nullptr
-   * in case of an error.
-   * There are three cases for fileExtent:
-   * fileExtent.size() == 0 - in this case we expect a 1D array and we read
-   *                          the whole array. Used for field arrays.
-   * fileExtent.size()>>1 == ndims - in this case we read a scalar
-   * fileExtent.size()>>1 + 1 == ndims - in this case we read an array with
-   *                           the number of components > 1.
+   * Read HTG meta-information stored in attributes
    */
-  vtkDataArray* NewArrayForGroup(
-    hid_t group, const char* name, const std::vector<hsize_t>& fileExtent);
-  vtkDataArray* NewArrayForGroup(hid_t dataset, hid_t nativeType, const std::vector<hsize_t>& dims,
-    const std::vector<hsize_t>& fileExtent);
-  template <typename T>
-  vtkDataArray* NewArray(
-    hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents);
-  template <typename T>
-  bool NewArray(
-    hid_t dataset, const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents, T* data);
-  vtkStringArray* NewStringArray(hid_t dataset, hsize_t size);
-  ///@}
+  bool ReadHyperTreeGridMetaInfo(vtkHyperTreeGrid* htg);
+
   /**
-   * Builds a map between native types and GetArray routines for that type.
+   * Read HTG dimensions and coordinates
    */
-  void BuildTypeReaderMap();
+  bool ReadHyperTreeGridDimensions(vtkHyperTreeGrid* htg);
+
   /**
-   * Associates a struct of three integers with HDF type. This can be used as
-   * key in a map.
+   * Initialize selected Cell arrays for HyperTreeGrid
    */
-  TypeDescription GetTypeDescription(hid_t type);
+  bool CreateHyperTreeGridCellArrays(vtkHyperTreeGrid* htg,
+    std::vector<vtkSmartPointer<vtkAbstractArray>>& cellArrays,
+    const vtkDataArraySelection* arraySelection, vtkIdType cellCount);
+
+  /**
+   * Read & add cell data for the tree currently processed.
+   */
+  bool AppendCellDataForHyperTree(std::vector<vtkSmartPointer<vtkAbstractArray>>& cellArrays,
+    vtkIdType cellOffset, vtkIdType inputCellOffset, vtkIdType step, vtkIdType readableTreeSize);
+
+  /**
+   * Read & add mask data for the current tree
+   */
+  bool AppendMaskForHyperTree(vtkHyperTreeGrid* htg, vtkIdType inputCellOffset,
+    vtkIdType maskOffset, vtkIdType readableTreeSize);
 
 private:
   std::string FileName;
@@ -276,11 +245,6 @@ private:
   int NumberOfPieces;
   std::array<int, 2> Version;
   vtkHDFReader* Reader;
-  using ArrayReader = vtkDataArray* (vtkHDFReader::Implementation::*)(hid_t dataset,
-    const std::vector<hsize_t>& fileExtent, hsize_t numberOfComponents);
-  std::map<TypeDescription, ArrayReader> TypeReaderMap;
-
-  bool ReadDataSetType();
 
   ///@{
   /**
@@ -289,11 +253,11 @@ private:
   struct AMRBlocksInformation
   {
     std::vector<int> BlocksPerLevel;
-    std::vector<int> BlockOffsetsPerLevel;
-    std::map<std::string, std::vector<int>> CellOffsetsPerLevel;
-    std::map<std::string, std::vector<int>> PointOffsetsPerLevel;
-    std::map<std::string, std::vector<int>> FieldOffsetsPerLevel;
-    std::map<std::string, std::vector<int>> FieldSizesPerLevel;
+    std::vector<vtkIdType> BlockOffsetsPerLevel;
+    std::map<std::string, std::vector<vtkIdType>> CellOffsetsPerLevel;
+    std::map<std::string, std::vector<vtkIdType>> PointOffsetsPerLevel;
+    std::map<std::string, std::vector<vtkIdType>> FieldOffsetsPerLevel;
+    std::map<std::string, std::vector<vtkIdType>> FieldSizesPerLevel;
 
     void Clear()
     {

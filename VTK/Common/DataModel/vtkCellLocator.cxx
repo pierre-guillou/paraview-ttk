@@ -584,10 +584,8 @@ void vtkCellLocator::GetOverlappingBuckets(vtkNeighborCells& buckets, const doub
   // Determine the range of indices in each direction
   for (i = 0; i < 3; i++)
   {
-    minLevel[i] =
-      static_cast<int>(static_cast<double>(((x[i] - dist) - this->Bounds[2 * i]) / this->H[i]));
-    maxLevel[i] =
-      static_cast<int>(static_cast<double>(((x[i] + dist) - this->Bounds[2 * i]) / this->H[i]));
+    minLevel[i] = static_cast<int>(((x[i] - dist) - this->Bounds[2 * i]) / this->H[i]);
+    maxLevel[i] = static_cast<int>(((x[i] + dist) - this->Bounds[2 * i]) / this->H[i]);
 
     if (minLevel[i] < 0)
     {
@@ -716,14 +714,13 @@ void vtkCellLocator::ForceBuildLocator()
 //  The result is directly addressable and of uniform subdivision.
 void vtkCellLocator::BuildLocatorInternal()
 {
-  double length, cellBounds[6], *cellBoundsPtr;
+  double cellBounds[6], *cellBoundsPtr;
   cellBoundsPtr = cellBounds;
   vtkIdType numCells;
   int ndivs, product;
   int i, j, k, ijkMin[3], ijkMax[3];
   vtkIdType cellId, idx;
   int parentOffset;
-  vtkSmartPointer<vtkIdList> octant;
   int numCellsPerBucket = this->NumberOfCellsPerNode;
   int prod, numOctants;
   double hTol[3];
@@ -743,24 +740,14 @@ void vtkCellLocator::BuildLocatorInternal()
   //  Size the root cell.  Initialize cell data structure, compute
   //  level and divisions.
   const double* bounds = this->DataSet->GetBounds();
-  length = this->DataSet->GetLength();
-  for (i = 0; i < 3; i++)
-  {
-    this->Bounds[2 * i] = bounds[2 * i];
-    this->Bounds[2 * i + 1] = bounds[2 * i + 1];
-    if ((this->Bounds[2 * i + 1] - this->Bounds[2 * i]) <= (length / 1000.0))
-    {
-      // bump out the bounds a little of if min==max
-      this->Bounds[2 * i] -= length / 100.0;
-      this->Bounds[2 * i + 1] += length / 100.0;
-    }
-  }
+  vtkBoundingBox bbox(bounds);
+  bbox.Inflate();
+  bbox.GetBounds(this->Bounds);
 
   if (this->Automatic)
   {
-    this->Level =
-      static_cast<int>(std::ceil(std::log(static_cast<double>(numCells) / numCellsPerBucket) /
-        (std::log(static_cast<double>(8.0)))));
+    this->Level = static_cast<int>(
+      std::ceil(std::log(static_cast<double>(numCells) / numCellsPerBucket) / (std::log(8.0))));
   }
   this->Level = (this->Level > this->MaxLevel ? this->MaxLevel : this->Level);
 
@@ -823,14 +810,12 @@ void vtkCellLocator::BuildLocatorInternal()
         {
           idx = parentOffset + i + j * ndivs + k * product;
           this->MarkParents(parentOctant, i, j, k, ndivs, this->Level);
-          octant = this->Tree[idx];
-          if (!octant)
+          if (!this->Tree[idx])
           {
-            octant = vtkSmartPointer<vtkIdList>::New();
-            octant->Allocate(numCellsPerBucket, numCellsPerBucket / 2);
-            this->Tree[idx] = octant;
+            this->Tree[idx] = vtkSmartPointer<vtkIdList>::New();
+            this->Tree[idx]->Allocate(numCellsPerBucket, numCellsPerBucket / 2);
           }
-          octant->InsertNextId(cellId);
+          this->Tree[idx]->InsertNextId(cellId);
         }
       }
     }

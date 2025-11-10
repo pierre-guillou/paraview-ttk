@@ -32,22 +32,22 @@ struct vtkSMPThreadPool::ThreadJob
   {
   }
 
-  ProxyData* Proxy{};               // Proxy that allocated this job
-  std::function<void()> Function{}; // Actual user job
-  std::promise<void> Promise{};     // Set when job is done
+  ProxyData* Proxy{};             // Proxy that allocated this job
+  std::function<void()> Function; // Actual user job
+  std::promise<void> Promise;     // Set when job is done
 };
 
 struct vtkSMPThreadPool::ThreadData
 {
   // stack of jobs, any thread can push, and only push, jobs (and Mutex must be locked)
-  std::vector<ThreadJob> Jobs{};
+  std::vector<ThreadJob> Jobs;
   // Current job (used to map thread to Proxy), using an index is okay as only this thread can
   // erase the job and other threads can only push back new jobs not insert. This constraint could
   // be relaxed by using unique ids instead.
   std::size_t RunningJob{ NoRunningJob };
-  std::thread SystemThread{};                  // the system thread, not really used
-  std::mutex Mutex{};                          // thread mutex, used for Jobs manipulation
-  std::condition_variable ConditionVariable{}; // thread cv, used to wake up the thread
+  std::thread SystemThread;                  // the system thread, not really used
+  std::mutex Mutex;                          // thread mutex, used for Jobs manipulation
+  std::condition_variable ConditionVariable; // thread cv, used to wake up the thread
 };
 
 struct vtkSMPThreadPool::ProxyThreadData
@@ -67,12 +67,12 @@ struct vtkSMPThreadPool::ProxyThreadData
 
 struct vtkSMPThreadPool::ProxyData
 {
-  vtkSMPThreadPool* Pool{};                     // Pool that created this proxy
-  ProxyData* Parent{};                          // either null (for top level) or the parent
-  std::vector<ProxyThreadData> Threads{};       // Threads used by this
-  std::size_t NextThread{};                     // Round-robin thread for jobs
-  std::vector<std::future<void>> JobsFutures{}; // Used to know when job is done
-  std::mutex Mutex{};                           // Used to synchronize
+  vtkSMPThreadPool* Pool{};                   // Pool that created this proxy
+  ProxyData* Parent{};                        // either null (for top level) or the parent
+  std::vector<ProxyThreadData> Threads;       // Threads used by this
+  std::size_t NextThread{};                   // Round-robin thread for jobs
+  std::vector<std::future<void>> JobsFutures; // Used to know when job is done
+  std::mutex Mutex;                           // Used to synchronize
 };
 
 void vtkSMPThreadPool::RunJob(
@@ -339,37 +339,38 @@ vtkSMPThreadPool::ThreadData* vtkSMPThreadPool::GetCallerThreadData() const noex
 
 std::thread vtkSMPThreadPool::MakeThread()
 {
-  return std::thread{ [this]() {
-    while (!this->Initialized.load(std::memory_order_acquire))
+  return std::thread{ [this]()
     {
-    }
-
-    ThreadData& threadData = *this->GetCallerThreadData();
-
-    // Main loop for threads of the pool
-    // When they are woke up, they check for new job and stop if "this->Joining" is true
-    // and no more jobs are running
-    while (true)
-    {
-      std::unique_lock<std::mutex> lock{ threadData.Mutex };
-
-      // Job stealing could be implemented but it will requires some changes in the process
-      // A thread that as no longer work to do could look at other threads jobs to "steal" a job
-      // from them and thus increase parallelism. This must take care of not generating deadlocks
-      // and should not increase Proxy parallelism above requested thread count.
-      // This goes out of the scope of current implementation.
-      threadData.ConditionVariable.wait(lock, [this, &threadData] {
-        return !threadData.Jobs.empty() || this->Joining.load(std::memory_order_acquire);
-      });
-
-      if (threadData.Jobs.empty())
+      while (!this->Initialized.load(std::memory_order_acquire))
       {
-        break; // joining
       }
 
-      RunJob(threadData, threadData.Jobs.size() - 1, lock);
-    }
-  } };
+      ThreadData& threadData = *this->GetCallerThreadData();
+
+      // Main loop for threads of the pool
+      // When they are woke up, they check for new job and stop if "this->Joining" is true
+      // and no more jobs are running
+      while (true)
+      {
+        std::unique_lock<std::mutex> lock{ threadData.Mutex };
+
+        // Job stealing could be implemented but it will requires some changes in the process
+        // A thread that as no longer work to do could look at other threads jobs to "steal" a job
+        // from them and thus increase parallelism. This must take care of not generating deadlocks
+        // and should not increase Proxy parallelism above requested thread count.
+        // This goes out of the scope of current implementation.
+        threadData.ConditionVariable.wait(lock,
+          [this, &threadData]
+          { return !threadData.Jobs.empty() || this->Joining.load(std::memory_order_acquire); });
+
+        if (threadData.Jobs.empty())
+        {
+          break; // joining
+        }
+
+        RunJob(threadData, threadData.Jobs.size() - 1, lock);
+      }
+    } };
 }
 
 void vtkSMPThreadPool::FillThreadsForNestedProxy(ProxyData* proxy, std::size_t maxCount)
@@ -383,7 +384,8 @@ void vtkSMPThreadPool::FillThreadsForNestedProxy(ProxyData* proxy, std::size_t m
     return; // No thread will be available
   }
 
-  const auto isFree = [proxy](ThreadData* threadData) {
+  const auto isFree = [proxy](ThreadData* threadData)
+  {
     for (auto* parent = proxy->Parent; parent != nullptr; parent = parent->Parent)
     {
       for (auto& proxyThread : parent->Threads)

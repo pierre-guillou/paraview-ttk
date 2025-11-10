@@ -304,6 +304,19 @@
      </Hints>
     </Proxy>
 
+    <Proxy name="VisItLAMMPSDumpReaderCore" class="vtkVisItLAMMPSDumpReader"
+           base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
+      <Documentation
+         long_help="LAMMPS Molecular Dynamics Simulator dump reader">
+         Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
+         The default file extension is .dump
+      </Documentation>
+      <Hints>
+        <ReaderFactory extensions="dump"
+                       file_description="LAMMPS Dump Files" />
+      </Hints>
+    </Proxy>
+
     <Proxy name="VisItDyna3DReaderCore" class="vtkVisItDyna3DReader"
       base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
       <Documentation
@@ -781,17 +794,37 @@
      </Hints>
     </SourceProxy>
 
-    <SourceProxy name="VisItLAMMPSDumpReader" class="vtkVisItLAMMPSDumpReader" label="VisIt LAMMPS Dump Reader"
-    base_proxygroup="internal_readers" base_proxyname="VisItReaderBase">
-    <Documentation
-       long_help="LAMMPS Molecular Dynamics Simulator dump reader">
-       Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
-       The default file extension is .dump
-    </Documentation>
-     <Hints>
-       <ReaderFactory extensions="dump"
-                      file_description="LAMMPS Dump Files" />
-     </Hints>
+    <SourceProxy name="VisItLAMMPSDumpReader"
+                 label="VisIt LAMMPS Dump Reader"
+                 base_proxygroup="internal_readers"
+                 base_proxyname="VisItSeriesReaderBase"
+                 class="vtkFileSeriesReader"
+                 file_name_method="SetFileName"
+                 si_class="vtkSIMetaReaderProxy">
+
+      <Documentation
+        long_help="LAMMPS Molecular Dynamics Simulator dump reader">
+        Note this reader is automatically generated from wrapping a third party reader. For more information on the reader see https://wci.llnl.gov/codes/visit
+        The default file extension is .dump
+      </Documentation>
+      <Hints>
+        <ReaderFactory extensions="dump"
+                       file_description="LAMMPS Dump Files" />
+      </Hints>
+
+      <SubProxy>
+      <Proxy proxyname="VisItLAMMPSDumpReaderCore" name="Reader" proxygroup="internal_readers"/>
+        <ExposedProperties>
+          <Property name="MeshInfo" />
+          <Property name="MeshStatus" />
+          <Property name="MaterialInfo" />
+          <Property name="MaterialStatus" />
+          <Property name="CellArrayInfo" />
+          <Property name="CellArrayStatus" />
+          <Property name="PointArrayInfo" />
+          <Property name="PointArrayStatus" />
+        </ExposedProperties>
+      </SubProxy>
     </SourceProxy>
 
     <SourceProxy name="VisItM3DReader" class="vtkVisItM3DReader" label="VisIt M3D Reader"

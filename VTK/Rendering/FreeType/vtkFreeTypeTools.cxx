@@ -11,7 +11,6 @@
 #include "vtkSmartPointer.h"
 #include "vtkTextProperty.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 #include "vtkStdString.h"
 #include <vtk_utf8.h>
@@ -2006,10 +2005,10 @@ void vtkFreeTypeTools::OutlineToPath(int x, int y, FT_Outline* outline, vtkPath*
 
   if (outline->n_points > 0)
   {
-    short point = 0;
-    for (short contour = 0; contour < outline->n_contours; ++contour)
+    unsigned short point = 0;
+    for (unsigned short contour = 0; contour < outline->n_contours; ++contour)
     {
-      short contourEnd = outline->contours[contour];
+      const auto contourEnd = outline->contours[contour];
       controlType lastTag = FIRST_POINT;
       double contourStartVec[2];
       contourStartVec[0] = contourStartVec[1] = 0.0;

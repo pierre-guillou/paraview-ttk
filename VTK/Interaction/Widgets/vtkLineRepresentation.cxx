@@ -21,9 +21,10 @@
 #include "vtkRenderer.h"
 #include "vtkSphereSource.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 #include "vtkVectorText.h"
 #include "vtkWindow.h"
+
+#include <algorithm>
 
 VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkLineRepresentation);
@@ -265,7 +266,7 @@ void vtkLineRepresentation::GetPolyData(vtkPolyData* pd)
 //-- Set/Get position of the three handles -----------------------------
 // Point1
 //------------------------------------------------------------------------------
-void vtkLineRepresentation::GetPoint1WorldPosition(double pos[3])
+void vtkLineRepresentation::GetPoint1WorldPosition(double pos[3]) VTK_FUTURE_CONST
 {
   this->Point1Representation->GetWorldPosition(pos);
 }
@@ -276,7 +277,7 @@ double* vtkLineRepresentation::GetPoint1WorldPosition()
 }
 
 //------------------------------------------------------------------------------
-void vtkLineRepresentation::GetPoint1DisplayPosition(double pos[3])
+void vtkLineRepresentation::GetPoint1DisplayPosition(double pos[3]) VTK_FUTURE_CONST
 {
   this->Point1Representation->GetDisplayPosition(pos);
 }
@@ -307,7 +308,7 @@ void vtkLineRepresentation::SetPoint1DisplayPosition(double x[3])
 
 // Point2
 //------------------------------------------------------------------------------
-void vtkLineRepresentation::GetPoint2WorldPosition(double pos[3])
+void vtkLineRepresentation::GetPoint2WorldPosition(double pos[3]) VTK_FUTURE_CONST
 {
   this->Point2Representation->GetWorldPosition(pos);
 }
@@ -318,7 +319,7 @@ double* vtkLineRepresentation::GetPoint2WorldPosition()
 }
 
 //------------------------------------------------------------------------------
-void vtkLineRepresentation::GetPoint2DisplayPosition(double pos[3])
+void vtkLineRepresentation::GetPoint2DisplayPosition(double pos[3]) VTK_FUTURE_CONST
 {
   this->Point2Representation->GetDisplayPosition(pos);
 }
@@ -563,10 +564,10 @@ int vtkLineRepresentation::ComputeInteractionState(int x, int y, int vtkNotUsed(
   double t, closest[3];
   xyz[0] = static_cast<double>(x);
   xyz[1] = static_cast<double>(y);
-  p1[0] = static_cast<double>(pos1[0]);
-  p1[1] = static_cast<double>(pos1[1]);
-  p2[0] = static_cast<double>(pos2[0]);
-  p2[1] = static_cast<double>(pos2[1]);
+  p1[0] = pos1[0];
+  p1[1] = pos1[1];
+  p2[0] = pos2[0];
+  p2[1] = pos2[1];
   xyz[2] = p1[2] = p2[2] = 0.0;
 
   double tol2 = this->Tolerance * this->Tolerance;
@@ -595,14 +596,13 @@ int vtkLineRepresentation::ComputeInteractionState(int x, int y, int vtkNotUsed(
 //------------------------------------------------------------------------------
 void vtkLineRepresentation::SetRepresentationState(int state)
 {
+  state = std::min<int>(
+    std::max<int>(state, vtkLineRepresentation::Outside), vtkLineRepresentation::Scaling);
+
   if (this->RepresentationState == state)
   {
     return;
   }
-
-  state = (state < vtkLineRepresentation::Outside
-      ? vtkLineRepresentation::Outside
-      : (state > vtkLineRepresentation::Scaling ? vtkLineRepresentation::Scaling : state));
 
   this->RepresentationState = state;
   this->Modified();

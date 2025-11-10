@@ -6,12 +6,13 @@ vtk_add_test_cxx(vtkParallelCoreCxxTests tests
   )
 vtk_test_cxx_executable(vtkParallelCoreCxxTests tests)
 
-if (PYTHON_EXECUTABLE)
+if (Python3_EXECUTABLE AND
+    NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   vtk_module_test_executable(
     vtkParallelCore-TestSocketCommunicator TestSocketCommunicator.cxx)
 
   add_test(NAME vtkParallelCore-TestSocketCommunicator
-           COMMAND ${PYTHON_EXECUTABLE}
+           COMMAND ${Python3_EXECUTABLE}
                    ${VTK_SOURCE_DIR}/CMake/vtkTestDriver.py
                    # indicate that the processes are not run sequentially,
                    --process

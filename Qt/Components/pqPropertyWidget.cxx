@@ -122,7 +122,7 @@ char* pqPropertyWidget::panelVisibility() const
 //-----------------------------------------------------------------------------
 void pqPropertyWidget::setPanelVisibility(const char* vis)
 {
-  return this->Property->SetPanelVisibility(vis);
+  this->Property->SetPanelVisibility(vis);
 }
 
 //-----------------------------------------------------------------------------
@@ -252,4 +252,10 @@ std::vector<std::string> pqPropertyWidget::parseComponentLabels(
 bool pqPropertyWidget::isSingleRowItem() const
 {
   return false;
+}
+
+//-----------------------------------------------------------------------------
+void pqPropertyWidget::setReadOnly(bool readOnly)
+{
+  this->setEnabled(!readOnly);
 }

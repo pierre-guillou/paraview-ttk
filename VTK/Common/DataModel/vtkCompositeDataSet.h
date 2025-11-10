@@ -23,7 +23,6 @@
 
 #include "vtkCommonDataModelModule.h" // For export macro
 #include "vtkDataObject.h"
-#include "vtkDeprecation.h"   // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include <vector> // For GetDataSets
@@ -51,7 +50,7 @@ public:
    * Return class name of data type (see vtkType.h for
    * definitions).
    */
-  int GetDataObjectType() override { return VTK_COMPOSITE_DATA_SET; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_COMPOSITE_DATA_SET; }
 
   /**
    * Copies the tree structure from the input. All pointers to non-composite
@@ -113,12 +112,6 @@ public:
    * This method just calls vtkDataObject::ShallowCopy.
    */
   virtual void CompositeShallowCopy(vtkCompositeDataSet* src);
-
-  /**
-   * @deprecated RecursiveShallowCopy method, @see ShallowCopy
-   */
-  VTK_DEPRECATED_IN_9_3_0("Use ShallowCopy instead.")
-  virtual void RecursiveShallowCopy(vtkDataObject* src);
 
   /**
    * Returns the total number of points of all blocks. This will

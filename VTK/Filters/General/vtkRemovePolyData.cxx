@@ -237,12 +237,14 @@ struct MarkDeletedCells
     if (cellIdsPtr != nullptr)
     {
       vtkIdType numCellIds = cellIds->GetNumberOfTuples();
-      vtkSMPTools::For(0, numCellIds, [&, cellIdsPtr, cellMap](vtkIdType idx, vtkIdType endIdx) {
-        for (; idx < endIdx; ++idx)
+      vtkSMPTools::For(0, numCellIds,
+        [&, cellIdsPtr, cellMap](vtkIdType idx, vtkIdType endIdx)
         {
-          (*cellMap)[cellIdsPtr[idx]] = (-1);
-        }
-      }); // end lambda
+          for (; idx < endIdx; ++idx)
+          {
+            (*cellMap)[cellIdsPtr[idx]] = (-1);
+          }
+        }); // end lambda
     }
 
     // Now process any additional polydata inputs, as well is point
@@ -272,7 +274,7 @@ struct MarkDeletedCells
     if (numInVerts > 0)
     {
       vtkStaticCellLinksTemplate<TIds> links;
-      links.ThreadedBuildLinks(numPts, numInVerts, inVerts);
+      links.BuildLinks(numPts, numInVerts, inVerts);
       MarkPointIds<TIds>::Execute(ptIds, &links, cellMap, filter);
       for (auto i = 1; i < numInputs; ++i)
       {
@@ -288,7 +290,7 @@ struct MarkDeletedCells
     if (numInLines > 0)
     {
       vtkStaticCellLinksTemplate<TIds> links;
-      links.ThreadedBuildLinks(numPts, numInLines, inLines);
+      links.BuildLinks(numPts, numInLines, inLines);
       MarkPointIds<TIds>::Execute(ptIds, &links, cellMap, filter);
       for (auto i = 1; i < numInputs; ++i)
       {
@@ -304,7 +306,7 @@ struct MarkDeletedCells
     if (numInPolys > 0)
     {
       vtkStaticCellLinksTemplate<TIds> links;
-      links.ThreadedBuildLinks(numPts, numInPolys, inPolys);
+      links.BuildLinks(numPts, numInPolys, inPolys);
       MarkPointIds<TIds>::Execute(ptIds, &links, cellMap, filter);
       for (auto i = 1; i < numInputs; ++i)
       {
@@ -320,7 +322,7 @@ struct MarkDeletedCells
     if (numInStrips > 0)
     {
       vtkStaticCellLinksTemplate<TIds> links;
-      links.ThreadedBuildLinks(numPts, numInStrips, inStrips);
+      links.BuildLinks(numPts, numInStrips, inStrips);
       MarkPointIds<TIds>::Execute(ptIds, &links, cellMap, filter);
       for (auto i = 1; i < numInputs; ++i)
       {

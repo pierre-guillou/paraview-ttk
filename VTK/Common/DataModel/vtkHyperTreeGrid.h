@@ -26,6 +26,16 @@
  * CellDims : number of cells by directions of rectilinear grid
  * (1 for each dimensions 1)
  *
+ * Interface : plane that cuts a HTG cell.
+ * It is defined (for each cell) by a normal and the distance between the origin and the plane along
+ * that normal (i.e. the orthogonal distance). The name of the arrays containing each information is
+ * specified in `InterfaceInterceptsName` and `InterfaceNormalsName` The normals array is a 3D array
+ * that contains the 3D normal for each cell's interface (for lower dimensions, some values are
+ * ignored). The intercepts (or distances) array is also a 3D array containing:
+ *  - the distance to the first plane (if exists, otherwise ignored)
+ *  - the distance to the second plane (if exists, otherwise ignored)
+ *  - the type of cell (mixed/pure, cf. vtkHyperTreeGridGeometryImpl.h:CellInterfaceType)
+ *
  * @warning
  * It is not a spatial search object. If you are looking for this kind of
  * octree see vtkCellLocator instead.
@@ -114,7 +124,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_HYPER_TREE_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_HYPER_TREE_GRID; }
 
   /**
    * Copy the internal geometric and topological structure of a
@@ -166,8 +176,8 @@ public:
   ///@{
   /**
    * Get grid sizes of this structured cells dataset.
-   * Valeurs deduites a partir de Dimensions/Extent
-   * Les dimensions non exprimees auront pour valeur 1.
+   * Values are deduced from the Dimensions/Extent
+   * Dimensions default to 1 if not specified.
    */
   const unsigned int* GetCellDims() const VTK_SIZEHINT(3);
   void GetCellDims(int cellDims[3]) const;
@@ -178,15 +188,14 @@ public:
 
   ///@{
   /**
-   * Get the dimensionality of the grid deduite a partir
-   * de Dimensions/Extent.
+   * Get the dimensionality of the grid from the Dimensions/Extent.
    */
   unsigned int GetDimension() const { return this->Dimension; }
   ///@}
 
   ///@{
   /**
-   * Retourne l'indice de la dimension valide.
+   * Return the index of the valid dimension.
    */
   void Get1DAxis(unsigned int& axis) const
   {
@@ -197,7 +206,7 @@ public:
 
   ///@{
   /**
-   * Retourne l'indice des deux dimensions valides.
+   * Return the indices of the two valid dimensions.
    */
   void Get2DAxes(unsigned int& axis1, unsigned int& axis2) const
   {
@@ -309,7 +318,7 @@ public:
 
   ///@{
   /**
-   * Augented services on Coordinates.
+   * Utility methods to set coordinates.
    */
   virtual void CopyCoordinates(const vtkHyperTreeGrid* output);
   virtual void SetFixedCoordinates(unsigned int axis, double value);
@@ -478,6 +487,12 @@ public:
   void SetTree(vtkIdType, vtkHyperTree*);
 
   /**
+   * Remove the tree at the given index.
+   * Return the number of trees removed (0 or 1).
+   */
+  size_t RemoveTree(vtkIdType index);
+
+  /**
    * Create shallow copy of hyper tree grid.
    */
   void ShallowCopy(vtkDataObject*) override;
@@ -490,7 +505,7 @@ public:
   /**
    * Structured extent. The extent type is a 3D extent.
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   /**
    * Return the actual size of the data in bytes. This number

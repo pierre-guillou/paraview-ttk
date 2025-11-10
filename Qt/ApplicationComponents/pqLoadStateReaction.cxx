@@ -12,6 +12,7 @@
 #include "pqServer.h"
 #include "pqServerManagerModel.h"
 #include "pqStandardRecentlyUsedResourceLoaderImplementation.h"
+#include "pqUndoStack.h"
 #include "vtkNew.h"
 #include "vtkPVXMLParser.h"
 #include "vtkSMLoadStateOptionsProxy.h"
@@ -45,6 +46,8 @@ void pqLoadStateReaction::updateEnableState()
 void pqLoadStateReaction::loadState(
   const QString& filename, bool dialogBlocked, pqServer* server, vtkTypeUInt32 location)
 {
+  SCOPED_UNDO_EXCLUDE();
+
   if (server == nullptr)
   {
     server = pqActiveObjects::instance().activeServer();
@@ -115,11 +118,13 @@ void pqLoadStateReaction::loadState(
 //-----------------------------------------------------------------------------
 void pqLoadStateReaction::loadState()
 {
-  QString fileExt = tr("ParaView state file") + QString(" (*.pvsm *.png);;");
+  bool pythonAvailable = false;
 #if VTK_MODULE_ENABLE_ParaView_pqPython
-  fileExt += tr("Python state file") + QString(" (*.py);;");
+  pythonAvailable = true;
 #endif
-  fileExt += tr("All Files") + QString(" (*)");
+
+  QString fileExt =
+    pqApplicationCore::instance()->getDefaultSaveStateFileFormatQString(pythonAvailable, true);
 
   auto server = pqActiveObjects::instance().activeServer();
   pqFileDialog fileDialog(

@@ -9,16 +9,13 @@
 #include "vtkPoints.h"
 #include "vtkSmartPointer.h"
 
+#include <cmath>
 #include <limits>
-
-#ifndef ABS
-#define ABS(x) ((x) < 0 ? -(x) : (x))
-#endif
 
 template <class A>
 bool fuzzyCompare1D(A a, A b)
 {
-  return ABS(a - b) < std::numeric_limits<A>::epsilon();
+  return std::abs(a - b) < std::numeric_limits<A>::epsilon();
 }
 
 template <class A>
@@ -82,6 +79,80 @@ int TestPlane(int, char*[])
     {
       std::cerr << "ProjectVector failed! Should be (0., 0., 0) but it is (" << projection[0] << " "
                 << projection[1] << " " << projection[2] << ")" << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  // Test AxisAligned
+  {
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+    plane->SetOrigin(0.0, 0.0, 0.0);
+    plane->SetNormal(0.5, 0.8, 0.2);
+    plane->SetAxisAligned(false);
+
+    std::cout << "Testing AxisAligned" << std::endl;
+    double x[3] = { 1.0, 1.0, 1.0 };
+    double res = plane->EvaluateFunction(x);
+    if (!fuzzyCompare1D(res, 1.5))
+    {
+      std::cerr << "AxisAligned failed! Should be 1.5 but is " << res << std::endl;
+      return EXIT_FAILURE;
+    }
+    plane->SetAxisAligned(true);
+    res = plane->EvaluateFunction(x);
+    if (!fuzzyCompare1D(res, 1.0))
+    {
+      std::cerr << "AxisAligned failed! Should be 1.0 but is " << res << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  // Test Offset
+  {
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+    plane->SetOrigin(0.0, 0.0, 0.0);
+    plane->SetNormal(0.5, 0.5, 0.5);
+    plane->SetOffset(0);
+
+    std::cout << "Testing Offset" << std::endl;
+    double x[3] = { 1.0, 1.0, 1.0 };
+    double res = plane->EvaluateFunction(x);
+    if (!fuzzyCompare1D(res, 1.5))
+    {
+      std::cerr << "Offset failed! Should be 1.5 but is " << res << std::endl;
+      return EXIT_FAILURE;
+    }
+    plane->SetOffset(0.5);
+    res = plane->EvaluateFunction(x);
+    if (!fuzzyCompare1D(res, 1.125))
+    {
+      std::cerr << "Offset failed! Should be 1.125 but is " << res << std::endl;
+      return EXIT_FAILURE;
+    }
+  }
+
+  // Test Push
+  {
+    vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
+    plane->SetOrigin(5.0, 5.0, 5.0);
+    plane->SetNormal(1.0, 0.0, 0.0);
+    plane->SetAxisAligned(true);
+
+    double x[3] = { 5.0, 5.0, 5.0 };
+    double res = plane->EvaluateFunction(x);
+
+    if (!fuzzyCompare1D(res, 0.0))
+    {
+      std::cerr << "Push failed! Should be 0.0 but is " << res << std::endl;
+      return EXIT_FAILURE;
+    }
+
+    plane->Push(1.0);
+    res = plane->EvaluateFunction(x);
+
+    if (!fuzzyCompare1D(res, -1.0))
+    {
+      std::cerr << "Push failed! Should be -1.0 but is " << res << std::endl;
       return EXIT_FAILURE;
     }
   }

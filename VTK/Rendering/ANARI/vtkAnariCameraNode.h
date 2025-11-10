@@ -19,8 +19,8 @@
 
 VTK_ABI_NAMESPACE_BEGIN
 
-class vtkAnariCameraNodeInternals;
-class vtkAnariRendererNode;
+struct vtkAnariCameraNodeInternals;
+class vtkAnariSceneGraph;
 class vtkCamera;
 
 class VTKRENDERINGANARI_EXPORT vtkAnariCameraNode : public vtkCameraNode
@@ -45,7 +45,7 @@ public:
 
 protected:
   vtkAnariCameraNode();
-  ~vtkAnariCameraNode();
+  ~vtkAnariCameraNode() override;
 
 private:
   vtkAnariCameraNode(const vtkAnariCameraNode&) = delete;

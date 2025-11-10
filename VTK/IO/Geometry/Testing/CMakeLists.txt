@@ -77,12 +77,12 @@ vtk_module_test_data(
   Data/flow.tec.gz
   Data/malformed.obj
   Data/malformed.glb
+  Data/checkerboard_colorful.obj # Copyright Michael Migliore, Mathieu Westphal under BSD-3 license.
   Data/obj_double_sphere.obj
   Data/obj_multiline.obj
   Data/obj_multitexture.obj
   Data/obj_multitexture_notexture.obj
   Data/obj_singletexture.obj
-  Data/obj_with_materials.obj
   Data/obj_with_normals_and_tcoords.obj
   Data/objGroup_1a.obj
   Data/objGroup_1b.obj
@@ -92,6 +92,8 @@ vtk_module_test_data(
   Data/prostar.cel
   Data/prostar.vrt
   Data/relative_indices.obj
+  Data/room.cas
+  Data/room.dat
   Data/uGridEx.vtk)
 
 set(enable_large_data_tests FALSE)
@@ -133,8 +135,6 @@ if (VTK_WRAP_PYTHON)
     Data/multi.p3d
     Data/points.txt
     Data/prism.neu
-    Data/room.cas
-    Data/room.dat
     Data/test.p3d
     Data/texThres2.vtk
     Data/vwgt.coords

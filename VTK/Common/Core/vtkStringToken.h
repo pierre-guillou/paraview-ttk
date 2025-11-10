@@ -33,18 +33,6 @@
 #include <cstdint>       // for `std::uint*_t`
 #include <unordered_set> // for membership API
 
-// GCC 4.8.5 requires a space between the quotes and suffix operator.
-// Whereas, C++23 deprecates the space here though.
-#ifdef VTK_COMPILER_GCC
-#if VTK_COMPILER_GCC_VERSION <= 40805
-#define VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX 1
-#else
-#define VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX 0
-#endif
-#else
-#define VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX 0
-#endif
-
 VTK_ABI_NAMESPACE_BEGIN
 
 class VTKCOMMONCORE_EXPORT vtkStringToken
@@ -58,7 +46,7 @@ public:
   vtkStringToken(const std::string& data);
   /// Construct a token given its hash value.
   /// NOTE: This will NOT insert a string into the manager as other constructors do.
-  inline constexpr vtkStringToken(Hash tokenId) noexcept
+  constexpr vtkStringToken(Hash tokenId) noexcept
     : Id(tokenId)
   {
   }
@@ -90,7 +78,7 @@ public:
 
   /// Return the hash of a string
   /// This is used internally but also by the ""_token() literal operator
-  inline static constexpr Hash StringHash(const char* data, std::size_t size) noexcept
+  static constexpr Hash StringHash(const char* data, std::size_t size) noexcept
   {
     return token_NAMESPACE::Token::stringHash(data, size);
   }
@@ -193,13 +181,8 @@ VTK_ABI_NAMESPACE_BEGIN
 /// occurs at build time. This is more efficient than
 /// a sequence of if-conditionals performing string
 /// comparisons.
-#if VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX
-inline constexpr VTKCOMMONCORE_EXPORT vtkStringToken::Hash operator"" _hash(
+constexpr VTKCOMMONCORE_EXPORT vtkStringToken::Hash operator""_hash(
   const char* data, std::size_t size)
-#else
-inline constexpr VTKCOMMONCORE_EXPORT vtkStringToken::Hash operator""_hash(
-  const char* data, std::size_t size)
-#endif
 {
   return vtkStringToken::StringHash(data, size);
 }
@@ -213,13 +196,7 @@ inline constexpr VTKCOMMONCORE_EXPORT vtkStringToken::Hash operator""_hash(
 /// // std::cout << t.value() << "\n"; // Prints "test" if someone else constructed the token from a
 /// ctor; else throws exception.
 /// ```
-#if VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX
-inline constexpr VTKCOMMONCORE_EXPORT vtkStringToken operator"" _token(
-  const char* data, std::size_t size)
-#else
-inline constexpr VTKCOMMONCORE_EXPORT vtkStringToken operator""_token(
-  const char* data, std::size_t size)
-#endif
+constexpr VTKCOMMONCORE_EXPORT vtkStringToken operator""_token(const char* data, std::size_t size)
 {
   return vtkStringToken(vtkStringToken::StringHash(data, size));
 }
@@ -269,5 +246,4 @@ struct VTKCOMMONCORE_EXPORT hash<vtkStringToken>
 };
 } // namespace std
 
-#undef VTK_STRING_TOKEN_SPACE_BEFORE_SUFFIX
 #endif // vtkStringToken_h

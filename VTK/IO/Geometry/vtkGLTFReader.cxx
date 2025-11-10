@@ -1,6 +1,9 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
 
+// VTK_DEPRECATED_IN_9_4_0()
+#define VTK_DEPRECATION_LEVEL 0
+
 #include "vtkGLTFReader.h"
 
 #include "vtkCommand.h"
@@ -893,7 +896,11 @@ int vtkGLTFReader::RequestData(
     {
       if (this->AnimationSelection->GetArraySetting(i))
       {
-        this->Loader->ApplyAnimation(time, i);
+        if (!this->Loader->ApplyAnimation(time, i))
+        {
+          vtkErrorMacro("Error applying animation");
+          return 0;
+        }
       }
       else if (this->PreviousAnimationSelection->GetArraySetting(i))
       {

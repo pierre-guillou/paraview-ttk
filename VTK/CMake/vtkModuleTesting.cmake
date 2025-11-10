@@ -57,7 +57,7 @@ endfunction ()
 # Opt-in option from projects using VTK to activate SSIM baseline comparison
 if (DEFINED DEFAULT_USE_SSIM_IMAGE_COMP AND DEFAULT_USE_SSIM_IMAGE_COMP)
   set(default_image_compare "VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
-# We are compiling VTK standalone if we succed the following condition
+# We are compiling VTK standalone if we succeed the following condition
 elseif (DEFINED VTK_VERSION)
   set(default_image_compare "VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
 else()
@@ -113,17 +113,14 @@ function (vtk_module_test_executable name)
     PRIVATE
       "${_vtk_build_test}"
       ${test_depends})
+  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries("${name}"
+      PRIVATE
+        VTK::vtkWebAssemblyTestLinkOptions)
+  endif ()
   target_compile_definitions("${name}"
     PRIVATE
       ${optional_depends_flags})
-
-  if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    if (_vtk_test_emscripten_extra_linker_args)
-      target_link_options("${name}"
-        PRIVATE
-          ${_vtk_test_emscripten_extra_linker_args})
-    endif ()
-  endif ()
   vtk_module_autoinit(
     TARGETS "${name}"
     MODULES "${_vtk_build_test}"
@@ -324,7 +321,7 @@ C++ tests
     current source directory. If alternate baseline images are required,
     ``<NAME>`` may be suffixed by ``_1``, ``_2``, etc. The valid image is passed via
     the ``-V`` flag.
-    - ``TIGHT_VALID``: Uses euclidian type metrics to compare baselines. Baseline
+    - ``TIGHT_VALID``: Uses euclidean type metrics to compare baselines. Baseline
     comparison is sensitive to outliers in this setting.
     - ``LOOSE_VALID``: Uses L1 type metrics to compare baselines. Baseline comparison
     is somewhat more forgiving. Typical use cases involve rendering that is highly GPU
@@ -361,7 +358,11 @@ function (vtk_add_test_cxx exename _tests)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation"
+    # OpenGL driver cannot render wide lines.
+    "a line width has been requested that is larger than your system supports")
 
   foreach (name IN LISTS names)
     _vtk_test_set_options("${cxx_options}" "local_" ${_${name}_options})
@@ -404,11 +405,10 @@ function (vtk_add_test_cxx exename _tests)
     if (CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
       if (_vtk_test_cxx_wasm_enabled_in_browser)
         set(_vtk_test_cxx_pre_args
-            "$<TARGET_FILE:Python3::Interpreter>"
-            "${CMAKE_SOURCE_DIR}/Testing/WebAssembly/runner.py"
-            "--engine=${VTK_TESTING_WASM_ENGINE}"
-            "--engine-args=${VTK_TESTING_WASM_ENGINE_ARGUMENTS}"
-            "--exit")
+          "$<TARGET_FILE:Python3::Interpreter>"
+          "${VTK_SOURCE_DIR}/Testing/WebAssembly/runner.py"
+          "--engine=${VTK_TESTING_WASM_ENGINE}"
+          "--exit")
       else ()
         ExternalData_add_test("${_vtk_build_TEST_DATA_TARGET}"
           NAME    "${_vtk_build_test}Cxx-${vtk_test_prefix}${test_name}"
@@ -503,7 +503,9 @@ function (vtk_add_test_mpi exename _tests)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation")
 
   set(default_numprocs ${VTK_MPI_NUMPROCS})
   if (${exename}_NUMPROCS)
@@ -708,7 +710,7 @@ Options:
 - ``JUST_VALID``: Only applies when neither ``NO_VALID`` or ``NO_RT`` are present.
   If it is not specified, the test is run via ``vtkmodules.test.rtImageTest``.
 - ``TIGHT_VALID``: Default behavior if legacy image comparison method is turned off by default.
-  The baseline is tested using an euclidian metric, which is sensitive to outliers.
+  The baseline is tested using an euclidean metric, which is sensitive to outliers.
 - ``LOOSE_VALID``: The baseline is tested using an norm-1 metric, which is less sensitive to
   outliers. It should typically be used when comparing text or when testing rendering that
   varies a lot depending on the GPU drivers.
@@ -716,6 +718,8 @@ Options:
 
 Additional flags may be passed to tests using the ``${_vtk_build_test}_ARGS``
 variable or the ``<NAME>_ARGS`` variable.
+To use a different baseline name than ``<NAME>`` you can set
+``<NAME>_BASELINE_NAME`` variable. This is the name of the image file without extension.
 #]==]
 function (vtk_add_test_python)
   if (NOT _vtk_testing_python_exe)
@@ -740,7 +744,9 @@ function (vtk_add_test_python)
 
   set(_vtk_skip_regex
     # Insufficient graphics resources.
-    "Attempt to use a texture buffer exceeding your hardware's limits")
+    "Attempt to use a texture buffer exceeding your hardware's limits"
+    # Vulkan driver not setup correctly.
+    "vulkan: No DRI3 support detected - required for presentation")
 
   foreach (name IN LISTS names)
     _vtk_test_set_options("${python_options}" "local_" ${_${name}_options})
@@ -756,28 +762,33 @@ function (vtk_add_test_python)
     set(_V "")
     set(image_compare_method ${default_image_compare})
     if (NOT local_NO_VALID)
+      if (DEFINED "${test_name}_BASELINE_NAME")
+        set(baseline_name "${${test_name}_BASELINE_NAME}")
+      else()
+        set(baseline_name "${test_name}")
+      endif()
       if (local_NO_RT)
         if (local_DIRECT_DATA)
           set(_B -B "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/")
         else ()
-          set(_B -B "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/,REGEX:${test_name}(-.*)?(_[0-9]+)?.png}")
+          set(_B -B "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/,REGEX:${baseline_name}(-.*)?(_[0-9]+)?.png}")
         endif()
       else ()
         if (local_DIRECT_DATA)
-          set(_V -V "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/${test_name}.png")
+          set(_V -V "${CMAKE_CURRENT_SOURCE_DIR}/Data/Baseline/${baseline_name}.png")
         else ()
-          set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${test_name}.png,:}")
+          set(_V -V "DATA{${CMAKE_CURRENT_SOURCE_DIR}/../Data/Baseline/${baseline_name}.png,:}")
         endif()
         if (NOT local_JUST_VALID)
           set(rtImageTest -m "vtkmodules.test.rtImageTest")
         endif ()
-        if (local_LEGACY_VALID)
-          set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
-        elseif (local_TIGHT_VALID)
-          set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
-        elseif (local_LOOSE_VALID)
-          set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LOOSE_VALID")
-        endif ()
+      endif ()
+      if (local_LEGACY_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LEGACY_VALID")
+      elseif (local_TIGHT_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=TIGHT_VALID")
+      elseif (local_LOOSE_VALID)
+        set(image_compare_method ";VTK_TESTING_IMAGE_COMPARE_METHOD=LOOSE_VALID")
       endif ()
     endif ()
 
@@ -987,6 +998,7 @@ Current limitations of this test are:
     vtk_add_test_mangling(module_name [EXEMPTIONS ...])
 
 Options:
+
 - ``EXEMPTIONS``: List of symbol patterns to excluded from the ABI mangling test
   where it is known that the symbols do not support the ABI mangling but are still
   exported. This option should be extremely rare to use, see the documentation on ABI

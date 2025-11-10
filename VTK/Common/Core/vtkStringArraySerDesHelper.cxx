@@ -16,7 +16,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkStringArraySerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkStringArraySerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 static nlohmann::json Serialize_vtkStringArray(vtkObjectBase* objectBase, vtkSerializer* serializer)
@@ -32,7 +32,7 @@ static nlohmann::json Serialize_vtkStringArray(vtkObjectBase* objectBase, vtkSer
   auto& dst = state["Values"] = json::array();
   for (vtkIdType i = 0; i < object->GetNumberOfValues(); ++i)
   {
-    dst.emplace_back(object->GetValue(i));
+    dst.emplace_back(static_cast<std::string>(object->GetValue(i)));
   }
   return state;
 }
@@ -61,7 +61,7 @@ static void Deserialize_vtkStringArray(
   }
 }
 
-int RegisterHandlers_vtkStringArraySerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkStringArraySerDesHelper(void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

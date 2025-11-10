@@ -217,10 +217,12 @@ void vtkPlotlyJsonExporter::AddStyle(vtkPlot* plot, const char* plotName)
 
   auto& internals = *(this->Internals);
   auto& data = internals.Data["data"];
-  auto iter = std::find_if(data.begin(), data.end(), [&plotName](const vtkNJson& object) {
-    auto iter = object.find("name");
-    return iter != object.end() && iter.value() == std::string(plotName);
-  });
+  auto iter = std::find_if(data.begin(), data.end(),
+    [&plotName](const vtkNJson& object)
+    {
+      auto localIter = object.find("name");
+      return localIter != object.end() && localIter.value() == std::string(plotName);
+    });
 
   if (iter == data.end())
   {
@@ -262,7 +264,7 @@ void vtkPlotlyJsonExporter::SetGlobalStyle(vtkChart* chart)
 
   // Graph Title
   auto p = vtkNJson::json_pointer("/title/text");
-  layout[p] = chart->GetTitle();
+  layout[p] = static_cast<std::string>(chart->GetTitle());
 
   vtkTextProperty* titleProperties = chart->GetTitleProperties();
 
@@ -272,7 +274,7 @@ void vtkPlotlyJsonExporter::SetGlobalStyle(vtkChart* chart)
 
   // Xaxis
   p = vtkNJson::json_pointer("/xaxis/title/text");
-  layout[p] = chart->GetAxis(0)->GetTitle();
+  layout[p] = static_cast<std::string>(chart->GetAxis(0)->GetTitle());
   titleProperties = chart->GetAxis(0)->GetTitleProperties();
   p = vtkNJson::json_pointer("/xaxis/title/font");
   auto& xfont = layout[p];
@@ -280,7 +282,7 @@ void vtkPlotlyJsonExporter::SetGlobalStyle(vtkChart* chart)
 
   // Yaxis
   p = vtkNJson::json_pointer("/yaxis/title/text");
-  layout[p] = chart->GetAxis(1)->GetTitle();
+  layout[p] = static_cast<std::string>(chart->GetAxis(1)->GetTitle());
   titleProperties = chart->GetAxis(1)->GetTitleProperties();
   p = vtkNJson::json_pointer("/yaxis/title/font");
   auto& yfont = layout[p];

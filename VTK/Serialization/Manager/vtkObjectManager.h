@@ -19,6 +19,8 @@
 #include "vtkObject.h"
 
 #include "vtkDeserializer.h"               // for vtkDeserializer
+#include "vtkInvoker.h"                    // for vtkInvoker
+#include "vtkLogger.h"                     // for vtkLogger::Verbosity enum
 #include "vtkNew.h"                        // for vtkNew
 #include "vtkSerializationManagerModule.h" // for export macro
 #include "vtkSerializer.h"                 // for vtkSerializer
@@ -49,7 +51,8 @@ public:
   /**
    * Loads user provided handlers
    */
-  using RegistrarType = std::function<int(void* ser, void* deser, const char** error)>;
+  using RegistrarType =
+    std::function<int(void* ser, void* deser, void* invoker, const char** error)>;
   bool InitializeExtensionModuleHandlers(const std::vector<RegistrarType>& registrars);
 
   /**
@@ -64,6 +67,7 @@ public:
    */
   bool UnRegisterObject(vtkTypeUInt32 identifier);
 
+  ///@{
   /**
    * Adds `state` into an internal container and returns a unique identifier.
    * The state
@@ -71,6 +75,8 @@ public:
    *  2. must have a key-value pair `{'Id': n}` where n is an integer of type `std::string`.
    */
   bool RegisterState(const std::string& state);
+  bool RegisterState(const nlohmann::json& state);
+  ///@}
 
   /**
    * Removes a state at `id`.
@@ -139,9 +145,33 @@ public:
   void UpdateObjectsFromStates();
 
   /**
-   * Serialize registered objects into vtk states.
+   * Serialize registered objects into states.
    */
   void UpdateStatesFromObjects();
+
+  /**
+   * This method is similar to `void UpdateStatesFromObjects()`. The only difference is that this
+   * method is far more efficient when updating a specific object and it's dependencies. The
+   * identifiers must be valid and correspond to registered objects.
+   *
+   * @warning This method prunes all unused states and objects after serialization. Ensure that
+   * `void UpdateStatesFromObjects()` is called atleast once before this method if you want to
+   * preserve objects that were registered but not specified in `identifiers`.
+   */
+  void UpdateStatesFromObjects(const std::vector<vtkTypeUInt32>& identifiers);
+
+  ///@{
+  /**
+   * Deserialize the state into vtk object.
+   */
+  void UpdateObjectFromState(const std::string& state);
+  void UpdateObjectFromState(const nlohmann::json& state);
+  ///@}
+
+  /**
+   * Serialize object at `identifier` into the state.
+   */
+  void UpdateStateFromObject(vtkTypeUInt32 identifier);
 
   /**
    * Reset to initial state.
@@ -150,6 +180,11 @@ public:
    * All registered blobs are also removed.
    */
   void Clear();
+
+  std::string Invoke(
+    vtkTypeUInt32 identifier, const std::string& methodName, const std::string& args);
+  nlohmann::json Invoke(
+    vtkTypeUInt32 identifier, const std::string& methodName, const nlohmann::json& args);
 
   std::size_t GetTotalBlobMemoryUsage();
   std::size_t GetTotalVTKDataObjectMemoryUsage();
@@ -167,10 +202,38 @@ public:
    */
   void Import(const std::string& stateFileName, const std::string& blobFileName);
 
+  /**
+   * Removes all states whose corresponding objects no longer exist.
+   */
+  void PruneUnusedStates();
+
+  /**
+   * Removes all objects that are neither referenced by this manager or any other object.
+   */
+  void PruneUnusedObjects();
+
   static vtkTypeUInt32 ROOT() { return 0; }
 
   vtkGetSmartPointerMacro(Serializer, vtkSerializer);
   vtkGetSmartPointerMacro(Deserializer, vtkDeserializer);
+  vtkGetSmartPointerMacro(Invoker, vtkInvoker);
+
+  ///@{
+  /**
+   * Set/Get the log verbosity of messages that are emitted when data is uploaded to GPU memory.
+   * The GetObjectManagerLogVerbosity looks up system environment for
+   * `VTK_OBJECT_MANAGER_LOG_VERBOSITY` that shall be used to set initial logger verbosity. The
+   * default value is TRACE.
+   *
+   * Accepted string values are OFF, ERROR, WARNING, INFO, TRACE, MAX, INVALID or ASCII
+   * representation for an integer in the range [-9,9].
+   *
+   * @note This method internally uses vtkLogger::ConvertToVerbosity(const char*) to parse the
+   * value from environment variable.
+   */
+  void SetObjectManagerLogVerbosity(vtkLogger::Verbosity verbosity);
+  vtkLogger::Verbosity GetObjectManagerLogVerbosity();
+  ///@}
 
 protected:
   vtkObjectManager();
@@ -179,18 +242,10 @@ protected:
   vtkSmartPointer<vtkMarshalContext> Context;
   vtkNew<vtkDeserializer> Deserializer;
   vtkNew<vtkSerializer> Serializer;
+  vtkNew<vtkInvoker> Invoker;
+  vtkLogger::Verbosity ObjectManagerLogVerbosity = vtkLogger::VERBOSITY_INVALID;
 
   static const char* OWNERSHIP_KEY() { return "manager"; }
-
-  /**
-   * Removes all objects that are neither referenced by this manager or any other object.
-   */
-  void PruneUnusedStates();
-
-  /**
-   * Removes all objects that are neither referenced by this manager or any other object.
-   */
-  void PruneUnusedObjects();
 
 private:
   vtkObjectManager(const vtkObjectManager&) = delete;

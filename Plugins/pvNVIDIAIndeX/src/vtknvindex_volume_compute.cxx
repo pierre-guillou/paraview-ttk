@@ -1,4 +1,4 @@
-/* Copyright 2023 NVIDIA Corporation. All rights reserved.
+/* Copyright 2025 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-FileCopyrightText: Copyright 2025 NVIDIA Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "vtknvindex_volume_compute.h"
@@ -33,6 +33,8 @@
 #include "vtknvindex_sparse_volume_importer.h"
 #include "vtknvindex_utilities.h"
 
+namespace
+{
 inline mi::Sint32 volume_format_size(const nv::index::Sparse_volume_voxel_format fmt)
 {
   switch (fmt)
@@ -50,6 +52,7 @@ inline mi::Sint32 volume_format_size(const nv::index::Sparse_volume_voxel_format
     default:
       return 0;
   }
+}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -136,7 +139,6 @@ void vtknvindex_volume_compute::launch_compute(mi::neuraylib::IDice_transaction*
     svol_subset_desc->get_subregion_scene_space();
 
   // Fetch shared memory details from host properties
-  std::string shm_memory_name;
   mi::math::Bbox<mi::Float32, 3> shm_bbox_flt;
 
   vtknvindex_host_properties* host_props = m_cluster_properties->get_host_properties(rankid);

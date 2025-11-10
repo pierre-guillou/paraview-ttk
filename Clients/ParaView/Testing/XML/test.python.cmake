@@ -1,11 +1,14 @@
 # Tests that require python
 
 list(APPEND TESTS_WITHOUT_BASELINES
+  AllPropertiesSaveStatePython.xml
   FullNotation.xml
   IconBrowser.xml
   MacroEditor.xml
   MultipleNumberOfComponents.xml
   ProgrammableSourcePythonEditorLink.xml
+  PythonDefaultLoadState.xml
+  PythonDefaultSaveState.xml
   PythonEditorTab.xml
   PythonResetSessionMacro.xml
   SpreadSheetNullArrayName.xml # needs programmable filter
@@ -22,7 +25,17 @@ if(NOT APPLE)
     )
 endif()
 
+# VTTKJS exporter requires the Web module
+if (PARAVIEW_ENABLE_WEB)
+  list (APPEND TESTS_WITHOUT_BASELINES
+    ExportToVTKJS.xml
+    ExportToVTKJSWithArraySelection.xml
+  )
+  set (ExportToVTKJS_FORCE_SERIAL TRUE) # since this uses popup-menu
+endif ()
+
 list(APPEND TESTS_WITH_BASELINES
+  AutoSaveState.xml
   ColorByComponentNames.xml # needs programmable filter
   LiveProgrammableSource.xml
   LinkRenderViews.xml
@@ -41,6 +54,8 @@ list(APPEND TESTS_WITH_BASELINES
   )
 # Surface selection unstable on CRS mode
 set(SaveLoadStateSelectionPython_DISABLE_CRS TRUE)
+
+set (AutoSaveState_FORCE_SERIAL TRUE) # since this modifies settings
 
 list(APPEND TESTS_WITH_INLINE_COMPARES
   RestoreArrayDefaultTransferFunction.xml
@@ -69,7 +84,6 @@ if (numpy_found)
   list(APPEND TESTS_WITH_BASELINES
     AnnotateNotSanitizedArray.xml
     ContextViewSelectionTrace.xml
-    ExodusModeShapes.xml
     FindDataNameSanitization.xml
     FindDataNonDistributedData.xml
     FindDataPartialArrays.xml
@@ -91,7 +105,8 @@ if (numpy_found)
     ExpressionChooser.xml
     ExpressionClear.xml
     FieldDataDomainDefault.xml
-    HyperTreeGridVisibleLeavesSize.xml
+    HyperTreeGridGenerateFields.xml
+    HTGPlotSelectionOverTime.xml
     PlotOverLine_htg.xml # needs find data
     ProgrammableFilterFieldData.xml
     PythonCalculator.xml
@@ -101,12 +116,14 @@ if (numpy_found)
     PythonCalculatorFieldData.xml
     PythonCalculatorInput.xml
     PythonCalculatorMultiline.xml
+    SelectionAndAutoSaveState.xml
     )
 
   set(SpreadSheetSelectionTrace_DISABLE_CS TRUE)
   set(SpreadSheetSelectionTrace_DISABLE_CRS TRUE)
 
   list(APPEND TESTS_WITH_INLINE_COMPARES
+    ExodusModeShapes.xml
     FindDataTrace.xml
     FindDataQueries.xml
     TestTableFFT.xml # needs programmable filter + numpy

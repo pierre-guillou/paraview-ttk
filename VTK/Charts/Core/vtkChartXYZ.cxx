@@ -26,7 +26,6 @@
 #include "vtkTextProperty.h"
 #include "vtkTransform.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 
 #include "vtkObjectFactory.h"
 
@@ -766,15 +765,17 @@ void vtkChartXYZ::NewDetermineWhichAxesToLabel()
 
   // sort the list of axes by state (low enum value to high) and, for standard axes by gradient
   // (high to low).
-  axisData.sort([](const std::tuple<AxisState, float, float, int> first,
-                  const std::tuple<AxisState, float, float, int> second) -> bool {
-    AxisState stateFirst = std::get<0>(first);
-    AxisState stateSecond = std::get<0>(second);
-    float absGradientFirst = std::get<1>(first);
-    float absGradientSecond = std::get<1>(second);
-    return (stateFirst < stateSecond) ||
-      ((stateFirst == stateSecond) && absGradientFirst > absGradientSecond);
-  });
+  axisData.sort(
+    [](const std::tuple<AxisState, float, float, int> first,
+      const std::tuple<AxisState, float, float, int> second) -> bool
+    {
+      AxisState stateFirst = std::get<0>(first);
+      AxisState stateSecond = std::get<0>(second);
+      float absGradientFirst = std::get<1>(first);
+      float absGradientSecond = std::get<1>(second);
+      return (stateFirst < stateSecond) ||
+        ((stateFirst == stateSecond) && absGradientFirst > absGradientSecond);
+    });
 
   // for each dimension decide where to play labelling
   for (const auto& it : axisData)
@@ -811,8 +812,11 @@ void vtkChartXYZ::NewDetermineWhichAxesToLabel()
       {
         for (int j = 0; j < 2; j++)
         {
-          vtkVector3f start(
-            axis == 0 ? 0 : i, axis == 1 ? 0 : (axis == 0) ? i : j, axis == 2 ? 0 : j);
+          vtkVector3f start(axis == 0 ? 0 : i,
+            axis == 1       ? 0
+              : (axis == 0) ? i
+                            : j,
+            axis == 2 ? 0 : j);
 
           this->Box->TransformPoint(start.GetData(), start.GetData());
 
@@ -872,16 +876,16 @@ void vtkChartXYZ::NewDetermineWhichAxesToLabel()
       switch (axis)
       {
         case 0:
-          this->XAxisToLabel[0] = static_cast<int>(targetI);
-          this->XAxisToLabel[1] = static_cast<int>(targetJ);
+          this->XAxisToLabel[0] = targetI;
+          this->XAxisToLabel[1] = targetJ;
           break;
         case 1:
-          this->YAxisToLabel[0] = static_cast<int>(targetI);
-          this->YAxisToLabel[1] = static_cast<int>(targetJ);
+          this->YAxisToLabel[0] = targetI;
+          this->YAxisToLabel[1] = targetJ;
           break;
         case 2:
-          this->ZAxisToLabel[0] = static_cast<int>(targetI);
-          this->ZAxisToLabel[1] = static_cast<int>(targetJ);
+          this->ZAxisToLabel[0] = targetI;
+          this->ZAxisToLabel[1] = targetJ;
           break;
         default:
           break;

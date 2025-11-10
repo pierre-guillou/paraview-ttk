@@ -134,7 +134,7 @@ set(python_files
   vtkmodules/test/rtImageTest.py
   vtkmodules/test/__init__.py
   vtkmodules/tk/__init__.py
-  vtkmodules/tk/vtkLoadPythonTkWidgets.py
+  vtkmodules/tk/vtkLoadPythonTkWidgets.py.in
   vtkmodules/tk/vtkTkImageViewerWidget.py
   vtkmodules/tk/vtkTkPhotoImage.py
   vtkmodules/tk/vtkTkRenderWidget.py
@@ -146,6 +146,7 @@ set(python_files
   vtkmodules/util/keys.py
   vtkmodules/util/misc.py
   vtkmodules/util/numpy_support.py
+  vtkmodules/util/xarray_support.py
   vtkmodules/util/pickle_support.py
   vtkmodules/util/vtkAlgorithm.py
   vtkmodules/util/vtkConstants.py

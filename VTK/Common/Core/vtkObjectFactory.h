@@ -125,39 +125,39 @@ public:
    * As the version needs to be compiled into the file as a string constant.
    * This is critical to determine possible incompatible dynamic factory loads.
    */
-  virtual const char* GetVTKSourceVersion() = 0;
+  virtual const char* GetVTKSourceVersion() VTK_FUTURE_CONST = 0;
 
   /**
    * Return a descriptive string describing the factory.
    */
-  virtual const char* GetDescription() = 0;
+  virtual const char* GetDescription() VTK_FUTURE_CONST = 0;
 
   /**
    * Return number of overrides this factory can create.
    */
-  virtual int GetNumberOfOverrides();
+  virtual int GetNumberOfOverrides() VTK_FUTURE_CONST;
 
   /**
    * Return the name of a class override at the given index.
    */
-  virtual const char* GetClassOverrideName(int index);
+  virtual const char* GetClassOverrideName(int index) VTK_FUTURE_CONST;
 
   /**
    * Return the name of the class that will override the class
    * at the given index
    */
-  virtual const char* GetClassOverrideWithName(int index);
+  virtual const char* GetClassOverrideWithName(int index) VTK_FUTURE_CONST;
 
   /**
    * Return the enable flag for the class at the given index.
    */
-  virtual vtkTypeBool GetEnableFlag(int index);
+  virtual vtkTypeBool GetEnableFlag(int index) VTK_FUTURE_CONST;
 
   /**
    * Return the description for a the class override at the given
    * index.
    */
-  virtual const char* GetOverrideDescription(int index);
+  virtual const char* GetOverrideDescription(int index) VTK_FUTURE_CONST;
 
   ///@{
   /**
@@ -165,17 +165,18 @@ public:
    * if subclassName is null, then it is ignored.
    */
   virtual void SetEnableFlag(vtkTypeBool flag, const char* className, const char* subclassName);
-  virtual vtkTypeBool GetEnableFlag(const char* className, const char* subclassName);
+  virtual vtkTypeBool GetEnableFlag(
+    const char* className, const char* subclassName) VTK_FUTURE_CONST;
   ///@}
 
   /**
    * Return 1 if this factory overrides the given class name, 0 otherwise.
    */
-  virtual vtkTypeBool HasOverride(const char* className);
+  virtual vtkTypeBool HasOverride(const char* className) VTK_FUTURE_CONST;
   /**
    * Return 1 if this factory overrides the given class name, 0 otherwise.
    */
-  virtual vtkTypeBool HasOverride(const char* className, const char* subclassName);
+  virtual vtkTypeBool HasOverride(const char* className, const char* subclassName) VTK_FUTURE_CONST;
 
   /**
    * Set all enable flags for the given class to 0.  This will
@@ -274,7 +275,10 @@ static vtkObjectFactoryRegistryCleanup vtkObjectFactoryRegistryCleanupInstance;
 // The name of the function will by vtkObjectFactoryCreateclassname
 // where classname is the name of the class being created
 #define VTK_CREATE_CREATE_FUNCTION(classname)                                                      \
-  static vtkObject* vtkObjectFactoryCreate##classname() { return classname::New(); }
+  static vtkObject* vtkObjectFactoryCreate##classname()                                            \
+  {                                                                                                \
+    return classname::New();                                                                       \
+  }
 
 VTK_ABI_NAMESPACE_END
 #endif
@@ -331,7 +335,10 @@ VTK_ABI_NAMESPACE_END
 
 // Macro to implement the standard form of the New() method.
 #define vtkStandardNewMacro(thisClass)                                                             \
-  thisClass* thisClass::New() { VTK_STANDARD_NEW_BODY(thisClass); }
+  thisClass* thisClass::New()                                                                      \
+  {                                                                                                \
+    VTK_STANDARD_NEW_BODY(thisClass);                                                              \
+  }
 
 // Macro to implement the ExtendedNew() to create an object in a memkind extended memory space. If
 // VTK is not compiled with VTK_USE_MEMKIND this is equivalent to New()
@@ -345,10 +352,16 @@ VTK_ABI_NAMESPACE_END
 
 // Macro to implement the object factory form of the New() method.
 #define vtkObjectFactoryNewMacro(thisClass)                                                        \
-  thisClass* thisClass::New() { VTK_OBJECT_FACTORY_NEW_BODY(thisClass); }
+  thisClass* thisClass::New()                                                                      \
+  {                                                                                                \
+    VTK_OBJECT_FACTORY_NEW_BODY(thisClass);                                                        \
+  }
 
 // Macro to implement the abstract object factory form of the New() method.
 // That is an abstract base class that can only be instantiated if the
 // object factory overrides it.
 #define vtkAbstractObjectFactoryNewMacro(thisClass)                                                \
-  thisClass* thisClass::New() { VTK_ABSTRACT_OBJECT_FACTORY_NEW_BODY(thisClass); }
+  thisClass* thisClass::New()                                                                      \
+  {                                                                                                \
+    VTK_ABSTRACT_OBJECT_FACTORY_NEW_BODY(thisClass);                                               \
+  }

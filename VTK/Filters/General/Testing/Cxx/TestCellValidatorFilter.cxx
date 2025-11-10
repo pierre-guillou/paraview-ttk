@@ -29,7 +29,8 @@ bool TestArray(vtkDataArray* stateArray, const std::vector<vtkCellValidator::Sta
 
   for (vtkIdType cellId = 0; cellId < size; cellId++)
   {
-    auto state = static_cast<vtkCellValidator::State>(stateArray->GetTuple1(cellId));
+    auto state =
+      static_cast<vtkCellValidator::State>(static_cast<short>(stateArray->GetTuple1(cellId)));
     if (state != vtkCellValidator::Valid && (state & expectedValues[cellId]) == 0)
     {
       std::cout << "ERROR: invalid cell state found at id: " << cellId << "\n";
@@ -113,7 +114,7 @@ int TestCellValidatorFilter(int, char*[])
 
   // test that ValidityState array is persistent when dataset is deleted.
   // This is done because the filters create an implicit array that called the dataset
-  // at each request. On dataset DeleteEvent, the array should instanciate an explicit
+  // at each request. On dataset DeleteEvent, the array should instantiate an explicit
   // copy of the values to stay valid.
   //
   // see vtkDataSetImplicitBackendInterface for more.

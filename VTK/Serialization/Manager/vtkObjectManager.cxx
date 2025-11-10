@@ -24,7 +24,8 @@ VTK_ABI_NAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 extern "C"
 {
-  int RegisterLibraries_vtkObjectManagerDefaultSerDes(void* ser, void* deser, const char** error);
+  int RegisterLibraries_vtkObjectManagerDefaultSerDes(
+    void* ser, void* deser, void* invoker, const char** error);
 }
 
 //------------------------------------------------------------------------------
@@ -36,6 +37,7 @@ vtkObjectManager::vtkObjectManager()
   this->Context = vtk::TakeSmartPointer(vtkMarshalContext::New());
   this->Deserializer->SetContext(this->Context);
   this->Serializer->SetContext(this->Context);
+  this->Invoker->SetContext(this->Context);
 }
 
 //------------------------------------------------------------------------------
@@ -109,7 +111,7 @@ bool vtkObjectManager::InitializeDefaultHandlers()
 {
   const char* error = nullptr;
   if (!RegisterLibraries_vtkObjectManagerDefaultSerDes(
-        this->Serializer.Get(), this->Deserializer.Get(), &error))
+        this->Serializer.Get(), this->Deserializer.Get(), this->Invoker.Get(), &error))
   {
     vtkErrorMacro(<< "Failed to register a default VTK SerDes handler. error=\"" << error << "\"");
     return false;
@@ -124,7 +126,7 @@ bool vtkObjectManager::InitializeExtensionModuleHandlers(
   for (const auto& registrar : registrars)
   {
     const char* error = nullptr;
-    if (!registrar(this->Serializer, this->Deserializer, &error))
+    if (!registrar(this->Serializer, this->Deserializer, this->Invoker, &error))
     {
       vtkErrorMacro(<< "Failed to register an extension SerDes handler. error=\"" << error << "\"");
       return false;
@@ -190,7 +192,7 @@ void vtkObjectManager::Import(const std::string& stateFileName, const std::strin
     for (const auto& blob : blobs.items())
     {
       auto hash = blob.key();
-      const auto& values = blob.value().get_binary();
+      const auto& values = blob.value().at("bytes").get<std::vector<vtkTypeUInt8>>();
       if (!values.empty())
       {
         auto byteArray = vtk::TakeSmartPointer(vtkTypeUInt8Array::New());
@@ -243,7 +245,13 @@ bool vtkObjectManager::RegisterState(const std::string& state)
     vtkErrorMacro(<< "Failed to parse state!");
     return false;
   }
-  if (!this->Context->RegisterState(std::move(stateJson)))
+  return this->RegisterState(stateJson);
+}
+
+//------------------------------------------------------------------------------
+bool vtkObjectManager::RegisterState(const nlohmann::json& stateJson)
+{
+  if (!this->Context->RegisterState(stateJson))
   {
     vtkErrorMacro(<< "Failed to register state!");
     return false;
@@ -263,6 +271,27 @@ void vtkObjectManager::Clear()
   this->Context = vtk::TakeSmartPointer(vtkMarshalContext::New());
   this->Deserializer->SetContext(this->Context);
   this->Serializer->SetContext(this->Context);
+}
+
+//------------------------------------------------------------------------------
+std::string vtkObjectManager::Invoke(
+  vtkTypeUInt32 identifier, const std::string& methodName, const std::string& args)
+{
+  using json = nlohmann::json;
+  auto argsJson = json::parse(args, nullptr, false);
+  if (argsJson.is_discarded())
+  {
+    vtkErrorMacro(<< "Failed to parse state!");
+    return {};
+  }
+  return this->Invoke(identifier, methodName, argsJson).dump();
+}
+
+//------------------------------------------------------------------------------
+nlohmann::json vtkObjectManager::Invoke(
+  vtkTypeUInt32 identifier, const std::string& methodName, const nlohmann::json& args)
+{
+  return this->Invoker->Invoke(identifier, methodName, args);
 }
 
 //------------------------------------------------------------------------------
@@ -312,7 +341,8 @@ std::vector<std::string> vtkObjectManager::GetBlobHashes(const std::vector<vtkTy
       }
       else
       {
-        vtkDebugMacro(<< "Failed to get hash at id=" << id << ".");
+        // not uncommon for some objects to have any blobs.
+        vtkVLog(this->GetObjectManagerLogVerbosity(), << "Failed to get hash at id=" << id << ".");
       }
     }
     else
@@ -354,7 +384,7 @@ void vtkObjectManager::PruneUnusedStates()
     if (iter.second == nullptr)
     {
       staleIds.emplace_back(iter.first);
-      vtkDebugMacro(<< "Remove stale state: " << iter.first);
+      vtkVLog(this->GetObjectManagerLogVerbosity(), << "Remove stale state: " << iter.first);
     }
   }
   for (const auto& identifier : staleIds)
@@ -384,7 +414,8 @@ void vtkObjectManager::PruneUnusedObjects()
   {
     for (const auto& object : iter.second)
     {
-      vtkDebugMacro(<< "Remove stale strong object: " << iter.first << ":" << object);
+      vtkVLog(this->GetObjectManagerLogVerbosity(),
+        << "Remove stale strong object: " << iter.first << ":" << object);
       this->Context->Retire(iter.first, object);
     }
   }
@@ -397,7 +428,7 @@ void vtkObjectManager::PruneUnusedObjects()
     if (iter.second == nullptr)
     {
       staleIds.emplace_back(iter.first);
-      vtkDebugMacro(<< "Remove stale object: " << iter.first);
+      vtkVLog(this->GetObjectManagerLogVerbosity(), << "Remove stale object: " << iter.first);
     }
   }
   for (const auto& identifier : staleIds)
@@ -416,7 +447,7 @@ void vtkObjectManager::PruneUnusedBlobs()
   }
   for (const auto& iter : this->Context->States().items())
   {
-    const auto state = iter.value();
+    const auto& state = iter.value();
     auto hashIter = state.find("Hash");
     if (hashIter != state.end())
     {
@@ -468,7 +499,8 @@ void vtkObjectManager::UpdateObjectsFromStates()
   nlohmann::json strongRefStates;
   const auto& states = this->Context->States();
   std::copy_if(states.begin(), states.end(), std::back_inserter(strongRefStates),
-    [](const nlohmann::json& item) {
+    [](const nlohmann::json& item)
+    {
       return item.contains("vtk-object-manager-kept-alive") &&
         item["vtk-object-manager-kept-alive"] == true;
     });
@@ -493,15 +525,39 @@ void vtkObjectManager::UpdateStatesFromObjects()
   this->Context->ResetDirectDependencies();
   // All objects go under the top level root node
   vtkMarshalContext::ScopedParentTracker rootNodeTracker(this->Context, vtkObjectManager::ROOT());
-  // serializes all objects with strong references.
-  for (const auto& object : this->Context->StrongObjects().at(this->OWNERSHIP_KEY()))
+  // serializes all objects with strong references held by the manager.
+  const auto managerStrongObjectsIter = this->Context->StrongObjects().find(this->OWNERSHIP_KEY());
+  // serializes all objects with strong references held by the deserializer.
+  const auto deserializerOwnershipKey = this->Deserializer->GetObjectDescription();
+  const auto deserStrongObjectsIter = this->Context->StrongObjects().find(deserializerOwnershipKey);
+  // serializes all objects with strong references held by the invoker.
+  const auto invokerOwnershipKey = this->Invoker->GetObjectDescription();
+  const auto invokerStrongObjectsIter = this->Context->StrongObjects().find(invokerOwnershipKey);
+  if (managerStrongObjectsIter != this->Context->StrongObjects().end())
   {
-    auto stateId = this->Serializer->SerializeJSON(object);
-    auto idIter = stateId.find("Id");
-    if ((idIter != stateId.end()) && idIter->is_number_unsigned())
+    for (const auto& object : managerStrongObjectsIter->second)
     {
-      auto& state = this->Context->GetState(idIter->get<vtkTypeUInt32>());
-      state["vtk-object-manager-kept-alive"] = true;
+      auto stateId = this->Serializer->SerializeJSON(object);
+      auto idIter = stateId.find("Id");
+      if ((idIter != stateId.end()) && idIter->is_number_unsigned())
+      {
+        auto& state = this->Context->GetState(idIter->get<vtkTypeUInt32>());
+        state["vtk-object-manager-kept-alive"] = true;
+      }
+    }
+  }
+  if (deserStrongObjectsIter != this->Context->StrongObjects().end())
+  {
+    for (const auto& object : deserStrongObjectsIter->second)
+    {
+      this->Serializer->SerializeJSON(object);
+    }
+  }
+  if (invokerStrongObjectsIter != this->Context->StrongObjects().end())
+  {
+    for (const auto& object : invokerStrongObjectsIter->second)
+    {
+      this->Serializer->SerializeJSON(object);
     }
   }
   // Remove unused states
@@ -510,4 +566,179 @@ void vtkObjectManager::UpdateStatesFromObjects()
   this->PruneUnusedObjects();
 }
 
+//------------------------------------------------------------------------------
+void vtkObjectManager::UpdateStatesFromObjects(const std::vector<vtkTypeUInt32>& identifiers)
+{
+  // get objects with strong references held by the manager.
+  const auto managerOwnershipKey = this->OWNERSHIP_KEY();
+  const auto managerStrongObjectsIter = this->Context->StrongObjects().find(managerOwnershipKey);
+  // get objects with strong references held by the deserializer.
+  const auto deserializerOwnershipKey = this->Deserializer->GetObjectDescription();
+  const auto deserStrongObjectsIter = this->Context->StrongObjects().find(deserializerOwnershipKey);
+  // get objects with strong references held by the invoker.
+  const auto invokerOwnershipKey = this->Invoker->GetObjectDescription();
+  const auto invokerStrongObjectsIter = this->Context->StrongObjects().find(invokerOwnershipKey);
+
+  // for each identifier, serialize the object and mark it as kept alive where necessary.
+  for (const auto& identifier : identifiers)
+  {
+    const auto dependencies = this->GetAllDependencies(identifier);
+    for (const auto& depId : dependencies)
+    {
+      // Reset dependency cache as it will be rebuilt.
+      this->Context->ResetDirectDependenciesForNode(depId);
+    }
+    // The concered strong objects go under the top level root node
+    vtkMarshalContext::ScopedParentTracker rootNodeTracker(this->Context, vtkObjectManager::ROOT());
+    if (managerStrongObjectsIter != this->Context->StrongObjects().end())
+    {
+      for (const auto& object : managerStrongObjectsIter->second)
+      {
+        // The object must have already been registered in the context and have a valid identifier.
+        if (this->Context->GetId(object) == identifier)
+        {
+          this->Serializer->SerializeJSON(object);
+        }
+      }
+    }
+    if (deserStrongObjectsIter != this->Context->StrongObjects().end())
+    {
+      for (const auto& object : deserStrongObjectsIter->second)
+      {
+        if (this->Context->GetId(object) == identifier)
+        {
+          this->Serializer->SerializeJSON(object);
+        }
+      }
+    }
+    if (invokerStrongObjectsIter != this->Context->StrongObjects().end())
+    {
+      for (const auto& object : invokerStrongObjectsIter->second)
+      {
+        if (this->Context->GetId(object) == identifier)
+        {
+          this->Serializer->SerializeJSON(object);
+        }
+      }
+    }
+  }
+  // Remove unused states
+  this->PruneUnusedStates();
+  // Remove unused objects
+  this->PruneUnusedObjects();
+
+  // Tag strong objects as kept alive.
+  // This is important for the deserializer to know that the object is kept alive.
+  // This is done after the serialization of all objects. Otherwise, the serialization of a nested
+  // strong object will discard the "vtk-object-manager-kept-alive" tag.
+  if (managerStrongObjectsIter != this->Context->StrongObjects().end())
+  {
+    for (const auto& object : managerStrongObjectsIter->second)
+    {
+      // The object must have already been registered in the context and have a valid identifier.
+      if (auto identifier = this->Context->GetId(object))
+      {
+        auto& state = this->Context->GetState(identifier);
+        state["vtk-object-manager-kept-alive"] = true;
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkObjectManager::UpdateObjectFromState(const std::string& state)
+{
+  using json = nlohmann::json;
+  auto stateJson = json::parse(state, nullptr, false);
+  if (stateJson.is_discarded())
+  {
+    vtkErrorMacro(<< "Failed to parse state=" << state);
+    return;
+  }
+  this->UpdateObjectFromState(stateJson);
+}
+
+//------------------------------------------------------------------------------
+void vtkObjectManager::UpdateObjectFromState(const nlohmann::json& stateJson)
+{
+  const auto identifier = stateJson.at("Id").get<vtkTypeUInt32>();
+  if (!this->Context->RegisterState(stateJson))
+  {
+    vtkErrorMacro(<< "Failed to register state=" << stateJson.dump());
+    return;
+  }
+  auto object = this->Context->GetObjectAtId(identifier);
+  if (object)
+  {
+    // clear dependency tree for this object.
+    // This lets the deserializer see that the object is not processed
+    // in the marshalling context.
+    this->Context->ResetDirectDependenciesForNode(identifier);
+  }
+  if (!this->Deserializer->DeserializeJSON(identifier, object))
+  {
+    vtkErrorMacro(<< "Failed to update object at id=" << identifier
+                  << " from state=" << stateJson.dump());
+  }
+  else
+  {
+    vtkVLog(
+      this->GetObjectManagerLogVerbosity(), << "Updated object for state at id=" << identifier);
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkObjectManager::UpdateStateFromObject(vtkTypeUInt32 identifier)
+{
+  if (auto object = this->Context->GetObjectAtId(identifier))
+  {
+    // clear dependency tree for this object.
+    // This lets the serializer see that the object is not processed
+    // in the marshalling context.
+    this->Context->ResetDirectDependenciesForNode(identifier);
+    const auto id = this->Serializer->SerializeJSON(object);
+    if (id.empty())
+    {
+      vtkErrorMacro(<< "Failed to update state for object at id=" << identifier);
+    }
+    else
+    {
+      vtkVLog(
+        this->GetObjectManagerLogVerbosity(), << "Updated state for object at id=" << identifier);
+    }
+  }
+  else
+  {
+    vtkErrorMacro(<< "Cannot update state for object at id=" << identifier
+                  << " because there is no such object!");
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkObjectManager::SetObjectManagerLogVerbosity(vtkLogger::Verbosity verbosity)
+{
+  this->ObjectManagerLogVerbosity = verbosity;
+}
+
+//------------------------------------------------------------------------------
+vtkLogger::Verbosity vtkObjectManager::GetObjectManagerLogVerbosity()
+{
+  // initialize the log verbosity if it is invalid.
+  if (this->ObjectManagerLogVerbosity == vtkLogger::VERBOSITY_INVALID)
+  {
+    this->ObjectManagerLogVerbosity = vtkLogger::VERBOSITY_TRACE;
+    // Find an environment variable that specifies logger verbosity
+    const char* verbosityKey = "VTK_OBJECT_MANAGER_LOG_VERBOSITY";
+    if (vtksys::SystemTools::HasEnv(verbosityKey))
+    {
+      const char* verbosityCStr = vtksys::SystemTools::GetEnv(verbosityKey);
+      const auto verbosity = vtkLogger::ConvertToVerbosity(verbosityCStr);
+      if (verbosity > vtkLogger::VERBOSITY_INVALID)
+      {
+        this->ObjectManagerLogVerbosity = verbosity;
+      }
+    }
+  }
+  return this->ObjectManagerLogVerbosity;
+}
 VTK_ABI_NAMESPACE_END

@@ -9,12 +9,10 @@
 #include "vtkImplicitFunction.h"
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
-#include "vtkMergePoints.h"
 #include "vtkNew.h"
 #include "vtkNonMergingPointLocator.h"
-#include "vtkObjectFactory.h"
 #include "vtkPVCutter.h"
-#include "vtkPVPlane.h"
+#include "vtkPlane.h"
 
 class vtkPVMetaSliceDataSet::vtkInternals
 {
@@ -145,7 +143,7 @@ int vtkPVMetaSliceDataSet::RequestDataObject(
     this->Internal->ExtractCells->SetImplicitFunction(
       this->ImplicitFunctions[METASLICE_HYPERTREEGRID]);
     // If plane is forced to be aligned to axis, the output is a vtkHyperTreeGrid
-    vtkPVPlane* plane = vtkPVPlane::SafeDownCast(this->Internal->Cutter->GetCutFunction());
+    vtkPlane* plane = vtkPlane::SafeDownCast(this->Internal->Cutter->GetCutFunction());
     if (plane && !plane->GetAxisAligned())
     {
       this->SetOutputType(VTK_POLY_DATA);
@@ -183,4 +181,24 @@ void vtkPVMetaSliceDataSet::SetLocator(vtkIncrementalPointLocator* locator)
 vtkIncrementalPointLocator* vtkPVMetaSliceDataSet::GetLocator()
 {
   return this->Locator.Get();
+}
+
+//------------------------------------------------------------------------------
+vtkMTimeType vtkPVMetaSliceDataSet::GetMTime()
+{
+  vtkMTimeType time;
+  vtkMTimeType mTime = this->Superclass::GetMTime();
+
+  if (this->ImplicitFunctions[METASLICE_DATASET])
+  {
+    time = this->ImplicitFunctions[METASLICE_DATASET]->GetMTime();
+    mTime = (time > mTime ? time : mTime);
+  }
+  if (this->ImplicitFunctions[METASLICE_HYPERTREEGRID])
+  {
+    time = this->ImplicitFunctions[METASLICE_HYPERTREEGRID]->GetMTime();
+    mTime = (time > mTime ? time : mTime);
+  }
+
+  return mTime;
 }

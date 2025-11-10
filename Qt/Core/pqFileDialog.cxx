@@ -241,6 +241,8 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
 {
   pqServer* server = location == vtkPVSession::DATA_SERVER ? this->Server : nullptr;
   this->Implementations[location] = new pqImplementation(this, server);
+  this->Implementations[location]->setObjectName(
+    QString("Filesystem_%1").arg(this->Implementations.size() - 1));
   // the selected location is temporarily set here,
   // so that some slots called by signals can be executed properly.
   this->SelectedLocation = location;
@@ -277,7 +279,11 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
 
   QObject::connect(impl.Ui.NavigateBack, SIGNAL(clicked(bool)), this, SLOT(onNavigateBack()));
   // just flip the back image to make a forward image
+#if QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
   QPixmap forward = QPixmap::fromImage(back.toImage().mirrored(true, false));
+#else
+  QPixmap forward = QPixmap::fromImage(back.toImage().flipped(Qt::Horizontal));
+#endif
   impl.Ui.NavigateForward->setIcon(forward);
   impl.Ui.NavigateForward->setDisabled(true);
   impl.Ui.NavigateForward->setShortcut(QKeySequence::Forward);
@@ -338,8 +344,8 @@ void pqFileDialog::addImplementation(vtkTypeUInt32 location)
 
   QObject::connect(impl.Ui.CreateFolder, SIGNAL(clicked()), this, SLOT(onCreateNewFolder()));
 
-  QObject::connect(
-    impl.Ui.Parents, SIGNAL(activated(const QString&)), this, SLOT(onNavigate(const QString&)));
+  QObject::connect(impl.Ui.Parents, QOverload<int>::of(&QComboBox::activated), this,
+    [this, &impl](int index) { this->onNavigate(impl.Ui.Parents->itemText(index)); });
 
   QObject::connect(
     impl.Ui.EntityType, &QComboBox::currentTextChanged, this, &pqFileDialog::onFilterChange);
@@ -448,6 +454,7 @@ pqFileDialog::pqFileDialog(pqServer* server, QWidget* p, const QString& title,
   // remove do-nothing "?" title bar button on Windows.
   this->setWindowFlags(this->windowFlags().setFlag(Qt::WindowContextHelpButtonHint, false));
   this->setWindowTitle(title);
+  this->setObjectName("pqFileDialog");
 
   // create a tab widget for the vtkPVSession::CLIENT and vtkPVSession::DATA_SERVER locations
   QPointer<QTabWidget> tabWidget = new QTabWidget(this);
@@ -1713,15 +1720,18 @@ void pqFileDialog::updateButtonStates(vtkTypeUInt32 location)
       break;
     default:
       // Check that the files match the selected filter (without existence checks)
-      const bool filesMatching = std::all_of(
-        impl.FileNames.begin(), impl.FileNames.end(), [&](QString const& fileOrGroupName) {
+      const bool filesMatching = std::all_of(impl.FileNames.begin(), impl.FileNames.end(),
+        [&](QString const& fileOrGroupName)
+        {
           // Get all the files of the group if fileName is a group, else just get {fileName}
           const QStringList fileNames = buildFileGroup(fileOrGroupName);
-          return std::all_of(fileNames.begin(), fileNames.end(), [&](QString const& fileName) {
-            const QString fileNameWithoutPath =
-              vtksys::SystemTools::GetFilenameName(fileName.toStdString()).c_str();
-            return impl.FileFilter.getWildcards().exactMatch(fileNameWithoutPath);
-          });
+          return std::all_of(fileNames.begin(), fileNames.end(),
+            [&](QString const& fileName)
+            {
+              const QString fileNameWithoutPath =
+                vtksys::SystemTools::GetFilenameName(fileName.toStdString()).c_str();
+              return impl.FileFilter.getWildcards().exactMatch(fileNameWithoutPath);
+            });
         });
       impl.Ui.OK->setEnabled(filesMatching);
   }

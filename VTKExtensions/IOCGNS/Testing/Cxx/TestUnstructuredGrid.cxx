@@ -15,7 +15,7 @@
 #include "vtkPointData.h"
 #include "vtkUnstructuredGrid.h"
 
-int TestUnstructuredGrid(int argc, char* argv[])
+extern int TestUnstructuredGrid(int argc, char* argv[])
 {
   vtkNew<vtkUnstructuredGrid> ug;
   Create(ug.GetPointer(), 10);
@@ -116,7 +116,8 @@ void Create(vtkUnstructuredGrid* ug, vtkIdType N)
 
   ug->SetPoints(pts);
 
-  auto calc = [=](vtkIdType a, vtkIdType b, vtkIdType c) {
+  auto calc = [=](vtkIdType a, vtkIdType b, vtkIdType c)
+  {
     vtkIdType value = a + b * N + c * N * N;
     if (value < 0 || value >= N * N * N)
     {

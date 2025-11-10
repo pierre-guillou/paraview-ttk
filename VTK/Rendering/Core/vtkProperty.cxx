@@ -121,45 +121,55 @@ void vtkProperty::DeepCopy(vtkProperty* p)
 {
   if (p != nullptr)
   {
-    this->SetColor(p->GetColor());
-    this->SetAmbientColor(p->GetAmbientColor());
-    this->SetDiffuseColor(p->GetDiffuseColor());
-    this->SetSpecularColor(p->GetSpecularColor());
-    this->SetEdgeColor(p->GetEdgeColor());
-    this->SetVertexColor(p->GetVertexColor());
     this->SetAmbient(p->GetAmbient());
-    this->SetDiffuse(p->GetDiffuse());
-    this->SetSpecular(p->GetSpecular());
-    this->SetSpecularPower(p->GetSpecularPower());
-    this->SetOpacity(p->GetOpacity());
-    this->SetInterpolation(p->GetInterpolation());
-    this->SetRepresentation(p->GetRepresentation());
-    this->SetEdgeVisibility(p->GetEdgeVisibility());
-    this->SetVertexVisibility(p->GetVertexVisibility());
-    this->SetBackfaceCulling(p->GetBackfaceCulling());
-    this->SetFrontfaceCulling(p->GetFrontfaceCulling());
-    this->SetPointSize(p->GetPointSize());
-    this->SetLineWidth(p->GetLineWidth());
-    this->SetLineStipplePattern(p->GetLineStipplePattern());
-    this->SetLineStippleRepeatFactor(p->GetLineStippleRepeatFactor());
-    this->SetLighting(p->GetLighting());
-    this->SetRenderPointsAsSpheres(p->GetRenderPointsAsSpheres());
-    this->SetRenderLinesAsTubes(p->GetRenderLinesAsTubes());
-    this->SetShading(p->GetShading());
-    this->SetNormalScale(p->GetNormalScale());
-    this->SetOcclusionStrength(p->GetOcclusionStrength());
-    this->SetMetallic(p->GetMetallic());
-    this->SetRoughness(p->GetRoughness());
+    this->SetAmbientColor(p->GetAmbientColor());
     this->SetAnisotropy(p->GetAnisotropy());
     this->SetAnisotropyRotation(p->GetAnisotropyRotation());
+    this->SetBackfaceCulling(p->GetBackfaceCulling());
     this->SetBaseIOR(p->GetBaseIOR());
-    this->SetRoughness(p->GetRoughness());
+    this->SetCoatColor(p->GetCoatColor());
     this->SetCoatIOR(p->GetCoatIOR());
+    this->SetCoatNormalScale(p->GetCoatNormalScale());
     this->SetCoatRoughness(p->GetCoatRoughness());
     this->SetCoatStrength(p->GetCoatStrength());
-    this->SetCoatNormalScale(p->GetCoatNormalScale());
-    this->SetCoatColor(p->GetCoatColor());
+    this->SetColor(p->GetColor());
+    this->SetDiffuse(p->GetDiffuse());
+    this->SetDiffuseColor(p->GetDiffuseColor());
+    this->SetEdgeColor(p->GetEdgeColor());
+    this->SetEdgeOpacity(p->GetEdgeOpacity());
+    this->SetEdgeTint(p->GetEdgeTint());
+    this->SetEdgeVisibility(p->GetEdgeVisibility());
+    this->SetEdgeWidth(p->GetEdgeWidth());
+    this->SetEmissiveFactor(p->GetEmissiveFactor());
+    this->SetFrontfaceCulling(p->GetFrontfaceCulling());
+    this->SetInterpolation(p->GetInterpolation());
+    this->SetLighting(p->GetLighting());
+    this->SetLineStipplePattern(p->GetLineStipplePattern());
+    this->SetLineStippleRepeatFactor(p->GetLineStippleRepeatFactor());
+    this->SetLineWidth(p->GetLineWidth());
+    this->SetMaterialName(p->GetMaterialName());
+    this->SetMetallic(p->GetMetallic());
+    this->SetNormalScale(p->GetNormalScale());
+    this->SetOcclusionStrength(p->GetOcclusionStrength());
+    this->SetOpacity(p->GetOpacity());
+    this->SetPoint2DShape(p->GetPoint2DShape());
+    this->SetPointSize(p->GetPointSize());
+    this->SetRenderLinesAsTubes(p->GetRenderLinesAsTubes());
+    this->SetRenderPointsAsSpheres(p->GetRenderPointsAsSpheres());
+    this->SetRepresentation(p->GetRepresentation());
+    this->SetRoughness(p->GetRoughness());
+    this->SetRoughness(p->GetRoughness());
+    this->SetSelectionColor(p->GetSelectionColor());
+    this->SetSelectionLineWidth(p->GetSelectionLineWidth());
+    this->SetSelectionPointSize(p->GetSelectionPointSize());
+    this->SetShading(p->GetShading());
     this->SetShowTexturesOnBackface(p->GetShowTexturesOnBackface());
+    this->SetSpecular(p->GetSpecular());
+    this->SetSpecularColor(p->GetSpecularColor());
+    this->SetSpecularPower(p->GetSpecularPower());
+    this->SetUseLineWidthForEdgeThickness(p->GetUseLineWidthForEdgeThickness());
+    this->SetVertexColor(p->GetVertexColor());
+    this->SetVertexVisibility(p->GetVertexVisibility());
 
     this->RemoveAllTextures();
     auto iter = p->Textures.begin();
@@ -322,6 +332,15 @@ void vtkProperty::SetTexture(const char* name, vtkTexture* tex)
 }
 
 //------------------------------------------------------------------------------
+void vtkProperty::SetAllTextures(std::map<std::string, vtkTexture*>& textures)
+{
+  for (auto& item : textures)
+  {
+    this->SetTexture(item.first.c_str(), item.second);
+  }
+}
+
+//------------------------------------------------------------------------------
 vtkTexture* vtkProperty::GetTexture(const char* name)
 {
   auto iter = this->Textures.find(std::string(name));
@@ -385,15 +404,6 @@ void vtkProperty::PostRender(vtkActor*, vtkRenderer* renderer)
     return;
   }
 }
-
-//------------------------------------------------------------------------------
-void vtkProperty::AddShaderVariable(const char*, int, int*) {}
-
-//------------------------------------------------------------------------------
-void vtkProperty::AddShaderVariable(const char*, int, float*) {}
-
-//------------------------------------------------------------------------------
-void vtkProperty::AddShaderVariable(const char*, int, double*) {}
 
 //------------------------------------------------------------------------------
 void vtkProperty::ReleaseGraphicsResources(vtkWindow*)
@@ -471,6 +481,17 @@ void vtkProperty::PrintSelf(ostream& os, vtkIndent indent)
   else
   {
     os << "Off" << endl;
+  }
+  os << indent << "Point2DShape: ";
+  switch (this->Point2DShape)
+  {
+    case Point2DShapeType::Round:
+      os << "Round\n";
+      break;
+    case Point2DShapeType::Square:
+    default:
+      os << "Square\n";
+      break;
   }
   os << indent << "RenderPointsAsSpheres: " << (this->RenderPointsAsSpheres ? "On" : "Off") << endl;
   os << indent << "RenderLinesAsTubes: " << (this->RenderLinesAsTubes ? "On" : "Off") << endl;

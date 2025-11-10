@@ -269,51 +269,6 @@
     </SourceProxy>
 
     <!-- ==================================================================== -->
-    <SourceProxy class="vtkProbeLineFilter"
-                 base_proxygroup="internal_filters"
-                 base_proxyname="ProbeLineGenericProxy"
-                 label="Plot Over Lines From Custom Source"
-                 name="ProbeCustomLines">
-      <Documentation>
-        The Plot Over Lines From Custom Source filter samples the dataset
-        attributes of the input data set at the points along multiple lines given by the source
-        dataset. The values of the point-centered variables along these lines will be
-        displayed in an XY Plot. This filter uses interpolation to determine the values
-        at the selected point, whether or not it lies at an input point. This filter
-        operates on any type of data and produces polygonal output (a polyline). One
-        can use different sampling patterns with this filter. "Sample At Cell Boundaries"
-        gives the most accurate plots, "Sample At Segment Centers" provides one sample
-        per probed cells, and "Sample Uniformly" samples uniformly along the input line.
-      </Documentation>
-      <InputProperty command="SetSourceConnection"
-                     name="Source">
-        <ProxyGroupDomain name="groups">
-          <Group name="sources"/>
-          <Group name="filters"/>
-        </ProxyGroupDomain>
-        <DataTypeDomain name="input_type">
-          <DataType value="vtkPolyData"/>
-          <DataType value="vtkUnstructuredGrid"/>
-        </DataTypeDomain>
-        <Documentation>
-          This property specifies the dataset from which to obtain the probing lines locations.
-        </Documentation>
-      </InputProperty>
-      <IntVectorProperty command="SetAggregateAsPolyData"
-                         default_values="0"
-                         name="AggregateAsPolyData"
-                         number_of_elements="1"
-                         panel_visibility="never">
-        <Documentation>
-          If false then each result from an input line to probe results in a block in a
-          vtkMultiBlockDataSet. If true then each block is aggregated as a cell in a
-          single dataset and the output type of the filter becomes a vtkPolyData. Should
-          always be false for this filter.
-        </Documentation>
-      </IntVectorProperty>
-    </SourceProxy>
-
-    <!-- ==================================================================== -->
     <SourceProxy class="vtkAggregateDataSetFilter"
                  label="Aggregate Dataset"
                  name="AggregateDataSet">
@@ -728,6 +683,10 @@
     <SourceProxy class="vtkHyperTreeGridGhostCellsGenerator"
                  label="HyperTreeGrid Ghost Cells Generator"
                  name="HyperTreeGridGhostCellsGenerator">
+      <Deprecated deprecated_in="6.0" to_remove_in="6.2">
+        This filter has been replaced by 'Ghost Cells', that supports HyperTree Grids.
+        Please consider using that instead.
+      </Deprecated>
       <Documentation long_help="Generate Ghost Cells for HyperTreeGrid."
                      short_help="Generate Ghost Cells for HyperTreeGrid.">
         This filter generates ghost cells for hyper tree grid for multi processing purposes.
@@ -780,6 +739,18 @@
           This property specifies the input to the Integrate Attributes filter.
         </Documentation>
       </InputProperty>
+
+      <ProxyProperty command="SetIntegrationStrategy"
+                     name="IntegrationStrategy">
+        <ProxyListDomain name="proxy_list">
+          <Group name="integration_strategies" default="IntegrationLinearStrategy"/>
+        </ProxyListDomain>
+        <Documentation>
+          This property determines which integration strategy
+          to use for the data integration.
+        </Documentation>
+      </ProxyProperty>
+
       <IntVectorProperty command="SetDivideAllCellDataByVolume"
                          name="DivideCellDataByVolume"
                          default_values="0"
@@ -1321,7 +1292,7 @@
                  base_proxyname="SurfaceNormals"
                  base_proxygroup="filters"
                  name="PolyDataNormals">
-      <Deprecated deprecated_in="5.13" to_remove_in="5.14">
+      <Deprecated deprecated_in="5.13" to_remove_in="6.1">
         This has been renamed into 'SurfaceNormals'. Please consider using that instead.
       </Deprecated>
       <!-- End  PolyDataNormals -->
@@ -1331,6 +1302,10 @@
     <SourceProxy class="vtkPReflectionFilter"
                  label="Reflect"
                  name="ReflectionFilter">
+      <Deprecated deprecated_in="6.0" to_remove_in="6.2">
+        This filter has been replaced by 'Axis-Aligned Reflect'.
+        Please consider using that instead.
+      </Deprecated>
       <Documentation long_help="This filter takes the union of the input and its reflection over an axis-aligned plane."
                      short_help="Reflect input over an axis aligned plane.">
         The Reflect filter reflects the input dataset across the
@@ -1433,60 +1408,6 @@
         </WarnOnCreate>
       </Hints>
       <!-- End ReflectionFilter -->
-    </SourceProxy>
-
-    <!-- ==================================================================== -->
-    <SourceProxy class="vtkProcessIdScalars"
-                 label="Process Id Scalars"
-                 name="ProcessIdScalars">
-      <Deprecated deprecated_in="5.12" to_remove_in="5.14">
-        This has been replaced by 'ProcessIds'. Please consider
-        using that instead.
-      </Deprecated>
-      <Documentation long_help="This filter uses colors to show how data is partitioned across processes."
-                     short_help="Generate point scalars from process id.">
-        The Process Id Scalars filter assigns a unique scalar value to
-        each piece of the input according to which processor it
-        resides on. This filter operates on any type of data when
-        ParaView is run in parallel. It is useful for determining
-        whether your data is load-balanced across the processors
-        being used. The output data set type is the same as that of the input.
-      </Documentation>
-      <InputProperty command="SetInputConnection"
-                     name="Input">
-        <ProxyGroupDomain name="groups">
-          <Group name="sources"/>
-          <Group name="filters"/>
-        </ProxyGroupDomain>
-        <DataTypeDomain name="input_type">
-          <DataType value="vtkDataSet"/>
-        </DataTypeDomain>
-        <Documentation>
-          This property specifies the input to the Process Id Scalars filter.
-        </Documentation>
-      </InputProperty>
-      <IntVectorProperty command="SetRandomMode"
-                         default_values="0"
-                         name="RandomMode"
-                         number_of_elements="1">
-        <BooleanDomain name="bool"/>
-        <Documentation>
-          The value of this property determines whether to use
-          random id values for the various pieces. If set to 1, the unique value
-          per piece will be chosen at random; otherwise the unique value will
-          match the id of the process.
-        </Documentation>
-      </IntVectorProperty>
-      <IntVectorProperty command="SetCellScalarsFlag"
-                         default_values="0"
-                         name="CellScalars"
-                         number_of_elements="1">
-        <BooleanDomain name="bool"/>
-        <Documentation>
-          The value of this property determines whether to output the array as point data or cell data.
-        </Documentation>
-      </IntVectorProperty>
-      <!-- End ProcessIdScalars -->
     </SourceProxy>
 
     <!-- ==================================================================== -->
@@ -1604,6 +1525,7 @@
           <DataType value="vtkDataSet"/>
           <DataType value="vtkTable"/>
           <DataType value="vtkCompositeDataSet"/>
+          <DataType value="vtkHyperTreeGrid"/>
         </DataTypeDomain>
         <Documentation>
           The input from which the selection is extracted.

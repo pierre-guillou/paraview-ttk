@@ -3,6 +3,7 @@
 #include "vtkAlgorithm.h"
 #include "vtkDataObject.h"
 #include "vtkDeserializer.h"
+#include "vtkInformation.h"
 #include "vtkSerializer.h"
 
 // clang-format off
@@ -17,7 +18,7 @@ extern "C"
    * @param ser   a vtkSerializer instance
    * @param deser a vtkDeserializer instance
    */
-  int RegisterHandlers_vtkAlgorithmSerDesHelper(void* ser, void* deser);
+  int RegisterHandlers_vtkAlgorithmSerDesHelper(void* ser, void* deser, void* invoker);
 }
 
 static nlohmann::json Serialize_vtkAlgorithm(vtkObjectBase* object, vtkSerializer* serializer)
@@ -55,6 +56,10 @@ static nlohmann::json Serialize_vtkAlgorithm(vtkObjectBase* object, vtkSerialize
       }
       statesOfInputDataObjects.push_back(stateOfInputDataObjects);
     }
+
+    state["Information"] =
+      serializer->SerializeJSON(reinterpret_cast<vtkObjectBase*>(algorithm->GetInformation()));
+
     return state;
   }
   else
@@ -72,9 +77,13 @@ static void Deserialize_vtkAlgorithm(
   {
     return;
   }
-  const auto* context = deserializer->GetContext();
   VTK_DESERIALIZE_VALUE_FROM_STATE(AbortExecute, int, state, algorithm);
+
+  VTK_DESERIALIZE_VTK_OBJECT_FROM_STATE(
+    Information, vtkInformation, state, algorithm, deserializer);
+
   {
+    const auto* context = deserializer->GetContext();
     const auto iter = state.find("InputDataObjects");
     if ((iter != state.end()) && !iter->is_null())
     {
@@ -88,11 +97,11 @@ static void Deserialize_vtkAlgorithm(
           << algorithm->GetNumberOfInputPorts() << ")");
         return;
       }
-      const bool hasMultipleInPorts = algorithm->GetNumberOfInputPorts() > 1;
       for (int port = 0; port < algorithm->GetNumberOfInputPorts(); ++port)
       {
-        algorithm->RemoveAllInputConnections(port);
+        std::vector<vtkSmartPointer<vtkDataObject>> inputDataObjects;
         auto stateOfInputDataObjects = statesOfInputDataObjects[port].get<json::array_t>();
+        const bool hasMultipleConnections = stateOfInputDataObjects.size() > 1;
         for (std::size_t index = 0; index < stateOfInputDataObjects.size(); ++index)
         {
           const auto identifier = stateOfInputDataObjects[index]["Id"].get<vtkTypeUInt32>();
@@ -100,9 +109,9 @@ static void Deserialize_vtkAlgorithm(
           deserializer->DeserializeJSON(identifier, subObject);
           if (auto* dataObject = vtkDataObject::SafeDownCast(subObject))
           {
-            if (hasMultipleInPorts)
+            if (hasMultipleConnections)
             {
-              algorithm->AddInputDataObject(port, dataObject);
+              inputDataObjects.emplace_back(dataObject);
             }
             else
             {
@@ -110,12 +119,20 @@ static void Deserialize_vtkAlgorithm(
             }
           }
         }
+        if (hasMultipleConnections)
+        {
+          algorithm->RemoveAllInputConnections(port);
+          for (auto& dataObject : inputDataObjects)
+          {
+            algorithm->AddInputDataObject(port, dataObject);
+          }
+        }
       }
     }
   }
 }
 
-int RegisterHandlers_vtkAlgorithmSerDesHelper(void* ser, void* deser)
+int RegisterHandlers_vtkAlgorithmSerDesHelper(void* ser, void* deser, void* vtkNotUsed(invoker))
 {
   int success = 0;
   if (auto* asObjectBase = static_cast<vtkObjectBase*>(ser))

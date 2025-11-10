@@ -5,13 +5,16 @@
 
 #include "pqActiveObjects.h"
 #include "pqApplicationCore.h"
+#include "pqCoreUtilities.h"
 #include "pqEventDispatcher.h"
 #include "pqLoadStateReaction.h"
 #include "vtkPVFileInformation.h"
 
 #include <QFile>
 #include <QFileInfo>
+#include <QMainWindow>
 #include <QMessageBox>
+#include <QStatusBar>
 
 #include <cassert>
 
@@ -36,6 +39,12 @@ pqExampleVisualizationsDialog::pqExampleVisualizationsDialog(QWidget* parentObje
     this->ui->TosExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
   QObject::connect(
     this->ui->WaveletExampleButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+  QObject::connect(
+    this->ui->RectilinearGridTimestepsButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+  QObject::connect(
+    this->ui->UnstructuredGridParallelButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
+  QObject::connect(
+    this->ui->MandelbrotButton, SIGNAL(clicked(bool)), this, SLOT(onButtonPressed()));
 }
 
 //-----------------------------------------------------------------------------
@@ -83,6 +92,21 @@ void pqExampleVisualizationsDialog::onButtonPressed()
       stateFile = ":/pqApplicationComponents/ExampleVisualizations/TosExample.pvsm";
       needsData = true;
     }
+    else if (button == this->ui->RectilinearGridTimestepsButton)
+    {
+      stateFile = ":/pqApplicationComponents/ExampleVisualizations/RectilinearGrid.pvsm";
+      needsData = true;
+    }
+    else if (button == this->ui->UnstructuredGridParallelButton)
+    {
+      stateFile = ":/pqApplicationComponents/ExampleVisualizations/UnstructuredGridParallel.pvsm";
+      needsData = true;
+    }
+    else if (button == this->ui->MandelbrotButton)
+    {
+      stateFile = ":/pqApplicationComponents/ExampleVisualizations/Mandelbrot.pvsm";
+      needsData = false;
+    }
     else
     {
       qCritical("No example file for button");
@@ -112,13 +136,11 @@ void pqExampleVisualizationsDialog::onButtonPressed()
     QFile qfile(stateFile);
     if (qfile.open(QIODevice::ReadOnly | QIODevice::Text))
     {
-      QMessageBox box(this);
-      box.setText(tr("Loading example visualization, please wait ..."));
-      box.setStandardButtons(QMessageBox::NoButton);
-      box.show();
-
-      // without this, the message box doesn't paint properly.
-      pqEventDispatcher::processEventsAndWait(100);
+      QMainWindow* mainWindow = qobject_cast<QMainWindow*>(pqCoreUtilities::mainWidget());
+      if (mainWindow)
+      {
+        mainWindow->statusBar()->showMessage(tr("Loading example visualization."), 2000);
+      }
 
       QString xmldata(qfile.readAll());
       xmldata.replace("$PARAVIEW_EXAMPLES_DATA", dataPath);

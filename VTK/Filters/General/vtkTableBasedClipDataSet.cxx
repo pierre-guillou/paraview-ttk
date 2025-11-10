@@ -161,10 +161,9 @@ int vtkTableBasedClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   vtkDebugMacro(<< "Clipping dataset" << endl);
 
   const vtkIdType numPoints = inputCopy->GetNumberOfPoints();
-  const vtkIdType numCells = inputCopy->GetNumberOfCells();
 
   // handling exceptions
-  if (numPoints < 1 || numCells < 1)
+  if (numPoints < 1)
   {
     vtkDebugMacro(<< "No data to clip" << endl);
     outputUG = nullptr;
@@ -184,13 +183,14 @@ int vtkTableBasedClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
   if (!this->ClipFunction)
   {
     auto inputArray = this->GetInputArrayToProcess(0, inputVector);
-    // This is needed by vtkClipDataSet in case we fall back to it.
-    inputCopy->GetPointData()->SetScalars(inputArray);
     if (!inputArray)
     {
       vtkErrorMacro(<< "no input scalars." << endl);
       return 1;
     }
+    // This is needed by vtkClipDataSet in case we fall back to it.
+    inputCopy->GetPointData()->AddArray(inputArray);
+    inputCopy->GetPointData()->SetActiveScalars(inputArray->GetName());
     // We (shallow/deep)copy the input scalars into a double array.
     // This is needed to GREATLY minimize compilation time,
     // and avoid using the vtkDataArray API
@@ -210,12 +210,14 @@ int vtkTableBasedClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     else
     {
       scalars->SetNumberOfValues(numPoints);
-      vtkSMPTools::For(0, numPoints, [&](vtkIdType begin, vtkIdType end) {
-        for (vtkIdType i = begin; i < end; i++)
+      vtkSMPTools::For(0, numPoints,
+        [&](vtkIdType begin, vtkIdType end)
         {
-          scalars->SetValue(i, inputArray->GetComponent(i, 0));
-        }
-      });
+          for (vtkIdType i = begin; i < end; i++)
+          {
+            scalars->SetValue(i, inputArray->GetComponent(i, 0));
+          }
+        });
     }
   }
 
@@ -277,6 +279,16 @@ int vtkTableBasedClipDataSet::RequestData(vtkInformation* vtkNotUsed(request),
     {
       this->InsideOut = !(this->InsideOut);
       this->ClipTDataSet(uGridBase, this->ClipFunction, scalars, isoValue, clippedOutputUG);
+      this->InsideOut = !(this->InsideOut);
+    }
+  }
+  else if (auto pointset = vtkPointSet::SafeDownCast(inputCopy))
+  {
+    this->ClipTDataSet(pointset, this->ClipFunction, scalars, isoValue, outputUG);
+    if (clippedOutputUG)
+    {
+      this->InsideOut = !(this->InsideOut);
+      this->ClipTDataSet(pointset, this->ClipFunction, scalars, isoValue, clippedOutputUG);
       this->InsideOut = !(this->InsideOut);
     }
   }
@@ -453,7 +465,8 @@ struct EvaluatePoints
     // Prefix sum to create point map of kept (i.e., retained) points.
     auto pointsMap = vtk::DataArrayValueRange<1>(this->PointsMap);
     vtkSMPTools::For(0, this->PointBatches.GetNumberOfBatches(),
-      [&](vtkIdType beginBatchId, vtkIdType endBatchId) {
+      [&](vtkIdType beginBatchId, vtkIdType endBatchId)
+      {
         vtkIdType pointId;
         TInputIdType pointsMapValues[2] = { -1 /*always the same*/, 0 /*offset*/ };
         bool isKept;
@@ -481,10 +494,6 @@ struct EvaluatePoints
       });
   }
 };
-
-//-----------------------------------------------------------------------------
-template <typename TInputIdType, bool InsideOut>
-constexpr TInputIdType EvaluatePoints<TInputIdType, InsideOut>::InsideOutValues[2];
 
 // 8 because of hexahedron.
 constexpr int MAX_CELL_SIZE = 8;
@@ -758,8 +767,9 @@ struct EvaluateCells
 
     // merge thread local edges
     this->Edges.resize(totalSizeOfEdges);
-    vtkSMPTools::For(
-      0, static_cast<vtkIdType>(tlEdgesVector.size()), [&](vtkIdType begin, vtkIdType end) {
+    vtkSMPTools::For(0, static_cast<vtkIdType>(tlEdgesVector.size()),
+      [&](vtkIdType begin, vtkIdType end)
+      {
         for (vtkIdType threadId = begin; threadId < end; ++threadId)
         {
           auto& edges = *tlEdgesVector[threadId];
@@ -1096,7 +1106,8 @@ struct ExtractPointsWorker
     const auto ptsMap = vtk::DataArrayValueRange<1>(pointsMap);
 
     // copy kept input points
-    auto extractKeptPoints = [&](vtkIdType beginBatchId, vtkIdType endBatchId) {
+    auto extractKeptPoints = [&](vtkIdType beginBatchId, vtkIdType endBatchId)
+    {
       vtkIdType pointId;
       double inputPoint[3];
 
@@ -1134,7 +1145,8 @@ struct ExtractPointsWorker
     vtkSMPTools::For(0, pointBatches.GetNumberOfBatches(), extractKeptPoints);
 
     // create edge points
-    auto extractEdgePoints = [&](vtkIdType beginEdgeId, vtkIdType endEdgeId) {
+    auto extractEdgePoints = [&](vtkIdType beginEdgeId, vtkIdType endEdgeId)
+    {
       vtkIdType outputEdgePointId;
       double edgePoint1[3], edgePoint2[3];
 
@@ -1173,7 +1185,8 @@ struct ExtractPointsWorker
     vtkSMPTools::For(0, numberOfEdges, extractEdgePoints);
 
     // create centroid points
-    auto extractCentroids = [&](vtkIdType beginCentroid, vtkIdType endCentroid) {
+    auto extractCentroids = [&](vtkIdType beginCentroid, vtkIdType endCentroid)
+    {
       vtkIdType outputCentroidPointId;
       double weights[MAX_CELL_SIZE];
       double weightFactor;
@@ -1250,7 +1263,8 @@ vtkSmartPointer<vtkUnstructuredGrid> vtkTableBasedClipDataSet::ClipTDataSet(
   vtkSmartPointer<vtkAOSDataArrayTemplate<TInputIdType>> pointsMap = evaluatePoints.PointsMap;
   if (implicitFunction && this->GenerateClipScalars)
   {
-    input->GetPointData()->SetScalars(clipArray);
+    input->GetPointData()->AddArray(clipArray);
+    input->GetPointData()->SetActiveScalars(clipArray->GetName());
   }
   // check if there are no kept points
   if (numberOfKeptPoints == 0)

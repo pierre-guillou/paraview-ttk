@@ -28,17 +28,17 @@
 #include <algorithm>
 
 // Define to output details about each peel:
-//#define DEBUG_PEEL
+// #define DEBUG_PEEL
 
 // Define to output details about each frame:
-//#define DEBUG_FRAME
+// #define DEBUG_FRAME
 
 // Define to render the categorization of the initial volume-prepass pixel:
 // - Pixels with no opaque or translucent geometry will be red.
 // - Pixels with only opaque geometry will be green.
 // - Pixels with only translucent geometry will be blue.
 // - Pixels with both opaque and translucent geometry will be purple.
-//#define DEBUG_VOLUME_PREPASS_PIXELS
+// #define DEBUG_VOLUME_PREPASS_PIXELS
 
 // Recent OSX/ATI drivers perform some out-of-order execution that's causing
 // the dFdx/dFdy calls to be conditionally executed. Specifically, it looks
@@ -615,7 +615,7 @@ bool vtkDualDepthPeelingPass::PreReplaceVolumetricShaderValues(
 
         // Peel passes set -1 in pixels that contain only opaque geometry,
         // so the opaque depth is fetched in order to z-composite volumes
-        // with opaque goemetry. To do this, the end point of front is clamped
+        // with opaque geometry. To do this, the end point of front is clamped
         // to opaque-depth and back ray-cast is skipped altogether since it
         // would be covered by opaque geometry anyway.
 

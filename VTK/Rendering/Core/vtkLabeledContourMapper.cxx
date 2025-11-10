@@ -25,7 +25,6 @@
 #include "vtkTimerLog.h"
 #include "vtkTransform.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 #include "vtkWindow.h"
 
 #include <algorithm>
@@ -374,6 +373,16 @@ void vtkLabeledContourMapper::SetTextPropertyMapping(vtkDoubleArray* mapping)
   if (this->TextPropertyMapping != mapping)
   {
     this->TextPropertyMapping = mapping;
+    this->Modified();
+  }
+}
+
+//------------------------------------------------------------------------------
+void vtkLabeledContourMapper::SetPolyDataMapper(vtkPolyDataMapper* mapper)
+{
+  if (this->PolyDataMapper != mapper)
+  {
+    this->PolyDataMapper->ShallowCopy(mapper);
     this->Modified();
   }
 }

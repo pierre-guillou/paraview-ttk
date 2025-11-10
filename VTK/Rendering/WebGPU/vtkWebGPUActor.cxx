@@ -3,21 +3,24 @@
 
 #include "vtkWebGPUActor.h"
 
+#include "Private/vtkWebGPUActorInternals.h"
+#include "Private/vtkWebGPUBindGroupInternals.h"
+#include "Private/vtkWebGPUBindGroupLayoutInternals.h"
+
 #include "vtkMapper.h"
 #include "vtkMatrix3x3.h"
 #include "vtkObjectFactory.h"
 #include "vtkProperty.h"
+#include "vtkRenderWindow.h"
+#include "vtkRenderer.h"
 #include "vtkTexture.h"
 #include "vtkTransform.h"
+#include "vtkWebGPUComputePointCloudMapper.h"
 #include "vtkWebGPURenderWindow.h"
 #include "vtkWebGPURenderer.h"
 #include "vtkWindow.h"
 
 #include <algorithm>
-
-#if defined(__EMSCRIPTEN__)
-#include "emscripten/version.h"
-#endif
 
 VTK_ABI_NAMESPACE_BEGIN
 
@@ -25,7 +28,10 @@ VTK_ABI_NAMESPACE_BEGIN
 vtkStandardNewMacro(vtkWebGPUActor);
 
 //------------------------------------------------------------------------------
-vtkWebGPUActor::vtkWebGPUActor() = default;
+vtkWebGPUActor::vtkWebGPUActor()
+  : Internals(new vtkWebGPUActorInternals())
+{
+}
 
 //------------------------------------------------------------------------------
 vtkWebGPUActor::~vtkWebGPUActor() = default;
@@ -33,149 +39,198 @@ vtkWebGPUActor::~vtkWebGPUActor() = default;
 //------------------------------------------------------------------------------
 void vtkWebGPUActor::PrintSelf(ostream& os, vtkIndent indent)
 {
+  const auto& internals = (*this->Internals);
+  os << indent << "ModelTransformsBuildTimestamp: " << internals.ModelTransformsBuildTimestamp
+     << '\n';
+  os << indent << "ShadingOptionsBuildTimestamp: " << internals.ShadingOptionsBuildTimestamp
+     << '\n';
+  os << indent << "RenderOptionsBuildTimestamp: " << internals.RenderOptionsBuildTimestamp << '\n';
   this->Superclass::PrintSelf(os, indent);
 }
 
 //------------------------------------------------------------------------------
-int vtkWebGPUActor::Update(vtkRenderer* ren, vtkMapper* mapper)
+void vtkWebGPUActor::ReleaseGraphicsResources(vtkWindow* window)
 {
-  // Enter the UpdateBuffers mapper render type.
-  // WebGPU Mappers are required to query the current render type and
-  // take necessary action.
-  this->CurrentMapperRenderType = MapperRenderType::UpdateBuffers;
-  mapper->Render(ren, this);
-  this->CurrentMapperRenderType = MapperRenderType::None;
-  return this->MapperRenderPipelineOutdated;
+  auto& internals = (*this->Internals);
+  internals.ActorBindGroupLayout = nullptr;
+  internals.ActorBindGroup = nullptr;
+  internals.ActorBuffer = nullptr;
+  internals.MapperHasOpaqueGeometry = {};
+  internals.MapperHasTranslucentPolygonalGeometry = {};
+  this->Superclass::ReleaseGraphicsResources(window);
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::Render(vtkRenderer* ren, vtkMapper* mapper)
+void vtkWebGPUActor::ShallowCopy(vtkProp* other)
 {
-  auto wgpuRenderer = reinterpret_cast<vtkWebGPURenderer*>(ren);
-  auto passEncoder = wgpuRenderer->GetRenderPassEncoder();
-  auto bindGroup = wgpuRenderer->GetActorBindGroup();
-
-  passEncoder.SetBindGroup(1, bindGroup,
-    /*dynamicOffsetCount=*/this->DynamicOffsets->GetNumberOfValues(),
-    /*dynamicOffsets=*/this->DynamicOffsets->GetPointer(0));
-
-#ifndef NDEBUG
-  passEncoder.PushDebugGroup("vtkWebGPUActor::Render");
-#endif
-  this->CurrentMapperRenderType = MapperRenderType::RenderPassEncode;
-  mapper->Render(ren, this);
-#ifndef NDEBUG
-  passEncoder.PopDebugGroup();
-#endif
-  this->CurrentMapperRenderType = MapperRenderType::None;
-}
-
-//------------------------------------------------------------------------------
-wgpu::RenderBundle vtkWebGPUActor::RenderToBundle(vtkRenderer* ren, vtkMapper* mapper)
-{
-  auto wgpuRenderer = reinterpret_cast<vtkWebGPURenderer*>(ren);
-  auto wgpuRenWin = reinterpret_cast<vtkWebGPURenderWindow*>(wgpuRenderer->GetRenderWindow());
-  auto sceneBindGroup = wgpuRenderer->GetSceneBindGroup();
-  auto actorBindGroup = wgpuRenderer->GetActorBindGroup();
-
+  auto& internals = (*this->Internals);
+  if (auto* wgpuActor = vtkWebGPUActor::SafeDownCast(other))
   {
-    const auto colorFormat = wgpuRenWin->GetPreferredSwapChainTextureFormat();
-    const int sampleCount = wgpuRenWin->GetMultiSamples() ? wgpuRenWin->GetMultiSamples() : 1;
+    const auto& otherInternals = (*wgpuActor->Internals);
 
-    wgpu::RenderBundleEncoderDescriptor bundleEncDesc;
-#if defined(__EMSCRIPTEN__) &&                                                                     \
-  ((__EMSCRIPTEN_major__ < 3) || ((__EMSCRIPTEN_major__ <= 3) && (__EMSCRIPTEN_minor__ < 1)) ||    \
-    ((__EMSCRIPTEN_major__ <= 3) && (__EMSCRIPTEN_minor__ <= 1) && (__EMSCRIPTEN_tiny__ < 54)))
-    bundleEncDesc.colorFormatsCount = 1;
-#else
-    bundleEncDesc.colorFormatCount = 1;
-#endif
-    bundleEncDesc.colorFormats = &colorFormat;
-    bundleEncDesc.depthStencilFormat = wgpuRenWin->GetDepthStencilFormat();
-    bundleEncDesc.sampleCount = sampleCount;
-    bundleEncDesc.depthReadOnly = false;
-    bundleEncDesc.stencilReadOnly = false;
-    bundleEncDesc.label = "Render bundle for vtkWebGPUActor";
-    bundleEncDesc.nextInChain = nullptr;
-    this->CurrentBundler = wgpuRenWin->NewRenderBundleEncoder(bundleEncDesc);
+    internals.CachedActorInfo = otherInternals.CachedActorInfo;
+
+    internals.MapperHasOpaqueGeometry = otherInternals.MapperHasOpaqueGeometry;
+    internals.MapperHasTranslucentPolygonalGeometry =
+      otherInternals.MapperHasTranslucentPolygonalGeometry;
+
+    internals.ActorBindGroupLayout = otherInternals.ActorBindGroupLayout;
+    internals.ActorBindGroup = otherInternals.ActorBindGroup;
+    internals.ActorBuffer = otherInternals.ActorBuffer;
+
+    internals.MCWCMatrix->DeepCopy(otherInternals.MCWCMatrix);
+    internals.NormalMatrix->DeepCopy(otherInternals.NormalMatrix);
+    internals.NormalTransform->DeepCopy(otherInternals.NormalTransform);
+  }
+  this->Superclass::ShallowCopy(other);
+}
+
+//------------------------------------------------------------------------------
+void vtkWebGPUActor::Render(vtkRenderer* renderer, vtkMapper* mapper)
+{
+  const auto& internals = (*this->Internals);
+  if (auto* wgpuRenderer = vtkWebGPURenderer::SafeDownCast(renderer))
+  {
+    auto* wgpuRenderWindow = vtkWebGPURenderWindow::SafeDownCast(wgpuRenderer->GetRenderWindow());
+    auto* wgpuConfiguration = wgpuRenderWindow->GetWGPUConfiguration();
+    switch (wgpuRenderer->GetRenderStage())
+    {
+      case vtkWebGPURenderer::AwaitingPreparation:
+        break;
+      case vtkWebGPURenderer::UpdatingBuffers:
+      {
+        if (!(internals.ActorBindGroup && internals.ActorBindGroupLayout && internals.ActorBuffer))
+        {
+          this->AllocateResources(wgpuConfiguration);
+        }
+        // reset this flag because the `mapper->Render()` call shall invalidate the bundle if it
+        // determines that the render bundle needs to be recorded once again.
+        mapper->Render(renderer, this);
+        bool updateBuffers = this->CacheActorRenderOptions();
+        updateBuffers |= this->CacheActorShadeOptions();
+        updateBuffers |= this->CacheActorTransforms();
+        updateBuffers |= this->CacheActorId();
+        if (updateBuffers)
+        {
+          wgpuConfiguration->WriteBuffer(internals.ActorBuffer, 0,
+            this->GetCachedActorInformation(), this->GetCacheSizeBytes(), "ActorBufferUpdate");
+        }
+        break;
+      }
+      case vtkWebGPURenderer::RecordingCommands:
+        if (wgpuRenderer->GetUseRenderBundles() && this->SupportRenderBundles())
+        {
+          if (wgpuRenderer->GetRebuildRenderBundle())
+          {
+            wgpuRenderer->GetRenderBundleEncoder().SetBindGroup(1, internals.ActorBindGroup);
+            mapper->Render(renderer, this);
+          }
+          // else, no need to record draw commands.
+        }
+        else
+        {
+          wgpuRenderer->GetRenderPassEncoder().SetBindGroup(1, internals.ActorBindGroup);
+          mapper->Render(renderer, this);
+        }
+        break;
+      case vtkWebGPURenderer::Finished:
+      default:
+        break;
+    }
+  }
+  else
+  {
+    vtkErrorMacro("The renderer passed in vtkWebGPUActor::Render is not a WebGPU renderer.");
+  }
+}
+
+//------------------------------------------------------------------------------
+bool vtkWebGPUActor::SupportRenderBundles()
+{
+  vtkWebGPUComputePointCloudMapper* pointCloudMapper =
+    vtkWebGPUComputePointCloudMapper::SafeDownCast(this->GetMapper());
+  if (pointCloudMapper != nullptr)
+  {
+    // This actor is using the point cloud mapper which doesn't support render bundles.
+    return false;
   }
 
-  this->CurrentBundler.SetBindGroup(0, sceneBindGroup);
-  this->CurrentBundler.SetBindGroup(1, actorBindGroup,
-    /*dynamicOffsetCount=*/this->DynamicOffsets->GetNumberOfValues(),
-    /*dynamicOffsets=*/this->DynamicOffsets->GetPointer(0));
-#ifndef NDEBUG
-  this->CurrentBundler.PushDebugGroup("vtkWebGPUActor::Render");
-#endif
-  this->CurrentMapperRenderType = MapperRenderType::RenderBundleEncode;
-  mapper->Render(ren, this);
-#ifndef NDEBUG
-  this->CurrentBundler.PopDebugGroup();
-#endif
-  this->CurrentMapperRenderType = MapperRenderType::None;
+  // Assuming that any other mapper supports render bundles
+  return true;
+}
 
-  auto bundle = this->CurrentBundler.Finish();
-  this->CurrentBundler = nullptr;
-  return bundle;
+//------------------------------------------------------------------------------
+void vtkWebGPUActor::SetId(vtkTypeUInt32 id)
+{
+  this->Internals->Id = id;
 }
 
 //------------------------------------------------------------------------------
 vtkTypeBool vtkWebGPUActor::HasOpaqueGeometry()
 {
-  bool is_opaque = false;
-  switch (this->CurrentMapperRenderType)
+  auto& internals = (*this->Internals);
+  bool isOpaque = false;
+  if (this->Mapper)
   {
-    case MapperRenderType::None:
-      break;
-    case MapperRenderType::RenderPassEncode:
-    { // nullify mapper so that superclass doesn't run the code path in
-      // vtkMapper::HasOpaqueGeometry.
+    if (internals.MapperHasOpaqueGeometry.IsOutdated(this->Mapper))
+    {
+      isOpaque = this->Superclass::HasOpaqueGeometry();
+      internals.MapperHasOpaqueGeometry.SetValue(isOpaque);
+    }
+    else
+    {
+      // nullify mapper so that superclass doesn't run the expensive
+      // code path in vtkMapper::HasOpaqueGeometry.
       vtkMapper* tmpMapper = this->Mapper;
       this->Mapper = nullptr;
-      is_opaque = this->Superclass::HasOpaqueGeometry();
+      isOpaque = this->Superclass::HasOpaqueGeometry();
       // restore
       this->Mapper = tmpMapper;
-      is_opaque &= this->CachedMapperHasOpaqueGeometry;
-      break;
+      isOpaque &= internals.MapperHasOpaqueGeometry.GetValue();
     }
-    case MapperRenderType::UpdateBuffers:
-    default:
-      is_opaque = this->Superclass::HasOpaqueGeometry();
-      break;
   }
-  return is_opaque;
+  else
+  {
+    isOpaque = this->Superclass::HasOpaqueGeometry();
+  }
+  return isOpaque;
 }
 
 //------------------------------------------------------------------------------
 vtkTypeBool vtkWebGPUActor::HasTranslucentPolygonalGeometry()
 {
-  bool is_opaque = false;
-  switch (this->CurrentMapperRenderType)
+  auto& internals = (*this->Internals);
+  bool isTranslucent = false;
+  if (this->Mapper)
   {
-    case MapperRenderType::None:
-      break;
-    case MapperRenderType::RenderPassEncode:
-    { // nullify mapper so that superclass doesn't run the code path in
-      // vtkMapper::HasTranslucentPolygonalGeometry.
+    if (internals.MapperHasTranslucentPolygonalGeometry.IsOutdated(this->Mapper))
+    {
+      isTranslucent = this->Superclass::HasTranslucentPolygonalGeometry();
+      internals.MapperHasTranslucentPolygonalGeometry.SetValue(isTranslucent);
+    }
+    else
+    {
+      // nullify mapper so that superclass doesn't run the expensive
+      // code path in vtkMapper::HasTranslucentPolygonalGeometry.
       vtkMapper* tmpMapper = this->Mapper;
       this->Mapper = nullptr;
-      is_opaque = this->Superclass::HasTranslucentPolygonalGeometry();
+      isTranslucent = this->Superclass::HasTranslucentPolygonalGeometry();
       // restore
       this->Mapper = tmpMapper;
-      is_opaque &= this->CachedMapperHasTranslucentPolygonalGeometry;
-      break;
+      isTranslucent &= internals.MapperHasTranslucentPolygonalGeometry.GetValue();
     }
-    case MapperRenderType::UpdateBuffers:
-    default:
-      is_opaque = this->Superclass::HasTranslucentPolygonalGeometry();
-      break;
   }
-  return is_opaque;
+  else
+  {
+    isTranslucent = this->Superclass::HasTranslucentPolygonalGeometry();
+  }
+  return isTranslucent;
 }
 
 //------------------------------------------------------------------------------
 bool vtkWebGPUActor::UpdateKeyMatrices()
 {
+  auto& internals = (*this->Internals);
   vtkMTimeType rwTime = 0;
   if (this->CoordinateSystem != WORLD && this->CoordinateSystemRenderer)
   {
@@ -183,102 +238,169 @@ bool vtkWebGPUActor::UpdateKeyMatrices()
   }
 
   // has the actor changed or is in device coords?
-  if (this->GetMTime() > this->ModelTransformsBuildTimestamp ||
-    rwTime > this->ModelTransformsBuildTimestamp || this->CoordinateSystem == DEVICE)
+  if (this->GetMTime() > internals.ModelTransformsBuildTimestamp ||
+    rwTime > internals.ModelTransformsBuildTimestamp || this->CoordinateSystem == DEVICE)
   {
-    this->GetModelToWorldMatrix(this->MCWCMatrix);
+    this->GetModelToWorldMatrix(internals.MCWCMatrix);
 
-    this->MCWCMatrix->Transpose();
+    internals.MCWCMatrix->Transpose();
 
     if (this->GetIsIdentity())
     {
-      this->NormalMatrix->Identity();
+      internals.NormalMatrix->Identity();
     }
     else
     {
-      this->NormalTransform->SetMatrix(this->Matrix);
-      vtkMatrix4x4* mat4 = this->NormalTransform->GetMatrix();
+      internals.NormalTransform->SetMatrix(this->Matrix);
+      vtkMatrix4x4* mat4 = internals.NormalTransform->GetMatrix();
       for (int i = 0; i < 3; ++i)
       {
         for (int j = 0; j < 3; ++j)
         {
-          this->NormalMatrix->SetElement(i, j, mat4->GetElement(i, j));
+          internals.NormalMatrix->SetElement(i, j, mat4->GetElement(i, j));
         }
       }
     }
-    this->NormalMatrix->Invert();
-    this->ModelTransformsBuildTimestamp.Modified();
+    internals.NormalMatrix->Invert();
+    internals.ModelTransformsBuildTimestamp.Modified();
     return true;
   }
   return false;
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::SetShadingType(ShadingTypeEnum shadeType)
+const void* vtkWebGPUActor::GetCachedActorInformation()
 {
-  this->CachedActorInfo.ShadeOpts.ShadingType = shadeType;
+  return &(this->Internals->CachedActorInfo);
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::SetDirectionalMaskType(vtkTypeUInt32 directionalMask)
+std::size_t vtkWebGPUActor::GetCacheSizeBytes()
 {
-  this->CachedActorInfo.ShadeOpts.DirectionalMaskType = directionalMask;
+  return sizeof(vtkWebGPUActorInternals::ActorBlock);
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::CacheActorTransforms()
+bool vtkWebGPUActor::CacheActorTransforms()
 {
+  auto& internals = (*this->Internals);
   if (this->UpdateKeyMatrices())
   {
-    auto& transform = this->CachedActorInfo.Transform;
+    auto& transform = internals.CachedActorInfo.Transform;
     // stage world
-    std::transform(this->MCWCMatrix->GetData(), this->MCWCMatrix->GetData() + 16,
+    std::transform(internals.MCWCMatrix->GetData(), internals.MCWCMatrix->GetData() + 16,
       &(transform.World[0][0]), [](double& v) -> float { return static_cast<float>(v); });
     // stage normal
     for (int i = 0; i < 3; ++i)
     {
       for (int j = 0; j < 3; ++j)
       {
-        transform.Normal[i][j] = this->NormalMatrix->GetElement(i, j);
+        transform.Normal[i][j] = internals.NormalMatrix->GetElement(i, j);
       }
     }
+    return true;
   }
+  return false;
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::CacheActorRenderOptions()
+bool vtkWebGPUActor::CacheActorRenderOptions()
 {
-  if (this->GetProperty()->GetMTime() > this->RenderOptionsBuildTimestamp ||
-    this->GetMTime() > this->RenderOptionsBuildTimestamp)
+  auto& internals = (*this->Internals);
+  auto* displayProperty = this->GetProperty();
+  if (displayProperty->GetMTime() > internals.RenderOptionsBuildTimestamp ||
+    this->GetMTime() > internals.RenderOptionsBuildTimestamp)
   {
-    auto& ro = this->CachedActorInfo.RenderOpts;
-    const int representation = this->GetProperty()->GetRepresentation();
-    ro.Representation = representation;
-    ro.PointSize = this->GetProperty()->GetPointSize();
-    ro.LineWidth = this->GetProperty()->GetLineWidth();
-    ro.EdgeVisibility = this->GetProperty()->GetEdgeVisibility();
+    auto& ro = internals.CachedActorInfo.RenderOpts;
+    ro.PointSize = displayProperty->GetPointSize();
+    ro.LineWidth = displayProperty->GetLineWidth();
+    ro.EdgeWidth = displayProperty->GetEdgeWidth();
+    // input property is shifted by `k` positions and then the shifted value is added to flags
+    // to update the bit at `k` position.
+    ro.Flags = displayProperty->GetRepresentation() | (displayProperty->GetEdgeVisibility() << 2) |
+      (displayProperty->GetVertexVisibility() << 3) |
+      (displayProperty->GetUseLineWidthForEdgeThickness() << 4) |
+      (displayProperty->GetRenderPointsAsSpheres() << 5) |
+      (displayProperty->GetRenderLinesAsTubes() << 6) |
+      (static_cast<int>(displayProperty->GetPoint2DShape()) << 7);
+    internals.RenderOptionsBuildTimestamp.Modified();
+    return true;
   }
+  return false;
 }
 
 //------------------------------------------------------------------------------
-void vtkWebGPUActor::CacheActorShadeOptions()
+bool vtkWebGPUActor::CacheActorShadeOptions()
 {
-  if (this->GetProperty()->GetMTime() > this->ShadingOptionsBuildTimestamp ||
-    this->GetMTime() > this->ShadingOptionsBuildTimestamp)
+  auto& internals = (*this->Internals);
+  auto* displayProperty = this->GetProperty();
+  if (displayProperty->GetMTime() > internals.ShadingOptionsBuildTimestamp ||
+    this->GetMTime() > internals.ShadingOptionsBuildTimestamp)
   {
-    auto& so = this->CachedActorInfo.ShadeOpts;
-    so.AmbientIntensity = this->GetProperty()->GetAmbient();
-    so.DiffuseIntensity = this->GetProperty()->GetDiffuse();
-    so.SpecularIntensity = this->GetProperty()->GetSpecular();
-    so.SpecularPower = this->GetProperty()->GetSpecularPower();
-    so.Opacity = this->GetProperty()->GetOpacity();
+    auto& so = internals.CachedActorInfo.ColorOpts;
+    so.AmbientIntensity = displayProperty->GetAmbient();
+    so.DiffuseIntensity = displayProperty->GetDiffuse();
+    so.SpecularIntensity = displayProperty->GetSpecular();
+    so.SpecularPower = displayProperty->GetSpecularPower();
+    so.Opacity = displayProperty->GetOpacity();
     for (int i = 0; i < 3; ++i)
     {
-      so.AmbientColor[i] = this->GetProperty()->GetAmbientColor()[i];
-      so.DiffuseColor[i] = this->GetProperty()->GetDiffuseColor()[i];
-      so.SpecularColor[i] = this->GetProperty()->GetSpecularColor()[i];
-      so.EdgeColor[i] = this->GetProperty()->GetEdgeColor()[i];
+      so.AmbientColor[i] = displayProperty->GetAmbientColor()[i];
+      so.DiffuseColor[i] = displayProperty->GetDiffuseColor()[i];
+      so.SpecularColor[i] = displayProperty->GetSpecularColor()[i];
+      so.EdgeColor[i] = displayProperty->GetEdgeColor()[i];
+      so.VertexColor[i] = displayProperty->GetVertexColor()[i];
     }
+    internals.ShadingOptionsBuildTimestamp.Modified();
+    return true;
   }
+  return false;
+}
+
+//------------------------------------------------------------------------------
+bool vtkWebGPUActor::CacheActorId()
+{
+  auto& internals = (*this->Internals);
+  if (internals.CachedActorInfo.ColorOpts.Id != internals.Id)
+  {
+    internals.CachedActorInfo.ColorOpts.Id = internals.Id;
+    return true;
+  }
+  return false;
+}
+
+//------------------------------------------------------------------------------
+void vtkWebGPUActor::AllocateResources(vtkWebGPUConfiguration* wgpuConfiguration)
+{
+  auto& internals = (*this->Internals);
+  const auto& device = wgpuConfiguration->GetDevice();
+
+  const auto actorDescription = this->GetObjectDescription();
+  const auto bufferLabel = "ActorBlock-" + actorDescription;
+  const auto bufferSize = vtkWebGPUConfiguration::Align(vtkWebGPUActor::GetCacheSizeBytes(), 32);
+  internals.ActorBuffer = wgpuConfiguration->CreateBuffer(bufferSize,
+    wgpu::BufferUsage::Storage | wgpu::BufferUsage::CopyDst, false, bufferLabel.c_str());
+
+  internals.ActorBindGroupLayout = vtkWebGPUBindGroupLayoutInternals::MakeBindGroupLayout(device,
+    {
+      // clang-format off
+      // ActorBlocks
+      { 0, wgpu::ShaderStage::Vertex | wgpu::ShaderStage::Fragment, wgpu::BufferBindingType::ReadOnlyStorage },
+      // clang-format on
+    },
+    actorDescription);
+  internals.ActorBindGroup =
+    vtkWebGPUBindGroupInternals::MakeBindGroup(device, internals.ActorBindGroupLayout,
+      {
+        // clang-format off
+        { 0, internals.ActorBuffer, 0, bufferSize },
+        // clang-format on
+      },
+      actorDescription);
+  // Reset timestamps because the previous buffer is now gone and contents of the buffer will need
+  // to be re-uploaded.
+  internals.ModelTransformsBuildTimestamp = vtkTimeStamp();
+  internals.ShadingOptionsBuildTimestamp = vtkTimeStamp();
+  internals.RenderOptionsBuildTimestamp = vtkTimeStamp();
 }
 VTK_ABI_NAMESPACE_END

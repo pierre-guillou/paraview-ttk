@@ -14,15 +14,15 @@
 
 #include "vtkCell.h"
 #include "vtkCompositeDataWriter.h"
-#include "vtkHierarchicalBoxDataSet.h"
 #include "vtkImageToStructuredGrid.h"
 #include "vtkMultiBlockDataSet.h"
+#include "vtkNew.h"
 #include "vtkOverlappingAMR.h"
 #include "vtkStructuredGridWriter.h"
 #include "vtkUniformGrid.h"
-#include "vtkXMLHierarchicalBoxDataReader.h"
 #include "vtkXMLImageDataWriter.h"
 #include "vtkXMLMultiBlockDataWriter.h"
+#include "vtkXMLUniformGridAMRReader.h"
 #include "vtkXMLUniformGridAMRWriter.h"
 
 namespace AMRCommon
@@ -36,15 +36,13 @@ void WriteUniformGrid(vtkUniformGrid* g, const std::string& prefix)
 {
   assert("pre: Uniform grid (g) is NULL!" && (g != nullptr));
 
-  vtkXMLImageDataWriter* imgWriter = vtkXMLImageDataWriter::New();
+  vtkNew<vtkXMLImageDataWriter> imgWriter;
 
   std::ostringstream oss;
   oss << prefix << "." << imgWriter->GetDefaultFileExtension();
   imgWriter->SetFileName(oss.str().c_str());
   imgWriter->SetInputData(g);
   imgWriter->Write();
-
-  imgWriter->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -55,25 +53,24 @@ void WriteAMRData(vtkOverlappingAMR* amrData, const std::string& prefix)
   // Sanity check
   assert("pre: AMR dataset is NULL!" && (amrData != nullptr));
 
-  vtkCompositeDataWriter* writer = vtkCompositeDataWriter::New();
+  vtkNew<vtkCompositeDataWriter> writer;
 
   std::ostringstream oss;
   oss << prefix << ".vthb";
   writer->SetFileName(oss.str().c_str());
   writer->SetInputData(amrData);
   writer->Write();
-  writer->Delete();
 }
 
 //------------------------------------------------------------------------------
 // Description:
 // Reads AMR data to the given data-structure from the prescribed file.
-vtkHierarchicalBoxDataSet* ReadAMRData(const std::string& file)
+vtkOverlappingAMR* ReadAMRData(const std::string& file)
 {
   // Sanity check
   //  assert( "pre: AMR dataset is NULL!" && (amrData != NULL) );
 
-  vtkXMLHierarchicalBoxDataReader* myAMRReader = vtkXMLHierarchicalBoxDataReader::New();
+  vtkXMLUniformGridAMRReader* myAMRReader = vtkXMLUniformGridAMRReader::New();
   assert("pre: AMR Reader is NULL!" && (myAMRReader != nullptr));
 
   std::ostringstream oss;
@@ -87,8 +84,7 @@ vtkHierarchicalBoxDataSet* ReadAMRData(const std::string& file)
   myAMRReader->SetFileName(oss.str().c_str());
   myAMRReader->Update();
 
-  vtkHierarchicalBoxDataSet* amrData =
-    vtkHierarchicalBoxDataSet::SafeDownCast(myAMRReader->GetOutput());
+  vtkOverlappingAMR* amrData = vtkOverlappingAMR::SafeDownCast(myAMRReader->GetOutput());
   assert("post: AMR data read is NULL!" && (amrData != nullptr));
   return (amrData);
 }
@@ -100,7 +96,7 @@ void WriteMultiBlockData(vtkMultiBlockDataSet* mbds, const std::string& prefix)
 {
   // Sanity check
   assert("pre: Multi-block dataset is NULL" && (mbds != nullptr));
-  vtkXMLMultiBlockDataWriter* writer = vtkXMLMultiBlockDataWriter::New();
+  vtkNew<vtkXMLMultiBlockDataWriter> writer;
 
   std::ostringstream oss;
   oss.str("");
@@ -109,7 +105,6 @@ void WriteMultiBlockData(vtkMultiBlockDataSet* mbds, const std::string& prefix)
   writer->SetFileName(oss.str().c_str());
   writer->SetInputData(mbds);
   writer->Write();
-  writer->Delete();
 }
 
 //------------------------------------------------------------------------------
@@ -117,7 +112,7 @@ void WriteMultiBlockData(vtkMultiBlockDataSet* mbds, const std::string& prefix)
 // origin, grid spacing and dimensions.
 vtkUniformGrid* GetGrid(double* origin, double* h, int* ndim)
 {
-  vtkUniformGrid* grd = vtkUniformGrid::New();
+  vtkNew<vtkUniformGrid> grd;
   grd->Initialize();
   grd->SetOrigin(origin);
   grd->SetSpacing(h);
@@ -138,10 +133,9 @@ void ComputeCellCenter(vtkUniformGrid* grid, const int cellIdx, double c[3])
   assert("post: cell is NULL" && (myCell != nullptr));
 
   double pCenter[3];
-  double* weights = new double[myCell->GetNumberOfPoints()];
+  std::vector<double> weights(myCell->GetNumberOfPoints());
   int subId = myCell->GetParametricCenter(pCenter);
-  myCell->EvaluateLocation(subId, pCenter, c, weights);
-  delete[] weights;
+  myCell->EvaluateLocation(subId, pCenter, c, weights.data());
 }
 
 VTK_ABI_NAMESPACE_END

@@ -93,7 +93,7 @@ public:
    * NumberOfComponents is known to the compiler (See vtkAssume.h).
    * @ingroup vtkGDAConceptMethods
    */
-  inline ValueType GetValue(vtkIdType valueIdx) const
+  ValueType GetValue(vtkIdType valueIdx) const
   {
     return static_cast<const DerivedT*>(this)->GetValue(valueIdx);
   }
@@ -144,8 +144,9 @@ public:
    * the fastest way to access array data.
    * @ingroup vtkGDAConceptMethods
    */
-  ValueType GetTypedComponent(vtkIdType tupleIdx, int compIdx) const VTK_EXPECTS(0 <= tupleIdx &&
-    tupleIdx < GetNumberOfTuples()) VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents())
+  ValueType GetTypedComponent(vtkIdType tupleIdx, int compIdx) const
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + compIdx < GetNumberOfValues())
+      VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents())
   {
     return static_cast<const DerivedT*>(this)->GetTypedComponent(tupleIdx, compIdx);
   }
@@ -156,7 +157,7 @@ public:
    * @ingroup vtkGDAConceptMethods
    */
   void SetTypedComponent(vtkIdType tupleIdx, int compIdx, ValueType value)
-    VTK_EXPECTS(0 <= tupleIdx && tupleIdx < GetNumberOfTuples())
+    VTK_EXPECTS(0 <= tupleIdx && GetNumberOfComponents() * tupleIdx + compIdx < GetNumberOfValues())
       VTK_EXPECTS(0 <= compIdx && compIdx < GetNumberOfComponents())
   {
     static_cast<DerivedT*>(this)->SetTypedComponent(tupleIdx, compIdx, value);
@@ -334,7 +335,7 @@ protected:
    * all data is freed.
    * @ingroup vtkGDAConceptMethods
    */
-  inline bool AllocateTuples(vtkIdType numTuples)
+  bool AllocateTuples(vtkIdType numTuples)
   {
     return static_cast<DerivedT*>(this)->AllocateTuples(numTuples);
   }
@@ -344,7 +345,7 @@ protected:
    * all data is freed.
    * @ingroup vtkGDAConceptMethods
    */
-  inline bool ReallocateTuples(vtkIdType numTuples)
+  bool ReallocateTuples(vtkIdType numTuples)
   {
     return static_cast<DerivedT*>(this)->ReallocateTuples(numTuples);
   }

@@ -759,6 +759,7 @@ public:
   void SetMultiSamples(int val);
   void SetAlphaBitPlanes(int val);
   void SetStencilCapable(int val);
+  void SetPhysicalToWorldMatrix(const double[16]);
   ///@}
 
   /**
@@ -975,6 +976,16 @@ public:
    */
   void CaptureZBuffer();
   vtkFloatArray* GetCapturedZBuffer();
+  ///@}
+
+  ///@{
+  /**
+   * Turn on/off synchronizable actors.  This is needed for immersive collaboration,
+   * (such as CAVEs) so that various types of vtkActor can be synchronized to all
+   * displays.  It is off/disabled by default.
+   */
+  void SetEnableSynchronizableActors(bool);
+  bool GetEnableSynchronizableActors();
   ///@}
 
   ///@{
@@ -1325,6 +1336,15 @@ private:
   void OnSelectionChangedEvent();
   void OnPolygonSelectionEvent();
   void FinishSelection(vtkSelection*, const char*);
+
+  ///@{
+  /**
+   * Add/remove the given prop in the view.
+   * Update culler list accordingly.
+   */
+  void AddAnnotationToView(vtkProp*);
+  void RemoveAnnotationFromView(vtkProp*);
+  ///@}
 
   // This flag is set to false when not all processes cannot render e.g. cannot
   // open the DISPLAY etc.

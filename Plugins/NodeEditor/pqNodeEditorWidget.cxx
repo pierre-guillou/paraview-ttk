@@ -53,6 +53,14 @@
 #include <QSpacerItem>
 #include <QVBoxLayout>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#define pqCheckBoxSignal checkStateChanged
+using pqCheckState = Qt::CheckState;
+#else
+#define pqCheckBoxSignal stateChanged
+using pqCheckState = int;
+#endif
+
 // ----------------------------------------------------------------------------
 class pqNodeEditorApplyBehavior : public pqApplyBehavior
 {
@@ -197,19 +205,23 @@ int pqNodeEditorWidget::initializeActions()
   QObject::connect(this->actionZoom, &QAction::triggered, this, &pqNodeEditorWidget::zoom);
 
   this->actionLayout = new QAction(this);
-  QObject::connect(this->actionLayout, &QAction::triggered, this->scene, [this]() {
-    this->scene->computeLayout(this->nodeRegistry, this->edgeRegistry);
-    return 1;
-  });
+  QObject::connect(this->actionLayout, &QAction::triggered, this->scene,
+    [this]()
+    {
+      this->scene->computeLayout(this->nodeRegistry, this->edgeRegistry);
+      return 1;
+    });
 
   this->actionAutoLayout = new QAction(this);
-  QObject::connect(this->actionAutoLayout, &QAction::triggered, this->scene, [this]() {
-    if (this->autoUpdateLayout)
+  QObject::connect(this->actionAutoLayout, &QAction::triggered, this->scene,
+    [this]()
     {
-      this->actionLayout->trigger();
-    }
-    return 1;
-  });
+      if (this->autoUpdateLayout)
+      {
+        this->actionLayout->trigger();
+      }
+      return 1;
+    });
 
   this->actionCycleNodeVerbosity = new QAction(this);
   QObject::connect(this->actionCycleNodeVerbosity, &QAction::triggered, this,
@@ -222,7 +234,8 @@ int pqNodeEditorWidget::initializeActions()
 int pqNodeEditorWidget::initializeSignals()
 {
   QObject::connect(this->scene, &pqNodeEditorScene::edgeDragAndDropRelease,
-    [this](int fromProxy, int fromPort, int toProxy, int toPort) {
+    [this](int fromProxy, int fromPort, int toProxy, int toPort)
+    {
       auto* from = qobject_cast<pqPipelineSource*>(this->nodeRegistry[fromProxy]->getProxy());
       auto* to = qobject_cast<pqPipelineFilter*>(this->nodeRegistry[toProxy]->getProxy());
       if (from && to)
@@ -269,7 +282,8 @@ int pqNodeEditorWidget::createToolbar(QLayout* layout)
   toolbarLayout->setObjectName("GLayout");
   toolbar->setLayout(toolbarLayout);
 
-  auto addButton = [=](QString label, QAction* action, int row, int col) {
+  auto addButton = [=](QString label, QAction* action, int row, int col)
+  {
     auto button = new QPushButton(label);
     button->setObjectName(label.simplified().remove(' ') + "Button");
     this->connect(button, &QPushButton::released, action, &QAction::trigger);
@@ -285,31 +299,37 @@ int pqNodeEditorWidget::createToolbar(QLayout* layout)
     auto checkBox = new QCheckBox(tr("View Nodes"));
     checkBox->setObjectName("ViewNodesCheckbox");
     checkBox->setCheckState(this->showViewNodes ? Qt::Checked : Qt::Unchecked);
-    this->connect(checkBox, &QCheckBox::stateChanged, this, [this](int state) {
-      this->showViewNodes = state;
-      this->toggleViewNodesVisibility();
-    });
+    this->connect(checkBox, &QCheckBox::pqCheckBoxSignal, this,
+      [this](pqCheckState state)
+      {
+        this->showViewNodes = state;
+        this->toggleViewNodesVisibility();
+      });
     toolbarLayout->addWidget(checkBox, 1, 1);
   }
 
   { // addButton "Layout"
     auto button = new QPushButton(tr("Layout"));
     button->setObjectName("LayoutButton");
-    this->connect(button, &QPushButton::released, [this]() {
-      this->actionLayout->trigger();
-      this->actionZoom->trigger();
-    });
+    this->connect(button, &QPushButton::released,
+      [this]()
+      {
+        this->actionLayout->trigger();
+        this->actionZoom->trigger();
+      });
     toolbarLayout->addWidget(button, 0, 2);
   };
   { // add checkbox auto layout
     auto checkBox = new QCheckBox(tr("Auto Layout"));
     checkBox->setObjectName("AutoLayoutCheckbox");
     checkBox->setCheckState(this->autoUpdateLayout ? Qt::Checked : Qt::Unchecked);
-    this->connect(checkBox, &QCheckBox::stateChanged, this, [this](int state) {
-      this->autoUpdateLayout = state;
-      this->actionAutoLayout->trigger();
-      return 1;
-    });
+    this->connect(checkBox, &QCheckBox::pqCheckBoxSignal, this,
+      [this](pqCheckState state)
+      {
+        this->autoUpdateLayout = state;
+        this->actionAutoLayout->trigger();
+        return 1;
+      });
     toolbarLayout->addWidget(checkBox, 1, 2);
 
     this->autoLayoutCheckbox = checkBox;
@@ -339,13 +359,15 @@ int pqNodeEditorWidget::attachServerManagerListeners()
   auto* smm = appCore->getServerManagerModel();
 
   // Remove annotations when reset / connecting to a server
-  QObject::connect(smm, &pqServerManagerModel::serverAdded, [this](pqServer*) {
-    for (auto* annot : this->annotationRegistry)
+  QObject::connect(smm, &pqServerManagerModel::serverAdded,
+    [this](pqServer*)
     {
-      delete annot;
-    }
-    this->annotationRegistry.clear();
-  });
+      for (auto* annot : this->annotationRegistry)
+      {
+        delete annot;
+      }
+      this->annotationRegistry.clear();
+    });
 
   // sources and filters
   QObject::connect(
@@ -363,8 +385,9 @@ int pqNodeEditorWidget::attachServerManagerListeners()
   // are not in a valid state yet. Instead we use `pqView::representationAdded` (see
   // createNodeForSource). However we need to use `pqServerManagerModel` for the deletion or else we
   // won't catch it.
-  QObject::connect(
-    smm, &pqServerManagerModel::representationRemoved, [this](pqRepresentation* repr) {
+  QObject::connect(smm, &pqServerManagerModel::representationRemoved,
+    [this](pqRepresentation* repr)
+    {
       if (qobject_cast<pqDataRepresentation*>(repr))
       {
         this->removeNode(repr);
@@ -375,15 +398,15 @@ int pqNodeEditorWidget::attachServerManagerListeners()
   QObject::connect(smm,
     QOverload<pqPipelineSource*, pqPipelineSource*, int>::of(
       &pqServerManagerModel::connectionAdded),
-    this, [this](pqPipelineSource* /*source*/, pqPipelineSource* consumer, int /*oPort*/) {
-      return this->updatePipelineEdges(qobject_cast<pqPipelineFilter*>(consumer));
-    });
+    this,
+    [this](pqPipelineSource* /*source*/, pqPipelineSource* consumer, int /*oPort*/)
+    { return this->updatePipelineEdges(qobject_cast<pqPipelineFilter*>(consumer)); });
   QObject::connect(smm,
     QOverload<pqPipelineSource*, pqPipelineSource*, int>::of(
       &pqServerManagerModel::connectionRemoved),
-    this, [this](pqPipelineSource* /*source*/, pqPipelineSource* consumer, int /*oPort*/) {
-      return this->updatePipelineEdges(qobject_cast<pqPipelineFilter*>(consumer));
-    });
+    this,
+    [this](pqPipelineSource* /*source*/, pqPipelineSource* consumer, int /*oPort*/)
+    { return this->updatePipelineEdges(qobject_cast<pqPipelineFilter*>(consumer)); });
 
   auto* activeObjects = &pqActiveObjects::instance();
 
@@ -398,7 +421,8 @@ int pqNodeEditorWidget::attachServerManagerListeners()
   // update representation selection
   QObject::connect(activeObjects,
     QOverload<pqDataRepresentation*>::of(&pqActiveObjects::representationChanged),
-    [this](pqDataRepresentation* repr) {
+    [this](pqDataRepresentation* repr)
+    {
       for (const auto& nodeIt : this->nodeRegistry)
       {
         const auto reprId = pqNodeEditorUtils::getID(repr);
@@ -600,8 +624,9 @@ int pqNodeEditorWidget::createNodeForSource(pqPipelineSource* proxy)
   auto* node = new pqNodeEditorNSource(proxy);
   this->registerNode(node, pqNodeEditorUtils::getID(proxy));
 
-  QObject::connect(
-    node, &pqNodeEditorNSource::inputPortClicked, [this, proxy](int port, bool clear) {
+  QObject::connect(node, &pqNodeEditorNSource::inputPortClicked,
+    [this, proxy](int port, bool clear)
+    {
       this->setInput(proxy, port, clear);
       pqApplicationCore::instance()->render();
     });
@@ -665,20 +690,22 @@ int pqNodeEditorWidget::createNodeForRepresentation(pqRepresentation* createdRep
   // Make sure to hide those when the representation is not visible anymore
   // XXX: `this` as third argument here is MANDATORY so we're sure that it is not deleted
   // when we call the lambda (which can sometimes happen when closing ParaView)
-  QObject::connect(repr, &pqRepresentation::visibilityChanged, this, [=](bool visible) {
-    if (this->edgeRegistry.count(repId) > 0)
+  QObject::connect(repr, &pqRepresentation::visibilityChanged, this,
+    [=](bool visible)
     {
-      sourceToRepr->setVisible(visible && this->showViewNodes);
-    }
-    if (this->nodeRegistry.count(repId) > 0)
-    {
-      reprNode->setVisible(visible && this->showViewNodes);
-    }
-    if (this->edgeRegistry.count(viewId) > 0)
-    {
-      reprToView->setVisible(visible && this->showViewNodes);
-    }
-  });
+      if (this->edgeRegistry.count(repId) > 0)
+      {
+        sourceToRepr->setVisible(visible && this->showViewNodes);
+      }
+      if (this->nodeRegistry.count(repId) > 0)
+      {
+        reprNode->setVisible(visible && this->showViewNodes);
+      }
+      if (this->edgeRegistry.count(viewId) > 0)
+      {
+        reprToView->setVisible(visible && this->showViewNodes);
+      }
+    });
 
   return 1;
 };
@@ -710,7 +737,8 @@ int pqNodeEditorWidget::removeNode(pqProxy* proxy)
   {
     auto& currentEdges = edgesIt.second;
     currentEdges.erase(std::remove_if(currentEdges.begin(), currentEdges.end(),
-                         [proxy](pqNodeEditorEdge* edge) {
+                         [proxy](pqNodeEditorEdge* edge)
+                         {
                            const bool shouldDelete = (edge->getProducer()->getProxy() == proxy) ||
                              (edge->getConsumer()->getProxy() == proxy);
                            if (shouldDelete)
@@ -991,7 +1019,8 @@ void pqNodeEditorWidget::annotateNodes(bool del)
   {
     auto& registry = this->annotationRegistry;
     registry.erase(std::remove_if(registry.begin(), registry.end(),
-                     [](pqNodeEditorAnnotationItem* annot) {
+                     [](pqNodeEditorAnnotationItem* annot)
+                     {
                        const bool selected = annot->isSelected();
                        if (selected)
                        {

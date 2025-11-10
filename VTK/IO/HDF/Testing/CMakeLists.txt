@@ -18,7 +18,7 @@ vtk_module_test_data(
   Data/test_transient_poly_data_offset.vtkhdf
   Data/test_transient_poly_data_field_data.vtkhdf
   Data/transient_sphere.hdf
-  Data/transient_cube.hdf
+  Data/temporal_unstructured_grid.vtkhdf
   Data/transient_harmonics.hdf
   Data/transient_wavelet.hdf
   Data/wavelet_cell_data.hdf
@@ -99,9 +99,20 @@ vtk_module_test_data(
   Data/explicitStructuredGridEmpty.vtu
   Data/cube-with-time.vtu
 
+  Data/vtkHDF/sanitization.vtu
+
+  Data/vtkHDF/null_term_string.vtkhdf
+  Data/vtkHDF/utf8_string.vtkhdf
+  Data/vtkHDF/test_multiblock_static_multipiece.vtkhdf
+
+  Data/vtkHDF/distributed.vtm
+  Data/vtkHDF/distributed/cone1.vtu
+  Data/vtkHDF/distributed/sphere1.vtu
+
   Data/vtkHDF/test_composite.hdf
   Data/vtkHDF/test_composite.hdf_000000.vtpc
   Data/vtkHDF/test_composite.hdf_000000/test_composite.hdf_000000_0_0.vtp
+  Data/vtkHDF/test_composite.hdf_000000/test_composite.hdf_000000_1_0.htg
   Data/vtkHDF/test_composite.hdf_000000/test_composite.hdf_000000_1_0.vtu
   Data/vtkHDF/test_composite.hdf_000000/test_composite.hdf_000000_2_0.vti
 
@@ -116,7 +127,8 @@ vtk_module_test_data(
   Data/vtkHDF/test_multiblock_hdf/test_multiblock_hdf_1_0.vtp
   Data/vtkHDF/test_multiblock_hdf/test_multiblock_hdf_2_0.vtu
 
-  Data/vtkHDF/test_transient_overlapping_amr.vtkhdf
+  Data/vtkHDF/test_temporal_overlapping_amr.vtkhdf
+  Data/vtkHDF/test_temporal_overlapping_amr_version_2_2.vtkhdf
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_0.vthb
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_0/transient_expected_overlapping_amr_0_0.vti
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_0/transient_expected_overlapping_amr_0_1.vti
@@ -127,6 +139,15 @@ vtk_module_test_data(
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_2.vthb
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_2/transient_expected_overlapping_amr_2_0.vti
   Data/vtkHDF/Transient/transient_expected_overlapping_amr_2/transient_expected_overlapping_amr_2_1.vti
+
+  Data/vtkHDF/multipiece_temporal_htg.hdf
+  Data/vtkHDF/multipiece_htg.hdf
+  Data/vtkHDF/randomhtg.hdf
+  Data/vtkHDF/simple_htg.hdf
+  Data/vtkHDF/shell_3d.hdf
+  Data/vtkHDF/temporal_htg.hdf
+
+  Data/HTG/shell_3d.htg
 )
 
 add_subdirectory(Cxx)

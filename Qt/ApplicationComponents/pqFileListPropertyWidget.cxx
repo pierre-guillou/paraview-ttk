@@ -97,13 +97,15 @@ pqFileListPropertyWidget::pqFileListPropertyWidget(
   auto selectionModel = internals.Ui.tableView->selectionModel();
   Q_ASSERT(selectionModel);
   QObject::connect(selectionModel, &QItemSelectionModel::selectionChanged,
-    [selectionModel, &internals](const QItemSelection&, const QItemSelection&) {
+    [selectionModel, &internals](const QItemSelection&, const QItemSelection&)
+    {
       internals.Ui.remove->setEnabled(selectionModel->hasSelection());
       internals.Ui.browse->setEnabled(selectionModel->hasSelection());
     });
 
-  QObject::connect(
-    internals.Ui.add, &QAbstractButton::clicked, [&internals, this, selectionModel]() {
+  QObject::connect(internals.Ui.add, &QAbstractButton::clicked,
+    [&internals, this]()
+    {
       const auto filename = internals.chooseFile(this);
       if (!filename.isEmpty())
       {
@@ -114,8 +116,9 @@ pqFileListPropertyWidget::pqFileListPropertyWidget(
       }
     });
 
-  QObject::connect(
-    internals.Ui.browse, &QAbstractButton::clicked, [selectionModel, &internals, this]() {
+  QObject::connect(internals.Ui.browse, &QAbstractButton::clicked,
+    [selectionModel, &internals, this]()
+    {
       auto index = selectionModel->currentIndex();
       if (!index.isValid())
       {
@@ -132,39 +135,43 @@ pqFileListPropertyWidget::pqFileListPropertyWidget(
       }
     });
 
-  QObject::connect(internals.Ui.remove, &QAbstractButton::clicked, [selectionModel, &internals]() {
-    std::vector<int> rows;
-    for (const auto& index : selectionModel->selectedRows(0))
+  QObject::connect(internals.Ui.remove, &QAbstractButton::clicked,
+    [selectionModel, &internals]()
     {
-      rows.push_back(index.row());
-    }
-
-    std::sort(rows.begin(), rows.end());
-    std::reverse(rows.begin(), rows.end());
-
-    auto list = internals.Model.stringList();
-    for (auto& row : rows)
-    {
-      list.removeAt(row);
-    }
-
-    internals.Ui.tableView->clearSelection();
-    internals.Model.setStringList(list);
-    if (!list.isEmpty())
-    {
-      int currentRow = rows.front();
-      while (list.size() <= currentRow)
+      std::vector<int> rows;
+      for (const auto& index : selectionModel->selectedRows(0))
       {
-        --currentRow;
+        rows.push_back(index.row());
       }
-      internals.Ui.tableView->setCurrentIndex(internals.Model.index(currentRow, 0));
-    }
-  });
 
-  QObject::connect(internals.Ui.removeAll, &QAbstractButton::clicked, [&internals]() {
-    internals.Ui.tableView->clearSelection();
-    internals.Model.setStringList(QStringList());
-  });
+      std::sort(rows.begin(), rows.end());
+      std::reverse(rows.begin(), rows.end());
+
+      auto list = internals.Model.stringList();
+      for (auto& row : rows)
+      {
+        list.removeAt(row);
+      }
+
+      internals.Ui.tableView->clearSelection();
+      internals.Model.setStringList(list);
+      if (!list.isEmpty())
+      {
+        int currentRow = rows.front();
+        while (list.size() <= currentRow)
+        {
+          --currentRow;
+        }
+        internals.Ui.tableView->setCurrentIndex(internals.Model.index(currentRow, 0));
+      }
+    });
+
+  QObject::connect(internals.Ui.removeAll, &QAbstractButton::clicked,
+    [&internals]()
+    {
+      internals.Ui.tableView->clearSelection();
+      internals.Model.setStringList(QStringList());
+    });
 
   this->setShowLabel(false);
   this->setChangeAvailableAsChangeFinished(true);

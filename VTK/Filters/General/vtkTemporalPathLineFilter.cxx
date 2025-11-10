@@ -1,8 +1,6 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-FileCopyrightText: Copyright (c) CSCS - Swiss National Supercomputing Centre
 // SPDX-License-Identifier: BSD-3-Clause
-// Hide VTK_DEPRECATED_IN_9_3_0() warnings
-#define VTK_DEPRECATION_LEVEL 0
 
 #include "vtkTemporalPathLineFilter.h"
 #include "vtkArrayDispatch.h"
@@ -215,18 +213,6 @@ int vtkTemporalPathLineFilter::FillOutputPortInformation(int port, vtkInformatio
     info->Set(vtkDataObject::DATA_TYPE_NAME(), "vtkPolyData");
   }
   return 1;
-}
-
-//------------------------------------------------------------------------------
-void vtkTemporalPathLineFilter::SetBackwardTime(bool backward)
-{
-  if (this->BackwardTime != backward)
-  {
-    this->LatestTime = backward ? 0 : LATEST_TIME_MAX;
-    this->BackwardTime = backward;
-    this->RunBackward = backward;
-    this->Modified();
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -447,7 +433,8 @@ void vtkTemporalPathLineFilter::AccumulateTrails(vtkDataSet* input, vtkDataSet* 
   // * ids if there is no selection dataset
   // * IdChannelArray in the selection, or the global ids, or nullptr if there is a selection
   // dataset
-  vtkDataArray* selectionIds = [&selection, this] {
+  vtkDataArray* selectionIds = [&selection, this]
+  {
     if (!selection)
     {
       return (vtkDataArray*)(nullptr);
@@ -480,9 +467,8 @@ void vtkTemporalPathLineFilter::AccumulateTrails(vtkDataSet* input, vtkDataSet* 
 
   // This is a way to give limited friendness privileges to the worker without making them friends.
   // The worker is able to call processTrail without issues if you pass it as a parameter.
-  auto processTrail = [this](vtkDataSet* ds, vtkIdType pointId, vtkIdType gid) {
-    return this->IncrementTrail(this->GetTrail(gid), ds, pointId);
-  };
+  auto processTrail = [this](vtkDataSet* ds, vtkIdType pointId, vtkIdType gid)
+  { this->IncrementTrail(this->GetTrail(gid), ds, pointId); };
 
   if (selectionIds && ids)
   {

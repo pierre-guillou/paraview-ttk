@@ -19,12 +19,14 @@ set(classes
   vtkAnariActorNode
   vtkAnariCameraNode
   vtkAnariCompositePolyDataMapperNode
+  vtkAnariDevice
+  vtkAnariGlyph3DMapperNode
   vtkAnariLightNode
   vtkAnariPass
   vtkAnariPolyDataMapperNode
-  vtkAnariRendererNode
+  vtkAnariRenderer
+  vtkAnariSceneGraph
   vtkAnariViewNodeFactory
-  vtkAnariWindowNode
   vtkAnariFollowerNode
   vtkAnariProfiling
   vtkAnariVolumeNode
@@ -33,6 +35,7 @@ set(classes
   )
 
 set(nowrap_classes
+  vtkAnariPolyDataMapperInheritInterface
   vtkAnariProfiling
 )
 
@@ -58,6 +61,7 @@ vtk_module_link(VTK::RenderingAnari
   PUBLIC
     anari::anari
     VTK::FiltersGeometry
+    VTK::FiltersSources
   PRIVATE
     $<$<BOOL:${VTK_ANARI_ENABLE_NVTX}>:CUDA::nvToolsExt>
 )

@@ -11,6 +11,7 @@
 #include "pqTestUtility.h"
 
 #include <QApplication>
+#include <QWindow>
 //-----------------------------------------------------------------------------
 pqTestingReaction::pqTestingReaction(QAction* parentObject, Mode mode, Qt::ConnectionType type)
   : Superclass(parentObject, type)
@@ -50,8 +51,28 @@ void pqTestingReaction::recordTest(const QString& filename)
 {
   if (!filename.isEmpty())
   {
-    QApplication::setActiveWindow(pqCoreUtilities::mainWidget());
-    pqApplicationCore::instance()->testUtility()->recordTests(filename);
+    pqCoreUtilities::mainWidget()->activateWindow();
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    // The `activateWindow` function schedules a request on the platform's event queue to set the
+    // active widget. To enable the test recorder to check the active window, we use a one-time
+    // timer. This allows the platform's windowing system to process the request for the active
+    // window change, before we query it.
+    //
+    // \note We use the single shot timer method for Qt < 6.0 because Qt::SingleShotConnection as a
+    // connection type was added in Qt 6.0.
+    QTimer::singleShot(
+      50, [=]() { pqApplicationCore::instance()->testUtility()->recordTests(filename); });
+#else
+    // The `activateWindow` function schedules a request on the platform's event queue to set the
+    // active widget. To enable the test recorder to check the active window, we use a one-time
+    // connection to the activeChanged signal of the window. This ensures that  platform's windowing
+    // system has processed the request for the active window change, before we query it.
+    QObject::connect(
+      pqCoreUtilities::mainWidget()->window()->windowHandle(), &QWindow::activeChanged,
+      pqCoreUtilities::mainWidget(),
+      [filename]() { pqApplicationCore::instance()->testUtility()->recordTests(filename); },
+      Qt::SingleShotConnection);
+#endif
   }
 }
 
@@ -106,6 +127,6 @@ void pqTestingReaction::lockViewSizeCustom()
   // Launch the dialog box.  The box will take care of everything else.
   pqLockViewSizeCustomDialog* sizeDialog =
     new pqLockViewSizeCustomDialog(pqCoreUtilities::mainWidget());
-  sizeDialog->setAttribute(Qt::WA_DeleteOnClose, true);
+  QObject::connect(sizeDialog, &QWidget::close, sizeDialog, &QObject::deleteLater);
   sizeDialog->show();
 }

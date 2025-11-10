@@ -132,6 +132,11 @@ bool vtkPointGaussianRepresentation::AddToView(vtkView* view)
   if (rview)
   {
     rview->GetRenderer()->AddActor(this->Actor);
+
+    // Indicate that the above renderer is the one the actor is relative to
+    // in case the coordinate system is set to physical or device.
+    this->Actor->SetCoordinateSystemRenderer(rview->GetRenderer());
+
     rview->RegisterPropForHardwareSelection(this, this->Actor);
     return this->Superclass::AddToView(view);
   }
@@ -144,6 +149,7 @@ bool vtkPointGaussianRepresentation::RemoveFromView(vtkView* view)
   vtkPVRenderView* rview = vtkPVRenderView::SafeDownCast(view);
   if (rview)
   {
+    this->Actor->SetCoordinateSystemRenderer(nullptr);
     rview->GetRenderer()->RemoveActor(this->Actor);
     return this->Superclass::RemoveFromView(view);
   }
@@ -443,8 +449,17 @@ void vtkPointGaussianRepresentation::SelectOpacityArrayComponent(int component)
 }
 
 //----------------------------------------------------------------------------
+void vtkPointGaussianRepresentation::SetCoordinateSystem(int coordSys)
+{
+  this->Actor->SetCoordinateSystem(static_cast<vtkProp3D::CoordinateSystems>(coordSys));
+}
+
+//----------------------------------------------------------------------------
 #define vtkForwardActorCallMacro(actorMethod, arg, arg_type)                                       \
-  void vtkPointGaussianRepresentation::actorMethod(arg_type arg) { this->Actor->actorMethod(arg); }
+  void vtkPointGaussianRepresentation::actorMethod(arg_type arg)                                   \
+  {                                                                                                \
+    this->Actor->actorMethod(arg);                                                                 \
+  }
 #define vtkForwardActorCallMacro3Args(actorMethod, arg_type)                                       \
   void vtkPointGaussianRepresentation::actorMethod(arg_type a, arg_type b, arg_type c)             \
   {                                                                                                \

@@ -6,12 +6,14 @@
 
 #include "pqApplicationComponentsModule.h"
 #include "pqPropertyWidgetDecorator.h"
-#include "vtkWeakPointer.h"
+#include "vtkBoolPropertyDecorator.h"
 
 /**
  * pqBoolPropertyWidgetDecorator is a base class for enable/disable
  * or show/hide widgets based on the status of another property not
  * directly controlled by the widget.
+ *
+ * @see vtkBoolPropertyDecorator
  */
 class PQAPPLICATIONCOMPONENTS_EXPORT pqBoolPropertyWidgetDecorator
   : public pqPropertyWidgetDecorator
@@ -21,32 +23,17 @@ class PQAPPLICATIONCOMPONENTS_EXPORT pqBoolPropertyWidgetDecorator
 
 public:
   pqBoolPropertyWidgetDecorator(vtkPVXMLElement* config, pqPropertyWidget* parent);
-  ~pqBoolPropertyWidgetDecorator() override;
+  ~pqBoolPropertyWidgetDecorator() override = default;
 
-  bool isBoolProperty() const { return this->BoolProperty; }
+  bool isBoolProperty() const;
 
 Q_SIGNALS:
   void boolPropertyChanged();
 
-protected:
-  vtkWeakPointer<vtkSMProperty> Property;
-  QString Function;
-  int Index;
-  unsigned long ObserverId;
-  bool BoolProperty;
-  QString Value;
-
 private:
   Q_DISABLE_COPY(pqBoolPropertyWidgetDecorator)
 
-  /**
-   * updates the enabled state.
-   */
-  void updateBoolPropertyState();
-  /**
-   * update this->BoolProperty and fires boolPropertyChanged
-   */
-  void setBoolProperty(bool val);
+  vtkNew<vtkBoolPropertyDecorator> decoratorLogic;
 };
 
 #endif

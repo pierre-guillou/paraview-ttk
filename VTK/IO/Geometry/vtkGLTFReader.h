@@ -79,10 +79,9 @@ public:
    * Materials are not directly applied to this reader's output.
    * Use GetGLTFTexture to access a specific texture's image data, and the indices present in the
    * output dataset's field data to create vtkTextures and apply them to the geometry.
-   * Note that texture coordinates need to be fliped using a texture transform.
+   * Note that texture coordinates need to be flipped using a texture transform.
    */
-  VTK_DEPRECATED_IN_9_4_0("Use vtkGLTFTexture instead.")
-  struct GLTFTexture
+  struct VTK_DEPRECATED_IN_9_4_0("Use vtkGLTFTexture instead.") GLTFTexture
   {
     vtkSmartPointer<vtkImageData> Image;
     unsigned short MinFilterValue;
@@ -117,7 +116,7 @@ public:
   ///@{
   /**
    * Set/Get the position in the Stream where the GLB starts. By default it is 0,
-   * but can be different than 0 for file formats have a GLB embeded in it,
+   * but can be different than 0 for file formats have a GLB embedded in it,
    * for instance 3D Tiles B3DM.
    */
   vtkSetMacro(GLBStart, vtkTypeInt64);

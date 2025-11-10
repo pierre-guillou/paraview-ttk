@@ -1,7 +1,5 @@
 // SPDX-FileCopyrightText: Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
 // SPDX-License-Identifier: BSD-3-Clause
-// VTK_DEPRECATED_IN_9_3_0() warnings for this class.
-#define VTK_DEPRECATION_LEVEL 0
 #include "vtkDataSet.h"
 
 #include "vtkBezierCurve.h"
@@ -38,7 +36,6 @@ vtkDataSet::vtkDataSet()
   vtkMath::UninitializeBounds(this->Bounds);
   // Observer for updating the cell/point ghost arrays pointers
   this->DataObserver = vtkCallbackCommand::New();
-  this->DataObserver->SetCallback(&vtkDataSet::OnDataModified);
   this->DataObserver->SetClientData(this);
 
   this->PointData = vtkPointData::New();
@@ -167,14 +164,16 @@ vtkPoints* vtkDataSet::GetPoints()
   vtkNew<vtkDoubleArray> array;
   array->SetNumberOfComponents(3);
   array->SetNumberOfTuples(this->GetNumberOfPoints());
-  vtkSMPTools::For(0, this->GetNumberOfPoints(), [&](vtkIdType begin, vtkIdType end) {
-    double x[3];
-    for (vtkIdType pointId = begin; pointId < end; ++pointId)
+  vtkSMPTools::For(0, this->GetNumberOfPoints(),
+    [&](vtkIdType begin, vtkIdType end)
     {
-      this->GetPoint(pointId, x);
-      array->SetTypedTuple(pointId, x);
-    }
-  });
+      double x[3];
+      for (vtkIdType pointId = begin; pointId < end; ++pointId)
+      {
+        this->GetPoint(pointId, x);
+        array->SetTypedTuple(pointId, x);
+      }
+    });
   this->TempPoints->SetData(array);
   return this->TempPoints;
 }
@@ -322,7 +321,7 @@ double vtkDataSet::GetLength2()
   this->ComputeBounds();
   for (i = 0; i < 3; i++)
   {
-    diff = static_cast<double>(this->Bounds[2 * i + 1]) - static_cast<double>(this->Bounds[2 * i]);
+    diff = this->Bounds[2 * i + 1] - this->Bounds[2 * i];
     l += diff * diff;
   }
   return l;
@@ -383,6 +382,8 @@ void vtkDataSet::GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList*
 int vtkDataSet::GetCellNumberOfFaces(
   vtkIdType cellId, unsigned char& cellType, vtkGenericCell* cell)
 {
+  // Handles only the most common cell types, otherwise calls GetCell to get the number of faces.
+  // See vtkUnstructuredGrid::GetCellNumberOfFaces for the complete list of cell types.
   cellType = static_cast<unsigned char>(this->GetCellType(cellId));
   switch (cellType)
   {
@@ -396,70 +397,19 @@ int vtkDataSet::GetCellNumberOfFaces(
     case VTK_POLYGON:
     case VTK_PIXEL:
     case VTK_QUAD:
-    case VTK_QUADRATIC_EDGE:
-    case VTK_QUADRATIC_TRIANGLE:
-    case VTK_QUADRATIC_QUAD:
-    case VTK_QUADRATIC_POLYGON:
-    case VTK_BIQUADRATIC_QUAD:
-    case VTK_QUADRATIC_LINEAR_QUAD:
-    case VTK_BIQUADRATIC_TRIANGLE:
-    case VTK_CUBIC_LINE:
-    case VTK_PARAMETRIC_CURVE:
-    case VTK_PARAMETRIC_SURFACE:
-    case VTK_PARAMETRIC_TRI_SURFACE:
-    case VTK_PARAMETRIC_QUAD_SURFACE:
-    case VTK_HIGHER_ORDER_EDGE:
-    case VTK_HIGHER_ORDER_TRIANGLE:
-    case VTK_HIGHER_ORDER_QUAD:
-    case VTK_HIGHER_ORDER_POLYGON:
-    case VTK_LAGRANGE_CURVE:
-    case VTK_LAGRANGE_TRIANGLE:
-    case VTK_LAGRANGE_QUADRILATERAL:
-    case VTK_BEZIER_CURVE:
-    case VTK_BEZIER_TRIANGLE:
-    case VTK_BEZIER_QUADRILATERAL:
       return 0;
-
     case VTK_TETRA:
-    case VTK_QUADRATIC_TETRA:
-    case VTK_PARAMETRIC_TETRA_REGION:
-    case VTK_HIGHER_ORDER_TETRAHEDRON:
-    case VTK_LAGRANGE_TETRAHEDRON:
-    case VTK_BEZIER_TETRAHEDRON:
       return 4;
-
     case VTK_PYRAMID:
-    case VTK_QUADRATIC_PYRAMID:
-    case VTK_TRIQUADRATIC_PYRAMID:
-    case VTK_HIGHER_ORDER_PYRAMID:
     case VTK_WEDGE:
-    case VTK_QUADRATIC_WEDGE:
-    case VTK_QUADRATIC_LINEAR_WEDGE:
-    case VTK_BIQUADRATIC_QUADRATIC_WEDGE:
-    case VTK_HIGHER_ORDER_WEDGE:
-    case VTK_LAGRANGE_WEDGE:
-    case VTK_BEZIER_WEDGE:
       return 5;
-
     case VTK_VOXEL:
     case VTK_HEXAHEDRON:
-    case VTK_QUADRATIC_HEXAHEDRON:
-    case VTK_TRIQUADRATIC_HEXAHEDRON:
-    case VTK_HIGHER_ORDER_HEXAHEDRON:
-    case VTK_PARAMETRIC_HEX_REGION:
-    case VTK_BIQUADRATIC_QUADRATIC_HEXAHEDRON:
-    case VTK_LAGRANGE_HEXAHEDRON:
-    case VTK_BEZIER_HEXAHEDRON:
       return 6;
-
     case VTK_PENTAGONAL_PRISM:
       return 7;
-
     case VTK_HEXAGONAL_PRISM:
       return 8;
-
-    case VTK_CONVEX_POINT_SET:
-    case VTK_POLYHEDRON:
     default:
       this->GetCell(cellId, cell);
       return cell->GetNumberOfFaces();
@@ -552,6 +502,19 @@ int vtkDataSet::GetMaxSpatialDimension()
     maxDim = std::max(vtkCellTypes::GetDimension(cellTypes->GetCellType(i)), maxDim);
   }
   return maxDim;
+}
+
+//------------------------------------------------------------------------------
+int vtkDataSet::GetMinSpatialDimension()
+{
+  vtkNew<vtkCellTypes> cellTypes;
+  this->GetCellTypes(cellTypes);
+  int minDim = 3;
+  for (vtkIdType i = 0; i < cellTypes->GetNumberOfTypes(); ++i)
+  {
+    minDim = std::min(vtkCellTypes::GetDimension(cellTypes->GetCellType(i)), minDim);
+  }
+  return minDim;
 }
 
 //------------------------------------------------------------------------------
@@ -880,7 +843,7 @@ void vtkDataSet::GenerateGhostArray(int zeroExt[6], bool cellOnly)
           { // Special case for last tile.
             di = i - zeroExt[1] + 1;
           }
-          // Compute Manhatten distance.
+          // Compute Manhattan distance.
           dist = di;
           if (dj > dist)
           {
@@ -937,7 +900,7 @@ void vtkDataSet::GenerateGhostArray(int zeroExt[6], bool cellOnly)
 
   // Loop
   for (k = extent[4]; k < extent[5]; ++k)
-  { // Determine the Manhatten distances to zero extent.
+  { // Determine the Manhattan distances to zero extent.
     dk = 0;
     if (k < zeroExt[4])
     {
@@ -969,7 +932,7 @@ void vtkDataSet::GenerateGhostArray(int zeroExt[6], bool cellOnly)
         {
           di = i - zeroExt[1] + 1;
         }
-        // Compute Manhatten distance.
+        // Compute Manhattan distance.
         dist = di;
         if (dj > dist)
         {
@@ -1027,6 +990,12 @@ vtkIdType vtkDataSet::GetNumberOfElements(int type)
       return this->GetNumberOfCells();
   }
   return this->Superclass::GetNumberOfElements(type);
+}
+
+//------------------------------------------------------------------------------
+vtkMTimeType vtkDataSet::GetMeshMTime()
+{
+  return this->GetMTime();
 }
 
 //------------------------------------------------------------------------------
@@ -1138,22 +1107,6 @@ vtkUnsignedCharArray* vtkDataSet::AllocateCellGhostArray()
     this->GetCellData()->AddArray(ghosts);
   }
   return this->GetCellGhostArray();
-}
-
-//------------------------------------------------------------------------------
-void vtkDataSet::OnDataModified(vtkObject* source, unsigned long, void* clientdata, void*)
-{
-  // update the point/cell pointers to ghost data arrays.
-  vtkDataSet* This = static_cast<vtkDataSet*>(clientdata);
-  if (source == This->GetPointData())
-  {
-    This->UpdatePointGhostArrayCache();
-  }
-  else
-  {
-    assert(source == This->GetCellData());
-    This->UpdateCellGhostArrayCache();
-  }
 }
 
 //------------------------------------------------------------------------------

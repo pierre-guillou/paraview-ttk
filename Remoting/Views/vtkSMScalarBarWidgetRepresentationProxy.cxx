@@ -98,22 +98,10 @@ void vtkSMScalarBarWidgetRepresentationProxy::ExecuteEvent(unsigned long event)
       double position[2];
       position[0] = repr->GetPosition()[0];
       position[1] = repr->GetPosition()[1];
-      if (position[0] < 0.0)
-      {
-        position[0] = 0.0;
-      }
-      if (position[0] > 0.97)
-      {
-        position[0] = 0.97;
-      }
-      if (position[1] < 0.0)
-      {
-        position[1] = 0.0;
-      }
-      if (position[1] > 0.97)
-      {
-        position[1] = 0.97;
-      }
+      position[0] = std::max(position[0], 0.0);
+      position[0] = std::min(position[0], 0.97);
+      position[1] = std::max(position[1], 0.0);
+      position[1] = std::min(position[1], 0.97);
       repr->SetPosition(position);
     }
     // user interacted. lock the position.
@@ -240,9 +228,8 @@ bool vtkSMScalarBarWidgetRepresentationProxy::PlaceInView(vtkSMProxy* view)
 
   // A scalar bar with ::AnyLocation implies that it is free to move around, hence do not consider
   // it an 'occupied' location
-  auto locationTypeIsAny = [](const int& loc) {
-    return loc == static_cast<int>(vtkScalarBarRepresentation::AnyLocation);
-  };
+  auto locationTypeIsAny = [](const int& loc)
+  { return loc == static_cast<int>(vtkScalarBarRepresentation::AnyLocation); };
   occupiedLocations.erase(
     std::remove_if(occupiedLocations.begin(), occupiedLocations.end(), locationTypeIsAny),
     occupiedLocations.end());
@@ -355,7 +342,7 @@ void vtkSMScalarBarWidgetRepresentationProxy::RemoveBlockRange(
 }
 
 //----------------------------------------------------------------------------
-void vtkSMScalarBarWidgetRepresentationProxy::GetRange(double range[2])
+void vtkSMScalarBarWidgetRepresentationProxy::GetRange(double range[2], int component)
 {
   bool valid = false;
   range[0] = std::numeric_limits<double>::infinity();
@@ -383,7 +370,7 @@ void vtkSMScalarBarWidgetRepresentationProxy::GetRange(double range[2])
         continue;
       }
       valid = true;
-      const double* localRange = info->GetComponentRange(-1);
+      const double* localRange = info->GetComponentRange(component);
       min = std::min(min, localRange[0]);
       max = std::max(max, localRange[1]);
     }
@@ -419,7 +406,7 @@ void vtkSMScalarBarWidgetRepresentationProxy::GetRange(double range[2])
         continue;
       }
       valid = true;
-      const double* localRange = info->GetComponentRange(-1);
+      const double* localRange = info->GetComponentRange(component);
       min = std::min(min, localRange[0]);
       max = std::max(max, localRange[1]);
     }

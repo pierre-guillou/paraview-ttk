@@ -60,7 +60,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_IMAGE_DATA; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_IMAGE_DATA; }
 
   ///@{
   /**
@@ -79,6 +79,7 @@ public:
   vtkCell* GetCell(int i, int j, int k) override;
   void GetCell(vtkIdType cellId, vtkGenericCell* cell) override;
   void GetCellBounds(vtkIdType cellId, double bounds[6]) override;
+  using vtkDataSet::FindPoint;
   vtkIdType FindPoint(double x[3]) override;
   vtkIdType FindCell(double x[3], vtkCell* cell, vtkIdType cellId, double tol2, int& subId,
     double pcoords[3], double* weights) override;
@@ -100,6 +101,7 @@ public:
   void ComputeBounds() override;
   int GetMaxCellSize() override { return 8; } // voxel is the largest
   int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   ///@}
 
@@ -221,13 +223,18 @@ public:
   virtual void GetDimensions(vtkIdType dims[3]);
 #endif
 
+  ///@{
   /**
    * Convenience function computes the structured coordinates for a point x[3].
    * The voxel is specified by the array ijk[3], and the parametric coordinates
    * in the cell are specified with pcoords[3]. The function returns a 0 if the
-   * point x is outside of the volume, and a 1 if inside the volume.
+   * point x is outside of the volume, and a 1 if inside the volume, using squared tolerance tol2
+   * (1e-12 if not provided).
    */
   virtual int ComputeStructuredCoordinates(const double x[3], int ijk[3], double pcoords[3]);
+  virtual int ComputeStructuredCoordinates(
+    const double x[3], int ijk[3], double pcoords[3], double tol2);
+  ///@}
 
   /**
    * Given structured coordinates (i,j,k) for a voxel cell, compute the eight
@@ -535,9 +542,6 @@ public:
   virtual void TransformPhysicalPointToContinuousIndex(const double xyz[3], double ijk[3]);
   ///@}
 
-  static void ComputeIndexToPhysicalMatrix(
-    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
-
   ///@{
   /**
    * Convert normal from physical space (xyz) to index space (ijk).
@@ -550,6 +554,21 @@ public:
    * n(x-xo)=0; or using a four component normal: pplane=( nx,ny,nz,-(n(x0)) ).
    */
   virtual void TransformPhysicalPlaneToContinuousIndex(double const pplane[4], double iplane[4]);
+
+  ///@{
+  /**
+   * Static method to compute the IndexToPhysicalMatrix.
+   */
+  static void ComputeIndexToPhysicalMatrix(
+    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
+
+  ///@{
+  /**
+   * Static method to compute the PhysicalToIndexMatrix.
+   */
+  static void ComputePhysicalToIndexMatrix(
+    double const origin[3], double const spacing[3], double const direction[9], double result[16]);
+  ///@}
 
   static void SetScalarType(int, vtkInformation* meta_data);
   static int GetScalarType(vtkInformation* meta_data);
@@ -639,7 +658,7 @@ public:
   /**
    * The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   ///@{
   /**
@@ -679,7 +698,7 @@ protected:
   void ComputeIncrements(int numberOfComponents);
   void ComputeIncrements(vtkDataArray* scalars);
 
-  // The first method assumes Acitive Scalars
+  // The first method assumes Active Scalars
   void ComputeIncrements(vtkIdType inc[3]);
   // This one is given the number of components of the
   // scalar field explicitly
@@ -754,6 +773,12 @@ inline int vtkImageData::GetDataDimension()
 
 //----------------------------------------------------------------------------
 inline int vtkImageData::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//----------------------------------------------------------------------------
+inline int vtkImageData::GetMinSpatialDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }

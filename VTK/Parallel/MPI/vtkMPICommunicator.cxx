@@ -13,6 +13,7 @@
 #include "vtkStructuredGrid.h"
 #define VTK_CREATE(type, name) vtkSmartPointer<type> name = vtkSmartPointer<type>::New()
 
+#include <algorithm>
 #include <cassert>
 #include <type_traits> // for std::is_pointer
 #include <vector>
@@ -992,12 +993,6 @@ int vtkMPICommunicator::SendVoidArray(
 }
 
 //------------------------------------------------------------------------------
-inline vtkIdType vtkMPICommunicatorMin(vtkIdType a, vtkIdType b)
-{
-  return (a > b) ? b : a;
-}
-
-//------------------------------------------------------------------------------
 int vtkMPICommunicator::ReceiveVoidArray(
   void* data, vtkIdType maxlength, int type, int remoteProcessId, int tag)
 {
@@ -1042,9 +1037,9 @@ int vtkMPICommunicator::ReceiveVoidArray(
   vtkMPICommunicatorReceiveDataInfo info;
   info.Handle = this->MPIComm->Handle;
   info.DataType = mpiType;
-  while (CheckForMPIError(this->ReceiveDataInternal(byteData,
-           vtkMPICommunicatorMin(maxlength, maxReceive), sizeOfType, remoteProcessId, tag, &info,
-           vtkCommunicator::UseCopy, this->LastSenderId)) != 0)
+  while (
+    CheckForMPIError(this->ReceiveDataInternal(byteData, std::min<vtkIdType>(maxlength, maxReceive),
+      sizeOfType, remoteProcessId, tag, &info, vtkCommunicator::UseCopy, this->LastSenderId)) != 0)
   {
     remoteProcessId = this->LastSenderId;
 
@@ -1446,12 +1441,32 @@ int vtkMPICommunicator::GatherVVoidArray(const void* sendBuffer, void* recvBuffe
   vtkIdType sendLength, vtkIdType* recvLengths, vtkIdType* offsets, int type, int destProcessId)
 {
   vtkMPICommunicatorDebugBarrier(this->MPIComm->Handle);
+  int numProc;
+  MPI_Comm_size(*this->MPIComm->Handle, &numProc);
+
 #ifndef VTKMPI_64BIT_LENGTH
-  if (!vtkMPICommunicatorCheckSize(sendLength))
+  if (recvLengths && offsets)
   {
-    return 0;
+    for (int i = 0; i < numProc; i++)
+    {
+      if (!vtkMPICommunicatorCheckSize(recvLengths[i] + offsets[i]))
+      {
+        return 0;
+      }
+    }
+  }
+  else
+  {
+    vtkWarningMacro(<< "By calling vtkMPICommunicator::GatherVVoidArray without recvLengths and "
+                       "offsets specified,"
+                       " the program can hang because all the processes may not fail.");
+    if (!vtkMPICommunicatorCheckSize(sendLength))
+    {
+      return 0;
+    }
   }
 #endif
+
   MPI_Datatype mpiType = vtkMPICommunicatorGetMPIType(type);
   // We have to jump through several hoops to make sure vtkIdType arrays
   // become int arrays.
@@ -1459,8 +1474,21 @@ int vtkMPICommunicator::GatherVVoidArray(const void* sendBuffer, void* recvBuffe
   MPI_Comm_rank(*this->MPIComm->Handle, &rank);
   if (rank == destProcessId)
   {
-    int numProc;
-    MPI_Comm_size(*this->MPIComm->Handle, &numProc);
+#ifdef VTKMPI_64BIT_LENGTH
+    std::vector<MPI_Count> mpiRecvLengths;
+    std::vector<MPI_Aint> mpiOffsets;
+#else
+    std::vector<int> mpiRecvLengths;
+    std::vector<int> mpiOffsets;
+#endif
+
+    mpiRecvLengths.resize(numProc);
+    mpiOffsets.resize(numProc);
+    for (int i = 0; i < numProc; i++)
+    {
+      mpiRecvLengths[i] = recvLengths[i];
+      mpiOffsets[i] = offsets[i];
+    }
 #if defined(OPEN_MPI) && (OMPI_MAJOR_VERSION <= 1) && (OMPI_MINOR_VERSION <= 2)
     // I found a bug in OpenMPI 1.2 and earlier where MPI_Gatherv sometimes
     // fails with only one process.  I am told that they will fix it in a later
@@ -1476,26 +1504,6 @@ int vtkMPICommunicator::GatherVVoidArray(const void* sendBuffer, void* recvBuffe
       return 1;
     }
 #endif // OPEN_MPI
-#ifdef VTKMPI_64BIT_LENGTH
-    std::vector<MPI_Count> mpiRecvLengths;
-    std::vector<MPI_Aint> mpiOffsets;
-#else
-    std::vector<int> mpiRecvLengths;
-    std::vector<int> mpiOffsets;
-#endif
-    mpiRecvLengths.resize(numProc);
-    mpiOffsets.resize(numProc);
-    for (int i = 0; i < numProc; i++)
-    {
-#ifndef VTKMPI_64BIT_LENGTH
-      if (!vtkMPICommunicatorCheckSize(recvLengths[i] + offsets[i]))
-      {
-        return 0;
-      }
-#endif
-      mpiRecvLengths[i] = recvLengths[i];
-      mpiOffsets[i] = offsets[i];
-    }
 #ifdef VTKMPI_64BIT_LENGTH
     return CheckForMPIError(
       MPI_Gatherv_c(const_cast<void*>(sendBuffer), sendLength, mpiType, recvBuffer,

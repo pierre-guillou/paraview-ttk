@@ -53,6 +53,14 @@
 #include <sstream>
 #include <vector>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#define pqCheckBoxSignal checkStateChanged
+using pqCheckState = Qt::CheckState;
+#else
+#define pqCheckBoxSignal stateChanged
+using pqCheckState = int;
+#endif
+
 static const std::string INDEXED_COLORS = "IndexedColors";
 static const std::string ANNOTATIONS = "Annotations";
 
@@ -122,7 +130,7 @@ public:
   {
   }
 
-  // Overriden to update the global checkbox based on filtered elements only.
+  // Overridden to update the global checkbox based on filtered elements only.
   QVariant headerData(int section, Qt::Orientation orientation, int role) const override
   {
     pqAnnotationsModel* sourceModel = qobject_cast<pqAnnotationsModel*>(this->sourceModel());
@@ -157,7 +165,7 @@ public:
     return sourceModel->headerData(section, orientation, role);
   }
 
-  // Overriden in order to set the visibility / opacity values on the filtered elements only.
+  // Overridden in order to set the visibility / opacity values on the filtered elements only.
   bool setHeaderData(
     int section, Qt::Orientation orientation, const QVariant& value, int role) override
   {
@@ -421,8 +429,8 @@ pqColorAnnotationsWidget::pqColorAnnotationsWidget(QWidget* parentObject)
     SIGNAL(selectionChanged(const QItemSelection&, const QItemSelection&)));
 
   // Opacity mapping enable/disable mechanism
-  this->connect(
-    ui.EnableOpacityMapping, SIGNAL(stateChanged(int)), SLOT(updateOpacityColumnState()));
+  this->connect(ui.EnableOpacityMapping, &QCheckBox::pqCheckBoxSignal, this,
+    &pqColorAnnotationsWidget::updateOpacityColumnState);
   this->connect(ui.EnableOpacityMapping, SIGNAL(clicked()), SIGNAL(opacityMappingChanged()));
 
   // Animation tick events will update list of available annotations.
@@ -430,27 +438,29 @@ pqColorAnnotationsWidget::pqColorAnnotationsWidget(QWidget* parentObject)
   {
     if (auto scene = manager->getActiveScene())
     {
-      QObject::connect(scene, &pqAnimationScene::tick, this, [this](const int) {
-        const auto& internals = *(this->Internals);
-        if (internals.LookupTableProxy != nullptr)
+      QObject::connect(scene, &pqAnimationScene::tick, this,
+        [this](const int)
         {
-          int rescaleMode =
-            vtkSMPropertyHelper(internals.LookupTableProxy, "AutomaticRescaleRangeMode", true)
-              .GetAsInt();
-          if (rescaleMode ==
-            vtkSMTransferFunctionManager::TransferFunctionResetMode::GROW_ON_APPLY_AND_TIMESTEP)
+          const auto& internals = *(this->Internals);
+          if (internals.LookupTableProxy != nullptr)
           {
-            // extends the list of annotations.
-            this->addActiveAnnotations(/*force=*/false, /*extend=*/true);
+            int rescaleMode =
+              vtkSMPropertyHelper(internals.LookupTableProxy, "AutomaticRescaleRangeMode", true)
+                .GetAsInt();
+            if (rescaleMode ==
+              vtkSMTransferFunctionManager::TransferFunctionResetMode::GROW_ON_APPLY_AND_TIMESTEP)
+            {
+              // extends the list of annotations.
+              this->addActiveAnnotations(/*force=*/false, /*extend=*/true);
+            }
+            else if (rescaleMode ==
+              vtkSMTransferFunctionManager::TransferFunctionResetMode::RESET_ON_APPLY_AND_TIMESTEP)
+            {
+              // clamps the list of annotations to the scalar range of the active source.
+              this->addActiveAnnotations(/*force=*/false, /*extend=*/false);
+            }
           }
-          else if (rescaleMode ==
-            vtkSMTransferFunctionManager::TransferFunctionResetMode::RESET_ON_APPLY_AND_TIMESTEP)
-          {
-            // clamps the list of annotations to the scalar range of the active source.
-            this->addActiveAnnotations(/*force=*/false, /*extend=*/false);
-          }
-        }
-      });
+        });
     }
   }
 
@@ -675,9 +685,8 @@ QList<QVariant> pqColorAnnotationsWidget::visibilities() const
   QList<QVariant> reply;
   auto visibilities = this->Internals->Model->visibilities();
   std::sort(visibilities.begin(), visibilities.end(),
-    [](std::pair<QString, int> a, std::pair<QString, int> b) {
-      return a.first.compare(b.first, Qt::CaseInsensitive) < 0;
-    });
+    [](std::pair<QString, int> a, std::pair<QString, int> b)
+    { return a.first.compare(b.first, Qt::CaseInsensitive) < 0; });
   for (const auto& vis : visibilities)
   {
     reply.push_back(vis.first);

@@ -1,4 +1,4 @@
-/* Copyright 2023 NVIDIA Corporation. All rights reserved.
+/* Copyright 2025 NVIDIA Corporation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,9 +24,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-// SPDX-FileCopyrightText: Copyright 2023 NVIDIA Corporation
+// SPDX-FileCopyrightText: Copyright 2025 NVIDIA Corporation
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <iostream>
@@ -39,11 +40,7 @@
 #include <windows.h>
 #endif // _WIN32
 
-#if defined(__APPLE__)
-#include <OpenGL/glu.h>
-#else
-#include <GL/glu.h>
-#endif
+#include "vtk_glad.h"
 
 #include "vtkBoundingBox.h"
 #include "vtkCellData.h"
@@ -332,11 +329,8 @@ bool vtknvindex_irregular_volume_mapper::initialize_mapper(vtkRenderer* /*ren*/,
         unstructured_grid->GetPoint(cell_point_ids[TET_EDGES[i][1]], p2);
         mi::Float64 size2 = vtkMath::Distance2BetweenPoints(p1, p2);
 
-        if (size2 > max_cell_edge_size2)
-          max_cell_edge_size2 = size2;
-
-        if (size2 < min_cell_edge_size2)
-          min_cell_edge_size2 = size2;
+        max_cell_edge_size2 = std::max(max_cell_edge_size2, size2);
+        min_cell_edge_size2 = std::min(min_cell_edge_size2, size2);
 
         avg_edge_size2 += size2;
       }

@@ -19,15 +19,6 @@
 #include "pqProxyGroupMenuManager.h"
 #include "pqProxyInfo.h"
 
-// pqCore
-#include "pqApplicationCore.h"
-#include "pqSettings.h"
-
-#include "vtkPVXMLElement.h"
-#include "vtkPVXMLParser.h"
-
-#include <sstream>
-
 namespace
 {
 static constexpr int PROXY_ROLE = Qt::UserRole + 1;
@@ -227,16 +218,20 @@ pqConfigureCategoriesDialog::pqConfigureCategoriesDialog(
   this->Internal->Ui->customCategoriesTree->setHeaderLabels(QStringList() << tr("Name"));
   this->Internal->Ui->customCategoriesTree->viewport()->installEventFilter(this);
 
-  QObject::connect(this->Internal->Ui->addCategory, &QToolButton::released, this, [&]() {
-    auto parentItem = this->Internal->Ui->customCategoriesTree->invisibleRootItem();
-    auto precedingItem = parentItem;
-    this->createCategory(::DEFAULT_NAME, parentItem, precedingItem);
-  });
-  QObject::connect(this->Internal->Ui->addSubCategory, &QToolButton::released, this, [&]() {
-    QTreeWidgetItem* parentItem = this->getSelectedCategoryItem();
-    QTreeWidgetItem* precedingItem = this->getSelectedItem();
-    this->createCategory(::DEFAULT_NAME, parentItem, precedingItem);
-  });
+  QObject::connect(this->Internal->Ui->addCategory, &QToolButton::released, this,
+    [&]()
+    {
+      auto parentItem = this->Internal->Ui->customCategoriesTree->invisibleRootItem();
+      auto precedingItem = parentItem;
+      this->createCategory(::DEFAULT_NAME, parentItem, precedingItem);
+    });
+  QObject::connect(this->Internal->Ui->addSubCategory, &QToolButton::released, this,
+    [&]()
+    {
+      QTreeWidgetItem* parentItem = this->getSelectedCategoryItem();
+      QTreeWidgetItem* precedingItem = this->getSelectedItem();
+      this->createCategory(::DEFAULT_NAME, parentItem, precedingItem);
+    });
 
   QObject::connect(this->Internal->Ui->setIcon, &QToolButton::released, this,
     &pqConfigureCategoriesDialog::onSetIconPressed);
@@ -796,7 +791,12 @@ QTreeWidgetItem* pqConfigureCategoriesDialog::getSourceItem(QDropEvent* dropEven
 //----------------------------------------------------------------------------
 QTreeWidgetItem* pqConfigureCategoriesDialog::getDestinationItem(QDropEvent* dropEvent)
 {
-  return this->Internal->Ui->customCategoriesTree->itemAt(dropEvent->pos());
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+  auto pos = dropEvent->pos();
+#else
+  auto pos = dropEvent->position().toPoint();
+#endif
+  return this->Internal->Ui->customCategoriesTree->itemAt(pos);
 }
 
 //----------------------------------------------------------------------------

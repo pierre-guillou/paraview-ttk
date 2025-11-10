@@ -31,8 +31,8 @@
 #define vtkStructuredGrid_h
 
 #include "vtkCommonDataModelModule.h" // For export macro
-#include "vtkDeprecation.h"           // For VTK_DEPRECATED_IN_9_3_0
 #include "vtkPointSet.h"
+#include "vtkWrappingHints.h" // For VTK_MARSHALAUTO
 
 #include "vtkStructuredData.h" // Needed for inline methods
 
@@ -44,7 +44,7 @@ class vtkQuad;
 class vtkUnsignedCharArray;
 class vtkVertex;
 
-class VTKCOMMONDATAMODEL_EXPORT vtkStructuredGrid : public vtkPointSet
+class VTKCOMMONDATAMODEL_EXPORT VTK_MARSHALAUTO vtkStructuredGrid : public vtkPointSet
 {
 public:
   static vtkStructuredGrid* New();
@@ -56,7 +56,7 @@ public:
   /**
    * Return what type of dataset this is.
    */
-  int GetDataObjectType() override { return VTK_STRUCTURED_GRID; }
+  int GetDataObjectType() VTK_FUTURE_CONST override { return VTK_STRUCTURED_GRID; }
 
   /**
    * Copy the geometric and topological structure of an input poly data object.
@@ -96,6 +96,7 @@ public:
   }
   int GetMaxCellSize() override { return 8; } // hexahedron is the largest
   int GetMaxSpatialDimension() override;
+  int GetMinSpatialDimension() override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds) override;
   void GetCellNeighbors(vtkIdType cellId, vtkIdList* ptIds, vtkIdList* cellIds, int* seedLoc);
   ///@}
@@ -187,18 +188,10 @@ public:
   void SetDimensions(const int dims[3]);
   ///@}
 
-  ///@{
-  /**
-   * Get dimensions of this structured grid.
-   */
-  VTK_DEPRECATED_IN_9_3_0("Please use GetDimensions(int dims[3]) instead.")
-  virtual int* GetDimensions() VTK_SIZEHINT(3);
-
   /**
    * Get dimensions of this structured grid based on its extent.
    */
   virtual void GetDimensions(int dims[3]);
-  ///@}
 
   /**
    * Return the dimensionality of the data.
@@ -237,7 +230,7 @@ public:
   /**
    * The extent type is a 3D extent
    */
-  int GetExtentType() override { return VTK_3D_EXTENT; }
+  int GetExtentType() VTK_FUTURE_CONST override { return VTK_3D_EXTENT; }
 
   /**
    * Reallocates and copies to set the Extent to the UpdateExtent.
@@ -308,7 +301,14 @@ inline vtkIdType vtkStructuredGrid::GetNumberOfCells()
   return vtkStructuredData::GetNumberOfCells(this->Extent);
 }
 
+//------------------------------------------------------------------------------
 inline int vtkStructuredGrid::GetMaxSpatialDimension()
+{
+  return vtkStructuredData::GetDataDimension(this->DataDescription);
+}
+
+//------------------------------------------------------------------------------
+inline int vtkStructuredGrid::GetMinSpatialDimension()
 {
   return vtkStructuredData::GetDataDimension(this->DataDescription);
 }

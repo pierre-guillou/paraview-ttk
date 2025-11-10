@@ -5,6 +5,7 @@
 #include "vtkOBJImporter.h"
 
 #include "vtkCamera.h"
+#include "vtkLightCollection.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
@@ -44,8 +45,16 @@ int TestOBJImporter(int argc, char* argv[])
 
   vtkNew<vtkOBJImporter> importer;
   importer->SetFileName(filenameOBJ.data());
-  importer->SetFileNameMTL(filenameMTL.data());
-  importer->SetTexturePath(texfile1.data());
+
+  if (!filenameMTL.empty())
+  {
+    importer->SetFileNameMTL(filenameMTL.data());
+  }
+
+  if (!texfile1.empty())
+  {
+    importer->SetTexturePath(texfile1.data());
+  }
 
   vtkNew<vtkRenderer> ren;
   vtkNew<vtkRenderWindow> renWin;
@@ -54,11 +63,16 @@ int TestOBJImporter(int argc, char* argv[])
   renWin->AddRenderer(ren);
   iren->SetRenderWindow(renWin);
   importer->SetRenderWindow(renWin);
-  importer->Update();
+  if (!importer->Update())
+  {
+    std::cerr << "ERROR: Importer failed to update\n";
+    return EXIT_FAILURE;
+  }
 
   ren->ResetCamera();
 
-  if (1 > ren->GetActors()->GetNumberOfItems())
+  if (ren->GetActors()->GetNumberOfItems() < 1 ||
+    importer->GetImportedActors()->GetNumberOfItems() < 1)
   {
     std::cout << "failed to get an actor created?!" << std::endl;
     return EXIT_FAILURE;

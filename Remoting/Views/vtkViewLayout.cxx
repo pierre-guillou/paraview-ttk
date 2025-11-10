@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 #include "vtkViewLayout.h"
 
-#include "vtk_glew.h"
+#include "vtk_glad.h"
 
 #include "vtkCamera.h"
 #include "vtkCommand.h"
@@ -27,7 +27,6 @@
 #include "vtkSmartPointer.h"
 #include "vtkTilesHelper.h"
 #include "vtkVector.h"
-#include "vtkVectorOperators.h"
 #include "vtkWeakPointer.h"
 #include "vtkWindowToImageFilter.h"
 

@@ -12,10 +12,10 @@
 #include "vtkSMDomain.h"
 #include "vtkSMDomainIterator.h"
 #include "vtkSMMessage.h"
-#include "vtkSMProperty.h"
 #include "vtkSMPropertyLink.h"
 #include "vtkSMProxy.h"
 #include "vtkSMProxyProperty.h"
+#include "vtkSMSettings.h"
 #include "vtkSmartPointer.h"
 
 #include <sstream>
@@ -326,6 +326,8 @@ int vtkSMProperty::ReadXMLAttributes(vtkSMProxy* proxy, vtkPVXMLElement* element
   }
   else
   {
+    // FIXME: `xmlname` might be `nullptr` here.
+    // NOLINTNEXTLINE(clang-analyzer-cplusplus.StringChecker)
     this->SetXMLLabel(vtkSMObject::CreatePrettyLabel(xmlname).c_str());
   }
 
@@ -554,6 +556,13 @@ void vtkSMProperty::ResetToDefault()
   {
     this->ResetToXMLDefaults();
   }
+}
+
+//---------------------------------------------------------------------------
+bool vtkSMProperty::ResetToSettings(double priority)
+{
+  vtkSMSettings* settings = vtkSMSettings::GetInstance();
+  return settings->GetPropertySetting(this, priority);
 }
 
 //---------------------------------------------------------------------------
