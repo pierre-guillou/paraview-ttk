@@ -1,0 +1,85 @@
+name: headless_ubuntu
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  CMAKE_GENERATOR: Ninja
+  CMAKE_BUILD_TYPE: Release
+  CMAKE_CC_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_IDLE_TIMEOUT: 0
+
+
+jobs:
+
+  # ------ #
+  # Ubuntu #
+  # ------ #
+  build-ubuntu:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout TTK-ParaView source code
+
+    - name: Install Ubuntu dependencies
+      run: |
+        sudo apt update
+        # TTK-ParaView dependencies
+        sudo apt install -y \
+          g++ \
+          libosmesa-dev \
+          libopenmpi-dev \
+          ninja-build \
+          dpkg-dev
+
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Create & configure ParaView build directory
+      run: |
+        mkdir build && cd build
+        cmake \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DPARAVIEW_PYTHON_SITE_PACKAGES_SUFFIX=lib/python3/dist-packages \
+          -DPARAVIEW_USE_MPI=ON \
+          -DPARAVIEW_USE_PYTHON=ON \
+          -DPARAVIEW_USE_QT=OFF \
+          -DVTK_USE_X=OFF \
+          -DVTK_OPENGL_HAS_OSMESA=ON \
+          -DTTK_PARAVIEW_HEADLESS_DEPS=ON \
+          $GITHUB_WORKSPACE
+
+    - name: Build ParaView
+      run: |
+        cd build
+        cmake --build . --parallel 
+
+    - name: Create ParaView package
+      run: |
+        cd build
+        cpack -G DEB
+
+    - name: Install ParaView
+      run: |
+        cd build
+        sudo apt install ./ttk-paraview.deb
+
+    - name: Test Python imports
+      run: |
+        python3 -c "import vtk"
+        python3 -c "from paraview.simple import *"
+        pvpython -c "import vtk"
+        pvpython -c "from paraview.simple import *"
+
+    - name: Upload Debian package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ttk-paraview-headless-${{ matrix.os }}
+        path: build/ttk-paraview.deb

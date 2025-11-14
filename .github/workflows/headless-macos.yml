@@ -1,0 +1,82 @@
+name: headless_macos
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  CMAKE_GENERATOR: Ninja
+  CMAKE_BUILD_TYPE: Release
+  CMAKE_CC_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_IDLE_TIMEOUT: 0
+
+
+jobs:
+
+  # ----- #
+  # macOS #
+  # ----- #
+  build-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-14, macos-15]
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout TTK-ParaView source code
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+
+    - name: Install macOS dependencies
+      run: |
+        # ParaView dependencies
+        brew install --cask xquartz
+        brew install ninja open-mpi
+
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Create & configure ParaView build directory
+      run: |
+        mkdir build && cd build
+        cmake \
+          -DPARAVIEW_USE_MPI=OFF \
+          -DPARAVIEW_USE_QT=OFF \
+          $GITHUB_WORKSPACE
+
+    - name: Build ParaView
+      run: |
+        cd build
+        cmake --build . --parallel
+
+    - name: Create ParaView package
+      run: |
+        cd build
+        cpack -G TGZ
+
+    - name: Install ParaView
+      run: |
+        cd build
+        sudo cmake --build . --target install
+        # pvpython does not embed the correct PYTHONPATH
+        echo "PYTHONPATH=/usr/local/lib/python3.13/site-packages:$PYTHONPATH" >> $GITHUB_ENV
+
+    - name: Test Python imports
+      run: |
+        python3 -c "import vtk"
+        python3 -c "from paraview.simple import *"
+        pvpython -c "import vtk"
+        pvpython -c "from paraview.simple import *"
+      env:
+        DYLD_LIBRARY_PATH: /usr/local/lib
+
+    - name: Upload compressed binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: ttk-paraview-headless-${{ matrix.os }}
+        path: build/ttk-paraview.tar.gz

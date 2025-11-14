@@ -1,0 +1,89 @@
+name: headless_windows
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+env:
+  CMAKE_GENERATOR: "Visual Studio 17 2022"
+  CMAKE_BUILD_TYPE: Release
+  CMAKE_CC_COMPILER_LAUNCHER: sccache
+  CMAKE_CXX_COMPILER_LAUNCHER: sccache
+  SCCACHE_GHA_ENABLED: "true"
+  SCCACHE_IDLE_TIMEOUT: 0
+  CONDA_ROOT: C:\Miniconda
+
+
+jobs:
+
+  # ------- #
+  # Windows #
+  # ------- #
+  build-windows:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2022]
+
+    steps:
+    - uses: actions/checkout@v4
+      name: Checkout TTK-ParaView source code
+
+    - uses: s-weigand/setup-conda@v1
+
+    - name: Install dependencies with conda
+      shell: bash
+      run: |
+        conda install -c conda-forge glew python=3.10
+
+    - name: Remove hosted Python
+      shell: bash
+      run: |
+        rm -rf C:/hostedtoolcache/windows/Python
+
+    - name: Run sccache-cache
+      uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Create & configure ParaView build directory
+      shell: cmd
+      run: |
+        cd ..
+        mkdir b
+        cd b
+        cmake ^
+          -DPARAVIEW_USE_QT=OFF ^
+          -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
+          -DCMAKE_AUTOUIC=OFF ^
+          -DVTKm_MODULE_ENABLE_vtkm_filter_scalar_topology=NO ^
+          %GITHUB_WORKSPACE%
+
+    - name: Build ParaView
+      shell: cmd
+      run: |
+        cd ..\b
+        cmake --build . --config Release --parallel
+
+    - name: Create ParaView package
+      shell: bash
+      run: |
+        cd ../b
+        cpack -G NSIS64
+        mv ttk-paraview.exe $GITHUB_WORKSPACE
+
+    - name: Install ParaView
+      shell: cmd
+      run: |
+        ttk-paraview.exe /S
+
+    - name: Test Python imports
+      run: |
+        python3 -c "import vtk"
+        python3 -c "from paraview.simple import *"
+        pvpython -c "import vtk"
+        pvpython -c "from paraview.simple import *"
+
+    - name: Upload install executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: ttk-paraview-headless-${{ matrix.os }}
+        path: ttk-paraview.exe
