@@ -51,9 +51,8 @@ jobs:
     - name: Create & configure ParaView build directory
       shell: cmd
       run: |
-        cd ..
-        mkdir b
-        cd b
+        mkdir build
+        cd build
         cmake ^
           -DPARAVIEW_USE_QT=OFF ^
           -DPython3_ROOT_DIR="%CONDA_ROOT%" ^
@@ -62,15 +61,14 @@ jobs:
           %GITHUB_WORKSPACE%
 
     - name: Build ParaView
-      shell: cmd
       run: |
-        cd ..\b
+        cd build
         cmake --build . --config Release --parallel
 
     - name: Create ParaView package
       shell: bash
       run: |
-        cd ../b
+        cd build
         cpack -G NSIS64
         mv ttk-paraview.exe $GITHUB_WORKSPACE
 
