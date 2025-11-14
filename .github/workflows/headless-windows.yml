@@ -5,13 +5,14 @@ on:
   workflow_dispatch:
 
 env:
-  CMAKE_GENERATOR: "Visual Studio 17 2022"
+  CMAKE_GENERATOR: Ninja
   CMAKE_BUILD_TYPE: Release
   CMAKE_CC_COMPILER_LAUNCHER: sccache
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   SCCACHE_GHA_ENABLED: "true"
   SCCACHE_IDLE_TIMEOUT: 0
   CONDA_ROOT: C:\Miniconda
+  PV_DIR: C:\Program Files\TTK-ParaView
 
 
 jobs:
@@ -43,6 +44,9 @@ jobs:
 
     - name: Run sccache-cache
       uses: mozilla-actions/sccache-action@v0.0.9
+
+    - name: Set up Visual Studio shell
+      uses: egor-tensin/vs-shell@v2
 
     - name: Create & configure ParaView build directory
       shell: cmd
@@ -77,8 +81,9 @@ jobs:
 
     - name: Test Python imports
       run: |
-        python3 -c "import vtk"
-        python3 -c "from paraview.simple import *"
+        set PYTHONPATH=%PV_DIR%\bin\Lib\site-packages;%CONDA_ROOT%\Lib
+        python -c "import vtk"
+        python -c "from paraview.simple import *"
         pvpython -c "import vtk"
         pvpython -c "from paraview.simple import *"
 
