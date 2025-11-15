@@ -11,7 +11,7 @@ env:
   CMAKE_CXX_COMPILER_LAUNCHER: sccache
   SCCACHE_GHA_ENABLED: "true"
   SCCACHE_IDLE_TIMEOUT: 0
-  PV_DIR: C:/Program Files (x86)/ParaView
+  PV_DIR: C:/Program Files/TTK-ParaView
 
 
 jobs:
@@ -74,8 +74,7 @@ jobs:
     - name: Install ParaView
       shell: cmd
       run: |
-        cd build
-        cmake --build . --config Release --parallel --target install
+        ttk-paraview.exe /S
 
     - name: Test Python imports
       shell: pixi run bash -e {0}
