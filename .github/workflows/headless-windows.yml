@@ -79,7 +79,8 @@ jobs:
     - name: Test Python imports
       shell: pixi run bash -e {0}
       run: |
-        export PYTHONPATH=$PV_DIR/bin/Lib/site-packages:$CONDA_PREFIX/Lib
+        export PYTHONPATH="$PV_DIR/bin/Lib/site-packages:$CONDA_PREFIX/Lib"
+        ls -l "$PV_DIR/bin/Lib/site-packages"
         python -c "import vtk"
         python -c "from paraview.simple import *"
         pvpython -c "import vtk"
