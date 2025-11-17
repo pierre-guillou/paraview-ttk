@@ -79,13 +79,15 @@ jobs:
     - name: Test Python imports
       shell: pixi run bash -e {0}
       run: |
-        export PYTHONPATH="$PV_DIR/lib/site-packages:$CONDA_PREFIX/Lib"
-        ls -l "$PV_DIR/lib/site-packages"
-        echo $PYTHONPATH
+        cd "$PV_DIR/lib/site-packages"
+        echo "\npython vtk"
         python -c "import vtk"
-        python -c "from paraview.simple import *"
+        echo "\npvpython vtk"
         pvpython -c "import vtk"
+        echo "\npvpython paraview simple"
         pvpython -c "from paraview.simple import *"
+        echo "\npython paraview simple"
+        python -c "from paraview.simple import *"
 
     - name: Upload install executable
       uses: actions/upload-artifact@v4
