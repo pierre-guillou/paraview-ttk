@@ -4,82 +4,48 @@ on:
   workflow_call:
   workflow_dispatch:
 
-env:
-  CMAKE_GENERATOR: Ninja
-  CMAKE_BUILD_TYPE: Release
-  CMAKE_CC_COMPILER_LAUNCHER: sccache
-  CMAKE_CXX_COMPILER_LAUNCHER: sccache
-  SCCACHE_GHA_ENABLED: "true"
-  SCCACHE_IDLE_TIMEOUT: 0
-  PV_DIR: C:/Program Files/TTK-ParaView
-
-
 jobs:
-
-  # ------- #
-  # Windows #
-  # ------- #
-  build-windows:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [windows-2022]
-
+  build:
+    runs-on: windows-latest
     steps:
+
     - uses: actions/checkout@v4
       name: Checkout TTK-ParaView source code
 
-    - uses: prefix-dev/setup-pixi@v0.9.3
+    - uses: prefix-dev/setup-pixi@v0.9.6
       with:
         run-install: false
 
-    - name: Install dependencies
+    - name: Create ParaView package
+      run: |
+        pixi build
+
+    - name: Upload install executable
+      uses: actions/upload-artifact@v7
+      with:
+        path: "*.conda"
+
+  test:
+    needs: build
+    runs-on: windows-latest
+    steps:
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
+
+    - uses: prefix-dev/setup-pixi@v0.9.6
+      with:
+        run-install: false
+
+    - name: Install package
       shell: bash
       run: |
         pixi init
-        pixi add glew python==3.13
-        # add ParaView install folder to PATH
-        echo "$PV_DIR/bin" >> $GITHUB_PATH
-
-    - name: Run sccache-cache
-      uses: mozilla-actions/sccache-action@v0.0.9
-
-    - name: Set up Visual Studio shell
-      uses: egor-tensin/vs-shell@v2
-
-    - name: Create & configure ParaView build directory
-      shell: pixi run bash -e {0}
-      run: |
-        mkdir build
-        cd build
-        cmake \
-          -DPARAVIEW_USE_QT=OFF \
-          -DPython3_ROOT_DIR="$CONDA_PREFIX" \
-          -DCMAKE_AUTOUIC=OFF \
-          -DVTKm_MODULE_ENABLE_vtkm_filter_scalar_topology=NO \
-          $GITHUB_WORKSPACE
-
-    - name: Build ParaView
-      run: |
-        cd build
-        cmake --build . --config Release --parallel
-
-    - name: Create ParaView package
-      shell: pixi run bash -e {0}
-      run: |
-        cd build
-        cpack -G NSIS64
-        mv ttk-paraview.exe $GITHUB_WORKSPACE
-
-    - name: Install ParaView
-      shell: cmd
-      run: |
-        ttk-paraview.exe /S
+        pixi add $PWD/*.conda
 
     - name: Test Python imports
       shell: pixi run bash -e {0}
       run: |
-        cd "$PV_DIR/lib/site-packages"
         echo "\npython vtk"
         python -c "import vtk"
         echo "\npvpython vtk"
@@ -88,9 +54,3 @@ jobs:
         pvpython -c "from paraview.simple import *"
         echo "\npython paraview simple"
         python -c "from paraview.simple import *"
-
-    - name: Upload install executable
-      uses: actions/upload-artifact@v4
-      with:
-        name: ttk-paraview-headless-${{ matrix.os }}
-        path: ttk-paraview.exe

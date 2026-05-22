@@ -1,0 +1,32 @@
+[workspace]
+authors = [
+    "Pierre Guillou <pierre.guillou@minesparis.psl.eu>",
+]
+channels = ["conda-forge"]
+description = "Scientific data-sets visualization"
+platforms = ["linux-64", "win-64"]
+preview = ["pixi-build"]
+
+[tasks]
+
+[dependencies]
+ttk-paraview = { path = "." }
+
+[package]
+name = "ttk-paraview"
+version = "6.0.1"
+
+[package.build.backend]
+name = "pixi-build-cmake"
+version = "*"
+
+[package.build.config]
+extra-args = [
+  "-DPARAVIEW_USE_QT=OFF",
+  "-DCMAKE_AUTOUIC=OFF",
+  "-DVTKm_MODULE_ENABLE_vtkm_filter_scalar_topology=NO",
+  "-DVTK_USE_X=OFF",
+]
+
+[package.host-dependencies]
+python = "3.14.*"
