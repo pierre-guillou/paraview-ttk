@@ -1,0 +1,82 @@
+name: headless_conda
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+
+    - uses: actions/checkout@v4
+      name: Checkout TTK-ParaView source code
+
+    - uses: prefix-dev/setup-pixi@v0.9.6
+      with:
+        run-install: false
+
+    - name: Create ParaView package
+      run: |
+        pixi build
+
+    - name: Upload install executable
+      uses: actions/upload-artifact@v7
+      with:
+        name: ttk-paraview-${{ matrix.os }}
+        path: "*.conda"
+
+  test:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
+      with:
+        name: ttk-paraview-${{ matrix.os }}
+
+    - uses: prefix-dev/setup-pixi@v0.9.6
+      with:
+        run-install: false
+
+    - name: Install package
+      shell: bash
+      run: |
+        pixi init
+        pixi add $PWD/*.conda
+        pixi install
+
+    - name: Test package
+      run: |
+        pixi run paraview --version
+
+    - name: Test Python vtk import
+      continue-on-error: true
+      shell: pixi run bash -e {0}
+      run: |
+        python -c "import vtk"
+
+    - name: Test pvpython vtk import
+      continue-on-error: true
+      shell: pixi run bash -e {0}
+      run: |
+        pvpython -c "import vtk"
+
+    - name: Test Python paraview import
+      continue-on-error: true
+      shell: pixi run bash -e {0}
+      run: |
+        python -c "from paraview.simple import *"
+
+    - name: Test pvpython paraview import
+      continue-on-error: true
+      shell: pixi run bash -e {0}
+      run: |
+        pvpython -c "from paraview.simple import *"
